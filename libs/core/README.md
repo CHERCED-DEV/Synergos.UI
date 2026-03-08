@@ -19,11 +19,19 @@ Se exporta desde `libs/core/src/index.ts`:
 - `authInterceptor`
 - `LoggerService`
 
+## Testing (Vitest)
+
+- Tests unitarios colocados junto al codigo (`*.spec.ts`).
+- Target por proyecto: `nx test core`.
+- Coverage aislado: `nx test core --coverage`.
+- Directorio de coverage: `coverage/libs/core`.
+
 ## Comandos
 
 ```bash
-npx nx lint core
-npx nx test core
+nx lint core
+nx test core
+nx test core --coverage
 ```
 
 ## Uso rapido

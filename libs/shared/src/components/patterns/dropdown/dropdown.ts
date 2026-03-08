@@ -200,8 +200,11 @@ export class DropdownComponent {
   }
 
   private focusItem(index: number): void {
-    const nodes = this.#host.nativeElement.querySelectorAll<HTMLButtonElement>('.syn-dropdown__item');
+    const hostElement = this.#host.nativeElement as HTMLElement;
+    const nodes = hostElement.querySelectorAll('.syn-dropdown__item');
     const target = nodes.item(index);
-    target?.focus();
+    if (target instanceof HTMLButtonElement) {
+      target.focus();
+    }
   }
 }

@@ -17,6 +17,7 @@ Design system Angular de Synergos UI.
 ## Componentes incluidos
 
 ### Foundations
+
 - alert
 - avatar
 - badge
@@ -29,26 +30,24 @@ Design system Angular de Synergos UI.
 - textarea
 
 ### Patterns
+
 - card
 - dropdown
 - modal
 - tabs
 - tooltip
 
-## Reglas aplicadas
+## Testing (Vitest)
 
-- `standalone: true`
-- `ChangeDetectionStrategy.OnPush`
-- `input()` / `output()`
-- estado interno con `signal()`
-- control flow moderno (`@if`, `@for`)
-- tests colocados junto al componente (`*.spec.ts`)
+- Tests unitarios colocados junto al codigo (`*.spec.ts`).
+- Target por proyecto: `nx test shared`.
+- Coverage aislado: `nx test shared --coverage`.
+- Directorio de coverage: `coverage/libs/shared`.
 
 ## Comandos
 
 ```bash
-npx nx lint shared
-npx nx test shared
+nx lint shared
+nx test shared
+nx test shared --coverage
 ```
-
-> Nota: en el estado actual del workspace, `shared:test` requiere completar configuracion de build target para ejecutar la suite con `@angular/build:unit-test`.

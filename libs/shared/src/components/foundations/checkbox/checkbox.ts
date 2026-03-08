@@ -51,7 +51,7 @@ export class CheckboxComponent {
     this.checkedChange.emit(target.checked);
   }
 
-  onSpace(event: KeyboardEvent): void {
+  onSpace(event: Event): void {
     if (this.disabled()) {
       event.preventDefault();
     }

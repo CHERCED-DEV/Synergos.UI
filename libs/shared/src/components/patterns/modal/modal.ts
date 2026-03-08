@@ -101,7 +101,10 @@ export class ModalComponent {
   }
 
   private focusCloseButton(): void {
-    const closeButton = this.#host.nativeElement.querySelector<HTMLButtonElement>('.syn-modal__close');
-    closeButton?.focus();
+    const hostElement = this.#host.nativeElement as HTMLElement;
+    const closeButton = hostElement.querySelector('.syn-modal__close');
+    if (closeButton instanceof HTMLButtonElement) {
+      closeButton.focus();
+    }
   }
 }

@@ -11,3 +11,5 @@
 
 ### Changed
 - Se establece base inicial de design system reusable para Synergos UI.
+- Infraestructura de tests actualizada para ejecucion aislada con Vitest (`nx test shared`).
+- Coverage configurado por proyecto en `coverage/libs/shared`.
