@@ -1,0 +1,40 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-card {
+  display: grid;
+  gap: syn.$space-sm;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.px-to-rem(14);
+  background: syn.$color-neutral-0;
+  box-shadow: syn.$shadow-xs;
+}
+
+.syn-card--interactive {
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+
+  @include syn.focus-visible;
+
+  &:hover {
+    transform: translateY(syn.px-to-rem(-1));
+    border-color: syn.$color-brand-300;
+    box-shadow: syn.$shadow-sm;
+  }
+}
+
+.syn-card__header {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-card__title {
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+  color: syn.$color-neutral-900;
+}
+
+.syn-card__subtitle {
+  font-size: syn.$font-size-sm;
+  color: syn.$color-neutral-600;
+}

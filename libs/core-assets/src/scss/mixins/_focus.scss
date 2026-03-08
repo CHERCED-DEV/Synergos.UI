@@ -1,0 +1,13 @@
+@use '../tokens/colors' as *;
+@use '../functions/px-to-rem' as *;
+
+@mixin focus-visible(
+  $ring-color: $color-brand-300,
+  $ring-width: px-to-rem(2),
+  $ring-offset: px-to-rem(2)
+) {
+  &:focus-visible {
+    outline: $ring-width solid $ring-color;
+    outline-offset: $ring-offset;
+  }
+}

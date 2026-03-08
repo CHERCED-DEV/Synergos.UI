@@ -1,0 +1,39 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-icon-button {
+  @include syn.flex-center;
+  width: syn.px-to-rem(40);
+  height: syn.px-to-rem(40);
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: 50%;
+  font-size: syn.$font-size-lg;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+
+  @include syn.focus-visible;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.syn-icon-button--filled {
+  background: syn.$color-brand-500;
+  color: syn.$color-neutral-0;
+
+  &:hover:not(:disabled) {
+    background: syn.$color-brand-600;
+  }
+}
+
+.syn-icon-button--outline {
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-800;
+  border-color: syn.$color-neutral-300;
+
+  &:hover:not(:disabled) {
+    border-color: syn.$color-brand-400;
+    color: syn.$color-brand-600;
+  }
+}

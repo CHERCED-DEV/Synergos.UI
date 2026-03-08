@@ -1,0 +1,31 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-select {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-select__label {
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  color: syn.$color-neutral-800;
+}
+
+.syn-select__field {
+  width: 100%;
+  min-height: syn.px-to-rem(40);
+  padding: syn.$space-xs syn.$space-sm;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(10);
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-base;
+
+  @include syn.focus-visible;
+
+  &:disabled {
+    background: syn.$color-neutral-100;
+    color: syn.$color-neutral-500;
+    cursor: not-allowed;
+  }
+}

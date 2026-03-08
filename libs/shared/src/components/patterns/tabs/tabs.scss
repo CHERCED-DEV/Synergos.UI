@@ -1,0 +1,40 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-tabs {
+  display: grid;
+  gap: syn.$space-sm;
+}
+
+.syn-tabs__list {
+  display: flex;
+  gap: syn.$space-xxs;
+  border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-200;
+}
+
+.syn-tabs__tab {
+  padding: syn.$space-xs syn.$space-sm;
+  border: 0;
+  border-bottom: syn.px-to-rem(2) solid transparent;
+  background: transparent;
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  cursor: pointer;
+
+  @include syn.focus-visible;
+
+  &[aria-selected='true'] {
+    color: syn.$color-brand-600;
+    border-bottom-color: syn.$color-brand-500;
+  }
+}
+
+.syn-tabs__panel {
+  padding: syn.$space-sm;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.px-to-rem(10);
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-sm;
+
+  @include syn.focus-visible;
+}

@@ -1,0 +1,46 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  outline: 0;
+
+  @include syn.focus-visible;
+}
+
+.syn-tooltip__bubble {
+  position: absolute;
+  width: max-content;
+  max-width: syn.px-to-rem(240);
+  padding: syn.$space-xxs syn.$space-xs;
+  border-radius: syn.px-to-rem(8);
+  background: syn.$color-neutral-900;
+  color: syn.$color-neutral-0;
+  font-size: syn.$font-size-xs;
+  z-index: syn.$z-tooltip;
+}
+
+.syn-tooltip__bubble--top {
+  bottom: calc(100% + #{syn.$space-xxs});
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.syn-tooltip__bubble--bottom {
+  top: calc(100% + #{syn.$space-xxs});
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.syn-tooltip__bubble--left {
+  right: calc(100% + #{syn.$space-xxs});
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.syn-tooltip__bubble--right {
+  left: calc(100% + #{syn.$space-xxs});
+  top: 50%;
+  transform: translateY(-50%);
+}

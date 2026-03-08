@@ -1,0 +1,10 @@
+# Changelog - shell
+
+## [Unreleased] - 2026-03-08
+
+### Added
+- README del proyecto shell.
+- CHANGELOG del proyecto shell.
+
+### Notes
+- `shell` sigue siendo un entorno de desarrollo, no un artefacto de despliegue final.

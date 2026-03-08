@@ -1,15 +1,9 @@
-// ─── Elevation — Shadow Tokens ────────────────────────────────────────────────
-// Consistent shadow scale for depth and elevation in the UI
+@use '../functions/px-to-rem' as *;
 
 $shadow-none: none;
-$shadow-xs:   0 1px 2px 0 rgb(0 0 0 / 0.05);
-$shadow-sm:   0 1px 3px 0 rgb(0 0 0 / 0.10), 0 1px 2px -1px rgb(0 0 0 / 0.10);
-$shadow-md:   0 4px 6px -1px rgb(0 0 0 / 0.10), 0 2px 4px -2px rgb(0 0 0 / 0.10);
-$shadow-lg:   0 10px 15px -3px rgb(0 0 0 / 0.10), 0 4px 6px -4px rgb(0 0 0 / 0.10);
-$shadow-xl:   0 20px 25px -5px rgb(0 0 0 / 0.10), 0 8px 10px -6px rgb(0 0 0 / 0.10);
-$shadow-2xl:  0 25px 50px -12px rgb(0 0 0 / 0.25);
-$shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
-
-// Colored shadows (use brand color for interactive elements)
-$shadow-brand: 0 4px 14px 0 rgb(37 99 235 / 0.25);
-$shadow-error: 0 4px 14px 0 rgb(239 68 68 / 0.25);
+$shadow-xs: 0 px-to-rem(1) px-to-rem(2) 0 rgb(15 23 42 / 0.08);
+$shadow-sm: 0 px-to-rem(2) px-to-rem(4) 0 rgb(15 23 42 / 0.1);
+$shadow-md: 0 px-to-rem(6) px-to-rem(12) px-to-rem(-2) rgb(15 23 42 / 0.14);
+$shadow-lg: 0 px-to-rem(12) px-to-rem(24) px-to-rem(-4) rgb(15 23 42 / 0.16);
+$shadow-xl: 0 px-to-rem(20) px-to-rem(40) px-to-rem(-6) rgb(15 23 42 / 0.2);
+$shadow-2xl: 0 px-to-rem(30) px-to-rem(64) px-to-rem(-12) rgb(15 23 42 / 0.24);

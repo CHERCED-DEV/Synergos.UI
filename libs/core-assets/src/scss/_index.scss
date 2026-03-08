@@ -1,14 +1,6 @@
-// ─── @synergos/core-assets ────────────────────────────────────────────────────
-// Main SCSS entry point. Forward tokens and mixins for use in other files.
-//
-// Usage in any SCSS file:
-//   @use '@synergos/core-assets' as syn;    // needs includePaths configured
-//   @use 'scss' as syn;                     // simpler, after includePaths set
-//
-// Then use:
-//   color: syn.$color-primary;
-//   @include syn.flex-center;
-//   @include syn.respond-to('md') { ... }
-
+// Main SCSS entry point.
+// Consumers should use:
+//   @use 'scss' as syn;
 @forward 'tokens';
+@forward 'functions';
 @forward 'mixins';

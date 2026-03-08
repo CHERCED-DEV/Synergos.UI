@@ -1,28 +1,22 @@
-// ─── Responsive Mixins ────────────────────────────────────────────────────────
-@use '../tokens/breakpoints' as *;
+@use 'sass:map';
+@use '../tokens/breakpoints' as tokens;
 
-/// Apply styles from a named breakpoint and up (mobile-first)
-/// @param {String} $bp - breakpoint name: sm | md | lg | xl | 2xl
-/// @example
-///   @include respond-to('md') { ... }
 @mixin respond-to($bp) {
-  @if map.has-key($breakpoints, $bp) {
-    @media (min-width: #{map.get($breakpoints, $bp)}) {
+  @if map.has-key(tokens.$breakpoints, $bp) {
+    @media (min-width: #{map.get(tokens.$breakpoints, $bp)}) {
       @content;
     }
   } @else {
-    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys($breakpoints)}";
+    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys(tokens.$breakpoints)}";
   }
 }
 
-/// Apply styles up to (but not including) a named breakpoint
-/// @param {String} $bp - breakpoint name
 @mixin respond-below($bp) {
-  @if map.has-key($breakpoints, $bp) {
-    @media (max-width: calc(#{map.get($breakpoints, $bp)} - 1px)) {
+  @if map.has-key(tokens.$breakpoints, $bp) {
+    @media (max-width: calc(#{map.get(tokens.$breakpoints, $bp)} - 0.01rem)) {
       @content;
     }
   } @else {
-    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys($breakpoints)}";
+    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys(tokens.$breakpoints)}";
   }
 }

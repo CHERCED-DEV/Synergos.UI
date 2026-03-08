@@ -1,0 +1,45 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-xs;
+  cursor: pointer;
+  user-select: none;
+}
+
+.syn-checkbox__native {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.syn-checkbox__box {
+  width: syn.px-to-rem(18);
+  height: syn.px-to-rem(18);
+  border: syn.px-to-rem(1) solid syn.$color-neutral-400;
+  border-radius: syn.px-to-rem(4);
+  background: syn.$color-neutral-0;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.syn-checkbox__native:checked + .syn-checkbox__box {
+  background: syn.$color-brand-500;
+  border-color: syn.$color-brand-500;
+}
+
+.syn-checkbox__native:focus-visible + .syn-checkbox__box {
+  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline-offset: syn.px-to-rem(2);
+}
+
+.syn-checkbox__native:disabled + .syn-checkbox__box {
+  background: syn.$color-neutral-100;
+  border-color: syn.$color-neutral-300;
+}
+
+.syn-checkbox__label {
+  font-size: syn.$font-size-sm;
+  color: syn.$color-neutral-900;
+}

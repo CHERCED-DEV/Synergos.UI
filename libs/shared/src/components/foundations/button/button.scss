@@ -1,0 +1,69 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-xs;
+  min-height: syn.px-to-rem(40);
+  padding: syn.$space-xs syn.$space-md;
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.px-to-rem(10);
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+
+  @include syn.focus-visible;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.syn-button--solid {
+  background: syn.$color-brand-500;
+  color: syn.$color-neutral-0;
+
+  &:hover:not(:disabled) {
+    background: syn.$color-brand-600;
+  }
+}
+
+.syn-button--outline {
+  background: syn.$color-neutral-0;
+  border-color: syn.$color-neutral-300;
+  color: syn.$color-neutral-900;
+
+  &:hover:not(:disabled) {
+    border-color: syn.$color-brand-400;
+    color: syn.$color-brand-600;
+  }
+}
+
+.syn-button--ghost {
+  background: transparent;
+  color: syn.$color-neutral-800;
+
+  &:hover:not(:disabled) {
+    background: syn.$color-neutral-100;
+  }
+}
+
+.syn-button--sm {
+  min-height: syn.px-to-rem(32);
+  padding: syn.$space-xxs syn.$space-sm;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-button--md {
+  min-height: syn.px-to-rem(40);
+}
+
+.syn-button--lg {
+  min-height: syn.px-to-rem(48);
+  padding: syn.$space-sm syn.$space-lg;
+  font-size: syn.$font-size-lg;
+}

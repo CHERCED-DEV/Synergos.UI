@@ -1,0 +1,53 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: syn.$space-sm;
+  padding: syn.$space-sm syn.$space-md;
+  border: syn.px-to-rem(1) solid;
+  border-radius: syn.px-to-rem(12);
+}
+
+.syn-alert--neutral {
+  background: syn.$color-neutral-0;
+  border-color: syn.$color-neutral-300;
+  color: syn.$color-neutral-900;
+}
+
+.syn-alert--brand {
+  background: syn.$color-brand-100;
+  border-color: syn.$color-brand-300;
+  color: syn.$color-brand-600;
+}
+
+.syn-alert--critical {
+  background: syn.$color-neutral-100;
+  border-color: syn.$color-neutral-500;
+  color: syn.$color-neutral-900;
+}
+
+.syn-alert__content {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-alert__title {
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-alert__description {
+  font-size: syn.$font-size-sm;
+}
+
+.syn-alert__dismiss {
+  @include syn.focus-visible;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: syn.$font-size-base;
+  line-height: 1;
+  cursor: pointer;
+}
