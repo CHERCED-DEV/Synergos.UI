@@ -1,0 +1,22 @@
+{
+  "name": "core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/core/src",
+  "projectType": "library",
+  "tags": ["scope:core", "type:lib"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libs/core/src/**/*.ts",
+          "libs/core/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {}
+    }
+  }
+}

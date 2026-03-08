@@ -1,0 +1,28 @@
+// ─── Responsive Mixins ────────────────────────────────────────────────────────
+@use '../tokens/breakpoints' as *;
+
+/// Apply styles from a named breakpoint and up (mobile-first)
+/// @param {String} $bp - breakpoint name: sm | md | lg | xl | 2xl
+/// @example
+///   @include respond-to('md') { ... }
+@mixin respond-to($bp) {
+  @if map.has-key($breakpoints, $bp) {
+    @media (min-width: #{map.get($breakpoints, $bp)}) {
+      @content;
+    }
+  } @else {
+    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys($breakpoints)}";
+  }
+}
+
+/// Apply styles up to (but not including) a named breakpoint
+/// @param {String} $bp - breakpoint name
+@mixin respond-below($bp) {
+  @if map.has-key($breakpoints, $bp) {
+    @media (max-width: calc(#{map.get($breakpoints, $bp)} - 1px)) {
+      @content;
+    }
+  } @else {
+    @warn "Unknown breakpoint: #{$bp}. Available: #{map.keys($breakpoints)}";
+  }
+}

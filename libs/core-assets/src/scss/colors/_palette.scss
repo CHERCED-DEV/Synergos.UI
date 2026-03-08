@@ -1,0 +1,26 @@
+// ─── CSS Custom Properties (CSS Variables) ────────────────────────────────────
+// Exposes design tokens as CSS vars for runtime theming
+@use '../tokens/colors' as *;
+
+:root {
+  // Brand
+  --syn-color-primary:        #{$color-primary};
+  --syn-color-primary-hover:  #{$color-primary-hover};
+  --syn-color-primary-light:  #{$color-primary-light};
+
+  // Surfaces
+  --syn-color-surface:        #{$color-surface};
+  --syn-color-surface-alt:    #{$color-surface-alt};
+  --syn-color-border:         #{$color-border};
+
+  // Text
+  --syn-color-text:           #{$color-text};
+  --syn-color-text-muted:     #{$color-text-muted};
+  --syn-color-text-inverted:  #{$color-text-inverted};
+
+  // Feedback
+  --syn-color-success:        #{$color-success-500};
+  --syn-color-warning:        #{$color-warning-500};
+  --syn-color-error:          #{$color-error-500};
+  --syn-color-info:           #{$color-info-500};
+}

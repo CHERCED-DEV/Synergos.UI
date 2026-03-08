@@ -1,0 +1,46 @@
+// ─── Color Design Tokens ─────────────────────────────────────────────────────
+// Raw palette — do not use directly in components, use semantic tokens instead
+
+// Brand
+$color-brand-50:  #eff6ff;
+$color-brand-100: #dbeafe;
+$color-brand-200: #bfdbfe;
+$color-brand-300: #93c5fd;
+$color-brand-400: #60a5fa;
+$color-brand-500: #3b82f6;
+$color-brand-600: #2563eb;
+$color-brand-700: #1d4ed8;
+$color-brand-800: #1e40af;
+$color-brand-900: #1e3a8a;
+
+// Neutral
+$color-neutral-0:   #ffffff;
+$color-neutral-50:  #f9fafb;
+$color-neutral-100: #f3f4f6;
+$color-neutral-200: #e5e7eb;
+$color-neutral-300: #d1d5db;
+$color-neutral-400: #9ca3af;
+$color-neutral-500: #6b7280;
+$color-neutral-600: #4b5563;
+$color-neutral-700: #374151;
+$color-neutral-800: #1f2937;
+$color-neutral-900: #111827;
+$color-neutral-950: #030712;
+
+// Feedback
+$color-success-500: #22c55e;
+$color-warning-500: #f59e0b;
+$color-error-500:   #ef4444;
+$color-info-500:    #3b82f6;
+
+// Semantic aliases
+$color-primary:        $color-brand-600;
+$color-primary-hover:  $color-brand-700;
+$color-primary-light:  $color-brand-50;
+
+$color-surface:        $color-neutral-0;
+$color-surface-alt:    $color-neutral-50;
+$color-border:         $color-neutral-200;
+$color-text:           $color-neutral-900;
+$color-text-muted:     $color-neutral-500;
+$color-text-inverted:  $color-neutral-0;

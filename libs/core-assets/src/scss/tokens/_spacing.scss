@@ -1,0 +1,27 @@
+// ─── Spacing Design Tokens ────────────────────────────────────────────────────
+// Based on a 4px base unit
+
+$space-base: 4px;
+
+$space-0:  0;
+$space-1:  $space-base * 1;   // 4px
+$space-2:  $space-base * 2;   // 8px
+$space-3:  $space-base * 3;   // 12px
+$space-4:  $space-base * 4;   // 16px
+$space-5:  $space-base * 5;   // 20px
+$space-6:  $space-base * 6;   // 24px
+$space-8:  $space-base * 8;   // 32px
+$space-10: $space-base * 10;  // 40px
+$space-12: $space-base * 12;  // 48px
+$space-16: $space-base * 16;  // 64px
+$space-20: $space-base * 20;  // 80px
+$space-24: $space-base * 24;  // 96px
+
+// Semantic aliases
+$space-xs:  $space-1;
+$space-sm:  $space-2;
+$space-md:  $space-4;
+$space-lg:  $space-6;
+$space-xl:  $space-8;
+$space-2xl: $space-12;
+$space-3xl: $space-16;

@@ -1,12 +1,23 @@
 {
   "compilerOptions": {
     "moduleResolution": "bundler",
+    "baseUrl": ".",
     "emitDecoratorMetadata": false,
     "target": "es2022",
     "module": "preserve",
-    "lib": ["es2020", "dom"],
-    "paths": {},
-    "isolatedModules": true
+    "lib": ["es2022", "dom"],
+    "paths": {
+      "@synergos/core": ["libs/core/src/index.ts"],
+      "@synergos/shared": ["libs/shared/src/index.ts"],
+      "@synergos/core-assets": ["libs/core-assets/src/index.ts"]
+    },
+    "isolatedModules": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,
@@ -14,16 +25,6 @@
     "strictInputAccessModifiers": true,
     "strictTemplates": true
   },
-  "files": [],
-  "include": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    }
-  ],
   "compileOnSave": false,
-  "exclude": ["node_modules", "tmp"]
+  "exclude": ["node_modules", "dist", "tmp"]
 }

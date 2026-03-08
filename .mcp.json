@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "angular-cli": {
+      "command": "npx",
+      "args": ["@angular/cli", "mcp"]
+    },
+    "nx": {
+      "command": "npx",
+      "args": ["nx-mcp", "--workspace-root", "."]
+    }
+  }
+}

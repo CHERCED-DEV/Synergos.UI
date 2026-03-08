@@ -1,0 +1,258 @@
+# Synergos UI — LLM Governance Rules
+# ─────────────────────────────────────────────────────────────────────────────
+# This file defines rules that AI agents MUST follow when generating,
+# modifying, or reviewing code in this repository.
+#
+# Full context: SynergosDocs/ARCHITECTURE.md · ANGULAR_STANDARDS.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+## 1. REPOSITORY STRUCTURE RULES
+
+- apps/        → deployable applications. apps/shell is DEV ONLY — never deployed
+- libs/core    → global infrastructure: providers, tokens, interceptors, services
+- libs/shared  → design system: foundations/, components/, patterns/, directives/, pipes/, utils/
+- libs/core-assets → SCSS only: design tokens, mixins, elevation, typography
+- modules/     → business feature modules (Git submodules or monorepo apps)
+- SynergosDocs/ → architectural documentation — READ before generating code
+- LLM.txt      → this file
+
+NEVER create files outside these directories without explicit user instruction.
+
+
+## 2. DEPENDENCY RULES
+
+Allowed (outer → inner only):
+  modules/*      →  libs/shared, libs/core, libs/core-assets
+  libs/shared    →  libs/core, libs/core-assets
+  libs/core      →  (nothing inside this repo)
+  libs/core-assets → (nothing inside this repo)
+
+FORBIDDEN:
+  - libs/core importing from libs/shared
+  - libs/shared importing from any module
+  - modules importing from other modules
+  - circular dependencies of any kind
+
+Verify import direction before writing any import statement.
+
+
+## 3. ANGULAR API RULES
+
+ALWAYS USE:
+  - standalone: true on every @Component, @Directive, @Pipe
+  - ChangeDetectionStrategy.OnPush on every component
+  - provideZonelessChangeDetection() — never provideZoneChangeDetection()
+  - input() / input.required() for inputs
+  - output() for events
+  - signal() for all mutable state (local and service)
+  - computed() for derived state — never effect() for derivation
+  - effect() only for side effects (document title, analytics, logging)
+  - inject() for dependency injection
+  - @if / @for / @switch for template control flow
+  - takeUntilDestroyed() for RxJS subscriptions inside components
+  - # (private fields) for injected deps: readonly #svc = inject(MyService)
+
+NEVER USE:
+  - NgModule
+  - Zone.js
+  - BehaviorSubject / Subject for state → use signal()
+  - *ngIf / *ngFor / *ngSwitch structural directives
+  - constructor injection
+  - @Input() / @Output() decorators
+  - any TypeScript type → use unknown and narrow
+  - console.log / console.error → use LoggerService from @synergos/core
+
+
+## 4. NAMING CONVENTIONS (MODERN ANGULAR)
+
+Angular 21 promotes concise, suffix-free file names. Apply this project-wide:
+
+Design system (libs/shared):
+  Foundation:    button.ts            (in foundations/button/)
+  Component:     card.ts              (in components/card/)
+  Pattern:       data-grid.ts         (in patterns/data-grid/)
+  Directive:     tooltip.directive.ts
+  Pipe:          date-format.pipe.ts  ← pipes KEEP the .pipe.ts suffix
+
+Feature modules (modules/<name>/):
+  Container:     feature.container.ts   (orchestrates state + UI)
+  Store:         feature.store.ts       (signal-based state)
+  API:           feature.api.ts         (HTTP calls only)
+  Routes:        feature.routes.ts
+  View:          feature.view.html      (optional standalone template)
+  Model:         appointment.model.ts
+
+Infrastructure (libs/core):
+  Interceptor:   auth.interceptor.ts    ← keep suffix for clarity
+  Guard:         auth.guard.ts          ← keep suffix for clarity
+
+Spec files always colocated:
+  button.ts  →  button.spec.ts
+  feature.store.ts  →  feature.store.spec.ts
+
+
+## 5. DESIGN SYSTEM RULES (libs/shared)
+
+The design system is in libs/shared/src/ with three tiers:
+
+### foundations/
+Primitive, single-responsibility UI building blocks. Angular equivalent of design system atoms.
+- Stateless (no internal state)
+- Inputs control 100% of appearance
+- No business logic, no service injection, no API calls
+- Examples: button.ts, icon.ts, badge.ts, spinner.ts, avatar.ts, skeleton.ts
+
+### components/
+Composed, self-contained UI components.
+- Composed from foundations
+- May have internal interaction state (open/close, active, expanded)
+- No business logic, no API calls
+- Examples: card.ts, dialog.ts, dropdown.ts, input.ts, select.ts, tabs.ts
+
+### patterns/
+Compositions of 2–4 foundations/components that implement a recurring UI layout.
+- Encode platform UX conventions
+- May have richer internal state (pagination, multi-step, filtering)
+- Still purely presentational — never fetch data externally
+- Examples: data-grid.ts, form.ts, search-results.ts, page-header.ts, empty-state.ts
+
+Rules for all design system code:
+  - selector prefix: syn- (syn-button, syn-card, syn-data-grid)
+  - NEVER inject HTTP, call APIs, or import from feature modules
+  - All public symbols exported through libs/shared/src/index.ts
+  - SCSS uses @use 'scss' as syn; with design tokens only
+
+
+## 6. FEATURE ARCHITECTURE RULES (modules/)
+
+Features follow a container-based architecture with separated concerns:
+
+  feature.container.ts  → component that wires store/api to UI, handles events
+  feature.store.ts      → signal state: #state = signal(), exposed as readonly
+  feature.api.ts        → HTTP calls only, returns data (no state inside)
+  feature.routes.ts     → lazy route config
+  feature.view.html     → optional: when template is large enough to split out
+
+Rules:
+  - Container composes the view using patterns and foundations from libs/shared
+  - Container delegates state to store, HTTP to api
+  - Store exposes readonly signals: readonly items = this.#items.asReadonly()
+  - API uses inject(HttpClient) and inject(ENVIRONMENT) — returns observables
+  - No unnecessary extra services — prefer store.ts + api.ts split
+
+Container example:
+  @Component({ selector: 'syn-appointments', standalone: true, changeDetection: OnPush })
+  export class AppointmentsContainer {
+    readonly #store = inject(AppointmentsStore);
+    readonly #api   = inject(AppointmentsApi);
+
+    readonly appointments = this.#store.items;
+    readonly loading      = this.#store.loading;
+
+    onLoad(): void { this.#store.load(this.#api); }
+  }
+
+Store example:
+  @Injectable({ providedIn: 'root' })
+  export class AppointmentsStore {
+    readonly #items   = signal<Appointment[]>([]);
+    readonly #loading = signal(false);
+
+    readonly items   = this.#items.asReadonly();
+    readonly loading = this.#loading.asReadonly();
+    readonly count   = computed(() => this.#items().length);
+  }
+
+
+## 7. SCSS RULES
+
+ALWAYS:
+  - @use 'scss' as syn; (tokens + mixins, no global pollution)
+  - syn.$color-primary, syn.$space-md, syn.$shadow-sm, syn.$z-modal
+  - @include syn.flex-center, @include syn.respond-to('md')
+
+NEVER:
+  - Hardcoded colors: #fff, rgba(...), blue, transparent (use syn.$color-*)
+  - Hardcoded spacing: 16px, 1rem, 0.5em (use syn.$space-*)
+  - Raw z-index numbers: z-index: 999 (use syn.$z-modal)
+  - @import (always @use / @forward)
+  - @use 'scss/global' inside components — root styles.scss only
+
+
+## 8. SERVICE / STORE RULES
+
+MUST:
+  - Use signal() for all state
+  - Expose readonly: readonly data = this.#data.asReadonly()
+  - Use # private fields: readonly #data = signal<T[]>([])
+  - Use inject(ENVIRONMENT) for API base URLs
+  - Never mutate state from outside the service/store
+  - Never use any type
+
+PREFER store.ts + api.ts pattern over a single monolithic service:
+  - store.ts holds signals + computed + mutation methods
+  - api.ts holds HTTP calls, returns Observable<T> or Promise<T>
+
+
+## 9. TESTING RULES
+
+Spec files are colocated with the source file they test:
+  button.ts           →  button.spec.ts
+  feature.store.ts    →  feature.store.spec.ts
+  auth.interceptor.ts →  auth.interceptor.spec.ts
+
+Every new file added to libs/ or modules/ MUST have a spec file.
+
+Unit test rules:
+  - Use Vitest (configured in workspace)
+  - Test public API only — no testing of private signals directly
+  - Mock inject() dependencies with TestBed.overrideProvider
+  - No HTTP in unit tests — use HttpClientTestingModule or provideHttpClientTesting()
+
+Integration / E2E tests:
+  - Live in apps/shell-e2e/
+  - Use Cypress
+  - Cover user-visible flows (mount widget → interact → assert DOM)
+
+
+## 10. CODE GENERATION WORKFLOW
+
+When creating or modifying code:
+  1. Read SynergosDocs/ARCHITECTURE.md — understand where the code belongs
+  2. Use nx generators: nx g @nx/angular:component, nx g @nx/angular:app
+  3. Apply all naming conventions from section 4 to generated output
+  4. Export new symbols from the library's src/index.ts
+  5. Create the colocated .spec.ts file
+  6. Verify import directions comply with section 2
+
+Scaffolding cheatsheet:
+  Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/foundations
+  Component:   npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
+  Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/patterns
+  Feature app: npx nx g @nx/angular:app appointments --directory=modules
+
+
+## 11. MODULE CREATION RULES
+
+Every feature module must:
+  - Export mountModule(selector: string, config: ModuleConfig): void from src/index.ts
+  - Use provideCoreConfig({ environment }) from @synergos/core
+  - Use provideZonelessChangeDetection()
+  - Have zero coupling to other feature modules
+  - Full guide: SynergosDocs/MODULE_CREATION_GUIDE.md
+
+
+## 12. WHAT NOT TO GENERATE
+
+Unless explicitly requested:
+  - No NgModules
+  - No Zone.js
+  - No one-off helpers — solve inline, do not abstract prematurely
+  - No error handling for impossible scenarios
+  - No obvious comments (code explains itself)
+  - No barrel files beyond src/index.ts per library
+  - No extra documentation files
+  - No .component.ts / .service.ts suffixes on design system files
+  - No BehaviorSubject
+  - No constructor injection
