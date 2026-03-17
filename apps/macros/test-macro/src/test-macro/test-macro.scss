@@ -1,0 +1,74 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: inherit;
+}
+
+.macro-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  background: syn.$color-neutral-0;
+  border: 1px solid syn.$color-neutral-200;
+  border-radius: 8px;
+}
+
+.macro-title {
+  margin: 0;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-semibold;
+  color: syn.$color-neutral-900;
+}
+
+.macro-meta {
+  background-color: red;
+  margin: 0;
+  font-size: syn.$font-size-sm;
+  color: syn.$color-neutral-500;
+}
+
+.macro-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-xs;
+}
+
+.macro-label {
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  color: syn.$color-neutral-700;
+}
+
+.macro-input {
+  padding: syn.$space-sm syn.$space-md;
+  border: 1px solid syn.$color-neutral-300;
+  border-radius: 6px;
+  font-size: syn.$font-size-base;
+  color: syn.$color-neutral-900;
+  background: syn.$color-neutral-0;
+  outline: none;
+  transition: border-color 150ms ease;
+
+  &:focus {
+    border-color: syn.$color-brand-500;
+  }
+}
+
+.macro-output {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-xs;
+
+  p {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: syn.$color-neutral-500;
+
+    span {
+      color: syn.$color-neutral-800;
+      font-weight: syn.$font-weight-medium;
+    }
+  }
+}

@@ -1,29 +1,25 @@
 {
-  "name": "shell",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "macros-test-macro",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "prefix": "syn",
-  "sourceRoot": "apps/shell/src",
-  "tags": ["scope:shell", "type:app"],
+  "prefix": "sg",
+  "sourceRoot": "apps/macros/test-macro/src",
+  "tags": ["scope:macros", "type:app", "macro:test-macro"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/apps/shell",
-        "browser": "apps/shell/src/main.ts",
-        "tsConfig": "apps/shell/tsconfig.app.json",
+        "outputPath": "dist/apps/macros/test-macro",
+        "browser": "apps/macros/test-macro/src/main.ts",
+        "index": "apps/macros/test-macro/src/index.html",
+        "tsConfig": "apps/macros/test-macro/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "stylePreprocessorOptions": {
           "includePaths": ["libs/core-assets/src"]
         },
-        "assets": [
-          {
-            "glob": "**/*",
-            "input": "apps/shell/public"
-          }
-        ],
-        "styles": ["apps/shell/src/styles.scss"]
+        "assets": [],
+        "styles": []
       },
       "configurations": {
         "production": {
@@ -32,11 +28,6 @@
               "type": "initial",
               "maximumWarning": "500kb",
               "maximumError": "1mb"
-            },
-            {
-              "type": "anyComponentStyle",
-              "maximumWarning": "4kb",
-              "maximumError": "8kb"
             }
           ],
           "outputHashing": "all"
@@ -46,11 +37,11 @@
           "extractLicenses": false,
           "sourceMap": true
         },
-        "macros": {
+        "umbraco": {
+          "index": false,
           "outputHashing": "none",
           "sourceMap": true,
-          "namedChunks": true,
-          "outputPath": "dist/apps/shell-macros"
+          "namedChunks": true
         }
       },
       "defaultConfiguration": "production"
@@ -58,22 +49,38 @@
     "serve": {
       "continuous": true,
       "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4201,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
       "configurations": {
         "production": {
-          "buildTarget": "shell:build:production"
+          "buildTarget": "macros-test-macro:build:production"
         },
         "development": {
-          "buildTarget": "shell:build:development"
+          "buildTarget": "macros-test-macro:build:development"
         }
       },
       "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "macros-test-macro:build:development",
+        "port": 4201,
+        "staticFilePath": "dist/apps/macros/test-macro/browser",
+        "cors": true
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
       "options": {
         "lintFilePatterns": [
-          "apps/shell/src/**/*.ts",
-          "apps/shell/src/**/*.html"
+          "apps/macros/test-macro/src/**/*.ts",
+          "apps/macros/test-macro/src/**/*.html"
         ]
       }
     },
@@ -82,19 +89,9 @@
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
         "runner": "vitest",
-        "tsConfig": "apps/shell/tsconfig.spec.json",
-        "runnerConfig": "apps/shell/vitest.config.ts",
+        "tsConfig": "apps/macros/test-macro/tsconfig.spec.json",
+        "runnerConfig": "apps/macros/test-macro/vitest.config.ts",
         "coverageReporters": ["text", "lcov", "html"]
-      }
-    },
-    "serve-static": {
-      "continuous": true,
-      "executor": "@nx/web:file-server",
-      "options": {
-        "buildTarget": "shell:build",
-        "port": 4200,
-        "staticFilePath": "dist/apps/shell/browser",
-        "spa": true
       }
     }
   }
