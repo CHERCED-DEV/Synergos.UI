@@ -1,0 +1,92 @@
+{
+  "name": "elements-banner",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/banner/src",
+  "tags": ["scope:elements", "type:app", "element:banner"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "wwwroot/synergos/banner",
+        "browser": "apps/elements/banner/src/main.ts",
+        "index": "apps/elements/banner/src/index.html",
+        "tsConfig": "apps/elements/banner/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/core-assets/src"]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4204,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-banner:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-banner:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-banner:build:development",
+        "port": 4204,
+        "staticFilePath": "wwwroot/synergos/banner/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/banner/src/**/*.ts",
+          "apps/elements/banner/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/banner/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/banner/vitest.config.ts",
+        "coverageReporters": ["text", "lcov", "html"]
+      }
+    }
+  }
+}

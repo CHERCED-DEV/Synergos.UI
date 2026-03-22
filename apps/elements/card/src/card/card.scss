@@ -1,0 +1,107 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: inherit;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: syn.$color-neutral-0;
+  border: 1px solid syn.$color-neutral-200;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 150ms ease;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  &--dark {
+    background: syn.$color-neutral-800;
+    border-color: syn.$color-neutral-700;
+  }
+
+  &__image {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    padding: syn.$space-lg;
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-self: flex-start;
+    padding: syn.$space-xxs syn.$space-sm;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    border-radius: 4px;
+    background: syn.$color-neutral-100;
+    color: syn.$color-neutral-700;
+
+    &--info {
+      background: syn.$color-brand-100;
+      color: syn.$color-brand-600;
+    }
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-neutral-900;
+
+    .sg-card--dark & {
+      color: syn.$color-neutral-0;
+    }
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: syn.$color-neutral-500;
+
+    .sg-card--dark & {
+      color: syn.$color-neutral-400;
+    }
+  }
+
+  &__body {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    color: syn.$color-neutral-600;
+    line-height: 1.5;
+
+    .sg-card--dark & {
+      color: syn.$color-neutral-300;
+    }
+  }
+
+  &__cta {
+    display: inline-flex;
+    align-self: flex-start;
+    margin-top: syn.$space-xs;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-brand-500;
+    text-decoration: none;
+    transition: color 150ms ease;
+
+    &:hover {
+      color: syn.$color-brand-600;
+    }
+  }
+}

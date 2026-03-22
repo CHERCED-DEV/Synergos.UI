@@ -15,7 +15,7 @@ Architecture documentation is in `SynergosDocs/` — read the relevant doc befor
 ```
 apps/shell/          → dev harness (not deployed)
 libs/core/           → providers, tokens, interceptors, services
-libs/shared/         → foundations/ components/ patterns/ directives/ pipes/ utils/
+libs/shared/         → components/(foundations/ + patterns/), directives/, pipes/, utils/
 libs/core-assets/    → SCSS design tokens and mixins
 modules/             → feature modules (Git submodules)
 SynergosDocs/        → architecture docs
@@ -36,13 +36,13 @@ LLM.txt              → full AI governance rules
 ## Scaffolding
 ```bash
 # New foundation
-npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/foundations
+npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
 
 # New component
 npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
 
 # New pattern
-npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/patterns
+npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
 
 # New feature module
 npx nx g @nx/angular:app appointments --directory=modules

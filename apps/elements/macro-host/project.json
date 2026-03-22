@@ -1,0 +1,92 @@
+{
+  "name": "elements-macro-host",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/macro-host/src",
+  "tags": ["scope:elements", "type:app", "element:macro-host"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "wwwroot/synergos/macro-host",
+        "browser": "apps/elements/macro-host/src/main.ts",
+        "index": "apps/elements/macro-host/src/index.html",
+        "tsConfig": "apps/elements/macro-host/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": ["libs/core-assets/src"]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4206,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-macro-host:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-macro-host:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-macro-host:build:development",
+        "port": 4206,
+        "staticFilePath": "wwwroot/synergos/macro-host/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/macro-host/src/**/*.ts",
+          "apps/elements/macro-host/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/macro-host/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/macro-host/vitest.config.ts",
+        "coverageReporters": ["text", "lcov", "html"]
+      }
+    }
+  }
+}

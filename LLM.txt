@@ -11,7 +11,7 @@
 
 - apps/        → deployable applications. apps/shell is DEV ONLY — never deployed
 - libs/core    → global infrastructure: providers, tokens, interceptors, services
-- libs/shared  → design system: foundations/, components/, patterns/, directives/, pipes/, utils/
+- libs/shared  → design system: components/foundations/, components/, components/patterns/, directives/, pipes/, utils/
 - libs/core-assets → SCSS only: design tokens, mixins, elevation, typography
 - modules/     → business feature modules (Git submodules or monorepo apps)
 - SynergosDocs/ → architectural documentation — READ before generating code
@@ -69,9 +69,9 @@ NEVER USE:
 Angular 21 promotes concise, suffix-free file names. Apply this project-wide:
 
 Design system (libs/shared):
-  Foundation:    button.ts            (in foundations/button/)
+  Foundation:    button.ts            (in components/foundations/button/)
   Component:     card.ts              (in components/card/)
-  Pattern:       data-grid.ts         (in patterns/data-grid/)
+  Pattern:       data-grid.ts         (in components/patterns/data-grid/)
   Directive:     tooltip.directive.ts
   Pipe:          date-format.pipe.ts  ← pipes KEEP the .pipe.ts suffix
 
@@ -94,7 +94,7 @@ Spec files always colocated:
 
 ## 5. DESIGN SYSTEM RULES (libs/shared)
 
-The design system is in libs/shared/src/ with three tiers:
+The design system is in libs/shared/src/components/ with three tiers:
 
 ### foundations/
 Primitive, single-responsibility UI building blocks. Angular equivalent of design system atoms.
@@ -103,7 +103,7 @@ Primitive, single-responsibility UI building blocks. Angular equivalent of desig
 - No business logic, no service injection, no API calls
 - Examples: button.ts, icon.ts, badge.ts, spinner.ts, avatar.ts, skeleton.ts
 
-### components/
+### components/ (root)
 Composed, self-contained UI components.
 - Composed from foundations
 - May have internal interaction state (open/close, active, expanded)
@@ -227,9 +227,9 @@ When creating or modifying code:
   6. Verify import directions comply with section 2
 
 Scaffolding cheatsheet:
-  Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/foundations
+  Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
   Component:   npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
-  Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/patterns
+  Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
   Feature app: npx nx g @nx/angular:app appointments --directory=modules
 
 

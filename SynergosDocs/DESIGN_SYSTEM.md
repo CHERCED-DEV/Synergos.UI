@@ -12,16 +12,16 @@ The Synergos design system is split across two libraries:
 The component library uses a **three-tier structure** aligned with modern design systems (shadcn/ui, Radix, Material Design 3, Carbon):
 
 ```
-foundations/   →  primitive, single-purpose UI building blocks
-components/    →  composed, self-contained UI components
-patterns/      →  complex, multi-component UI layouts and flows
+components/foundations/  →  primitive, single-purpose UI building blocks
+components/              →  composed, self-contained UI components
+components/patterns/     →  complex, multi-component UI layouts and flows
 ```
 
 This is more practical than classic atomic design (atoms/molecules/organisms), avoids naming ambiguity, and reflects current industry conventions.
 
 ---
 
-### `foundations/` — Primitive building blocks
+### `components/foundations/` — Primitive building blocks
 
 Small, single-responsibility primitives that other components build on.
 
@@ -59,7 +59,7 @@ Combine foundations to deliver a complete UI unit.
 
 ---
 
-### `patterns/` — Complex multi-component layouts
+### `components/patterns/` — Complex multi-component layouts
 
 Opinionated compositions that implement recurring UI patterns across the platform.
 
@@ -73,9 +73,9 @@ Opinionated compositions that implement recurring UI patterns across the platfor
 
 ```
 libs/shared/src/
-├── foundations/       # Primitive building blocks
-├── components/        # Composed UI components
-├── patterns/          # Complex platform patterns
+├── components/
+│   ├── foundations/   # Primitive building blocks
+│   └── patterns/      # Complex platform patterns
 ├── directives/        # Structural + attribute directives
 ├── pipes/             # Transformation pipes
 ├── utils/             # Pure TypeScript helpers
@@ -102,20 +102,20 @@ All design system components must be:
 
 ```bash
 # Foundation
-npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/foundations
+npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
 
 # Component
 npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
 
 # Pattern
-npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/patterns
+npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
 ```
 
 Then export from `libs/shared/src/index.ts`:
 
 ```typescript
-export { ButtonComponent } from './foundations/button/button.component';
-export { CardComponent }   from './components/card/card.component';
+export { ButtonComponent } from './components/foundations/button/button';
+export { CardComponent }   from './components/patterns/card/card';
 ```
 
 ---

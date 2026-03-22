@@ -1,0 +1,33 @@
+<article class="card" [class]="hostClasses()">
+  @if (hasImage()) {
+    <div class="card__image">
+      <img [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
+    </div>
+  }
+
+  <div class="card__content">
+    @if (hasBadge()) {
+      <span class="card__badge card__badge--{{ badgeType() }}">
+        {{ badgeText() }}
+      </span>
+    }
+
+    @if (title()) {
+      <h3 class="card__title">{{ title() }}</h3>
+    }
+
+    @if (subtitle()) {
+      <p class="card__subtitle">{{ subtitle() }}</p>
+    }
+
+    @if (body()) {
+      <p class="card__body">{{ body() }}</p>
+    }
+
+    @if (hasCta()) {
+      <a class="card__cta" [href]="ctaUrl()" rel="noopener noreferrer">
+        {{ ctaLabel() }}
+      </a>
+    }
+  </div>
+</article>

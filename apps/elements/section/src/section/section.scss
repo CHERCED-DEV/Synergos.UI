@@ -1,0 +1,45 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: inherit;
+}
+
+.section {
+  padding: syn.$space-xl 0;
+
+  &--contained {
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: syn.$space-lg;
+  }
+
+  &--fluid {
+    padding-inline: syn.$space-lg;
+  }
+
+  &--dark {
+    background-color: syn.$color-neutral-900;
+    color: syn.$color-neutral-0;
+  }
+
+  &__header {
+    margin-bottom: syn.$space-lg;
+  }
+
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-900;
+
+    .sg-section--dark & {
+      color: syn.$color-neutral-0;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-wrap: wrap;
+  }
+}

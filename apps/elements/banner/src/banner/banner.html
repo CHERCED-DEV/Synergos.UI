@@ -1,0 +1,22 @@
+<div class="banner" [class]="hostClasses()">
+  <div class="banner__content">
+    @if (title()) {
+      <h3 class="banner__title">{{ title() }}</h3>
+    }
+
+    @if (body()) {
+      <p class="banner__body">{{ body() }}</p>
+    }
+  </div>
+
+  @if (hasCta()) {
+    <a
+      class="banner__cta"
+      [href]="ctaUrl()"
+      [target]="ctaTarget()"
+      rel="noopener noreferrer"
+    >
+      {{ ctaLabel() }}
+    </a>
+  }
+</div>
