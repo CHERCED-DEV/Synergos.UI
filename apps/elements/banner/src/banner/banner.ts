@@ -7,9 +7,11 @@ import {
   input,
 } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { ButtonComponent } from '@synergos/shared';
 
 @Component({
   selector: 'sg-banner',
+  imports: [ButtonComponent],
   templateUrl: './banner.html',
   styleUrl: './banner.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -7,9 +7,11 @@ import {
   input,
 } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { ButtonComponent, BadgeComponent } from '@synergos/shared';
 
 @Component({
   selector: 'sg-card',
+  imports: [ButtonComponent, BadgeComponent],
   templateUrl: './card.html',
   styleUrl: './card.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +37,10 @@ export class CardComponent {
   readonly hasImage = computed(() => !!this.imageSrc());
   readonly hasCta = computed(() => !!this.ctaLabel() && !!this.ctaUrl());
   readonly hasBadge = computed(() => !!this.badgeText());
+  readonly badgeTone = computed(() => {
+    const type = this.badgeType();
+    return type === 'info' ? 'brand' : 'neutral';
+  });
   readonly hostClasses = computed(
     () => `sg-card--${this.variant()} sg-card--${this.theme()}`
   );

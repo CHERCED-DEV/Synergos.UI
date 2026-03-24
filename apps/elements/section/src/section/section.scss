@@ -9,7 +9,7 @@
   padding: syn.$space-xl 0;
 
   &--contained {
-    max-width: 1200px;
+    max-width: syn.px-to-rem(1200);
     margin-inline: auto;
     padding-inline: syn.$space-lg;
   }
@@ -29,8 +29,7 @@
 
   &__heading {
     margin: 0;
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
+    @include syn.heading('lg');
     color: syn.$color-neutral-900;
 
     .sg-section--dark & {

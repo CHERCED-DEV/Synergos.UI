@@ -6,16 +6,15 @@
 }
 
 .card {
-  display: flex;
-  flex-direction: column;
+  @include syn.flex-column;
   background: syn.$color-neutral-0;
   border: 1px solid syn.$color-neutral-200;
-  border-radius: 8px;
+  border-radius: syn.px-to-rem(8);
   overflow: hidden;
   transition: box-shadow 150ms ease;
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: syn.$shadow-sm;
   }
 
   &--dark {
@@ -36,26 +35,9 @@
   }
 
   &__content {
-    display: flex;
-    flex-direction: column;
+    @include syn.flex-column;
     gap: syn.$space-sm;
     padding: syn.$space-lg;
-  }
-
-  &__badge {
-    display: inline-flex;
-    align-self: flex-start;
-    padding: syn.$space-xxs syn.$space-sm;
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    border-radius: 4px;
-    background: syn.$color-neutral-100;
-    color: syn.$color-neutral-700;
-
-    &--info {
-      background: syn.$color-brand-100;
-      color: syn.$color-brand-600;
-    }
   }
 
   &__title {
@@ -83,25 +65,16 @@
     margin: 0;
     font-size: syn.$font-size-base;
     color: syn.$color-neutral-600;
-    line-height: 1.5;
+    line-height: syn.$line-height-normal;
 
     .sg-card--dark & {
       color: syn.$color-neutral-300;
     }
   }
 
-  &__cta {
-    display: inline-flex;
+  &__cta-link {
+    text-decoration: none;
     align-self: flex-start;
     margin-top: syn.$space-xs;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    color: syn.$color-brand-500;
-    text-decoration: none;
-    transition: color 150ms ease;
-
-    &:hover {
-      color: syn.$color-brand-600;
-    }
   }
 }

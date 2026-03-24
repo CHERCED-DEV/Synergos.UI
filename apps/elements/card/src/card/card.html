@@ -7,9 +7,7 @@
 
   <div class="card__content">
     @if (hasBadge()) {
-      <span class="card__badge card__badge--{{ badgeType() }}">
-        {{ badgeText() }}
-      </span>
+      <syn-badge [text]="badgeText()" [tone]="badgeTone()" />
     }
 
     @if (title()) {
@@ -25,8 +23,8 @@
     }
 
     @if (hasCta()) {
-      <a class="card__cta" [href]="ctaUrl()" rel="noopener noreferrer">
-        {{ ctaLabel() }}
+      <a class="card__cta-link" [href]="ctaUrl()" rel="noopener noreferrer">
+        <syn-button [label]="ctaLabel()" variant="ghost" size="sm" />
       </a>
     }
   </div>

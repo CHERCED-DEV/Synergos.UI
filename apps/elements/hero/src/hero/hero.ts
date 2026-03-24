@@ -7,9 +7,11 @@ import {
   input,
 } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { ButtonComponent } from '@synergos/shared';
 
 @Component({
   selector: 'sg-hero',
+  imports: [ButtonComponent],
   templateUrl: './hero.html',
   styleUrl: './hero.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

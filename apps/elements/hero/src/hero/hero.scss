@@ -6,16 +6,14 @@
 }
 
 .hero {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
+  @include syn.flex-center;
+  min-height: syn.px-to-rem(400);
   padding: syn.$space-xl syn.$space-lg;
   background-color: syn.$color-neutral-0;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  border-radius: 8px;
+  border-radius: syn.px-to-rem(8);
   position: relative;
 
   &--dark {
@@ -24,22 +22,18 @@
   }
 
   &__content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    @include syn.flex-column-center;
     gap: syn.$space-md;
     text-align: center;
-    max-width: 720px;
+    max-width: syn.px-to-rem(720);
     position: relative;
     z-index: 1;
   }
 
   &__heading {
     margin: 0;
-    font-size: syn.$font-size-3xl;
-    font-weight: syn.$font-weight-bold;
+    @include syn.heading('lg');
     color: syn.$color-neutral-900;
-    line-height: 1.2;
 
     .sg-hero--dark & {
       color: syn.$color-neutral-0;
@@ -50,27 +44,14 @@
     margin: 0;
     font-size: syn.$font-size-lg;
     color: syn.$color-neutral-600;
-    line-height: 1.6;
+    line-height: syn.$line-height-relaxed;
 
     .sg-hero--dark & {
       color: syn.$color-neutral-300;
     }
   }
 
-  &__cta {
-    display: inline-flex;
-    align-items: center;
-    padding: syn.$space-sm syn.$space-lg;
-    background-color: syn.$color-brand-500;
-    color: syn.$color-neutral-0;
-    border-radius: 6px;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
+  &__cta-link {
     text-decoration: none;
-    transition: background-color 150ms ease;
-
-    &:hover {
-      background-color: syn.$color-brand-600;
-    }
   }
 }

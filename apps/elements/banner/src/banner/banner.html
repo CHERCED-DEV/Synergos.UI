@@ -10,13 +10,8 @@
   </div>
 
   @if (hasCta()) {
-    <a
-      class="banner__cta"
-      [href]="ctaUrl()"
-      [target]="ctaTarget()"
-      rel="noopener noreferrer"
-    >
-      {{ ctaLabel() }}
+    <a class="banner__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+      <syn-button [label]="ctaLabel()" variant="solid" size="md" />
     </a>
   }
 </div>

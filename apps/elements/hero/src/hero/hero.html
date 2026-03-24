@@ -18,13 +18,8 @@
     }
 
     @if (hasCta()) {
-      <a
-        class="hero__cta"
-        [href]="ctaUrl()"
-        [target]="ctaTarget()"
-        rel="noopener noreferrer"
-      >
-        {{ ctaLabel() }}
+      <a class="hero__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+        <syn-button [label]="ctaLabel()" variant="solid" size="lg" />
       </a>
     }
   </div>

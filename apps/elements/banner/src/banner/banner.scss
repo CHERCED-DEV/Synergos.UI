@@ -6,12 +6,10 @@
 }
 
 .banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include syn.flex-between;
   padding: syn.$space-lg syn.$space-xl;
   background-color: syn.$color-brand-100;
-  border-radius: 8px;
+  border-radius: syn.px-to-rem(8);
   gap: syn.$space-lg;
 
   &--dark {
@@ -20,8 +18,7 @@
   }
 
   &__content {
-    display: flex;
-    flex-direction: column;
+    @include syn.flex-column;
     gap: syn.$space-xs;
   }
 
@@ -46,21 +43,8 @@
     }
   }
 
-  &__cta {
-    display: inline-flex;
-    align-items: center;
-    padding: syn.$space-sm syn.$space-lg;
-    background-color: syn.$color-brand-500;
-    color: syn.$color-neutral-0;
-    border-radius: 6px;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
+  &__cta-link {
     text-decoration: none;
-    white-space: nowrap;
-    transition: background-color 150ms ease;
-
-    &:hover {
-      background-color: syn.$color-brand-600;
-    }
+    flex-shrink: 0;
   }
 }
