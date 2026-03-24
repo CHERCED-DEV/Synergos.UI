@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     coverage: {
-      reportsDirectory: 'coverage/apps/elements/section',
+      reportsDirectory: 'coverage/apps/elements/modules/banner',
       reporter: ['text', 'lcov'],
     },
   },

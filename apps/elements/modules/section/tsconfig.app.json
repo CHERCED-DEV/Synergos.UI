@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/apps/elements/hero",
+    "outDir": "../../../../dist/out-tsc/apps/elements/modules/section",
     "types": []
   },
   "include": ["src/**/*.ts"],

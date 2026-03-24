@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/apps/elements/banner/spec",
+    "outDir": "../../../../dist/out-tsc/apps/elements/compositions/card/spec",
     "types": ["vitest/globals"]
   },
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.ts"]

@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     coverage: {
-      reportsDirectory: 'coverage/apps/elements/hero',
+      reportsDirectory: 'coverage/apps/elements/modules/macro-host',
       reporter: ['text', 'lcov'],
     },
   },

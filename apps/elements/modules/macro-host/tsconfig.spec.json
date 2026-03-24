@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/apps/elements/macro-host/spec",
+    "outDir": "../../../../dist/out-tsc/apps/elements/modules/macro-host/spec",
     "types": ["vitest/globals"]
   },
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.ts"]

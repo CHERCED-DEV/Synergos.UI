@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     coverage: {
-      reportsDirectory: 'coverage/apps/elements/card',
+      reportsDirectory: 'coverage/apps/elements/compositions/card',
       reporter: ['text', 'lcov'],
     },
   },

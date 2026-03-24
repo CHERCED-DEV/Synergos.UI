@@ -1,19 +1,19 @@
 {
-  "name": "elements-section",
-  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "elements-modules-hero",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "prefix": "sg",
-  "sourceRoot": "apps/elements/section/src",
-  "tags": ["scope:elements", "type:app", "element:section"],
+  "sourceRoot": "apps/elements/modules/hero/src",
+  "tags": ["scope:elements", "tier:module", "type:app", "element:hero"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "wwwroot/synergos/section",
-        "browser": "apps/elements/section/src/main.ts",
-        "index": "apps/elements/section/src/index.html",
-        "tsConfig": "apps/elements/section/tsconfig.app.json",
+        "outputPath": "wwwroot/synergos/hero",
+        "browser": "apps/elements/modules/hero/src/main.ts",
+        "index": "apps/elements/modules/hero/src/index.html",
+        "tsConfig": "apps/elements/modules/hero/tsconfig.app.json",
         "inlineStyleLanguage": "scss",
         "stylePreprocessorOptions": {
           "includePaths": ["libs/core-assets/src"]
@@ -44,17 +44,17 @@
       "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4205,
+        "port": 4250,
         "headers": {
           "Access-Control-Allow-Origin": "*"
         }
       },
       "configurations": {
         "production": {
-          "buildTarget": "elements-section:build:production"
+          "buildTarget": "elements-modules-hero:build:production"
         },
         "development": {
-          "buildTarget": "elements-section:build:development"
+          "buildTarget": "elements-modules-hero:build:development"
         }
       },
       "defaultConfiguration": "development"
@@ -63,9 +63,9 @@
       "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-section:build:development",
-        "port": 4205,
-        "staticFilePath": "wwwroot/synergos/section/browser",
+        "buildTarget": "elements-modules-hero:build:development",
+        "port": 4250,
+        "staticFilePath": "wwwroot/synergos/hero/browser",
         "cors": true
       }
     },
@@ -73,8 +73,8 @@
       "executor": "@nx/eslint:lint",
       "options": {
         "lintFilePatterns": [
-          "apps/elements/section/src/**/*.ts",
-          "apps/elements/section/src/**/*.html"
+          "apps/elements/modules/hero/src/**/*.ts",
+          "apps/elements/modules/hero/src/**/*.html"
         ]
       }
     },
@@ -83,8 +83,8 @@
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
         "runner": "vitest",
-        "tsConfig": "apps/elements/section/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/section/vitest.config.ts",
+        "tsConfig": "apps/elements/modules/hero/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/modules/hero/vitest.config.ts",
         "coverageReporters": ["text", "lcov", "html"]
       }
     }

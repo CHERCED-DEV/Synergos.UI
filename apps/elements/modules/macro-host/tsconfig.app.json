@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/apps/elements/macro-host",
+    "outDir": "../../../../dist/out-tsc/apps/elements/modules/macro-host",
     "types": []
   },
   "include": ["src/**/*.ts"],

@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc/apps/elements/banner",
+    "outDir": "../../../../dist/out-tsc/apps/elements/modules/banner",
     "types": []
   },
   "include": ["src/**/*.ts"],
