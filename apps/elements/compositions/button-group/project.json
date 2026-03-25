@@ -1,0 +1,107 @@
+{
+  "name": "elements-compositions-button-group",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/button-group/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:button-group"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "wwwroot/synergos/button-group",
+        "browser": "apps/elements/compositions/button-group/src/main.ts",
+        "index": "apps/elements/compositions/button-group/src/index.html",
+        "tsConfig": "apps/elements/compositions/button-group/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "libs/core-assets/src"
+          ]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4234,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-compositions-button-group:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-compositions-button-group:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-compositions-button-group:build:development",
+        "port": 4234,
+        "staticFilePath": "wwwroot/synergos/button-group/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/button-group/src/**/*.ts",
+          "apps/elements/compositions/button-group/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/compositions/button-group/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/compositions/button-group/vitest.config.ts",
+        "coverageReporters": [
+          "text",
+          "lcov",
+          "html"
+        ]
+      }
+    }
+  }
+}

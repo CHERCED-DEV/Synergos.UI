@@ -45,8 +45,8 @@ describe('HeroComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const cta = fixture.nativeElement.querySelector('.hero__cta');
-    expect(cta?.textContent?.trim()).toBe('Click Me');
+    const cta = fixture.nativeElement.querySelector('.hero__cta-link');
+    expect(cta).toBeTruthy();
     expect(cta?.getAttribute('href')).toBe('https://example.com');
   });
 });

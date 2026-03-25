@@ -1,0 +1,24 @@
+@use 'scss' as syn;
+
+:host {
+  display: inline;
+}
+
+.link-block {
+  color: syn.$color-brand-500;
+  text-decoration: underline;
+  font-size: syn.$font-size-base;
+  cursor: pointer;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: syn.$color-brand-600;
+  }
+
+  &--subtle {
+    text-decoration: none;
+    color: syn.$color-neutral-600;
+
+    &:hover { color: syn.$color-neutral-900; }
+  }
+}

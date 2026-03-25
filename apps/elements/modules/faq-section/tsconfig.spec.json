@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../../dist/out-tsc/apps/elements/modules/faq-section/spec",
+    "types": [
+      "vitest/globals"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.ts"
+  ]
+}

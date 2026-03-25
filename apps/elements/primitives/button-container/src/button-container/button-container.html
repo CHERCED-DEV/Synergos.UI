@@ -1,0 +1,10 @@
+@if (isLink()) {
+  <a class="button-container__link"
+     [href]="href()"
+     [target]="target()"
+     rel="noopener noreferrer">
+    <syn-button [label]="label()" [variant]="$any(variant())" [size]="$any(size())" [disabled]="disabled()" />
+  </a>
+} @else {
+  <syn-button [label]="label()" [variant]="$any(variant())" [size]="$any(size())" [disabled]="disabled()" />
+}

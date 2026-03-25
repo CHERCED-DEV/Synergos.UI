@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "nx watch --projects=tag:scope:elements -- nx build {}",
     "build": "nx run-many --target=build --projects=tag:scope:elements",
+    "build:primitives": "nx run-many --target=build --projects=tag:tier:primitive",
+    "build:compositions": "nx run-many --target=build --projects=tag:tier:composition",
+    "build:modules": "nx run-many --target=build --projects=tag:tier:module",
     "test": "nx run-many --target=test --all",
     "test:core": "nx test core",
     "test:shared": "nx test shared",

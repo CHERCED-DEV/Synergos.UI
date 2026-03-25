@@ -2,7 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../dist/out-tsc/apps/elements/test-macro/spec",
-    "types": ["vitest/globals"]
+    "types": [
+      "vitest/globals"
+    ],
+    "skipLibCheck": true
   },
-  "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.ts"]
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.ts"
+  ]
 }

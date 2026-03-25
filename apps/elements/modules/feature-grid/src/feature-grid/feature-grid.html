@@ -1,0 +1,22 @@
+<section class="feature-grid" [class]="hostClasses()">
+  @if (headingText()) {
+    <h2 class="feature-grid__heading">{{ headingText() }}</h2>
+  }
+  <div class="feature-grid__grid" [style]="gridStyle()">
+    @for (item of parsedItems(); track item.heading) {
+      <div class="feature-grid__item">
+        @if (item.icon) {
+          <span class="feature-grid__icon" aria-hidden="true">
+            <i [class]="item.icon"></i>
+          </span>
+        }
+        @if (item.heading) {
+          <h3 class="feature-grid__item-heading">{{ item.heading }}</h3>
+        }
+        @if (item.body) {
+          <p class="feature-grid__item-body">{{ item.body }}</p>
+        }
+      </div>
+    }
+  </div>
+</section>

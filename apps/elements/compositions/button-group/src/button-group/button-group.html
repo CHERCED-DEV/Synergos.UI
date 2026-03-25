@@ -1,0 +1,9 @@
+<div class="button-group" [class]="hostClasses()">
+  @for (btn of parsedButtons(); track btn.label) {
+    <syn-button
+      [label]="btn.label"
+      [variant]="$any(btn.variant || 'solid')"
+      [size]="$any(btn.size || 'md')"
+    />
+  }
+</div>

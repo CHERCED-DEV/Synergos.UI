@@ -1,0 +1,47 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.feature-item {
+  @include syn.flex-column;
+  align-items: center;
+  text-align: center;
+  gap: syn.$space-sm;
+  padding: syn.$space-lg;
+
+  &--card {
+    background-color: syn.$color-neutral-0;
+    border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-radius: syn.px-to-rem(8);
+  }
+
+  &--dark {
+    .feature-item__heading { color: syn.$color-neutral-0; }
+    .feature-item__body { color: syn.$color-neutral-300; }
+  }
+
+  &__icon {
+    @include syn.flex-center;
+    width: syn.px-to-rem(48);
+    height: syn.px-to-rem(48);
+    border-radius: syn.px-to-rem(12);
+    background-color: syn.$color-brand-100;
+    color: syn.$color-brand-600;
+    font-size: syn.$font-size-xl;
+  }
+
+  &__heading {
+    margin: 0;
+    @include syn.heading('xs');
+    color: syn.$color-neutral-900;
+  }
+
+  &__body {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+    color: syn.$color-neutral-600;
+  }
+}

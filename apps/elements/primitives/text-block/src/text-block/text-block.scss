@@ -1,0 +1,28 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.text-block {
+  &--center { text-align: center; }
+  &--right { text-align: right; }
+
+  &--dark {
+    .text-block__heading { color: syn.$color-neutral-0; }
+    .text-block__body { color: syn.$color-neutral-300; }
+  }
+
+  &__heading {
+    margin: 0 0 syn.$space-xs 0;
+    @include syn.heading('md');
+    color: syn.$color-neutral-900;
+  }
+
+  &__body {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+    color: syn.$color-neutral-600;
+  }
+}

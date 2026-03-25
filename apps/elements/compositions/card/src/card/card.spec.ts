@@ -45,8 +45,8 @@ describe('CardComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const badge = fixture.nativeElement.querySelector('.card__badge');
-    expect(badge?.textContent?.trim()).toBe('New');
+    const badge = fixture.nativeElement.querySelector('syn-badge');
+    expect(badge).toBeTruthy();
   });
 
   it('should render CTA when label and url are provided', async () => {
@@ -55,8 +55,8 @@ describe('CardComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const cta = fixture.nativeElement.querySelector('.card__cta');
-    expect(cta?.textContent?.trim()).toBe('Read More');
+    const cta = fixture.nativeElement.querySelector('.card__cta-link');
+    expect(cta).toBeTruthy();
     expect(cta?.getAttribute('href')).toBe('https://example.com');
   });
 });

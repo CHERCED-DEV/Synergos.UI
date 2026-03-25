@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../../../dist/out-tsc/apps/elements/compositions/info-block/spec",
+    "types": [
+      "vitest/globals"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.test.ts",
+    "src/**/*.ts"
+  ]
+}

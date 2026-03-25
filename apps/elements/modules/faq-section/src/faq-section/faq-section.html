@@ -1,0 +1,13 @@
+<section class="faq-section" [class]="hostClasses()">
+  @if (headingText()) {
+    <h2 class="faq-section__heading">{{ headingText() }}</h2>
+  }
+  <div class="faq-section__list">
+    @for (item of parsedItems(); track item.question) {
+      <details class="faq-section__item">
+        <summary class="faq-section__question">{{ item.question }}</summary>
+        <p class="faq-section__answer">{{ item.answer }}</p>
+      </details>
+    }
+  </div>
+</section>

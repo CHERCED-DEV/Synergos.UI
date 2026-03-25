@@ -1,0 +1,13 @@
+<div class="feature-item" [class]="hostClasses()">
+  @if (icon()) {
+    <span class="feature-item__icon" aria-hidden="true">
+      <i [class]="icon()"></i>
+    </span>
+  }
+  @if (headingText()) {
+    <h3 class="feature-item__heading">{{ headingText() }}</h3>
+  }
+  @if (body()) {
+    <p class="feature-item__body">{{ body() }}</p>
+  }
+</div>

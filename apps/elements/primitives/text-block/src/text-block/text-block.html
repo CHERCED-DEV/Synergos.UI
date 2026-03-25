@@ -1,0 +1,14 @@
+<div class="text-block" [class]="hostClasses()">
+  @if (headingText()) {
+    @switch (headingLevel()) {
+      @case ('h1') { <h1 class="text-block__heading">{{ headingText() }}</h1> }
+      @case ('h2') { <h2 class="text-block__heading">{{ headingText() }}</h2> }
+      @case ('h3') { <h3 class="text-block__heading">{{ headingText() }}</h3> }
+      @case ('h4') { <h4 class="text-block__heading">{{ headingText() }}</h4> }
+      @default { <h2 class="text-block__heading">{{ headingText() }}</h2> }
+    }
+  }
+  @if (body()) {
+    <p class="text-block__body">{{ body() }}</p>
+  }
+</div>

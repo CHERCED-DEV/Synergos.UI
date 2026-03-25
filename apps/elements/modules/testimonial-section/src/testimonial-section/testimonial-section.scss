@@ -1,0 +1,71 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.testimonial-section {
+  padding: syn.$space-xl 0;
+
+  &--dark {
+    .testimonial-section__heading { color: syn.$color-neutral-0; }
+    .testimonial-section__quote { color: syn.$color-neutral-300; }
+    .testimonial-section__name { color: syn.$color-neutral-0; }
+    .testimonial-section__card {
+      background-color: syn.$color-neutral-800;
+      border-color: syn.$color-neutral-700;
+    }
+  }
+
+  &__heading {
+    margin: 0 0 syn.$space-xl 0;
+    @include syn.heading('lg');
+    color: syn.$color-neutral-900;
+    text-align: center;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(300), 1fr));
+    gap: syn.$space-lg;
+  }
+
+  &__card {
+    margin: 0;
+    padding: syn.$space-lg;
+    background-color: syn.$color-neutral-0;
+    border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-radius: syn.px-to-rem(8);
+    @include syn.flex-column;
+    gap: syn.$space-md;
+  }
+
+  &__quote {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+    color: syn.$color-neutral-600;
+    font-style: italic;
+  }
+
+  &__author {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__author-info {
+    @include syn.flex-column;
+  }
+
+  &__name {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-neutral-900;
+  }
+
+  &__role {
+    font-size: syn.$font-size-xs;
+    color: syn.$color-neutral-500;
+  }
+}

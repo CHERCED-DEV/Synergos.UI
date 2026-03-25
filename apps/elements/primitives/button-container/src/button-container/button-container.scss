@@ -1,0 +1,10 @@
+:host {
+  display: inline-block;
+}
+
+.button-container {
+  &__link {
+    text-decoration: none;
+    display: inline-block;
+  }
+}

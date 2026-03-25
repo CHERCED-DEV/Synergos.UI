@@ -1,0 +1,21 @@
+<section class="testimonial-section" [class]="hostClasses()">
+  @if (headingText()) {
+    <h2 class="testimonial-section__heading">{{ headingText() }}</h2>
+  }
+  <div class="testimonial-section__grid">
+    @for (item of parsedItems(); track item.name) {
+      <blockquote class="testimonial-section__card">
+        <p class="testimonial-section__quote">{{ item.quote }}</p>
+        <footer class="testimonial-section__author">
+          <syn-avatar [name]="item.name" [src]="item.avatarSrc || ''" size="sm" />
+          <div class="testimonial-section__author-info">
+            <span class="testimonial-section__name">{{ item.name }}</span>
+            @if (item.role) {
+              <span class="testimonial-section__role">{{ item.role }}</span>
+            }
+          </div>
+        </footer>
+      </blockquote>
+    }
+  </div>
+</section>

@@ -1,0 +1,21 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+
+  &--row { flex-direction: row; }
+  &--column { flex-direction: column; }
+
+  &--center { justify-content: center; }
+  &--right { justify-content: flex-end; }
+
+  &--gap-xs { gap: syn.$space-xs; }
+  &--gap-sm { gap: syn.$space-sm; }
+  &--gap-md { gap: syn.$space-md; }
+  &--gap-lg { gap: syn.$space-lg; }
+}

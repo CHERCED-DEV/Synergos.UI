@@ -1,0 +1,25 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.container-block {
+  width: 100%;
+  margin: 0 auto;
+
+  &--contained { max-width: syn.px-to-rem(1200); }
+  &--narrow { max-width: syn.px-to-rem(800); }
+  &--full { max-width: none; }
+
+  &--pad-none { padding: 0; }
+  &--pad-sm { padding: syn.$space-sm; }
+  &--pad-md { padding: syn.$space-md; }
+  &--pad-lg { padding: syn.$space-lg; }
+  &--pad-xl { padding: syn.$space-xl; }
+
+  &--dark {
+    background-color: syn.$color-neutral-900;
+    color: syn.$color-neutral-0;
+  }
+}

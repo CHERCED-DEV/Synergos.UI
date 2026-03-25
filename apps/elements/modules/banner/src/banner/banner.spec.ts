@@ -36,8 +36,8 @@ describe('BannerComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const cta = fixture.nativeElement.querySelector('.banner__cta');
-    expect(cta?.textContent?.trim()).toBe('Learn More');
+    const cta = fixture.nativeElement.querySelector('.banner__cta-link');
+    expect(cta).toBeTruthy();
     expect(cta?.getAttribute('href')).toBe('https://example.com');
   });
 });

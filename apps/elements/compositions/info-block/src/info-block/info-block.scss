@@ -1,0 +1,40 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.info-block {
+  @include syn.flex-column;
+  gap: syn.$space-sm;
+  padding: syn.$space-lg;
+
+  &--card {
+    background-color: syn.$color-neutral-0;
+    border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-radius: syn.px-to-rem(8);
+  }
+
+  &--dark {
+    .info-block__title { color: syn.$color-neutral-0; }
+    .info-block__body { color: syn.$color-neutral-300; }
+  }
+
+  &__title {
+    margin: 0;
+    @include syn.heading('sm');
+    color: syn.$color-neutral-900;
+  }
+
+  &__body {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+    color: syn.$color-neutral-600;
+  }
+
+  &__cta {
+    text-decoration: none;
+    align-self: flex-start;
+  }
+}
