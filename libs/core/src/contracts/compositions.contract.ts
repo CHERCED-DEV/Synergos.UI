@@ -39,6 +39,7 @@ export interface ContentBadge {
 export interface ContentCollection {
   collectionTitle?: string;
   collectionDescription?: string;
+  items?: readonly Record<string, unknown>[];
 }
 
 export interface ContentAuthor {

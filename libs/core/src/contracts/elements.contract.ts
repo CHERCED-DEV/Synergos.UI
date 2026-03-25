@@ -214,24 +214,31 @@ export interface AngularHostElementData extends BaseElementData {}
 
 export interface MfHostElementData extends BaseElementData {}
 
+export interface MacroHostElementData extends BaseElementData {
+  contentType?: string;
+  contentData?: Record<string, unknown>;
+}
+
 // ── Element Type Alias Registry ──────────────────────────────────────────────
 
 export const ELEMENT_ALIASES = {
+  // Composition Elements (c8)
   elementCompHero: 'synergos-hero',
   elementCompCard: 'synergos-card',
   elementCompCtaBanner: 'synergos-banner',
   elementCompFeatureGrid: 'synergos-feature-grid',
-  elementCompFaqList: 'synergos-faq-list',
-  elementCompTestimonialList: 'synergos-testimonial-list',
-  elementCompLogoCloud: 'synergos-logo-cloud',
-  elementCompMediaTextSplit: 'synergos-media-text-split',
+  elementCompFaqList: 'synergos-faq-section',
+  elementCompTestimonialList: 'synergos-testimonial-section',
+  elementCompMediaTextSplit: 'synergos-media-text',
+
+  // Structural Elements (c3)
   elementStructSection: 'synergos-section',
-  elementStructContainer: 'synergos-container',
+  elementStructContainer: 'synergos-container-block',
   elementStructGrid: 'synergos-grid',
-  elementStructColumn: 'synergos-column',
   elementStructStack: 'synergos-stack',
-  elementStructDivider: 'synergos-divider',
-  elementStructSpacer: 'synergos-spacer',
+
+  // Integration Elements (c9)
+  elementIntegrationMacroHost: 'synergos-macro-host',
 } as const;
 
 export type ElementAlias = keyof typeof ELEMENT_ALIASES;

@@ -2,3 +2,8 @@ export * from './hero-inputs.model';
 export * from './card-inputs.model';
 export * from './banner-inputs.model';
 export * from './section-inputs.model';
+export * from './feature-grid-inputs.model';
+export * from './faq-section-inputs.model';
+export * from './testimonial-section-inputs.model';
+export * from './media-text-inputs.model';
+export * from './macro-host-inputs.model';

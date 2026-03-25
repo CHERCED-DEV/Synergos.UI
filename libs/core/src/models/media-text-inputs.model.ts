@@ -1,0 +1,10 @@
+export interface MediaTextInputs {
+  imageSrc: string;
+  imageAlt: string;
+  headingText: string;
+  body: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  mediaPosition: string;
+  theme: string;
+}
