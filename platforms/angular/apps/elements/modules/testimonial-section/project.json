@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/testimonial-section",
+        "outputPath": "dist/testimonial-section",
         "browser": "apps/elements/modules/testimonial-section/src/main.ts",
         "index": "apps/elements/modules/testimonial-section/src/index.html",
         "tsConfig": "apps/elements/modules/testimonial-section/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-testimonial-section:build:development",
         "port": 4256,
-        "staticFilePath": "wwwroot/synergos/testimonial-section/browser",
+        "staticFilePath": "dist/testimonial-section/browser",
         "cors": true
       }
     },

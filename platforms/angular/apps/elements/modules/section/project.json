@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/section",
+        "outputPath": "dist/section",
         "browser": "apps/elements/modules/section/src/main.ts",
         "index": "apps/elements/modules/section/src/index.html",
         "tsConfig": "apps/elements/modules/section/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-section:build:development",
         "port": 4252,
-        "staticFilePath": "wwwroot/synergos/section/browser",
+        "staticFilePath": "dist/section/browser",
         "cors": true
       }
     },

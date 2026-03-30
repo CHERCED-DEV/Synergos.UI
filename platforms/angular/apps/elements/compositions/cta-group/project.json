@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/cta-group",
+        "outputPath": "dist/cta-group",
         "browser": "apps/elements/compositions/cta-group/src/main.ts",
         "index": "apps/elements/compositions/cta-group/src/index.html",
         "tsConfig": "apps/elements/compositions/cta-group/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-cta-group:build:development",
         "port": 4231,
-        "staticFilePath": "wwwroot/synergos/cta-group/browser",
+        "staticFilePath": "dist/cta-group/browser",
         "cors": true
       }
     },

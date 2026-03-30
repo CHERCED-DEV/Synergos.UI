@@ -1,12 +1,12 @@
 # Synergos UI
 
-Frontend platform for the **Synergos** ecosystem — a modular Angular workspace that delivers decoupled widgets consumed by Umbraco CMS.
+Multi-framework Web Components platform for the **Synergos** ecosystem — delivers decoupled widgets consumed by Umbraco CMS via CDN.
 
 ```
 synergos/
   cms/    → Umbraco CMS (host, Razor views)
   api/    → .NET Backend APIs
-  ui/     → This repository (Angular + Nx)
+  ui/     → This repository (Multi-framework + Nx)
 ```
 
 ---
@@ -15,28 +15,51 @@ synergos/
 
 ```
 synergos-ui/
-├── apps/
-│   ├── shell/           # Dev harness — simulates Umbraco host
-│   └── shell-e2e/       # Cypress E2E for the shell
-├── libs/
-│   ├── core/            # Providers, tokens, environment config
-│   ├── shared/          # Components, pipes, directives, utils
-│   └── core-assets/     # Design tokens, SCSS system, typography
-├── modules/             # Git submodules — independent business modules
-│   ├── services/        # → @synergos/module-services (submodule)
-│   ├── appointments/    # → @synergos/module-appointments (submodule)
-│   └── ...
-├── nx.json
-├── tsconfig.json
-└── package.json
+├── platforms/                # Framework workspaces (isolated node_modules)
+│   ├── angular/              # Main framework — Angular Elements catalog
+│   │   ├── apps/elements/    # Web Components (primitives/, compositions/, modules/)
+│   │   ├── libs/core/        # Providers, tokens, environment config
+│   │   ├── libs/shared/      # Design system (foundations/, components/, patterns/)
+│   │   ├── libs/core-assets/ # SCSS tokens and mixins
+│   │   ├── libs/rendering/   # ElementRegistry, ComponentResolver, InputMapper
+│   │   ├── libs/integrations/# CMS sync tooling
+│   │   └── modules/          # Git submodules (independent business modules)
+│   ├── react/                # React POC (hero Web Component)
+│   ├── svelte/               # Svelte POC (hero Web Component)
+│   └── vanilla/              # Vanilla JS POC (hero Web Component)
+├── vitals/                   # Agnostic packages (shared via tsconfig paths)
+│   ├── contracts/            # Pure TS interfaces (element taxonomy, CMS contracts)
+│   ├── core/                 # Agnostic utilities, mappers, bridge protocol
+│   ├── core-assets/          # SCSS design tokens (source of truth)
+│   └── shared/               # Constants, validators, test utilities
+├── tools/                    # Interactive CLI
+├── nx.json                   # Root Nx orchestrator
+├── tsconfig.base.json        # Agnostic path aliases
+└── package.json              # Root scripts + Nx
 ```
 
 ### How it works in production
 
-1. Each module is built independently → output goes to CDN
-2. Umbraco Razor views load the CDN bundle via `<script type="module">`
-3. The bundle exposes `mountModule(selector, config)` which bootstraps the Angular app onto a DOM element
-4. The `shell` app is **only for local development** — it is never deployed
+1. Each element is built independently as a Custom Element (`synergos-*`)
+2. Build output is deployed to CDN
+3. Umbraco Razor views load the CDN bundle via `<script type="module">`
+4. Multiple frameworks can produce the same element — CMS selects the implementation
+
+### Dependency flow
+
+```
+vitals/contracts   → Pure interfaces (the WHAT)
+       ↓
+vitals/core        → Agnostic implementations (the HOW) + bridge protocol
+       ↓
+vitals/shared      → Utilities, constants, validators
+       ↓
+vitals/core-assets → SCSS tokens (the LOOK)
+       ↓
+┌────────┬───────┬────────┬─────────┐
+│angular │ react │ svelte │ vanilla │  → Each consumes vitals/ above
+└────────┴───────┴────────┴─────────┘
+```
 
 ---
 
@@ -45,57 +68,64 @@ synergos-ui/
 | Tool | Version |
 |---|---|
 | Angular | ~21.1 (Zoneless, Standalone APIs, Signals) |
+| React | 19 (POC) |
+| Svelte | 5 (POC) |
 | Nx | 22.5 |
 | TypeScript | ~5.9 |
 | SCSS | Sass modules (`@use` / `@forward`) |
-| Testing | Vitest + Cypress |
+| Testing | Vitest |
 
 ---
 
 ## Getting started
 
 ### Prerequisites
-- Node.js ≥ 20
-- npm ≥ 10
+- Node.js >= 20
+- npm >= 10
 
-### Install
-
-```bash
-npm install
-```
-
-### Serve the shell (dev)
+### Install all frameworks
 
 ```bash
-npm start
-# or
-npx nx serve shell
+npm run setup
 ```
 
-Open [http://localhost:4200](http://localhost:4200)
+Or install individually:
+
+```bash
+npm run setup:angular
+npm run setup:react
+npm run setup:svelte
+npm run setup:vanilla
+```
 
 ### Build
 
 ```bash
-npm run build           # build shell only
-npm run build:all       # build all projects
+npm run build                # Build all frameworks
+npm run build:angular        # Build Angular elements only
+npm run build:react          # Build React POC
+npm run build:svelte         # Build Svelte POC
+npm run build:vanilla        # Build Vanilla POC
 ```
 
-### Test
+### Interactive CLI
 
 ```bash
-npm test                # test shell
-npm run test:all        # test all projects
+npm run cli
+# or
+npm run c
 ```
 
-### Lint
+Menu flow: Action > Framework > Tier > Elements > Execute
+
+### Test & Lint
 
 ```bash
-npm run lint            # lint shell
-npm run lint:all        # lint all projects
+npm test                     # Test all
+npm run lint                 # Lint all
 ```
 
-### Visualise the dependency graph
+### Dependency graph
 
 ```bash
 npm run graph
@@ -103,132 +133,41 @@ npm run graph
 
 ---
 
-## Creating new projects
+## Agnostic packages (vitals/)
 
-### New module (recommended: as a Git submodule)
+Shared via `tsconfig.base.json` path aliases — consumed directly from source, no npm linking:
 
-```bash
-# 1. Create a new repo for the module
-# 2. Register as submodule
-git submodule add <repo-url> modules/<name>
-```
+| Package | Alias | Purpose |
+|---|---|---|
+| `vitals/contracts/` | `@synergos/contracts` | Pure TS interfaces, element taxonomy |
+| `vitals/core/` | `@synergos/core` | Mappers, bridge protocol, utilities |
+| `vitals/core-assets/` | — | SCSS design tokens, mixins |
+| `vitals/shared/` | `@synergos/shared` | Constants, validators |
 
-See [modules/README.md](modules/README.md) for the full module contract.
+### SCSS usage
 
-### New app inside the monorepo
-
-```bash
-npx nx g @nx/angular:app apps/<name>
-# or use the shorthand script:
-npm run g:app -- <name>
-```
-
-### New shared library
-
-```bash
-npx nx g @nx/angular:lib libs/<name>
-# or:
-npm run g:lib -- <name>
-```
-
-### New component inside a library
-
-```bash
-npx nx g @nx/angular:component <name> --project=<lib-name>
-# or:
-npm run g:component -- <name> --project=<lib-name>
-```
-
----
-
-## Libraries
-
-### `@synergos/core`
-
-Global configuration, providers, injection tokens, and environment types.
-
-```typescript
-import { provideCoreConfig } from '@synergos/core';
-import { ENVIRONMENT } from '@synergos/core';
-
-// In app.config.ts:
-provideCoreConfig({ environment: { production: false, apiBaseUrl: '...' } })
-
-// In a component/service:
-readonly env = inject(ENVIRONMENT);
-```
-
-### `@synergos/shared`
-
-Reusable utilities, pipes, directives, and components.
-
-```typescript
-import { classNames } from '@synergos/shared';
-
-classNames('btn', isActive && 'btn--active') // → 'btn btn--active'
-```
-
-### `@synergos/core-assets`
-
-Design tokens and SCSS system. Add `includePaths` to your project then use:
-
-```json
-// project.json → build → options
-"stylePreprocessorOptions": {
-  "includePaths": ["libs/core-assets/src"]
-}
-```
+Each framework configures `includePaths` pointing to `vitals/core-assets/src`:
 
 ```scss
-// In any SCSS file
 @use 'scss' as syn;
 
 .my-component {
   color: syn.$color-primary;
-  font-size: syn.$font-size-lg;
-
   @include syn.flex-center;
-  @include syn.respond-to('md') {
-    padding: syn.$space-lg;
-  }
 }
-```
-
-Available tokens: `$color-*`, `$space-*`, `$font-size-*`, `$font-weight-*`, `$font-family-*`, `$bp-*`
-
-Available mixins: `flex-center`, `flex-between`, `flex-column`, `respond-to($bp)`, `respond-below($bp)`, `heading($size)`, `text-truncate`, `text-clamp($lines)`
-
----
-
-## Module contract
-
-Every Synergos module must export:
-
-```typescript
-export interface ModuleConfig {
-  apiBaseUrl: string;
-  cdnBaseUrl?: string;
-  locale?: string;
-}
-
-export function mountModule(selector: string, config: ModuleConfig): void;
 ```
 
 ---
 
-## Deployment
+## Angular libraries (platforms/angular/libs/)
 
-Each module is an independent build unit:
-
-```bash
-# Build a specific module
-npx nx build <module-name>
-
-# Output → dist/apps/<module-name>/browser/
-# Deploy this folder to CDN
-```
-
-CDN URL pattern: `https://cdn.example.com/synergos/<module>/<version>/main.js`
+| Library | Alias | Purpose |
+|---|---|---|
+| `libs/core/` | `@synergos/core` | Providers, tokens, environment, services |
+| `libs/shared/` | `@synergos/shared` | Design system components |
+| `libs/core-assets/` | `@synergos/core-assets` | SCSS tokens (Angular copy) |
+| `libs/rendering/` | `@synergos/rendering` | Element rendering pipeline |
+| `libs/integrations/` | `@synergos/integrations` | CMS sync tooling |
 
 ---
 
@@ -238,23 +177,29 @@ CDN URL pattern: `https://cdn.example.com/synergos/<module>/<version>/main.js`
 |---|---|
 | File naming | `kebab-case` |
 | Component selector prefix | `syn-` |
-| Lib path alias | `@synergos/<lib-name>` |
+| Custom element tag | `synergos-<name>` |
 | Change detection | `OnPush` everywhere |
-| Zone.js | Disabled — use `provideZonelessChangeDetection()` |
+| Zone.js | Disabled — `provideZonelessChangeDetection()` |
 | State | Angular Signals |
 | Styles | SCSS with `@use` (no `@import`) |
 | Exports | All public API through `src/index.ts` |
 
 ---
 
-## Project tags (Nx module boundaries)
+## Project tags (Nx)
 
 | Tag | Meaning |
 |---|---|
-| `scope:shell` | Shell app only |
+| `framework:angular` | Angular workspace |
+| `framework:react` | React workspace |
+| `framework:svelte` | Svelte workspace |
+| `framework:vanilla` | Vanilla JS workspace |
+| `framework:agnostic` | Agnostic package (vitals/) |
+| `scope:elements` | Element apps |
 | `scope:core` | Core infrastructure |
 | `scope:shared` | Shared/reusable |
-| `type:app` | Application |
-| `type:lib` | Library |
-| `type:e2e` | E2E test project |
-| `type:assets` | Static assets / styles |
+| `scope:contracts` | TS interfaces |
+| `scope:core-assets` | SCSS tokens |
+| `tier:primitive` | Basic element |
+| `tier:composition` | Composed element |
+| `tier:module` | Full module element |

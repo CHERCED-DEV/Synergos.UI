@@ -1,0 +1,27 @@
+[
+  { "name": "hero",                 "alias": "elementCompHero",            "tag": "synergos-hero",                 "tier": "module" },
+  { "name": "banner",              "alias": "elementCompCtaBanner",       "tag": "synergos-banner",               "tier": "module" },
+  { "name": "section",             "alias": "elementStructSection",       "tag": "synergos-section",              "tier": "module" },
+  { "name": "feature-grid",        "alias": "elementCompFeatureGrid",     "tag": "synergos-feature-grid",         "tier": "module" },
+  { "name": "faq-section",         "alias": "elementCompFaqList",         "tag": "synergos-faq-section",          "tier": "module" },
+  { "name": "testimonial-section", "alias": "elementCompTestimonialList", "tag": "synergos-testimonial-section",  "tier": "module" },
+  { "name": "macro-host",          "alias": "elementIntegrationMacroHost","tag": "synergos-macro-host",           "tier": "module" },
+
+  { "name": "card",                "alias": "elementCompCard",            "tag": "synergos-card",                 "tier": "composition" },
+  { "name": "media-text",          "alias": "elementCompMediaTextSplit",  "tag": "synergos-media-text",           "tier": "composition" },
+  { "name": "cta-group",           "alias": "elementActionCtaGroup",      "tag": "synergos-cta-group",            "tier": "composition" },
+  { "name": "feature-item",        "alias": "elementInfoFeature",         "tag": "synergos-feature-item",         "tier": "composition" },
+  { "name": "info-block",          "alias": "elementCompInfoBlock",       "tag": "synergos-info-block",           "tier": "composition" },
+  { "name": "button-group",        "alias": "elementCompButtonGroup",     "tag": "synergos-button-group",         "tier": "composition" },
+
+  { "name": "container-block",     "alias": "elementStructContainer",     "tag": "synergos-container-block",      "tier": "primitive" },
+  { "name": "grid",                "alias": "elementStructGrid",          "tag": "synergos-grid",                 "tier": "primitive" },
+  { "name": "stack",               "alias": "elementStructStack",         "tag": "synergos-stack",                "tier": "primitive" },
+  { "name": "button-container",    "alias": "elementActionButtonContainer","tag": "synergos-button-container",    "tier": "primitive" },
+  { "name": "icon-block",          "alias": "elementMediaIcon",           "tag": "synergos-icon-block",           "tier": "primitive" },
+  { "name": "image-block",         "alias": "elementMediaImage",          "tag": "synergos-image-block",          "tier": "primitive" },
+  { "name": "link-block",          "alias": "elementActionLink",          "tag": "synergos-link-block",           "tier": "primitive" },
+  { "name": "text-block",          "alias": "elementTextBlock",           "tag": "synergos-text-block",           "tier": "primitive" },
+
+  { "name": "test-macro",          "alias": "elementTestMacro",           "tag": "sg-test-macro",                 "tier": "module" }
+]

@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/media-text",
+        "outputPath": "dist/media-text",
         "browser": "apps/elements/compositions/media-text/src/main.ts",
         "index": "apps/elements/compositions/media-text/src/index.html",
         "tsConfig": "apps/elements/compositions/media-text/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-media-text:build:development",
         "port": 4232,
-        "staticFilePath": "wwwroot/synergos/media-text/browser",
+        "staticFilePath": "dist/media-text/browser",
         "cors": true
       }
     },

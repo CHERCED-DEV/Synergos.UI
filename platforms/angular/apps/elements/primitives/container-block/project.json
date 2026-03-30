@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/container-block",
+        "outputPath": "dist/container-block",
         "browser": "apps/elements/primitives/container-block/src/main.ts",
         "index": "apps/elements/primitives/container-block/src/index.html",
         "tsConfig": "apps/elements/primitives/container-block/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-container-block:build:development",
         "port": 4215,
-        "staticFilePath": "wwwroot/synergos/container-block/browser",
+        "staticFilePath": "dist/container-block/browser",
         "cors": true
       }
     },

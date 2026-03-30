@@ -9,29 +9,56 @@
 
 ## 1. REPOSITORY STRUCTURE RULES
 
-- apps/        → deployable applications. apps/shell is DEV ONLY — never deployed
-- libs/core    → global infrastructure: providers, tokens, interceptors, services
-- libs/shared  → design system: components/foundations/, components/, components/patterns/, directives/, pipes/, utils/
-- libs/core-assets → SCSS only: design tokens, mixins, elevation, typography
-- modules/     → business feature modules (Git submodules or monorepo apps)
-- SynergosDocs/ → architectural documentation — READ before generating code
-- LLM.txt      → this file
+Multi-framework workspace with isolated dependencies per framework:
+
+- platforms/           → Framework workspaces (each with own node_modules/)
+  - platforms/angular/ → Main framework — Angular Elements catalog
+    - apps/elements/   → Web Components (primitives/, compositions/, modules/)
+    - libs/core/       → Angular-specific providers, tokens, interceptors, services
+    - libs/shared/     → Angular design system: foundations/, components/, patterns/
+    - libs/core-assets/→ SCSS tokens + mixins (Angular copy)
+    - libs/rendering/  → ElementRegistry, ComponentResolver, InputMapper
+    - libs/integrations/→ CMS sync tooling
+    - modules/         → Git submodules (independent Angular module repos)
+  - platforms/react/   → React POC (hero Web Component)
+  - platforms/svelte/  → Svelte POC (hero Web Component)
+  - platforms/vanilla/ → Vanilla JS POC (hero Web Component)
+- vitals/              → Agnostic packages (consumed via tsconfig paths, NOT npm)
+  - vitals/contracts/  → Pure TS interfaces (element taxonomy, CMS contracts)
+  - vitals/core/       → Agnostic utilities, mappers, bridge protocol
+  - vitals/core-assets/→ SCSS design tokens, mixins, typography (source of truth)
+  - vitals/shared/     → Constants, validators, test utilities
+- tools/               → Interactive CLI for multi-framework builds
+- SynergosDocs/        → Architectural documentation — READ before generating code
+- LLM.txt              → This file
 
 NEVER create files outside these directories without explicit user instruction.
 
 
 ## 2. DEPENDENCY RULES
 
-Allowed (outer → inner only):
-  modules/*      →  libs/shared, libs/core, libs/core-assets
-  libs/shared    →  libs/core, libs/core-assets
-  libs/core      →  (nothing inside this repo)
-  libs/core-assets → (nothing inside this repo)
+### Agnostic layer (vitals/) — flows downward only:
+  vitals/shared    →  vitals/core, vitals/contracts
+  vitals/core      →  vitals/contracts
+  vitals/contracts →  (nothing)
+  vitals/core-assets → (nothing — SCSS only)
+
+### Angular layer (platforms/angular/) — flows downward only:
+  modules/*        →  libs/shared, libs/core, libs/core-assets
+  libs/shared      →  libs/core, libs/core-assets
+  libs/rendering   →  libs/core, libs/shared
+  libs/core        →  (nothing inside angular workspace)
+  libs/core-assets →  (nothing)
+
+### Cross-layer (all frameworks → vitals):
+  Any framework may import from vitals/ via @synergos/contracts, @synergos/core, @synergos/shared
 
 FORBIDDEN:
+  - vitals/ importing from any framework
   - libs/core importing from libs/shared
   - libs/shared importing from any module
   - modules importing from other modules
+  - One framework importing from another framework
   - circular dependencies of any kind
 
 Verify import direction before writing any import statement.
@@ -92,9 +119,9 @@ Spec files always colocated:
   feature.store.ts  →  feature.store.spec.ts
 
 
-## 5. DESIGN SYSTEM RULES (libs/shared)
+## 5. DESIGN SYSTEM RULES (platforms/angular/libs/shared)
 
-The design system is in libs/shared/src/components/ with three tiers:
+The Angular design system is in platforms/angular/libs/shared/src/components/ with three tiers:
 
 ### foundations/
 Primitive, single-responsibility UI building blocks. Angular equivalent of design system atoms.
@@ -208,25 +235,20 @@ Unit test rules:
   - Use Vitest (configured in workspace)
   - Test public API only — no testing of private signals directly
   - Mock inject() dependencies with TestBed.overrideProvider
-  - No HTTP in unit tests — use HttpClientTestingModule or provideHttpClientTesting()
-
-Integration / E2E tests:
-  - Live in apps/shell-e2e/
-  - Use Cypress
-  - Cover user-visible flows (mount widget → interact → assert DOM)
+  - No HTTP in unit tests — use provideHttpClientTesting()
 
 
 ## 10. CODE GENERATION WORKFLOW
 
 When creating or modifying code:
   1. Read SynergosDocs/ARCHITECTURE.md — understand where the code belongs
-  2. Use nx generators: nx g @nx/angular:component, nx g @nx/angular:app
+  2. For Angular: run generators from platforms/angular/ directory
   3. Apply all naming conventions from section 4 to generated output
   4. Export new symbols from the library's src/index.ts
   5. Create the colocated .spec.ts file
   6. Verify import directions comply with section 2
 
-Scaffolding cheatsheet:
+Scaffolding cheatsheet (run from platforms/angular/):
   Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
   Component:   npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
   Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
@@ -235,12 +257,31 @@ Scaffolding cheatsheet:
 
 ## 11. MODULE CREATION RULES
 
-Every feature module must:
+Every Angular feature module must:
   - Export mountModule(selector: string, config: ModuleConfig): void from src/index.ts
-  - Use provideCoreConfig({ environment }) from @synergos/core
+  - Use provideCoreConfig({ environment }) from @synergos/core (Angular lib)
   - Use provideZonelessChangeDetection()
   - Have zero coupling to other feature modules
   - Full guide: SynergosDocs/MODULE_CREATION_GUIDE.md
+
+
+## 12. MULTI-FRAMEWORK RULES
+
+This workspace supports multiple frameworks, each producing Custom Elements:
+
+  - Angular: main framework — full element catalog (primitives, compositions, modules)
+  - React, Svelte, Vanilla: POC frameworks — hero element only (for now)
+  - All frameworks produce `synergos-*` Custom Elements with identical public API
+  - Agnostic packages (vitals/) are shared via tsconfig path aliases, NOT npm
+  - Each framework has isolated node_modules/ — NO npm workspaces
+  - Bridge protocol (vitals/core/src/bridge/) defines cross-framework interop
+  - Build output goes to CDN — no local wwwroot/ directory
+  - Nx orchestrates all frameworks from root via project.json tags
+
+Tags:
+  - framework:angular | framework:react | framework:svelte | framework:vanilla
+  - scope:elements | scope:core | scope:shared | scope:contracts | scope:core-assets
+  - tier:primitive | tier:composition | tier:module
 
 
 ## 12. WHAT NOT TO GENERATE

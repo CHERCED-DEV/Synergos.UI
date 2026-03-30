@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/image-block",
+        "outputPath": "dist/image-block",
         "browser": "apps/elements/primitives/image-block/src/main.ts",
         "index": "apps/elements/primitives/image-block/src/index.html",
         "tsConfig": "apps/elements/primitives/image-block/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-image-block:build:development",
         "port": 4212,
-        "staticFilePath": "wwwroot/synergos/image-block/browser",
+        "staticFilePath": "dist/image-block/browser",
         "cors": true
       }
     },

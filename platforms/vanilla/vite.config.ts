@@ -3,12 +3,12 @@ import { resolve } from 'path';
 
 export default defineConfig({
   build: {
-    outDir: '../../wwwroot/synergos/hero/vanilla',
+    outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/elements/hero/main.js'),
+      // entry: resolve(__dirname, 'src/elements/<name>/main.js'),
       formats: ['iife'],
-      name: 'SynergosHeroVanilla',
+      name: 'SynergosElementVanilla',
       fileName: () => 'main.js',
     },
     rollupOptions: {

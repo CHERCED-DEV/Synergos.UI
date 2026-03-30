@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/card",
+        "outputPath": "dist/card",
         "browser": "apps/elements/compositions/card/src/main.ts",
         "index": "apps/elements/compositions/card/src/index.html",
         "tsConfig": "apps/elements/compositions/card/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-card:build:development",
         "port": 4230,
-        "staticFilePath": "wwwroot/synergos/card/browser",
+        "staticFilePath": "dist/card/browser",
         "cors": true
       }
     },

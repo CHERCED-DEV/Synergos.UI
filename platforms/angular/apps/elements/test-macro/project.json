@@ -17,7 +17,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/test-macro",
+        "outputPath": "dist/test-macro",
         "browser": "apps/elements/test-macro/src/main.ts",
         "index": "apps/elements/test-macro/src/index.html",
         "tsConfig": "apps/elements/test-macro/tsconfig.app.json",
@@ -74,7 +74,7 @@
       "options": {
         "buildTarget": "elements-test-macro:build:development",
         "port": 4201,
-        "staticFilePath": "wwwroot/synergos/test-macro/browser",
+        "staticFilePath": "dist/test-macro/browser",
         "cors": true
       }
     },

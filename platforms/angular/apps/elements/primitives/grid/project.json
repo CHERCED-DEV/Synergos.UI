@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/grid",
+        "outputPath": "dist/grid",
         "browser": "apps/elements/primitives/grid/src/main.ts",
         "index": "apps/elements/primitives/grid/src/index.html",
         "tsConfig": "apps/elements/primitives/grid/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-grid:build:development",
         "port": 4217,
-        "staticFilePath": "wwwroot/synergos/grid/browser",
+        "staticFilePath": "dist/grid/browser",
         "cors": true
       }
     },

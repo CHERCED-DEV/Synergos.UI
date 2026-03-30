@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/stack",
+        "outputPath": "dist/stack",
         "browser": "apps/elements/primitives/stack/src/main.ts",
         "index": "apps/elements/primitives/stack/src/index.html",
         "tsConfig": "apps/elements/primitives/stack/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-stack:build:development",
         "port": 4216,
-        "staticFilePath": "wwwroot/synergos/stack/browser",
+        "staticFilePath": "dist/stack/browser",
         "cors": true
       }
     },

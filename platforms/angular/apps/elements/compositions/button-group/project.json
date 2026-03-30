@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/button-group",
+        "outputPath": "dist/button-group",
         "browser": "apps/elements/compositions/button-group/src/main.ts",
         "index": "apps/elements/compositions/button-group/src/index.html",
         "tsConfig": "apps/elements/compositions/button-group/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-button-group:build:development",
         "port": 4234,
-        "staticFilePath": "wwwroot/synergos/button-group/browser",
+        "staticFilePath": "dist/button-group/browser",
         "cors": true
       }
     },

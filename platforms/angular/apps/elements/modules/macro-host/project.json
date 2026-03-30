@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/macro-host",
+        "outputPath": "dist/macro-host",
         "browser": "apps/elements/modules/macro-host/src/main.ts",
         "index": "apps/elements/modules/macro-host/src/index.html",
         "tsConfig": "apps/elements/modules/macro-host/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-macro-host:build:development",
         "port": 4253,
-        "staticFilePath": "wwwroot/synergos/macro-host/browser",
+        "staticFilePath": "dist/macro-host/browser",
         "cors": true
       }
     },

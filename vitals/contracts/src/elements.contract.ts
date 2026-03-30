@@ -219,27 +219,24 @@ export interface MacroHostElementData extends BaseElementData {
   contentData?: Record<string, unknown>;
 }
 
-// ── Element Type Alias Registry ──────────────────────────────────────────────
+// ── Element Registry ─────────────────────────────────────────────────────────
 
-export const ELEMENT_ALIASES = {
-  // Composition Elements (c8)
-  elementCompHero: 'synergos-hero',
-  elementCompCard: 'synergos-card',
-  elementCompCtaBanner: 'synergos-banner',
-  elementCompFeatureGrid: 'synergos-feature-grid',
-  elementCompFaqList: 'synergos-faq-section',
-  elementCompTestimonialList: 'synergos-testimonial-section',
-  elementCompMediaTextSplit: 'synergos-media-text',
+import registry from './element-registry.json';
 
-  // Structural Elements (c3)
-  elementStructSection: 'synergos-section',
-  elementStructContainer: 'synergos-container-block',
-  elementStructGrid: 'synergos-grid',
-  elementStructStack: 'synergos-stack',
+export { registry as ELEMENT_REGISTRY };
 
-  // Integration Elements (c9)
-  elementIntegrationMacroHost: 'synergos-macro-host',
-} as const;
+export interface ElementRegistryEntry {
+  name: string;
+  alias: string;
+  tag: string;
+  tier: 'module' | 'composition' | 'primitive';
+}
 
-export type ElementAlias = keyof typeof ELEMENT_ALIASES;
-export type ElementTag = (typeof ELEMENT_ALIASES)[ElementAlias];
+// ── Element Type Alias Registry (derived from element-registry.json) ────────
+
+export const ELEMENT_ALIASES = Object.fromEntries(
+  registry.map((entry: ElementRegistryEntry) => [entry.alias, entry.tag]),
+) as Record<string, string>;
+
+export type ElementAlias = string;
+export type ElementTag = string;

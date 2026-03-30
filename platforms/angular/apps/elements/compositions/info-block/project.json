@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/info-block",
+        "outputPath": "dist/info-block",
         "browser": "apps/elements/compositions/info-block/src/main.ts",
         "index": "apps/elements/compositions/info-block/src/index.html",
         "tsConfig": "apps/elements/compositions/info-block/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-info-block:build:development",
         "port": 4235,
-        "staticFilePath": "wwwroot/synergos/info-block/browser",
+        "staticFilePath": "dist/info-block/browser",
         "cors": true
       }
     },

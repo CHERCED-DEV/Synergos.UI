@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/faq-section",
+        "outputPath": "dist/faq-section",
         "browser": "apps/elements/modules/faq-section/src/main.ts",
         "index": "apps/elements/modules/faq-section/src/index.html",
         "tsConfig": "apps/elements/modules/faq-section/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-faq-section:build:development",
         "port": 4255,
-        "staticFilePath": "wwwroot/synergos/faq-section/browser",
+        "staticFilePath": "dist/faq-section/browser",
         "cors": true
       }
     },

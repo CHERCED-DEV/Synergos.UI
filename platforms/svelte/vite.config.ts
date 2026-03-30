@@ -11,12 +11,12 @@ export default defineConfig({
     }),
   ],
   build: {
-    outDir: '../../wwwroot/synergos/hero/svelte',
+    outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/elements/hero/main.ts'),
+      // entry: resolve(__dirname, 'src/elements/<name>/main.ts'),
       formats: ['iife'],
-      name: 'SynergosHeroSvelte',
+      name: 'SynergosElementSvelte',
       fileName: () => 'main.js',
     },
     rollupOptions: {

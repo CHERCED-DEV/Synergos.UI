@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/hero",
+        "outputPath": "dist/hero",
         "browser": "apps/elements/modules/hero/src/main.ts",
         "index": "apps/elements/modules/hero/src/index.html",
         "tsConfig": "apps/elements/modules/hero/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-hero:build:development",
         "port": 4250,
-        "staticFilePath": "wwwroot/synergos/hero/browser",
+        "staticFilePath": "dist/hero/browser",
         "cors": true
       }
     },

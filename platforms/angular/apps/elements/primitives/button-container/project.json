@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/button-container",
+        "outputPath": "dist/button-container",
         "browser": "apps/elements/primitives/button-container/src/main.ts",
         "index": "apps/elements/primitives/button-container/src/index.html",
         "tsConfig": "apps/elements/primitives/button-container/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-button-container:build:development",
         "port": 4210,
-        "staticFilePath": "wwwroot/synergos/button-container/browser",
+        "staticFilePath": "dist/button-container/browser",
         "cors": true
       }
     },

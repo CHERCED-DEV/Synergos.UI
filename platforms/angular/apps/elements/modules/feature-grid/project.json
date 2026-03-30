@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/feature-grid",
+        "outputPath": "dist/feature-grid",
         "browser": "apps/elements/modules/feature-grid/src/main.ts",
         "index": "apps/elements/modules/feature-grid/src/index.html",
         "tsConfig": "apps/elements/modules/feature-grid/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-modules-feature-grid:build:development",
         "port": 4254,
-        "staticFilePath": "wwwroot/synergos/feature-grid/browser",
+        "staticFilePath": "dist/feature-grid/browser",
         "cors": true
       }
     },

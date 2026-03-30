@@ -5,12 +5,12 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: '../../wwwroot/synergos/hero/react',
+    outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/elements/hero/main.tsx'),
+      // entry: resolve(__dirname, 'src/elements/<name>/main.tsx'),
       formats: ['iife'],
-      name: 'SynergosHeroReact',
+      name: 'SynergosElementReact',
       fileName: () => 'main.js',
     },
     rollupOptions: {

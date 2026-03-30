@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/icon-block",
+        "outputPath": "dist/icon-block",
         "browser": "apps/elements/primitives/icon-block/src/main.ts",
         "index": "apps/elements/primitives/icon-block/src/index.html",
         "tsConfig": "apps/elements/primitives/icon-block/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-primitives-icon-block:build:development",
         "port": 4213,
-        "staticFilePath": "wwwroot/synergos/icon-block/browser",
+        "staticFilePath": "dist/icon-block/browser",
         "cors": true
       }
     },

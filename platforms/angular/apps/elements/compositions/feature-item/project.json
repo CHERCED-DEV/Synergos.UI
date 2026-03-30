@@ -18,7 +18,7 @@
         "{options.outputPath}"
       ],
       "options": {
-        "outputPath": "wwwroot/synergos/feature-item",
+        "outputPath": "dist/feature-item",
         "browser": "apps/elements/compositions/feature-item/src/main.ts",
         "index": "apps/elements/compositions/feature-item/src/index.html",
         "tsConfig": "apps/elements/compositions/feature-item/tsconfig.app.json",
@@ -75,7 +75,7 @@
       "options": {
         "buildTarget": "elements-compositions-feature-item:build:development",
         "port": 4233,
-        "staticFilePath": "wwwroot/synergos/feature-item/browser",
+        "staticFilePath": "dist/feature-item/browser",
         "cors": true
       }
     },
