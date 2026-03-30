@@ -235,7 +235,7 @@ export interface ElementRegistryEntry {
 // ── Element Type Alias Registry (derived from element-registry.json) ────────
 
 export const ELEMENT_ALIASES = Object.fromEntries(
-  registry.map((entry: ElementRegistryEntry) => [entry.alias, entry.tag]),
+  registry.map((entry) => [entry.alias, entry.tag]),
 ) as Record<string, string>;
 
 export type ElementAlias = string;

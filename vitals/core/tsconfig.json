@@ -3,7 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "declaration": true,
-    "outDir": "../dist/core"
+    "outDir": "../dist/core",
+    "paths": {
+      "@synergos/contracts": ["../contracts/src/index.ts"],
+      "@synergos/shared": ["../shared/src/index.ts"],
+      "@synergos/core-assets": ["../core-assets/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"]
