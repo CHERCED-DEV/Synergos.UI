@@ -5,6 +5,7 @@
     "emitDecoratorMetadata": false,
     "noPropertyAccessFromIndexSignature": true,
     "paths": {
+      "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
       "@synergos/core": ["libs/core/src/index.ts"],
       "@synergos/shared": ["libs/shared/src/index.ts"],
       "@synergos/core-assets": ["libs/core-assets/src/index.ts"],

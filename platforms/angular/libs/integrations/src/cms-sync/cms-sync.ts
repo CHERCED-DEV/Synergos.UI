@@ -22,8 +22,8 @@ const WORKSPACE_ROOT = path.resolve(import.meta.dirname, '../../../../');
 /** Path to the CMS project — sibling directory to the UI project */
 const CMS_ROOT = path.resolve(WORKSPACE_ROOT, '../Synergos.CMS');
 
-/** Output directory for generated contracts */
-const OUTPUT_DIR = path.join(WORKSPACE_ROOT, 'libs/core/src/contracts/generated');
+/** Output directory for generated contracts — vitals/contracts is the single source of truth */
+const OUTPUT_DIR = path.resolve(WORKSPACE_ROOT, '../../vitals/contracts/src/generated');
 
 /** Source directories to scan in the CMS project */
 const SOURCE_DIRS: ReadonlyArray<{ dir: string; outputFile: string }> = [
