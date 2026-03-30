@@ -9,8 +9,8 @@
 
     "build": "npm run build:angular",
     "build:angular": "cd platforms/angular && npx nx run-many --target=build --projects=tag:scope:elements",
-    "build:react": "cd platforms/react && npx vite build",
-    "build:svelte": "cd platforms/svelte && npx vite build",
+    "build:react": "cd platforms/react && npx nx run-many --target=build --projects=tag:scope:elements",
+    "build:svelte": "cd platforms/svelte && npx nx run-many --target=build --projects=tag:scope:elements",
     "build:vanilla": "cd platforms/vanilla && npx vite build",
     "publish:cdn": "node tools/publish.mjs",
     "release": "npm run build:angular && node tools/publish.mjs",

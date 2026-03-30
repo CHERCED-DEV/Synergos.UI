@@ -12,9 +12,15 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@nx/eslint": "^22.5.4",
+    "@nx/js": "^22.5.4",
+    "@nx/vite": "^22.5.4",
+    "@nx/web": "^22.5.4",
+    "@nx/workspace": "^22.5.4",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.2",
+    "nx": "^22.5.4",
     "typescript": "~5.9.2",
     "vite": "^6.3.5"
   }

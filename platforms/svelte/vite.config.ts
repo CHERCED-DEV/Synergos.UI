@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { resolve } from 'path';
 
+const elementEntry = process.env['ELEMENT_ENTRY'] ?? '';
+const elementName = process.env['ELEMENT_NAME'] ?? 'element';
+
 export default defineConfig({
   plugins: [
     svelte({
@@ -11,12 +14,12 @@ export default defineConfig({
     }),
   ],
   build: {
-    outDir: 'dist',
+    outDir: `dist/${elementName}`,
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/main.ts'),
+      entry: resolve(__dirname, elementEntry),
       formats: ['iife'],
-      name: 'SynergosElementSvelte',
+      name: 'SynergosElement',
       fileName: () => 'main.js',
     },
     rollupOptions: {
@@ -28,8 +31,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@synergos/contracts': resolve(__dirname, '../../vitals/contracts/src/index.ts'),
-      '@synergos/core': resolve(__dirname, '../../vitals/core/src/index.ts'),
-      '@synergos/shared': resolve(__dirname, '../../vitals/shared/src/index.ts'),
+      '@synergos/core': resolve(__dirname, 'libs/core/src/index.ts'),
+      '@synergos/shared': resolve(__dirname, 'libs/shared/src/index.ts'),
       '@synergos/core-assets': resolve(__dirname, '../../vitals/core-assets/src/index.ts'),
     },
   },

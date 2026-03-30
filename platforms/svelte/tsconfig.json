@@ -4,11 +4,11 @@
     "baseUrl": ".",
     "paths": {
       "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
-      "@synergos/core": ["../../vitals/core/src/index.ts"],
-      "@synergos/shared": ["../../vitals/shared/src/index.ts"],
-      "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"]
+      "@synergos/core": ["libs/core/src/index.ts"],
+      "@synergos/shared": ["libs/shared/src/index.ts"],
+      "@synergos/core-assets": ["libs/core-assets/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte"],
-  "exclude": ["node_modules", "dist"]
+  "compileOnSave": false,
+  "exclude": ["node_modules", "dist", "tmp"]
 }
