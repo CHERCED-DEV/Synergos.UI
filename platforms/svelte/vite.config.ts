@@ -30,6 +30,7 @@ export default defineConfig({
       '@synergos/contracts': resolve(__dirname, '../../vitals/contracts/src/index.ts'),
       '@synergos/core': resolve(__dirname, '../../vitals/core/src/index.ts'),
       '@synergos/shared': resolve(__dirname, '../../vitals/shared/src/index.ts'),
+      '@synergos/core-assets': resolve(__dirname, '../../vitals/core-assets/src/index.ts'),
     },
   },
 });

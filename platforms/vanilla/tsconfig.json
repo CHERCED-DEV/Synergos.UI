@@ -9,6 +9,6 @@
       "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte"],
+  "include": ["src/**/*.ts", "src/**/*.js"],
   "exclude": ["node_modules", "dist"]
 }

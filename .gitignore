@@ -38,10 +38,11 @@ testem.log
 .DS_Store
 Thumbs.db
 
-.nx/cache
-.nx/workspace-data
+**/.nx/cache
+**/.nx/workspace-data
 
 **/.angular
+**/wwwroot
 
 __screenshots__/
 .claude/

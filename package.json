@@ -9,6 +9,9 @@
 
     "build": "npm run build:angular",
     "build:angular": "cd platforms/angular && npx nx run-many --target=build --projects=tag:scope:elements",
+    "build:react": "cd platforms/react && npx vite build",
+    "build:svelte": "cd platforms/svelte && npx vite build",
+    "build:vanilla": "cd platforms/vanilla && npx vite build",
     "publish:cdn": "node tools/publish.mjs",
     "release": "npm run build:angular && node tools/publish.mjs",
 
@@ -16,8 +19,11 @@
     "lint": "cd platforms/angular && npx nx run-many --target=lint",
     "graph": "cd platforms/angular && npx nx graph",
 
-    "setup": "cd platforms/angular && npm install",
-    "setup:angular": "cd platforms/angular && npm install"
+    "setup": "npm run setup:angular && npm run setup:react && npm run setup:svelte && npm run setup:vanilla",
+    "setup:angular": "cd platforms/angular && npm install",
+    "setup:react": "cd platforms/react && npm install",
+    "setup:svelte": "cd platforms/svelte && npm install",
+    "setup:vanilla": "cd platforms/vanilla && npm install"
   },
   "devDependencies": {
     "@inquirer/prompts": "^7.0.0",
