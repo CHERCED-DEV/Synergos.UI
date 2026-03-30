@@ -1,0 +1,22 @@
+@use '../functions/px-to-rem' as *;
+
+$space-0: 0;
+$space-1: px-to-rem(4);
+$space-2: px-to-rem(8);
+$space-3: px-to-rem(12);
+$space-4: px-to-rem(16);
+$space-5: px-to-rem(20);
+$space-6: px-to-rem(24);
+$space-8: px-to-rem(32);
+$space-10: px-to-rem(40);
+$space-12: px-to-rem(48);
+$space-16: px-to-rem(64);
+$space-20: px-to-rem(80);
+$space-24: px-to-rem(96);
+
+$space-xxs: $space-1;
+$space-xs: $space-2;
+$space-sm: $space-3;
+$space-md: $space-4;
+$space-lg: $space-6;
+$space-xl: $space-8;

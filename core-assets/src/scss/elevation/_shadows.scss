@@ -1,0 +1,9 @@
+@use '../functions/px-to-rem' as *;
+
+$shadow-none: none;
+$shadow-xs: 0 px-to-rem(1) px-to-rem(2) 0 rgb(15 23 42 / 0.08);
+$shadow-sm: 0 px-to-rem(2) px-to-rem(4) 0 rgb(15 23 42 / 0.1);
+$shadow-md: 0 px-to-rem(6) px-to-rem(12) px-to-rem(-2) rgb(15 23 42 / 0.14);
+$shadow-lg: 0 px-to-rem(12) px-to-rem(24) px-to-rem(-4) rgb(15 23 42 / 0.16);
+$shadow-xl: 0 px-to-rem(20) px-to-rem(40) px-to-rem(-6) rgb(15 23 42 / 0.2);
+$shadow-2xl: 0 px-to-rem(30) px-to-rem(64) px-to-rem(-12) rgb(15 23 42 / 0.24);

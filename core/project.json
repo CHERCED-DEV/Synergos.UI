@@ -1,0 +1,7 @@
+{
+  "name": "core",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "core/src",
+  "projectType": "library",
+  "tags": ["scope:core", "framework:agnostic"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "contracts",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "contracts/src",
+  "projectType": "library",
+  "tags": ["scope:contracts", "framework:agnostic"]
+}

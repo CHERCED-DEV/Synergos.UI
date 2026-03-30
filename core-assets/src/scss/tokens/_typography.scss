@@ -1,0 +1,28 @@
+@use '../functions/px-to-rem' as *;
+
+$font-family-sans: 'Manrope', 'Segoe UI', sans-serif;
+$font-family-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+
+$font-size-xs: px-to-rem(12);
+$font-size-sm: px-to-rem(14);
+$font-size-base: px-to-rem(16);
+$font-size-lg: px-to-rem(18);
+$font-size-xl: px-to-rem(20);
+$font-size-2xl: px-to-rem(24);
+$font-size-3xl: px-to-rem(30);
+$font-size-4xl: px-to-rem(36);
+$font-size-5xl: px-to-rem(48);
+
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.625;
+
+$letter-spacing-tight: -0.025em;
+$letter-spacing-normal: 0;
+$letter-spacing-wide: 0.025em;

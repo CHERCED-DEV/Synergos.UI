@@ -1,0 +1,6 @@
+// Main SCSS entry point.
+// Consumers should use:
+//   @use 'scss' as syn;
+@forward 'tokens';
+@forward 'functions';
+@forward 'mixins';

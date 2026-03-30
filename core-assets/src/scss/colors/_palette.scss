@@ -1,0 +1,22 @@
+@use '../tokens/colors' as *;
+
+:root {
+  --syn-color-neutral-0: #{$color-neutral-0};
+  --syn-color-neutral-50: #{$color-neutral-50};
+  --syn-color-neutral-100: #{$color-neutral-100};
+  --syn-color-neutral-200: #{$color-neutral-200};
+  --syn-color-neutral-300: #{$color-neutral-300};
+  --syn-color-neutral-400: #{$color-neutral-400};
+  --syn-color-neutral-500: #{$color-neutral-500};
+  --syn-color-neutral-600: #{$color-neutral-600};
+  --syn-color-neutral-700: #{$color-neutral-700};
+  --syn-color-neutral-800: #{$color-neutral-800};
+  --syn-color-neutral-900: #{$color-neutral-900};
+
+  --syn-color-brand-100: #{$color-brand-100};
+  --syn-color-brand-200: #{$color-brand-200};
+  --syn-color-brand-300: #{$color-brand-300};
+  --syn-color-brand-400: #{$color-brand-400};
+  --syn-color-brand-500: #{$color-brand-500};
+  --syn-color-brand-600: #{$color-brand-600};
+}
