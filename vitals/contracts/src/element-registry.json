@@ -23,5 +23,10 @@
   { "name": "link-block",          "alias": "elementActionLink",          "tag": "synergos-link-block",           "tier": "primitive" },
   { "name": "text-block",          "alias": "elementTextBlock",           "tag": "synergos-text-block",           "tier": "primitive" },
 
+  { "name": "pricing-card",        "alias": "elementCompPricingCard",     "tag": "synergos-pricing-card",         "tier": "composition" },
+  { "name": "stat-counter",        "alias": "elementInfoStatCounter",     "tag": "synergos-stat-counter",         "tier": "composition" },
+  { "name": "accordion",           "alias": "elementCompAccordion",       "tag": "synergos-accordion",            "tier": "composition" },
+  { "name": "avatar",              "alias": "elementMediaAvatar",         "tag": "synergos-avatar",               "tier": "primitive" },
+
   { "name": "test-macro",          "alias": "elementTestMacro",           "tag": "sg-test-macro",                 "tier": "module" }
 ]

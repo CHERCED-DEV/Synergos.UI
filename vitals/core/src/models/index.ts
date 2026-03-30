@@ -19,3 +19,7 @@ export * from './icon-block-inputs.model';
 export * from './image-block-inputs.model';
 export * from './link-block-inputs.model';
 export * from './text-block-inputs.model';
+export * from './pricing-card-inputs.model';
+export * from './stat-counter-inputs.model';
+export * from './accordion-inputs.model';
+export * from './avatar-inputs.model';

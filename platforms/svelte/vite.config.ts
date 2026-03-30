@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      // entry: resolve(__dirname, 'src/elements/<name>/main.ts'),
+      entry: resolve(__dirname, 'src/main.ts'),
       formats: ['iife'],
       name: 'SynergosElementSvelte',
       fileName: () => 'main.js',

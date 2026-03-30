@@ -39,6 +39,10 @@ import { mapIconBlockData } from './icon-block.mapper';
 import { mapImageBlockData } from './image-block.mapper';
 import { mapLinkBlockData } from './link-block.mapper';
 import { mapTextBlockData } from './text-block.mapper';
+import { mapPricingCardData } from './pricing-card.mapper';
+import { mapStatCounterData } from './stat-counter.mapper';
+import { mapAccordionData } from './accordion.mapper';
+import { mapAvatarData } from './avatar.mapper';
 
 export interface MappedBlock {
   tag: string;
@@ -147,6 +151,24 @@ const REGISTRY: Record<string, MapperEntry> = {
   elementTextBlock: {
     tag: 'synergos-text-block',
     map: (d) => toRecord(mapTextBlockData(d as unknown as Record<string, unknown>)),
+  },
+
+  // ── Cross-framework elements ────────────────────────────────────────────────
+  elementCompPricingCard: {
+    tag: 'synergos-pricing-card',
+    map: (d) => toRecord(mapPricingCardData(d as unknown as Record<string, unknown>)),
+  },
+  elementInfoStatCounter: {
+    tag: 'synergos-stat-counter',
+    map: (d) => toRecord(mapStatCounterData(d as unknown as Record<string, unknown>)),
+  },
+  elementCompAccordion: {
+    tag: 'synergos-accordion',
+    map: (d) => toRecord(mapAccordionData(d as unknown as Record<string, unknown>)),
+  },
+  elementMediaAvatar: {
+    tag: 'synergos-avatar',
+    map: (d) => toRecord(mapAvatarData(d as unknown as Record<string, unknown>)),
   },
 };
 

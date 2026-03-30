@@ -8,7 +8,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     lib: {
-      // entry: resolve(__dirname, 'src/elements/<name>/main.tsx'),
+      entry: resolve(__dirname, 'src/main.tsx'),
       formats: ['iife'],
       name: 'SynergosElementReact',
       fileName: () => 'main.js',
