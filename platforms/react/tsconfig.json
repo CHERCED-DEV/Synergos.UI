@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "paths": {
+      "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
+      "@synergos/core": ["../../vitals/core/src/index.ts"],
+      "@synergos/shared": ["../../vitals/shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
+}

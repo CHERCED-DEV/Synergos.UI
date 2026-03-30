@@ -1,0 +1,20 @@
+{
+  "name": "vanilla-hero",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "platforms/vanilla/src",
+  "projectType": "application",
+  "tags": [
+    "framework:vanilla",
+    "tier:module",
+    "element:hero"
+  ],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite build",
+        "cwd": "platforms/vanilla"
+      }
+    }
+  }
+}

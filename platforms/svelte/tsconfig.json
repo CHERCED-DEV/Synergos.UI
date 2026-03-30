@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
+      "@synergos/core": ["../../vitals/core/src/index.ts"],
+      "@synergos/shared": ["../../vitals/shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"],
+  "exclude": ["node_modules", "dist"]
+}

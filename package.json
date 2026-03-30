@@ -8,20 +8,20 @@
     "c": "node tools/cli.mjs",
 
     "build": "npx nx run-many --target=build",
-    "build:angular": "cd angular && npx nx run-many --target=build --projects=tag:scope:elements",
-    "build:react": "cd react && npx nx run-many --target=build",
-    "build:svelte": "cd svelte && npx nx run-many --target=build",
-    "build:vanilla": "cd vanilla && npx nx run-many --target=build",
+    "build:angular": "cd platforms/angular && npx nx run-many --target=build --projects=tag:scope:elements",
+    "build:react": "cd platforms/react && npx nx run-many --target=build",
+    "build:svelte": "cd platforms/svelte && npx nx run-many --target=build",
+    "build:vanilla": "cd platforms/vanilla && npx nx run-many --target=build",
 
     "test": "npx nx run-many --target=test",
     "lint": "npx nx run-many --target=lint",
     "graph": "npx nx graph",
 
-    "setup": "cd angular && npm install && cd ../react && npm install && cd ../svelte && npm install && cd ../vanilla && npm install",
-    "setup:angular": "cd angular && npm install",
-    "setup:react": "cd react && npm install",
-    "setup:svelte": "cd svelte && npm install",
-    "setup:vanilla": "cd vanilla && npm install"
+    "setup": "cd platforms/angular && npm install && cd ../react && npm install && cd ../svelte && npm install && cd ../vanilla && npm install",
+    "setup:angular": "cd platforms/angular && npm install",
+    "setup:react": "cd platforms/react && npm install",
+    "setup:svelte": "cd platforms/svelte && npm install",
+    "setup:vanilla": "cd platforms/vanilla && npm install"
   },
   "devDependencies": {
     "@inquirer/prompts": "^7.0.0",

@@ -11,9 +11,9 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@synergos/contracts": ["contracts/src/index.ts"],
-      "@synergos/core": ["core/src/index.ts"],
-      "@synergos/shared": ["shared/src/index.ts"]
+      "@synergos/contracts": ["vitals/contracts/src/index.ts"],
+      "@synergos/core": ["vitals/core/src/index.ts"],
+      "@synergos/shared": ["vitals/shared/src/index.ts"]
     }
   },
   "compileOnSave": false
