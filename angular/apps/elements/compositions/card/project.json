@@ -1,0 +1,108 @@
+{
+  "name": "elements-compositions-card",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/card/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:card",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "wwwroot/synergos/card",
+        "browser": "apps/elements/compositions/card/src/main.ts",
+        "index": "apps/elements/compositions/card/src/index.html",
+        "tsConfig": "apps/elements/compositions/card/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "libs/core-assets/src"
+          ]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4230,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-compositions-card:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-compositions-card:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-compositions-card:build:development",
+        "port": 4230,
+        "staticFilePath": "wwwroot/synergos/card/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/card/src/**/*.ts",
+          "apps/elements/compositions/card/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/compositions/card/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/compositions/card/vitest.config.ts",
+        "coverageReporters": [
+          "text",
+          "lcov",
+          "html"
+        ]
+      }
+    }
+  }
+}

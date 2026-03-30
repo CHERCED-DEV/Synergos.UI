@@ -1,0 +1,108 @@
+{
+  "name": "elements-compositions-media-text",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/media-text/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:media-text",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "wwwroot/synergos/media-text",
+        "browser": "apps/elements/compositions/media-text/src/main.ts",
+        "index": "apps/elements/compositions/media-text/src/index.html",
+        "tsConfig": "apps/elements/compositions/media-text/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "libs/core-assets/src"
+          ]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4232,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-compositions-media-text:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-compositions-media-text:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-compositions-media-text:build:development",
+        "port": 4232,
+        "staticFilePath": "wwwroot/synergos/media-text/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/media-text/src/**/*.ts",
+          "apps/elements/compositions/media-text/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/compositions/media-text/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/compositions/media-text/vitest.config.ts",
+        "coverageReporters": [
+          "text",
+          "lcov",
+          "html"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "name": "elements-modules-hero",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/hero/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:hero",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "wwwroot/synergos/hero",
+        "browser": "apps/elements/modules/hero/src/main.ts",
+        "index": "apps/elements/modules/hero/src/index.html",
+        "tsConfig": "apps/elements/modules/hero/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "libs/core-assets/src"
+          ]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4250,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-modules-hero:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-modules-hero:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-modules-hero:build:development",
+        "port": 4250,
+        "staticFilePath": "wwwroot/synergos/hero/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/hero/src/**/*.ts",
+          "apps/elements/modules/hero/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/modules/hero/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/modules/hero/vitest.config.ts",
+        "coverageReporters": [
+          "text",
+          "lcov",
+          "html"
+        ]
+      }
+    }
+  }
+}

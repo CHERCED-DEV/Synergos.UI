@@ -1,0 +1,23 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "emitDecoratorMetadata": false,
+    "noPropertyAccessFromIndexSignature": true,
+    "paths": {
+      "@synergos/core": ["libs/core/src/index.ts"],
+      "@synergos/shared": ["libs/shared/src/index.ts"],
+      "@synergos/core-assets": ["libs/core-assets/src/index.ts"],
+      "@synergos/rendering": ["libs/rendering/src/index.ts"],
+      "@synergos/integrations": ["libs/integrations/src/index.ts"]
+    }
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true
+  },
+  "compileOnSave": false,
+  "exclude": ["node_modules", "dist", "tmp"]
+}

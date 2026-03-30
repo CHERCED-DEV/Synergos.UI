@@ -1,13 +1,12 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # compiled output
-dist
+**/dist
 tmp
 out-tsc
-wwwroot
 
 # dependencies
-node_modules
+**/node_modules
 
 # IDEs and editors
 /.idea
@@ -28,7 +27,7 @@ node_modules
 # misc
 /.sass-cache
 /connect.lock
-/coverage
+**/coverage
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -42,7 +41,7 @@ Thumbs.db
 .nx/cache
 .nx/workspace-data
 
-.angular
+**/.angular
 
 __screenshots__/
 .claude/

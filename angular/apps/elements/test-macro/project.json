@@ -1,0 +1,107 @@
+{
+  "name": "elements-test-macro",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/test-macro/src",
+  "tags": [
+    "scope:elements",
+    "type:app",
+    "element:test-macro",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "wwwroot/synergos/test-macro",
+        "browser": "apps/elements/test-macro/src/main.ts",
+        "index": "apps/elements/test-macro/src/index.html",
+        "tsConfig": "apps/elements/test-macro/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": [
+            "libs/core-assets/src"
+          ]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ],
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4201,
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "elements-test-macro:build:production"
+        },
+        "development": {
+          "buildTarget": "elements-test-macro:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "elements-test-macro:build:development",
+        "port": 4201,
+        "staticFilePath": "wwwroot/synergos/test-macro/browser",
+        "cors": true
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/test-macro/src/**/*.ts",
+          "apps/elements/test-macro/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "runner": "vitest",
+        "tsConfig": "apps/elements/test-macro/tsconfig.spec.json",
+        "runnerConfig": "apps/elements/test-macro/vitest.config.ts",
+        "coverageReporters": [
+          "text",
+          "lcov",
+          "html"
+        ]
+      }
+    }
+  }
+}
