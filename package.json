@@ -16,14 +16,16 @@
     "release": "npm run build && node tools/publish.mjs --clean",
     "clean:dist": "node tools/clean-dist.mjs",
 
-    "test": "npm run test:angular && npm run test:react && npm run test:svelte",
+    "test": "npm run test:angular && npm run test:react && npm run test:svelte && npm run test:vanilla",
     "test:angular": "cd platforms/angular && npx nx run-many --target=test",
     "test:react": "npx nx run-many --target=test --projects=tag:framework:react",
     "test:svelte": "npx nx run-many --target=test --projects=tag:framework:svelte",
-    "lint": "npm run lint:angular && npm run lint:react && npm run lint:svelte",
+    "test:vanilla": "npx nx run-many --target=test --projects=tag:framework:vanilla",
+    "lint": "npm run lint:angular && npm run lint:react && npm run lint:svelte && npm run lint:vanilla",
     "lint:angular": "cd platforms/angular && npx nx run-many --target=lint",
     "lint:react": "npx nx run-many --target=lint --projects=tag:framework:react",
     "lint:svelte": "npx nx run-many --target=lint --projects=tag:framework:svelte",
+    "lint:vanilla": "npx nx run-many --target=lint --projects=tag:framework:vanilla",
     "graph": "npx nx graph",
     "graph:angular": "cd platforms/angular && npx nx graph",
 

@@ -6,9 +6,9 @@ export default defineConfig(
   mergeConfig(createElementBuildConfig(__dirname), {
     resolve: {
       alias: {
-        // Vanilla has no local libs — point directly to vitals
-        '@synergos/core': resolve(__dirname, '../../vitals/core/src/index.ts'),
-        '@synergos/shared': resolve(__dirname, '../../vitals/shared/src/index.ts'),
+        // Vanilla libs re-export from vitals — same pattern as React/Svelte
+        '@synergos/core': resolve(__dirname, 'libs/core/src/index.ts'),
+        '@synergos/shared': resolve(__dirname, 'libs/shared/src/index.ts'),
       },
     },
   }),

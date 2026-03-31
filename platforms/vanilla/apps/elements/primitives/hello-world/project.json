@@ -33,6 +33,20 @@
           "ELEMENT_ENTRY": "apps/elements/primitives/hello-world/src/main.ts"
         }
       }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts",
+        "cwd": "platforms/vanilla"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint apps/elements/primitives/hello-world/src/",
+        "cwd": "platforms/vanilla"
+      }
     }
   }
 }

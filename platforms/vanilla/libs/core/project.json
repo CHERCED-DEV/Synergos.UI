@@ -1,0 +1,16 @@
+{
+  "name": "vanilla-core",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "platforms/vanilla/libs/core/src",
+  "projectType": "library",
+  "tags": ["scope:core", "type:lib", "framework:vanilla"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint libs/core/src/",
+        "cwd": "platforms/vanilla"
+      }
+    }
+  }
+}
