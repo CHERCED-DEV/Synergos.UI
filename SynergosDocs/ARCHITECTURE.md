@@ -2,20 +2,20 @@
 
 ## Overview
 
-Synergos UI is the frontend layer of the Synergos platform. It is an **Nx monorepo** built with Angular 21 that delivers decoupled, independently deployable widgets consumed by Umbraco CMS.
+Synergos UI is a **multi-framework monorepo** that produces independently deployable Web Components consumed by Umbraco CMS via a local CDN.
 
 ```
 synergos/
 ├── cms/        → Umbraco CMS (Razor host, layout, routing)
 ├── api/        → .NET REST APIs
-└── ui/         → This repository (Angular Nx monorepo)
+└── ui/         → This repository (multi-framework monorepo)
 ```
+
+Angular is the primary framework (full element catalog). React, Svelte, and Vanilla serve as alternative implementations for selected elements.
 
 ---
 
 ## Three-Layer Architecture
-
-The frontend is structured in three conceptual layers:
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -23,40 +23,43 @@ The frontend is structured in three conceptual layers:
 │  Business domains (appointments, services, ...)     │
 ├─────────────────────────────────────────────────────┤
 │  Layer 2 · Design System                            │
-│  Atoms → Molecules → Organisms                      │
+│  Primitives → Compositions → Modules                │
 ├─────────────────────────────────────────────────────┤
 │  Layer 1 · Foundations                              │
 │  Core config, providers, infrastructure             │
 └─────────────────────────────────────────────────────┘
 ```
 
-### Layer 1 — Foundations (`libs/core`)
+### Layer 1 — Foundations
 
-Technical infrastructure shared by every application and module.
+Two levels:
 
-- Global Angular providers (`provideCoreConfig`)
-- HTTP interceptors (auth, error, loading)
-- Environment configuration (`ENVIRONMENT` token)
-- Infrastructure services (LoggerService, ...)
-- Injection tokens
+**Agnostic (`vitals/`)** — shared across all frameworks:
+- `vitals/contracts` — pure TypeScript interfaces, element registry
+- `vitals/core` — logger, mappers, bridge protocol, environment
+- `vitals/shared` — utility functions, Vite base build config
+- `vitals/core-assets` — SCSS design tokens (source of truth)
 
-### Layer 2 — Design System (`libs/shared` + `libs/core-assets`)
+**Framework-specific (`platforms/*/libs/`)** — extends vitals with framework features:
+- Angular: `libs/core/` (providers, interceptors, tokens), `libs/shared/` (components, directives, pipes), `libs/rendering/` (ElementRegistry, ComponentResolver)
+- React/Svelte: `libs/core/` and `libs/shared/` re-export from vitals with framework-specific wrappers
 
-Reusable UI building blocks following **atomic design**.
+### Layer 2 — Design System
 
-- `libs/core-assets` → design tokens, SCSS system
-- `libs/shared` → Angular components, pipes, directives
-  - `atoms/` → smallest UI primitives (Button, Badge, Icon, ...)
-  - `molecules/` → composed UI (FormField, SearchBar, Card, ...)
-  - `organisms/` → complex sections (Header, DataTable, Modal, ...)
+Element hierarchy (replaces atomic design naming):
+
+| Tier | Purpose | Examples |
+|------|---------|---------|
+| **Primitive** | Smallest building blocks | `button`, `text-block`, `image-block`, `badge`, `icon-block` |
+| **Composition** | Grouped primitives forming a unit | `card`, `pricing-card`, `accordion`, `cta-group`, `feature-item` |
+| **Module** | Full sections with layout and logic | `hero`, `feature-grid`, `faq-section`, `testimonial-section` |
 
 ### Layer 3 — Feature Architecture (`modules/`)
 
-Business features as independent modules. Each module:
-
+Business features as independent modules (Git submodules). Each module:
 - Owns its own state
 - Contains containers + presentational components
-- Exports `mountModule(selector, config)` for CDN consumption
+- Exports a mount function for CDN consumption
 - Can evolve into an independent microfrontend
 
 ---
@@ -64,51 +67,47 @@ Business features as independent modules. Each module:
 ## Repository Structure
 
 ```
-synergos-ui/
-├── apps/
-│   ├── shell/           # Dev harness — simulates Umbraco host
-│   └── shell-e2e/       # Cypress E2E tests
-│
-├── libs/
-│   ├── core/            # Layer 1: Foundations
-│   │   └── src/
-│   │       ├── core.environment.ts
-│   │       ├── core.providers.ts
-│   │       ├── core.tokens.ts
-│   │       ├── interceptors/
-│   │       └── services/
+Synergos.UI/
+├── platforms/
+│   ├── angular/                   → Primary framework
+│   │   ├── apps/elements/         → Angular Elements (Web Components)
+│   │   │   ├── primitives/        → button, text-block, image-block, ...
+│   │   │   ├── compositions/      → card, media-text, cta-group, ...
+│   │   │   └── modules/           → hero, banner, feature-grid, ...
+│   │   ├── libs/
+│   │   │   ├── core/              → Angular providers, interceptors, tokens
+│   │   │   ├── shared/            → Angular components (foundations/, components/, patterns/)
+│   │   │   ├── core-assets/       → SCSS tokens (Angular copy)
+│   │   │   ├── rendering/         → ElementRegistry, ComponentResolver, InputMapper
+│   │   │   └── integrations/      → CMS sync tooling
+│   │   └── modules/               → Business feature modules (Git submodules)
 │   │
-│   ├── shared/          # Layer 2: Design System (Angular)
-│   │   └── src/
-│   │       ├── atoms/
-│   │       ├── molecules/
-│   │       ├── organisms/
-│   │       ├── directives/
-│   │       ├── pipes/
-│   │       └── utils/
+│   ├── react/                     → React Web Components
+│   │   ├── apps/elements/         → pricing-card, stat-counter
+│   │   └── libs/                  → core, shared, core-assets (re-exports)
 │   │
-│   └── core-assets/     # Layer 2: Design System (SCSS)
-│       └── src/
-│           └── scss/
-│               ├── tokens/      (colors, spacing, typography, breakpoints)
-│               ├── elevation/   (shadows, z-index)
-│               ├── mixins/      (responsive, flex, typography)
-│               ├── typography/  (font face, type scale)
-│               └── colors/      (CSS custom properties)
+│   ├── svelte/                    → Svelte Web Components
+│   │   ├── apps/elements/         → accordion, avatar
+│   │   └── libs/                  → core, shared, core-assets (re-exports)
+│   │
+│   └── vanilla/                   → Vanilla JS Web Components
+│       └── apps/elements/         → hello-world (template)
 │
-├── modules/             # Layer 3: Feature modules (Git submodules)
-│   ├── appointments/
-│   ├── services/
-│   └── ...
+├── vitals/                        → Agnostic packages (all frameworks)
+│   ├── contracts/                 → Interfaces, element-registry.json
+│   ├── core/                      → Logger, mappers, bridge, environment
+│   ├── core-assets/               → SCSS design tokens (source of truth)
+│   └── shared/                    → Utilities, Vite base config
 │
-└── SynergosDocs/        # Architectural documentation
+├── tools/                         → CLI, publish, clean scripts
+└── SynergosDocs/                  → This documentation
 ```
 
 ---
 
 ## Dependency Rules
 
-Dependencies flow strictly **inward** (outer layers depend on inner, never the reverse):
+Dependencies flow strictly **inward**:
 
 ```
 Feature module
@@ -120,44 +119,67 @@ libs/shared
 libs/core
   → depends on nothing inside this repo
 
-libs/core-assets
-  → depends on nothing inside this repo
+vitals packages
+  → depend on nothing (pure, agnostic)
 ```
 
-**Circular dependencies are forbidden.**
+Cross-framework rule: **frameworks never depend on each other**. All shared logic lives in `vitals/`.
 
 ---
 
 ## Data Flow
 
-State and data flow strictly **downward**:
-
 ```
 Container (state, services)
-  └── Organism (layout, composition)
-        └── Molecule (grouped elements)
-              └── Atom (primitive element)
+  └── Module (layout, composition)
+        └── Composition (grouped elements)
+              └── Primitive (atomic element)
 ```
 
-Components never call APIs. Only containers orchestrate services.
+Components never call APIs directly. Containers orchestrate services.
+
+---
+
+## Multi-Framework Model
+
+### How it works
+
+Every element produces a `synergos-*` Custom Element (Web Component). The CMS doesn't know or care which framework built it — it just loads a `<script>` and uses the tag:
+
+```html
+<script src="/synergos/hero/angular/latest/main.js"></script>
+<synergos-hero data-config='{"title":"Welcome"}'></synergos-hero>
+```
+
+### Framework selection criteria
+
+| Angular (primary) | React/Svelte/Vanilla |
+|---|---|
+| Full element catalog | Selected elements only |
+| Complex interactions, state | Lightweight, self-contained |
+| CMS integration features | Performance-critical widgets |
+| Business modules | Cross-team adoption |
+
+### Shared build infrastructure
+
+React, Svelte, and Vanilla share a Vite base config (`vitals/shared/src/build/vite-base.ts`) that produces IIFE bundles. Angular uses its own `@angular/build:application` executor.
 
 ---
 
 ## Production Deployment
 
 ```
-Build pipeline → dist/apps/<module>/browser/
-                     ↓
-                   CDN upload
-                     ↓
-           Umbraco Razor partial loads bundle
-                     ↓
-           mountModule('#selector', config)
-                     ↓
-           Angular bootstraps on DOM element
+npm run release
+  ├── npm run build              → Compile all frameworks
+  ├── node tools/publish.mjs     → Copy to CDN, generate manifests
+  └── --clean                    → Remove ephemeral dist/ dirs
+        ↓
+  C:\LOCAL_CDN\synergos\<element>\<framework>\latest\main.js
+        ↓
+  Umbraco Razor partial loads <script> from CDN
+        ↓
+  Custom Element bootstraps on DOM
 ```
-
-The `shell` app is **never deployed to production**. It is a development tool only.
 
 ---
 
@@ -165,10 +187,21 @@ The `shell` app is **never deployed to production**. It is a development tool on
 
 | Technology | Version | Notes |
 |---|---|---|
-| Angular | ~21.1 | Zoneless, Standalone, Signals |
-| Nx | 22.5 | Monorepo tooling |
+| Angular | ~21.1 | Zoneless, Standalone, Signals, OnPush |
+| React | 19 | Selected elements |
+| Svelte | 5 | Selected elements |
+| Nx | 22.5 | Dual-workspace model |
 | TypeScript | ~5.9 | Strict mode |
 | SCSS | Sass modules | `@use`/`@forward` only |
-| Vitest | latest | Unit tests |
-| Cypress | latest | E2E tests |
+| Vitest | latest | Unit tests (all frameworks) |
+| Vite | 6.x | Build tool (React, Svelte, Vanilla) |
 
+---
+
+## Related Documents
+
+- [NX_GOVERNANCE.md](NX_GOVERNANCE.md) — Dual Nx model, project naming, tag strategy
+- [OUTPUT_POLICY.md](OUTPUT_POLICY.md) — Build artifacts, CDN structure, cleanup
+- [BUILD_PIPELINE.md](BUILD_PIPELINE.md) — Build, test, lint, publish commands
+- [ONBOARDING.md](ONBOARDING.md) — Setup guide for new developers
+- [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — SCSS tokens, component patterns

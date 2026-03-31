@@ -33,6 +33,20 @@
           "ELEMENT_ENTRY": "apps/elements/compositions/stat-counter/src/main.tsx"
         }
       }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts",
+        "cwd": "platforms/react"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint apps/elements/compositions/stat-counter/src/",
+        "cwd": "platforms/react"
+      }
     }
   }
 }

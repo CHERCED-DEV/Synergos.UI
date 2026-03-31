@@ -33,6 +33,20 @@
           "ELEMENT_ENTRY": "apps/elements/compositions/accordion/src/main.ts"
         }
       }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts",
+        "cwd": "platforms/svelte"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint apps/elements/compositions/accordion/src/",
+        "cwd": "platforms/svelte"
+      }
     }
   }
 }

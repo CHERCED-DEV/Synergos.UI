@@ -85,10 +85,15 @@ export interface DomLayout {
   direction?: string;
 }
 
+// ── Spacing Tokens (mirror: CMS Dropdown DataTypes) ─────────────────────────
+// Maps to CSS custom properties: var(--sg-spacing-{token})
+export type SpacingToken =
+  | 'none' | '2xs' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+
 export interface DomSpacing {
-  margin?: string;
-  padding?: string;
-  gap?: string;
+  margin?: SpacingToken | 'auto';
+  padding?: SpacingToken;
+  gap?: Exclude<SpacingToken, '4xl'>;
 }
 
 export interface DomVisibility {

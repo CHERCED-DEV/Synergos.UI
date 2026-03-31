@@ -39,10 +39,19 @@ function unique(arr) {
   return [...new Set(arr)].sort();
 }
 
+function run(cmd, cwd = WORKSPACE_ROOT) {
+  try {
+    execSync(cmd, { cwd, stdio: 'inherit' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── CLI Flow ───────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log('\n  🔧 Synergos UI — Multi-Framework CLI\n');
+  console.log('\n  \u{1F527} Synergos UI \u2014 Multi-Framework CLI\n');
 
   const projects = await discoverProjects();
 
@@ -53,19 +62,72 @@ async function main() {
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
       { name: 'Lint', value: 'lint' },
+      { name: 'Build + Publish (CDN)', value: 'build-publish' },
+      { name: 'Release (Build + Publish + Clean)', value: 'release' },
+      { name: 'Publish to CDN', value: 'publish' },
+      { name: 'Clean dist', value: 'clean' },
       { name: 'Graph', value: 'graph' },
       { name: 'Setup (npm install)', value: 'setup' },
     ],
   });
 
+  // ── Quick actions (no framework selection needed) ──────────────────────
+
   if (action === 'graph') {
     console.log('\n  Opening Nx graph...\n');
-    execSync('npx nx graph', { cwd: WORKSPACE_ROOT, stdio: 'inherit' });
+    run('npx nx graph');
     return;
   }
 
-  // Step 2: Framework
+  if (action === 'release') {
+    console.log('\n  \u{1F680} Running full release: build \u2192 publish \u2192 clean\n');
+    const ok = run('npm run release');
+    if (ok) {
+      console.log('\n  \u2705 Release complete. Artifacts published to CDN, dist cleaned.\n');
+    } else {
+      console.log('\n  \u274C Release failed. Check output above.\n');
+    }
+    return;
+  }
+
+  if (action === 'publish') {
+    console.log('\n  \u{1F4E6} Publishing to CDN...\n');
+    run('node tools/publish.mjs');
+    return;
+  }
+
+  if (action === 'clean') {
+    console.log('\n  \u{1F9F9} Cleaning element dist directories...\n');
+    run('node tools/clean-dist.mjs');
+    return;
+  }
+
+  // ── Framework selection ────────────────────────────────────────────────
+
   const frameworks = unique(projects.map((p) => p.framework).filter((f) => f !== 'unknown'));
+
+  if (action === 'build-publish') {
+    const framework = await select({
+      message: 'Which framework to build + publish?',
+      choices: [
+        { name: 'All frameworks', value: 'all' },
+        ...frameworks.map((f) => ({ name: f.charAt(0).toUpperCase() + f.slice(1), value: f })),
+      ],
+    });
+
+    console.log(`\n  \u{1F3D7}\uFE0F  Building ${framework === 'all' ? 'all frameworks' : framework}...\n`);
+    const buildCmd = framework === 'all' ? 'npm run build' : `npm run build:${framework}`;
+    const buildOk = run(buildCmd);
+
+    if (buildOk) {
+      console.log('\n  \u{1F4E6} Publishing to CDN...\n');
+      run('node tools/publish.mjs');
+      console.log('\n  \u2705 Build + Publish complete.\n');
+    } else {
+      console.log('\n  \u274C Build failed. Publish skipped.\n');
+    }
+    return;
+  }
 
   const framework = await select({
     message: 'Which framework?',
@@ -80,11 +142,7 @@ async function main() {
     for (const dir of dirs) {
       if (dir === 'agnostic') continue;
       console.log(`\n  Installing deps for ${dir}...\n`);
-      try {
-        execSync('npm install', { cwd: resolve(WORKSPACE_ROOT, dir), stdio: 'inherit' });
-      } catch {
-        console.error(`  Failed to install deps for ${dir}`);
-      }
+      run('npm install', resolve(WORKSPACE_ROOT, 'platforms', dir));
     }
     return;
   }
@@ -136,17 +194,7 @@ async function main() {
   const cmd = `npx nx run-many --target=${action} --projects=${projectNames}`;
   console.log(`\n  Running: ${cmd}\n`);
 
-  // Determine which directory to run from
-  const uniqueFrameworks = unique(selected.map((p) => p.framework));
-  const cwd = uniqueFrameworks.length === 1 && uniqueFrameworks[0] !== 'agnostic'
-    ? resolve(WORKSPACE_ROOT, uniqueFrameworks[0])
-    : WORKSPACE_ROOT;
-
-  try {
-    execSync(cmd, { cwd, stdio: 'inherit' });
-  } catch {
-    process.exit(1);
-  }
+  run(cmd);
 }
 
 main().catch(console.error);

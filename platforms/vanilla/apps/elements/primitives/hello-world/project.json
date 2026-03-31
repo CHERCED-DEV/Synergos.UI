@@ -1,0 +1,38 @@
+{
+  "name": "vanilla-hello-world",
+  "$schema": "../../../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "platforms/vanilla/apps/elements/primitives/hello-world/src",
+  "tags": [
+    "scope:elements",
+    "tier:primitive",
+    "type:app",
+    "element:hello-world",
+    "framework:vanilla"
+  ],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/platforms/vanilla/dist/hello-world"],
+      "options": {
+        "command": "npx vite build",
+        "cwd": "platforms/vanilla",
+        "env": {
+          "ELEMENT_NAME": "hello-world",
+          "ELEMENT_ENTRY": "apps/elements/primitives/hello-world/src/main.ts"
+        }
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite build --watch",
+        "cwd": "platforms/vanilla",
+        "env": {
+          "ELEMENT_NAME": "hello-world",
+          "ELEMENT_ENTRY": "apps/elements/primitives/hello-world/src/main.ts"
+        }
+      }
+    }
+  }
+}

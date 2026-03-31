@@ -219,6 +219,55 @@ export interface MacroHostElementData extends BaseElementData {
   contentData?: Record<string, unknown>;
 }
 
+// ── Corporate Elements (ca) ─────────────────────────────────────────────────
+
+export interface TabGroupElementData extends BaseElementData {
+  collection?: ContentCollection;
+  text?: ContentText;
+}
+
+export interface AlertBarElementData extends BaseElementData {
+  text?: ContentText;
+  cta?: ContentCta;
+}
+
+export interface BannerSliderElementData extends BaseElementData {
+  collection?: ContentCollection;
+  text?: ContentText;
+}
+
+export interface NewsletterFormElementData extends BaseElementData {
+  text?: ContentText;
+  cta?: ContentCta;
+}
+
+export interface SocialShareElementData extends BaseElementData {
+  collection?: ContentCollection;
+}
+
+export interface DataTableElementData extends BaseElementData {
+  text?: ContentText;
+  collection?: ContentCollection;
+}
+
+// ── Additional Elements (UI-aligned) ────────────────────────────────────────
+
+export interface PricingCardElementData extends BaseElementData {
+  text?: ContentText;
+  cta?: ContentCta;
+  badge?: ContentBadge;
+}
+
+export interface AccordionElementData extends BaseElementData {
+  collection?: ContentCollection;
+  text?: ContentText;
+}
+
+export interface AvatarElementData extends BaseElementData {
+  media?: ContentMedia;
+  text?: ContentText;
+}
+
 // ── Element Registry ─────────────────────────────────────────────────────────
 
 import registry from './element-registry.json';

@@ -3,5 +3,21 @@
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "platforms/svelte/libs/core-assets/src",
   "projectType": "library",
-  "tags": ["scope:core", "type:assets", "framework:svelte"]
+  "tags": ["scope:core", "type:assets", "framework:svelte"],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts",
+        "cwd": "platforms/svelte"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint libs/core-assets/src/",
+        "cwd": "platforms/svelte"
+      }
+    }
+  }
 }
