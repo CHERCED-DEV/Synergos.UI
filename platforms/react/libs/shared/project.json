@@ -1,7 +1,7 @@
 {
-  "name": "shared",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/shared/src",
+  "name": "react-shared",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "platforms/react/libs/shared/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:lib", "framework:react"]
 }

@@ -1,7 +1,2 @@
-/**
- * @synergos/core-assets — Svelte
- *
- * Svelte custom elements use Shadow DOM with scoped <style> blocks.
- * Design tokens are consumed directly as CSS values in component styles.
- */
-export const CORE_ASSETS_VERSION = '0.1.0';
+// Re-export from vitals/core-assets (single source of truth)
+export { CORE_ASSETS_VERSION } from '../../../../../../vitals/core-assets/src/index';

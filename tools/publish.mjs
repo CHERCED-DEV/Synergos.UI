@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Synergos CDN Publish Script
+ * Synergos CDN Publish Script — Multi-framework
  *
- * Publishes built Angular Elements to LOCAL_CDN with manifests.
+ * Scans dist/ directories of ALL platforms and publishes to LOCAL_CDN
+ * with framework-namespaced paths to avoid collisions.
+ *
+ * CDN structure:
+ *   synergos/<element>/<framework>/latest/main.js
+ *   synergos/<element>/<framework>/latest/manifest.json
+ *   synergos/registry.json  ← global index
  *
  * Usage:
  *   node tools/publish.mjs                          # default CDN path
@@ -17,8 +23,41 @@ import { resolve, dirname, join } from 'path';
 // ── Paths ────────────────────────────────────────────────────────────────────
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..');
-const ANGULAR_DIST = resolve(ROOT, 'platforms/angular/dist');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
+
+// Framework dist configurations: where each framework puts its built bundles
+const PLATFORMS = [
+  {
+    name: 'angular',
+    distDir: resolve(ROOT, 'platforms/angular/dist'),
+    // Angular puts bundles at dist/<element>/browser/main.js
+    bundlePath: (elementName) => join('angular', 'dist', elementName, 'browser', 'main.js'),
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/angular/dist', elementName, 'browser', 'main.js'),
+  },
+  {
+    name: 'react',
+    distDir: resolve(ROOT, 'platforms/react/dist'),
+    // React puts bundles at dist/<element>/main.js
+    bundlePath: (elementName) => join('react', 'dist', elementName, 'main.js'),
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/react/dist', elementName, 'main.js'),
+  },
+  {
+    name: 'svelte',
+    distDir: resolve(ROOT, 'platforms/svelte/dist'),
+    bundlePath: (elementName) => join('svelte', 'dist', elementName, 'main.js'),
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/svelte/dist', elementName, 'main.js'),
+  },
+  {
+    name: 'vanilla',
+    distDir: resolve(ROOT, 'platforms/vanilla/dist'),
+    bundlePath: (elementName) => join('vanilla', 'dist', elementName, 'main.js'),
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/vanilla/dist', elementName, 'main.js'),
+  },
+];
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -35,67 +74,74 @@ const VERSION = getArg('--version', '0.1.0');
 // ── Load element registry ────────────────────────────────────────────────────
 
 const registry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
-const registryByName = Object.fromEntries(registry.map((e) => [e.name, e]));
 
-// ── Discover built artifacts ─────────────────────────────────────────────────
+// ── Discover and publish ─────────────────────────────────────────────────────
 
-console.log(`\n📦 Synergos CDN Publish`);
-console.log(`   Angular dist: ${ANGULAR_DIST}`);
-console.log(`   CDN target:   ${CDN_SYNERGOS}`);
-console.log(`   Version:      ${VERSION}\n`);
-
-if (!existsSync(ANGULAR_DIST)) {
-  console.error(`❌ Angular dist not found at ${ANGULAR_DIST}`);
-  console.error(`   Run "npm run build:angular" first.\n`);
-  process.exit(1);
-}
+console.log(`\n📦 Synergos CDN Publish (multi-framework)`);
+console.log(`   CDN target: ${CDN_SYNERGOS}`);
+console.log(`   Version:    ${VERSION}\n`);
 
 const published = [];
 const skipped = [];
 
 for (const entry of registry) {
-  const bundlePath = join(ANGULAR_DIST, entry.name, 'browser', 'main.js');
+  let elementPublished = false;
 
-  if (!existsSync(bundlePath)) {
-    skipped.push(entry.name);
-    continue;
+  for (const platform of PLATFORMS) {
+    const bundlePath = platform.resolveBundlePath(entry.name);
+
+    if (!existsSync(bundlePath)) continue;
+
+    // CDN path: synergos/<element>/<framework>/latest/
+    const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
+    mkdirSync(targetDir, { recursive: true });
+
+    copyFileSync(bundlePath, join(targetDir, 'main.js'));
+
+    const manifest = {
+      alias: entry.alias,
+      tag: entry.tag,
+      framework: platform.name,
+      entryScript: 'main.js',
+      version: VERSION,
+    };
+    writeFileSync(join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+    published.push({ ...entry, framework: platform.name });
+    elementPublished = true;
+    console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag}`);
   }
 
-  // Create CDN directory: synergos/<name>/latest/
-  const targetDir = join(CDN_SYNERGOS, entry.name, 'latest');
-  mkdirSync(targetDir, { recursive: true });
-
-  // Copy main.js
-  const targetJs = join(targetDir, 'main.js');
-  copyFileSync(bundlePath, targetJs);
-
-  // Generate manifest.json
-  const manifest = {
-    alias: entry.alias,
-    tag: entry.tag,
-    entryScript: 'main.js',
-    version: VERSION,
-  };
-  writeFileSync(join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-
-  published.push(entry);
-  console.log(`   ✅ ${entry.name} → ${entry.tag}`);
+  if (!elementPublished) {
+    skipped.push(entry.name);
+  }
 }
 
 // ── Generate global registry.json ────────────────────────────────────────────
 
 if (published.length > 0) {
+  // Group by element name to list all available frameworks
+  const byElement = new Map();
+  for (const item of published) {
+    if (!byElement.has(item.name)) {
+      byElement.set(item.name, {
+        alias: item.alias,
+        tag: item.tag,
+        name: item.name,
+        tier: item.tier,
+        frameworks: [],
+      });
+    }
+    byElement.get(item.name).frameworks.push({
+      framework: item.framework,
+      path: `/synergos/${item.name}/${item.framework}/latest/main.js`,
+    });
+  }
+
   const globalRegistry = {
     version: VERSION,
     baseUrl: '/synergos',
-    artifacts: published.map((entry) => ({
-      alias: entry.alias,
-      tag: entry.tag,
-      name: entry.name,
-      tier: entry.tier,
-      path: `/synergos/${entry.name}/latest/main.js`,
-      version: VERSION,
-    })),
+    artifacts: [...byElement.values()],
   };
 
   mkdirSync(CDN_SYNERGOS, { recursive: true });
@@ -104,12 +150,12 @@ if (published.length > 0) {
     JSON.stringify(globalRegistry, null, 2),
   );
 
-  console.log(`\n   📋 registry.json → ${published.length} artifacts`);
+  console.log(`\n   📋 registry.json → ${byElement.size} elements, ${published.length} bundles`);
 }
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 
-console.log(`\n   Published: ${published.length}`);
+console.log(`\n   Published: ${published.length} bundles`);
 if (skipped.length > 0) {
   console.log(`   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
 }

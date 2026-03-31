@@ -1,8 +1,8 @@
 {
-  "name": "elements-compositions-stat-counter",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "react-stat-counter",
+  "$schema": "../../../../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "apps/elements/compositions/stat-counter/src",
+  "sourceRoot": "platforms/react/apps/elements/compositions/stat-counter/src",
   "tags": [
     "scope:elements",
     "tier:composition",
@@ -13,10 +13,10 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/stat-counter"],
+      "outputs": ["{workspaceRoot}/platforms/react/dist/stat-counter"],
       "options": {
         "command": "npx vite build",
-        "cwd": "{workspaceRoot}",
+        "cwd": "platforms/react",
         "env": {
           "ELEMENT_NAME": "stat-counter",
           "ELEMENT_ENTRY": "apps/elements/compositions/stat-counter/src/main.tsx"
@@ -27,7 +27,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "npx vite build --watch",
-        "cwd": "{workspaceRoot}",
+        "cwd": "platforms/react",
         "env": {
           "ELEMENT_NAME": "stat-counter",
           "ELEMENT_ENTRY": "apps/elements/compositions/stat-counter/src/main.tsx"

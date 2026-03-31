@@ -1,7 +1,7 @@
 {
-  "name": "core",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/core/src",
+  "name": "svelte-core",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "platforms/svelte/libs/core/src",
   "projectType": "library",
   "tags": ["scope:core", "type:lib", "framework:svelte"]
 }

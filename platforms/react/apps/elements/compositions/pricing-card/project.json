@@ -1,8 +1,8 @@
 {
-  "name": "elements-compositions-pricing-card",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "react-pricing-card",
+  "$schema": "../../../../../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
-  "sourceRoot": "apps/elements/compositions/pricing-card/src",
+  "sourceRoot": "platforms/react/apps/elements/compositions/pricing-card/src",
   "tags": [
     "scope:elements",
     "tier:composition",
@@ -13,10 +13,10 @@
   "targets": {
     "build": {
       "executor": "nx:run-commands",
-      "outputs": ["{workspaceRoot}/dist/pricing-card"],
+      "outputs": ["{workspaceRoot}/platforms/react/dist/pricing-card"],
       "options": {
         "command": "npx vite build",
-        "cwd": "{workspaceRoot}",
+        "cwd": "platforms/react",
         "env": {
           "ELEMENT_NAME": "pricing-card",
           "ELEMENT_ENTRY": "apps/elements/compositions/pricing-card/src/main.tsx"
@@ -27,7 +27,7 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "npx vite build --watch",
-        "cwd": "{workspaceRoot}",
+        "cwd": "platforms/react",
         "env": {
           "ELEMENT_NAME": "pricing-card",
           "ELEMENT_ENTRY": "apps/elements/compositions/pricing-card/src/main.tsx"

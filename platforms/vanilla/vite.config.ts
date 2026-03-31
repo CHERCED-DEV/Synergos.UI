@@ -1,28 +1,15 @@
-import { defineConfig } from 'vite';
+import { defineConfig, mergeConfig } from 'vite';
 import { resolve } from 'path';
+import { createElementBuildConfig } from '../../vitals/shared/src/build/vite-base';
 
-export default defineConfig({
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    lib: {
-      // entry: resolve(__dirname, 'src/elements/<name>/main.js'),
-      formats: ['iife'],
-      name: 'SynergosElementVanilla',
-      fileName: () => 'main.js',
-    },
-    rollupOptions: {
-      output: {
-        inlineDynamicImports: true,
+export default defineConfig(
+  mergeConfig(createElementBuildConfig(__dirname), {
+    resolve: {
+      alias: {
+        // Vanilla has no local libs — point directly to vitals
+        '@synergos/core': resolve(__dirname, '../../vitals/core/src/index.ts'),
+        '@synergos/shared': resolve(__dirname, '../../vitals/shared/src/index.ts'),
       },
     },
-  },
-  resolve: {
-    alias: {
-      '@synergos/contracts': resolve(__dirname, '../../vitals/contracts/src/index.ts'),
-      '@synergos/core': resolve(__dirname, '../../vitals/core/src/index.ts'),
-      '@synergos/shared': resolve(__dirname, '../../vitals/shared/src/index.ts'),
-      '@synergos/core-assets': resolve(__dirname, '../../vitals/core-assets/src/index.ts'),
-    },
-  },
-});
+  }),
+);

@@ -1,7 +1,7 @@
 {
-  "name": "core-assets",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libs/core-assets/src",
+  "name": "svelte-core-assets",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "platforms/svelte/libs/core-assets/src",
   "projectType": "library",
   "tags": ["scope:core", "type:assets", "framework:svelte"]
 }
