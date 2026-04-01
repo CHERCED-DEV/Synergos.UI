@@ -1,9 +1,28 @@
 <div class="button-group" [class]="hostClasses()">
-  @for (btn of parsedButtons(); track btn.label) {
-    <syn-button
-      [label]="btn.label"
-      [variant]="$any(btn.variant || 'solid')"
-      [size]="$any(btn.size || 'md')"
-    />
+  @for (btn of parsedButtons(); track btn.label + btn.href) {
+    @if (btn.href) {
+      <a
+        class="button-group__link"
+        [attr.href]="btn.disabled ? null : btn.href"
+        [attr.target]="btn.target"
+        [attr.rel]="btn.target === '_blank' ? 'noopener noreferrer' : null"
+        [attr.aria-disabled]="btn.disabled ? 'true' : null"
+        [attr.tabindex]="btn.disabled ? -1 : null"
+      >
+        <syn-button
+          [label]="btn.label"
+          [variant]="btn.variant"
+          [size]="btn.size"
+          [disabled]="btn.disabled"
+        />
+      </a>
+    } @else {
+      <syn-button
+        [label]="btn.label"
+        [variant]="btn.variant"
+        [size]="btn.size"
+        [disabled]="btn.disabled"
+      />
+    }
   }
 </div>

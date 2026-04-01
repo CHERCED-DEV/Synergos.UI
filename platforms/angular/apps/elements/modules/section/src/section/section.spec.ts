@@ -1,5 +1,5 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SectionComponent } from './section';
 
 describe('SectionComponent', () => {
@@ -35,7 +35,7 @@ describe('SectionComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const heading = fixture.nativeElement.querySelector('.section__heading');
+    const heading = fixture.nativeElement.querySelector('.section__heading h2');
     expect(heading?.tagName?.toLowerCase()).toBe('h2');
   });
 });

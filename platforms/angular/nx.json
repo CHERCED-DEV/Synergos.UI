@@ -7,13 +7,60 @@
       "!{projectRoot}/.eslintrc.json",
       "!{projectRoot}/eslint.config.mjs"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": [
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/platforms/angular/tsconfig.json",
+      "{workspaceRoot}/platforms/angular/nx.json"
+    ]
   },
   "targetDefaults": {
     "@angular/build:application": {
       "cache": true,
       "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
+      "inputs": ["production", "^production"],
+      "options": {
+        "inlineStyleLanguage": "scss",
+        "stylePreprocessorOptions": {
+          "includePaths": ["../../vitals/core-assets/src"]
+        },
+        "assets": [],
+        "styles": []
+      },
+      "configurations": {
+        "production": {
+          "outputHashing": "none"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "@angular/build:dev-server": {
+      "continuous": true,
+      "options": {
+        "headers": {
+          "Access-Control-Allow-Origin": "*"
+        }
+      },
+      "configurations": {
+        "production": {
+          "buildTarget": "{projectName}:build:production"
+        },
+        "development": {
+          "buildTarget": "{projectName}:build:development"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "@nx/web:file-server": {
+      "continuous": true,
+      "options": {
+        "buildTarget": "{projectName}:build:development",
+        "cors": true
+      }
     },
     "@nx/eslint:lint": {
       "cache": true,
@@ -26,7 +73,23 @@
     },
     "@angular/build:unit-test": {
       "cache": true,
-      "inputs": ["default", "^production"]
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "runner": "vitest",
+        "runnerConfig": "vitest.base.config.ts",
+        "coverageReporters": ["text", "lcov", "html"]
+      }
+    }
+  },
+  "release": {
+    "projects": ["core", "shared", "rendering"],
+    "projectsRelationship": "independent",
+    "version": {
+      "conventionalCommits": true
+    },
+    "changelog": {
+      "projectChangelogs": true
     }
   },
   "generators": {

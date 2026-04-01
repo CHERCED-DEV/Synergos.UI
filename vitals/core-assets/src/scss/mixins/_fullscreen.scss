@@ -1,0 +1,77 @@
+@use '../tokens/colors' as colors;
+@use '../tokens/elevation' as elevation;
+@use '../tokens/spacing' as spacing;
+@use '../tokens/typography' as typography;
+@use '../functions/px-to-rem' as rem;
+@use 'custom-scrollbar';
+@use 'overlay';
+
+@mixin fullscreen-container(
+  $background: colors.$color-neutral-0,
+  $z-index: elevation.$z-modal,
+  $radius: 0
+) {
+  position: fixed;
+  inset: 0;
+  z-index: $z-index;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: $radius;
+  background: $background;
+}
+
+@mixin fullscreen-header(
+  $min-height: rem.px-to-rem(64),
+  $padding: spacing.$space-sm spacing.$space-md,
+  $background: colors.$color-neutral-0,
+  $border-color: colors.$color-neutral-200
+) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing.$space-sm;
+  min-height: $min-height;
+  padding: $padding;
+  border-bottom: rem.px-to-rem(1) solid $border-color;
+  background: $background;
+  color: colors.$color-neutral-900;
+}
+
+@mixin fullscreen-title($font-size: typography.$font-size-xl) {
+  margin: 0;
+  font-size: $font-size;
+  font-weight: typography.$font-weight-semibold;
+  line-height: typography.$line-height-tight;
+}
+
+@mixin fullscreen-body(
+  $padding: spacing.$space-md,
+  $background: colors.$color-neutral-0,
+  $scrollable: true
+) {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: $padding;
+  background: $background;
+
+  @if $scrollable {
+    overflow: auto;
+    @include custom-scrollbar.custom-scrollbar;
+  }
+}
+
+@mixin fullscreen-footer(
+  $padding: spacing.$space-md,
+  $background: colors.$color-neutral-0,
+  $border-color: colors.$color-neutral-200
+) {
+  flex: 0 0 auto;
+  padding: $padding;
+  border-top: rem.px-to-rem(1) solid $border-color;
+  background: $background;
+}
+
+@mixin fullscreen-overlay {
+  @include overlay.overlay-active;
+}

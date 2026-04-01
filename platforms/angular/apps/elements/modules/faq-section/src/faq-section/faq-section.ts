@@ -1,43 +1,68 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-  effect,
-  inject,
-} from '@angular/core';
-import { LoggerService } from '@synergos/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { InitialDataService } from '@synergos/core';
+import { AccordionComponent, HeadingComponent, type HeadingTone } from '@synergos/shared';
+
+interface FaqItem {
+  readonly answer: string;
+  readonly initiallyExpanded: boolean;
+  readonly question: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeFaqItem(value: unknown): FaqItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const question = readString(value['question']).trim();
+  const answer = readString(value['answer']).trim();
+
+  if (!question || !answer) {
+    return null;
+  }
+
+  return {
+    question,
+    answer,
+    initiallyExpanded: value['initiallyExpanded'] === true,
+  };
+}
 
 @Component({
   selector: 'sg-faq-section',
-  imports: [],
+  imports: [AccordionComponent, HeadingComponent],
   templateUrl: './faq-section.html',
   styleUrl: './faq-section.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-faq-section' },
 })
 export class FaqSectionComponent {
-  readonly #logger = inject(LoggerService);
+  readonly #initialData = inject(InitialDataService);
 
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly headingText = input<string>('');
   readonly items = input<string>('[]');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly parsedItems = computed(() => {
-    try { return JSON.parse(this.items()); }
-    catch { return []; }
-  });
-  readonly hostClasses = computed(() => `sg-faq-section--${this.theme()}`);
+  readonly parsedItems = computed<readonly FaqItem[]>(() => {
+    const parsedValue = this.#initialData.parseValue<unknown>(this.items());
 
-  constructor() {
-    effect(() => {
-      this.#logger.debug('[synergos-faq-section] inputs', {
-        headingText: this.headingText(),
-        items: this.items(),
-        theme: this.theme(),
-      });
-    });
-  }
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue
+      .map((item) => normalizeFaqItem(item))
+      .filter((item): item is FaqItem => item !== null);
+  });
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
+  );
+  readonly hostClasses = computed(() => `sg-faq-section--${this.theme()}`);
 }

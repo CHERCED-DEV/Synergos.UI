@@ -20,15 +20,7 @@
         "outputPath": "dist/test-macro",
         "browser": "apps/elements/test-macro/src/main.ts",
         "index": "apps/elements/test-macro/src/index.html",
-        "tsConfig": "apps/elements/test-macro/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/test-macro/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -38,44 +30,21 @@
               "maximumWarning": "200kb",
               "maximumError": "500kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4201,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-test-macro:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-test-macro:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4201
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-test-macro:build:development",
         "port": 4201,
-        "staticFilePath": "dist/test-macro/browser",
-        "cors": true
+        "staticFilePath": "dist/test-macro/browser"
       }
     },
     "lint": {
@@ -89,18 +58,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/test-macro/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/test-macro/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/test-macro/tsconfig.spec.json"
       }
     }
   }

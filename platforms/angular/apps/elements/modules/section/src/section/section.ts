@@ -1,26 +1,27 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-} from '@angular/core';
 import { NgStyle } from '@angular/common';
-import { LoggerService } from '@synergos/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  HeadingComponent,
+  type HeadingAlign,
+  type HeadingLevel,
+  type HeadingTone,
+} from '@synergos/shared';
+
+const sectionHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+function resolveSectionHeadingLevel(value: string): HeadingLevel {
+  return sectionHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h2';
+}
 
 @Component({
   selector: 'sg-section',
   templateUrl: './section.html',
   styleUrl: './section.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgStyle],
+  imports: [NgStyle, HeadingComponent],
   host: { class: 'sg-section' },
 })
 export class SectionComponent {
-  readonly #logger = inject(LoggerService);
-
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly headingText = input<string>('');
   readonly headingLevel = input<string>('h2');
   readonly containerType = input<string>('fluid');
@@ -32,10 +33,18 @@ export class SectionComponent {
   readonly variant = input<string>('default');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly hasHeading = computed(() => !!this.headingText());
+  readonly hasHeading = computed(() => this.headingText().trim().length > 0);
+  readonly resolvedHeadingLevel = computed<HeadingLevel>(() =>
+    resolveSectionHeadingLevel(this.headingLevel()),
+  );
+  readonly headingAlign = computed<HeadingAlign>(() =>
+    this.alignment() === 'center' ? 'center' : 'start',
+  );
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
+  );
   readonly hostClasses = computed(
-    () => `sg-section--${this.variant()} sg-section--${this.theme()} sg-section--${this.containerType()}`
+    () => `sg-section--${this.variant()} sg-section--${this.theme()} sg-section--${this.containerType()}`,
   );
   readonly containerStyles = computed(() => ({
     'align-items': this.alignment(),
@@ -44,14 +53,4 @@ export class SectionComponent {
     margin: this.margin() || null,
     padding: this.padding() || null,
   }));
-
-  constructor() {
-    effect(() => {
-      this.#logger.debug('[synergos-section] inputs', {
-        headingText: this.headingText(),
-        containerType: this.containerType(),
-        variant: this.variant(),
-      });
-    });
-  }
 }

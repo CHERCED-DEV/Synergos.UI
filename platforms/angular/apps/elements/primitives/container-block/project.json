@@ -21,15 +21,7 @@
         "outputPath": "dist/container-block",
         "browser": "apps/elements/primitives/container-block/src/main.ts",
         "index": "apps/elements/primitives/container-block/src/index.html",
-        "tsConfig": "apps/elements/primitives/container-block/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/primitives/container-block/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "100kb",
               "maximumError": "200kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4215,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-primitives-container-block:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-primitives-container-block:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4215
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-primitives-container-block:build:development",
         "port": 4215,
-        "staticFilePath": "dist/container-block/browser",
-        "cors": true
+        "staticFilePath": "dist/container-block/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/primitives/container-block/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/primitives/container-block/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/primitives/container-block/tsconfig.spec.json"
       }
     }
   }

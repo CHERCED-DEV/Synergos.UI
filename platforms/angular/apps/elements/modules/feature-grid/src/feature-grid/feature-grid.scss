@@ -7,30 +7,34 @@
 .feature-grid {
   padding: syn.$space-xl 0;
 
-  &--dark {
-    .feature-grid__heading { color: syn.$color-neutral-0; }
-    .feature-grid__item-heading { color: syn.$color-neutral-0; }
-    .feature-grid__item-body { color: syn.$color-neutral-300; }
-  }
-
   &__heading {
-    margin: 0 0 syn.$space-xl 0;
-    @include syn.heading('lg');
-    color: syn.$color-neutral-900;
-    text-align: center;
+    display: block;
+    margin-bottom: syn.$space-xl;
   }
 
   &__grid {
-    display: grid;
-    gap: syn.$space-lg;
+    display: block;
   }
 
   &__item {
     @include syn.flex-column;
+    @include syn.surface-panel(
+      syn.$space-lg,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.px-to-rem(16),
+      syn.$shadow-sm
+    );
     align-items: center;
     text-align: center;
     gap: syn.$space-sm;
-    padding: syn.$space-lg;
+    height: 100%;
+
+    .sg-feature-grid--dark & {
+      background-color: syn.$color-neutral-800;
+      border-color: syn.$color-neutral-700;
+    }
   }
 
   &__icon {
@@ -47,6 +51,10 @@
     margin: 0;
     @include syn.heading('xs');
     color: syn.$color-neutral-900;
+
+    .sg-feature-grid--dark & {
+      color: syn.$color-neutral-0;
+    }
   }
 
   &__item-body {
@@ -54,5 +62,9 @@
     font-size: syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
     color: syn.$color-neutral-600;
+
+    .sg-feature-grid--dark & {
+      color: syn.$color-neutral-300;
+    }
   }
 }

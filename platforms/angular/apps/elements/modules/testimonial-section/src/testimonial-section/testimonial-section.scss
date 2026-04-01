@@ -7,37 +7,33 @@
 .testimonial-section {
   padding: syn.$space-xl 0;
 
-  &--dark {
-    .testimonial-section__heading { color: syn.$color-neutral-0; }
-    .testimonial-section__quote { color: syn.$color-neutral-300; }
-    .testimonial-section__name { color: syn.$color-neutral-0; }
-    .testimonial-section__card {
-      background-color: syn.$color-neutral-800;
-      border-color: syn.$color-neutral-700;
-    }
-  }
-
   &__heading {
-    margin: 0 0 syn.$space-xl 0;
-    @include syn.heading('lg');
-    color: syn.$color-neutral-900;
-    text-align: center;
+    display: block;
+    margin-bottom: syn.$space-xl;
   }
 
   &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(300), 1fr));
-    gap: syn.$space-lg;
+    display: block;
   }
 
   &__card {
-    margin: 0;
-    padding: syn.$space-lg;
-    background-color: syn.$color-neutral-0;
-    border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-    border-radius: syn.px-to-rem(8);
+    @include syn.surface-panel(
+      syn.$space-lg,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.px-to-rem(16),
+      syn.$shadow-sm
+    );
     @include syn.flex-column;
+    margin: 0;
     gap: syn.$space-md;
+    height: 100%;
+
+    .sg-testimonial-section--dark & {
+      background-color: syn.$color-neutral-800;
+      border-color: syn.$color-neutral-700;
+    }
   }
 
   &__quote {
@@ -46,6 +42,10 @@
     line-height: syn.$line-height-relaxed;
     color: syn.$color-neutral-600;
     font-style: italic;
+
+    .sg-testimonial-section--dark & {
+      color: syn.$color-neutral-300;
+    }
   }
 
   &__author {
@@ -62,6 +62,10 @@
     font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
     color: syn.$color-neutral-900;
+
+    .sg-testimonial-section--dark & {
+      color: syn.$color-neutral-0;
+    }
   }
 
   &__role {

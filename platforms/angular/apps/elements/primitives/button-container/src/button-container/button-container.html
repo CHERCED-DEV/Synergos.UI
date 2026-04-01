@@ -1,10 +1,24 @@
 @if (isLink()) {
-  <a class="button-container__link"
-     [href]="href()"
-     [target]="target()"
-     rel="noopener noreferrer">
-    <syn-button [label]="label()" [variant]="$any(variant())" [size]="$any(size())" [disabled]="disabled()" />
+  <a
+    class="button-container__link"
+    [attr.href]="disabled() ? null : href()"
+    [attr.target]="target() || null"
+    [attr.rel]="resolvedRel()"
+    [attr.aria-disabled]="disabled() ? 'true' : null"
+    [attr.tabindex]="disabled() ? -1 : null"
+  >
+    <syn-button
+      [label]="label()"
+      [variant]="resolvedVariant()"
+      [size]="resolvedSize()"
+      [disabled]="disabled()"
+    />
   </a>
 } @else {
-  <syn-button [label]="label()" [variant]="$any(variant())" [size]="$any(size())" [disabled]="disabled()" />
+  <syn-button
+    [label]="label()"
+    [variant]="resolvedVariant()"
+    [size]="resolvedSize()"
+    [disabled]="disabled()"
+  />
 }

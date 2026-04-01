@@ -1,26 +1,15 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-} from '@angular/core';
-import { LoggerService } from '@synergos/core';
-import { ButtonComponent, BadgeComponent } from '@synergos/shared';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { BadgeComponent, ButtonComponent, HeadingComponent, type HeadingTone } from '@synergos/shared';
 
 @Component({
   selector: 'sg-card',
-  imports: [ButtonComponent, BadgeComponent],
+  imports: [BadgeComponent, ButtonComponent, HeadingComponent],
   templateUrl: './card.html',
   styleUrl: './card.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-card' },
 })
 export class CardComponent {
-  readonly #logger = inject(LoggerService);
-
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly title = input<string>('');
   readonly subtitle = input<string>('');
   readonly body = input<string>('');
@@ -33,25 +22,14 @@ export class CardComponent {
   readonly variant = input<string>('default');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly hasImage = computed(() => !!this.imageSrc());
-  readonly hasCta = computed(() => !!this.ctaLabel() && !!this.ctaUrl());
-  readonly hasBadge = computed(() => !!this.badgeText());
-  readonly badgeTone = computed(() => {
-    const type = this.badgeType();
-    return type === 'info' ? 'brand' : 'neutral';
-  });
-  readonly hostClasses = computed(
-    () => `sg-card--${this.variant()} sg-card--${this.theme()}`
+  readonly hasImage = computed(() => this.imageSrc().trim().length > 0);
+  readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
+  readonly hasBadge = computed(() => this.badgeText().trim().length > 0);
+  readonly badgeTone = computed(() => (this.badgeType() === 'info' ? 'brand' : 'neutral'));
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
   );
-
-  constructor() {
-    effect(() => {
-      this.#logger.debug('[synergos-card] inputs', {
-        title: this.title(),
-        variant: this.variant(),
-        theme: this.theme(),
-      });
-    });
-  }
+  readonly hostClasses = computed(
+    () => `sg-card--${this.variant()} sg-card--${this.theme()}`,
+  );
 }

@@ -1,21 +1,15 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core';
-import { ButtonComponent } from '@synergos/shared';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ButtonComponent, HeadingComponent, type HeadingTone } from '@synergos/shared';
 
 @Component({
   selector: 'sg-info-block',
-  imports: [ButtonComponent],
+  imports: [ButtonComponent, HeadingComponent],
   templateUrl: './info-block.html',
   styleUrl: './info-block.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-info-block' },
 })
 export class InfoBlockComponent {
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly title = input<string>('');
   readonly body = input<string>('');
   readonly ctaLabel = input<string>('');
@@ -23,7 +17,11 @@ export class InfoBlockComponent {
   readonly variant = input<string>('default');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly hasCta = computed(() => !!this.ctaLabel() && !!this.ctaUrl());
-  readonly hostClasses = computed(() => `sg-info-block--${this.variant()} sg-info-block--${this.theme()}`);
+  readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
+  );
+  readonly hostClasses = computed(
+    () => `sg-info-block--${this.variant()} sg-info-block--${this.theme()}`,
+  );
 }

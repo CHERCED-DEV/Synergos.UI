@@ -7,14 +7,20 @@
 
 .card {
   @include syn.flex-column;
-  background: syn.$color-neutral-0;
-  border: 1px solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(8);
+  @include syn.surface-panel(
+    0,
+    syn.$color-neutral-0,
+    syn.$color-neutral-200,
+    syn.px-to-rem(1),
+    syn.px-to-rem(8),
+    syn.$shadow-sm
+  );
   overflow: hidden;
-  transition: box-shadow 150ms ease;
+  transition: box-shadow 150ms ease, transform 150ms ease;
 
   &:hover {
-    box-shadow: syn.$shadow-sm;
+    box-shadow: syn.$shadow-md;
+    transform: translateY(syn.px-to-rem(-2));
   }
 
   &--dark {
@@ -41,14 +47,7 @@
   }
 
   &__title {
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-semibold;
-    color: syn.$color-neutral-900;
-
-    .sg-card--dark & {
-      color: syn.$color-neutral-0;
-    }
+    display: block;
   }
 
   &__subtitle {

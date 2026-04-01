@@ -21,15 +21,7 @@
         "outputPath": "dist/link-block",
         "browser": "apps/elements/primitives/link-block/src/main.ts",
         "index": "apps/elements/primitives/link-block/src/index.html",
-        "tsConfig": "apps/elements/primitives/link-block/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/primitives/link-block/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "100kb",
               "maximumError": "200kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4214,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-primitives-link-block:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-primitives-link-block:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4214
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-primitives-link-block:build:development",
         "port": 4214,
-        "staticFilePath": "dist/link-block/browser",
-        "cors": true
+        "staticFilePath": "dist/link-block/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/primitives/link-block/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/primitives/link-block/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/primitives/link-block/tsconfig.spec.json"
       }
     }
   }

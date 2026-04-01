@@ -11,13 +11,19 @@
   align-items: center;
 
   &--right {
-    .media-text__media { order: 2; }
-    .media-text__content { order: 1; }
+    .media-text__media {
+      order: 2;
+    }
+
+    .media-text__content {
+      order: 1;
+    }
   }
 
   &--dark {
-    .media-text__heading { color: syn.$color-neutral-0; }
-    .media-text__body { color: syn.$color-neutral-300; }
+    .media-text__body {
+      color: syn.$color-neutral-300;
+    }
   }
 
   &__media {
@@ -38,9 +44,7 @@
   }
 
   &__heading {
-    margin: 0;
-    @include syn.heading('md');
-    color: syn.$color-neutral-900;
+    display: block;
   }
 
   &__body {

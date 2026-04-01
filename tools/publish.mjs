@@ -72,7 +72,8 @@ function getArg(flag, fallback) {
 
 const CDN_ROOT = resolve(getArg('--cdn', process.env.SYNERGOS_CDN || 'C:\\LOCAL_CDN'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
-const VERSION = getArg('--version', '0.1.0');
+const pkgVersion = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')).version;
+const VERSION = getArg('--version', pkgVersion);
 const DRY_RUN = args.includes('--dry-run');
 const CLEAN = args.includes('--clean');
 const ELEMENT_FILTER = getArg('--element', null);
@@ -115,21 +116,29 @@ for (const entry of registry) {
     // CDN path: synergos/<element>/<framework>/latest/
     const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
 
+    const manifest = {
+      alias: entry.alias,
+      tag: entry.tag,
+      framework: platform.name,
+      entryScript: 'main.js',
+      version: VERSION,
+    };
+
     if (DRY_RUN) {
-      console.log(`${prefix}   ✅ ${entry.name} [${platform.name}] → ${entry.tag}`);
+      console.log(`${prefix}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION})`);
     } else {
+      // Publish to versioned slot (immutable)
+      const versionedDir = join(CDN_SYNERGOS, entry.name, platform.name, VERSION);
+      mkdirSync(versionedDir, { recursive: true });
+      copyFileSync(bundlePath, join(versionedDir, 'main.js'));
+      writeFileSync(join(versionedDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+      // Overwrite latest/ slot
       mkdirSync(targetDir, { recursive: true });
       copyFileSync(bundlePath, join(targetDir, 'main.js'));
-
-      const manifest = {
-        alias: entry.alias,
-        tag: entry.tag,
-        framework: platform.name,
-        entryScript: 'main.js',
-        version: VERSION,
-      };
       writeFileSync(join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag}`);
+
+      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION})`);
     }
 
     published.push({ ...entry, framework: platform.name });

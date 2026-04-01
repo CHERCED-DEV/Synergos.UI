@@ -1,0 +1,32 @@
+@use '../tokens/spacing' as spacing;
+@use '../tokens/typography' as typography;
+@use '../functions/px-to-rem' as rem;
+
+@mixin badge(
+  $background,
+  $color,
+  $min-height: rem.px-to-rem(24),
+  $padding-y: spacing.$space-1,
+  $padding-x: spacing.$space-xs,
+  $radius: rem.px-to-rem(999),
+  $font-size: typography.$font-size-xs,
+  $font-weight: typography.$font-weight-semibold,
+  $letter-spacing: typography.$letter-spacing-wide,
+  $gap: spacing.$space-1,
+  $shadow: none
+) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $gap;
+  min-height: $min-height;
+  padding: $padding-y $padding-x;
+  border-radius: $radius;
+  font-size: $font-size;
+  font-weight: $font-weight;
+  letter-spacing: $letter-spacing;
+  line-height: 1;
+  color: $color;
+  background: $background;
+  box-shadow: $shadow;
+}

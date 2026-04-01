@@ -1,5 +1,5 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HeroComponent } from './hero';
 
 describe('HeroComponent', () => {
@@ -27,6 +27,16 @@ describe('HeroComponent', () => {
     await fixture.whenStable();
 
     const heading = fixture.nativeElement.querySelector('.hero__heading');
+    expect(heading?.textContent?.trim()).toBe('Welcome');
+  });
+
+  it('should honor supported heading levels through shared heading', async () => {
+    fixture.componentRef.setInput('headingText', 'Welcome');
+    fixture.componentRef.setInput('headingLevel', 'h2');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const heading = fixture.nativeElement.querySelector('.hero__heading h2');
     expect(heading?.textContent?.trim()).toBe('Welcome');
   });
 

@@ -1,0 +1,45 @@
+@use '../tokens/colors' as colors;
+@use '../functions/px-to-rem' as rem;
+
+@mixin selected-border(
+  $position: bottom,
+  $size: rem.px-to-rem(4),
+  $color: colors.$color-brand-500,
+  $radius: rem.px-to-rem(12),
+  $pseudo: after
+) {
+  position: relative;
+
+  &::#{$pseudo} {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    background: $color;
+
+    @if $position == top {
+      top: 0;
+      right: 0;
+      left: 0;
+      height: $size;
+      border-radius: $radius $radius 0 0;
+    } @else if $position == right {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: $size;
+      border-radius: 0 $radius $radius 0;
+    } @else if $position == left {
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: $size;
+      border-radius: $radius 0 0 $radius;
+    } @else {
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: $size;
+      border-radius: 0 0 $radius $radius;
+    }
+  }
+}

@@ -8,14 +8,39 @@
   display: flex;
   flex-wrap: wrap;
 
-  &--row { flex-direction: row; }
-  &--column { flex-direction: column; }
+  &--row {
+    flex-direction: row;
+  }
 
-  &--center { justify-content: center; }
-  &--right { justify-content: flex-end; }
+  &--column {
+    flex-direction: column;
+  }
 
-  &--gap-xs { gap: syn.$space-xs; }
-  &--gap-sm { gap: syn.$space-sm; }
-  &--gap-md { gap: syn.$space-md; }
-  &--gap-lg { gap: syn.$space-lg; }
+  &--center {
+    justify-content: center;
+  }
+
+  &--right {
+    justify-content: flex-end;
+  }
+
+  &--gap-xs {
+    gap: syn.$space-xs;
+  }
+
+  &--gap-sm {
+    gap: syn.$space-sm;
+  }
+
+  &--gap-md {
+    gap: syn.$space-md;
+  }
+
+  &--gap-lg {
+    gap: syn.$space-lg;
+  }
+
+  &__link {
+    text-decoration: none;
+  }
 }

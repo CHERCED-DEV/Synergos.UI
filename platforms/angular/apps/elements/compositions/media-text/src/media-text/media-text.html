@@ -6,7 +6,13 @@
   }
   <div class="media-text__content">
     @if (headingText()) {
-      <h2 class="media-text__heading">{{ headingText() }}</h2>
+      <syn-heading
+        class="media-text__heading"
+        [text]="headingText()"
+        [tone]="headingTone()"
+        level="h2"
+        size="md"
+      />
     }
     @if (body()) {
       <p class="media-text__body">{{ body() }}</p>

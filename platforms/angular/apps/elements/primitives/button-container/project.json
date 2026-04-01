@@ -21,15 +21,7 @@
         "outputPath": "dist/button-container",
         "browser": "apps/elements/primitives/button-container/src/main.ts",
         "index": "apps/elements/primitives/button-container/src/index.html",
-        "tsConfig": "apps/elements/primitives/button-container/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/primitives/button-container/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "100kb",
               "maximumError": "200kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4210,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-primitives-button-container:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-primitives-button-container:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4210
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-primitives-button-container:build:development",
         "port": 4210,
-        "staticFilePath": "dist/button-container/browser",
-        "cors": true
+        "staticFilePath": "dist/button-container/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/primitives/button-container/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/primitives/button-container/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/primitives/button-container/tsconfig.spec.json"
       }
     }
   }

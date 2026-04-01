@@ -10,20 +10,24 @@
   padding: syn.$space-lg;
 
   &--card {
-    background-color: syn.$color-neutral-0;
-    border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-    border-radius: syn.px-to-rem(8);
+    @include syn.surface-panel(
+      syn.$space-lg,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.px-to-rem(8),
+      syn.$shadow-sm
+    );
   }
 
   &--dark {
-    .info-block__title { color: syn.$color-neutral-0; }
-    .info-block__body { color: syn.$color-neutral-300; }
+    .info-block__body {
+      color: syn.$color-neutral-300;
+    }
   }
 
   &__title {
-    margin: 0;
-    @include syn.heading('sm');
-    color: syn.$color-neutral-900;
+    display: block;
   }
 
   &__body {

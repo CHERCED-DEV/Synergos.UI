@@ -1,26 +1,26 @@
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  input,
-} from '@angular/core';
-import { LoggerService } from '@synergos/core';
-import { ButtonComponent } from '@synergos/shared';
+  ButtonComponent,
+  HeadingComponent,
+  type HeadingLevel,
+  type HeadingTone,
+} from '@synergos/shared';
+
+const heroHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+function resolveHeroHeadingLevel(value: string): HeadingLevel {
+  return heroHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h1';
+}
 
 @Component({
   selector: 'sg-hero',
-  imports: [ButtonComponent],
+  imports: [ButtonComponent, HeadingComponent],
   templateUrl: './hero.html',
   styleUrl: './hero.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-hero' },
 })
 export class HeroComponent {
-  readonly #logger = inject(LoggerService);
-
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly headingText = input<string>('');
   readonly headingLevel = input<string>('h1');
   readonly body = input<string>('');
@@ -32,20 +32,15 @@ export class HeroComponent {
   readonly variant = input<string>('default');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly hasImage = computed(() => !!this.imageSrc());
-  readonly hasCta = computed(() => !!this.ctaLabel() && !!this.ctaUrl());
-  readonly hostClasses = computed(
-    () => `sg-hero--${this.variant()} sg-hero--${this.theme()}`
+  readonly hasImage = computed(() => this.imageSrc().trim().length > 0);
+  readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
+  readonly resolvedHeadingLevel = computed<HeadingLevel>(() =>
+    resolveHeroHeadingLevel(this.headingLevel()),
   );
-
-  constructor() {
-    effect(() => {
-      this.#logger.debug('[synergos-hero] inputs', {
-        headingText: this.headingText(),
-        variant: this.variant(),
-        theme: this.theme(),
-      });
-    });
-  }
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
+  );
+  readonly hostClasses = computed(
+    () => `sg-hero--${this.variant()} sg-hero--${this.theme()}`,
+  );
 }

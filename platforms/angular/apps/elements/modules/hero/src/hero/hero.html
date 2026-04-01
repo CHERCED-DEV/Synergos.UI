@@ -5,12 +5,14 @@
 >
   <div class="hero__content">
     @if (headingText()) {
-      @switch (headingLevel()) {
-        @case ('h1') { <h1 class="hero__heading">{{ headingText() }}</h1> }
-        @case ('h2') { <h2 class="hero__heading">{{ headingText() }}</h2> }
-        @case ('h3') { <h3 class="hero__heading">{{ headingText() }}</h3> }
-        @default { <h1 class="hero__heading">{{ headingText() }}</h1> }
-      }
+      <syn-heading
+        class="hero__heading"
+        [text]="headingText()"
+        [level]="resolvedHeadingLevel()"
+        [tone]="headingTone()"
+        size="xl"
+        align="center"
+      />
     }
 
     @if (body()) {

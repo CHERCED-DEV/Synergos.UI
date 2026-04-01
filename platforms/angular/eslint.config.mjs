@@ -18,8 +18,31 @@ export default [
       '**/*.cjs',
       '**/*.mjs',
     ],
-    // Override or add rules here
-    rules: {},
+    rules: {
+      '@nx/enforce-module-boundaries': [
+        'error',
+        {
+          depConstraints: [
+            {
+              sourceTag: 'framework:angular',
+              onlyDependOnLibsWithTags: ['framework:angular', 'framework:agnostic'],
+            },
+            {
+              sourceTag: 'framework:agnostic',
+              onlyDependOnLibsWithTags: ['framework:agnostic'],
+            },
+            {
+              sourceTag: 'tier:primitive',
+              notDependOnLibsWithTags: ['tier:composition', 'tier:module'],
+            },
+            {
+              sourceTag: 'tier:composition',
+              notDependOnLibsWithTags: ['tier:module'],
+            },
+          ],
+        },
+      ],
+    },
   },
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],

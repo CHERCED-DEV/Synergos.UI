@@ -21,15 +21,7 @@
         "outputPath": "dist/grid",
         "browser": "apps/elements/primitives/grid/src/main.ts",
         "index": "apps/elements/primitives/grid/src/index.html",
-        "tsConfig": "apps/elements/primitives/grid/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/primitives/grid/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "100kb",
               "maximumError": "200kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4217,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-primitives-grid:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-primitives-grid:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4217
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-primitives-grid:build:development",
         "port": 4217,
-        "staticFilePath": "dist/grid/browser",
-        "cors": true
+        "staticFilePath": "dist/grid/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/primitives/grid/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/primitives/grid/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/primitives/grid/tsconfig.spec.json"
       }
     }
   }

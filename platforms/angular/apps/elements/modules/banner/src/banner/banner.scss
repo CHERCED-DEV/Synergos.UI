@@ -6,14 +6,20 @@
 }
 
 .banner {
+  @include syn.surface-panel(
+    syn.$space-lg syn.$space-xl,
+    syn.$color-brand-100,
+    syn.$color-brand-200,
+    syn.px-to-rem(1),
+    syn.px-to-rem(12),
+    syn.$shadow-sm
+  );
   @include syn.flex-between;
-  padding: syn.$space-lg syn.$space-xl;
-  background-color: syn.$color-brand-100;
-  border-radius: syn.px-to-rem(8);
   gap: syn.$space-lg;
 
   &--dark {
     background-color: syn.$color-neutral-800;
+    border-color: syn.$color-neutral-700;
     color: syn.$color-neutral-0;
   }
 
@@ -23,14 +29,7 @@
   }
 
   &__title {
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-semibold;
-    color: syn.$color-neutral-900;
-
-    .sg-banner--dark & {
-      color: syn.$color-neutral-0;
-    }
+    display: block;
   }
 
   &__body {

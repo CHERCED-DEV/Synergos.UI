@@ -21,15 +21,7 @@
         "outputPath": "dist/macro-host",
         "browser": "apps/elements/modules/macro-host/src/main.ts",
         "index": "apps/elements/modules/macro-host/src/index.html",
-        "tsConfig": "apps/elements/modules/macro-host/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/modules/macro-host/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "200kb",
               "maximumError": "500kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4253,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-modules-macro-host:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-modules-macro-host:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4253
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-modules-macro-host:build:development",
         "port": 4253,
-        "staticFilePath": "dist/macro-host/browser",
-        "cors": true
+        "staticFilePath": "dist/macro-host/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/modules/macro-host/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/modules/macro-host/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/modules/macro-host/tsconfig.spec.json"
       }
     }
   }

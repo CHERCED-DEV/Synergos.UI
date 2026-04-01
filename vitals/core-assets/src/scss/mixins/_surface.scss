@@ -1,0 +1,113 @@
+@use '../tokens/colors' as colors;
+@use '../tokens/elevation' as elevation;
+@use '../tokens/spacing' as spacing;
+@use '../tokens/typography' as typography;
+@use '../functions/px-to-rem' as rem;
+@use 'custom-scrollbar';
+@use 'focus';
+
+@mixin surface-panel(
+  $padding: spacing.$space-xs,
+  $background: colors.$color-neutral-0,
+  $border-color: colors.$color-neutral-200,
+  $border-width: rem.px-to-rem(1),
+  $radius: rem.px-to-rem(12),
+  $shadow: elevation.$shadow-md
+) {
+  padding: $padding;
+  border: $border-width solid $border-color;
+  border-radius: $radius;
+  background: $background;
+  box-shadow: $shadow;
+}
+
+@mixin floating-panel(
+  $padding: spacing.$space-xs,
+  $background: colors.$color-neutral-0,
+  $border-color: colors.$color-neutral-200,
+  $radius: rem.px-to-rem(12),
+  $shadow: elevation.$shadow-md,
+  $z-index: elevation.$z-dropdown
+) {
+  position: absolute;
+  z-index: $z-index;
+  @include surface-panel($padding, $background, $border-color, rem.px-to-rem(1), $radius, $shadow);
+}
+
+@mixin dropdown-panel(
+  $min-width: rem.px-to-rem(180),
+  $offset: spacing.$space-1,
+  $align: start,
+  $max-height: rem.px-to-rem(320)
+) {
+  min-width: $min-width;
+  max-height: $max-height;
+  overflow: auto;
+  top: calc(100% + #{$offset});
+
+  @if $align == end {
+    right: 0;
+    left: auto;
+  } @else if $align == center {
+    left: 50%;
+    transform: translateX(-50%);
+  } @else {
+    left: 0;
+  }
+
+  @include floating-panel;
+  @include custom-scrollbar.custom-scrollbar;
+}
+
+@mixin dropdown-item(
+  $padding-y: spacing.$space-xs,
+  $padding-x: spacing.$space-sm,
+  $radius: rem.px-to-rem(8),
+  $color: colors.$color-neutral-900,
+  $hover-background: colors.$color-neutral-100,
+  $selected-background: colors.$color-brand-100,
+  $selected-color: colors.$color-brand-600
+) {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: $padding-y $padding-x;
+  border: 0;
+  border-radius: $radius;
+  background: transparent;
+  color: $color;
+  text-align: left;
+  text-decoration: none;
+  font-size: typography.$font-size-sm;
+  line-height: typography.$line-height-normal;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+
+  @include focus.focus-visible;
+
+  &:where(:hover, :focus-visible):not(:disabled) {
+    background: $hover-background;
+  }
+
+  &[aria-selected='true'],
+  &.is-selected {
+    background: $selected-background;
+    color: $selected-color;
+    font-weight: typography.$font-weight-semibold;
+  }
+}
+
+@mixin popover-panel(
+  $padding: spacing.$space-sm,
+  $max-width: rem.px-to-rem(320),
+  $background: colors.$color-neutral-0,
+  $border-color: colors.$color-neutral-200,
+  $radius: rem.px-to-rem(14),
+  $shadow: elevation.$shadow-lg
+) {
+  max-width: $max-width;
+  color: colors.$color-neutral-800;
+  font-size: typography.$font-size-sm;
+  line-height: typography.$line-height-normal;
+  @include floating-panel($padding, $background, $border-color, $radius, $shadow, elevation.$z-tooltip);
+}

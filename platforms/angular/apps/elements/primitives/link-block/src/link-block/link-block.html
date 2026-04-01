@@ -1,10 +1,9 @@
-<a
+<syn-link
   class="link-block"
-  [class]="hostClasses()"
   [href]="href()"
   [target]="target()"
-  [attr.aria-label]="ariaLabel() || null"
-  rel="noopener noreferrer"
->
-  {{ label() }}
-</a>
+  [label]="label()"
+  [ariaLabel]="ariaLabel()"
+  [tone]="resolvedTone()"
+  [underline]="underline()"
+/>

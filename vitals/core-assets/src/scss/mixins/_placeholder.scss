@@ -1,0 +1,14 @@
+@mixin placeholder($color, $font-size: null, $font-weight: null) {
+  &::placeholder {
+    @if $font-size {
+      font-size: $font-size;
+    }
+
+    @if $font-weight {
+      font-weight: $font-weight;
+    }
+
+    color: $color;
+    opacity: 1;
+  }
+}

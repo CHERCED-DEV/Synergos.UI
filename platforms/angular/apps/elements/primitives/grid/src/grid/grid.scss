@@ -5,16 +5,9 @@
 }
 
 .grid {
-  display: grid;
+  display: block;
 
-  &--gap-none { gap: 0; }
-  &--gap-xs { gap: syn.$space-xs; }
-  &--gap-sm { gap: syn.$space-sm; }
-  &--gap-md { gap: syn.$space-md; }
-  &--gap-lg { gap: syn.$space-lg; }
-  &--gap-xl { gap: syn.$space-xl; }
-
-  &--dark {
+  &.sg-grid--dark {
     color: syn.$color-neutral-0;
   }
 }

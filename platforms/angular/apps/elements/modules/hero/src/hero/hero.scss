@@ -31,13 +31,7 @@
   }
 
   &__heading {
-    margin: 0;
-    @include syn.heading('lg');
-    color: syn.$color-neutral-900;
-
-    .sg-hero--dark & {
-      color: syn.$color-neutral-0;
-    }
+    display: block;
   }
 
   &__body {

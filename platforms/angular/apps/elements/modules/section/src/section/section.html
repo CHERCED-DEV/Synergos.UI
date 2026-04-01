@@ -1,12 +1,14 @@
 <section class="section" [class]="hostClasses()">
   @if (hasHeading()) {
     <div class="section__header">
-      @switch (headingLevel()) {
-        @case ('h1') { <h1 class="section__heading">{{ headingText() }}</h1> }
-        @case ('h2') { <h2 class="section__heading">{{ headingText() }}</h2> }
-        @case ('h3') { <h3 class="section__heading">{{ headingText() }}</h3> }
-        @default { <h2 class="section__heading">{{ headingText() }}</h2> }
-      }
+      <syn-heading
+        class="section__heading"
+        [text]="headingText()"
+        [level]="resolvedHeadingLevel()"
+        [align]="headingAlign()"
+        [tone]="headingTone()"
+        size="lg"
+      />
     </div>
   }
 

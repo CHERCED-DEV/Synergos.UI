@@ -1,0 +1,16 @@
+@use '../tokens/colors' as colors;
+
+@mixin selection(
+  $color: colors.$color-neutral-0,
+  $background: colors.$color-brand-500
+) {
+  &::selection {
+    color: $color;
+    background: $background;
+  }
+
+  &::-moz-selection {
+    color: $color;
+    background: $background;
+  }
+}

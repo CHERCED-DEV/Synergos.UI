@@ -11,7 +11,13 @@
     }
 
     @if (title()) {
-      <h3 class="card__title">{{ title() }}</h3>
+      <syn-heading
+        class="card__title"
+        [text]="title()"
+        [tone]="headingTone()"
+        level="h3"
+        size="sm"
+      />
     }
 
     @if (subtitle()) {

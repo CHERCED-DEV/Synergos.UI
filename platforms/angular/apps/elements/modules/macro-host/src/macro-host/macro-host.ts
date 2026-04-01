@@ -8,7 +8,11 @@ import {
   input,
   OnDestroy,
 } from '@angular/core';
-import { LoggerService } from '@synergos/core';
+import { InitialDataService } from '@synergos/core';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 @Component({
   selector: 'sg-macro-host',
@@ -18,33 +22,28 @@ import { LoggerService } from '@synergos/core';
   host: { class: 'sg-macro-host' },
 })
 export class MacroHostComponent implements OnDestroy {
-  readonly #logger = inject(LoggerService);
-  readonly #elementRef = inject(ElementRef);
+  readonly #elementRef = inject(ElementRef<HTMLElement>);
+  readonly #initialData = inject(InitialDataService);
 
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly contentType = input<string>('');
   readonly contentData = input<string>('');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly parsedData = computed(() => {
-    const raw = this.contentData();
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      this.#logger.warn('[synergos-macro-host] Failed to parse contentData');
-      return null;
-    }
+  readonly parsedData = computed<Record<string, unknown> | null>(() => {
+    const parsedValue = this.#initialData.parseValue<unknown>(this.contentData());
+    return isRecord(parsedValue) ? parsedValue : null;
   });
 
   readonly resolvedTag = computed(() => {
     const type = this.contentType();
-    if (!type) return null;
-    // Convert CMS alias to tag: "elementCompHero" → "synergos-hero"
+    if (!type) {
+      return null;
+    }
+
     const cleaned = type
       .replace(/^elementComp/, '')
       .replace(/([a-z])([A-Z])/g, '$1-$2')
       .toLowerCase();
+
     return `synergos-${cleaned}`;
   });
 
@@ -52,10 +51,7 @@ export class MacroHostComponent implements OnDestroy {
 
   constructor() {
     effect(() => {
-      const tag = this.resolvedTag();
-      const data = this.parsedData();
-      this.#logger.debug('[synergos-macro-host] resolving', { tag, data });
-      this.#mount(tag, data);
+      this.#mount(this.resolvedTag(), this.parsedData());
     });
   }
 
@@ -66,10 +62,14 @@ export class MacroHostComponent implements OnDestroy {
   #mount(tag: string | null, data: Record<string, unknown> | null): void {
     this.#unmount();
 
-    if (!tag) return;
+    if (!tag) {
+      return;
+    }
 
     const container = this.#elementRef.nativeElement.querySelector('.macro-host__container');
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const element = document.createElement(tag);
 
@@ -90,16 +90,17 @@ export class MacroHostComponent implements OnDestroy {
 
   #applyInputs(element: HTMLElement, data: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(data)) {
-      if (value === null || value === undefined) continue;
-
-      if (typeof value === 'object') {
-        // Flatten nested composition objects
-        this.#applyInputs(element, value as Record<string, unknown>);
-      } else {
-        // Convert camelCase to kebab-case for HTML attributes
-        const attr = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-        element.setAttribute(attr, String(value));
+      if (value === null || value === undefined) {
+        continue;
       }
+
+      if (isRecord(value)) {
+        this.#applyInputs(element, value);
+        continue;
+      }
+
+      const attr = key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+      element.setAttribute(attr, String(value));
     }
   }
 }

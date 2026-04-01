@@ -1,0 +1,44 @@
+@use 'sass:color';
+@use '../tokens/colors' as colors;
+@use '../tokens/elevation' as elevation;
+
+@mixin overlay-base(
+  $background: color.change(colors.$color-neutral-900, $alpha: 0.55),
+  $z-index: elevation.$z-overlay,
+  $position: fixed,
+  $opacity: 0,
+  $pointer-events: none
+) {
+  position: $position;
+  inset: 0;
+  z-index: $z-index;
+  background: $background;
+  opacity: $opacity;
+  pointer-events: $pointer-events;
+  user-select: none;
+  transition: opacity 160ms ease;
+}
+
+@mixin overlay-active(
+  $background: color.change(colors.$color-neutral-900, $alpha: 0.55),
+  $z-index: elevation.$z-overlay,
+  $position: fixed
+) {
+  @include overlay-base($background, $z-index, $position, 1, auto);
+}
+
+@mixin overlay-toggle($selector: '&.is-open') {
+  #{$selector} & {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@mixin overlay-backdrop(
+  $background: color.change(colors.$color-neutral-900, $alpha: 0.48),
+  $z-index: elevation.$z-overlay,
+  $position: absolute
+) {
+  @include overlay-active($background, $z-index, $position);
+  border: 0;
+}

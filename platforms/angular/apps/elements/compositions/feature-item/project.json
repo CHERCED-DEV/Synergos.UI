@@ -21,15 +21,7 @@
         "outputPath": "dist/feature-item",
         "browser": "apps/elements/compositions/feature-item/src/main.ts",
         "index": "apps/elements/compositions/feature-item/src/index.html",
-        "tsConfig": "apps/elements/compositions/feature-item/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/compositions/feature-item/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "200kb",
               "maximumError": "500kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4233,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-compositions-feature-item:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-compositions-feature-item:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4233
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-compositions-feature-item:build:development",
         "port": 4233,
-        "staticFilePath": "dist/feature-item/browser",
-        "cors": true
+        "staticFilePath": "dist/feature-item/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/compositions/feature-item/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/compositions/feature-item/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/compositions/feature-item/tsconfig.spec.json"
       }
     }
   }

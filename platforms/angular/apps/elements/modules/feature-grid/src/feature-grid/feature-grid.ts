@@ -2,44 +2,80 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  input,
-  effect,
   inject,
+  input,
+  numberAttribute,
 } from '@angular/core';
-import { LoggerService } from '@synergos/core';
+import { InitialDataService } from '@synergos/core';
+import {
+  GridColumnsComponent,
+  HeadingComponent,
+  type HeadingTone,
+} from '@synergos/shared';
+
+interface FeatureGridItem {
+  readonly body: string;
+  readonly heading: string;
+  readonly icon: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeFeatureGridItem(value: unknown): FeatureGridItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const heading = readString(value['heading']).trim();
+  const body = readString(value['body']).trim();
+
+  if (!heading && !body) {
+    return null;
+  }
+
+  return {
+    heading,
+    body,
+    icon: readString(value['icon']).trim(),
+  };
+}
 
 @Component({
   selector: 'sg-feature-grid',
-  imports: [],
+  imports: [GridColumnsComponent, HeadingComponent],
   templateUrl: './feature-grid.html',
   styleUrl: './feature-grid.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-feature-grid' },
 })
 export class FeatureGridComponent {
-  readonly #logger = inject(LoggerService);
+  readonly #initialData = inject(InitialDataService);
 
-  // ── Inputs ────────────────────────────────────────────────────────────────
   readonly headingText = input<string>('');
-  readonly columns = input<number>(3);
+  readonly columns = input(3, { transform: numberAttribute });
   readonly items = input<string>('[]');
   readonly theme = input<string>('light');
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-  readonly parsedItems = computed(() => {
-    try { return JSON.parse(this.items()); }
-    catch { return []; }
-  });
-  readonly gridStyle = computed(() => `grid-template-columns: repeat(${this.columns()}, 1fr)`);
-  readonly hostClasses = computed(() => `sg-feature-grid--${this.theme()}`);
+  readonly parsedItems = computed<readonly FeatureGridItem[]>(() => {
+    const parsedValue = this.#initialData.parseValue<unknown>(this.items());
 
-  constructor() {
-    effect(() => {
-      this.#logger.debug('[synergos-feature-grid] inputs', {
-        headingText: this.headingText(),
-        columns: this.columns(),
-        items: this.items(),
-      });
-    });
-  }
+    if (!Array.isArray(parsedValue)) {
+      return [];
+    }
+
+    return parsedValue
+      .map((item) => normalizeFeatureGridItem(item))
+      .filter((item): item is FeatureGridItem => item !== null);
+  });
+  readonly resolvedColumns = computed(() => (this.columns() > 0 ? this.columns() : 3));
+  readonly headingTone = computed<HeadingTone>(() =>
+    this.theme() === 'dark' ? 'inverse' : 'neutral',
+  );
+  readonly hostClasses = computed(() => `sg-feature-grid--${this.theme()}`);
 }

@@ -1,5 +1,5 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GridComponent } from './grid';
 
 describe('GridComponent', () => {
@@ -19,5 +19,13 @@ describe('GridComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should enable auto fit when a minimum column width is provided', async () => {
+    fixture.componentRef.setInput('minColumnWidth', '18rem');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.autoFit()).toBe(true);
   });
 });

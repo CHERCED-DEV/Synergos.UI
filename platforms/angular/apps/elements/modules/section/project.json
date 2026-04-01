@@ -21,15 +21,7 @@
         "outputPath": "dist/section",
         "browser": "apps/elements/modules/section/src/main.ts",
         "index": "apps/elements/modules/section/src/index.html",
-        "tsConfig": "apps/elements/modules/section/tsconfig.app.json",
-        "inlineStyleLanguage": "scss",
-        "stylePreprocessorOptions": {
-          "includePaths": [
-            "libs/core-assets/src"
-          ]
-        },
-        "assets": [],
-        "styles": []
+        "tsConfig": "apps/elements/modules/section/tsconfig.app.json"
       },
       "configurations": {
         "production": {
@@ -39,44 +31,21 @@
               "maximumWarning": "200kb",
               "maximumError": "500kb"
             }
-          ],
-          "outputHashing": "none"
-        },
-        "development": {
-          "optimization": false,
-          "extractLicenses": false,
-          "sourceMap": true
+          ]
         }
-      },
-      "defaultConfiguration": "production"
+      }
     },
     "serve": {
-      "continuous": true,
       "executor": "@angular/build:dev-server",
       "options": {
-        "port": 4252,
-        "headers": {
-          "Access-Control-Allow-Origin": "*"
-        }
-      },
-      "configurations": {
-        "production": {
-          "buildTarget": "elements-modules-section:build:production"
-        },
-        "development": {
-          "buildTarget": "elements-modules-section:build:development"
-        }
-      },
-      "defaultConfiguration": "development"
+        "port": 4252
+      }
     },
     "serve-static": {
-      "continuous": true,
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "elements-modules-section:build:development",
         "port": 4252,
-        "staticFilePath": "dist/section/browser",
-        "cors": true
+        "staticFilePath": "dist/section/browser"
       }
     },
     "lint": {
@@ -90,18 +59,8 @@
     },
     "test": {
       "executor": "@angular/build:unit-test",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
       "options": {
-        "runner": "vitest",
-        "tsConfig": "apps/elements/modules/section/tsconfig.spec.json",
-        "runnerConfig": "apps/elements/modules/section/vitest.config.ts",
-        "coverageReporters": [
-          "text",
-          "lcov",
-          "html"
-        ]
+        "tsConfig": "apps/elements/modules/section/tsconfig.spec.json"
       }
     }
   }
