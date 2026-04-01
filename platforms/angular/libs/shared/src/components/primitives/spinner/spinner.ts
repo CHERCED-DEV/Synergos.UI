@@ -1,9 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 import { VisuallyHiddenComponent } from '../visually-hidden/visually-hidden';
 
 type SpinnerSize = 'sm' | 'md' | 'lg';
 type SpinnerTone = 'brand' | 'neutral' | 'inverse';
+
+export interface SpinnerConfig {
+  readonly label?: string;
+  readonly size?: SpinnerSize;
+  readonly tone?: SpinnerTone;
+}
 
 @Component({
   selector: 'syn-spinner',
@@ -22,9 +29,23 @@ type SpinnerTone = 'brand' | 'neutral' | 'inverse';
   },
 })
 export class SpinnerComponent {
-  readonly label = input('Loading');
-  readonly size = input<SpinnerSize>('md');
-  readonly tone = input<SpinnerTone>('brand');
+  readonly configInput = input<Partial<SpinnerConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<SpinnerConfig>,
+  });
+  readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
+  readonly sizeInput = input<SpinnerSize | undefined>(undefined, { alias: 'size' });
+  readonly toneInput = input<SpinnerTone | undefined>(undefined, { alias: 'tone' });
+
+  readonly label = computed(() =>
+    resolveConfigValue(this.labelInput(), this.configInput()?.label, 'Loading'),
+  );
+  readonly size = computed(() =>
+    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+  );
+  readonly tone = computed(() =>
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'brand'),
+  );
 
   readonly spinnerClass = computed(() =>
     classNames(

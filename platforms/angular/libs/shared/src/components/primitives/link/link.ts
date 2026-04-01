@@ -1,8 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FocusVisibleDirective } from '../../../directives/focus-visible.directive';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 
 type LinkTone = 'brand' | 'neutral' | 'inverse';
+
+export interface LinkConfig {
+  readonly href?: string;
+  readonly label?: string;
+  readonly ariaLabel?: string;
+  readonly tone?: LinkTone;
+  readonly underline?: boolean;
+  readonly target?: string;
+  readonly rel?: string;
+  readonly disabled?: boolean;
+}
 
 @Component({
   selector: 'syn-link',
@@ -50,14 +62,43 @@ type LinkTone = 'brand' | 'neutral' | 'inverse';
   styleUrl: './link.scss',
 })
 export class LinkComponent {
-  readonly href = input('');
-  readonly label = input('');
-  readonly ariaLabel = input('');
-  readonly tone = input<LinkTone>('brand');
-  readonly underline = input(true);
-  readonly target = input('');
-  readonly rel = input('');
-  readonly disabled = input(false);
+  readonly configInput = input<Partial<LinkConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<LinkConfig>,
+  });
+  readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
+  readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
+  readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });
+  readonly toneInput = input<LinkTone | undefined>(undefined, { alias: 'tone' });
+  readonly underlineInput = input<boolean | undefined>(undefined, { alias: 'underline' });
+  readonly targetInput = input<string | undefined>(undefined, { alias: 'target' });
+  readonly relInput = input<string | undefined>(undefined, { alias: 'rel' });
+  readonly disabledInput = input<boolean | undefined>(undefined, { alias: 'disabled' });
+
+  readonly href = computed(() =>
+    resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
+  );
+  readonly label = computed(() =>
+    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+  );
+  readonly ariaLabel = computed(() =>
+    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+  );
+  readonly tone = computed(() =>
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'brand'),
+  );
+  readonly underline = computed(() =>
+    resolveConfigValue(this.underlineInput(), this.configInput()?.underline, true),
+  );
+  readonly target = computed(() =>
+    resolveConfigValue(this.targetInput(), this.configInput()?.target, ''),
+  );
+  readonly rel = computed(() =>
+    resolveConfigValue(this.relInput(), this.configInput()?.rel, ''),
+  );
+  readonly disabled = computed(() =>
+    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+  );
 
   readonly activated = output<MouseEvent>();
 

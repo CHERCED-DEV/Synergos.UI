@@ -1,6 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { BadgeComponent } from '../badge/badge';
 import { classNames } from '../../../utils/class-names.util';
+import {
+  coerceConfigInput,
+  resolveConfigArray,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 export type ListDensity = 'comfortable' | 'compact';
 export type ListMarker = 'disc' | 'check' | 'none';
@@ -11,6 +16,15 @@ export interface ListItem {
   readonly supportingText?: string;
   readonly badge?: string;
   readonly disabled?: boolean;
+}
+
+export interface ListConfig {
+  readonly items?: readonly ListItem[];
+  readonly ordered?: boolean;
+  readonly marker?: ListMarker;
+  readonly density?: ListDensity;
+  readonly divided?: boolean;
+  readonly interactive?: boolean;
 }
 
 @Component({
@@ -72,12 +86,35 @@ export interface ListItem {
   styleUrl: './list.scss',
 })
 export class ListComponent {
-  readonly items = input<readonly ListItem[]>([]);
-  readonly ordered = input(false);
-  readonly marker = input<ListMarker>('disc');
-  readonly density = input<ListDensity>('comfortable');
-  readonly divided = input(true);
-  readonly interactive = input(false);
+  readonly configInput = input<Partial<ListConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<ListConfig>,
+  });
+  readonly itemsInput = input<readonly ListItem[] | undefined>(undefined, { alias: 'items' });
+  readonly orderedInput = input<boolean | undefined>(undefined, { alias: 'ordered' });
+  readonly markerInput = input<ListMarker | undefined>(undefined, { alias: 'marker' });
+  readonly densityInput = input<ListDensity | undefined>(undefined, { alias: 'density' });
+  readonly dividedInput = input<boolean | undefined>(undefined, { alias: 'divided' });
+  readonly interactiveInput = input<boolean | undefined>(undefined, { alias: 'interactive' });
+
+  readonly items = computed(() =>
+    resolveConfigArray(this.itemsInput(), this.configInput()?.items),
+  );
+  readonly ordered = computed(() =>
+    resolveConfigValue(this.orderedInput(), this.configInput()?.ordered, false),
+  );
+  readonly marker = computed(() =>
+    resolveConfigValue(this.markerInput(), this.configInput()?.marker, 'disc'),
+  );
+  readonly density = computed(() =>
+    resolveConfigValue(this.densityInput(), this.configInput()?.density, 'comfortable'),
+  );
+  readonly divided = computed(() =>
+    resolveConfigValue(this.dividedInput(), this.configInput()?.divided, true),
+  );
+  readonly interactive = computed(() =>
+    resolveConfigValue(this.interactiveInput(), this.configInput()?.interactive, false),
+  );
 
   readonly itemSelected = output<ListItem>();
 

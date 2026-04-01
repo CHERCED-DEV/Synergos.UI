@@ -1,6 +1,13 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 
 type BadgeTone = 'neutral' | 'brand' | 'inverse';
+
+export interface BadgeConfig {
+  readonly text?: string;
+  readonly ariaLabel?: string;
+  readonly tone?: BadgeTone;
+}
 
 @Component({
   selector: 'syn-badge',
@@ -21,7 +28,21 @@ type BadgeTone = 'neutral' | 'brand' | 'inverse';
   styleUrl: './badge.scss',
 })
 export class BadgeComponent {
-  readonly text = input('');
-  readonly ariaLabel = input('');
-  readonly tone = input<BadgeTone>('neutral');
+  readonly configInput = input<Partial<BadgeConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<BadgeConfig>,
+  });
+  readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
+  readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });
+  readonly toneInput = input<BadgeTone | undefined>(undefined, { alias: 'tone' });
+
+  readonly text = computed(() =>
+    resolveConfigValue(this.textInput(), this.configInput()?.text, ''),
+  );
+  readonly ariaLabel = computed(() =>
+    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+  );
+  readonly tone = computed(() =>
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+  );
 }

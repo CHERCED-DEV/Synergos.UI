@@ -1,8 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 
 type ProgressSize = 'sm' | 'md' | 'lg';
 type ProgressVariant = 'brand' | 'success' | 'warning' | 'critical';
+
+export interface ProgressConfig {
+  readonly value?: number;
+  readonly max?: number;
+  readonly size?: ProgressSize;
+  readonly variant?: ProgressVariant;
+  readonly label?: string;
+  readonly ariaLabel?: string;
+  readonly showLabel?: boolean;
+  readonly indeterminate?: boolean;
+}
 
 @Component({
   selector: 'syn-progress',
@@ -34,14 +46,45 @@ type ProgressVariant = 'brand' | 'success' | 'warning' | 'critical';
   },
 })
 export class ProgressComponent {
-  readonly value = input(0);
-  readonly max = input(100);
-  readonly size = input<ProgressSize>('md');
-  readonly variant = input<ProgressVariant>('brand');
-  readonly label = input('');
-  readonly ariaLabel = input('');
-  readonly showLabel = input(true);
-  readonly indeterminate = input(false);
+  readonly configInput = input<Partial<ProgressConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<ProgressConfig>,
+  });
+  readonly valueInput = input<number | undefined>(undefined, { alias: 'value' });
+  readonly maxInput = input<number | undefined>(undefined, { alias: 'max' });
+  readonly sizeInput = input<ProgressSize | undefined>(undefined, { alias: 'size' });
+  readonly variantInput = input<ProgressVariant | undefined>(undefined, { alias: 'variant' });
+  readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
+  readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });
+  readonly showLabelInput = input<boolean | undefined>(undefined, { alias: 'showLabel' });
+  readonly indeterminateInput = input<boolean | undefined>(undefined, {
+    alias: 'indeterminate',
+  });
+
+  readonly value = computed(() =>
+    resolveConfigValue(this.valueInput(), this.configInput()?.value, 0),
+  );
+  readonly max = computed(() =>
+    resolveConfigValue(this.maxInput(), this.configInput()?.max, 100),
+  );
+  readonly size = computed(() =>
+    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+  );
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'brand'),
+  );
+  readonly label = computed(() =>
+    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+  );
+  readonly ariaLabel = computed(() =>
+    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+  );
+  readonly showLabel = computed(() =>
+    resolveConfigValue(this.showLabelInput(), this.configInput()?.showLabel, true),
+  );
+  readonly indeterminate = computed(() =>
+    resolveConfigValue(this.indeterminateInput(), this.configInput()?.indeterminate, false),
+  );
 
   readonly safeMax = computed(() => (this.max() > 0 ? this.max() : 100));
   readonly normalizedValue = computed(() => Math.min(this.safeMax(), Math.max(0, this.value())));

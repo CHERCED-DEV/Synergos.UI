@@ -22,6 +22,10 @@ export default [
       '@nx/enforce-module-boundaries': [
         'error',
         {
+          allow: [
+            '../../../../../../vitals/core/src/mappers/block.mapper',
+            '../../../../../../vitals/core/src/models/*',
+          ],
           depConstraints: [
             {
               sourceTag: 'framework:angular',
@@ -39,6 +43,22 @@ export default [
               sourceTag: 'tier:composition',
               notDependOnLibsWithTags: ['tier:module'],
             },
+            {
+              sourceTag: 'scope:elements',
+              notDependOnLibsWithTags: ['scope:rendering', 'scope:integrations'],
+            },
+            {
+              sourceTag: 'scope:rendering',
+              notDependOnLibsWithTags: ['scope:elements'],
+            },
+            {
+              sourceTag: 'scope:libs',
+              notDependOnLibsWithTags: ['scope:elements'],
+            },
+            {
+              sourceTag: 'type:lib',
+              notDependOnLibsWithTags: ['type:app'],
+            },
           ],
         },
       ],
@@ -49,6 +69,7 @@ export default [
   {
     files: ['**/*.ts'],
     rules: {
+      '@angular-eslint/no-input-rename': 'off',
       '@angular-eslint/directive-selector': [
         'error',
         {

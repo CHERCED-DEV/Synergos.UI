@@ -1,4 +1,4 @@
-@use '../../../../../core-assets/src/scss' as syn;
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
 .syn-badge {
   @include syn.badge(syn.$color-neutral-100, syn.$color-neutral-800);

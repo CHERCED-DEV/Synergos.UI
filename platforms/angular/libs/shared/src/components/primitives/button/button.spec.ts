@@ -26,4 +26,26 @@ describe(ButtonComponent.name, () => {
 
     expect(pressed).toHaveBeenCalledTimes(1);
   });
+
+  it('resolves base values from config and lets direct inputs override them', () => {
+    const fixture = TestBed.createComponent(ButtonComponent);
+
+    fixture.componentRef.setInput('config', {
+      label: 'Save changes',
+      variant: 'outline',
+      disabled: true,
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.label()).toBe('Save changes');
+    expect(fixture.componentInstance.variant()).toBe('outline');
+    expect(fixture.componentInstance.disabled()).toBe(true);
+
+    fixture.componentRef.setInput('label', 'Save now');
+    fixture.componentRef.setInput('disabled', false);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.label()).toBe('Save now');
+    expect(fixture.componentInstance.disabled()).toBe(false);
+  });
 });

@@ -4,9 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
-      "@synergos/core": ["../../vitals/core/src/index.ts"],
-      "@synergos/shared": ["../../vitals/shared/src/index.ts"],
-      "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"]
+      "@synergos/core": ["libs/core/src/index.ts"],
+      "@synergos/shared": ["libs/shared/src/index.ts"],
+      "@synergos/core-assets": ["libs/core-assets/src/index.ts"]
     }
   },
   "include": ["apps/**/*.ts", "libs/**/*.ts", "src/**/*.ts", "src/**/*.js"],

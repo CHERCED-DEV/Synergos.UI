@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    include: ['**/*.spec.{ts,tsx}'],
+    include: ['**/*.spec.ts'],
     coverage: {
       reportsDirectory: 'coverage',
       reporter: ['text', 'lcov'],

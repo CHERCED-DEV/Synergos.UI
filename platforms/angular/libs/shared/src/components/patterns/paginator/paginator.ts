@@ -83,7 +83,7 @@ export class PaginatorComponent {
 
     const half = Math.floor(visible / 2);
     let start = Math.max(1, current - half);
-    let end = Math.min(total, start + visible - 1);
+    const end = Math.min(total, start + visible - 1);
 
     if (end - start + 1 < visible) {
       start = Math.max(1, end - visible + 1);

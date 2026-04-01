@@ -10,9 +10,23 @@ import {
 } from '@angular/core';
 import { LiveAnnouncerService } from '../../../services/live-announcer.service';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 import { VisuallyHiddenComponent } from '../../primitives/visually-hidden/visually-hidden';
 
 type SectionPadding = 'sm' | 'md' | 'lg';
+
+export interface SectionConfig {
+  readonly title?: string;
+  readonly subtitle?: string;
+  readonly eyebrow?: string;
+  readonly ariaLabel?: string;
+  readonly collapsible?: boolean;
+  readonly defaultCollapsed?: boolean;
+  readonly collapseLabel?: string;
+  readonly expandLabel?: string;
+  readonly divider?: boolean;
+  readonly padding?: SectionPadding;
+}
 
 let sectionId = 0;
 
@@ -85,16 +99,67 @@ export class SectionComponent implements OnInit {
   readonly #announcer = inject(LiveAnnouncerService);
   readonly #collapsed = signal(false);
 
-  readonly title = input('');
-  readonly subtitle = input('');
-  readonly eyebrow = input('');
-  readonly ariaLabel = input('');
-  readonly collapsible = input(false);
-  readonly defaultCollapsed = input(false);
-  readonly collapseLabel = input('Collapse section');
-  readonly expandLabel = input('Expand section');
-  readonly divider = input(true);
-  readonly padding = input<SectionPadding>('md');
+  readonly configInput = input<Partial<SectionConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<SectionConfig>,
+  });
+  readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
+  readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });
+  readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });
+  readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });
+  readonly collapsibleInput = input<boolean | undefined>(undefined, { alias: 'collapsible' });
+  readonly defaultCollapsedInput = input<boolean | undefined>(undefined, {
+    alias: 'defaultCollapsed',
+  });
+  readonly collapseLabelInput = input<string | undefined>(undefined, {
+    alias: 'collapseLabel',
+  });
+  readonly expandLabelInput = input<string | undefined>(undefined, { alias: 'expandLabel' });
+  readonly dividerInput = input<boolean | undefined>(undefined, { alias: 'divider' });
+  readonly paddingInput = input<SectionPadding | undefined>(undefined, { alias: 'padding' });
+
+  readonly title = computed(() =>
+    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+  );
+  readonly subtitle = computed(() =>
+    resolveConfigValue(this.subtitleInput(), this.configInput()?.subtitle, ''),
+  );
+  readonly eyebrow = computed(() =>
+    resolveConfigValue(this.eyebrowInput(), this.configInput()?.eyebrow, ''),
+  );
+  readonly ariaLabel = computed(() =>
+    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+  );
+  readonly collapsible = computed(() =>
+    resolveConfigValue(this.collapsibleInput(), this.configInput()?.collapsible, false),
+  );
+  readonly defaultCollapsed = computed(() =>
+    resolveConfigValue(
+      this.defaultCollapsedInput(),
+      this.configInput()?.defaultCollapsed,
+      false,
+    ),
+  );
+  readonly collapseLabel = computed(() =>
+    resolveConfigValue(
+      this.collapseLabelInput(),
+      this.configInput()?.collapseLabel,
+      'Collapse section',
+    ),
+  );
+  readonly expandLabel = computed(() =>
+    resolveConfigValue(
+      this.expandLabelInput(),
+      this.configInput()?.expandLabel,
+      'Expand section',
+    ),
+  );
+  readonly divider = computed(() =>
+    resolveConfigValue(this.dividerInput(), this.configInput()?.divider, true),
+  );
+  readonly padding = computed(() =>
+    resolveConfigValue(this.paddingInput(), this.configInput()?.padding, 'md'),
+  );
 
   readonly collapsed = this.#collapsed.asReadonly();
   readonly collapsedChange = output<boolean>();

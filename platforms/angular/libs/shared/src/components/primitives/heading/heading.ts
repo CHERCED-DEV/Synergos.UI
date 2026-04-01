@@ -1,10 +1,22 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 
 export type HeadingAlign = 'start' | 'center';
 export type HeadingLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 export type HeadingSize = 'sm' | 'md' | 'lg' | 'xl';
 export type HeadingTone = 'neutral' | 'muted' | 'brand' | 'inverse';
+
+export interface HeadingConfig {
+  readonly text?: string;
+  readonly eyebrow?: string;
+  readonly supportingText?: string;
+  readonly level?: HeadingLevel;
+  readonly size?: HeadingSize;
+  readonly tone?: HeadingTone;
+  readonly align?: HeadingAlign;
+  readonly visuallyHidden?: boolean;
+}
 
 @Component({
   selector: 'syn-heading',
@@ -57,14 +69,47 @@ export type HeadingTone = 'neutral' | 'muted' | 'brand' | 'inverse';
   styleUrl: './heading.scss',
 })
 export class HeadingComponent {
-  readonly text = input('');
-  readonly eyebrow = input('');
-  readonly supportingText = input('');
-  readonly level = input<HeadingLevel>('h2');
-  readonly size = input<HeadingSize>('md');
-  readonly tone = input<HeadingTone>('neutral');
-  readonly align = input<HeadingAlign>('start');
-  readonly visuallyHidden = input(false);
+  readonly configInput = input<Partial<HeadingConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<HeadingConfig>,
+  });
+  readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
+  readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });
+  readonly supportingTextInput = input<string | undefined>(undefined, {
+    alias: 'supportingText',
+  });
+  readonly levelInput = input<HeadingLevel | undefined>(undefined, { alias: 'level' });
+  readonly sizeInput = input<HeadingSize | undefined>(undefined, { alias: 'size' });
+  readonly toneInput = input<HeadingTone | undefined>(undefined, { alias: 'tone' });
+  readonly alignInput = input<HeadingAlign | undefined>(undefined, { alias: 'align' });
+  readonly visuallyHiddenInput = input<boolean | undefined>(undefined, {
+    alias: 'visuallyHidden',
+  });
+
+  readonly text = computed(() =>
+    resolveConfigValue(this.textInput(), this.configInput()?.text, ''),
+  );
+  readonly eyebrow = computed(() =>
+    resolveConfigValue(this.eyebrowInput(), this.configInput()?.eyebrow, ''),
+  );
+  readonly supportingText = computed(() =>
+    resolveConfigValue(this.supportingTextInput(), this.configInput()?.supportingText, ''),
+  );
+  readonly level = computed(() =>
+    resolveConfigValue(this.levelInput(), this.configInput()?.level, 'h2'),
+  );
+  readonly size = computed(() =>
+    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+  );
+  readonly tone = computed(() =>
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+  );
+  readonly align = computed(() =>
+    resolveConfigValue(this.alignInput(), this.configInput()?.align, 'start'),
+  );
+  readonly visuallyHidden = computed(() =>
+    resolveConfigValue(this.visuallyHiddenInput(), this.configInput()?.visuallyHidden, false),
+  );
 
   headingClass(): string {
     return classNames(

@@ -35,7 +35,12 @@ export interface DropdownItem {
       </button>
 
       @if (isOpen()) {
-        <ul class="syn-dropdown__menu" role="menu" (keydown)="onMenuKeydown($event)">
+        <ul
+          class="syn-dropdown__menu"
+          role="menu"
+          tabindex="-1"
+          (keydown)="onMenuKeydown($event)"
+        >
           @for (item of items(); track item.id; let i = $index) {
             <li role="none">
               <button

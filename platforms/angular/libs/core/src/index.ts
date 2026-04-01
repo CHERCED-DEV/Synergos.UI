@@ -4,4 +4,3 @@ export * from './core.environment';
 export * from './core.tokens';
 export * from './interceptors';
 export * from './services';
-export * from './models';

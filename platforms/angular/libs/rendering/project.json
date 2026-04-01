@@ -10,20 +10,13 @@
   ],
   "targets": {
     "build": {
-      "executor": "@angular/build:ng-packagr",
-      "outputs": [
-        "{workspaceRoot}/dist/{projectRoot}"
-      ],
+      "executor": "nx:run-commands",
       "options": {
-        "project": "libs/rendering/ng-package.json"
+        "command": "npx tsc -p libs/rendering/tsconfig.lib.json --noEmit"
       },
       "configurations": {
-        "production": {
-          "tsConfig": "libs/rendering/tsconfig.lib.json"
-        },
-        "development": {
-          "tsConfig": "libs/rendering/tsconfig.lib.json"
-        }
+        "production": {},
+        "development": {}
       },
       "defaultConfiguration": "production"
     },

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "emitDecoratorMetadata": false,
+    "resolveJsonModule": true,
     "noPropertyAccessFromIndexSignature": true,
     "paths": {
       "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],

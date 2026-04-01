@@ -13,10 +13,5 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  // TODO: inject an AuthService and attach the bearer token
-  // const token = inject(AuthService).getToken();
-  // const authed = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
-  // return next(authed);
-
   return next(req);
 };

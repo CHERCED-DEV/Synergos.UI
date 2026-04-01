@@ -4,9 +4,19 @@ import {
   type HeadingAlign,
   type HeadingLevel,
   type HeadingTone,
+  coerceConfigInput,
+  resolveConfigValue,
 } from '@synergos/shared';
 
 const textBlockHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+export interface TextBlockConfig {
+  readonly headingText?: string;
+  readonly headingLevel?: string;
+  readonly body?: string;
+  readonly alignment?: string;
+  readonly theme?: string;
+}
 
 function resolveTextBlockHeadingLevel(value: string): HeadingLevel {
   return textBlockHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h2';
@@ -21,11 +31,31 @@ function resolveTextBlockHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-text-block' },
 })
 export class TextBlockComponent {
-  readonly headingText = input<string>('');
-  readonly headingLevel = input<string>('h2');
-  readonly body = input<string>('');
-  readonly alignment = input<string>('left');
-  readonly theme = input<string>('light');
+  readonly configInput = input<Partial<TextBlockConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<TextBlockConfig>,
+  });
+  readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
+  readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
+  readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
+  readonly alignmentInput = input<string | undefined>(undefined, { alias: 'alignment' });
+  readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
+
+  readonly headingText = computed(() =>
+    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+  );
+  readonly headingLevel = computed(() =>
+    resolveConfigValue(this.headingLevelInput(), this.configInput()?.headingLevel, 'h2'),
+  );
+  readonly body = computed(() =>
+    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+  );
+  readonly alignment = computed(() =>
+    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'left'),
+  );
+  readonly theme = computed(() =>
+    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+  );
 
   readonly headingAlign = computed<HeadingAlign>(() =>
     this.alignment() === 'center' ? 'center' : 'start',

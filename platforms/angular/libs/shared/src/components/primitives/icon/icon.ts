@@ -1,8 +1,18 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
+import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 export type IconTone = 'neutral' | 'brand' | 'inverse';
+
+export interface IconConfig {
+  readonly name?: string;
+  readonly symbol?: string;
+  readonly label?: string;
+  readonly size?: IconSize;
+  readonly tone?: IconTone;
+  readonly decorative?: boolean;
+}
 
 @Component({
   selector: 'syn-icon',
@@ -22,12 +32,35 @@ export type IconTone = 'neutral' | 'brand' | 'inverse';
   styleUrl: './icon.scss',
 })
 export class IconComponent {
-  readonly name = input('');
-  readonly symbol = input('');
-  readonly label = input('');
-  readonly size = input<IconSize>('md');
-  readonly tone = input<IconTone>('neutral');
-  readonly decorative = input(true);
+  readonly configInput = input<Partial<IconConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<IconConfig>,
+  });
+  readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });
+  readonly symbolInput = input<string | undefined>(undefined, { alias: 'symbol' });
+  readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
+  readonly sizeInput = input<IconSize | undefined>(undefined, { alias: 'size' });
+  readonly toneInput = input<IconTone | undefined>(undefined, { alias: 'tone' });
+  readonly decorativeInput = input<boolean | undefined>(undefined, { alias: 'decorative' });
+
+  readonly name = computed(() =>
+    resolveConfigValue(this.nameInput(), this.configInput()?.name, ''),
+  );
+  readonly symbol = computed(() =>
+    resolveConfigValue(this.symbolInput(), this.configInput()?.symbol, ''),
+  );
+  readonly label = computed(() =>
+    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+  );
+  readonly size = computed(() =>
+    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+  );
+  readonly tone = computed(() =>
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+  );
+  readonly decorative = computed(() =>
+    resolveConfigValue(this.decorativeInput(), this.configInput()?.decorative, true),
+  );
 
   iconClass(): string {
     return classNames('syn-icon', `syn-icon--${this.size()}`, `syn-icon--${this.tone()}`);

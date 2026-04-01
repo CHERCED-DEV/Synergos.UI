@@ -1,5 +1,6 @@
 // Public API Surface of @synergos/shared
 export * from './utils/class-names.util';
+export * from './utils/config-input.util';
 export * from './utils/form.util';
 export { ClickOutsideDirective } from './directives/click-outside.directive';
 export { FocusOutDirective } from './directives/focus-out.directive';
@@ -14,17 +15,25 @@ export { MaskPipe } from './pipes/mask.pipe';
 export { RemoveHtmlTagsPipe } from './pipes/remove-html-tags.pipe';
 export { TitleCasePipe } from './pipes/title-case.pipe';
 export { FocusManagerService } from './services/focus-manager.service';
+export { FormFocusService } from './services/form-focus.service';
+export {
+  DialogService,
+  type DialogConfig,
+  type DialogInstance,
+} from './services/dialog.service';
 export { LiveAnnouncerService } from './services/live-announcer.service';
 export { ReducedMotionService } from './services/reduced-motion.service';
+export { SkeletonService, type SkeletonState } from './services/skeleton.service';
 
 // Primitives
 export { AlertComponent } from './components/primitives/alert/alert';
 export { AvatarComponent } from './components/primitives/avatar/avatar';
-export { BadgeComponent } from './components/primitives/badge/badge';
-export { ButtonComponent } from './components/primitives/button/button';
+export { BadgeComponent, type BadgeConfig } from './components/primitives/badge/badge';
+export { ButtonComponent, type ButtonConfig } from './components/primitives/button/button';
 export { CheckboxComponent } from './components/primitives/checkbox/checkbox';
 export {
   HeadingComponent,
+  type HeadingConfig,
   type HeadingAlign,
   type HeadingLevel,
   type HeadingSize,
@@ -32,14 +41,16 @@ export {
 } from './components/primitives/heading/heading';
 export {
   IconComponent,
+  type IconConfig,
   type IconSize,
   type IconTone,
 } from './components/primitives/icon/icon';
 export { IconButtonComponent } from './components/primitives/icon-button/icon-button';
 export { InputComponent } from './components/primitives/input/input';
-export { LinkComponent } from './components/primitives/link/link';
+export { LinkComponent, type LinkConfig } from './components/primitives/link/link';
 export {
   ListComponent,
+  type ListConfig,
   type ListDensity,
   type ListItem,
   type ListMarker,
@@ -48,7 +59,7 @@ export {
   LiveRegionComponent,
   type LiveRegionTone,
 } from './components/primitives/live-region/live-region';
-export { ProgressComponent } from './components/primitives/progress/progress';
+export { ProgressComponent, type ProgressConfig } from './components/primitives/progress/progress';
 export { RadioComponent } from './components/primitives/radio/radio';
 export { RangeSliderComponent } from './components/primitives/range-slider/range-slider';
 export {
@@ -56,9 +67,10 @@ export {
   type SkeletonShape,
 } from './components/primitives/skeleton/skeleton';
 export { SelectComponent } from './components/primitives/select/select';
-export { SpinnerComponent } from './components/primitives/spinner/spinner';
+export { SpinnerComponent, type SpinnerConfig } from './components/primitives/spinner/spinner';
 export {
   StatusTagComponent,
+  type StatusTagConfig,
   type StatusTagStyle,
   type StatusTagTone,
 } from './components/primitives/status-tag/status-tag';
@@ -71,7 +83,7 @@ export {
 export { VisuallyHiddenComponent } from './components/primitives/visually-hidden/visually-hidden';
 
 // Compositions
-export { AccordionComponent } from './components/compositions/accordion/accordion';
+export { AccordionComponent, type AccordionConfig } from './components/compositions/accordion/accordion';
 export { CardComponent } from './components/compositions/card/card';
 export {
   CarouselComponent,
@@ -96,7 +108,19 @@ export {
   type OptionListLayout,
   type OptionSelectionMode,
 } from './components/compositions/option-list/option-list';
+export {
+  OverviewCardComponent,
+  type OverviewCardConfig,
+  type OverviewCardLayout,
+  type OverviewCardTone,
+} from './components/compositions/overview-card/overview-card';
 export { PanelComponent } from './components/compositions/panel/panel';
+export {
+  PricingCardComponent,
+  type PricingCardConfig,
+  type PricingCardActionVariant,
+  type PricingCardTone,
+} from './components/compositions/pricing-card/pricing-card';
 export { ReadMoreComponent } from './components/compositions/read-more/read-more';
 export {
   SegmentedControlComponent,
@@ -107,6 +131,19 @@ export { TooltipComponent } from './components/compositions/tooltip/tooltip';
 
 // Patterns
 export {
+  ConfigurableFormComponent,
+  type ConfigurableFormCheckboxField,
+  type ConfigurableFormField,
+  type ConfigurableFormFieldChange,
+  type ConfigurableFormOption,
+  type ConfigurableFormRadioField,
+  type ConfigurableFormSection,
+  type ConfigurableFormSelectField,
+  type ConfigurableFormSubmitEvent,
+  type ConfigurableFormTextField,
+  type ConfigurableFormValue,
+} from './components/patterns/configurable-form/configurable-form';
+export {
   DataTableComponent,
   type DataTableAlign,
   type DataTableColumn,
@@ -115,13 +152,43 @@ export {
   type DataTableSortDirection,
 } from './components/patterns/data-table/data-table';
 export {
+  DetailSummaryComponent,
+  type DetailSummaryAction,
+  type DetailSummarySection,
+} from './components/patterns/detail-summary/detail-summary';
+export {
   EmptyStateComponent,
   type EmptyStateAlign,
   type EmptyStateTone,
 } from './components/patterns/empty-state/empty-state';
+export {
+  FilterPanelComponent,
+  type FilterPanelCommitMode,
+  type FilterPanelMultipleSection,
+  type FilterPanelOption,
+  type FilterPanelRangeConfig,
+  type FilterPanelRangeSection,
+  type FilterPanelSection,
+  type FilterPanelSingleSection,
+  type FilterPanelSortOption,
+  type FilterPanelState,
+  type FilterPanelValue,
+} from './components/patterns/filter-panel/filter-panel';
+export {
+  FormSummaryComponent,
+  type FormSummaryItem,
+  type FormSummaryLayout,
+} from './components/patterns/form-summary/form-summary';
 export { GridColumnsComponent, type GridColumnsGap } from './components/patterns/grid-columns/grid-columns';
+export {
+  OptionGroupComponent,
+  type OptionGroupAlign,
+  type OptionGroupItem,
+  type OptionGroupPadding,
+  type OptionGroupVariant,
+} from './components/patterns/option-group/option-group';
 export { PaginatorComponent } from './components/patterns/paginator/paginator';
-export { SectionComponent } from './components/patterns/section/section';
+export { SectionComponent, type SectionConfig } from './components/patterns/section/section';
 export {
   SocialLinksComponent,
   type SocialLinkItem,
