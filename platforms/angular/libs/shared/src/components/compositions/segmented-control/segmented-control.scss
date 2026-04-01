@@ -1,0 +1,45 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-segmented-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: syn.$space-sm;
+}
+
+.syn-segmented-control__list {
+  display: flex;
+  gap: syn.$space-2;
+  overflow: hidden;
+}
+
+.syn-segmented-control__option,
+.syn-segmented-control__nav {
+  @include syn.focus-visible;
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-2;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(999);
+  padding: syn.$space-2 syn.$space-4;
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-900;
+  cursor: pointer;
+}
+
+.syn-segmented-control__option--active {
+  border-color: syn.$color-brand-500;
+  background: syn.$color-brand-100;
+  color: syn.$color-brand-600;
+}
+
+.syn-segmented-control__option:disabled,
+.syn-segmented-control__nav:disabled {
+  color: syn.$color-neutral-400;
+  cursor: not-allowed;
+}
+
+.syn-segmented-control--compact .syn-segmented-control__option,
+.syn-segmented-control--compact .syn-segmented-control__nav {
+  padding: syn.$space-2 syn.$space-3;
+}

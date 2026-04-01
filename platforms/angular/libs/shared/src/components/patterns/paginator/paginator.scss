@@ -1,0 +1,61 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-paginator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-sm;
+}
+
+.syn-paginator__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-paginator__nav,
+.syn-paginator__page {
+  @include syn.focus-visible;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(999);
+  padding: syn.$space-2 syn.$space-4;
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  cursor: pointer;
+}
+
+.syn-paginator__page {
+  min-width: syn.px-to-rem(42);
+  padding-inline: syn.$space-3;
+}
+
+.syn-paginator__page--active {
+  border-color: syn.$color-brand-500;
+  background: syn.$color-brand-100;
+  color: syn.$color-brand-600;
+}
+
+.syn-paginator__nav:disabled,
+.syn-paginator__page:disabled {
+  cursor: not-allowed;
+  color: syn.$color-neutral-400;
+}
+
+.syn-paginator__ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: syn.px-to-rem(42);
+  min-height: syn.px-to-rem(38);
+  color: syn.$color-neutral-500;
+}
+
+.syn-paginator--compact .syn-paginator__nav,
+.syn-paginator--compact .syn-paginator__page {
+  padding: syn.$space-2 syn.$space-3;
+}

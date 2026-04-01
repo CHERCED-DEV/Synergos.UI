@@ -1,0 +1,75 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-accordion {
+  overflow: hidden;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(18);
+  background: syn.$color-neutral-0;
+}
+
+.syn-accordion--brand {
+  border-color: syn.$color-brand-200;
+  background: syn.$color-brand-100;
+}
+
+.syn-accordion__trigger {
+  @include syn.focus-visible;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: syn.$space-md;
+  width: 100%;
+  border: 0;
+  padding: syn.$space-md;
+  background: transparent;
+  color: syn.$color-neutral-900;
+  text-align: left;
+  cursor: pointer;
+}
+
+.syn-accordion__trigger--static {
+  cursor: default;
+}
+
+.syn-accordion__copy {
+  display: grid;
+  gap: syn.$space-1;
+}
+
+.syn-accordion__title {
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-accordion__description {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-accordion__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: syn.px-to-rem(28);
+  min-height: syn.px-to-rem(28);
+  border-radius: 50%;
+  background: syn.$color-neutral-100;
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-medium;
+}
+
+.syn-accordion__panel {
+  padding:
+    0 syn.$space-md
+    syn.$space-md;
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-accordion--disabled {
+  opacity: 0.7;
+}

@@ -1,0 +1,26 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-social-links {
+  display: grid;
+  gap: syn.$space-sm;
+}
+
+.syn-social-links__title {
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-social-links__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-social-links--stack .syn-social-links__list {
+  flex-direction: column;
+  align-items: flex-start;
+}

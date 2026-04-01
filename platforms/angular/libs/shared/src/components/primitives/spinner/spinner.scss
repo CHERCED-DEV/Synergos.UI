@@ -1,0 +1,66 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-spinner-host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.syn-spinner {
+  display: inline-block;
+  border-style: solid;
+  border-radius: 50%;
+  border-color: syn.$color-neutral-300;
+  border-right-color: transparent;
+  animation: syn-spinner-rotate 0.9s linear infinite;
+}
+
+.syn-spinner--sm {
+  width: syn.px-to-rem(14);
+  height: syn.px-to-rem(14);
+  border-width: syn.px-to-rem(2);
+}
+
+.syn-spinner--md {
+  width: syn.px-to-rem(20);
+  height: syn.px-to-rem(20);
+  border-width: syn.px-to-rem(2);
+}
+
+.syn-spinner--lg {
+  width: syn.px-to-rem(28);
+  height: syn.px-to-rem(28);
+  border-width: syn.px-to-rem(3);
+}
+
+.syn-spinner--brand {
+  border-top-color: syn.$color-brand-400;
+  border-left-color: syn.$color-brand-400;
+}
+
+.syn-spinner--neutral {
+  border-top-color: syn.$color-neutral-700;
+  border-left-color: syn.$color-neutral-700;
+}
+
+.syn-spinner--inverse {
+  border-color: syn.$color-neutral-400;
+  border-top-color: syn.$color-neutral-0;
+  border-left-color: syn.$color-neutral-0;
+}
+
+@keyframes syn-spinner-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-spinner {
+    animation-duration: 1.8s;
+  }
+}

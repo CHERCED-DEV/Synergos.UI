@@ -1,0 +1,84 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-data-table {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: syn.px-to-rem(16);
+  background: syn.$color-neutral-0;
+}
+
+.syn-data-table--bordered {
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+}
+
+.syn-data-table__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.syn-data-table__head {
+  background: syn.$color-neutral-100;
+}
+
+.syn-data-table__heading,
+.syn-data-table__cell {
+  padding: syn.$space-sm syn.$space-md;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-data-table--compact .syn-data-table__heading,
+.syn-data-table--compact .syn-data-table__cell {
+  padding: syn.$space-xs syn.$space-sm;
+}
+
+.syn-data-table__heading {
+  font-weight: syn.$font-weight-semibold;
+  color: syn.$color-neutral-700;
+  text-align: left;
+}
+
+.syn-data-table__heading--center,
+.syn-data-table__cell--center {
+  text-align: center;
+}
+
+.syn-data-table__heading--right,
+.syn-data-table__cell--right {
+  text-align: right;
+}
+
+.syn-data-table__sort {
+  @include syn.focus-visible;
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-xs;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.syn-data-table__row {
+  border-top: syn.px-to-rem(1) solid syn.$color-neutral-200;
+}
+
+.syn-data-table--striped .syn-data-table__row:nth-child(even) {
+  background: syn.$color-neutral-100;
+}
+
+.syn-data-table--hoverable .syn-data-table__row:hover {
+  background: syn.$color-brand-100;
+}
+
+.syn-data-table__row:focus-visible {
+  outline: syn.px-to-rem(2) solid syn.$color-brand-400;
+  outline-offset: -#{syn.px-to-rem(2)};
+}
+
+.syn-data-table__empty {
+  padding: syn.$space-lg;
+  color: syn.$color-neutral-600;
+  text-align: center;
+}

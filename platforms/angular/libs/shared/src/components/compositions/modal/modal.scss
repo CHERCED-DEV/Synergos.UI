@@ -1,15 +1,15 @@
 @use '../../../../../core-assets/src/scss' as syn;
 
 .syn-modal__trigger {
-  min-height: syn.px-to-rem(40);
-  padding: syn.$space-xs syn.$space-md;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(10);
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
-  cursor: pointer;
-
-  @include syn.focus-visible;
+  @include syn.button-base;
+  @include syn.button-variant(
+    syn.$color-neutral-0,
+    syn.$color-neutral-900,
+    syn.$color-neutral-300,
+    syn.$color-neutral-0,
+    syn.$color-brand-600,
+    syn.$color-brand-400
+  );
 }
 
 .syn-modal {
@@ -21,10 +21,7 @@
 }
 
 .syn-modal__backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgb(15 23 42 / 0.45);
+  @include syn.overlay-backdrop;
 }
 
 .syn-modal__panel {
@@ -32,10 +29,15 @@
   width: min(100%, syn.px-to-rem(560));
   max-height: 90vh;
   overflow: auto;
-  padding: syn.$space-md;
-  border-radius: syn.px-to-rem(14);
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-xl;
+  @include syn.surface-panel(
+    syn.$space-md,
+    syn.$color-neutral-0,
+    syn.$color-neutral-200,
+    syn.px-to-rem(1),
+    syn.px-to-rem(14),
+    syn.$shadow-xl
+  );
+  @include syn.custom-scrollbar;
 }
 
 .syn-modal__header {

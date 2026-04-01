@@ -1,0 +1,69 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-heading {
+  display: grid;
+  gap: syn.$space-2;
+}
+
+.syn-heading--center {
+  text-align: center;
+}
+
+.syn-heading__eyebrow {
+  color: syn.$color-brand-600;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  letter-spacing: syn.$letter-spacing-wide;
+  text-transform: uppercase;
+}
+
+.syn-heading__title {
+  margin: 0;
+}
+
+.syn-heading__title--hidden {
+  @include syn.visually-hidden;
+}
+
+.syn-heading--sm .syn-heading__title {
+  @include syn.heading('xs');
+}
+
+.syn-heading--md .syn-heading__title {
+  @include syn.heading('md');
+}
+
+.syn-heading--lg .syn-heading__title {
+  @include syn.heading('lg');
+}
+
+.syn-heading--xl .syn-heading__title {
+  @include syn.heading('xl');
+}
+
+.syn-heading--neutral .syn-heading__title {
+  color: syn.$color-neutral-900;
+}
+
+.syn-heading--muted .syn-heading__title,
+.syn-heading--muted .syn-heading__supporting {
+  color: syn.$color-neutral-600;
+}
+
+.syn-heading--brand .syn-heading__title,
+.syn-heading--brand .syn-heading__supporting {
+  color: syn.$color-brand-600;
+}
+
+.syn-heading--inverse .syn-heading__title,
+.syn-heading--inverse .syn-heading__supporting,
+.syn-heading--inverse .syn-heading__eyebrow {
+  color: syn.$color-neutral-0;
+}
+
+.syn-heading__supporting {
+  margin: 0;
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+}

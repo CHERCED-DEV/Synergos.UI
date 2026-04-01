@@ -1,0 +1,70 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-empty-state {
+  display: grid;
+  gap: syn.$space-lg;
+  padding: syn.$space-xl;
+  border: syn.px-to-rem(1) dashed syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(24);
+  background: syn.$color-neutral-50;
+}
+
+.syn-empty-state--brand {
+  border-color: syn.$color-brand-200;
+  background: syn.$color-brand-100;
+}
+
+.syn-empty-state--start {
+  justify-items: start;
+  text-align: left;
+}
+
+.syn-empty-state--center {
+  justify-items: center;
+  text-align: center;
+}
+
+.syn-empty-state__visual {
+  display: grid;
+  place-items: center;
+}
+
+.syn-empty-state__visual:empty {
+  display: none;
+}
+
+.syn-empty-state__body {
+  display: grid;
+  gap: syn.$space-sm;
+  max-width: syn.px-to-rem(520);
+}
+
+.syn-empty-state__eyebrow {
+  color: syn.$color-brand-600;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  letter-spacing: syn.$letter-spacing-wide;
+  text-transform: uppercase;
+}
+
+.syn-empty-state__title {
+  margin: 0;
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-2xl;
+  font-weight: syn.$font-weight-bold;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-empty-state__description {
+  margin: 0;
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+}
+
+.syn-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-sm;
+  justify-content: inherit;
+}

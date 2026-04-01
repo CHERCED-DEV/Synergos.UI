@@ -1,0 +1,67 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-list__item {
+  margin: 0;
+}
+
+.syn-list--divided .syn-list__item + .syn-list__item {
+  border-top: syn.px-to-rem(1) solid syn.$color-neutral-200;
+}
+
+.syn-list__row {
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-sm;
+  padding-block: syn.$space-md;
+}
+
+.syn-list--compact .syn-list__row {
+  padding-block: syn.$space-sm;
+}
+
+.syn-list--interactive .syn-list__row {
+  cursor: pointer;
+}
+
+.syn-list__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: syn.px-to-rem(24);
+  color: syn.$color-brand-600;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-list__copy {
+  display: grid;
+  gap: syn.$space-1;
+  flex: 1 1 auto;
+}
+
+.syn-list__label {
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-medium;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-list__supporting {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-list__item--disabled .syn-list__label,
+.syn-list__item--disabled .syn-list__supporting,
+.syn-list__item--disabled .syn-list__marker {
+  color: syn.$color-neutral-400;
+}

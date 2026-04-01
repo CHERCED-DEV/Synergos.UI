@@ -1,0 +1,15 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-live-region {
+  display: inline-flex;
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-live-region--brand {
+  color: syn.$color-brand-600;
+}
+
+.syn-live-region--hidden {
+  @include syn.visually-hidden;
+}

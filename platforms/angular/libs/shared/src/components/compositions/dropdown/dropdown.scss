@@ -6,45 +6,21 @@
 }
 
 .syn-dropdown__trigger {
-  min-height: syn.px-to-rem(40);
-  padding: syn.$space-xs syn.$space-md;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(10);
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-base;
-  cursor: pointer;
-
-  @include syn.focus-visible;
+  @include syn.button-base;
+  @include syn.button-variant(
+    syn.$color-neutral-0,
+    syn.$color-neutral-900,
+    syn.$color-neutral-300,
+    syn.$color-neutral-0,
+    syn.$color-brand-600,
+    syn.$color-brand-400
+  );
 }
 
 .syn-dropdown__menu {
-  position: absolute;
-  top: calc(100% + #{syn.$space-xxs});
-  left: 0;
-  min-width: syn.px-to-rem(180);
-  padding: syn.$space-xxs;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(12);
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-md;
-  z-index: syn.$z-dropdown;
+  @include syn.dropdown-panel(syn.px-to-rem(180), syn.$space-xxs);
 }
 
 .syn-dropdown__item {
-  width: 100%;
-  padding: syn.$space-xs syn.$space-sm;
-  border: 0;
-  border-radius: syn.px-to-rem(8);
-  background: transparent;
-  text-align: left;
-  font-size: syn.$font-size-sm;
-  color: syn.$color-neutral-900;
-  cursor: pointer;
-
-  @include syn.focus-visible;
-
-  &:hover:not(:disabled) {
-    background: syn.$color-neutral-100;
-  }
+  @include syn.dropdown-item;
 }

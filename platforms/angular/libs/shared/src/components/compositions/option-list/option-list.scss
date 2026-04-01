@@ -1,0 +1,62 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-option-list {
+  display: grid;
+  gap: syn.$space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-option-list--cards {
+  grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(220), 1fr));
+}
+
+.syn-option-list__option {
+  @include syn.focus-visible;
+  display: flex;
+  align-items: center;
+  gap: syn.$space-sm;
+  width: 100%;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(18);
+  padding: syn.$space-md;
+  background: syn.$color-neutral-0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.syn-option-list__option--selected {
+  border-color: syn.$color-brand-500;
+  background: syn.$color-brand-100;
+}
+
+.syn-option-list__image {
+  width: syn.px-to-rem(40);
+  height: syn.px-to-rem(40);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.syn-option-list__copy {
+  display: grid;
+  gap: syn.$space-1;
+  flex: 1 1 auto;
+}
+
+.syn-option-list__label {
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-medium;
+}
+
+.syn-option-list__description {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-option-list__selected {
+  color: syn.$color-brand-600;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}

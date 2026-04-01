@@ -1,0 +1,31 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-date-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: syn.$space-2;
+  color: syn.$color-neutral-900;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-date-display--stacked {
+  display: inline-grid;
+  gap: syn.$space-1;
+}
+
+.syn-date-display__weekday,
+.syn-date-display__month {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+  text-transform: uppercase;
+}
+
+.syn-date-display__day {
+  font-size: syn.$font-size-2xl;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-date-display__year {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-base;
+}

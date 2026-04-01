@@ -1,0 +1,80 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-section {
+  display: grid;
+  gap: syn.$space-md;
+  border-radius: syn.px-to-rem(16);
+  background: syn.$color-neutral-0;
+}
+
+.syn-section--padding-sm {
+  padding: syn.$space-sm;
+}
+
+.syn-section--padding-md {
+  padding: syn.$space-md;
+}
+
+.syn-section--padding-lg {
+  padding: syn.$space-lg;
+}
+
+.syn-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: syn.$space-md;
+}
+
+.syn-section__heading {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-section__eyebrow {
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  letter-spacing: syn.px-to-rem(0.8);
+  text-transform: uppercase;
+  color: syn.$color-brand-500;
+}
+
+.syn-section__title {
+  font-size: syn.$font-size-2xl;
+  font-weight: syn.$font-weight-semibold;
+  color: syn.$color-neutral-900;
+}
+
+.syn-section__subtitle {
+  max-width: syn.px-to-rem(720);
+  font-size: syn.$font-size-base;
+  color: syn.$color-neutral-600;
+}
+
+.syn-section__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-sm;
+}
+
+.syn-section__toggle {
+  @include syn.focus-visible;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(999);
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-800;
+  width: syn.px-to-rem(32);
+  height: syn.px-to-rem(32);
+  cursor: pointer;
+}
+
+.syn-section__divider {
+  height: syn.px-to-rem(1);
+  background: syn.$color-neutral-200;
+}
+
+.syn-section__body,
+.syn-section__footer {
+  display: grid;
+  gap: syn.$space-md;
+}

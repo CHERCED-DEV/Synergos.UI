@@ -1,0 +1,88 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-carousel {
+  display: grid;
+  gap: syn.$space-md;
+}
+
+.syn-carousel__stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: syn.px-to-rem(24);
+  background: syn.$color-neutral-100;
+}
+
+.syn-carousel__media {
+  display: block;
+  width: 100%;
+  max-height: syn.px-to-rem(480);
+  object-fit: cover;
+}
+
+.syn-carousel--compact .syn-carousel__media {
+  max-height: syn.px-to-rem(320);
+}
+
+.syn-carousel__meta {
+  position: absolute;
+  top: syn.$space-md;
+  left: syn.$space-md;
+}
+
+.syn-carousel__controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: syn.$space-sm;
+}
+
+.syn-carousel__control {
+  @include syn.focus-visible;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(999);
+  padding: syn.$space-2 syn.$space-4;
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  cursor: pointer;
+}
+
+.syn-carousel__control:disabled {
+  cursor: not-allowed;
+  color: syn.$color-neutral-400;
+}
+
+.syn-carousel__pager {
+  display: flex;
+  gap: syn.$space-2;
+  overflow-x: auto;
+}
+
+.syn-carousel__thumb {
+  @include syn.focus-visible;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: syn.px-to-rem(44);
+  min-height: syn.px-to-rem(44);
+  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius: syn.px-to-rem(14);
+  padding: 0;
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-700;
+  cursor: pointer;
+}
+
+.syn-carousel__thumb--active {
+  border-color: syn.$color-brand-500;
+  box-shadow: 0 0 0 syn.px-to-rem(1) syn.$color-brand-500;
+}
+
+.syn-carousel__thumb-image {
+  display: block;
+  width: syn.px-to-rem(64);
+  height: syn.px-to-rem(44);
+  border-radius: inherit;
+  object-fit: cover;
+}

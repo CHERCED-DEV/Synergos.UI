@@ -1,0 +1,94 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: syn.$space-md;
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.px-to-rem(14);
+}
+
+.syn-panel--padding-sm {
+  padding: syn.$space-sm;
+}
+
+.syn-panel--padding-md {
+  padding: syn.$space-md;
+}
+
+.syn-panel--padding-lg {
+  padding: syn.$space-lg;
+}
+
+.syn-panel--bordered {
+  border-color: syn.$color-neutral-300;
+}
+
+.syn-panel--neutral {
+  background: syn.$color-neutral-0;
+  color: syn.$color-neutral-900;
+}
+
+.syn-panel--brand {
+  background: syn.$color-brand-100;
+  border-color: syn.$color-brand-200;
+  color: syn.$color-brand-600;
+}
+
+.syn-panel--success {
+  background: syn.$color-brand-100;
+  color: syn.$color-brand-600;
+}
+
+.syn-panel--warning {
+  background: syn.$color-neutral-100;
+  color: syn.$color-neutral-800;
+}
+
+.syn-panel--critical {
+  background: syn.$color-neutral-900;
+  color: syn.$color-neutral-0;
+}
+
+.syn-panel__main {
+  display: grid;
+  gap: syn.$space-sm;
+  flex: 1 1 auto;
+}
+
+.syn-panel__badge {
+  width: fit-content;
+}
+
+.syn-panel__header {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-panel__title {
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-panel__description {
+  font-size: syn.$font-size-sm;
+  color: inherit;
+}
+
+.syn-panel__content {
+  display: grid;
+  gap: syn.$space-sm;
+}
+
+.syn-panel__dismiss {
+  @include syn.focus-visible;
+  flex: 0 0 auto;
+  border: 0;
+  padding: syn.$space-xxs;
+  background: transparent;
+  color: inherit;
+  font-size: syn.$font-size-lg;
+  line-height: 1;
+  cursor: pointer;
+}

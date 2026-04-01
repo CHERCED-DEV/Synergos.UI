@@ -1,15 +1,7 @@
 @use '../../../../../core-assets/src/scss' as syn;
 
 .syn-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: syn.px-to-rem(24);
-  padding: syn.$space-xxs syn.$space-xs;
-  border-radius: syn.px-to-rem(999);
-  font-size: syn.$font-size-xs;
-  font-weight: syn.$font-weight-semibold;
-  letter-spacing: syn.$letter-spacing-wide;
+  @include syn.badge(syn.$color-neutral-100, syn.$color-neutral-800);
 }
 
 .syn-badge--neutral {
@@ -18,11 +10,9 @@
 }
 
 .syn-badge--brand {
-  background: syn.$color-brand-200;
-  color: syn.$color-brand-600;
+  @include syn.badge(syn.$color-brand-200, syn.$color-brand-600);
 }
 
 .syn-badge--inverse {
-  background: syn.$color-neutral-900;
-  color: syn.$color-neutral-0;
+  @include syn.badge(syn.$color-neutral-900, syn.$color-neutral-0);
 }

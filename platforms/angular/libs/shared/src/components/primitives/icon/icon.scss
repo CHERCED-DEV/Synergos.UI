@@ -1,0 +1,34 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: syn.$font-family-mono;
+  font-weight: syn.$font-weight-semibold;
+  line-height: 1;
+}
+
+.syn-icon--sm {
+  font-size: syn.$font-size-sm;
+}
+
+.syn-icon--md {
+  font-size: syn.$font-size-lg;
+}
+
+.syn-icon--lg {
+  font-size: syn.$font-size-2xl;
+}
+
+.syn-icon--neutral {
+  color: syn.$color-neutral-700;
+}
+
+.syn-icon--brand {
+  color: syn.$color-brand-600;
+}
+
+.syn-icon--inverse {
+  color: syn.$color-neutral-0;
+}

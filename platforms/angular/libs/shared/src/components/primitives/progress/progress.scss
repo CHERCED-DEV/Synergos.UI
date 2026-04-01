@@ -1,0 +1,85 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-progress-host {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-sm;
+  width: 100%;
+}
+
+.syn-progress {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background: syn.$color-neutral-200;
+}
+
+.syn-progress--sm {
+  height: syn.px-to-rem(4);
+  border-radius: syn.px-to-rem(999);
+}
+
+.syn-progress--md {
+  height: syn.px-to-rem(8);
+  border-radius: syn.px-to-rem(999);
+}
+
+.syn-progress--lg {
+  height: syn.px-to-rem(12);
+  border-radius: syn.px-to-rem(999);
+}
+
+.syn-progress__bar {
+  display: block;
+  height: 100%;
+  transition: width 160ms ease;
+}
+
+.syn-progress--brand .syn-progress__bar {
+  background: syn.$color-brand-400;
+}
+
+.syn-progress--success .syn-progress__bar {
+  background: syn.$color-brand-600;
+}
+
+.syn-progress--warning .syn-progress__bar {
+  background: syn.$color-neutral-700;
+}
+
+.syn-progress--critical .syn-progress__bar {
+  background: syn.$color-neutral-900;
+}
+
+.syn-progress--indeterminate .syn-progress__bar {
+  width: 40%;
+  animation: syn-progress-indeterminate 1.3s ease-in-out infinite;
+}
+
+.syn-progress__label {
+  min-width: syn.px-to-rem(48);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  color: syn.$color-neutral-700;
+  text-align: right;
+}
+
+@keyframes syn-progress-indeterminate {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-progress__bar {
+    transition: none;
+  }
+
+  .syn-progress--indeterminate .syn-progress__bar {
+    animation: none;
+  }
+}

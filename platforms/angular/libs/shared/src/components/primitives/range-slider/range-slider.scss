@@ -1,0 +1,58 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-range-slider {
+  display: grid;
+  gap: syn.$space-2;
+}
+
+.syn-range-slider__label {
+  color: syn.$color-neutral-700;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+}
+
+.syn-range-slider__track {
+  display: grid;
+}
+
+.syn-range-slider__input {
+  width: 100%;
+  height: syn.px-to-rem(8);
+  border-radius: syn.px-to-rem(999);
+  background:
+    linear-gradient(
+      90deg,
+      syn.$color-brand-500 0%,
+      syn.$color-brand-500 var(--syn-range-progress, 0%),
+      syn.$color-neutral-200 var(--syn-range-progress, 0%),
+      syn.$color-neutral-200 100%
+    );
+  appearance: none;
+}
+
+.syn-range-slider__input::-webkit-slider-thumb {
+  width: syn.px-to-rem(20);
+  height: syn.px-to-rem(20);
+  border: 0;
+  border-radius: 50%;
+  background: syn.$color-neutral-0;
+  box-shadow: syn.$shadow-sm;
+  appearance: none;
+  cursor: pointer;
+}
+
+.syn-range-slider__input::-moz-range-thumb {
+  width: syn.px-to-rem(20);
+  height: syn.px-to-rem(20);
+  border: 0;
+  border-radius: 50%;
+  background: syn.$color-neutral-0;
+  box-shadow: syn.$shadow-sm;
+  cursor: pointer;
+}
+
+.syn-range-slider__value {
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}

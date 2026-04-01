@@ -1,0 +1,25 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-grid-columns {
+  display: grid;
+}
+
+.syn-grid-columns--auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(var(--syn-grid-min, 16rem), 1fr));
+}
+
+.syn-grid-columns--fixed {
+  grid-template-columns: repeat(var(--syn-grid-columns, 2), minmax(0, 1fr));
+}
+
+.syn-grid-columns--gap-sm {
+  gap: syn.$space-sm;
+}
+
+.syn-grid-columns--gap-md {
+  gap: syn.$space-md;
+}
+
+.syn-grid-columns--gap-lg {
+  gap: syn.$space-lg;
+}

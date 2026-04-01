@@ -1,0 +1,43 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-xxs;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-decoration-thickness: syn.px-to-rem(1.5);
+  text-underline-offset: syn.px-to-rem(3);
+
+  @include syn.focus-visible;
+}
+
+.syn-link--brand {
+  color: syn.$color-brand-500;
+}
+
+.syn-link--neutral {
+  color: syn.$color-neutral-800;
+}
+
+.syn-link--inverse {
+  color: syn.$color-neutral-0;
+}
+
+.syn-link--underline {
+  text-decoration: underline;
+}
+
+.syn-link--disabled {
+  color: syn.$color-neutral-500;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.syn-link.syn-focus-visible {
+  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline-offset: syn.px-to-rem(2);
+}

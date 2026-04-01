@@ -1,0 +1,106 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: syn.$space-md;
+  width: 100%;
+  cursor: pointer;
+}
+
+.syn-toggle__copy {
+  display: grid;
+  gap: syn.$space-1;
+}
+
+.syn-toggle__label {
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-medium;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-toggle__description {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-toggle__control {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.syn-toggle__native {
+  @include syn.visually-hidden;
+}
+
+.syn-toggle__native:focus-visible + .syn-toggle__track {
+  @include syn.focus-visible;
+}
+
+.syn-toggle__track {
+  display: inline-flex;
+  align-items: center;
+  width: syn.px-to-rem(48);
+  padding: syn.px-to-rem(3);
+  border-radius: syn.px-to-rem(999);
+  background: syn.$color-neutral-300;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.syn-toggle--sm .syn-toggle__track {
+  width: syn.px-to-rem(40);
+}
+
+.syn-toggle__thumb {
+  display: block;
+  width: syn.px-to-rem(18);
+  height: syn.px-to-rem(18);
+  border-radius: 50%;
+  background: syn.$color-neutral-0;
+  box-shadow: syn.$shadow-sm;
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+
+.syn-toggle--sm .syn-toggle__thumb {
+  width: syn.px-to-rem(14);
+  height: syn.px-to-rem(14);
+}
+
+.syn-toggle__native:checked + .syn-toggle__track {
+  background: syn.$color-brand-500;
+}
+
+.syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
+  transform: translateX(syn.px-to-rem(22));
+}
+
+.syn-toggle--sm .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
+  transform: translateX(syn.px-to-rem(18));
+}
+
+.syn-toggle--disabled {
+  cursor: not-allowed;
+}
+
+.syn-toggle--disabled .syn-toggle__label,
+.syn-toggle--disabled .syn-toggle__description {
+  color: syn.$color-neutral-400;
+}
+
+.syn-toggle--disabled .syn-toggle__track {
+  background: syn.$color-neutral-200;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-toggle__track,
+  .syn-toggle__thumb {
+    transition: none;
+  }
+}

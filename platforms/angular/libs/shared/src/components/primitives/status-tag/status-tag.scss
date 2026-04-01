@@ -1,0 +1,72 @@
+@use '../../../../../core-assets/src/scss' as syn;
+
+.syn-status-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-1;
+  border: syn.px-to-rem(1) solid currentColor;
+  border-radius: syn.px-to-rem(999);
+  padding: syn.$space-1 syn.$space-3;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  line-height: 1;
+}
+
+.syn-status-tag--outline {
+  background: syn.$color-neutral-0;
+}
+
+.syn-status-tag--filled {
+  color: syn.$color-neutral-0;
+}
+
+.syn-status-tag--neutral {
+  color: syn.$color-neutral-700;
+}
+
+.syn-status-tag--neutral.syn-status-tag--filled {
+  background: syn.$color-neutral-700;
+}
+
+.syn-status-tag--success {
+  color: syn.$color-brand-600;
+}
+
+.syn-status-tag--success.syn-status-tag--filled {
+  background: syn.$color-brand-600;
+}
+
+.syn-status-tag--warning {
+  color: syn.$color-neutral-800;
+}
+
+.syn-status-tag--warning.syn-status-tag--filled {
+  background: syn.$color-neutral-800;
+}
+
+.syn-status-tag--critical,
+.syn-status-tag--blocked {
+  color: syn.$color-neutral-900;
+}
+
+.syn-status-tag--critical.syn-status-tag--filled,
+.syn-status-tag--blocked.syn-status-tag--filled {
+  background: syn.$color-neutral-900;
+}
+
+.syn-status-tag--pending {
+  color: syn.$color-brand-500;
+}
+
+.syn-status-tag--pending.syn-status-tag--filled {
+  background: syn.$color-brand-500;
+}
+
+.syn-status-tag--inactive {
+  color: syn.$color-neutral-500;
+}
+
+.syn-status-tag--inactive.syn-status-tag--filled {
+  background: syn.$color-neutral-500;
+}
