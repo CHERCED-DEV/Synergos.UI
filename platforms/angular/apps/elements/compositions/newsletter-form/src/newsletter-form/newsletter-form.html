@@ -1,0 +1,58 @@
+<section class="newsletter-form" [class]="hostClasses()">
+  @if (title() || intro()) {
+    <header class="newsletter-form__header">
+      @if (title()) {
+        <syn-heading
+          class="newsletter-form__heading"
+          [text]="title()"
+          [tone]="headingTone()"
+          level="h3"
+          size="sm"
+        />
+      }
+
+      @if (intro()) {
+        <div class="newsletter-form__intro" [innerHTML]="intro()"></div>
+      }
+    </header>
+  }
+
+  <form class="newsletter-form__form" (submit)="onSubmit($event)">
+    <syn-input
+      label="Email"
+      type="email"
+      [placeholder]="placeholder()"
+      [value]="email()"
+      [required]="true"
+      [disabled]="isSubmitting()"
+      (valueChange)="onEmailChange($event)"
+    />
+
+    @if (hasConsent()) {
+      <syn-checkbox
+        [label]="consentText()"
+        [checked]="consent()"
+        [disabled]="isSubmitting()"
+        (checkedChange)="onConsentChange($event)"
+      />
+    }
+
+    <div class="newsletter-form__actions">
+      <syn-button
+        [label]="submitLabel()"
+        type="submit"
+        variant="solid"
+        [disabled]="isSubmitting()"
+      />
+    </div>
+  </form>
+
+  @if (hasFeedback()) {
+    <syn-alert
+      [title]="state() === 'success' ? 'Success' : 'Submission error'"
+      [description]="feedback()"
+      [tone]="feedbackTone()"
+      [dismissible]="false"
+    />
+  }
+</section>

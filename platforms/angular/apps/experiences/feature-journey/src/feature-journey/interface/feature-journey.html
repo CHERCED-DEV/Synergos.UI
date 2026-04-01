@@ -1,0 +1,68 @@
+<div
+  class="feature-journey"
+  [class]="hostClasses()"
+  [id]="elementId() || null"
+>
+  @if (title()) {
+    <div class="feature-journey__header">
+      <syn-heading
+        [text]="title()"
+        level="h2"
+        size="lg"
+        [tone]="headingTone()"
+        align="center"
+      />
+    </div>
+  }
+
+  <nav class="feature-journey__nav" aria-label="Journey steps">
+    @for (step of steps(); track step.id; let i = $index) {
+      <button
+        type="button"
+        class="feature-journey__step"
+        [class.feature-journey__step--active]="i === activeIndex()"
+        [class.feature-journey__step--completed]="i < activeIndex()"
+        [attr.aria-current]="i === activeIndex() ? 'step' : null"
+        (click)="goToStep(i)"
+      >
+        <span class="feature-journey__step-number">{{ i + 1 }}</span>
+        <span class="feature-journey__step-label">{{ step.title }}</span>
+      </button>
+    }
+  </nav>
+
+  <section class="feature-journey__panel" aria-live="polite" aria-label="Step content">
+    <div class="feature-journey__panel-icon" aria-hidden="true">
+      {{ activeStep().icon }}
+    </div>
+    <div class="feature-journey__panel-content">
+      <syn-heading
+        [text]="activeStep().title"
+        level="h3"
+        size="md"
+        [tone]="headingTone()"
+      />
+      <p class="feature-journey__panel-description">{{ activeStep().description }}</p>
+    </div>
+  </section>
+
+  <div class="feature-journey__controls">
+    <syn-button
+      label="← Anterior"
+      variant="outline"
+      size="md"
+      [disabled]="isFirst()"
+      (pressed)="prev()"
+    />
+    <span class="feature-journey__counter" aria-live="polite" aria-atomic="true">
+      {{ progress().current }} / {{ progress().total }}
+    </span>
+    <syn-button
+      label="Siguiente →"
+      variant="solid"
+      size="md"
+      [disabled]="isLast()"
+      (pressed)="next()"
+    />
+  </div>
+</div>

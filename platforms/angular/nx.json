@@ -8,9 +8,8 @@
       "!{projectRoot}/eslint.config.mjs"
     ],
     "sharedGlobals": [
-      "{workspaceRoot}/tsconfig.base.json",
-      "{workspaceRoot}/platforms/angular/tsconfig.json",
-      "{workspaceRoot}/platforms/angular/nx.json"
+      "{workspaceRoot}/tsconfig.json",
+      "{workspaceRoot}/nx.json"
     ]
   },
   "targetDefaults": {

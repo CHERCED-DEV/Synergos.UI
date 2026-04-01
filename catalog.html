@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Synergos UI — Element Catalog</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+    /* ── Site header ── */
+    .site-header { background: #1e293b; border-bottom: 1px solid #334155; padding: 1.25rem 2rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .site-header h1 { font-size: 1.375rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.02em; }
+    .site-header h1 span { color: #818cf8; }
+    .stats { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .stat-chip { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.65rem; border-radius: 999px; white-space: nowrap; }
+    .cdn-note { font-size: 0.7rem; margin-left: auto; }
+    .cdn-ok   { color: #4ade80; }
+    .cdn-missing { color: #94a3b8; }
+    .cdn-note code { background: #334155; padding: 0.1rem 0.3rem; border-radius: 3px; }
+
+    /* ── Controls ── */
+    .controls { padding: 1rem 2rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; background: #0f172a; border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 10; }
+    .search-wrap { position: relative; }
+    .search-wrap input { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 0.45rem 1rem 0.45rem 2.25rem; border-radius: 8px; font-size: 0.85rem; width: 22rem; outline: none; transition: border-color 0.15s; }
+    .search-wrap input:focus { border-color: #6366f1; }
+    .search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #475569; pointer-events: none; font-size: 0.85rem; }
+    .filter-btns { display: flex; gap: 0.4rem; }
+    .filter-btn { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 0.35rem 0.9rem; border-radius: 8px; font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+    .filter-btn:hover { color: #f1f5f9; border-color: #6366f1; }
+    .filter-btn.active { color: #f8fafc; background: #312e81; border-color: #6366f1; }
+    .count-label { font-size: 0.78rem; color: #475569; margin-left: auto; }
+
+    /* ── Grid ── */
+    main { padding: 1.5rem 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    .empty-state { text-align: center; padding: 4rem; color: #475569; font-size: 0.9rem; grid-column: 1/-1; }
+
+    /* ── Card ── */
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.125rem; transition: border-color 0.2s, box-shadow 0.2s; }
+    .card:hover { border-color: #475569; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .card header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+    .tier-badge { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; padding: 0.2rem 0.55rem; border-radius: 4px; flex-shrink: 0; }
+    .card h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+    .tag-display { display: block; font-size: 0.72rem; color: #7dd3fc; background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.2); padding: 0.2rem 0.55rem; border-radius: 4px; margin-bottom: 0.65rem; width: fit-content; }
+    .meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; }
+    .alias { font-size: 0.68rem; color: #64748b; font-family: monospace; }
+    .input-count { font-size: 0.68rem; color: #64748b; }
+    .frameworks { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.65rem; }
+    .fw-badge { font-size: 0.68rem; padding: 0.18rem 0.55rem; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+    .fw-active   { background: #052e16; color: #86efac; border: 1px solid #166534; }
+    .fw-inactive { background: #0f172a; color: #3f4f63; border: 1px solid #1e293b; }
+    .fw-active small { opacity: 0.7; font-size: 0.6rem; }
+
+    /* ── Details / inputs ── */
+    details { border-top: 1px solid #1e293b; padding-top: 0.5rem; margin-top: 0.25rem; }
+    summary { font-size: 0.78rem; color: #64748b; cursor: pointer; user-select: none; padding: 0.25rem 0; list-style: none; display: flex; align-items: center; gap: 0.4rem; }
+    summary::before { content: '▸'; font-size: 0.6rem; transition: transform 0.15s; }
+    details[open] summary::before { transform: rotate(90deg); }
+    summary:hover { color: #94a3b8; }
+    .inputs-table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.72rem; }
+    .inputs-table th { color: #475569; text-align: left; padding: 0.25rem 0.4rem; border-bottom: 1px solid #334155; font-weight: 500; white-space: nowrap; }
+    .inputs-table td { padding: 0.25rem 0.4rem; border-bottom: 1px solid #172032; color: #cbd5e1; vertical-align: top; }
+    .inputs-table code { color: #7dd3fc; font-size: 0.68rem; }
+    .type-badge { font-size: 0.62rem; background: #1e3a5f; color: #93c5fd; padding: 0.1rem 0.35rem; border-radius: 3px; font-weight: 500; }
+    .req-yes { color: #4ade80; font-weight: 600; }
+    .req-no  { color: #475569; }
+    .desc    { color: #64748b; font-style: italic; }
+    .no-inputs { font-size: 0.73rem; color: #3f4f63; padding: 0.5rem 0; }
+
+    /* ── Misc ── */
+    .hidden { display: none !important; }
+    footer { padding: 1.5rem 2rem; text-align: center; font-size: 0.72rem; color: #334155; border-top: 1px solid #1e293b; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>Synergos <span>UI</span></h1>
+    <div class="stats">
+      <span class="stat-chip" style="background:#1e1b4b;color:#a5b4fc">52 elements</span>
+      <span class="stat-chip" style="background:#312e81;color:#818cf8">13 modules</span>
+      <span class="stat-chip" style="background:#0c4a6e;color:#7dd3fc">18 compositions</span>
+      <span class="stat-chip" style="background:#052e16;color:#86efac">21 primitives</span>
+    </div>
+    <small class="cdn-note cdn-ok">CDN registry v0.1.0 · undefined</small>
+  </header>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="search" id="search" placeholder="Search name, tag, alias…" autocomplete="off" />
+    </div>
+    <div class="filter-btns">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="module">Module</button>
+      <button class="filter-btn" data-filter="composition">Composition</button>
+      <button class="filter-btn" data-filter="primitive">Primitive</button>
+    </div>
+    <span class="count-label" id="count-label">52 elements</span>
+  </div>
+
+  <main>
+    <div class="grid" id="grid">
+      
+  <article class="card" data-tier="module" data-name="angular-host" data-text="angular-host synergos-angular-host elementIntAngularHost">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>angular-host</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-angular-host&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementIntAngularHost</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="banner" data-text="banner synergos-banner elementCompCtaBanner">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>banner</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-banner&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompCtaBanner</span>
+      <span class="input-count">7 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (7)</summary>
+      <table class="inputs-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody><tr>
+      <td><code>title</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Banner heading text</td>
+    </tr><tr>
+      <td><code>body</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Banner body copy</td>
+    </tr><tr>
+      <td><code>ctaLabel</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">CTA button label</td>
+    </tr><tr>
+      <td><code>ctaUrl</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">CTA destination URL</td>
+    </tr><tr>
+      <td><code>ctaTarget</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>_self</code></td>
+      <td class="desc">Link target attribute</td>
+    </tr><tr>
+      <td><code>variant</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>default</code></td>
+      <td class="desc">Layout variant key</td>
+    </tr><tr>
+      <td><code>theme</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>light</code></td>
+      <td class="desc">Color theme (light | dark)</td>
+    </tr></tbody>
+  </table>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="banner-slider" data-text="banner-slider synergos-banner-slider elementCorpBannerSlider">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>banner-slider</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-banner-slider&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpBannerSlider</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="data-table" data-text="data-table synergos-data-table elementCorpDataTable">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>data-table</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-data-table&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpDataTable</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="faq-section" data-text="faq-section synergos-faq-section elementCompFaqList">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>faq-section</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-faq-section&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompFaqList</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="feature-grid" data-text="feature-grid synergos-feature-grid elementCompFeatureGrid">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>feature-grid</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-feature-grid&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompFeatureGrid</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="hero" data-text="hero synergos-hero elementCompHero">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>hero</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-hero&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompHero</span>
+      <span class="input-count">10 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (10)</summary>
+      <table class="inputs-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody><tr>
+      <td><code>headingText</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Main heading text</td>
+    </tr><tr>
+      <td><code>headingLevel</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>h1</code></td>
+      <td class="desc">HTML heading tag: h1–h6</td>
+    </tr><tr>
+      <td><code>body</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Body copy / paragraph text</td>
+    </tr><tr>
+      <td><code>imageSrc</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Hero image URL</td>
+    </tr><tr>
+      <td><code>imageAlt</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Hero image alt text</td>
+    </tr><tr>
+      <td><code>ctaLabel</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Call-to-action button label</td>
+    </tr><tr>
+      <td><code>ctaUrl</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Call-to-action destination URL</td>
+    </tr><tr>
+      <td><code>ctaTarget</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>_self</code></td>
+      <td class="desc">Link target attribute (_self | _blank)</td>
+    </tr><tr>
+      <td><code>variant</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>default</code></td>
+      <td class="desc">Layout variant key</td>
+    </tr><tr>
+      <td><code>theme</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>light</code></td>
+      <td class="desc">Color theme (light | dark)</td>
+    </tr></tbody>
+  </table>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="logo-cloud" data-text="logo-cloud synergos-logo-cloud elementCompLogoCloud">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>logo-cloud</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-logo-cloud&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompLogoCloud</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="mf-host" data-text="mf-host synergos-mf-host elementIntMfHost">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>mf-host</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-mf-host&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementIntMfHost</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="script-embed" data-text="script-embed synergos-script-embed elementIntScriptEmbed">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>script-embed</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-script-embed&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementIntScriptEmbed</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="section" data-text="section synergos-section elementStructSection">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>section</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-section&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructSection</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="tab-group" data-text="tab-group synergos-tab-group elementCorpTabGroup">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>tab-group</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-tab-group&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpTabGroup</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="module" data-name="testimonial-section" data-text="testimonial-section synergos-testimonial-section elementCompTestimonialList">
+    <header>
+      <span class="tier-badge" style="background:#6366f1">module</span>
+      <h3>testimonial-section</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-testimonial-section&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompTestimonialList</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="accordion" data-text="accordion synergos-accordion elementCompAccordion">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>accordion</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-accordion&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompAccordion</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="alert-bar" data-text="alert-bar synergos-alert-bar elementCorpAlertBar">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>alert-bar</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-alert-bar&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpAlertBar</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="card" data-text="card synergos-card elementCompCard">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>card</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-card&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompCard</span>
+      <span class="input-count">11 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (11)</summary>
+      <table class="inputs-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody><tr>
+      <td><code>title</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Card heading</td>
+    </tr><tr>
+      <td><code>subtitle</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Card subheading</td>
+    </tr><tr>
+      <td><code>body</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Card body copy</td>
+    </tr><tr>
+      <td><code>imageSrc</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Card image URL</td>
+    </tr><tr>
+      <td><code>imageAlt</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Card image alt text</td>
+    </tr><tr>
+      <td><code>ctaLabel</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">CTA button label</td>
+    </tr><tr>
+      <td><code>ctaUrl</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">CTA destination URL</td>
+    </tr><tr>
+      <td><code>badgeText</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Badge label text</td>
+    </tr><tr>
+      <td><code>badgeType</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">Badge semantic type (info | warning | success)</td>
+    </tr><tr>
+      <td><code>variant</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>default</code></td>
+      <td class="desc">Card layout variant</td>
+    </tr><tr>
+      <td><code>theme</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>light</code></td>
+      <td class="desc">Color theme (light | dark)</td>
+    </tr></tbody>
+  </table>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="cta-group" data-text="cta-group synergos-cta-group elementActionCtaGroup">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>cta-group</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-cta-group&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementActionCtaGroup</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="external-widget" data-text="external-widget synergos-external-widget elementIntExternalWidget">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>external-widget</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-external-widget&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementIntExternalWidget</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="faq-item" data-text="faq-item synergos-faq-item elementInfoFaqItem">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>faq-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-faq-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoFaqItem</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="feature-item" data-text="feature-item synergos-feature-item elementInfoFeature">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>feature-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-feature-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoFeature</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="gallery-item" data-text="gallery-item synergos-gallery-item elementMediaGalleryItem">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>gallery-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-gallery-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaGalleryItem</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="iframe-embed" data-text="iframe-embed synergos-iframe-embed elementIntIframeEmbed">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>iframe-embed</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-iframe-embed&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementIntIframeEmbed</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="key-value" data-text="key-value synergos-key-value elementInfoKeyValue">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>key-value</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-key-value&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoKeyValue</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="logo-item" data-text="logo-item synergos-logo-item elementMediaLogoItem">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>logo-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-logo-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaLogoItem</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="media-text" data-text="media-text synergos-media-text elementCompMediaTextSplit">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>media-text</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-media-text&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCompMediaTextSplit</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="newsletter-form" data-text="newsletter-form synergos-newsletter-form elementCorpNewsletterForm">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>newsletter-form</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-newsletter-form&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpNewsletterForm</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="pricing-card" data-text="pricing-card synergos-pricing-card elementInfoPricingCard">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>pricing-card</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-pricing-card&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoPricingCard</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="social-share" data-text="social-share synergos-social-share elementCorpSocialShare">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>social-share</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-social-share&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementCorpSocialShare</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="stat" data-text="stat synergos-stat-counter elementInfoStat">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>stat</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-stat-counter&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoStat</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="testimonial-item" data-text="testimonial-item synergos-testimonial-item elementInfoTestimonialItem">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>testimonial-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-testimonial-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoTestimonialItem</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="composition" data-name="timeline-item" data-text="timeline-item synergos-timeline-item elementInfoTimelineItem">
+    <header>
+      <span class="tier-badge" style="background:#0ea5e9">composition</span>
+      <h3>timeline-item</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-timeline-item&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoTimelineItem</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="avatar" data-text="avatar synergos-avatar elementMediaAvatar">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>avatar</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-avatar&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaAvatar</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="badge" data-text="badge synergos-badge elementInfoBadge">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>badge</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-badge&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementInfoBadge</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="button" data-text="button synergos-button-container elementActionButton">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>button</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-button-container&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementActionButton</span>
+      <span class="input-count">6 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (6)</summary>
+      <table class="inputs-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody><tr>
+      <td><code>label</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-yes">✓</td>
+      <td>—</td>
+      <td class="desc">Button visible text</td>
+    </tr><tr>
+      <td><code>variant</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>solid</code></td>
+      <td class="desc">solid | outline | ghost</td>
+    </tr><tr>
+      <td><code>size</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>md</code></td>
+      <td class="desc">sm | md | lg</td>
+    </tr><tr>
+      <td><code>href</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td>—</td>
+      <td class="desc">If set, renders as <a> instead of <button></td>
+    </tr><tr>
+      <td><code>target</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>_self</code></td>
+      <td class="desc">Link target (_self | _blank)</td>
+    </tr><tr>
+      <td><code>disabled</code></td>
+      <td><span class="type-badge">boolean</span></td>
+      <td class="req-no">—</td>
+      <td><code>false</code></td>
+      <td class="desc">Disabled state</td>
+    </tr></tbody>
+  </table>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="column" data-text="column synergos-column elementStructColumn">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>column</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-column&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructColumn</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="container-block" data-text="container-block synergos-container-block elementStructContainer">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>container-block</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-container-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructContainer</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="divider" data-text="divider synergos-divider elementStructDivider">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>divider</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-divider&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructDivider</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="eyebrow" data-text="eyebrow synergos-text-block elementTextEyebrow">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>eyebrow</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextEyebrow</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="grid" data-text="grid synergos-grid elementStructGrid">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>grid</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-grid&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructGrid</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="heading" data-text="heading synergos-text-block elementTextHeading">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>heading</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextHeading</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="hello-world" data-text="hello-world synergos-hello-world elementTemplateHelloWorld">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>hello-world</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-hello-world&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTemplateHelloWorld</span>
+      <span class="input-count">1 input</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (1)</summary>
+      <table class="inputs-table">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Default</th><th>Description</th></tr></thead>
+    <tbody><tr>
+      <td><code>message</code></td>
+      <td><span class="type-badge">string</span></td>
+      <td class="req-no">—</td>
+      <td><code>Hello, World!</code></td>
+      <td class="desc">Text to display</td>
+    </tr></tbody>
+  </table>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="icon-block" data-text="icon-block synergos-icon-block elementMediaIcon">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>icon-block</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-icon-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaIcon</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="image-block" data-text="image-block synergos-image-block elementMediaImage">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>image-block</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-image-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaImage</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="label" data-text="label synergos-text-block elementTextLabel">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>label</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextLabel</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="link" data-text="link synergos-link-block elementActionLink">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>link</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-link-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementActionLink</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="paragraph" data-text="paragraph synergos-text-block elementTextParagraph">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>paragraph</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextParagraph</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="quote" data-text="quote synergos-text-block elementTextQuote">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>quote</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextQuote</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="rich-text" data-text="rich-text synergos-text-block elementTextRichText">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>rich-text</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextRichText</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="spacer" data-text="spacer synergos-spacer elementStructSpacer">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>spacer</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-spacer&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructSpacer</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="stack" data-text="stack synergos-stack elementStructStack">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>stack</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-stack&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementStructStack</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="text-block" data-text="text-block synergos-text-block elementTextBlock">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>text-block</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-text-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementTextBlock</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+
+  <article class="card" data-tier="primitive" data-name="video-block" data-text="video-block synergos-video-block elementMediaVideo">
+    <header>
+      <span class="tier-badge" style="background:#10b981">primitive</span>
+      <h3>video-block</h3>
+    </header>
+    <code class="tag-display">&lt;synergos-video-block&gt;</code>
+    <div class="meta">
+      <span class="alias" title="CMS alias">elementMediaVideo</span>
+      <span class="input-count">0 inputs</span>
+    </div>
+    <div class="frameworks"><span class="fw-badge fw-inactive" title="Not published">angular</span><span class="fw-badge fw-inactive" title="Not published">react</span><span class="fw-badge fw-inactive" title="Not published">svelte</span><span class="fw-badge fw-inactive" title="Not published">vanilla</span></div>
+    <details>
+      <summary>Inputs (0)</summary>
+      <p class="no-inputs">No inputs declared yet</p>
+    </details>
+  </article>
+      <p class="empty-state hidden" id="empty-state">No elements match your search.</p>
+    </div>
+  </main>
+
+  <footer>
+    Generated 2026-04-01 &middot; Synergos UI Element Catalog
+  </footer>
+
+  <script>
+    const cards      = Array.from(document.querySelectorAll('.card'));
+    const countLabel = document.getElementById('count-label');
+    const emptyState = document.getElementById('empty-state');
+    let activeFilter = 'all';
+    let searchQuery  = '';
+
+    function applyFilters() {
+      let visible = 0;
+      for (const card of cards) {
+        const matchesTier   = activeFilter === 'all' || card.dataset.tier === activeFilter;
+        const matchesSearch = !searchQuery || card.dataset.text.includes(searchQuery);
+        const show = matchesTier && matchesSearch;
+        card.classList.toggle('hidden', !show);
+        if (show) visible++;
+      }
+      countLabel.textContent = visible + ' element' + (visible !== 1 ? 's' : '');
+      emptyState.classList.toggle('hidden', visible > 0);
+    }
+
+    document.getElementById('search').addEventListener('input', e => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      applyFilters();
+    });
+
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        applyFilters();
+      });
+    });
+  </script>
+</body>
+</html>

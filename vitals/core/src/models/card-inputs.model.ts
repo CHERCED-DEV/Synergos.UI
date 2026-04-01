@@ -1,4 +1,5 @@
 export interface CardInputs {
+  config?: string;
   title: string;
   subtitle: string;
   body: string;

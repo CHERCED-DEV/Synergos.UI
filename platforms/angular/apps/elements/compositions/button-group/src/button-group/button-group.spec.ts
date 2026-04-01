@@ -40,4 +40,32 @@ describe('ButtonGroupComponent', () => {
       },
     ]);
   });
+
+  it('should read button collections from config when no legacy json input is provided', async () => {
+    fixture.componentRef.setInput('config', {
+      buttons: [
+        {
+          label: 'Config Primary',
+          variant: 'ghost',
+          size: 'sm',
+          href: '/config',
+          target: '_self',
+          disabled: false,
+        },
+      ],
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.parsedButtons()).toEqual([
+      {
+        label: 'Config Primary',
+        variant: 'ghost',
+        size: 'sm',
+        href: '/config',
+        target: '_self',
+        disabled: false,
+      },
+    ]);
+  });
 });

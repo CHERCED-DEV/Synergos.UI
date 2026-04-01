@@ -1,12 +1,12 @@
 <div class="cta-group" [class]="hostClasses()">
   @if (hasPrimary()) {
-    <a class="cta-group__link" [href]="primaryUrl()" rel="noopener noreferrer">
-      <syn-button [label]="primaryLabel()" variant="solid" size="md" />
+    <a class="cta-group__link" [href]="primaryUrl()" [target]="primaryTarget()" rel="noopener noreferrer">
+      <syn-button [label]="primaryLabel()" [variant]="$any(primaryVariant())" size="md" />
     </a>
   }
   @if (hasSecondary()) {
-    <a class="cta-group__link" [href]="secondaryUrl()" rel="noopener noreferrer">
-      <syn-button [label]="secondaryLabel()" variant="outline" size="md" />
+    <a class="cta-group__link cta-group__link--secondary" [href]="secondaryUrl()" [target]="secondaryTarget()" rel="noopener noreferrer">
+      <syn-button [label]="secondaryLabel()" [variant]="$any(secondaryVariant())" size="md" />
     </a>
   }
 </div>

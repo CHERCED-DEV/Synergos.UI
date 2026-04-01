@@ -5,6 +5,8 @@ import {
   GridColumnsComponent,
   HeadingComponent,
   type HeadingTone,
+  coerceConfigInput,
+  resolveConfigValue,
 } from '@synergos/shared';
 
 interface TestimonialItem {
@@ -12,6 +14,12 @@ interface TestimonialItem {
   readonly name: string;
   readonly quote: string;
   readonly role: string;
+}
+
+export interface TestimonialSectionConfig {
+  readonly headingText?: string;
+  readonly items?: readonly TestimonialItem[];
+  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,18 +61,38 @@ function normalizeTestimonialItem(value: unknown): TestimonialItem | null {
 export class TestimonialSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly headingText = input<string>('');
-  readonly items = input<string>('[]');
-  readonly theme = input<string>('light');
+  readonly configInput = input<Partial<TestimonialSectionConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<TestimonialSectionConfig>,
+  });
+  readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
+  readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
+  readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
+
+  readonly headingText = computed(() =>
+    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+  );
+  readonly items = computed(() =>
+    resolveConfigValue(this.itemsInput(), undefined, '[]'),
+  );
+  readonly theme = computed(() =>
+    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+  );
 
   readonly parsedItems = computed<readonly TestimonialItem[]>(() => {
-    const parsedValue = this.#initialData.parseValue<unknown>(this.items());
+    if (this.itemsInput() !== undefined) {
+      const parsedValue = this.#initialData.parseValue<unknown>(this.items());
 
-    if (!Array.isArray(parsedValue)) {
-      return [];
+      if (!Array.isArray(parsedValue)) {
+        return [];
+      }
+
+      return parsedValue
+        .map((item) => normalizeTestimonialItem(item))
+        .filter((item): item is TestimonialItem => item !== null);
     }
 
-    return parsedValue
+    return (this.configInput()?.items ?? [])
       .map((item) => normalizeTestimonialItem(item))
       .filter((item): item is TestimonialItem => item !== null);
   });

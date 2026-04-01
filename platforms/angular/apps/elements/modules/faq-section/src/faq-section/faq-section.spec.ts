@@ -37,4 +37,28 @@ describe('FaqSectionComponent', () => {
       },
     ]);
   });
+
+  it('should accept faq collections through config', async () => {
+    fixture.componentRef.setInput('config', {
+      headingText: 'Config FAQ',
+      items: [
+        {
+          question: 'How does config work?',
+          answer: 'Config provides the base payload.',
+          initiallyExpanded: false,
+        },
+      ],
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.headingText()).toBe('Config FAQ');
+    expect(component.parsedItems()).toEqual([
+      {
+        question: 'How does config work?',
+        answer: 'Config provides the base payload.',
+        initiallyExpanded: false,
+      },
+    ]);
+  });
 });

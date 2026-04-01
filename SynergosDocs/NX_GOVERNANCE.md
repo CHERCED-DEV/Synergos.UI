@@ -53,10 +53,24 @@ Every project.json must include these tags:
 | Tag | Purpose | Values |
 |-----|---------|--------|
 | `framework:` | Framework identity | `angular`, `react`, `svelte`, `vanilla`, `agnostic` |
-| `scope:` | Domain scope | `elements`, `libs`, `vitals` |
+| `scope:` | Domain scope | `elements`, `libs`, `vitals`, `rendering`, `integrations`, `cms-adapter` |
 | `tier:` | Element hierarchy | `primitive`, `composition`, `module` |
 | `type:` | Project type | `app`, `lib` |
 | `element:` | Element name | `hero`, `pricing-card`, etc. |
+
+### Scope tag semantics
+
+| Scope | What lives here | Can import from |
+|-------|----------------|-----------------|
+| `scope:vitals` | Framework-agnostic contracts, utilities, tokens | Nothing Angular-specific |
+| `scope:libs` | Angular libraries (core, shared, core-assets) | `scope:vitals`, `scope:libs` |
+| `scope:rendering` | ElementRegistry, ComponentResolver, ElementMounter | `scope:vitals`, `scope:libs` |
+| `scope:integrations` | CMS sync tooling (C# → TS generators) | `scope:vitals`, `scope:libs` |
+| `scope:elements` | Pure Web Component implementations (UI only) | `scope:vitals`, `scope:libs` |
+| `scope:experiences` | Rich interactive experiences (feature-journey, insight-explorer, media-explorer) | `scope:vitals`, `scope:libs`, `scope:elements` |
+| `scope:cms-adapter` | Bridge between CMS and element rendering (`macro-host`) | Any scope |
+
+**Key boundary rule:** `scope:elements` and `scope:experiences` cannot import from `scope:rendering` or `scope:integrations`. They must remain pure UI — no knowledge of the rendering engine. Only `scope:cms-adapter` bridges this boundary.
 
 Tags enable targeted commands:
 
@@ -93,6 +107,22 @@ npx nx run-many --target=test --projects=tag:tier:composition
 - Root `.nx/` is the only valid cache location. Platform-level `.nx/` directories are orphaned artifacts and should be deleted.
 - Run `npx nx reset` to clear cache and restart the daemon if discovery behaves unexpectedly.
 
+### NX_WORKSPACE_ROOT_PATH — critical gotcha
+
+When the root Nx daemon is running (or has run), it sets `NX_WORKSPACE_ROOT_PATH` in the shell environment pointing to the monorepo root. If `platforms/angular` Nx commands are run in the same shell session, they inherit this variable and incorrectly use the root workspace — discovering ONLY cross-framework projects, never Angular apps.
+
+**Always use the `unset NX_WORKSPACE_ROOT_PATH` prefix for Angular Nx commands:**
+
+```bash
+# CORRECT — will discover Angular element and experience apps
+cd platforms/angular && unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build
+
+# BROKEN — inherits root workspace, ignores Angular apps
+cd platforms/angular && npx nx run-many --target=build
+```
+
+The root `package.json` scripts (`build:angular`, `test:angular`, `lint:angular`) already apply this fix.
+
 ---
 
 ## Running Commands
@@ -102,6 +132,6 @@ npx nx run-many --target=test --projects=tag:tier:composition
 | All frameworks | `npm run build` |
 | Single framework | `npm run build:react` |
 | Single project | `npx nx run react-pricing-card:build` |
-| Angular projects | `cd platforms/angular && npx nx run-many --target=build` |
+| Angular projects | `cd platforms/angular && unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build` |
 | Nx graph (root) | `npm run graph` |
 | Nx graph (Angular) | `npm run graph:angular` |

@@ -1,0 +1,67 @@
+{
+  "name": "elements-primitives-divider",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/primitives/divider/src",
+  "tags": [
+    "scope:elements",
+    "tier:primitive",
+    "type:app",
+    "element:divider",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/divider",
+        "browser": "apps/elements/primitives/divider/src/main.ts",
+        "index": "apps/elements/primitives/divider/src/index.html",
+        "tsConfig": "apps/elements/primitives/divider/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "80kb",
+              "maximumError": "200kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4221
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4221,
+        "staticFilePath": "dist/divider/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/primitives/divider/src/**/*.ts",
+          "apps/elements/primitives/divider/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/primitives/divider/tsconfig.spec.json"
+      }
+    }
+  }
+}

@@ -27,6 +27,7 @@ import { resolve, dirname, join } from 'path';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
+const INPUTS_JSON   = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
 
 // Framework dist configurations: where each framework puts its built bundles
 const PLATFORMS = [
@@ -80,7 +81,8 @@ const ELEMENT_FILTER = getArg('--element', null);
 
 // ── Load element registry ────────────────────────────────────────────────────
 
-let registry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
+let registry    = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
+const inputsData  = JSON.parse(readFileSync(INPUTS_JSON,   'utf-8'));
 
 if (ELEMENT_FILTER) {
   const filtered = registry.filter((e) => e.name === ELEMENT_FILTER);
@@ -117,28 +119,39 @@ for (const entry of registry) {
     const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
 
     const manifest = {
-      alias: entry.alias,
-      tag: entry.tag,
-      framework: platform.name,
+      tag:         entry.tag,
+      alias:       entry.alias,
+      framework:   platform.name,
+      version:     VERSION,
+      tier:        entry.tier,
       entryScript: 'main.js',
-      version: VERSION,
+      inputs:      inputsData[entry.name] ?? [],
     };
 
+    const majorAlias   = `v${VERSION.split('.')[0]}`;
+
     if (DRY_RUN) {
-      console.log(`${prefix}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION})`);
+      console.log(`${prefix}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} / ${majorAlias})`);
     } else {
-      // Publish to versioned slot (immutable)
+      // Publish to exact semver slot (immutable — never overwrite once published)
       const versionedDir = join(CDN_SYNERGOS, entry.name, platform.name, VERSION);
       mkdirSync(versionedDir, { recursive: true });
       copyFileSync(bundlePath, join(versionedDir, 'main.js'));
       writeFileSync(join(versionedDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
-      // Overwrite latest/ slot
+      // Publish to major-pinned slot (updated each patch within the major)
+      // Production consumers should pin to v{major} for stability
+      const majorDir = join(CDN_SYNERGOS, entry.name, platform.name, majorAlias);
+      mkdirSync(majorDir, { recursive: true });
+      copyFileSync(bundlePath, join(majorDir, 'main.js'));
+      writeFileSync(join(majorDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+      // Overwrite latest/ slot (always the newest release — use in staging/dev)
       mkdirSync(targetDir, { recursive: true });
       copyFileSync(bundlePath, join(targetDir, 'main.js'));
       writeFileSync(join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
 
-      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION})`);
+      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} | ${majorAlias} | latest)`);
     }
 
     published.push({ ...entry, framework: platform.name });
@@ -153,28 +166,30 @@ for (const entry of registry) {
 // ── Generate global registry.json ────────────────────────────────────────────
 
 if (published.length > 0) {
-  // Group by element name to list all available frameworks
+  // Group by element name to list all available frameworks and version slots
   const byElement = new Map();
   for (const item of published) {
     if (!byElement.has(item.name)) {
       byElement.set(item.name, {
+        name:  item.name,
         alias: item.alias,
-        tag: item.tag,
-        name: item.name,
-        tier: item.tier,
-        frameworks: [],
+        tag:   item.tag,
+        tier:  item.tier,
+        implementations: {},
       });
     }
-    byElement.get(item.name).frameworks.push({
-      framework: item.framework,
-      path: `/synergos/${item.name}/${item.framework}/latest/main.js`,
-    });
+    const majorAlias = `v${VERSION.split('.')[0]}`;
+    byElement.get(item.name).implementations[item.framework] = {
+      latest: VERSION,
+      [majorAlias]: VERSION,
+    };
   }
 
   const globalRegistry = {
-    version: VERSION,
-    baseUrl: '/synergos',
-    artifacts: [...byElement.values()],
+    generated: new Date().toISOString(),
+    version:   VERSION,
+    baseUrl:   '/synergos',
+    elements:  [...byElement.values()],
   };
 
   if (DRY_RUN) {

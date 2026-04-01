@@ -1,0 +1,24 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.video-block {
+  margin: 0;
+  padding: 0;
+
+  &__media {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: syn.px-to-rem(8);
+    background: syn.$color-neutral-900;
+  }
+
+  &__caption {
+    margin-top: syn.$space-xs;
+    font-size: syn.$font-size-sm;
+    color: syn.$color-neutral-500;
+  }
+}

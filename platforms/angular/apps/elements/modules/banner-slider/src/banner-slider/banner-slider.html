@@ -1,0 +1,62 @@
+<section class="banner-slider" [class]="hostClasses()">
+  @if (headingText() || body()) {
+    <header class="banner-slider__header">
+      @if (headingText()) {
+        <syn-heading
+          class="banner-slider__heading"
+          [text]="headingText()"
+          [tone]="headingTone()"
+          level="h2"
+          size="lg"
+        />
+      }
+
+      @if (body()) {
+        <div class="banner-slider__body" [innerHTML]="body()"></div>
+      }
+    </header>
+  }
+
+  @if (hasSlides()) {
+    <div class="banner-slider__layout">
+      <syn-carousel
+        class="banner-slider__carousel"
+        [items]="carouselItems()"
+        [startIndex]="currentIndex()"
+        [loop]="loop()"
+        [compact]="variant() === 'compact'"
+        ariaLabel="Banner slides"
+        (activeIndexChange)="setActiveIndex($event)"
+      />
+
+      @if (activeSlide(); as slide) {
+        <article class="banner-slider__panel">
+          @if (slide.label) {
+            <syn-heading
+              class="banner-slider__slide-heading"
+              [text]="slide.label"
+              [tone]="headingTone()"
+              level="h3"
+              size="sm"
+            />
+          }
+
+          @if (slide.body) {
+            <div class="banner-slider__slide-body" [innerHTML]="slide.body"></div>
+          }
+
+          @if (slide.ctaLabel && slide.ctaUrl) {
+            <a
+              class="banner-slider__cta-link"
+              [href]="slide.ctaUrl"
+              [target]="slide.ctaTarget"
+              [rel]="resolvedRel(slide) || null"
+            >
+              <syn-button [label]="slide.ctaLabel" variant="solid" size="md" />
+            </a>
+          }
+        </article>
+      }
+    </div>
+  }
+</section>

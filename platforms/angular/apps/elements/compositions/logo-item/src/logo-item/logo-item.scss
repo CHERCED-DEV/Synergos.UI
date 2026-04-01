@@ -1,0 +1,40 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.logo-item {
+  &__link {
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  &__frame {
+    @include syn.flex-column-center;
+    @include syn.surface-panel(
+      syn.$space-md,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.px-to-rem(12),
+      syn.$shadow-sm
+    );
+    gap: syn.$space-sm;
+    min-inline-size: syn.px-to-rem(160);
+    text-align: center;
+  }
+
+  &__image {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: syn.px-to-rem(56);
+    object-fit: contain;
+  }
+
+  &__label {
+    color: syn.$color-neutral-700;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+}

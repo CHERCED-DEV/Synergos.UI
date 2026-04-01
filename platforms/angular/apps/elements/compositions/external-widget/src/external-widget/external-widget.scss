@@ -1,0 +1,12 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.external-widget {
+  &__container {
+    display: block;
+    min-block-size: syn.px-to-rem(1);
+  }
+}

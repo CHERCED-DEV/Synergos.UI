@@ -57,8 +57,11 @@ export interface CardElementData extends BaseElementData {
 }
 
 export interface CtaBannerElementData extends BaseElementData {
+  heading?: ContentHeading;
   text?: ContentText;
+  media?: ContentMedia;
   cta?: ContentCta;
+  secondaryCta?: ContentCta;
 }
 
 export interface FeatureGridElementData extends BaseElementData {
@@ -266,6 +269,22 @@ export interface AccordionElementData extends BaseElementData {
 export interface AvatarElementData extends BaseElementData {
   media?: ContentMedia;
   text?: ContentText;
+}
+
+// ── Experience Elements (cx) ─────────────────────────────────────────────────
+
+export interface FeatureJourneyElementData extends BaseElementData {
+  text?: ContentText;
+}
+
+export interface InsightExplorerElementData extends BaseElementData {
+  text?: ContentText;
+  collection?: ContentCollection;
+}
+
+export interface MediaExplorerElementData extends BaseElementData {
+  text?: ContentText;
+  collection?: ContentCollection;
 }
 
 // ── Element Registry ─────────────────────────────────────────────────────────

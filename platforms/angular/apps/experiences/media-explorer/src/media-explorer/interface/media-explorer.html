@@ -1,0 +1,146 @@
+<div
+  class="media-explorer"
+  [class]="hostClasses()"
+  [id]="elementId() || null"
+>
+  <!-- Header -->
+  @if (title()) {
+    <div class="media-explorer__header">
+      <syn-heading
+        [text]="title()"
+        level="h2"
+        size="lg"
+        [tone]="headingTone()"
+      />
+
+      <!-- Category filters -->
+      @if (categories().length > 0) {
+        <div class="media-explorer__filters" role="group" aria-label="Filter by category">
+          <button
+            type="button"
+            class="media-explorer__filter"
+            [class.media-explorer__filter--active]="!activeFilter()"
+            (click)="clearFilter()"
+          >
+            Todos
+          </button>
+          @for (cat of categories(); track cat) {
+            <button
+              type="button"
+              class="media-explorer__filter"
+              [class.media-explorer__filter--active]="activeFilter() === cat"
+              (click)="filter(cat)"
+            >
+              {{ cat }}
+            </button>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  @if (isEmpty()) {
+    <!-- Empty state -->
+    <div class="media-explorer__empty">
+      <span class="media-explorer__empty-icon" aria-hidden="true">🎬</span>
+      <p class="media-explorer__empty-text">No hay videos disponibles.</p>
+    </div>
+  } @else {
+    <div class="media-explorer__layout">
+      <!-- Sidebar: video list -->
+      <nav class="media-explorer__sidebar" aria-label="Video list">
+        @for (item of items(); track item.id) {
+          <button
+            type="button"
+            class="media-explorer__item"
+            [class.media-explorer__item--active]="item.id === selectedId()"
+            [attr.aria-current]="item.id === selectedId() ? 'true' : null"
+            (click)="select(item.id)"
+          >
+            <div class="media-explorer__item-thumb">
+              @if (item.thumbnailSrc) {
+                <img
+                  class="media-explorer__item-img"
+                  [src]="item.thumbnailSrc"
+                  [alt]="item.thumbnailAlt || item.title"
+                  loading="lazy"
+                />
+              } @else {
+                <span class="media-explorer__item-placeholder" aria-hidden="true">▶</span>
+              }
+            </div>
+            <div class="media-explorer__item-meta">
+              <span class="media-explorer__item-title">{{ item.title }}</span>
+              @if (item.duration) {
+                <span class="media-explorer__item-duration">{{ item.duration }}</span>
+              }
+              @if (item.category) {
+                <span class="media-explorer__item-category">{{ item.category }}</span>
+              }
+            </div>
+          </button>
+        }
+      </nav>
+
+      <!-- Main player panel -->
+      @if (selectedItem(); as current) {
+        <section class="media-explorer__player" aria-live="polite" aria-label="Video player">
+          <!-- Video area -->
+          <div class="media-explorer__video-wrap">
+            @if (isPlayerActive() && current.videoUrl) {
+              <iframe
+                class="media-explorer__iframe"
+                [src]="current.videoUrl"
+                [title]="current.title"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+                loading="lazy"
+              ></iframe>
+            } @else {
+              <div class="media-explorer__poster">
+                @if (current.thumbnailSrc) {
+                  <img
+                    class="media-explorer__poster-img"
+                    [src]="current.thumbnailSrc"
+                    [alt]="current.thumbnailAlt || current.title"
+                    loading="lazy"
+                  />
+                }
+                @if (current.videoUrl) {
+                  <button
+                    type="button"
+                    class="media-explorer__play-btn"
+                    [attr.aria-label]="'Reproducir ' + current.title"
+                    (click)="play()"
+                  >
+                    <span class="media-explorer__play-icon" aria-hidden="true">▶</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Video info -->
+          <div class="media-explorer__info">
+            <syn-heading
+              [text]="current.title"
+              level="h3"
+              size="md"
+              [tone]="headingTone()"
+            />
+            @if (current.description) {
+              <p class="media-explorer__info-description">{{ current.description }}</p>
+            }
+            @if (current.tags.length > 0) {
+              <div class="media-explorer__tags">
+                @for (tag of current.tags; track tag) {
+                  <syn-badge [text]="tag" tone="neutral" />
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  }
+</div>

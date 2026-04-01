@@ -3,6 +3,8 @@ import type { ContainerBlockInputs } from '../models/container-block-inputs.mode
 
 export function mapContainerBlockData(data: ContainerElementData): ContainerBlockInputs {
   return {
+    elementId: data.domAttributes?.elementId ?? '',
+    ariaLabel: data.domAttributes?.ariaLabel ?? '',
     containerType: data.domLayout?.containerType ?? 'default',
     maxWidth: '',
     padding: data.domSpacing?.padding ?? 'md',

@@ -5,7 +5,7 @@
   "prefix": "sg",
   "sourceRoot": "apps/elements/modules/macro-host/src",
   "tags": [
-    "scope:elements",
+    "scope:cms-adapter",
     "tier:module",
     "type:app",
     "element:macro-host",

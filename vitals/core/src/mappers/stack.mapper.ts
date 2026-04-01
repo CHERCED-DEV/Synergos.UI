@@ -6,6 +6,7 @@ export function mapStackData(data: StackElementData): StackInputs {
     direction: data.domLayout?.direction ?? 'column',
     gap: data.domSpacing?.gap ?? 'md',
     alignment: data.domLayout?.alignment ?? 'stretch',
+    justify: 'start',
     wrap: 'false',
     theme: data.domVariant?.theme ?? 'light',
   };

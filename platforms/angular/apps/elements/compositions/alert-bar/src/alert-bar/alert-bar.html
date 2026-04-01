@@ -1,0 +1,16 @@
+<div class="alert-bar">
+  <syn-alert
+    [title]="title()"
+    [description]="description()"
+    [tone]="tone()"
+    [dismissible]="dismissible()"
+  />
+
+  @if (hasCta()) {
+    <syn-link
+      class="alert-bar__link"
+      [href]="ctaUrl()"
+      [label]="ctaLabel()"
+    />
+  }
+</div>

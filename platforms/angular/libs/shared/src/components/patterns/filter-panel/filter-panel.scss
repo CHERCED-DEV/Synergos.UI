@@ -1,0 +1,41 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-filter-panel {
+  display: grid;
+  gap: syn.$space-lg;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.px-to-rem(20);
+  background: syn.$color-neutral-0;
+}
+
+.syn-filter-panel__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: syn.$space-sm;
+}
+
+.syn-filter-panel__sections {
+  display: grid;
+  gap: syn.$space-md;
+}
+
+.syn-filter-panel__range {
+  display: grid;
+  gap: syn.$space-sm;
+}
+
+.syn-filter-panel__range-caption {
+  margin: 0;
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-filter-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-sm;
+  justify-content: flex-end;
+}

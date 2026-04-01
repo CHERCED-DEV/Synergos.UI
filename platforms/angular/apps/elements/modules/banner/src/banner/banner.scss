@@ -23,9 +23,36 @@
     color: syn.$color-neutral-0;
   }
 
+  &--with-image {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+  }
+
+  &__image {
+    width: syn.px-to-rem(80);
+    height: syn.px-to-rem(80);
+    object-fit: cover;
+    border-radius: syn.px-to-rem(8);
+    flex-shrink: 0;
+  }
+
   &__content {
     @include syn.flex-column;
     gap: syn.$space-xs;
+  }
+
+  &__eyebrow {
+    display: block;
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: syn.$color-brand-500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+
+    .sg-banner--dark & {
+      color: syn.$color-brand-300;
+    }
   }
 
   &__title {
@@ -40,6 +67,13 @@
     .sg-banner--dark & {
       color: syn.$color-neutral-300;
     }
+  }
+
+  &__actions {
+    @include syn.flex-row;
+    gap: syn.$space-sm;
+    flex-shrink: 0;
+    flex-wrap: wrap;
   }
 
   &__cta-link {

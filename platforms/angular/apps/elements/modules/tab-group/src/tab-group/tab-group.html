@@ -1,0 +1,16 @@
+<section class="tab-group" [class]="hostClasses()">
+  @if (title()) {
+    <syn-heading
+      class="tab-group__title"
+      [text]="title()"
+      level="h2"
+      [tone]="headingTone()"
+    />
+  }
+
+  <syn-tabs
+    [tabs]="parsedTabs()"
+    [activeId]="activeId()"
+    [ariaLabel]="ariaLabel()"
+  />
+</section>

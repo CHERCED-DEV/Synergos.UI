@@ -1,4 +1,5 @@
 export interface MediaTextInputs {
+  config?: string;
   imageSrc: string;
   imageAlt: string;
   headingText: string;

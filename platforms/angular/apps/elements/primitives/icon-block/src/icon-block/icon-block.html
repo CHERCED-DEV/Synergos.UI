@@ -2,8 +2,9 @@
   class="icon-block"
   [class]="hostClasses()"
   [style.color]="color() || null"
-  role="img"
-  [attr.aria-label]="ariaLabel() || icon() || null"
+  [attr.role]="ariaHidden() ? 'presentation' : 'img'"
+  [attr.aria-hidden]="ariaHidden() ? 'true' : null"
+  [attr.aria-label]="ariaHidden() ? null : (ariaLabel() || icon() || null)"
 >
   <i class="icon-block__icon" [class]="icon()"></i>
 </span>

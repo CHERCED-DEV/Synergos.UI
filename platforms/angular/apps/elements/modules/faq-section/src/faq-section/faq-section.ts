@@ -1,11 +1,23 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { InitialDataService } from '@synergos/core';
-import { AccordionComponent, HeadingComponent, type HeadingTone } from '@synergos/shared';
+import {
+  AccordionComponent,
+  HeadingComponent,
+  type HeadingTone,
+  coerceConfigInput,
+  resolveConfigValue,
+} from '@synergos/shared';
 
 interface FaqItem {
   readonly answer: string;
   readonly initiallyExpanded: boolean;
   readonly question: string;
+}
+
+export interface FaqSectionConfig {
+  readonly headingText?: string;
+  readonly items?: readonly FaqItem[];
+  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,18 +58,38 @@ function normalizeFaqItem(value: unknown): FaqItem | null {
 export class FaqSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly headingText = input<string>('');
-  readonly items = input<string>('[]');
-  readonly theme = input<string>('light');
+  readonly configInput = input<Partial<FaqSectionConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<FaqSectionConfig>,
+  });
+  readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
+  readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
+  readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
+
+  readonly headingText = computed(() =>
+    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+  );
+  readonly items = computed(() =>
+    resolveConfigValue(this.itemsInput(), undefined, '[]'),
+  );
+  readonly theme = computed(() =>
+    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+  );
 
   readonly parsedItems = computed<readonly FaqItem[]>(() => {
-    const parsedValue = this.#initialData.parseValue<unknown>(this.items());
+    if (this.itemsInput() !== undefined) {
+      const parsedValue = this.#initialData.parseValue<unknown>(this.items());
 
-    if (!Array.isArray(parsedValue)) {
-      return [];
+      if (!Array.isArray(parsedValue)) {
+        return [];
+      }
+
+      return parsedValue
+        .map((item) => normalizeFaqItem(item))
+        .filter((item): item is FaqItem => item !== null);
     }
 
-    return parsedValue
+    return (this.configInput()?.items ?? [])
       .map((item) => normalizeFaqItem(item))
       .filter((item): item is FaqItem => item !== null);
   });

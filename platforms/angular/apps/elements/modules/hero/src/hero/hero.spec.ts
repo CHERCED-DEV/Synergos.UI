@@ -59,4 +59,26 @@ describe('HeroComponent', () => {
     expect(cta).toBeTruthy();
     expect(cta?.getAttribute('href')).toBe('https://example.com');
   });
+
+  it('should resolve its base content from config and keep explicit inputs as overrides', async () => {
+    fixture.componentRef.setInput('config', {
+      headingText: 'Config Hero',
+      body: 'Config body',
+      ctaLabel: 'Config CTA',
+      ctaUrl: 'https://config.example',
+      theme: 'dark',
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.headingText()).toBe('Config Hero');
+    expect(component.body()).toBe('Config body');
+    expect(component.theme()).toBe('dark');
+
+    fixture.componentRef.setInput('headingText', 'Override Hero');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.headingText()).toBe('Override Hero');
+  });
 });

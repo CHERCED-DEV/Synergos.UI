@@ -12,11 +12,14 @@
   { "name": "script-embed",         "alias": "elementIntScriptEmbed",        "tag": "synergos-script-embed",         "tier": "module" },
   { "name": "angular-host",         "alias": "elementIntAngularHost",        "tag": "synergos-angular-host",         "tier": "module" },
   { "name": "mf-host",              "alias": "elementIntMfHost",             "tag": "synergos-mf-host",              "tier": "module" },
+  { "name": "macro-host",           "alias": "elementIntegrationMacroHost",  "tag": "synergos-macro-host",           "tier": "module" },
 
   { "name": "card",                 "alias": "elementCompCard",              "tag": "synergos-card",                 "tier": "composition" },
   { "name": "media-text",           "alias": "elementCompMediaTextSplit",    "tag": "synergos-media-text",           "tier": "composition" },
+  { "name": "info-block",           "alias": "elementCompInfoBlock",         "tag": "synergos-info-block",           "tier": "composition" },
   { "name": "accordion",            "alias": "elementCompAccordion",         "tag": "synergos-accordion",            "tier": "composition" },
   { "name": "cta-group",            "alias": "elementActionCtaGroup",        "tag": "synergos-cta-group",            "tier": "composition" },
+  { "name": "button-group",         "alias": "elementCompButtonGroup",       "tag": "synergos-button-group",         "tier": "composition" },
   { "name": "feature-item",         "alias": "elementInfoFeature",           "tag": "synergos-feature-item",         "tier": "composition" },
   { "name": "stat",                 "alias": "elementInfoStat",              "tag": "synergos-stat-counter",         "tier": "composition" },
   { "name": "pricing-card",         "alias": "elementInfoPricingCard",       "tag": "synergos-pricing-card",         "tier": "composition" },
@@ -52,5 +55,9 @@
   { "name": "icon-block",           "alias": "elementMediaIcon",             "tag": "synergos-icon-block",           "tier": "primitive" },
   { "name": "avatar",               "alias": "elementMediaAvatar",           "tag": "synergos-avatar",               "tier": "primitive" },
   { "name": "badge",                "alias": "elementInfoBadge",             "tag": "synergos-badge",                "tier": "primitive" },
-  { "name": "hello-world",          "alias": "elementTemplateHelloWorld",    "tag": "synergos-hello-world",          "tier": "primitive" }
+  { "name": "hello-world",          "alias": "elementTemplateHelloWorld",    "tag": "synergos-hello-world",          "tier": "primitive" },
+
+  { "name": "feature-journey",     "alias": "experienceFeatureJourney",     "tag": "synergos-feature-journey",     "tier": "module" },
+  { "name": "insight-explorer",    "alias": "experienceInsightExplorer",    "tag": "synergos-insight-explorer",    "tier": "module" },
+  { "name": "media-explorer",      "alias": "experienceMediaExplorer",      "tag": "synergos-media-explorer",      "tier": "module" }
 ]

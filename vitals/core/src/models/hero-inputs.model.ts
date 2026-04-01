@@ -1,4 +1,5 @@
 export interface HeroInputs {
+  config?: string;
   headingText: string;
   headingLevel: string;
   body: string;

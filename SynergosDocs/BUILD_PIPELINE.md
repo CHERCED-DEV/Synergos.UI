@@ -5,10 +5,13 @@
 | Task | Command |
 |------|---------|
 | Build all | `npm run build` |
-| Build Angular | `npm run build:angular` |
+| Build Angular (elements + experiences) | `npm run build:angular` |
 | Build React | `npm run build:react` |
 | Build Svelte | `npm run build:svelte` |
 | Build Vanilla | `npm run build:vanilla` |
+| Generate manifests (preview) | `node tools/manifest-gen.mjs --dry-run` |
+| Generate manifests to disk | `node tools/manifest-gen.mjs --out dist/manifests` |
+| Validate input declarations | `node tools/manifest-gen.mjs --validate` |
 | Publish to CDN | `npm run publish:cdn` |
 | Full release | `npm run release` |
 | Clean element dists | `npm run clean:dist` |
@@ -27,9 +30,20 @@ npm run build
 # Single framework
 npm run build:react
 
-# Single element
+# Single Angular experience or element (run from platforms/angular/)
+cd platforms/angular
+unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run experiences-feature-journey:build
+unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run experiences-insight-explorer:build
+unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run experiences-media-explorer:build
+
+# Build all experiences at once
+unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:scope:experiences
+
+# Cross-framework element
 npx nx run react-pricing-card:build
 ```
+
+> **Important:** Angular Nx commands require `unset NX_WORKSPACE_ROOT_PATH` to prevent the root daemon from overriding workspace discovery. See `NX_GOVERNANCE.md` for details.
 
 ### How builds work
 
@@ -43,7 +57,7 @@ project.json → env: { ELEMENT_NAME, ELEMENT_ENTRY }
           dist/<element>/main.js (IIFE bundle, ~2-20 KB)
 ```
 
-Angular uses its own build system (`@angular/build:application`) managed from `platforms/angular/`.
+Angular uses its own build system (`@angular/build:application`) managed from `platforms/angular/`. Experiences build alongside elements — both are included in `npm run build:angular`.
 
 ---
 
@@ -81,6 +95,33 @@ node tools/publish.mjs --clean
 
 ---
 
+## Manifest Generation
+
+Each published element has a `manifest.json` that declares its public API (tag, tier, version, inputs).
+Manifests are generated automatically during `publish.mjs` but can also be generated standalone:
+
+```bash
+# Preview manifests for all elements (no files written)
+node tools/manifest-gen.mjs --dry-run
+
+# Write manifests to dist/manifests/
+node tools/manifest-gen.mjs --out dist/manifests
+
+# Single element, single framework
+node tools/manifest-gen.mjs --element hero --framework angular
+
+# Pin version
+node tools/manifest-gen.mjs --version 1.0.0
+
+# CI validation: fail if any element has no declared inputs
+node tools/manifest-gen.mjs --validate
+```
+
+Input descriptors live in `vitals/contracts/src/element-inputs.json`.
+Full contract documentation: [ELEMENT_CONTRACT.md](./ELEMENT_CONTRACT.md)
+
+---
+
 ## Release
 
 The release command is a full build + publish + clean cycle:
@@ -91,7 +132,9 @@ npm run release
 
 This runs:
 1. `npm run build` — builds all frameworks
-2. `node tools/publish.mjs --clean` — publishes to CDN and cleans element dists
+2. `node tools/publish.mjs --clean` — publishes to CDN (with manifests) and cleans element dists
+
+Each CDN slot receives two files: `main.js` (bundle) and `manifest.json` (API contract).
 
 ---
 
@@ -149,6 +192,8 @@ npx nx run svelte-accordion:lint
 After a release, verify:
 
 1. CDN files exist: `ls C:\LOCAL_CDN\synergos\<element>\<framework>\latest\main.js`
-2. Registry is current: `cat C:\LOCAL_CDN\synergos\registry.json`
-3. Workspace is clean: `platforms/*/dist/` contains no element dirs (only Angular libs)
-4. Bundles load: open an HTML file that includes a `<script src="...main.js">` and test the Custom Element
+2. Manifest is valid: `cat C:\LOCAL_CDN\synergos\<element>\<framework>\latest\manifest.json` — must include `inputs` array
+3. Versioned slot exists: `ls C:\LOCAL_CDN\synergos\<element>\<framework>\v{major}\main.js`
+4. Registry is current: `cat C:\LOCAL_CDN\synergos\registry.json` — check `generated` timestamp and `elements[].implementations`
+5. Workspace is clean: `platforms/*/dist/` contains no element dirs (only Angular libs)
+6. Bundles load: open an HTML file that includes a `<script src="...main.js">` and test the Custom Element

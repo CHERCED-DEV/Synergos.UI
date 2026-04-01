@@ -1,0 +1,2472 @@
+{
+  "_comment": "Manually-declared public inputs for each element. Keep in sync with component source.",
+  "_convention": "camelCase names here → kebab-case HTML attributes on the Custom Element.",
+  "_empty_array": "Empty [] means element is built but inputs haven't been declared yet — not that it has no inputs.",
+  "hero": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Main heading text"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h1",
+      "description": "HTML heading tag: h1–h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Body copy / paragraph text"
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hero image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hero image alt text"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute (_self | _blank)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "banner": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Banner heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Banner body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA destination URL"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card heading"
+    },
+    {
+      "name": "subtitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card subheading"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card body copy"
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card image alt text"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA destination URL"
+    },
+    {
+      "name": "badgeText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Badge label text"
+    },
+    {
+      "name": "badgeType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Badge semantic type (info | warning | success)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Card layout variant"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "button": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Button visible text"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "solid",
+      "description": "solid | outline | ghost"
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "sm | md | lg"
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "If set, renders as <a> instead of <button>"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target (_self | _blank)"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Disabled state"
+    }
+  ],
+  "section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "containerType",
+      "type": "string",
+      "required": false,
+      "default": "fluid",
+      "description": "Section width container mode"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "start",
+      "description": "Cross-axis alignment for the inner layout"
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "column",
+      "description": "Flex direction for the inner layout"
+    },
+    {
+      "name": "margin",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional CSS margin shorthand"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional CSS padding shorthand"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "1rem",
+      "description": "Gap between section children"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "feature-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred number of columns"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of feature items with heading, body and optional icon"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "faq-section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of FAQ items with question, answer and optional initiallyExpanded"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "testimonial-section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of testimonial items with name, quote, role and avatarSrc"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "logo-cloud": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the logo cloud."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting introductory copy."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of logo items with src, alt, href and label."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 4,
+      "description": "Preferred number of columns."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "tab-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the tab group."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional group heading."
+    },
+    {
+      "name": "tabs",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of tabs with id, label, content and disabled."
+    },
+    {
+      "name": "activeId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initially selected tab id."
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "Tabs",
+      "description": "Accessible label for the tablist."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "banner-slider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the banner slider."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Slider heading text."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Slider supporting copy."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of slide objects."
+    },
+    {
+      "name": "autoplay",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Whether the slider should autoplay."
+    },
+    {
+      "name": "loop",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the slider should loop."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "data-table": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the data table."
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible table caption."
+    },
+    {
+      "name": "columns",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of column definitions."
+    },
+    {
+      "name": "rows",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of row records."
+    },
+    {
+      "name": "emptyLabel",
+      "type": "string",
+      "required": false,
+      "default": "No data available.",
+      "description": "Fallback label when the table is empty."
+    },
+    {
+      "name": "striped",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables striped row styling."
+    },
+    {
+      "name": "bordered",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables cell borders."
+    },
+    {
+      "name": "hoverable",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables hover styling."
+    },
+    {
+      "name": "compact",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Uses compact row spacing."
+    }
+  ],
+  "script-embed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the script embed."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "External script source URL."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "text/javascript",
+      "description": "Script MIME type."
+    },
+    {
+      "name": "inlineScript",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Inline script body to inject."
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "body",
+      "description": "Document target for script injection (head | body)."
+    },
+    {
+      "name": "async",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Sets the async script attribute."
+    },
+    {
+      "name": "defer",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Sets the defer script attribute."
+    }
+  ],
+  "angular-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the Angular host."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Custom element tag to render."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the hosted element."
+    },
+    {
+      "name": "textContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional text content for the hosted element."
+    }
+  ],
+  "mf-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the remote host."
+    },
+    {
+      "name": "remoteEntry",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Remote entry script URL to load before mounting."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Custom element tag exposed by the remote bundle."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the hosted remote element."
+    }
+  ],
+  "macro-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "contentType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Nested element alias to mount inside the macro host"
+    },
+    {
+      "name": "contentData",
+      "type": "json",
+      "required": false,
+      "description": "Nested element payload passed to the block mapper"
+    }
+  ],
+  "media-text": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media image alt text"
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Main heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "mediaPosition",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Media placement (left | right)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "info-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text for the block"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key"
+    }
+  ],
+  "accordion": [
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accordion trigger heading"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accordion body content"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "▸",
+      "description": "Disclosure icon label"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "cta-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "primaryLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Primary action label"
+    },
+    {
+      "name": "primaryUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Primary action destination URL"
+    },
+    {
+      "name": "secondaryLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Secondary action label"
+    },
+    {
+      "name": "secondaryUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Secondary action destination URL"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Action alignment (left | center | right)"
+    }
+  ],
+  "button-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "buttons",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of button items. Overrides config.buttons when provided directly."
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Horizontal alignment (left | center | right)"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "sm",
+      "description": "Space between actions (xs | sm | md | lg)"
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "row",
+      "description": "Layout direction (row | column)"
+    }
+  ],
+  "feature-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Icon or symbol name"
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Feature heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Feature body copy"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "stat": [
+    {
+      "name": "value",
+      "type": "string",
+      "required": false,
+      "default": "0",
+      "description": "Main numeric value"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting label"
+    },
+    {
+      "name": "prefix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional prefix shown before the value"
+    },
+    {
+      "name": "suffix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional suffix shown after the value"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional icon or symbol"
+    },
+    {
+      "name": "trend",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Trend direction (up | down | neutral)"
+    },
+    {
+      "name": "trendLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Trend supporting label"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "pricing-card": [
+    {
+      "name": "planName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Plan or tier name"
+    },
+    {
+      "name": "price",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Price label"
+    },
+    {
+      "name": "period",
+      "type": "string",
+      "required": false,
+      "default": "/mo",
+      "description": "Billing period label"
+    },
+    {
+      "name": "features",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of included feature strings"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "highlighted",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Highlights the card visually"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "key-value": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the key-value item."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Label or key text."
+    },
+    {
+      "name": "value",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Value text."
+    },
+    {
+      "name": "helpText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting copy."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "timeline-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the timeline item."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline item heading."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline item body copy."
+    },
+    {
+      "name": "date",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline date label."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "faq-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the FAQ item."
+    },
+    {
+      "name": "question",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Question or prompt text."
+    },
+    {
+      "name": "answer",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Answer or explanation text."
+    },
+    {
+      "name": "initiallyExpanded",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Controls the initial expanded state."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "testimonial-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the testimonial item."
+    },
+    {
+      "name": "quote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Quoted testimonial content."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author name."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author role or subtitle."
+    },
+    {
+      "name": "avatarSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author avatar URL."
+    },
+    {
+      "name": "avatarAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author avatar alt text."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "gallery-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the gallery item."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media source URL."
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media alt text."
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional caption text."
+    },
+    {
+      "name": "aspectRatio",
+      "type": "string",
+      "required": false,
+      "default": "4 / 3",
+      "description": "Aspect ratio token or CSS ratio."
+    }
+  ],
+  "logo-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the logo item."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Logo image URL."
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Logo image alt text."
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional logo destination URL."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional label for the logo."
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute."
+    }
+  ],
+  "alert-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the alert bar."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alert heading text."
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alert supporting copy."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Action label."
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Action destination URL."
+    },
+    {
+      "name": "tone",
+      "type": "string",
+      "required": false,
+      "default": "neutral",
+      "description": "Alert tone (neutral | brand | critical)."
+    },
+    {
+      "name": "dismissible",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the alert can be dismissed."
+    }
+  ],
+  "newsletter-form": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the newsletter form."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Form heading text."
+    },
+    {
+      "name": "intro",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting introductory copy."
+    },
+    {
+      "name": "placeholder",
+      "type": "string",
+      "required": false,
+      "default": "you@example.com",
+      "description": "Email input placeholder."
+    },
+    {
+      "name": "submitLabel",
+      "type": "string",
+      "required": false,
+      "default": "Subscribe",
+      "description": "Submit button label."
+    },
+    {
+      "name": "consentText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional consent or note text."
+    },
+    {
+      "name": "successMessage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Success feedback message."
+    },
+    {
+      "name": "errorMessage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Error feedback message."
+    },
+    {
+      "name": "actionUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional form action URL."
+    },
+    {
+      "name": "method",
+      "type": "string",
+      "required": false,
+      "default": "post",
+      "description": "Form submission method."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "social-share": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for social share links."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Navigation title."
+    },
+    {
+      "name": "pageUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Page URL used to generate share links."
+    },
+    {
+      "name": "links",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of social link objects."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "row",
+      "description": "Visual layout (row | stack)."
+    }
+  ],
+  "iframe-embed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the iframe embed."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Iframe source URL."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Iframe title attribute."
+    },
+    {
+      "name": "loading",
+      "type": "string",
+      "required": false,
+      "default": "lazy",
+      "description": "Native iframe loading mode."
+    },
+    {
+      "name": "allowFullscreen",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables the allowfullscreen attribute."
+    },
+    {
+      "name": "height",
+      "type": "string",
+      "required": false,
+      "default": "480",
+      "description": "Iframe height value."
+    }
+  ],
+  "external-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the external widget."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "div",
+      "description": "Host tag name created for the widget."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "External script source URL."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the widget host."
+    },
+    {
+      "name": "textContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional text content for the widget host."
+    }
+  ],
+  "container-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "containerType",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Container width mode"
+    },
+    {
+      "name": "maxWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit max-width value"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Inner padding token"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred number of columns"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap size token (sm | md | lg)"
+    },
+    {
+      "name": "minColumnWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional auto-fit minimum column width"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "column": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "width",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit width value"
+    },
+    {
+      "name": "minWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit minimum width value"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "stretch",
+      "description": "Column align-self value"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Inner spacing token"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap between column children"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "stack": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "column",
+      "description": "Layout direction"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap size token"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "stretch",
+      "description": "Cross-axis alignment"
+    },
+    {
+      "name": "wrap",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Allows wrapping onto multiple rows"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "divider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "horizontal",
+      "description": "Separator orientation (horizontal | vertical)"
+    },
+    {
+      "name": "inset",
+      "type": "string",
+      "required": false,
+      "default": "none",
+      "description": "Outer spacing token applied around the divider"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "spacer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Spacing token that controls the spacer size"
+    },
+    {
+      "name": "axis",
+      "type": "string",
+      "required": false,
+      "default": "vertical",
+      "description": "Spacer axis (vertical | horizontal)"
+    }
+  ],
+  "heading": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "paragraph": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "rich-text": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "eyebrow": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "quote": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "label": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "text-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "link": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Link destination URL"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible link text"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label override"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    }
+  ],
+  "image-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Image source URL"
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Image alt text"
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional caption text"
+    },
+    {
+      "name": "aspectRatio",
+      "type": "string",
+      "required": false,
+      "default": "auto",
+      "description": "Aspect ratio token or CSS ratio"
+    },
+    {
+      "name": "loading",
+      "type": "string",
+      "required": false,
+      "default": "lazy",
+      "description": "Native image loading mode"
+    }
+  ],
+  "video-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Video source URL"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Video title or caption"
+    },
+    {
+      "name": "poster",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Poster image URL"
+    },
+    {
+      "name": "controls",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows the native video controls"
+    },
+    {
+      "name": "autoplay",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Starts playback automatically when allowed"
+    },
+    {
+      "name": "muted",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Mutes the media by default"
+    },
+    {
+      "name": "loop",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Loops playback continuously"
+    }
+  ],
+  "icon-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Icon or symbol name"
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Icon size token"
+    },
+    {
+      "name": "color",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional icon color token or CSS value"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label for assistive technology"
+    }
+  ],
+  "avatar": [
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Avatar image URL"
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Avatar image alt text"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Display name used for initials fallback"
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Avatar size token"
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "circle",
+      "description": "Avatar shape (circle | rounded | square)"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Presence status (online | offline | busy | away)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "badge": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "text",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible badge text"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label override"
+    },
+    {
+      "name": "tone",
+      "type": "string",
+      "required": false,
+      "default": "neutral",
+      "description": "Visual tone (neutral | brand | inverse)"
+    }
+  ],
+  "hello-world": [
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "default": "Hello, Synergos!",
+      "description": "Main heading text"
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Text to display"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ]
+}

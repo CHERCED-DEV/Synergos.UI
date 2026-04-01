@@ -1,0 +1,269 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: syn.$font-family-sans;
+}
+
+.feature-journey {
+  @include syn.flex-column;
+  gap: syn.$space-xl;
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+
+  &__header {
+    text-align: center;
+  }
+
+  &__title {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-900;
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  // ── Step navigation ──────────────────────────────────────────────────────────
+
+  &__nav {
+    display: flex;
+    gap: syn.$space-xs;
+    overflow-x: auto;
+    padding-bottom: syn.$space-xs;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  &__step {
+    @include syn.flex-column-center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-sm syn.$space-md;
+    background: none;
+    border: 2px solid syn.$color-neutral-200;
+    border-radius: syn.px-to-rem(8);
+    cursor: pointer;
+    flex: 1;
+    min-width: syn.px-to-rem(120);
+    transition: border-color 180ms ease, background 180ms ease;
+    text-align: center;
+
+    &:hover:not(:disabled) {
+      border-color: syn.$color-brand-400;
+    }
+
+    &--active {
+      border-color: syn.$color-brand-500;
+      background: syn.$color-brand-100;
+    }
+
+    &--completed {
+      border-color: syn.$color-brand-300;
+      background: syn.$color-brand-100;
+    }
+  }
+
+  &__step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: 50%;
+    background: syn.$color-neutral-200;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-neutral-600;
+    transition: background 180ms ease, color 180ms ease;
+    flex-shrink: 0;
+
+    .feature-journey__step--active & {
+      background: syn.$color-brand-500;
+      color: syn.$color-neutral-0;
+    }
+
+    .feature-journey__step--completed & {
+      background: syn.$color-brand-300;
+      color: syn.$color-neutral-0;
+    }
+  }
+
+  &__step-label {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-tight;
+    color: syn.$color-neutral-600;
+
+    .feature-journey__step--active & {
+      color: syn.$color-brand-600;
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    .feature-journey__step--completed & {
+      color: syn.$color-brand-500;
+    }
+  }
+
+  // ── Content panel ────────────────────────────────────────────────────────────
+
+  &__panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: syn.$space-lg;
+    padding: syn.$space-xl;
+    background: syn.$color-neutral-50;
+    border: 1px solid syn.$color-neutral-100;
+    border-radius: syn.px-to-rem(12);
+    min-height: syn.px-to-rem(180);
+    align-items: start;
+  }
+
+  &__panel-icon {
+    font-size: syn.px-to-rem(48);
+    line-height: 1;
+    user-select: none;
+  }
+
+  &__panel-title {
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-900;
+    margin: 0 0 syn.$space-sm;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__panel-description {
+    font-size: syn.$font-size-base;
+    color: syn.$color-neutral-600;
+    line-height: syn.$line-height-relaxed;
+    margin: 0;
+  }
+
+  // ── Controls ─────────────────────────────────────────────────────────────────
+
+  &__controls {
+    @include syn.flex-between;
+    gap: syn.$space-md;
+  }
+
+  &__btn {
+    padding: syn.$space-sm syn.$space-lg;
+    border-radius: syn.px-to-rem(8);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+    white-space: nowrap;
+
+    &--prev {
+      background: none;
+      border: 2px solid syn.$color-neutral-300;
+      color: syn.$color-neutral-700;
+
+      &:hover:not(:disabled) {
+        border-color: syn.$color-neutral-500;
+        color: syn.$color-neutral-900;
+      }
+    }
+
+    &--next {
+      background: syn.$color-brand-500;
+      border: 2px solid syn.$color-brand-500;
+      color: syn.$color-neutral-0;
+
+      &:hover:not(:disabled) {
+        background: syn.$color-brand-600;
+        border-color: syn.$color-brand-600;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+  }
+
+  &__counter {
+    font-size: syn.$font-size-sm;
+    color: syn.$color-neutral-400;
+    font-weight: syn.$font-weight-medium;
+    flex-shrink: 0;
+  }
+
+  // ── Dark theme ───────────────────────────────────────────────────────────────
+
+  &--dark {
+    .feature-journey__title {
+      color: syn.$color-neutral-0;
+    }
+
+    .feature-journey__step {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .feature-journey__step--active {
+      background: rgba(14, 165, 233, 0.15);
+      border-color: syn.$color-brand-400;
+    }
+
+    .feature-journey__step--completed {
+      background: rgba(14, 165, 233, 0.1);
+      border-color: syn.$color-brand-300;
+    }
+
+    .feature-journey__step-label {
+      color: syn.$color-neutral-300;
+    }
+
+    .feature-journey__step-number {
+      background: rgba(255, 255, 255, 0.1);
+      color: syn.$color-neutral-200;
+    }
+
+    .feature-journey__panel {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .feature-journey__panel-title {
+      color: syn.$color-neutral-0;
+    }
+
+    .feature-journey__panel-description {
+      color: syn.$color-neutral-300;
+    }
+
+    .feature-journey__btn--prev {
+      border-color: rgba(255, 255, 255, 0.25);
+      color: syn.$color-neutral-200;
+
+      &:hover:not(:disabled) {
+        border-color: rgba(255, 255, 255, 0.5);
+        color: syn.$color-neutral-0;
+      }
+    }
+
+    .feature-journey__counter {
+      color: syn.$color-neutral-500;
+    }
+  }
+
+  // ── Responsive ───────────────────────────────────────────────────────────────
+
+  @media (max-width: 640px) {
+    &__panel {
+      grid-template-columns: 1fr;
+    }
+
+    &__panel-icon {
+      font-size: syn.px-to-rem(36);
+    }
+
+    &__step-label {
+      display: none;
+    }
+  }
+}

@@ -1,4 +1,5 @@
 export interface SectionInputs {
+  config?: string;
   headingText: string;
   headingLevel: string;
   containerType: string;

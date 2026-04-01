@@ -1,4 +1,5 @@
 export interface ButtonContainerInputs {
+  config?: string;
   label: string;
   variant: string;
   size: string;

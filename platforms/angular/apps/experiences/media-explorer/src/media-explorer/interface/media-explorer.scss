@@ -1,0 +1,350 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: syn.$font-family-sans;
+}
+
+.media-explorer {
+  @include syn.flex-column;
+  gap: syn.$space-xl;
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+
+  &__header {
+    @include syn.flex-between;
+    flex-wrap: wrap;
+    gap: syn.$space-md;
+  }
+
+  &__title {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-0;
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  // ── Category filters ─────────────────────────────────────────────────────────
+
+  &__filters {
+    display: flex;
+    gap: syn.$space-xs;
+    flex-wrap: wrap;
+  }
+
+  &__filter {
+    padding: syn.$space-xxs syn.$space-md;
+    border-radius: syn.px-to-rem(20);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: none;
+    color: syn.$color-neutral-400;
+    transition: all 150ms ease;
+
+    &:hover {
+      border-color: syn.$color-brand-400;
+      color: syn.$color-neutral-100;
+    }
+
+    &--active {
+      background: syn.$color-brand-500;
+      border-color: syn.$color-brand-500;
+      color: syn.$color-neutral-0;
+    }
+  }
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
+
+  &__empty {
+    @include syn.flex-column-center;
+    gap: syn.$space-md;
+    padding: syn.$space-16;
+    color: syn.$color-neutral-500;
+    text-align: center;
+  }
+
+  &__empty-icon {
+    font-size: syn.px-to-rem(48);
+    line-height: 1;
+  }
+
+  &__empty-text {
+    font-size: syn.$font-size-base;
+    margin: 0;
+  }
+
+  // ── Layout ───────────────────────────────────────────────────────────────────
+
+  &__layout {
+    display: grid;
+    grid-template-columns: syn.px-to-rem(280) 1fr;
+    gap: syn.$space-lg;
+    align-items: start;
+  }
+
+  // ── Sidebar ──────────────────────────────────────────────────────────────────
+
+  &__sidebar {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
+    max-height: syn.px-to-rem(520);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+
+    &::-webkit-scrollbar {
+      width: syn.px-to-rem(4);
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+    }
+  }
+
+  &__item {
+    display: grid;
+    grid-template-columns: syn.px-to-rem(80) 1fr;
+    gap: syn.$space-sm;
+    width: 100%;
+    padding: syn.$space-sm;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: syn.px-to-rem(8);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: border-color 150ms ease, background 150ms ease;
+
+    &:hover:not(.media-explorer__item--active) {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    &--active {
+      border-color: syn.$color-brand-500;
+      background: rgba(14, 165, 233, 0.1);
+    }
+  }
+
+  &__item-thumb {
+    @include syn.flex-center;
+    width: syn.px-to-rem(80);
+    height: syn.px-to-rem(52);
+    border-radius: syn.px-to-rem(6);
+    overflow: hidden;
+    background: syn.$color-neutral-800;
+    flex-shrink: 0;
+  }
+
+  &__item-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__item-placeholder {
+    font-size: syn.$font-size-lg;
+    color: syn.$color-neutral-500;
+  }
+
+  &__item-meta {
+    @include syn.flex-column;
+    gap: syn.$space-xxs;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  &__item-title {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-neutral-200;
+    line-height: syn.$line-height-tight;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    .media-explorer__item--active & {
+      color: syn.$color-neutral-0;
+    }
+  }
+
+  &__item-duration {
+    font-size: syn.$font-size-xs;
+    color: syn.$color-neutral-500;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__item-category {
+    font-size: syn.$font-size-xs;
+    color: syn.$color-brand-400;
+    font-weight: syn.$font-weight-medium;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  // ── Player ───────────────────────────────────────────────────────────────────
+
+  &__player {
+    @include syn.flex-column;
+    gap: syn.$space-lg;
+  }
+
+  &__video-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: syn.$color-neutral-900;
+    border-radius: syn.px-to-rem(12);
+    overflow: hidden;
+  }
+
+  &__iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  &__poster {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    @include syn.flex-center;
+  }
+
+  &__poster-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__play-btn {
+    position: absolute;
+    @include syn.flex-center;
+    width: syn.px-to-rem(64);
+    height: syn.px-to-rem(64);
+    border-radius: 50%;
+    background: rgba(14, 165, 233, 0.9);
+    border: none;
+    cursor: pointer;
+    transition: transform 150ms ease, background 150ms ease;
+    backdrop-filter: blur(4px);
+
+    &:hover {
+      background: syn.$color-brand-500;
+      transform: scale(1.08);
+    }
+  }
+
+  &__play-icon {
+    font-size: syn.$font-size-xl;
+    color: syn.$color-neutral-0;
+    margin-left: syn.px-to-rem(4);
+  }
+
+  // ── Video info ────────────────────────────────────────────────────────────────
+
+  &__info {
+    @include syn.flex-column;
+    gap: syn.$space-sm;
+  }
+
+  &__info-title {
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-0;
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__info-description {
+    font-size: syn.$font-size-base;
+    color: syn.$color-neutral-400;
+    line-height: syn.$line-height-relaxed;
+    margin: 0;
+  }
+
+  &__tags {
+    display: flex;
+    gap: syn.$space-xs;
+    flex-wrap: wrap;
+  }
+
+  &__tag {
+    padding: syn.$space-xxs syn.$space-sm;
+    border-radius: syn.px-to-rem(4);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    background: rgba(255, 255, 255, 0.08);
+    color: syn.$color-neutral-300;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  // ── Light theme override ──────────────────────────────────────────────────────
+
+  &--light {
+    .media-explorer__title { color: syn.$color-neutral-900; }
+    .media-explorer__filter {
+      border-color: syn.$color-neutral-300;
+      color: syn.$color-neutral-600;
+
+      &--active {
+        background: syn.$color-brand-500;
+        border-color: syn.$color-brand-500;
+        color: syn.$color-neutral-0;
+      }
+    }
+    .media-explorer__item {
+      border-color: syn.$color-neutral-200;
+
+      &:hover:not(.media-explorer__item--active) {
+        background: syn.$color-neutral-50;
+        border-color: syn.$color-neutral-300;
+      }
+
+      &--active {
+        border-color: syn.$color-brand-500;
+        background: syn.$color-brand-100;
+      }
+    }
+    .media-explorer__item-title { color: syn.$color-neutral-800; }
+    .media-explorer__item-placeholder { color: syn.$color-neutral-400; }
+    .media-explorer__item-thumb { background: syn.$color-neutral-100; }
+    .media-explorer__video-wrap { background: syn.$color-neutral-200; }
+    .media-explorer__info-title { color: syn.$color-neutral-900; }
+    .media-explorer__info-description { color: syn.$color-neutral-600; }
+    .media-explorer__tag {
+      background: syn.$color-neutral-100;
+      color: syn.$color-neutral-700;
+      border-color: syn.$color-neutral-200;
+    }
+    .media-explorer__sidebar {
+      scrollbar-color: syn.$color-neutral-300 transparent;
+    }
+  }
+
+  // ── Responsive ───────────────────────────────────────────────────────────────
+
+  @media (max-width: 900px) {
+    &__layout {
+      grid-template-columns: 1fr;
+    }
+
+    &__sidebar {
+      max-height: syn.px-to-rem(200);
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    &__item {
+      min-width: syn.px-to-rem(220);
+    }
+  }
+}

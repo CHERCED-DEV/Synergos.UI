@@ -1,4 +1,5 @@
 export interface InfoBlockInputs {
+  config?: string;
   title: string;
   body: string;
   ctaLabel: string;

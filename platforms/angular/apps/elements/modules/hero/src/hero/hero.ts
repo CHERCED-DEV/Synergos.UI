@@ -4,9 +4,24 @@ import {
   HeadingComponent,
   type HeadingLevel,
   type HeadingTone,
+  coerceConfigInput,
+  resolveConfigValue,
 } from '@synergos/shared';
 
 const heroHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+export interface HeroConfig {
+  readonly headingText?: string;
+  readonly headingLevel?: string;
+  readonly body?: string;
+  readonly imageSrc?: string;
+  readonly imageAlt?: string;
+  readonly ctaLabel?: string;
+  readonly ctaUrl?: string;
+  readonly ctaTarget?: string;
+  readonly variant?: string;
+  readonly theme?: string;
+}
 
 function resolveHeroHeadingLevel(value: string): HeadingLevel {
   return heroHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h1';
@@ -21,16 +36,51 @@ function resolveHeroHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-hero' },
 })
 export class HeroComponent {
-  readonly headingText = input<string>('');
-  readonly headingLevel = input<string>('h1');
-  readonly body = input<string>('');
-  readonly imageSrc = input<string>('');
-  readonly imageAlt = input<string>('');
-  readonly ctaLabel = input<string>('');
-  readonly ctaUrl = input<string>('');
-  readonly ctaTarget = input<string>('_self');
-  readonly variant = input<string>('default');
-  readonly theme = input<string>('light');
+  readonly configInput = input<Partial<HeroConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<HeroConfig>,
+  });
+  readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
+  readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
+  readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
+  readonly imageSrcInput = input<string | undefined>(undefined, { alias: 'imageSrc' });
+  readonly imageAltInput = input<string | undefined>(undefined, { alias: 'imageAlt' });
+  readonly ctaLabelInput = input<string | undefined>(undefined, { alias: 'ctaLabel' });
+  readonly ctaUrlInput = input<string | undefined>(undefined, { alias: 'ctaUrl' });
+  readonly ctaTargetInput = input<string | undefined>(undefined, { alias: 'ctaTarget' });
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
+  readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
+
+  readonly headingText = computed(() =>
+    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+  );
+  readonly headingLevel = computed(() =>
+    resolveConfigValue(this.headingLevelInput(), this.configInput()?.headingLevel, 'h1'),
+  );
+  readonly body = computed(() =>
+    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+  );
+  readonly imageSrc = computed(() =>
+    resolveConfigValue(this.imageSrcInput(), this.configInput()?.imageSrc, ''),
+  );
+  readonly imageAlt = computed(() =>
+    resolveConfigValue(this.imageAltInput(), this.configInput()?.imageAlt, ''),
+  );
+  readonly ctaLabel = computed(() =>
+    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+  );
+  readonly ctaUrl = computed(() =>
+    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+  );
+  readonly ctaTarget = computed(() =>
+    resolveConfigValue(this.ctaTargetInput(), this.configInput()?.ctaTarget, '_self'),
+  );
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+  );
+  readonly theme = computed(() =>
+    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+  );
 
   readonly hasImage = computed(() => this.imageSrc().trim().length > 0);
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);

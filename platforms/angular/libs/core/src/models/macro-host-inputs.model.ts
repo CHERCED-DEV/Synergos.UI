@@ -1,4 +1,1 @@
-export interface MacroHostInputs {
-  contentType: string;
-  contentData: string;
-}
+export type { MacroHostInputs } from '../../../../../../vitals/core/src/models/macro-host-inputs.model';

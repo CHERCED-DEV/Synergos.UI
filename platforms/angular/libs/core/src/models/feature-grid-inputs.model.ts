@@ -1,6 +1,1 @@
-export interface FeatureGridInputs {
-  headingText: string;
-  columns: string;
-  items: string;
-  theme: string;
-}
+export type { FeatureGridInputs } from '../../../../../../vitals/core/src/models/feature-grid-inputs.model';

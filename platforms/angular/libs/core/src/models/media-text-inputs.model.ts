@@ -1,10 +1,1 @@
-export interface MediaTextInputs {
-  imageSrc: string;
-  imageAlt: string;
-  headingText: string;
-  body: string;
-  ctaLabel: string;
-  ctaUrl: string;
-  mediaPosition: string;
-  theme: string;
-}
+export type { MediaTextInputs } from '../../../../../../vitals/core/src/models/media-text-inputs.model';

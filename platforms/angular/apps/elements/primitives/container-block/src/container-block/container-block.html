@@ -1,3 +1,9 @@
-<div class="container-block" [class]="hostClasses()" [style.max-width]="maxWidth() || null">
+<div
+  class="container-block"
+  [class]="hostClasses()"
+  [id]="elementId() || null"
+  [attr.aria-label]="ariaLabel() || null"
+  [style.max-width]="maxWidth() || null"
+>
   <ng-content />
 </div>

@@ -1,0 +1,50 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-detail-summary {
+  display: grid;
+  gap: syn.$space-lg;
+}
+
+.syn-detail-summary__sections {
+  display: grid;
+  gap: syn.$space-md;
+}
+
+.syn-detail-summary__section {
+  display: grid;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.px-to-rem(18);
+  background: syn.$color-neutral-0;
+}
+
+.syn-detail-summary__section-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: syn.$space-sm;
+}
+
+.syn-detail-summary__section-copy {
+  display: grid;
+  gap: syn.$space-xs;
+}
+
+.syn-detail-summary__section-title,
+.syn-detail-summary__section-description {
+  margin: 0;
+}
+
+.syn-detail-summary__section-title {
+  color: syn.$color-neutral-900;
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-detail-summary__section-description {
+  color: syn.$color-neutral-600;
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-relaxed;
+}

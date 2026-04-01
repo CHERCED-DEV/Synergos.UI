@@ -1,0 +1,265 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: syn.$font-family-sans;
+}
+
+.insight-explorer {
+  @include syn.flex-column;
+  gap: syn.$space-xl;
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+
+  &__header {
+    text-align: center;
+  }
+
+  &__title {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-900;
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  // ── Layout ───────────────────────────────────────────────────────────────────
+
+  &__layout {
+    display: grid;
+    grid-template-columns: syn.px-to-rem(220) 1fr;
+    gap: syn.$space-lg;
+    align-items: start;
+  }
+
+  // ── Sidebar ──────────────────────────────────────────────────────────────────
+
+  &__sidebar {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
+  }
+
+  &__card {
+    @include syn.flex-start;
+    gap: syn.$space-sm;
+    width: 100%;
+    padding: syn.$space-sm syn.$space-md;
+    background: none;
+    border: 2px solid syn.$color-neutral-200;
+    border-radius: syn.px-to-rem(8);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 160ms ease, background 160ms ease;
+    font-family: inherit;
+
+    &:hover:not(.insight-explorer__card--active) {
+      border-color: syn.$color-brand-300;
+      background: syn.$color-brand-100;
+    }
+
+    &--active {
+      border-color: syn.$color-brand-500;
+      background: syn.$color-brand-100;
+    }
+  }
+
+  &__card-icon {
+    font-size: syn.$font-size-xl;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  &__card-title {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-neutral-700;
+    line-height: syn.$line-height-tight;
+
+    .insight-explorer__card--active & {
+      color: syn.$color-brand-600;
+    }
+  }
+
+  // ── Detail panel ─────────────────────────────────────────────────────────────
+
+  &__panel {
+    @include syn.flex-column;
+    gap: syn.$space-lg;
+    padding: syn.$space-xl;
+    background: syn.$color-neutral-50;
+    border: 1px solid syn.$color-neutral-100;
+    border-radius: syn.px-to-rem(12);
+    min-height: syn.px-to-rem(360);
+  }
+
+  &__panel-header {
+    @include syn.flex-start;
+    gap: syn.$space-md;
+  }
+
+  &__panel-icon {
+    font-size: syn.px-to-rem(40);
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  &__panel-title {
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-neutral-900;
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__panel-description {
+    font-size: syn.$font-size-base;
+    color: syn.$color-neutral-600;
+    line-height: syn.$line-height-relaxed;
+    margin: 0;
+  }
+
+  // ── Metrics ──────────────────────────────────────────────────────────────────
+
+  &__metrics {
+    display: flex;
+    gap: syn.$space-lg;
+    padding: syn.$space-md 0;
+    border-top: 1px solid syn.$color-neutral-200;
+    border-bottom: 1px solid syn.$color-neutral-200;
+  }
+
+  &__metric {
+    @include syn.flex-column;
+    gap: syn.$space-xxs;
+  }
+
+  &__metric-value {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: syn.$color-brand-500;
+    line-height: 1;
+  }
+
+  &__metric-label {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    color: syn.$color-neutral-500;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  // ── Features ─────────────────────────────────────────────────────────────────
+
+  &__features {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__feature {
+    @include syn.flex-start;
+    gap: syn.$space-sm;
+    font-size: syn.$font-size-sm;
+    color: syn.$color-neutral-700;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__feature-bullet {
+    color: syn.$color-brand-500;
+    font-weight: syn.$font-weight-bold;
+    flex-shrink: 0;
+  }
+
+  // ── CTA ──────────────────────────────────────────────────────────────────────
+
+  &__cta {
+    margin-top: auto;
+    padding-top: syn.$space-sm;
+  }
+
+  &__cta-link {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: syn.$color-brand-500;
+    text-decoration: none;
+    transition: color 150ms ease;
+
+    &:hover {
+      color: syn.$color-brand-600;
+    }
+  }
+
+  // ── Dark theme ───────────────────────────────────────────────────────────────
+
+  &--dark {
+    .insight-explorer__title {
+      color: syn.$color-neutral-0;
+    }
+
+    .insight-explorer__card {
+      border-color: rgba(255, 255, 255, 0.12);
+
+      &:hover:not(.insight-explorer__card--active) {
+        background: rgba(14, 165, 233, 0.1);
+        border-color: syn.$color-brand-400;
+      }
+
+      &--active {
+        background: rgba(14, 165, 233, 0.15);
+        border-color: syn.$color-brand-400;
+      }
+    }
+
+    .insight-explorer__card-title {
+      color: syn.$color-neutral-300;
+    }
+
+    .insight-explorer__panel {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .insight-explorer__panel-title {
+      color: syn.$color-neutral-0;
+    }
+
+    .insight-explorer__panel-description {
+      color: syn.$color-neutral-300;
+    }
+
+    .insight-explorer__metrics {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .insight-explorer__metric-label {
+      color: syn.$color-neutral-500;
+    }
+
+    .insight-explorer__feature {
+      color: syn.$color-neutral-300;
+    }
+  }
+
+  // ── Responsive ───────────────────────────────────────────────────────────────
+
+  @media (max-width: 768px) {
+    &__layout {
+      grid-template-columns: 1fr;
+    }
+
+    &__sidebar {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    &__card {
+      flex: 1;
+      min-width: syn.px-to-rem(140);
+    }
+  }
+}

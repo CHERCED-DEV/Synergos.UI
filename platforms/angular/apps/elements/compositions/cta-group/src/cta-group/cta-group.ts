@@ -1,10 +1,17 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core';
-import { ButtonComponent } from '@synergos/shared';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ButtonComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+
+export interface CtaGroupConfig {
+  readonly primaryLabel?: string;
+  readonly primaryUrl?: string;
+  readonly primaryTarget?: string;
+  readonly primaryVariant?: string;
+  readonly secondaryLabel?: string;
+  readonly secondaryUrl?: string;
+  readonly secondaryTarget?: string;
+  readonly secondaryVariant?: string;
+  readonly alignment?: string;
+}
 
 @Component({
   selector: 'sg-cta-group',
@@ -15,14 +22,48 @@ import { ButtonComponent } from '@synergos/shared';
   host: { class: 'sg-cta-group' },
 })
 export class CtaGroupComponent {
-  // ── Inputs ────────────────────────────────────────────────────────────────
-  readonly primaryLabel = input<string>('');
-  readonly primaryUrl = input<string>('');
-  readonly secondaryLabel = input<string>('');
-  readonly secondaryUrl = input<string>('');
-  readonly alignment = input<string>('left');
+  readonly configInput = input<Partial<CtaGroupConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<CtaGroupConfig>,
+  });
+  readonly primaryLabelInput = input<string | undefined>(undefined, { alias: 'primaryLabel' });
+  readonly primaryUrlInput = input<string | undefined>(undefined, { alias: 'primaryUrl' });
+  readonly primaryTargetInput = input<string | undefined>(undefined, { alias: 'primaryTarget' });
+  readonly primaryVariantInput = input<string | undefined>(undefined, { alias: 'primaryVariant' });
+  readonly secondaryLabelInput = input<string | undefined>(undefined, { alias: 'secondaryLabel' });
+  readonly secondaryUrlInput = input<string | undefined>(undefined, { alias: 'secondaryUrl' });
+  readonly secondaryTargetInput = input<string | undefined>(undefined, { alias: 'secondaryTarget' });
+  readonly secondaryVariantInput = input<string | undefined>(undefined, { alias: 'secondaryVariant' });
+  readonly alignmentInput = input<string | undefined>(undefined, { alias: 'alignment' });
 
-  // ── Derived state ─────────────────────────────────────────────────────────
+  readonly primaryLabel = computed(() =>
+    resolveConfigValue(this.primaryLabelInput(), this.configInput()?.primaryLabel, ''),
+  );
+  readonly primaryUrl = computed(() =>
+    resolveConfigValue(this.primaryUrlInput(), this.configInput()?.primaryUrl, ''),
+  );
+  readonly primaryTarget = computed(() =>
+    resolveConfigValue(this.primaryTargetInput(), this.configInput()?.primaryTarget, '_self'),
+  );
+  readonly primaryVariant = computed(() =>
+    resolveConfigValue(this.primaryVariantInput(), this.configInput()?.primaryVariant, 'solid'),
+  );
+  readonly secondaryLabel = computed(() =>
+    resolveConfigValue(this.secondaryLabelInput(), this.configInput()?.secondaryLabel, ''),
+  );
+  readonly secondaryUrl = computed(() =>
+    resolveConfigValue(this.secondaryUrlInput(), this.configInput()?.secondaryUrl, ''),
+  );
+  readonly secondaryTarget = computed(() =>
+    resolveConfigValue(this.secondaryTargetInput(), this.configInput()?.secondaryTarget, '_self'),
+  );
+  readonly secondaryVariant = computed(() =>
+    resolveConfigValue(this.secondaryVariantInput(), this.configInput()?.secondaryVariant, 'outline'),
+  );
+  readonly alignment = computed(() =>
+    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'left'),
+  );
+
   readonly hasPrimary = computed(() => !!this.primaryLabel() && !!this.primaryUrl());
   readonly hasSecondary = computed(() => !!this.secondaryLabel() && !!this.secondaryUrl());
   readonly hostClasses = computed(() => `sg-cta-group--${this.alignment()}`);

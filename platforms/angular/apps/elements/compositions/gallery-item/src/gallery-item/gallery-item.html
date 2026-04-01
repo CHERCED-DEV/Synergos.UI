@@ -1,0 +1,17 @@
+<figure class="gallery-item">
+  @if (src()) {
+    <img
+      class="gallery-item__media"
+      [src]="src()"
+      [alt]="resolvedAlt()"
+      [style.aspect-ratio]="aspectRatio()"
+      loading="lazy"
+    />
+  } @else {
+    <div class="gallery-item__placeholder" [style.aspect-ratio]="aspectRatio()" aria-hidden="true"></div>
+  }
+
+  @if (hasCaption()) {
+    <figcaption class="gallery-item__caption" [innerHTML]="caption()"></figcaption>
+  }
+</figure>

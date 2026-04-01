@@ -1,0 +1,67 @@
+{
+  "name": "elements-compositions-alert-bar",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/alert-bar/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:alert-bar",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/alert-bar",
+        "browser": "apps/elements/compositions/alert-bar/src/main.ts",
+        "index": "apps/elements/compositions/alert-bar/src/index.html",
+        "tsConfig": "apps/elements/compositions/alert-bar/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "150kb",
+              "maximumError": "300kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4235
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4235,
+        "staticFilePath": "dist/alert-bar/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/alert-bar/src/**/*.ts",
+          "apps/elements/compositions/alert-bar/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/alert-bar/tsconfig.spec.json"
+      }
+    }
+  }
+}

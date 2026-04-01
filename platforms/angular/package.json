@@ -4,14 +4,15 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "dev": "nx watch --projects=tag:scope:elements -- nx build {}",
-    "build": "nx run-many --target=build --projects=tag:scope:elements",
-    "build:primitives": "nx run-many --target=build --projects=tag:tier:primitive",
-    "build:compositions": "nx run-many --target=build --projects=tag:tier:composition",
-    "build:modules": "nx run-many --target=build --projects=tag:tier:module",
-    "test": "nx run-many --target=test --all",
-    "lint": "nx run-many --target=lint --all",
-    "graph": "nx graph",
+    "dev": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx watch --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter -- node_modules/.bin/nx build {}",
+    "build": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter",
+    "build:primitives": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:tier:primitive",
+    "build:compositions": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:tier:composition",
+    "build:modules": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:tier:module",
+    "build:experiences": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=build --projects=tag:tier:experience",
+    "test": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=test --all",
+    "lint": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run-many --target=lint --all",
+    "graph": "unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx graph",
     "nx": "nx"
   },
   "dependencies": {

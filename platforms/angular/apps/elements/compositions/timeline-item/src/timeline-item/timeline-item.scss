@@ -1,0 +1,76 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: syn.$space-md;
+
+  &__date {
+    position: relative;
+    padding-inline-end: syn.$space-md;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block-start: syn.px-to-rem(48);
+      inset-inline-end: syn.px-to-rem(3);
+      inline-size: syn.px-to-rem(2);
+      block-size: calc(100% - #{syn.px-to-rem(48)});
+      background: syn.$color-neutral-200;
+    }
+  }
+
+  &__content {
+    @include syn.surface-panel(
+      syn.$space-lg,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.px-to-rem(12),
+      syn.$shadow-sm
+    );
+    @include syn.flex-column;
+    gap: syn.$space-sm;
+  }
+
+  &__heading {
+    display: block;
+  }
+
+  &__body {
+    color: syn.$color-neutral-600;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &--dark {
+    .timeline-item__date::after {
+      background: syn.$color-neutral-700;
+    }
+
+    .timeline-item__content {
+      background: syn.$color-neutral-900;
+      border-color: syn.$color-neutral-700;
+    }
+
+    .timeline-item__body {
+      color: syn.$color-neutral-300;
+    }
+  }
+
+  &--compact {
+    gap: syn.$space-sm;
+  }
+}

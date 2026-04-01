@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.iframe-embed {
+  display: block;
+
+  &__frame {
+    display: block;
+    width: 100%;
+    min-height: 16rem;
+    border: 0;
+  }
+}

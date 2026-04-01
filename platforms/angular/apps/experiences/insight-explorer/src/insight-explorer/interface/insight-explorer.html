@@ -1,0 +1,83 @@
+<div
+  class="insight-explorer"
+  [class]="hostClasses()"
+  [id]="elementId() || null"
+>
+  @if (title()) {
+    <div class="insight-explorer__header">
+      <syn-heading
+        [text]="title()"
+        level="h2"
+        size="lg"
+        [tone]="headingTone()"
+        align="center"
+      />
+    </div>
+  }
+
+  <div class="insight-explorer__layout">
+    <!-- Sidebar: item selector using syn-card -->
+    <nav class="insight-explorer__sidebar" aria-label="Insight categories">
+      @for (item of items(); track item.id) {
+        <syn-card
+          [interactive]="true"
+          [ariaLabel]="item.title"
+          class="insight-explorer__card"
+          [class.insight-explorer__card--active]="item.id === selectedId()"
+          (selected)="select(item.id)"
+        >
+          <span class="insight-explorer__card-icon" aria-hidden="true">{{ item.icon }}</span>
+          <span class="insight-explorer__card-title">{{ item.title }}</span>
+        </syn-card>
+      }
+    </nav>
+
+    <!-- Detail panel -->
+    <section class="insight-explorer__panel" aria-live="polite" aria-label="Insight details">
+      <div class="insight-explorer__panel-header">
+        <span class="insight-explorer__panel-icon" aria-hidden="true">
+          {{ selectedItem().icon }}
+        </span>
+        <syn-heading
+          [text]="selectedItem().title"
+          level="h3"
+          size="md"
+          [tone]="headingTone()"
+        />
+      </div>
+
+      <p class="insight-explorer__panel-description">{{ selectedItem().description }}</p>
+
+      <!-- Metrics row -->
+      <div class="insight-explorer__metrics" aria-label="Key metrics">
+        @for (metric of selectedItem().metrics; track metric.label) {
+          <div class="insight-explorer__metric">
+            <span class="insight-explorer__metric-value">{{ metric.value }}</span>
+            <span class="insight-explorer__metric-label">{{ metric.label }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Feature list -->
+      <ul class="insight-explorer__features">
+        @for (feature of selectedItem().features; track feature) {
+          <li class="insight-explorer__feature">
+            <span class="insight-explorer__feature-bullet" aria-hidden="true">✓</span>
+            {{ feature }}
+          </li>
+        }
+      </ul>
+
+      <!-- CTA -->
+      @if (selectedItem().ctaLabel && selectedItem().ctaUrl) {
+        <div class="insight-explorer__cta">
+          <syn-link
+            [href]="selectedItem().ctaUrl"
+            [label]="selectedItem().ctaLabel + ' →'"
+            tone="brand"
+          />
+        </div>
+      }
+    </section>
+  </div>
+</div>

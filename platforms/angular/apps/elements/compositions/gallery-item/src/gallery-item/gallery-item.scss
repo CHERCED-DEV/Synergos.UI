@@ -1,0 +1,54 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.gallery-item {
+  @include syn.surface-panel(
+    syn.$space-sm,
+    syn.$color-neutral-0,
+    syn.$color-neutral-200,
+    syn.px-to-rem(1),
+    syn.px-to-rem(12),
+    syn.$shadow-sm
+  );
+  @include syn.flex-column;
+  gap: syn.$space-sm;
+  margin: 0;
+
+  &__media,
+  &__placeholder {
+    display: block;
+    width: 100%;
+    border-radius: syn.px-to-rem(8);
+    overflow: hidden;
+  }
+
+  &__media {
+    background: syn.$color-neutral-100;
+    object-fit: cover;
+  }
+
+  &__placeholder {
+    background: linear-gradient(
+      135deg,
+      syn.$color-neutral-100,
+      syn.$color-neutral-200
+    );
+  }
+
+  &__caption {
+    color: syn.$color-neutral-600;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
+  }
+}

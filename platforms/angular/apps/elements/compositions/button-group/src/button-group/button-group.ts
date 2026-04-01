@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { InitialDataService } from '@synergos/core';
-import { ButtonComponent } from '@synergos/shared';
+import { ButtonComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
 type ButtonGroupAlignment = 'left' | 'center' | 'right';
 type ButtonGroupDirection = 'row' | 'column';
@@ -15,6 +15,13 @@ interface ButtonGroupItem {
   readonly href: string;
   readonly target: string;
   readonly disabled: boolean;
+}
+
+export interface ButtonGroupConfig {
+  readonly buttons?: readonly ButtonGroupItem[];
+  readonly alignment?: string;
+  readonly gap?: string;
+  readonly direction?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -80,19 +87,42 @@ function normalizeButtonGroupItem(value: unknown): ButtonGroupItem | null {
 export class ButtonGroupComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly buttons = input<string>('[]');
-  readonly alignment = input<string>('left');
-  readonly gap = input<string>('sm');
-  readonly direction = input<string>('row');
+  readonly configInput = input<Partial<ButtonGroupConfig> | undefined, unknown>(undefined, {
+    alias: 'config',
+    transform: coerceConfigInput<ButtonGroupConfig>,
+  });
+  readonly buttonsInput = input<string | undefined>(undefined, { alias: 'buttons' });
+  readonly alignmentInput = input<string | undefined>(undefined, { alias: 'alignment' });
+  readonly gapInput = input<string | undefined>(undefined, { alias: 'gap' });
+  readonly directionInput = input<string | undefined>(undefined, { alias: 'direction' });
+
+  readonly buttons = computed(() =>
+    resolveConfigValue(this.buttonsInput(), undefined, '[]'),
+  );
+  readonly alignment = computed(() =>
+    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'left'),
+  );
+  readonly gap = computed(() =>
+    resolveConfigValue(this.gapInput(), this.configInput()?.gap, 'sm'),
+  );
+  readonly direction = computed(() =>
+    resolveConfigValue(this.directionInput(), this.configInput()?.direction, 'row'),
+  );
 
   readonly parsedButtons = computed<readonly ButtonGroupItem[]>(() => {
-    const parsedValue = this.#initialData.parseValue<unknown>(this.buttons());
+    if (this.buttonsInput() !== undefined) {
+      const parsedValue = this.#initialData.parseValue<unknown>(this.buttons());
 
-    if (!Array.isArray(parsedValue)) {
-      return [];
+      if (!Array.isArray(parsedValue)) {
+        return [];
+      }
+
+      return parsedValue
+        .map((item) => normalizeButtonGroupItem(item))
+        .filter((item): item is ButtonGroupItem => item !== null);
     }
 
-    return parsedValue
+    return (this.configInput()?.buttons ?? [])
       .map((item) => normalizeButtonGroupItem(item))
       .filter((item): item is ButtonGroupItem => item !== null);
   });

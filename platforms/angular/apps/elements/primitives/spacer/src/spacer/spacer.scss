@@ -1,0 +1,13 @@
+:host {
+  display: block;
+}
+
+.spacer {
+  display: block;
+  background: transparent;
+  flex-shrink: 0;
+
+  &.sg-spacer--horizontal {
+    display: inline-block;
+  }
+}

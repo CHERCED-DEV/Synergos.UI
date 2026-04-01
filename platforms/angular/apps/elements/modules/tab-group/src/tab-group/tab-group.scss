@@ -1,0 +1,14 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.tab-group {
+  @include syn.flex-column;
+  gap: syn.$space-md;
+
+  &__title {
+    display: block;
+  }
+}

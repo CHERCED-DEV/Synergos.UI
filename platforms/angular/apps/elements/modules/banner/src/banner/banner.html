@@ -1,5 +1,13 @@
 <div class="banner" [class]="hostClasses()">
+  @if (hasImage()) {
+    <img class="banner__image" [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
+  }
+
   <div class="banner__content">
+    @if (eyebrow()) {
+      <span class="banner__eyebrow">{{ eyebrow() }}</span>
+    }
+
     @if (title()) {
       <syn-heading
         class="banner__title"
@@ -15,9 +23,18 @@
     }
   </div>
 
-  @if (hasCta()) {
-    <a class="banner__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
-      <syn-button [label]="ctaLabel()" variant="solid" size="md" />
-    </a>
+  @if (hasCta() || hasSecondaryCta()) {
+    <div class="banner__actions">
+      @if (hasCta()) {
+        <a class="banner__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="ctaLabel()" variant="solid" size="md" />
+        </a>
+      }
+      @if (hasSecondaryCta()) {
+        <a class="banner__cta-link banner__cta-link--secondary" [href]="secondaryCtaUrl()" [target]="secondaryCtaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="secondaryCtaLabel()" variant="outline" size="md" />
+        </a>
+      }
+    </div>
   }
 </div>

@@ -30,7 +30,7 @@ describe(InitialDataService.name, () => {
   });
 
   it('parses raw JSON values', () => {
-    expect(service.parseValue<{ title: string }>('{\"title\":\"Banner\"}')).toEqual({
+    expect(service.parseValue<{ title: string }>('{"title":"Banner"}')).toEqual({
       title: 'Banner',
     });
   });

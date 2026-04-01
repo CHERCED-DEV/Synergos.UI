@@ -1,0 +1,22 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.key-value {
+  @include syn.surface-panel(
+    syn.$space-md,
+    syn.$color-neutral-0,
+    syn.$color-neutral-200,
+    syn.px-to-rem(1),
+    syn.px-to-rem(12),
+    syn.$shadow-sm
+  );
+
+  &--dark {
+    background: syn.$color-neutral-900;
+    border-color: syn.$color-neutral-700;
+    color: syn.$color-neutral-0;
+  }
+}

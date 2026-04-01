@@ -1,0 +1,29 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.faq-item {
+  display: block;
+
+  &__answer {
+    color: syn.$color-neutral-700;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &--dark {
+    .faq-item__answer {
+      color: syn.$color-neutral-300;
+    }
+  }
+}

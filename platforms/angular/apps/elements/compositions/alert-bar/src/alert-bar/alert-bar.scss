@@ -1,0 +1,14 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.alert-bar {
+  @include syn.flex-column;
+  gap: syn.$space-sm;
+
+  &__link {
+    align-self: flex-start;
+  }
+}
