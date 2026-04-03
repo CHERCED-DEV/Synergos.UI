@@ -15,8 +15,7 @@ import {
   host: { class: 'sg-icon-block' },
 })
 export class IconBlockComponent {
-  readonly configInput = input<Partial<IconBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<IconBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<IconBlockElementConfig>,
   });
   readonly iconInput = input<string | undefined>(undefined, { alias: 'icon' });
@@ -32,7 +31,7 @@ export class IconBlockComponent {
   readonly size = computed(() => this.sizeInput()?.trim() || 'md');
   readonly color = computed(() => this.colorInput()?.trim() || '');
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly ariaHidden = computed(() => this.ariaHiddenInput() ?? false);
 

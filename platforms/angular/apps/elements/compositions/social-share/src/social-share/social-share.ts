@@ -85,8 +85,7 @@ function createDefaultLinks(pageUrl: string, title: string): readonly SocialLink
 export class SocialShareElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<SocialShareElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<SocialShareElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<SocialShareElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -95,13 +94,13 @@ export class SocialShareElementComponent {
   readonly layoutInput = input<string | undefined>(undefined, { alias: 'layout' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, 'Share'),
+    resolveConfigValue(this.titleInput(), this.config()?.title, 'Share'),
   );
   readonly pageUrl = computed(() =>
-    resolveConfigValue(this.pageUrlInput(), this.configInput()?.pageUrl, ''),
+    resolveConfigValue(this.pageUrlInput(), this.config()?.pageUrl, ''),
   );
   readonly layout = computed<SocialLinksLayout>(() =>
-    normalizeLayout(resolveConfigValue(this.layoutInput(), this.configInput()?.layout, 'row')),
+    normalizeLayout(resolveConfigValue(this.layoutInput(), this.config()?.layout, 'row')),
   );
   readonly links = computed<readonly SocialLinkItem[]>(() => {
     if (this.linksInput() !== undefined) {
@@ -111,7 +110,7 @@ export class SocialShareElementComponent {
       }
     }
 
-    const configLinks = this.configInput()?.links;
+    const configLinks = this.config()?.links;
     if (Array.isArray(configLinks)) {
       return configLinks.map((link) => normalizeLink(link)).filter((link): link is SocialLinkItem => link !== null);
     }

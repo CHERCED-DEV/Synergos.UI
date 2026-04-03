@@ -25,15 +25,14 @@ export class MacroHostComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #mounter = inject(ElementMounter);
 
-  readonly configInput = input<Partial<MacroHostElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<MacroHostElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<MacroHostElementConfig>,
   });
   readonly contentTypeInput = input<string | undefined>(undefined, { alias: 'contentType' });
   readonly contentDataInput = input<string | undefined>(undefined, { alias: 'contentData' });
 
   readonly contentType = computed(() =>
-    resolveConfigValue(this.contentTypeInput(), this.configInput()?.contentType, ''),
+    resolveConfigValue(this.contentTypeInput(), this.config()?.contentType, ''),
   );
   readonly contentData = computed(() =>
     resolveConfigValue(this.contentDataInput(), undefined, ''),
@@ -44,7 +43,7 @@ export class MacroHostComponent implements OnDestroy {
     if (this.contentDataInput() !== undefined) {
       return this.#initialData.parseValue<Record<string, unknown>>(this.contentData()) ?? null;
     }
-    return this.configInput()?.contentData ?? null;
+    return this.config()?.contentData ?? null;
   });
 
   #mountedElement: HTMLElement | null = null;

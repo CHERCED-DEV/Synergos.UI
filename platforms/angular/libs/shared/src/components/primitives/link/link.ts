@@ -62,8 +62,7 @@ export interface LinkConfig {
   styleUrl: './link.scss',
 })
 export class LinkComponent {
-  readonly configInput = input<Partial<LinkConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<LinkConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<LinkConfig>,
   });
   readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
@@ -76,28 +75,28 @@ export class LinkComponent {
   readonly disabledInput = input<boolean | undefined>(undefined, { alias: 'disabled' });
 
   readonly href = computed(() =>
-    resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
+    resolveConfigValue(this.hrefInput(), this.config()?.href, ''),
   );
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'brand'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'brand'),
   );
   readonly underline = computed(() =>
-    resolveConfigValue(this.underlineInput(), this.configInput()?.underline, true),
+    resolveConfigValue(this.underlineInput(), this.config()?.underline, true),
   );
   readonly target = computed(() =>
-    resolveConfigValue(this.targetInput(), this.configInput()?.target, ''),
+    resolveConfigValue(this.targetInput(), this.config()?.target, ''),
   );
   readonly rel = computed(() =>
-    resolveConfigValue(this.relInput(), this.configInput()?.rel, ''),
+    resolveConfigValue(this.relInput(), this.config()?.rel, ''),
   );
   readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+    resolveConfigValue(this.disabledInput(), this.config()?.disabled, false),
   );
 
   readonly activated = output<MouseEvent>();

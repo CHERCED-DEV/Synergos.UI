@@ -90,8 +90,7 @@ export interface OverviewCardConfig {
   styleUrl: './overview-card.scss',
 })
 export class OverviewCardComponent {
-  readonly configInput = input<Partial<OverviewCardConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<OverviewCardConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<OverviewCardConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -115,43 +114,43 @@ export class OverviewCardComponent {
   });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly subtitle = computed(() =>
-    resolveConfigValue(this.subtitleInput(), this.configInput()?.subtitle, ''),
+    resolveConfigValue(this.subtitleInput(), this.config()?.subtitle, ''),
   );
   readonly eyebrow = computed(() =>
-    resolveConfigValue(this.eyebrowInput(), this.configInput()?.eyebrow, ''),
+    resolveConfigValue(this.eyebrowInput(), this.config()?.eyebrow, ''),
   );
   readonly description = computed(() =>
-    resolveConfigValue(this.descriptionInput(), this.configInput()?.description, ''),
+    resolveConfigValue(this.descriptionInput(), this.config()?.description, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
   readonly layout = computed(() =>
-    resolveConfigValue(this.layoutInput(), this.configInput()?.layout, 'split'),
+    resolveConfigValue(this.layoutInput(), this.config()?.layout, 'split'),
   );
   readonly bordered = computed(() =>
-    resolveConfigValue(this.borderedInput(), this.configInput()?.bordered, true),
+    resolveConfigValue(this.borderedInput(), this.config()?.bordered, true),
   );
   readonly elevated = computed(() =>
-    resolveConfigValue(this.elevatedInput(), this.configInput()?.elevated, false),
+    resolveConfigValue(this.elevatedInput(), this.config()?.elevated, false),
   );
   readonly details = computed(() =>
-    resolveConfigArray(this.detailsInput(), this.configInput()?.details),
+    resolveConfigArray(this.detailsInput(), this.config()?.details),
   );
   readonly detailsLayout = computed(() =>
-    resolveConfigValue(this.detailsLayoutInput(), this.configInput()?.detailsLayout, 'stacked'),
+    resolveConfigValue(this.detailsLayoutInput(), this.config()?.detailsLayout, 'stacked'),
   );
   readonly statusLabel = computed(() =>
-    resolveConfigValue(this.statusLabelInput(), this.configInput()?.statusLabel, ''),
+    resolveConfigValue(this.statusLabelInput(), this.config()?.statusLabel, ''),
   );
   readonly statusTone = computed(() =>
-    resolveConfigValue(this.statusToneInput(), this.configInput()?.statusTone, 'neutral'),
+    resolveConfigValue(this.statusToneInput(), this.config()?.statusTone, 'neutral'),
   );
 
   readonly cardClass = computed(() =>

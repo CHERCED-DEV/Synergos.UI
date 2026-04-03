@@ -46,8 +46,7 @@ export interface ProgressConfig {
   },
 })
 export class ProgressComponent {
-  readonly configInput = input<Partial<ProgressConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ProgressConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ProgressConfig>,
   });
   readonly valueInput = input<number | undefined>(undefined, { alias: 'value' });
@@ -62,28 +61,28 @@ export class ProgressComponent {
   });
 
   readonly value = computed(() =>
-    resolveConfigValue(this.valueInput(), this.configInput()?.value, 0),
+    resolveConfigValue(this.valueInput(), this.config()?.value, 0),
   );
   readonly max = computed(() =>
-    resolveConfigValue(this.maxInput(), this.configInput()?.max, 100),
+    resolveConfigValue(this.maxInput(), this.config()?.max, 100),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'brand'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'brand'),
   );
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly showLabel = computed(() =>
-    resolveConfigValue(this.showLabelInput(), this.configInput()?.showLabel, true),
+    resolveConfigValue(this.showLabelInput(), this.config()?.showLabel, true),
   );
   readonly indeterminate = computed(() =>
-    resolveConfigValue(this.indeterminateInput(), this.configInput()?.indeterminate, false),
+    resolveConfigValue(this.indeterminateInput(), this.config()?.indeterminate, false),
   );
 
   readonly safeMax = computed(() => (this.max() > 0 ? this.max() : 100));

@@ -31,8 +31,7 @@ export class AngularHostElementComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<AngularHostElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<AngularHostElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<AngularHostElementConfig>,
   });
   readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
@@ -44,10 +43,10 @@ export class AngularHostElementComponent implements OnDestroy {
   readonly textContentInput = input<string | undefined>(undefined, { alias: 'textContent' });
 
   readonly component = computed(() =>
-    resolveConfigValue(this.componentInput(), this.configInput()?.component, ''),
+    resolveConfigValue(this.componentInput(), this.config()?.component, ''),
   );
   readonly endpoint = computed(() =>
-    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
+    resolveConfigValue(this.endpointInput(), this.config()?.endpoint, ''),
   );
   readonly scriptSrc = computed(() =>
     resolveConfigValue(this.scriptSrcInput(), undefined, ''),
@@ -63,7 +62,7 @@ export class AngularHostElementComponent implements OnDestroy {
       return this.#initialData.parseValue<Record<string, string>>(this.paramsInput()) ?? {};
     }
 
-    return this.configInput()?.params ?? {};
+    return this.config()?.params ?? {};
   });
   readonly #parsedProps = computed<Record<string, unknown>>(() => {
     if (this.propsInput() !== undefined) {

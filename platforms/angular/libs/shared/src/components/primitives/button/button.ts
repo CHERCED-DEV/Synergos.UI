@@ -41,8 +41,7 @@ export interface ButtonConfig {
   styleUrl: './button.scss',
 })
 export class ButtonComponent {
-  readonly configInput = input<Partial<ButtonConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ButtonConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ButtonConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -55,22 +54,22 @@ export class ButtonComponent {
   readonly disabledInput = input<boolean | undefined>(undefined, { alias: 'disabled' });
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'solid'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'solid'),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'),
   );
   readonly type = computed(() =>
-    resolveConfigValue(this.typeInput(), this.configInput()?.type, 'button'),
+    resolveConfigValue(this.typeInput(), this.config()?.type, 'button'),
   );
   readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+    resolveConfigValue(this.disabledInput(), this.config()?.disabled, false),
   );
 
   readonly pressed = output<MouseEvent>();

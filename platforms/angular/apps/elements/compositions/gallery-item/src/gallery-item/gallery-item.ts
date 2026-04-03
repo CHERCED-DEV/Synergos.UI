@@ -10,8 +10,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
   host: { class: 'sg-gallery-item' },
 })
 export class GalleryItemElementComponent {
-  readonly configInput = input<Partial<GalleryItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<GalleryItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<GalleryItemElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -20,13 +19,13 @@ export class GalleryItemElementComponent {
   readonly aspectRatioInput = input<string | undefined>(undefined, { alias: 'aspectRatio' });
 
   readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+    resolveConfigValue(this.srcInput(), this.config()?.src, ''),
   );
   readonly alt = computed(() =>
-    resolveConfigValue(this.altInput(), this.configInput()?.alt, ''),
+    resolveConfigValue(this.altInput(), this.config()?.alt, ''),
   );
   readonly caption = computed(() =>
-    resolveConfigValue(this.captionInput(), this.configInput()?.caption, ''),
+    resolveConfigValue(this.captionInput(), this.config()?.caption, ''),
   );
   readonly aspectRatio = computed(() => this.aspectRatioInput()?.trim() || '4 / 3');
   readonly hasCaption = computed(() => this.caption().trim().length > 0);

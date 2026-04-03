@@ -26,8 +26,7 @@ function resolveSpaceToken(value: string): string {
   host: { class: 'sg-spacer' },
 })
 export class SpacerComponent {
-  readonly configInput = input<Partial<SpacerElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<SpacerElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<SpacerElementConfig>,
   });
   readonly sizeInput = input<string | undefined>(undefined, { alias: 'size' });

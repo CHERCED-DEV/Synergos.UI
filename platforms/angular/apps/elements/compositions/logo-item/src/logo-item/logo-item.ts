@@ -11,8 +11,7 @@ import { LinkComponent, coerceConfigInput, resolveConfigValue } from '@synergos/
   host: { class: 'sg-logo-item' },
 })
 export class LogoItemElementComponent {
-  readonly configInput = input<Partial<LogoItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<LogoItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<LogoItemElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -22,19 +21,19 @@ export class LogoItemElementComponent {
   readonly targetInput = input<string | undefined>(undefined, { alias: 'target' });
 
   readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+    resolveConfigValue(this.srcInput(), this.config()?.src, ''),
   );
   readonly alt = computed(() =>
-    resolveConfigValue(this.altInput(), this.configInput()?.alt, ''),
+    resolveConfigValue(this.altInput(), this.config()?.alt, ''),
   );
   readonly href = computed(() =>
-    resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
+    resolveConfigValue(this.hrefInput(), this.config()?.href, ''),
   );
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly target = computed(() =>
-    resolveConfigValue(this.targetInput(), this.configInput()?.target, '_self'),
+    resolveConfigValue(this.targetInput(), this.config()?.target, '_self'),
   );
   readonly hasHref = computed(() => this.href().trim().length > 0);
   readonly hasImage = computed(() => this.src().trim().length > 0);

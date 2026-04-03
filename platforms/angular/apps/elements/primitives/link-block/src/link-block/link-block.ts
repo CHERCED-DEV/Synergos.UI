@@ -13,8 +13,7 @@ type LinkTone = 'brand' | 'neutral' | 'inverse';
   host: { class: 'sg-link-block' },
 })
 export class LinkBlockComponent {
-  readonly configInput = input<Partial<LinkBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<LinkBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<LinkBlockElementConfig>,
   });
   readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
@@ -24,16 +23,16 @@ export class LinkBlockComponent {
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
 
   readonly href = computed(() =>
-    resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
+    resolveConfigValue(this.hrefInput(), this.config()?.href, ''),
   );
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly target = computed(() =>
-    resolveConfigValue(this.targetInput(), this.configInput()?.target, '_self'),
+    resolveConfigValue(this.targetInput(), this.config()?.target, '_self'),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly variant = computed(() => this.variantInput()?.trim() || 'default');
 

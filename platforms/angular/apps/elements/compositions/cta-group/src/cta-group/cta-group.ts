@@ -11,8 +11,7 @@ import { ButtonComponent, coerceConfigInput, resolveConfigValue } from '@synergo
   host: { class: 'sg-cta-group' },
 })
 export class CtaGroupComponent {
-  readonly configInput = input<Partial<CtaGroupElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<CtaGroupElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<CtaGroupElementConfig>,
   });
   readonly primaryLabelInput = input<string | undefined>(undefined, { alias: 'primaryLabel' });
@@ -26,31 +25,31 @@ export class CtaGroupComponent {
   readonly alignmentInput = input<string | undefined>(undefined, { alias: 'alignment' });
 
   readonly primaryLabel = computed(() =>
-    resolveConfigValue(this.primaryLabelInput(), this.configInput()?.primaryLabel, ''),
+    resolveConfigValue(this.primaryLabelInput(), this.config()?.primaryLabel, ''),
   );
   readonly primaryUrl = computed(() =>
-    resolveConfigValue(this.primaryUrlInput(), this.configInput()?.primaryUrl, ''),
+    resolveConfigValue(this.primaryUrlInput(), this.config()?.primaryUrl, ''),
   );
   readonly primaryTarget = computed(() =>
-    resolveConfigValue(this.primaryTargetInput(), this.configInput()?.primaryTarget, '_self'),
+    resolveConfigValue(this.primaryTargetInput(), this.config()?.primaryTarget, '_self'),
   );
   readonly primaryVariant = computed(() =>
-    resolveConfigValue(this.primaryVariantInput(), this.configInput()?.primaryVariant, 'solid'),
+    resolveConfigValue(this.primaryVariantInput(), this.config()?.primaryVariant, 'solid'),
   );
   readonly secondaryLabel = computed(() =>
-    resolveConfigValue(this.secondaryLabelInput(), this.configInput()?.secondaryLabel, ''),
+    resolveConfigValue(this.secondaryLabelInput(), this.config()?.secondaryLabel, ''),
   );
   readonly secondaryUrl = computed(() =>
-    resolveConfigValue(this.secondaryUrlInput(), this.configInput()?.secondaryUrl, ''),
+    resolveConfigValue(this.secondaryUrlInput(), this.config()?.secondaryUrl, ''),
   );
   readonly secondaryTarget = computed(() =>
-    resolveConfigValue(this.secondaryTargetInput(), this.configInput()?.secondaryTarget, '_self'),
+    resolveConfigValue(this.secondaryTargetInput(), this.config()?.secondaryTarget, '_self'),
   );
   readonly secondaryVariant = computed(() =>
-    resolveConfigValue(this.secondaryVariantInput(), this.configInput()?.secondaryVariant, 'outline'),
+    resolveConfigValue(this.secondaryVariantInput(), this.config()?.secondaryVariant, 'outline'),
   );
   readonly alignment = computed(() =>
-    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'left'),
+    resolveConfigValue(this.alignmentInput(), this.config()?.alignment, 'left'),
   );
 
   readonly hasPrimary = computed(() => !!this.primaryLabel() && !!this.primaryUrl());

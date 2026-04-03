@@ -58,8 +58,7 @@ function normalizeItem(value: unknown): LogoCloudItem | null {
 export class LogoCloudElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<LogoCloudElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<LogoCloudElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<LogoCloudElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -73,19 +72,19 @@ export class LogoCloudElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly columns = computed(() =>
     resolveConfigValue(this.columnsInput(), undefined, 4),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly parsedItems = computed<readonly LogoCloudItem[]>(() => {
     if (this.itemsInput() !== undefined) {
@@ -99,7 +98,7 @@ export class LogoCloudElementComponent {
         .filter((item): item is LogoCloudItem => item !== null);
     }
 
-    const configItems = this.configInput()?.items;
+    const configItems = this.config()?.items;
     if (Array.isArray(configItems)) {
       return (configItems as unknown[])
         .map((item) => normalizeItem(item))
@@ -121,7 +120,7 @@ export class LogoCloudElementComponent {
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.config() !== undefined)) {
           console.warn('[synergos-logo-cloud] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
         }
       });

@@ -22,8 +22,7 @@ import type { FeatureJourneyConfig } from '../infrastructure/feature-journey.con
 export class FeatureJourneyComponent {
   readonly #state = new JourneyState();
 
-  readonly configInput = input<Partial<FeatureJourneyConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<FeatureJourneyConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<FeatureJourneyConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -32,16 +31,16 @@ export class FeatureJourneyComponent {
   readonly elementIdInput = input<string | undefined>(undefined, { alias: 'elementId' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly elementId = computed(() =>
-    resolveConfigValue(this.elementIdInput(), this.configInput()?.elementId, ''),
+    resolveConfigValue(this.elementIdInput(), this.config()?.elementId, ''),
   );
 
   readonly steps = this.#state.steps;

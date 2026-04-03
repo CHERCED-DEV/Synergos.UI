@@ -77,8 +77,7 @@ let accordionId = 0;
   styleUrl: './accordion.scss',
 })
 export class AccordionComponent implements OnInit {
-  readonly configInput = input<Partial<AccordionConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<AccordionConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<AccordionConfig>,
   });
   readonly idInput = input<string | undefined>(undefined, { alias: 'id' });
@@ -92,29 +91,29 @@ export class AccordionComponent implements OnInit {
   readonly toneInput = input<'neutral' | 'brand' | undefined>(undefined, { alias: 'tone' });
 
   readonly id = computed(() =>
-    resolveConfigValue(this.idInput(), this.configInput()?.id, ''),
+    resolveConfigValue(this.idInput(), this.config()?.id, ''),
   );
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly description = computed(() =>
-    resolveConfigValue(this.descriptionInput(), this.configInput()?.description, ''),
+    resolveConfigValue(this.descriptionInput(), this.config()?.description, ''),
   );
   readonly collapsible = computed(() =>
-    resolveConfigValue(this.collapsibleInput(), this.configInput()?.collapsible, true),
+    resolveConfigValue(this.collapsibleInput(), this.config()?.collapsible, true),
   );
   readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+    resolveConfigValue(this.disabledInput(), this.config()?.disabled, false),
   );
   readonly initiallyExpanded = computed(() =>
     resolveConfigValue(
       this.initiallyExpandedInput(),
-      this.configInput()?.initiallyExpanded,
+      this.config()?.initiallyExpanded,
       false,
     ),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
 
   readonly #expanded = signal(false);

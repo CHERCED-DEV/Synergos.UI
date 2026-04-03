@@ -26,8 +26,7 @@ function resolveSpaceToken(value: string): string {
   host: { class: 'sg-column' },
 })
 export class ColumnComponent {
-  readonly configInput = input<Partial<ColumnElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ColumnElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ColumnElementConfig>,
   });
   readonly widthInput = input<string | undefined>(undefined, { alias: 'width' });
@@ -44,10 +43,10 @@ export class ColumnComponent {
   readonly padding = computed(() => this.paddingInput()?.trim() || 'md');
   readonly gap = computed(() => this.gapInput()?.trim() || 'md');
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly resolvedPadding = computed(() => resolveSpaceToken(this.padding()));

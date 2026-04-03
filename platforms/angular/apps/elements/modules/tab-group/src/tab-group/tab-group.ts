@@ -56,8 +56,7 @@ function normalizeTab(value: unknown): TabGroupTabItem | null {
 export class TabGroupElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<TabGroupElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<TabGroupElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<TabGroupElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -68,19 +67,19 @@ export class TabGroupElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly activeId = computed(() =>
     resolveConfigValue(this.activeIdInput(), undefined, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, 'Tabs'),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, 'Tabs'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly parsedTabs = computed<readonly TabGroupTabItem[]>(() => {
     if (this.tabsInput() !== undefined) {

@@ -27,8 +27,7 @@ function resolveButtonSize(value: string): ButtonSize {
   host: { class: 'sg-button-container' },
 })
 export class ButtonContainerComponent {
-  readonly configInput = input<Partial<ButtonContainerElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ButtonContainerElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ButtonContainerElementConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -42,7 +41,7 @@ export class ButtonContainerComponent {
   });
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), undefined, 'solid'),
@@ -51,10 +50,10 @@ export class ButtonContainerComponent {
     resolveConfigValue(this.sizeInput(), undefined, 'md'),
   );
   readonly href = computed(() =>
-    resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
+    resolveConfigValue(this.hrefInput(), this.config()?.href, ''),
   );
   readonly target = computed(() =>
-    resolveConfigValue(this.targetInput(), this.configInput()?.target, '_self'),
+    resolveConfigValue(this.targetInput(), this.config()?.target, '_self'),
   );
   readonly disabled = computed(() =>
     resolveConfigValue(this.disabledInput(), undefined, false),

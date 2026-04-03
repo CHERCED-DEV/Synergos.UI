@@ -27,8 +27,7 @@ export class MfHostElementComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<MfHostElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<MfHostElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<MfHostElementConfig>,
   });
   readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
@@ -43,22 +42,22 @@ export class MfHostElementComponent implements OnDestroy {
   readonly component = computed(() =>
     resolveConfigValue(
       this.componentInput(),
-      this.configInput()?.exposedModule,
+      this.config()?.exposedModule,
       '',
     ),
   );
   readonly endpoint = computed(() =>
-    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
+    resolveConfigValue(this.endpointInput(), this.config()?.endpoint, ''),
   );
   readonly scriptSrc = computed(() =>
     resolveConfigValue(
       this.scriptSrcInput(),
-      this.configInput()?.remoteEntry,
-      resolveConfigValue(this.remoteEntryInput(), this.configInput()?.remoteEntry, ''),
+      this.config()?.remoteEntry,
+      resolveConfigValue(this.remoteEntryInput(), this.config()?.remoteEntry, ''),
     ),
   );
   readonly exposedModule = computed(() =>
-    resolveConfigValue(this.exposedModuleInput(), this.configInput()?.exposedModule, ''),
+    resolveConfigValue(this.exposedModuleInput(), this.config()?.exposedModule, ''),
   );
   readonly #legacyTagName = computed(() =>
     resolveConfigValue(this.tagNameInput(), undefined, ''),
@@ -68,7 +67,7 @@ export class MfHostElementComponent implements OnDestroy {
       return this.#initialData.parseValue<Record<string, string>>(this.paramsInput()) ?? {};
     }
 
-    return this.configInput()?.params ?? {};
+    return this.config()?.params ?? {};
   });
   readonly #parsedProps = computed<Record<string, unknown>>(() => {
     if (this.propsInput() !== undefined) {

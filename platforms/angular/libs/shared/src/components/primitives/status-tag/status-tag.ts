@@ -30,8 +30,7 @@ export interface StatusTagConfig {
   styleUrl: './status-tag.scss',
 })
 export class StatusTagComponent {
-  readonly configInput = input<Partial<StatusTagConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<StatusTagConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<StatusTagConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -39,13 +38,13 @@ export class StatusTagComponent {
   readonly styleInput = input<StatusTagStyle | undefined>(undefined, { alias: 'style' });
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
   readonly style = computed(() =>
-    resolveConfigValue(this.styleInput(), this.configInput()?.style, 'outline'),
+    resolveConfigValue(this.styleInput(), this.config()?.style, 'outline'),
   );
 
   tagClass(): string {

@@ -21,8 +21,7 @@ function resolveGridGap(value: string): GridColumnsGap {
   host: { class: 'sg-grid' },
 })
 export class GridComponent {
-  readonly configInput = input<Partial<GridElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<GridElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<GridElementConfig>,
   });
   readonly columnsInput = input<number | undefined, unknown>(undefined, {
@@ -38,10 +37,10 @@ export class GridComponent {
   readonly gap = computed(() => this.gapInput()?.trim() || 'md');
   readonly minColumnWidth = computed(() => this.minColumnWidthInput()?.trim() || '');
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly resolvedColumns = computed(() =>

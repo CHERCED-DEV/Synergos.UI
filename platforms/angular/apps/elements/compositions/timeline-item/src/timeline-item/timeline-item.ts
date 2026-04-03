@@ -18,8 +18,7 @@ import {
   host: { class: 'sg-timeline-item' },
 })
 export class TimelineItemElementComponent {
-  readonly configInput = input<Partial<TimelineItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<TimelineItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<TimelineItemElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -29,19 +28,19 @@ export class TimelineItemElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly date = computed(() =>
-    resolveConfigValue(this.dateInput(), this.configInput()?.date, ''),
+    resolveConfigValue(this.dateInput(), this.config()?.date, ''),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly hasDate = computed(() => this.date().trim().length > 0);
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));

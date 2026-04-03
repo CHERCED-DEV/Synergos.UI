@@ -32,8 +32,7 @@ export interface IconConfig {
   styleUrl: './icon.scss',
 })
 export class IconComponent {
-  readonly configInput = input<Partial<IconConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<IconConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<IconConfig>,
   });
   readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });
@@ -44,22 +43,22 @@ export class IconComponent {
   readonly decorativeInput = input<boolean | undefined>(undefined, { alias: 'decorative' });
 
   readonly name = computed(() =>
-    resolveConfigValue(this.nameInput(), this.configInput()?.name, ''),
+    resolveConfigValue(this.nameInput(), this.config()?.name, ''),
   );
   readonly symbol = computed(() =>
-    resolveConfigValue(this.symbolInput(), this.configInput()?.symbol, ''),
+    resolveConfigValue(this.symbolInput(), this.config()?.symbol, ''),
   );
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
   readonly decorative = computed(() =>
-    resolveConfigValue(this.decorativeInput(), this.configInput()?.decorative, true),
+    resolveConfigValue(this.decorativeInput(), this.config()?.decorative, true),
   );
 
   iconClass(): string {

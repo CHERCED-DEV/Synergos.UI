@@ -57,8 +57,7 @@ function normalizeTestimonialItem(value: unknown): TestimonialItem | null {
 export class TestimonialSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<TestimonialSectionElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<TestimonialSectionElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<TestimonialSectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -66,10 +65,10 @@ export class TestimonialSectionComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly parsedItems = computed<readonly TestimonialItem[]>(() => {
@@ -85,7 +84,7 @@ export class TestimonialSectionComponent {
         .filter((item): item is TestimonialItem => item !== null);
     }
 
-    const configItems = this.configInput()?.items;
+    const configItems = this.config()?.items;
     if (Array.isArray(configItems)) {
       return (configItems as unknown[])
         .map((item) => normalizeTestimonialItem(item))
@@ -101,7 +100,7 @@ export class TestimonialSectionComponent {
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.config() !== undefined)) {
           console.warn('[synergos-testimonial-section] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
         }
       });

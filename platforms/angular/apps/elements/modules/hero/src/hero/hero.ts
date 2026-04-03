@@ -25,8 +25,7 @@ function resolveHeroHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-hero' },
 })
 export class HeroComponent {
-  readonly configInput = input<Partial<HeroElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<HeroElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<HeroElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -41,34 +40,34 @@ export class HeroComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly headingLevel = computed(() =>
-    resolveConfigValue(this.headingLevelInput(), this.configInput()?.headingLevel, 'h1'),
+    resolveConfigValue(this.headingLevelInput(), this.config()?.headingLevel, 'h1'),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly imageSrc = computed(() =>
-    resolveConfigValue(this.imageSrcInput(), this.configInput()?.imageSrc, ''),
+    resolveConfigValue(this.imageSrcInput(), this.config()?.imageSrc, ''),
   );
   readonly imageAlt = computed(() =>
-    resolveConfigValue(this.imageAltInput(), this.configInput()?.imageAlt, ''),
+    resolveConfigValue(this.imageAltInput(), this.config()?.imageAlt, ''),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
   );
   readonly ctaUrl = computed(() =>
-    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+    resolveConfigValue(this.ctaUrlInput(), this.config()?.ctaUrl, ''),
   );
   readonly ctaTarget = computed(() =>
-    resolveConfigValue(this.ctaTargetInput(), this.configInput()?.ctaTarget, '_self'),
+    resolveConfigValue(this.ctaTargetInput(), this.config()?.ctaTarget, '_self'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hasImage = computed(() => this.imageSrc().trim().length > 0);

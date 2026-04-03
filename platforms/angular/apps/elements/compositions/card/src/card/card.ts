@@ -19,8 +19,7 @@ import {
   host: { class: 'sg-card' },
 })
 export class CardComponent {
-  readonly configInput = input<Partial<CardElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<CardElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<CardElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -36,37 +35,37 @@ export class CardComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly subtitle = computed(() =>
-    resolveConfigValue(this.subtitleInput(), this.configInput()?.subtitle, ''),
+    resolveConfigValue(this.subtitleInput(), this.config()?.subtitle, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly imageSrc = computed(() =>
-    resolveConfigValue(this.imageSrcInput(), this.configInput()?.imageSrc, ''),
+    resolveConfigValue(this.imageSrcInput(), this.config()?.imageSrc, ''),
   );
   readonly imageAlt = computed(() =>
-    resolveConfigValue(this.imageAltInput(), this.configInput()?.imageAlt, ''),
+    resolveConfigValue(this.imageAltInput(), this.config()?.imageAlt, ''),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
   );
   readonly ctaUrl = computed(() =>
-    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+    resolveConfigValue(this.ctaUrlInput(), this.config()?.ctaUrl, ''),
   );
   readonly badgeText = computed(() =>
-    resolveConfigValue(this.badgeTextInput(), this.configInput()?.badgeText, ''),
+    resolveConfigValue(this.badgeTextInput(), this.config()?.badgeText, ''),
   );
   readonly badgeType = computed(() =>
-    resolveConfigValue(this.badgeTypeInput(), this.configInput()?.badgeType, ''),
+    resolveConfigValue(this.badgeTypeInput(), this.config()?.badgeType, ''),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hasImage = computed(() => this.imageSrc().trim().length > 0);

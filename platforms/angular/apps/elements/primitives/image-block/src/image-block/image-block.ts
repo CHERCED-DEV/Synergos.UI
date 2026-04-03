@@ -11,8 +11,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
   host: { class: 'sg-image-block' },
 })
 export class ImageBlockComponent {
-  readonly configInput = input<Partial<ImageBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ImageBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ImageBlockElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -22,10 +21,10 @@ export class ImageBlockComponent {
   readonly loadingInput = input<string | undefined>(undefined, { alias: 'loading' });
 
   readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+    resolveConfigValue(this.srcInput(), this.config()?.src, ''),
   );
   readonly alt = computed(() =>
-    resolveConfigValue(this.altInput(), this.configInput()?.alt, ''),
+    resolveConfigValue(this.altInput(), this.config()?.alt, ''),
   );
   readonly caption = computed(() => this.captionInput()?.trim() || '');
   readonly aspectRatio = computed(() => this.aspectRatioInput()?.trim() || 'auto');

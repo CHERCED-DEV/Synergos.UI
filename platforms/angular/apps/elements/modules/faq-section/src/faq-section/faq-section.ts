@@ -54,8 +54,7 @@ function normalizeFaqItem(value: unknown): FaqItem | null {
 export class FaqSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<FaqSectionElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<FaqSectionElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<FaqSectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -63,10 +62,10 @@ export class FaqSectionComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly parsedItems = computed<readonly FaqItem[]>(() => {
@@ -82,7 +81,7 @@ export class FaqSectionComponent {
         .filter((item): item is FaqItem => item !== null);
     }
 
-    const configItems = this.configInput()?.items;
+    const configItems = this.config()?.items;
     if (Array.isArray(configItems)) {
       return (configItems as unknown[])
         .map((item) => normalizeFaqItem(item))
@@ -98,7 +97,7 @@ export class FaqSectionComponent {
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.config() !== undefined)) {
           console.warn('[synergos-faq-section] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
         }
       });

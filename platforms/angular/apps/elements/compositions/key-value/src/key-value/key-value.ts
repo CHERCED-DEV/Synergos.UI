@@ -16,8 +16,7 @@ import {
   host: { class: 'sg-key-value' },
 })
 export class KeyValueElementComponent {
-  readonly configInput = input<Partial<KeyValueElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<KeyValueElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<KeyValueElementConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -26,16 +25,16 @@ export class KeyValueElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
+    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
   readonly value = computed(() =>
-    resolveConfigValue(this.valueInput(), this.configInput()?.value, ''),
+    resolveConfigValue(this.valueInput(), this.config()?.value, ''),
   );
   readonly helpText = computed(() =>
-    resolveConfigValue(this.helpTextInput(), this.configInput()?.helpText, ''),
+    resolveConfigValue(this.helpTextInput(), this.config()?.helpText, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly items = computed<readonly DescriptionListItem[]>(() => {

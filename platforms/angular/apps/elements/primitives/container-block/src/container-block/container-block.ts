@@ -11,8 +11,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
   host: { class: 'sg-container-block' },
 })
 export class ContainerBlockComponent {
-  readonly configInput = input<Partial<ContainerBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ContainerBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ContainerBlockElementConfig>,
   });
   readonly elementIdInput = input<string | undefined>(undefined, { alias: 'elementId' });
@@ -24,10 +23,10 @@ export class ContainerBlockComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly elementId = computed(() =>
-    resolveConfigValue(this.elementIdInput(), this.configInput()?.elementId, ''),
+    resolveConfigValue(this.elementIdInput(), this.config()?.elementId, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly containerType = computed(() =>
     resolveConfigValue(this.containerTypeInput(), undefined, 'default'),
@@ -39,10 +38,10 @@ export class ContainerBlockComponent {
     resolveConfigValue(this.paddingInput(), undefined, 'md'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hostClasses = computed(() =>

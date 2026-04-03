@@ -27,8 +27,7 @@ function resolveSpaceToken(value: string): string {
   host: { class: 'sg-divider' },
 })
 export class DividerComponent {
-  readonly configInput = input<Partial<DividerElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<DividerElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<DividerElementConfig>,
   });
   readonly orientationInput = input<string | undefined>(undefined, { alias: 'orientation' });
@@ -39,10 +38,10 @@ export class DividerComponent {
   readonly orientation = computed(() => this.orientationInput()?.trim() || 'horizontal');
   readonly inset = computed(() => this.insetInput()?.trim() || 'none');
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly resolvedInset = computed(() => resolveSpaceToken(this.inset()));

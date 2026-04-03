@@ -26,8 +26,7 @@ function resolveSectionHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-section' },
 })
 export class SectionComponent {
-  readonly configInput = input<Partial<SectionElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<SectionElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<SectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -50,10 +49,10 @@ export class SectionComponent {
   readonly padding = computed(() => this.paddingInput()?.trim() || '');
   readonly gap = computed(() => this.gapInput()?.trim() || '1rem');
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hasHeading = computed(() => this.headingText().trim().length > 0);

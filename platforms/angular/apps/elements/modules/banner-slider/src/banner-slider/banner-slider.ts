@@ -80,8 +80,7 @@ export class BannerSliderElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #activeIndex = signal(0);
 
-  readonly configInput = input<Partial<BannerSliderElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<BannerSliderElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<BannerSliderElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -99,10 +98,10 @@ export class BannerSliderElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly autoplay = computed(() =>
     resolveConfigValue(this.autoplayInput(), undefined, false),
@@ -111,10 +110,10 @@ export class BannerSliderElementComponent {
     resolveConfigValue(this.loopInput(), undefined, true),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly parsedItems = computed<readonly BannerSlideItem[]>(() => {
     if (this.itemsInput() !== undefined) {
@@ -128,7 +127,7 @@ export class BannerSliderElementComponent {
         .filter((item): item is BannerSlideItem => item !== null);
     }
 
-    const configSlides = this.configInput()?.slides;
+    const configSlides = this.config()?.slides;
     if (Array.isArray(configSlides)) {
       return (configSlides as unknown[])
         .map((item, index) => normalizeSlide(item, index))
@@ -164,7 +163,7 @@ export class BannerSliderElementComponent {
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.hasSlides() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+        if (!this.hasSlides() && (this.itemsInput() !== undefined || this.config() !== undefined)) {
           console.warn('[synergos-banner-slider] Slides resolved to empty. Check your "items" attribute or "config.slides" array format.');
         }
       });

@@ -55,8 +55,7 @@ function normalizeFeatureGridItem(value: unknown): FeatureGridItem | null {
 export class FeatureGridComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<FeatureGridElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<FeatureGridElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<FeatureGridElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -69,16 +68,16 @@ export class FeatureGridComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly columns = computed(() =>
     resolveConfigValue(this.columnsInput(), undefined, 3),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
 
   readonly parsedItems = computed<readonly FeatureGridItem[]>(() => {
@@ -94,7 +93,7 @@ export class FeatureGridComponent {
         .filter((item): item is FeatureGridItem => item !== null);
     }
 
-    const configItems = this.configInput()?.items;
+    const configItems = this.config()?.items;
     if (Array.isArray(configItems)) {
       return (configItems as unknown[])
         .map((item) => normalizeFeatureGridItem(item))
@@ -111,7 +110,7 @@ export class FeatureGridComponent {
   constructor() {
     if (isDevMode()) {
       effect(() => {
-        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.config() !== undefined)) {
           console.warn('[synergos-feature-grid] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
         }
       });

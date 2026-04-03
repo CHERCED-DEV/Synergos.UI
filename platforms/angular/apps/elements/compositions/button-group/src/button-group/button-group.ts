@@ -81,8 +81,7 @@ function normalizeButtonGroupItem(value: unknown): ButtonGroupItem | null {
 export class ButtonGroupComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<ButtonGroupElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ButtonGroupElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ButtonGroupElementConfig>,
   });
   readonly buttonsInput = input<string | undefined>(undefined, { alias: 'buttons' });
@@ -91,13 +90,13 @@ export class ButtonGroupComponent {
   readonly directionInput = input<string | undefined>(undefined, { alias: 'direction' });
 
   readonly alignment = computed(() =>
-    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'left'),
+    resolveConfigValue(this.alignmentInput(), this.config()?.alignment, 'left'),
   );
   readonly gap = computed(() =>
-    resolveConfigValue(this.gapInput(), this.configInput()?.gap, 'sm'),
+    resolveConfigValue(this.gapInput(), this.config()?.gap, 'sm'),
   );
   readonly direction = computed(() =>
-    resolveConfigValue(this.directionInput(), this.configInput()?.direction, 'row'),
+    resolveConfigValue(this.directionInput(), this.config()?.direction, 'row'),
   );
 
   readonly parsedButtons = computed<readonly ButtonGroupItem[]>(() => {
@@ -113,7 +112,7 @@ export class ButtonGroupComponent {
         .filter((item): item is ButtonGroupItem => item !== null);
     }
 
-    const configItems = this.configInput()?.items;
+    const configItems = this.config()?.items;
     if (Array.isArray(configItems)) {
       return configItems
         .map((item) => normalizeButtonGroupItem(item))

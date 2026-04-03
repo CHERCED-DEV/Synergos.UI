@@ -24,8 +24,7 @@ import type { InsightExplorerConfig } from '../infrastructure/insight-explorer.c
 export class InsightExplorerComponent {
   readonly #state = new InsightState();
 
-  readonly configInput = input<Partial<InsightExplorerConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<InsightExplorerConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<InsightExplorerConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -35,16 +34,16 @@ export class InsightExplorerComponent {
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly elementId = computed(() =>
-    resolveConfigValue(this.elementIdInput(), this.configInput()?.elementId, ''),
+    resolveConfigValue(this.elementIdInput(), this.config()?.elementId, ''),
   );
 
   readonly items = this.#state.items;

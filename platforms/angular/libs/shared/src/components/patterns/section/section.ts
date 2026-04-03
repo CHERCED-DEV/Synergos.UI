@@ -99,8 +99,7 @@ export class SectionComponent implements OnInit {
   readonly #announcer = inject(LiveAnnouncerService);
   readonly #collapsed = signal(false);
 
-  readonly configInput = input<Partial<SectionConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<SectionConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<SectionConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -119,46 +118,46 @@ export class SectionComponent implements OnInit {
   readonly paddingInput = input<SectionPadding | undefined>(undefined, { alias: 'padding' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly subtitle = computed(() =>
-    resolveConfigValue(this.subtitleInput(), this.configInput()?.subtitle, ''),
+    resolveConfigValue(this.subtitleInput(), this.config()?.subtitle, ''),
   );
   readonly eyebrow = computed(() =>
-    resolveConfigValue(this.eyebrowInput(), this.configInput()?.eyebrow, ''),
+    resolveConfigValue(this.eyebrowInput(), this.config()?.eyebrow, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly collapsible = computed(() =>
-    resolveConfigValue(this.collapsibleInput(), this.configInput()?.collapsible, false),
+    resolveConfigValue(this.collapsibleInput(), this.config()?.collapsible, false),
   );
   readonly defaultCollapsed = computed(() =>
     resolveConfigValue(
       this.defaultCollapsedInput(),
-      this.configInput()?.defaultCollapsed,
+      this.config()?.defaultCollapsed,
       false,
     ),
   );
   readonly collapseLabel = computed(() =>
     resolveConfigValue(
       this.collapseLabelInput(),
-      this.configInput()?.collapseLabel,
+      this.config()?.collapseLabel,
       'Collapse section',
     ),
   );
   readonly expandLabel = computed(() =>
     resolveConfigValue(
       this.expandLabelInput(),
-      this.configInput()?.expandLabel,
+      this.config()?.expandLabel,
       'Expand section',
     ),
   );
   readonly divider = computed(() =>
-    resolveConfigValue(this.dividerInput(), this.configInput()?.divider, true),
+    resolveConfigValue(this.dividerInput(), this.config()?.divider, true),
   );
   readonly padding = computed(() =>
-    resolveConfigValue(this.paddingInput(), this.configInput()?.padding, 'md'),
+    resolveConfigValue(this.paddingInput(), this.config()?.padding, 'md'),
   );
 
   readonly collapsed = this.#collapsed.asReadonly();

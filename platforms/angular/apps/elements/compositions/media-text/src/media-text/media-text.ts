@@ -18,8 +18,7 @@ import {
   host: { class: 'sg-media-text' },
 })
 export class MediaTextComponent {
-  readonly configInput = input<Partial<MediaTextElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<MediaTextElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<MediaTextElementConfig>,
   });
   readonly imageSrcInput = input<string | undefined>(undefined, { alias: 'imageSrc' });
@@ -34,34 +33,34 @@ export class MediaTextComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly imageSrc = computed(() =>
-    resolveConfigValue(this.imageSrcInput(), this.configInput()?.imageSrc, ''),
+    resolveConfigValue(this.imageSrcInput(), this.config()?.imageSrc, ''),
   );
   readonly imageAlt = computed(() =>
-    resolveConfigValue(this.imageAltInput(), this.configInput()?.imageAlt, ''),
+    resolveConfigValue(this.imageAltInput(), this.config()?.imageAlt, ''),
   );
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
   );
   readonly ctaUrl = computed(() =>
-    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+    resolveConfigValue(this.ctaUrlInput(), this.config()?.ctaUrl, ''),
   );
   readonly ctaTarget = computed(() =>
-    resolveConfigValue(this.ctaTargetInput(), this.configInput()?.ctaTarget, '_self'),
+    resolveConfigValue(this.ctaTargetInput(), this.config()?.ctaTarget, '_self'),
   );
   readonly mediaPosition = computed(() =>
-    resolveConfigValue(this.mediaPositionInput(), this.configInput()?.mediaPosition, 'left'),
+    resolveConfigValue(this.mediaPositionInput(), this.config()?.mediaPosition, 'left'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);

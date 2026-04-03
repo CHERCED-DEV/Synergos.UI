@@ -42,8 +42,7 @@ export class ScriptEmbedElementComponent {
   readonly #scriptService = inject(ScriptService);
   readonly #loaded = signal(false);
 
-  readonly configInput = input<Partial<ScriptEmbedElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ScriptEmbedElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ScriptEmbedElementConfig>,
   });
   readonly scriptTypeInput = input<string | undefined>(undefined, { alias: 'scriptType' });
@@ -64,14 +63,14 @@ export class ScriptEmbedElementComponent {
   readonly scriptType = computed(() =>
     resolveConfigValue(
       this.scriptTypeInput(),
-      this.configInput()?.scriptType,
+      this.config()?.scriptType,
       resolveConfigValue(this.typeInput(), undefined, 'text/javascript'),
     ),
   );
   readonly content = computed(() =>
     resolveConfigValue(
       this.contentInput(),
-      this.configInput()?.content,
+      this.config()?.content,
       resolveConfigValue(this.inlineScriptInput(), undefined, resolveConfigValue(this.srcInput(), undefined, '')),
     ),
   );

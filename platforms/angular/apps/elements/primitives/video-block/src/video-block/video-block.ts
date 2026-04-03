@@ -14,8 +14,7 @@ import {
   host: { class: 'sg-video-block' },
 })
 export class VideoBlockComponent {
-  readonly configInput = input<Partial<VideoBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<VideoBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<VideoBlockElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -39,10 +38,10 @@ export class VideoBlockComponent {
   });
 
   readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+    resolveConfigValue(this.srcInput(), this.config()?.src, ''),
   );
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly poster = computed(() => this.posterInput()?.trim() || '');
   readonly controls = computed(() => this.controlsInput() ?? true);

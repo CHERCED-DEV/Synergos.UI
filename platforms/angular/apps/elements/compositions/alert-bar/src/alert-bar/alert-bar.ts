@@ -23,8 +23,7 @@ function resolveTone(value: string | undefined): AlertTone {
   host: { class: 'sg-alert-bar' },
 })
 export class AlertBarElementComponent {
-  readonly configInput = input<Partial<AlertBarElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<AlertBarElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<AlertBarElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -40,25 +39,25 @@ export class AlertBarElementComponent {
   });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly description = computed(() =>
-    resolveConfigValue(this.descriptionInput(), this.configInput()?.description, ''),
+    resolveConfigValue(this.descriptionInput(), this.config()?.description, ''),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
   );
   readonly ctaUrl = computed(() =>
-    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+    resolveConfigValue(this.ctaUrlInput(), this.config()?.ctaUrl, ''),
   );
   readonly tone = computed<AlertTone>(() =>
-    resolveTone(resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'neutral')),
+    resolveTone(resolveConfigValue(this.variantInput(), this.config()?.variant, 'neutral')),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly dismissible = computed(() =>
-    resolveConfigValue(this.dismissibleInput(), this.configInput()?.dismissible, true),
+    resolveConfigValue(this.dismissibleInput(), this.config()?.dismissible, true),
   );
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
   readonly hostClasses = computed(() => `sg-alert-bar--${this.theme()}`);

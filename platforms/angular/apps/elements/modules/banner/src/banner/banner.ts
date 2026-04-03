@@ -18,8 +18,7 @@ import {
   host: { class: 'sg-banner' },
 })
 export class BannerComponent {
-  readonly configInput = input<Partial<BannerElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<BannerElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<BannerElementConfig>,
   });
   readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });
@@ -40,10 +39,10 @@ export class BannerComponent {
     resolveConfigValue(this.eyebrowInput(), undefined, ''),
   );
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly imageSrc = computed(() =>
     resolveConfigValue(this.imageSrcInput(), undefined, ''),
@@ -52,13 +51,13 @@ export class BannerComponent {
     resolveConfigValue(this.imageAltInput(), undefined, ''),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.configInput()?.ctaLabel, ''),
+    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
   );
   readonly ctaUrl = computed(() =>
-    resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
+    resolveConfigValue(this.ctaUrlInput(), this.config()?.ctaUrl, ''),
   );
   readonly ctaTarget = computed(() =>
-    resolveConfigValue(this.ctaTargetInput(), this.configInput()?.ctaTarget, '_self'),
+    resolveConfigValue(this.ctaTargetInput(), this.config()?.ctaTarget, '_self'),
   );
   readonly secondaryCtaLabel = computed(() =>
     resolveConfigValue(this.secondaryCtaLabelInput(), undefined, ''),
@@ -70,10 +69,10 @@ export class BannerComponent {
     resolveConfigValue(this.secondaryCtaTargetInput(), undefined, '_self'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hasImage = computed(() => this.imageSrc().trim().length > 0);

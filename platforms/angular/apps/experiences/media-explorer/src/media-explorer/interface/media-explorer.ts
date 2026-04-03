@@ -28,8 +28,7 @@ import type { MediaExplorerConfig } from '../infrastructure/media-explorer.confi
 export class MediaExplorerComponent {
   readonly #state = new MediaState();
 
-  readonly configInput = input<Partial<MediaExplorerConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<MediaExplorerConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<MediaExplorerConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -40,16 +39,16 @@ export class MediaExplorerComponent {
   readonly defaultCategoryInput = input<string | undefined>(undefined, { alias: 'defaultCategory' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'dark'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'dark'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly elementId = computed(() =>
-    resolveConfigValue(this.elementIdInput(), this.configInput()?.elementId, ''),
+    resolveConfigValue(this.elementIdInput(), this.config()?.elementId, ''),
   );
 
   readonly items = this.#state.filteredItems;
@@ -72,7 +71,7 @@ export class MediaExplorerComponent {
     const parsed = parseMediaItems(raw);
     if (parsed) {
       loadItems(this.#state, parsed);
-      const cat = this.defaultCategoryInput() ?? this.configInput()?.defaultCategory;
+      const cat = this.defaultCategoryInput() ?? this.config()?.defaultCategory;
       if (cat) filterByCategory(this.#state, cat);
     }
   });

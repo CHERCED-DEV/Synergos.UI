@@ -49,8 +49,7 @@ export class NewsletterFormElementComponent {
   readonly #state = signal<SubmissionState>('idle');
   readonly #feedback = signal('');
 
-  readonly configInput = input<Partial<NewsletterFormElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<NewsletterFormElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<NewsletterFormElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -65,42 +64,42 @@ export class NewsletterFormElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly intro = computed(() =>
-    resolveConfigValue(this.introInput(), this.configInput()?.intro, ''),
+    resolveConfigValue(this.introInput(), this.config()?.intro, ''),
   );
   readonly placeholder = computed(() =>
-    resolveConfigValue(this.placeholderInput(), this.configInput()?.placeholder, 'you@example.com'),
+    resolveConfigValue(this.placeholderInput(), this.config()?.placeholder, 'you@example.com'),
   );
   readonly submitLabel = computed(() =>
-    resolveConfigValue(this.submitLabelInput(), this.configInput()?.submitLabel, 'Subscribe'),
+    resolveConfigValue(this.submitLabelInput(), this.config()?.submitLabel, 'Subscribe'),
   );
   readonly consentText = computed(() =>
-    resolveConfigValue(this.consentTextInput(), this.configInput()?.consentText, ''),
+    resolveConfigValue(this.consentTextInput(), this.config()?.consentText, ''),
   );
   readonly successMessage = computed(() =>
     resolveConfigValue(
       this.successMessageInput(),
-      this.configInput()?.successMessage,
+      this.config()?.successMessage,
       'Subscription completed successfully.',
     ),
   );
   readonly errorMessage = computed(() =>
     resolveConfigValue(
       this.errorMessageInput(),
-      this.configInput()?.errorMessage,
+      this.config()?.errorMessage,
       'Please review your information and try again.',
     ),
   );
   readonly actionUrl = computed(() =>
-    resolveConfigValue(this.actionUrlInput(), this.configInput()?.actionUrl, ''),
+    resolveConfigValue(this.actionUrlInput(), this.config()?.actionUrl, ''),
   );
   readonly method = computed<SubmitMethod>(() =>
-    normalizeMethod(resolveConfigValue(this.methodInput(), this.configInput()?.method, 'post')),
+    normalizeMethod(resolveConfigValue(this.methodInput(), this.config()?.method, 'post')),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly email = this.#email.asReadonly();

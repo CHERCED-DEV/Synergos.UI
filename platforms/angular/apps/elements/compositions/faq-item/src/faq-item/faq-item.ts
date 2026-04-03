@@ -18,8 +18,7 @@ type AccordionTone = 'neutral' | 'brand';
   host: { class: 'sg-faq-item' },
 })
 export class FaqItemElementComponent {
-  readonly configInput = input<Partial<FaqItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<FaqItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<FaqItemElementConfig>,
   });
   readonly questionInput = input<string | undefined>(undefined, { alias: 'question' });
@@ -31,16 +30,16 @@ export class FaqItemElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly question = computed(() =>
-    resolveConfigValue(this.questionInput(), this.configInput()?.question, ''),
+    resolveConfigValue(this.questionInput(), this.config()?.question, ''),
   );
   readonly answer = computed(() =>
-    resolveConfigValue(this.answerInput(), this.configInput()?.answer, ''),
+    resolveConfigValue(this.answerInput(), this.config()?.answer, ''),
   );
   readonly initiallyExpanded = computed(() =>
     resolveConfigValue(this.initiallyExpandedInput(), undefined, false),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly accordionTone = computed<AccordionTone>(() =>
     this.theme() === 'dark' ? 'brand' : 'neutral',

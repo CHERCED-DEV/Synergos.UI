@@ -25,8 +25,7 @@ function resolveTextBlockHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-text-block' },
 })
 export class TextBlockComponent {
-  readonly configInput = input<Partial<TextBlockElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<TextBlockElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<TextBlockElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -37,10 +36,10 @@ export class TextBlockComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly headingLevel = computed(() =>
-    resolveConfigValue(this.headingLevelInput(), this.configInput()?.headingLevel, 'h2'),
+    resolveConfigValue(this.headingLevelInput(), this.config()?.headingLevel, 'h2'),
   );
   readonly body = computed(() =>
     resolveConfigValue(this.bodyInput(), undefined, ''),
@@ -49,10 +48,10 @@ export class TextBlockComponent {
     resolveConfigValue(this.alignmentInput(), undefined, 'left'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly headingAlign = computed<HeadingAlign>(() =>

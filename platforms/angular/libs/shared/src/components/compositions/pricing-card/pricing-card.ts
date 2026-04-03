@@ -137,8 +137,7 @@ export interface PricingCardConfig {
   styleUrl: './pricing-card.scss',
 })
 export class PricingCardComponent {
-  readonly configInput = input<Partial<PricingCardConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<PricingCardConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<PricingCardConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -172,69 +171,69 @@ export class PricingCardComponent {
   });
 
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly description = computed(() =>
-    resolveConfigValue(this.descriptionInput(), this.configInput()?.description, ''),
+    resolveConfigValue(this.descriptionInput(), this.config()?.description, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly amount = computed<number | string | null>(() =>
-    resolveConfigValue(this.amountInput(), this.configInput()?.amount, null),
+    resolveConfigValue(this.amountInput(), this.config()?.amount, null),
   );
   readonly amountPrefix = computed(() =>
-    resolveConfigValue(this.amountPrefixInput(), this.configInput()?.amountPrefix, ''),
+    resolveConfigValue(this.amountPrefixInput(), this.config()?.amountPrefix, ''),
   );
   readonly amountSuffix = computed(() =>
-    resolveConfigValue(this.amountSuffixInput(), this.configInput()?.amountSuffix, ''),
+    resolveConfigValue(this.amountSuffixInput(), this.config()?.amountSuffix, ''),
   );
   readonly currency = computed(() =>
-    resolveConfigValue(this.currencyInput(), this.configInput()?.currency, ''),
+    resolveConfigValue(this.currencyInput(), this.config()?.currency, ''),
   );
   readonly priceDescription = computed(() =>
     resolveConfigValue(
       this.priceDescriptionInput(),
-      this.configInput()?.priceDescription,
+      this.config()?.priceDescription,
       '',
     ),
   );
   readonly unavailableMessage = computed(() =>
     resolveConfigValue(
       this.unavailableMessageInput(),
-      this.configInput()?.unavailableMessage,
+      this.config()?.unavailableMessage,
       '',
     ),
   );
   readonly badgeText = computed(() =>
-    resolveConfigValue(this.badgeTextInput(), this.configInput()?.badgeText, ''),
+    resolveConfigValue(this.badgeTextInput(), this.config()?.badgeText, ''),
   );
   readonly iconSymbol = computed(() =>
-    resolveConfigValue(this.iconSymbolInput(), this.configInput()?.iconSymbol, ''),
+    resolveConfigValue(this.iconSymbolInput(), this.config()?.iconSymbol, ''),
   );
   readonly highlights = computed(() =>
-    resolveConfigArray(this.highlightsInput(), this.configInput()?.highlights),
+    resolveConfigArray(this.highlightsInput(), this.config()?.highlights),
   );
   readonly actionLabel = computed(() =>
-    resolveConfigValue(this.actionLabelInput(), this.configInput()?.actionLabel, ''),
+    resolveConfigValue(this.actionLabelInput(), this.config()?.actionLabel, ''),
   );
   readonly actionVariant = computed(() =>
-    resolveConfigValue(this.actionVariantInput(), this.configInput()?.actionVariant, 'solid'),
+    resolveConfigValue(this.actionVariantInput(), this.config()?.actionVariant, 'solid'),
   );
   readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+    resolveConfigValue(this.disabledInput(), this.config()?.disabled, false),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
   readonly featured = computed(() =>
-    resolveConfigValue(this.featuredInput(), this.configInput()?.featured, false),
+    resolveConfigValue(this.featuredInput(), this.config()?.featured, false),
   );
   readonly statusLabel = computed(() =>
-    resolveConfigValue(this.statusLabelInput(), this.configInput()?.statusLabel, ''),
+    resolveConfigValue(this.statusLabelInput(), this.config()?.statusLabel, ''),
   );
   readonly statusTone = computed(() =>
-    resolveConfigValue(this.statusToneInput(), this.configInput()?.statusTone, 'neutral'),
+    resolveConfigValue(this.statusToneInput(), this.config()?.statusTone, 'neutral'),
   );
 
   readonly action = output<void>();

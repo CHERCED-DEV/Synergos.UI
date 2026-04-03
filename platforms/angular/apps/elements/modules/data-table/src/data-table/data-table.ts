@@ -58,8 +58,7 @@ function normalizeColumn(value: unknown): DataTableColumn<DataTableRecord> | nul
 export class DataTableElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<DataTableElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<DataTableElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<DataTableElementConfig>,
   });
   readonly captionInput = input<string | undefined>(undefined, { alias: 'caption' });
@@ -84,7 +83,7 @@ export class DataTableElementComponent {
   });
 
   readonly caption = computed(() =>
-    resolveConfigValue(this.captionInput(), this.configInput()?.caption, ''),
+    resolveConfigValue(this.captionInput(), this.config()?.caption, ''),
   );
   readonly emptyLabel = computed(() =>
     resolveConfigValue(this.emptyLabelInput(), undefined, 'No data available.'),

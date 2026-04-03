@@ -29,8 +29,7 @@ export class ExternalWidgetElementComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<ExternalWidgetElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ExternalWidgetElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ExternalWidgetElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -45,24 +44,24 @@ export class ExternalWidgetElementComponent implements OnDestroy {
   readonly tagName = computed(() =>
     resolveConfigValue(
       this.typeInput(),
-      this.configInput()?.type,
+      this.config()?.type,
       resolveConfigValue(this.tagNameInput(), undefined, ''),
     ),
   );
   readonly scriptSrc = computed(() =>
     resolveConfigValue(
       this.srcInput(),
-      this.configInput()?.src,
+      this.config()?.src,
       resolveConfigValue(this.scriptSrcInput(), undefined, ''),
     ),
   );
   readonly endpoint = computed(() =>
-    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
+    resolveConfigValue(this.endpointInput(), this.config()?.endpoint, ''),
   );
   readonly textContent = computed(() =>
     resolveConfigValue(
       this.titleInput(),
-      this.configInput()?.title,
+      this.config()?.title,
       resolveConfigValue(this.textContentInput(), undefined, ''),
     ),
   );

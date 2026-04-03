@@ -86,8 +86,7 @@ export interface ListConfig {
   styleUrl: './list.scss',
 })
 export class ListComponent {
-  readonly configInput = input<Partial<ListConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<ListConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<ListConfig>,
   });
   readonly itemsInput = input<readonly ListItem[] | undefined>(undefined, { alias: 'items' });
@@ -98,22 +97,22 @@ export class ListComponent {
   readonly interactiveInput = input<boolean | undefined>(undefined, { alias: 'interactive' });
 
   readonly items = computed(() =>
-    resolveConfigArray(this.itemsInput(), this.configInput()?.items),
+    resolveConfigArray(this.itemsInput(), this.config()?.items),
   );
   readonly ordered = computed(() =>
-    resolveConfigValue(this.orderedInput(), this.configInput()?.ordered, false),
+    resolveConfigValue(this.orderedInput(), this.config()?.ordered, false),
   );
   readonly marker = computed(() =>
-    resolveConfigValue(this.markerInput(), this.configInput()?.marker, 'disc'),
+    resolveConfigValue(this.markerInput(), this.config()?.marker, 'disc'),
   );
   readonly density = computed(() =>
-    resolveConfigValue(this.densityInput(), this.configInput()?.density, 'comfortable'),
+    resolveConfigValue(this.densityInput(), this.config()?.density, 'comfortable'),
   );
   readonly divided = computed(() =>
-    resolveConfigValue(this.dividedInput(), this.configInput()?.divided, true),
+    resolveConfigValue(this.dividedInput(), this.config()?.divided, true),
   );
   readonly interactive = computed(() =>
-    resolveConfigValue(this.interactiveInput(), this.configInput()?.interactive, false),
+    resolveConfigValue(this.interactiveInput(), this.config()?.interactive, false),
   );
 
   readonly itemSelected = output<ListItem>();

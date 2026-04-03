@@ -29,8 +29,7 @@ export interface SpinnerConfig {
   },
 })
 export class SpinnerComponent {
-  readonly configInput = input<Partial<SpinnerConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<SpinnerConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<SpinnerConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -38,13 +37,13 @@ export class SpinnerComponent {
   readonly toneInput = input<SpinnerTone | undefined>(undefined, { alias: 'tone' });
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.configInput()?.label, 'Loading'),
+    resolveConfigValue(this.labelInput(), this.config()?.label, 'Loading'),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'brand'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'brand'),
   );
 
   readonly spinnerClass = computed(() =>

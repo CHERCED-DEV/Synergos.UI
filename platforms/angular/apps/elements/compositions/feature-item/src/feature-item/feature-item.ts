@@ -11,8 +11,7 @@ import { HeadingComponent, coerceConfigInput, resolveConfigValue, resolveHeading
   host: { class: 'sg-feature-item' },
 })
 export class FeatureItemComponent {
-  readonly configInput = input<Partial<FeatureItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<FeatureItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<FeatureItemElementConfig>,
   });
   readonly iconInput = input<string | undefined>(undefined, { alias: 'icon' });
@@ -22,19 +21,19 @@ export class FeatureItemComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly icon = computed(() =>
-    resolveConfigValue(this.iconInput(), this.configInput()?.icon, ''),
+    resolveConfigValue(this.iconInput(), this.config()?.icon, ''),
   );
   readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
+    resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
+    resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly headingTone = computed(() => resolveHeadingTone(this.theme()));

@@ -18,8 +18,7 @@ type BadgeTone = NonNullable<BadgeConfig['tone']>;
   host: { class: 'sg-badge' },
 })
 export class BadgeElementComponent {
-  readonly configInput = input<Partial<BadgeElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<BadgeElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<BadgeElementConfig>,
   });
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
@@ -27,12 +26,12 @@ export class BadgeElementComponent {
   readonly toneInput = input<BadgeTone | undefined>(undefined, { alias: 'tone' });
 
   readonly text = computed(() =>
-    resolveConfigValue(this.textInput(), this.configInput()?.text, ''),
+    resolveConfigValue(this.textInput(), this.config()?.text, ''),
   );
   readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
+    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
   readonly tone = computed<BadgeTone>(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral') as BadgeTone,
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral') as BadgeTone,
   );
 }

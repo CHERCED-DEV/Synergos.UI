@@ -11,8 +11,7 @@ import { AvatarComponent, coerceConfigInput, resolveConfigValue } from '@synergo
   host: { class: 'sg-testimonial-item' },
 })
 export class TestimonialItemElementComponent {
-  readonly configInput = input<Partial<TestimonialItemElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<TestimonialItemElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<TestimonialItemElementConfig>,
   });
   readonly quoteInput = input<string | undefined>(undefined, { alias: 'quote' });
@@ -23,22 +22,22 @@ export class TestimonialItemElementComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly quote = computed(() =>
-    resolveConfigValue(this.quoteInput(), this.configInput()?.quote, ''),
+    resolveConfigValue(this.quoteInput(), this.config()?.quote, ''),
   );
   readonly name = computed(() =>
-    resolveConfigValue(this.nameInput(), this.configInput()?.name, ''),
+    resolveConfigValue(this.nameInput(), this.config()?.name, ''),
   );
   readonly role = computed(() =>
-    resolveConfigValue(this.roleInput(), this.configInput()?.role, ''),
+    resolveConfigValue(this.roleInput(), this.config()?.role, ''),
   );
   readonly avatarSrc = computed(() =>
-    resolveConfigValue(this.avatarSrcInput(), this.configInput()?.avatarSrc, ''),
+    resolveConfigValue(this.avatarSrcInput(), this.config()?.avatarSrc, ''),
   );
   readonly avatarAlt = computed(() =>
-    resolveConfigValue(this.avatarAltInput(), this.configInput()?.avatarAlt, ''),
+    resolveConfigValue(this.avatarAltInput(), this.config()?.avatarAlt, ''),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly hasMeta = computed(() => this.name().trim().length > 0 || this.role().trim().length > 0);
   readonly resolvedAvatarAlt = computed(() => {

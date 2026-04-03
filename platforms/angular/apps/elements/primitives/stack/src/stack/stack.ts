@@ -15,8 +15,7 @@ import {
   host: { class: 'sg-stack' },
 })
 export class StackComponent {
-  readonly configInput = input<Partial<StackElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<StackElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<StackElementConfig>,
   });
   readonly directionInput = input<string | undefined>(undefined, { alias: 'direction' });
@@ -36,10 +35,10 @@ export class StackComponent {
   readonly justify = computed(() => this.justifyInput()?.trim() || 'start');
   readonly wrap = computed(() => this.wrapInput() ?? false);
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
+    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );
   readonly theme = computed(() =>
-    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
+    resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
 
   readonly hostClasses = computed(() =>

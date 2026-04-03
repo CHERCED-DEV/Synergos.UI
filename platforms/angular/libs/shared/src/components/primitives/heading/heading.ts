@@ -69,8 +69,7 @@ export interface HeadingConfig {
   styleUrl: './heading.scss',
 })
 export class HeadingComponent {
-  readonly configInput = input<Partial<HeadingConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<HeadingConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<HeadingConfig>,
   });
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
@@ -87,28 +86,28 @@ export class HeadingComponent {
   });
 
   readonly text = computed(() =>
-    resolveConfigValue(this.textInput(), this.configInput()?.text, ''),
+    resolveConfigValue(this.textInput(), this.config()?.text, ''),
   );
   readonly eyebrow = computed(() =>
-    resolveConfigValue(this.eyebrowInput(), this.configInput()?.eyebrow, ''),
+    resolveConfigValue(this.eyebrowInput(), this.config()?.eyebrow, ''),
   );
   readonly supportingText = computed(() =>
-    resolveConfigValue(this.supportingTextInput(), this.configInput()?.supportingText, ''),
+    resolveConfigValue(this.supportingTextInput(), this.config()?.supportingText, ''),
   );
   readonly level = computed(() =>
-    resolveConfigValue(this.levelInput(), this.configInput()?.level, 'h2'),
+    resolveConfigValue(this.levelInput(), this.config()?.level, 'h2'),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'),
   );
   readonly tone = computed(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.config()?.tone, 'neutral'),
   );
   readonly align = computed(() =>
-    resolveConfigValue(this.alignInput(), this.configInput()?.align, 'start'),
+    resolveConfigValue(this.alignInput(), this.config()?.align, 'start'),
   );
   readonly visuallyHidden = computed(() =>
-    resolveConfigValue(this.visuallyHiddenInput(), this.configInput()?.visuallyHidden, false),
+    resolveConfigValue(this.visuallyHiddenInput(), this.config()?.visuallyHidden, false),
   );
 
   headingClass(): string {

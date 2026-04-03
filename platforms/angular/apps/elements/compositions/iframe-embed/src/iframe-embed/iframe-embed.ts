@@ -15,8 +15,7 @@ import {
 })
 export class IframeEmbedElementComponent {
   readonly frameRef = viewChild<ElementRef<HTMLIFrameElement>>('frame');
-  readonly configInput = input<Partial<IframeEmbedElementConfig> | undefined, unknown>(undefined, {
-    alias: 'config',
+  readonly config = input<Partial<IframeEmbedElementConfig> | undefined, unknown>(undefined, {
     transform: coerceConfigInput<IframeEmbedElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
@@ -29,17 +28,17 @@ export class IframeEmbedElementComponent {
   readonly heightInput = input<string | undefined>(undefined, { alias: 'height' });
 
   readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+    resolveConfigValue(this.srcInput(), this.config()?.src, ''),
   );
   readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
+    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly loading = computed(() => this.loadingInput()?.trim() || 'lazy');
   readonly allowFullscreen = computed(() =>
-    this.allowFullscreenInput() ?? this.configInput()?.allowFullscreen ?? true,
+    this.allowFullscreenInput() ?? this.config()?.allowFullscreen ?? true,
   );
   readonly height = computed(() =>
-    this.heightInput()?.trim() || this.configInput()?.height?.trim() || '480',
+    this.heightInput()?.trim() || this.config()?.height?.trim() || '480',
   );
 
   constructor() {
