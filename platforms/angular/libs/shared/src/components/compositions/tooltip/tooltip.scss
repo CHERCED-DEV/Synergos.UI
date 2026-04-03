@@ -1,5 +1,7 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+
 .syn-tooltip {
   position: relative;
   display: inline-flex;
@@ -10,37 +12,42 @@
 }
 
 .syn-tooltip__bubble {
-  position: absolute;
-  width: max-content;
-  max-width: syn.px-to-rem(240);
-  padding: syn.$space-xxs syn.$space-xs;
-  border-radius: syn.px-to-rem(8);
-  background: syn.$color-neutral-900;
-  color: syn.$color-neutral-0;
-  font-size: syn.$font-size-xs;
-  z-index: syn.$z-tooltip;
+  position:      absolute;
+  z-index:       syn.$z-tooltip;
+  width:         max-content;
+  max-width:     syn.px-to-rem(240);
+  padding:       syn.$space-xxs syn.$space-sm;
+  border-radius: syn.$radius-md;
+  background:    syn.$color-neutral-800;
+  color:         syn.$color-neutral-50;
+  font-size:     syn.$font-size-xs;
+  font-weight:   syn.$font-weight-medium;
+  line-height:   syn.$line-height-normal;
+  box-shadow:    syn.$shadow-lg;
+  // Subtle entrance — avoid layout shift
+  pointer-events: none;
 }
 
 .syn-tooltip__bubble--top {
-  bottom: calc(100% + #{syn.$space-xxs});
-  left: 50%;
+  bottom:    calc(100% + #{syn.$space-xs});
+  left:      50%;
   transform: translateX(-50%);
 }
 
 .syn-tooltip__bubble--bottom {
-  top: calc(100% + #{syn.$space-xxs});
-  left: 50%;
+  top:       calc(100% + #{syn.$space-xs});
+  left:      50%;
   transform: translateX(-50%);
 }
 
 .syn-tooltip__bubble--left {
-  right: calc(100% + #{syn.$space-xxs});
-  top: 50%;
+  right:     calc(100% + #{syn.$space-xs});
+  top:       50%;
   transform: translateY(-50%);
 }
 
 .syn-tooltip__bubble--right {
-  left: calc(100% + #{syn.$space-xxs});
-  top: 50%;
+  left:      calc(100% + #{syn.$space-xs});
+  top:       50%;
   transform: translateY(-50%);
 }

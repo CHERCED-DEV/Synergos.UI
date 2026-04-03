@@ -6,6 +6,8 @@ export interface MediaTextInputs {
   body: string;
   ctaLabel: string;
   ctaUrl: string;
+  ctaTarget: string;
   mediaPosition: string;
+  variant: string;
   theme: string;
 }

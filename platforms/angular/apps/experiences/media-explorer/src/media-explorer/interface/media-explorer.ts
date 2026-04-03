@@ -5,6 +5,7 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 import { MediaState } from '../application/media.state';
 import {
@@ -60,16 +61,14 @@ export class MediaExplorerComponent {
   readonly categories = this.#state.availableCategories;
   readonly activeFilter = this.#state.activeFilter;
 
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-media-explorer--${this.variant()} sg-media-explorer--${this.theme()}`,
   );
 
   // eslint-disable-next-line no-unused-private-class-members
   readonly #loadEffect = effect(() => {
-    const raw = this.itemsInput() ?? this.configInput()?.items;
+    const raw = this.itemsInput();
     const parsed = parseMediaItems(raw);
     if (parsed) {
       loadItems(this.#state, parsed);

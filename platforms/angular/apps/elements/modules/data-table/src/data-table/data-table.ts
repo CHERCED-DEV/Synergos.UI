@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import type { DataTableElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   DataTableComponent,
@@ -10,17 +11,6 @@ import {
 } from '@synergos/shared';
 
 type DataTableRecord = Record<string, unknown>;
-
-export interface DataTableConfig {
-  readonly caption?: string;
-  readonly columns?: readonly DataTableColumn<DataTableRecord>[];
-  readonly rows?: readonly DataTableRecord[];
-  readonly emptyLabel?: string;
-  readonly striped?: boolean;
-  readonly bordered?: boolean;
-  readonly hoverable?: boolean;
-  readonly compact?: boolean;
-}
 
 function isRecord(value: unknown): value is DataTableRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -68,9 +58,9 @@ function normalizeColumn(value: unknown): DataTableColumn<DataTableRecord> | nul
 export class DataTableElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<DataTableConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<DataTableElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<DataTableConfig>,
+    transform: coerceConfigInput<DataTableElementConfig>,
   });
   readonly captionInput = input<string | undefined>(undefined, { alias: 'caption' });
   readonly columnsInput = input<string | undefined>(undefined, { alias: 'columns' });
@@ -97,19 +87,19 @@ export class DataTableElementComponent {
     resolveConfigValue(this.captionInput(), this.configInput()?.caption, ''),
   );
   readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.configInput()?.emptyLabel, 'No data available.'),
+    resolveConfigValue(this.emptyLabelInput(), undefined, 'No data available.'),
   );
   readonly striped = computed(() =>
-    resolveConfigValue(this.stripedInput(), this.configInput()?.striped, true),
+    resolveConfigValue(this.stripedInput(), undefined, true),
   );
   readonly bordered = computed(() =>
-    resolveConfigValue(this.borderedInput(), this.configInput()?.bordered, true),
+    resolveConfigValue(this.borderedInput(), undefined, true),
   );
   readonly hoverable = computed(() =>
-    resolveConfigValue(this.hoverableInput(), this.configInput()?.hoverable, true),
+    resolveConfigValue(this.hoverableInput(), undefined, true),
   );
   readonly compact = computed(() =>
-    resolveConfigValue(this.compactInput(), this.configInput()?.compact, false),
+    resolveConfigValue(this.compactInput(), undefined, false),
   );
 
   readonly parsedColumns = computed<readonly DataTableColumn<DataTableRecord>[]>(() => {
@@ -124,7 +114,7 @@ export class DataTableElementComponent {
         .filter((column): column is DataTableColumn<DataTableRecord> => column !== null);
     }
 
-    return this.configInput()?.columns ?? [];
+    return [];
   });
 
   readonly parsedRows = computed<readonly DataTableRecord[]>(() => {
@@ -137,6 +127,6 @@ export class DataTableElementComponent {
       return parsedValue.filter((row): row is DataTableRecord => isRecord(row));
     }
 
-    return this.configInput()?.rows ?? [];
+    return [];
   });
 }

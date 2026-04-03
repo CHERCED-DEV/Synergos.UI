@@ -22,10 +22,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from 'fs';
 import { resolve, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
 const INPUTS_JSON   = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
 
@@ -77,7 +78,8 @@ const pkgVersion = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8
 const VERSION = getArg('--version', pkgVersion);
 const DRY_RUN = args.includes('--dry-run');
 const CLEAN = args.includes('--clean');
-const ELEMENT_FILTER = getArg('--element', null);
+const ELEMENT_FILTER   = getArg('--element', null);
+const FRAMEWORK_FILTER = getArg('--framework', null);
 
 // ── Load element registry ────────────────────────────────────────────────────
 
@@ -100,7 +102,8 @@ const prefix = DRY_RUN ? '[DRY RUN] ' : '';
 console.log(`\n${prefix}📦 Synergos CDN Publish (multi-framework)`);
 console.log(`${prefix}   CDN target: ${CDN_SYNERGOS}`);
 console.log(`${prefix}   Version:    ${VERSION}`);
-if (ELEMENT_FILTER) console.log(`${prefix}   Element:    ${ELEMENT_FILTER}`);
+if (ELEMENT_FILTER)   console.log(`${prefix}   Element:    ${ELEMENT_FILTER}`);
+if (FRAMEWORK_FILTER) console.log(`${prefix}   Framework:  ${FRAMEWORK_FILTER}`);
 if (CLEAN) console.log(`${prefix}   Clean:      enabled`);
 console.log('');
 
@@ -111,6 +114,8 @@ for (const entry of registry) {
   let elementPublished = false;
 
   for (const platform of PLATFORMS) {
+    if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
+
     const bundlePath = platform.resolveBundlePath(entry.name);
 
     if (!existsSync(bundlePath)) continue;
@@ -201,6 +206,44 @@ if (published.length > 0) {
       JSON.stringify(globalRegistry, null, 2),
     );
     console.log(`\n   📋 registry.json → ${byElement.size} elements, ${published.length} bundles`);
+  }
+
+  // ── Generate contracts.json — cross-project contract for CMS CI validation ──
+  // CMS fetches this from CDN in its own CI pipeline to validate resolver outputs.
+  // Neither project needs to run in the same pod or tenant.
+
+  const fullRegistry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
+  const contracts = {
+    generated: new Date().toISOString(),
+    version:   VERSION,
+    $schema:   'synergos-contracts/v1',
+    elements:  fullRegistry.map(entry => {
+      const inputs = (inputsData[entry.name] ?? []).filter(i => !String(i.name).startsWith('_'));
+      return {
+        name:         entry.name,
+        alias:        entry.alias,
+        tag:          entry.tag,
+        tier:         entry.tier,
+        configFields: inputs.map(({ name, type, required = false, default: def, description }) => ({
+          name,
+          type,
+          required,
+          ...(def !== undefined ? { default: def } : {}),
+          ...(description       ? { description }  : {}),
+        })),
+        jsonFields: inputs.filter(i => i.type === 'json').map(i => i.name),
+      };
+    }),
+  };
+
+  if (DRY_RUN) {
+    console.log(`${prefix}   📋 contracts.json → ${fullRegistry.length} element contracts (CMS CI)`);
+  } else {
+    writeFileSync(
+      join(CDN_SYNERGOS, 'contracts.json'),
+      JSON.stringify(contracts, null, 2),
+    );
+    console.log(`   📋 contracts.json → ${fullRegistry.length} element contracts (CMS CI)`);
   }
 }
 

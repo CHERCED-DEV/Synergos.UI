@@ -45,7 +45,9 @@ describe('AngularHostElementComponent', () => {
   it('should mount a custom element from direct inputs', async () => {
     parseValueSpy.mockReturnValue({ theme: 'dark' });
 
-    fixture.componentRef.setInput('tagName', 'synergos-hero');
+    fixture.componentRef.setInput('component', 'elementCompHero');
+    fixture.componentRef.setInput('endpoint', '/api/hero');
+    fixture.componentRef.setInput('params', '{"theme":"dark"}');
     fixture.componentRef.setInput('props', '{"theme":"dark"}');
     fixture.componentRef.setInput('textContent', 'Hello');
     fixture.detectChanges();
@@ -54,17 +56,17 @@ describe('AngularHostElementComponent', () => {
     expect(mountSpy).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
-        tagName: 'synergos-hero',
-        props: { theme: 'dark' },
+        component: 'elementCompHero',
+        props: { theme: 'dark', endpoint: '/api/hero' },
         textContent: 'Hello',
       }),
     );
   });
 
-  it('should mount from config payloads', async () => {
+  it('should mount from CMS-style config payloads', async () => {
     fixture.componentRef.setInput(
       'config',
-      '{"tagName":"synergos-banner","props":{"variant":"compact"},"textContent":"Banner"}',
+      '{"component":"elementCompCtaBanner","endpoint":"/api/banner","params":{"variant":"compact"}}',
     );
     fixture.detectChanges();
     await fixture.whenStable();
@@ -72,9 +74,9 @@ describe('AngularHostElementComponent', () => {
     expect(mountSpy).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
-        tagName: 'synergos-banner',
-        props: { variant: 'compact' },
-        textContent: 'Banner',
+        component: 'elementCompCtaBanner',
+        props: { variant: 'compact', endpoint: '/api/banner' },
+        textContent: '',
       }),
     );
   });

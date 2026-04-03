@@ -1,13 +1,15 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Range Slider ─────────────────────────────────────────────────────────────
+
 .syn-range-slider {
   display: grid;
-  gap: syn.$space-2;
+  gap:     syn.$space-xs;
 }
 
 .syn-range-slider__label {
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-700;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
 }
 
@@ -16,43 +18,61 @@
 }
 
 .syn-range-slider__input {
-  width: 100%;
-  height: syn.px-to-rem(8);
-  border-radius: syn.px-to-rem(999);
-  background:
-    linear-gradient(
-      90deg,
-      syn.$color-brand-500 0%,
-      syn.$color-brand-500 var(--syn-range-progress, 0%),
-      syn.$color-neutral-200 var(--syn-range-progress, 0%),
-      syn.$color-neutral-200 100%
-    );
+  width:         100%;
+  height:        syn.px-to-rem(6);
+  border-radius: syn.$radius-full;
+  background: linear-gradient(
+    90deg,
+    syn.$color-brand-500 0%,
+    syn.$color-brand-500 var(--syn-range-progress, 0%),
+    syn.$color-neutral-200 var(--syn-range-progress, 0%),
+    syn.$color-neutral-200 100%
+  );
   appearance: none;
+  cursor:     pointer;
+  outline:    0;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
+  }
 }
+
+// ── Thumb: WebKit ─────────────────────────────────────────────────────────────
 
 .syn-range-slider__input::-webkit-slider-thumb {
-  width: syn.px-to-rem(20);
-  height: syn.px-to-rem(20);
-  border: 0;
+  width:        syn.px-to-rem(18);
+  height:       syn.px-to-rem(18);
+  border:       syn.px-to-rem(2) solid syn.$color-brand-500;
   border-radius: 50%;
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-sm;
-  appearance: none;
-  cursor: pointer;
+  background:   syn.$color-neutral-0;
+  box-shadow:   syn.$shadow-sm;
+  appearance:   none;
+  cursor:       pointer;
+  transition:   transform syn.$duration-fast syn.$easing-smooth,
+                box-shadow syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    transform:  scale(1.15);
+    box-shadow: syn.$shadow-md;
+  }
 }
+
+// ── Thumb: Firefox ────────────────────────────────────────────────────────────
 
 .syn-range-slider__input::-moz-range-thumb {
-  width: syn.px-to-rem(20);
-  height: syn.px-to-rem(20);
-  border: 0;
+  width:        syn.px-to-rem(18);
+  height:       syn.px-to-rem(18);
+  border:       syn.px-to-rem(2) solid syn.$color-brand-500;
   border-radius: 50%;
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-sm;
-  cursor: pointer;
+  background:   syn.$color-neutral-0;
+  box-shadow:   syn.$shadow-sm;
+  cursor:       pointer;
 }
 
+// ── Value readout ─────────────────────────────────────────────────────────────
+
 .syn-range-slider__value {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-semibold;
 }

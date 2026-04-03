@@ -1,14 +1,16 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Modal ────────────────────────────────────────────────────────────────────
+
 .syn-modal__trigger {
   @include syn.button-base;
   @include syn.button-variant(
     syn.$color-neutral-0,
-    syn.$color-neutral-900,
+    syn.$color-neutral-800,
     syn.$color-neutral-300,
     syn.$color-neutral-0,
     syn.$color-brand-600,
-    syn.$color-brand-400
+    syn.$color-brand-300
   );
 }
 
@@ -30,44 +32,73 @@
   max-height: 90vh;
   overflow: auto;
   @include syn.surface-panel(
-    syn.$space-md,
+    syn.$space-lg,
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(14),
-    syn.$shadow-xl
+    syn.$radius-xl,
+    syn.$shadow-2xl
   );
   @include syn.custom-scrollbar;
 }
 
 .syn-modal__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: syn.$space-sm;
+  gap: syn.$space-md;
+  margin-bottom: syn.$space-md;
+}
+
+.syn-modal__title-group {
+  display: grid;
+  gap: syn.$space-xxs;
 }
 
 .syn-modal__title {
-  font-size: syn.$font-size-xl;
+  font-size:   syn.$font-size-xl;
   font-weight: syn.$font-weight-semibold;
-  color: syn.$color-neutral-900;
+  color:       syn.$color-neutral-900;
+  line-height: syn.$line-height-tight;
 }
 
 .syn-modal__description {
-  margin-top: syn.$space-xs;
-  font-size: syn.$font-size-sm;
-  color: syn.$color-neutral-600;
+  font-size:   syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  line-height: syn.$line-height-normal;
 }
 
 .syn-modal__content {
-  margin-top: syn.$space-md;
+  display: grid;
+  gap: syn.$space-md;
+}
+
+.syn-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: syn.$space-sm;
+  margin-top: syn.$space-lg;
+  padding-top: syn.$space-md;
+  border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
 }
 
 .syn-modal__close {
   @include syn.focus-visible;
-  border: 0;
-  background: transparent;
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-lg;
-  cursor: pointer;
+  @include syn.flex-center;
+  width:         syn.px-to-rem(32);
+  height:        syn.px-to-rem(32);
+  border:        0;
+  border-radius: 50%;
+  background:    transparent;
+  color:         syn.$color-neutral-500;
+  font-size:     syn.$font-size-lg;
+  cursor:        pointer;
+  flex-shrink:   0;
+  transition:    background syn.$duration-fast syn.$easing-smooth,
+                 color      syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    background: syn.$color-neutral-100;
+    color:      syn.$color-neutral-800;
+  }
 }

@@ -1,48 +1,59 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Option Group ─────────────────────────────────────────────────────────────
+
 .syn-option-group__entry {
-  display: grid;
-  gap: syn.$space-md;
-  padding: syn.$space-md;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(18);
-  background: syn.$color-neutral-0;
+  display:       grid;
+  gap:           syn.$space-md;
+  padding:       syn.$space-md;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-xl;
+  background:    syn.$color-neutral-0;
+  transition:    syn.$transition-colors;
 }
 
 .syn-option-group__entry--action {
-  cursor: pointer;
-  text-align: left;
+  cursor:          pointer;
+  text-align:      left;
   text-decoration: none;
 
   @include syn.focus-visible;
+
+  &:hover:not(.syn-option-group__entry--selected):not(.syn-option-group__entry--disabled) {
+    border-color: syn.$color-neutral-300;
+    background:   syn.$color-neutral-50;
+  }
 }
 
 .syn-option-group__entry--selected {
   border-color: syn.$color-brand-400;
-  background: syn.$color-brand-100;
-  box-shadow: syn.$shadow-sm;
+  background:   syn.$color-brand-100;
+  box-shadow:   0 0 0 syn.px-to-rem(2) syn.$color-brand-200;
 }
 
 .syn-option-group__entry--disabled {
-  opacity: 0.6;
+  opacity:        0.5;
+  pointer-events: none;
 }
+
+// ── Inner layout ──────────────────────────────────────────────────────────────
 
 .syn-option-group__entry-copy,
 .syn-option-group__entry-copy-main,
 .syn-option-group__entry-text,
 .syn-option-group__entry-meta {
   display: grid;
-  gap: syn.$space-sm;
+  gap:     syn.$space-sm;
 }
 
 .syn-option-group__entry-copy-main {
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  align-items:           start;
 }
 
-.syn-option-group__entry-meta {
-  justify-items: start;
-}
+.syn-option-group__entry-meta { justify-items: start; }
+
+// ── Centered variant ──────────────────────────────────────────────────────────
 
 .syn-option-group--center .syn-option-group__entry,
 .syn-option-group--center .syn-option-group__footnote {
@@ -53,22 +64,24 @@
   justify-items: center;
 }
 
+// ── Text elements ─────────────────────────────────────────────────────────────
+
 .syn-option-group__entry-title,
 .syn-option-group__footnote {
   margin: 0;
 }
 
 .syn-option-group__entry-title {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-lg;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
 }
 
 .syn-option-group__entry-description,
 .syn-option-group__entry-supporting,
 .syn-option-group__footnote {
-  margin: 0;
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  margin:      0;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   line-height: syn.$line-height-relaxed;
 }

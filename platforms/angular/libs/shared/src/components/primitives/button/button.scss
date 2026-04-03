@@ -1,9 +1,12 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Button ────────────────────────────────────────────────────────────────────
+
 .syn-button {
   @include syn.button-base;
 }
 
+// Solid — primary action. Brand fill, high contrast.
 .syn-button--solid {
   @include syn.button-variant(
     syn.$color-brand-500,
@@ -11,25 +14,32 @@
     transparent,
     syn.$color-brand-600,
     syn.$color-neutral-0,
-    transparent
+    transparent,
+    syn.$color-brand-600,
+    syn.$color-neutral-0,
+    transparent,
+    0 syn.px-to-rem(1) syn.px-to-rem(2) 0 rgb(79 110 247 / 0.20),
+    0 syn.px-to-rem(2) syn.px-to-rem(8) 0 rgb(79 110 247 / 0.28)
   );
 }
 
+// Outline — secondary action. Subtle border, brand on hover.
 .syn-button--outline {
   @include syn.button-variant(
     syn.$color-neutral-0,
-    syn.$color-neutral-900,
+    syn.$color-neutral-800,
     syn.$color-neutral-300,
     syn.$color-neutral-0,
     syn.$color-brand-600,
-    syn.$color-brand-400
+    syn.$color-brand-300
   );
 }
 
+// Ghost — tertiary action. No border, subtle hover background.
 .syn-button--ghost {
   @include syn.button-variant(
     transparent,
-    syn.$color-neutral-800,
+    syn.$color-neutral-700,
     transparent,
     syn.$color-neutral-100,
     syn.$color-neutral-900,
@@ -37,14 +47,18 @@
   );
 }
 
-.syn-button--sm {
-  @include syn.button-size(sm);
+// Danger — destructive action.
+.syn-button--danger {
+  @include syn.button-variant(
+    syn.$color-danger-500,
+    syn.$color-neutral-0,
+    transparent,
+    syn.$color-danger-600,
+    syn.$color-neutral-0,
+    transparent
+  );
 }
 
-.syn-button--md {
-  @include syn.button-size(md);
-}
-
-.syn-button--lg {
-  @include syn.button-size(lg);
-}
+.syn-button--sm { @include syn.button-size(sm); }
+.syn-button--md { @include syn.button-size(md); }
+.syn-button--lg { @include syn.button-size(lg); }

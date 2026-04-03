@@ -1,6 +1,8 @@
 @use '../tokens/colors' as colors;
 @use '../tokens/spacing' as spacing;
 @use '../tokens/typography' as typography;
+@use '../tokens/radius' as radius;
+@use '../tokens/motion' as motion;
 @use '../functions/px-to-rem' as rem;
 @use 'focus';
 
@@ -16,11 +18,11 @@
 
 @mixin button-base(
   $min-height: rem.px-to-rem(40),
-  $padding-y: spacing.$space-xs,
-  $padding-x: spacing.$space-md,
-  $radius: rem.px-to-rem(10),
-  $gap: spacing.$space-xs,
-  $font-size: typography.$font-size-base,
+  $padding-y:  spacing.$space-xs,
+  $padding-x:  spacing.$space-md,
+  $radius:     radius.$radius-md,
+  $gap:        spacing.$space-xs,
+  $font-size:  typography.$font-size-base,
   $font-weight: typography.$font-weight-semibold
 ) {
   @include button-reset;
@@ -35,18 +37,14 @@
   font-size: $font-size;
   font-weight: $font-weight;
   line-height: typography.$line-height-tight;
+  white-space: nowrap;
   cursor: pointer;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease,
-    box-shadow 140ms ease,
-    opacity 140ms ease;
+  transition: motion.$transition-colors;
 
   @include focus.focus-visible;
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
     box-shadow: none;
   }
@@ -55,32 +53,33 @@
 @mixin button-variant(
   $background,
   $color,
-  $border-color: transparent,
-  $hover-background: $background,
-  $hover-color: $color,
-  $hover-border-color: $border-color,
-  $active-background: $hover-background,
-  $active-color: $hover-color,
+  $border-color:        transparent,
+  $hover-background:    $background,
+  $hover-color:         $color,
+  $hover-border-color:  $border-color,
+  $active-background:   $hover-background,
+  $active-color:        $hover-color,
   $active-border-color: $hover-border-color,
-  $shadow: none,
-  $shadow-hover: none
+  $shadow:              none,
+  $shadow-hover:        none
 ) {
-  background: $background;
-  color: $color;
+  background:  $background;
+  color:       $color;
   border-color: $border-color;
-  box-shadow: $shadow;
+  box-shadow:  $shadow;
 
   &:where(:hover, :focus-visible):not(:disabled) {
-    background: $hover-background;
-    color: $hover-color;
+    background:  $hover-background;
+    color:       $hover-color;
     border-color: $hover-border-color;
-    box-shadow: $shadow-hover;
+    box-shadow:  $shadow-hover;
   }
 
   &:active:not(:disabled) {
-    background: $active-background;
-    color: $active-color;
+    background:  $active-background;
+    color:       $active-color;
     border-color: $active-border-color;
+    box-shadow:  none;
   }
 }
 
@@ -99,22 +98,16 @@
 }
 
 @mixin button-loading(
-  $placement: after,
-  $size: rem.px-to-rem(14),
+  $placement:    after,
+  $size:         rem.px-to-rem(14),
   $stroke-width: rem.px-to-rem(2),
-  $gap: spacing.$space-xs,
-  $color: currentColor
+  $gap:          spacing.$space-xs,
+  $color:        currentColor
 ) {
   position: relative;
 
   @keyframes syn-button-spin {
-    from {
-      transform: rotate(0deg);
-    }
-
-    to {
-      transform: rotate(360deg);
-    }
+    to { transform: rotate(360deg); }
   }
 
   &::#{$placement} {
@@ -123,10 +116,10 @@
     width: $size;
     height: $size;
     flex: 0 0 $size;
-    border: $stroke-width solid $color;
+    border: $stroke-width solid currentColor;
     border-right-color: transparent;
     border-radius: 50%;
-    animation: syn-button-spin 1s linear infinite;
+    animation: syn-button-spin 0.75s linear infinite;
 
     @if $placement == before {
       margin-right: $gap;

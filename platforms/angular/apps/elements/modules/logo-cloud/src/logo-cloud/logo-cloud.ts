@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, isDevMode } from '@angular/core';
+import type { LogoCloudElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   GridColumnsComponent,
@@ -8,6 +9,7 @@ import {
   coerceConfigInput,
   coerceOptionalNumberInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 interface LogoCloudItem {
@@ -16,15 +18,6 @@ interface LogoCloudItem {
   readonly label?: string;
   readonly href?: string;
   readonly target?: string;
-}
-
-export interface LogoCloudConfig {
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly items?: readonly LogoCloudItem[];
-  readonly columns?: number;
-  readonly variant?: string;
-  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,19 +49,18 @@ function normalizeItem(value: unknown): LogoCloudItem | null {
 
 @Component({
   selector: 'sg-logo-cloud',
-  standalone: true,
   imports: [GridColumnsComponent, HeadingComponent, LinkComponent],
   templateUrl: './logo-cloud.html',
   styleUrl: './logo-cloud.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-logo-cloud' },
+  host: { class: 'sg-logo-cloud', '[style.display]': 'hasItems() ? null : "none"' },
 })
 export class LogoCloudElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<LogoCloudConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<LogoCloudElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<LogoCloudConfig>,
+    transform: coerceConfigInput<LogoCloudElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -87,7 +79,7 @@ export class LogoCloudElementComponent {
     resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
   );
   readonly columns = computed(() =>
-    resolveConfigValue(this.columnsInput(), this.configInput()?.columns, 4),
+    resolveConfigValue(this.columnsInput(), undefined, 4),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
@@ -107,20 +99,34 @@ export class LogoCloudElementComponent {
         .filter((item): item is LogoCloudItem => item !== null);
     }
 
-    return (this.configInput()?.items ?? [])
-      .map((item) => normalizeItem(item))
-      .filter((item): item is LogoCloudItem => item !== null);
+    const configItems = this.configInput()?.items;
+    if (Array.isArray(configItems)) {
+      return (configItems as unknown[])
+        .map((item) => normalizeItem(item))
+        .filter((item): item is LogoCloudItem => item !== null);
+    }
+
+    return [];
   });
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly resolvedColumns = computed(() => {
     const columns = this.columns();
     return columns > 0 ? columns : 4;
   });
+  readonly hasItems = computed(() => this.parsedItems().length > 0);
   readonly hostClasses = computed(
     () => `logo-cloud--${this.variant()} logo-cloud--${this.theme()}`,
   );
+
+  constructor() {
+    if (isDevMode()) {
+      effect(() => {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+          console.warn('[synergos-logo-cloud] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
+        }
+      });
+    }
+  }
 
   trackItem(item: LogoCloudItem, index: number): string {
     return `${item.src}-${index}`;

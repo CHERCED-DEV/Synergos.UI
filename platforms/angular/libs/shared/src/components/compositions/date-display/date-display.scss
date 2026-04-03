@@ -1,31 +1,35 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Date Display ─────────────────────────────────────────────────────────────
+
 .syn-date-display {
-  display: inline-flex;
+  display:     inline-flex;
   align-items: baseline;
-  gap: syn.$space-2;
-  color: syn.$color-neutral-900;
+  gap:         syn.$space-xs;
+  color:       syn.$color-neutral-900;
   font-weight: syn.$font-weight-semibold;
 }
 
 .syn-date-display--stacked {
   display: inline-grid;
-  gap: syn.$space-1;
+  gap:     syn.$space-xxs;
 }
 
 .syn-date-display__weekday,
 .syn-date-display__month {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  color:          syn.$color-neutral-500;
+  font-size:      syn.$font-size-xs;
+  font-weight:    syn.$font-weight-medium;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .syn-date-display__day {
-  font-size: syn.$font-size-2xl;
+  font-size:   syn.$font-size-2xl;
   line-height: syn.$line-height-tight;
 }
 
 .syn-date-display__year {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-base;
+  color:     syn.$color-neutral-500;
+  font-size: syn.$font-size-sm;
 }

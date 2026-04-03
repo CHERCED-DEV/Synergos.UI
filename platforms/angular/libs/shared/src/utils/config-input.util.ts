@@ -62,6 +62,10 @@ export function coerceOptionalBooleanInput(value: unknown): boolean | undefined 
   return undefined;
 }
 
+export function resolveHeadingTone(theme: string | null | undefined): 'neutral' | 'inverse' {
+  return theme === 'dark' ? 'inverse' : 'neutral';
+}
+
 export function coerceOptionalNumberInput(value: unknown): number | undefined {
   if (value === undefined || value === null || value === '') {
     return undefined;

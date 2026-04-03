@@ -3,8 +3,10 @@ import type { ScriptEmbedInputs } from '../models/script-embed-inputs.model';
 
 export function mapScriptEmbedData(data: ScriptEmbedElementData): ScriptEmbedInputs {
   return {
-    src: data.embed?.embedUrl ?? '',
-    type: data.embed?.embedType ?? 'text/javascript',
+    scriptType: data.script?.scriptType ?? 'text/javascript',
+    content: data.script?.scriptContent ?? '',
+    src: '',
+    type: '',
     inlineScript: '',
     target: 'body',
     async: 'false',

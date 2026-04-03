@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import type { SocialShareElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   SocialLinksComponent,
@@ -7,13 +8,6 @@ import {
   coerceConfigInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface SocialShareConfig {
-  readonly title?: string;
-  readonly pageUrl?: string;
-  readonly links?: readonly SocialLinkItem[];
-  readonly layout?: SocialLinksLayout;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -91,9 +85,9 @@ function createDefaultLinks(pageUrl: string, title: string): readonly SocialLink
 export class SocialShareElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<SocialShareConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<SocialShareElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<SocialShareConfig>,
+    transform: coerceConfigInput<SocialShareElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly pageUrlInput = input<string | undefined>(undefined, { alias: 'pageUrl' });
@@ -117,12 +111,9 @@ export class SocialShareElementComponent {
       }
     }
 
-    const configuredLinks = (this.configInput()?.links ?? [])
-      .map((link) => normalizeLink(link))
-      .filter((link): link is SocialLinkItem => link !== null);
-
-    if (configuredLinks.length > 0) {
-      return configuredLinks;
+    const configLinks = this.configInput()?.links;
+    if (Array.isArray(configLinks)) {
+      return configLinks.map((link) => normalizeLink(link)).filter((link): link is SocialLinkItem => link !== null);
     }
 
     return createDefaultLinks(this.pageUrl(), this.title());

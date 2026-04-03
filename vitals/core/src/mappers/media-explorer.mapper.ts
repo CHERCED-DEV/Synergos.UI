@@ -7,7 +7,6 @@ export function mapMediaExplorerData(data: MediaExplorerElementData): MediaExplo
     theme: data.domVariant?.theme ?? 'dark',
     variant: data.domVariant?.variant ?? 'default',
     elementId: data.domAttributes?.elementId ?? '',
-    domClass: data.domClass?.cssClass ?? '',
     defaultCategory: '',
     items: data.collection ? JSON.stringify(data.collection) : '',
   };

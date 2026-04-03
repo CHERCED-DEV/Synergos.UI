@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { FaqItemElementConfig } from '@synergos/contracts';
 import {
   AccordionComponent,
   coerceConfigInput,
@@ -8,16 +9,8 @@ import {
 
 type AccordionTone = 'neutral' | 'brand';
 
-export interface FaqItemConfig {
-  readonly question?: string;
-  readonly answer?: string;
-  readonly initiallyExpanded?: boolean;
-  readonly theme?: string;
-}
-
 @Component({
   selector: 'sg-faq-item',
-  standalone: true,
   imports: [AccordionComponent],
   templateUrl: './faq-item.html',
   styleUrl: './faq-item.scss',
@@ -25,9 +18,9 @@ export interface FaqItemConfig {
   host: { class: 'sg-faq-item' },
 })
 export class FaqItemElementComponent {
-  readonly configInput = input<Partial<FaqItemConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<FaqItemElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<FaqItemConfig>,
+    transform: coerceConfigInput<FaqItemElementConfig>,
   });
   readonly questionInput = input<string | undefined>(undefined, { alias: 'question' });
   readonly answerInput = input<string | undefined>(undefined, { alias: 'answer' });
@@ -44,7 +37,7 @@ export class FaqItemElementComponent {
     resolveConfigValue(this.answerInput(), this.configInput()?.answer, ''),
   );
   readonly initiallyExpanded = computed(() =>
-    resolveConfigValue(this.initiallyExpandedInput(), this.configInput()?.initiallyExpanded, false),
+    resolveConfigValue(this.initiallyExpandedInput(), undefined, false),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),

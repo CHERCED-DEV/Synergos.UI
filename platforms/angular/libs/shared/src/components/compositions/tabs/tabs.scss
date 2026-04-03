@@ -1,40 +1,50 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Tabs ──────────────────────────────────────────────────────────────────────
+
 .syn-tabs {
   display: grid;
-  gap: syn.$space-sm;
+  gap: syn.$space-md;
 }
 
 .syn-tabs__list {
   display: flex;
-  gap: syn.$space-xxs;
+  gap: syn.$space-1;
   border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-200;
 }
 
 .syn-tabs__tab {
-  padding: syn.$space-xs syn.$space-sm;
+  position: relative;
+  padding: syn.$space-xs syn.$space-md;
   border: 0;
   border-bottom: syn.px-to-rem(2) solid transparent;
   background: transparent;
-  color: syn.$color-neutral-700;
+  color: syn.$color-neutral-500;
   font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
   cursor: pointer;
+  transition: color syn.$duration-fast syn.$easing-smooth,
+              border-color syn.$duration-fast syn.$easing-smooth;
 
   @include syn.focus-visible;
 
+  &:hover:not([aria-selected='true']) {
+    color: syn.$color-neutral-800;
+  }
+
   &[aria-selected='true'] {
-    color: syn.$color-brand-600;
+    color:        syn.$color-brand-600;
     border-bottom-color: syn.$color-brand-500;
+    font-weight:  syn.$font-weight-semibold;
   }
 }
 
 .syn-tabs__panel {
-  padding: syn.$space-sm;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(10);
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-sm;
+  padding:       syn.$space-md;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-md;
+  color:         syn.$color-neutral-900;
+  font-size:     syn.$font-size-sm;
 
   @include syn.focus-visible;
 }

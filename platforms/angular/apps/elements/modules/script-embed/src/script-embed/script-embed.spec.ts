@@ -32,13 +32,15 @@ describe('ScriptEmbedElementComponent', () => {
   });
 
   it('should add a script from config', async () => {
-    fixture.componentRef.setInput('config', '{"src":"https://cdn.example.com/widget.js","target":"head"}');
+    fixture.componentRef.setInput('config', '{"scriptType":"module","content":"https://cdn.example.com/widget.js"}');
+    fixture.componentRef.setInput('target', 'head');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(addScript).toHaveBeenCalledWith(
       expect.objectContaining({
         src: 'https://cdn.example.com/widget.js',
+        attributes: [{ name: 'type', value: 'module' }],
         target: 'head',
       }),
     );

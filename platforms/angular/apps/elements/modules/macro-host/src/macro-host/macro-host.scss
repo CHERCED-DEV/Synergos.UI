@@ -12,7 +12,7 @@
     @include syn.flex-center;
     min-height: syn.px-to-rem(100);
     border: syn.px-to-rem(2) dashed syn.$color-neutral-300;
-    border-radius: syn.px-to-rem(8);
+    border-radius: syn.$radius-md;
     color: syn.$color-neutral-400;
     font-size: syn.$font-size-sm;
   }

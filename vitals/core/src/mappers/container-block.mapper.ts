@@ -8,6 +8,7 @@ export function mapContainerBlockData(data: ContainerElementData): ContainerBloc
     containerType: data.domLayout?.containerType ?? 'default',
     maxWidth: '',
     padding: data.domSpacing?.padding ?? 'md',
+    variant: data.domVariant?.variant ?? 'default',
     theme: data.domVariant?.theme ?? 'light',
   };
 }

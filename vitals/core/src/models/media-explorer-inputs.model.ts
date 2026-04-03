@@ -4,7 +4,6 @@ export interface MediaExplorerInputs {
   theme: string;
   variant: string;
   elementId: string;
-  domClass: string;
   defaultCategory: string;
   /** Serialized JSON array of MediaItem */
   items: string;

@@ -1,3 +1,4 @@
+import type { SpacerElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
@@ -17,11 +18,6 @@ function resolveSpaceToken(value: string): string {
   return spacingValues[value] ?? value;
 }
 
-export interface SpacerConfig {
-  readonly size?: string;
-  readonly axis?: string;
-}
-
 @Component({
   selector: 'sg-spacer',
   templateUrl: './spacer.html',
@@ -30,19 +26,15 @@ export interface SpacerConfig {
   host: { class: 'sg-spacer' },
 })
 export class SpacerComponent {
-  readonly configInput = input<Partial<SpacerConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<SpacerElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<SpacerConfig>,
+    transform: coerceConfigInput<SpacerElementConfig>,
   });
   readonly sizeInput = input<string | undefined>(undefined, { alias: 'size' });
   readonly axisInput = input<string | undefined>(undefined, { alias: 'axis' });
 
-  readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
-  );
-  readonly axis = computed(() =>
-    resolveConfigValue(this.axisInput(), this.configInput()?.axis, 'vertical'),
-  );
+  readonly size = computed(() => this.sizeInput()?.trim() || 'md');
+  readonly axis = computed(() => this.axisInput()?.trim() || 'vertical');
 
   readonly resolvedSize = computed(() => resolveSpaceToken(this.size()));
   readonly resolvedWidth = computed(() =>

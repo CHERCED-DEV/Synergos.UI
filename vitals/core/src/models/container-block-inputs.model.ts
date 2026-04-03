@@ -5,5 +5,6 @@ export interface ContainerBlockInputs {
   containerType: string;
   maxWidth: string;
   padding: string;
+  variant: string;
   theme: string;
 }

@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, isDevMode } from '@angular/core';
+import type { FaqSectionElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   AccordionComponent,
@@ -6,18 +7,13 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 interface FaqItem {
   readonly answer: string;
   readonly initiallyExpanded: boolean;
   readonly question: string;
-}
-
-export interface FaqSectionConfig {
-  readonly headingText?: string;
-  readonly items?: readonly FaqItem[];
-  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,14 +49,14 @@ function normalizeFaqItem(value: unknown): FaqItem | null {
   templateUrl: './faq-section.html',
   styleUrl: './faq-section.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-faq-section' },
+  host: { class: 'sg-faq-section', '[style.display]': 'hasItems() ? null : "none"' },
 })
 export class FaqSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<FaqSectionConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<FaqSectionElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<FaqSectionConfig>,
+    transform: coerceConfigInput<FaqSectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
@@ -69,16 +65,13 @@ export class FaqSectionComponent {
   readonly headingText = computed(() =>
     resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
   );
-  readonly items = computed(() =>
-    resolveConfigValue(this.itemsInput(), undefined, '[]'),
-  );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
 
   readonly parsedItems = computed<readonly FaqItem[]>(() => {
     if (this.itemsInput() !== undefined) {
-      const parsedValue = this.#initialData.parseValue<unknown>(this.items());
+      const parsedValue = this.#initialData.parseValue<unknown>(this.itemsInput());
 
       if (!Array.isArray(parsedValue)) {
         return [];
@@ -89,12 +82,26 @@ export class FaqSectionComponent {
         .filter((item): item is FaqItem => item !== null);
     }
 
-    return (this.configInput()?.items ?? [])
-      .map((item) => normalizeFaqItem(item))
-      .filter((item): item is FaqItem => item !== null);
+    const configItems = this.configInput()?.items;
+    if (Array.isArray(configItems)) {
+      return (configItems as unknown[])
+        .map((item) => normalizeFaqItem(item))
+        .filter((item): item is FaqItem => item !== null);
+    }
+
+    return [];
   });
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
+  readonly hasItems = computed(() => this.parsedItems().length > 0);
   readonly hostClasses = computed(() => `sg-faq-section--${this.theme()}`);
+
+  constructor() {
+    if (isDevMode()) {
+      effect(() => {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+          console.warn('[synergos-faq-section] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
+        }
+      });
+    }
+  }
 }

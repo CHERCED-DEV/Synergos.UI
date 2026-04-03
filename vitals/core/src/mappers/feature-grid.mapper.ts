@@ -18,6 +18,7 @@ export function mapFeatureGridData(data: FeatureGridElementData): FeatureGridInp
     headingText: data.collection?.collectionTitle ?? '',
     columns: String(3),
     items: JSON.stringify(items),
+    variant: data.domVariant?.variant ?? 'default',
     theme: data.domVariant?.theme ?? 'light',
   };
 }

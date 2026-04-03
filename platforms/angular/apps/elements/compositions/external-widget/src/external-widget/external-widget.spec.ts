@@ -78,16 +78,19 @@ describe('ExternalWidgetElementComponent', () => {
   it('should mount from config payloads', async () => {
     fixture.componentRef.setInput(
       'config',
-      '{"tagName":"booking-widget","scriptSrc":"https://cdn.example.com/widget.js","props":{"theme":"dark"},"textContent":"Ready"}',
+      '{"type":"booking-widget","src":"https://cdn.example.com/widget.js","title":"Ready","endpoint":"https://api.example.com/widget"}',
     );
     fixture.detectChanges();
     await fixture.whenStable();
 
+    expect(addScriptSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ src: 'https://cdn.example.com/widget.js' }),
+    );
     expect(mountSpy).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
         tagName: 'booking-widget',
-        props: { theme: 'dark' },
+        props: { endpoint: 'https://api.example.com/widget' },
         textContent: 'Ready',
       }),
     );

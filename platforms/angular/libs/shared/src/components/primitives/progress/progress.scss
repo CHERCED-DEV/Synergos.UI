@@ -1,5 +1,7 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
 .syn-progress-host {
   display: inline-flex;
   align-items: center;
@@ -15,63 +17,61 @@
 }
 
 .syn-progress--sm {
-  height: syn.px-to-rem(4);
-  border-radius: syn.px-to-rem(999);
+  height:        syn.px-to-rem(4);
+  border-radius: syn.$radius-full;
 }
 
 .syn-progress--md {
-  height: syn.px-to-rem(8);
-  border-radius: syn.px-to-rem(999);
+  height:        syn.px-to-rem(8);
+  border-radius: syn.$radius-full;
 }
 
 .syn-progress--lg {
-  height: syn.px-to-rem(12);
-  border-radius: syn.px-to-rem(999);
+  height:        syn.px-to-rem(12);
+  border-radius: syn.$radius-full;
 }
 
 .syn-progress__bar {
   display: block;
   height: 100%;
-  transition: width 160ms ease;
+  border-radius: inherit;
+  transition: width syn.$duration-base syn.$easing-out;
 }
 
+// Semantic tones — correct colors for each state
 .syn-progress--brand .syn-progress__bar {
-  background: syn.$color-brand-400;
+  background: syn.$color-brand-500;
 }
 
 .syn-progress--success .syn-progress__bar {
-  background: syn.$color-brand-600;
+  background: syn.$color-success-500;
 }
 
 .syn-progress--warning .syn-progress__bar {
-  background: syn.$color-neutral-700;
+  background: syn.$color-warning-500;
 }
 
 .syn-progress--critical .syn-progress__bar {
-  background: syn.$color-neutral-900;
+  background: syn.$color-danger-500;
 }
 
 .syn-progress--indeterminate .syn-progress__bar {
   width: 40%;
-  animation: syn-progress-indeterminate 1.3s ease-in-out infinite;
+  animation: syn-progress-indeterminate 1.4s ease-in-out infinite;
 }
 
 .syn-progress__label {
-  min-width: syn.px-to-rem(48);
-  font-size: syn.$font-size-sm;
+  min-width:   syn.px-to-rem(40);
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
-  color: syn.$color-neutral-700;
-  text-align: right;
+  color:       syn.$color-neutral-600;
+  text-align:  right;
+  white-space: nowrap;
 }
 
 @keyframes syn-progress-indeterminate {
-  from {
-    transform: translateX(-120%);
-  }
-
-  to {
-    transform: translateX(260%);
-  }
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(260%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -81,5 +81,6 @@
 
   .syn-progress--indeterminate .syn-progress__bar {
     animation: none;
+    width: 60%;
   }
 }

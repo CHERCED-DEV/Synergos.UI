@@ -10,13 +10,13 @@
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(12),
-    syn.$shadow-sm
+    syn.$radius-xl,
+    syn.$shadow-xs
   );
 
   &--dark {
-    background: syn.$color-neutral-900;
+    background:   syn.$color-neutral-900;
     border-color: syn.$color-neutral-700;
-    color: syn.$color-neutral-0;
+    color:        syn.$color-neutral-0;
   }
 }

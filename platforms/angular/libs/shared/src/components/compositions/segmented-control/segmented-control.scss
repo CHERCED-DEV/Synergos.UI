@@ -1,45 +1,61 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Segmented Control ────────────────────────────────────────────────────────
+
 .syn-segmented-control {
-  display: grid;
+  display:               grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: syn.$space-sm;
+  align-items:           center;
+  gap:                   syn.$space-sm;
 }
 
 .syn-segmented-control__list {
-  display: flex;
-  gap: syn.$space-2;
-  overflow: hidden;
+  display:    flex;
+  gap:        syn.$space-xs;
+  overflow:   hidden;
 }
 
 .syn-segmented-control__option,
 .syn-segmented-control__nav {
   @include syn.focus-visible;
-  display: inline-flex;
-  align-items: center;
-  gap: syn.$space-2;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(999);
-  padding: syn.$space-2 syn.$space-4;
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
-  cursor: pointer;
+  display:       inline-flex;
+  align-items:   center;
+  gap:           syn.$space-xs;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-full;
+  padding:       syn.$space-xs syn.$space-md;
+  background:    syn.$color-neutral-0;
+  color:         syn.$color-neutral-700;
+  font-size:     syn.$font-size-sm;
+  font-weight:   syn.$font-weight-medium;
+  white-space:   nowrap;
+  cursor:        pointer;
+  transition:    syn.$transition-colors;
+
+  &:hover:not(:disabled):not(.syn-segmented-control__option--active) {
+    border-color: syn.$color-neutral-300;
+    background:   syn.$color-neutral-50;
+    color:        syn.$color-neutral-900;
+  }
 }
 
 .syn-segmented-control__option--active {
-  border-color: syn.$color-brand-500;
-  background: syn.$color-brand-100;
-  color: syn.$color-brand-600;
+  border-color: syn.$color-brand-300;
+  background:   syn.$color-brand-100;
+  color:        syn.$color-brand-600;
+  font-weight:  syn.$font-weight-semibold;
 }
 
 .syn-segmented-control__option:disabled,
 .syn-segmented-control__nav:disabled {
-  color: syn.$color-neutral-400;
-  cursor: not-allowed;
+  color:          syn.$color-neutral-400;
+  cursor:         not-allowed;
+  pointer-events: none;
 }
+
+// ── Compact ───────────────────────────────────────────────────────────────────
 
 .syn-segmented-control--compact .syn-segmented-control__option,
 .syn-segmented-control--compact .syn-segmented-control__nav {
-  padding: syn.$space-2 syn.$space-3;
+  padding: syn.$space-xxs syn.$space-sm;
 }

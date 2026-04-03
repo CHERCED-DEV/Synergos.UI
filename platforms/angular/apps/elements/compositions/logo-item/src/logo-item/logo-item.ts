@@ -1,17 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { LogoItemElementConfig } from '@synergos/contracts';
 import { LinkComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface LogoItemConfig {
-  readonly src?: string;
-  readonly alt?: string;
-  readonly href?: string;
-  readonly label?: string;
-  readonly target?: string;
-}
 
 @Component({
   selector: 'sg-logo-item',
-  standalone: true,
   imports: [LinkComponent],
   templateUrl: './logo-item.html',
   styleUrl: './logo-item.scss',
@@ -19,9 +11,9 @@ export interface LogoItemConfig {
   host: { class: 'sg-logo-item' },
 })
 export class LogoItemElementComponent {
-  readonly configInput = input<Partial<LogoItemConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<LogoItemElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<LogoItemConfig>,
+    transform: coerceConfigInput<LogoItemElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly altInput = input<string | undefined>(undefined, { alias: 'alt' });

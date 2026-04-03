@@ -1,15 +1,8 @@
+import type { LinkBlockElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { LinkComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
 type LinkTone = 'brand' | 'neutral' | 'inverse';
-
-export interface LinkBlockConfig {
-  readonly href?: string;
-  readonly label?: string;
-  readonly target?: string;
-  readonly ariaLabel?: string;
-  readonly variant?: string;
-}
 
 @Component({
   selector: 'sg-link-block',
@@ -20,9 +13,9 @@ export interface LinkBlockConfig {
   host: { class: 'sg-link-block' },
 })
 export class LinkBlockComponent {
-  readonly configInput = input<Partial<LinkBlockConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<LinkBlockElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<LinkBlockConfig>,
+    transform: coerceConfigInput<LinkBlockElementConfig>,
   });
   readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -42,9 +35,7 @@ export class LinkBlockComponent {
   readonly ariaLabel = computed(() =>
     resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
   );
-  readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
-  );
+  readonly variant = computed(() => this.variantInput()?.trim() || 'default');
 
   readonly resolvedTone = computed<LinkTone>(() =>
     this.variant() === 'subtle' ? 'neutral' : 'brand',

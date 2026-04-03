@@ -1,6 +1,8 @@
-<syn-social-links
-  [title]="title()"
-  [ariaLabel]="ariaLabel()"
-  [layout]="layout()"
-  [links]="links()"
-/>
+@defer (on idle) {
+  <syn-social-links
+    [title]="title()"
+    [ariaLabel]="ariaLabel()"
+    [layout]="layout()"
+    [links]="links()"
+  />
+}

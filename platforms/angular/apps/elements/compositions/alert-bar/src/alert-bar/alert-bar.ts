@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { AlertBarElementConfig } from '@synergos/contracts';
 import {
   AlertComponent,
   LinkComponent,
@@ -8,15 +9,6 @@ import {
 } from '@synergos/shared';
 
 type AlertTone = 'neutral' | 'brand' | 'critical';
-
-export interface AlertBarConfig {
-  readonly title?: string;
-  readonly description?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly tone?: AlertTone | string;
-  readonly dismissible?: boolean;
-}
 
 function resolveTone(value: string | undefined): AlertTone {
   return value === 'brand' || value === 'critical' ? value : 'neutral';
@@ -31,15 +23,17 @@ function resolveTone(value: string | undefined): AlertTone {
   host: { class: 'sg-alert-bar' },
 })
 export class AlertBarElementComponent {
-  readonly configInput = input<Partial<AlertBarConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<AlertBarElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<AlertBarConfig>,
+    transform: coerceConfigInput<AlertBarElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly descriptionInput = input<string | undefined>(undefined, { alias: 'description' });
   readonly ctaLabelInput = input<string | undefined>(undefined, { alias: 'ctaLabel' });
   readonly ctaUrlInput = input<string | undefined>(undefined, { alias: 'ctaUrl' });
-  readonly toneInput = input<string | undefined>(undefined, { alias: 'tone' });
+  // variant maps to tone — CMS sends "variant", component resolves it as AlertTone
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
+  readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
   readonly dismissibleInput = input<boolean | undefined, unknown>(undefined, {
     alias: 'dismissible',
     transform: coerceOptionalBooleanInput,
@@ -58,10 +52,14 @@ export class AlertBarElementComponent {
     resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
   );
   readonly tone = computed<AlertTone>(() =>
-    resolveTone(resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral')),
+    resolveTone(resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'neutral')),
+  );
+  readonly theme = computed(() =>
+    resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
   readonly dismissible = computed(() =>
     resolveConfigValue(this.dismissibleInput(), this.configInput()?.dismissible, true),
   );
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
+  readonly hostClasses = computed(() => `sg-alert-bar--${this.theme()}`);
 }

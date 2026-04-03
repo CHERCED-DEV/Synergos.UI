@@ -8,6 +8,7 @@ import {
   input,
   OnDestroy,
 } from '@angular/core';
+import type { ExternalWidgetElementConfig } from '@synergos/contracts';
 import {
   CustomElementHostService,
   InitialDataService,
@@ -15,16 +16,8 @@ import {
 } from '@synergos/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
-export interface ExternalWidgetConfig {
-  readonly tagName?: string;
-  readonly scriptSrc?: string;
-  readonly props?: Record<string, unknown>;
-  readonly textContent?: string;
-}
-
 @Component({
   selector: 'sg-external-widget',
-  standalone: true,
   templateUrl: './external-widget.html',
   styleUrl: './external-widget.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,30 +29,54 @@ export class ExternalWidgetElementComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<ExternalWidgetConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<ExternalWidgetElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<ExternalWidgetConfig>,
+    transform: coerceConfigInput<ExternalWidgetElementConfig>,
   });
+  readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
+  readonly typeInput = input<string | undefined>(undefined, { alias: 'type' });
+  readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
+  readonly endpointInput = input<string | undefined>(undefined, { alias: 'endpoint' });
   readonly tagNameInput = input<string | undefined>(undefined, { alias: 'tagName' });
   readonly scriptSrcInput = input<string | undefined>(undefined, { alias: 'scriptSrc' });
   readonly propsInput = input<string | undefined>(undefined, { alias: 'props' });
   readonly textContentInput = input<string | undefined>(undefined, { alias: 'textContent' });
 
   readonly tagName = computed(() =>
-    resolveConfigValue(this.tagNameInput(), this.configInput()?.tagName, ''),
+    resolveConfigValue(
+      this.typeInput(),
+      this.configInput()?.type,
+      resolveConfigValue(this.tagNameInput(), undefined, ''),
+    ),
   );
   readonly scriptSrc = computed(() =>
-    resolveConfigValue(this.scriptSrcInput(), this.configInput()?.scriptSrc, ''),
+    resolveConfigValue(
+      this.srcInput(),
+      this.configInput()?.src,
+      resolveConfigValue(this.scriptSrcInput(), undefined, ''),
+    ),
+  );
+  readonly endpoint = computed(() =>
+    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
   );
   readonly textContent = computed(() =>
-    resolveConfigValue(this.textContentInput(), this.configInput()?.textContent, ''),
+    resolveConfigValue(
+      this.titleInput(),
+      this.configInput()?.title,
+      resolveConfigValue(this.textContentInput(), undefined, ''),
+    ),
   );
   readonly #parsedProps = computed<Record<string, unknown>>(() => {
+    const endpoint = this.endpoint().trim();
+
     if (this.propsInput() !== undefined) {
-      return this.#initialData.parseValue<Record<string, unknown>>(this.propsInput()) ?? {};
+      return {
+        ...(endpoint ? { endpoint } : {}),
+        ...(this.#initialData.parseValue<Record<string, unknown>>(this.propsInput()) ?? {}),
+      };
     }
 
-    return this.configInput()?.props ?? {};
+    return endpoint ? { endpoint } : {};
   });
 
   constructor() {

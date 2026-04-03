@@ -1,3 +1,4 @@
+import type { CardElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   BadgeComponent,
@@ -6,21 +7,8 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
-
-export interface CardConfig {
-  readonly title?: string;
-  readonly subtitle?: string;
-  readonly body?: string;
-  readonly imageSrc?: string;
-  readonly imageAlt?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly badgeText?: string;
-  readonly badgeType?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-card',
@@ -31,9 +19,9 @@ export interface CardConfig {
   host: { class: 'sg-card' },
 })
 export class CardComponent {
-  readonly configInput = input<Partial<CardConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<CardElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<CardConfig>,
+    transform: coerceConfigInput<CardElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });
@@ -85,9 +73,7 @@ export class CardComponent {
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
   readonly hasBadge = computed(() => this.badgeText().trim().length > 0);
   readonly badgeTone = computed(() => (this.badgeType() === 'info' ? 'brand' : 'neutral'));
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-card--${this.variant()} sg-card--${this.theme()}`,
   );

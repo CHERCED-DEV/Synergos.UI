@@ -1,8 +1,10 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
+import { ELEMENT_REGISTRY_TOKEN } from '../core.tokens';
 
 export interface CustomElementMountConfig {
-  readonly tagName: string;
+  readonly component?: string;
+  readonly tagName?: string;
   readonly props?: Record<string, unknown>;
   readonly textContent?: string;
 }
@@ -11,10 +13,11 @@ type ElementRecord = HTMLElement & Record<string, unknown>;
 
 @Injectable({ providedIn: 'root' })
 export class CustomElementHostService {
-  readonly #document = inject(DOCUMENT);
+  readonly #document  = inject(DOCUMENT);
+  readonly #registry  = inject(ELEMENT_REGISTRY_TOKEN);
 
   mount(container: HTMLElement, config: CustomElementMountConfig): HTMLElement | null {
-    const tagName = config.tagName.trim();
+    const tagName = this.resolveTagName(config);
     if (!tagName) {
       return null;
     }
@@ -67,5 +70,27 @@ export class CustomElementHostService {
 
   private toAttributeName(value: string): string {
     return value.replace(/([A-Z])/g, '-$1').toLowerCase();
+  }
+
+  private resolveTagName(config: CustomElementMountConfig): string {
+    const directTagName = config.tagName?.trim() ?? '';
+    if (directTagName) {
+      return directTagName;
+    }
+
+    const component = config.component?.trim() ?? '';
+    if (!component) {
+      return '';
+    }
+
+    if (component.includes('-')) {
+      return component;
+    }
+
+    const entry = this.#registry.find((candidate) =>
+      candidate.alias === component || candidate.name === component,
+    );
+
+    return entry?.tag ?? component;
   }
 }

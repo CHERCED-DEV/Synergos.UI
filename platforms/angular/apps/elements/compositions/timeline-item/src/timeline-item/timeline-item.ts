@@ -1,23 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { TimelineItemElementConfig } from '@synergos/contracts';
 import {
   DateDisplayComponent,
   HeadingComponent,
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
-
-export interface TimelineItemConfig {
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly date?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-timeline-item',
-  standalone: true,
   imports: [DateDisplayComponent, HeadingComponent],
   templateUrl: './timeline-item.html',
   styleUrl: './timeline-item.scss',
@@ -25,9 +18,9 @@ export interface TimelineItemConfig {
   host: { class: 'sg-timeline-item' },
 })
 export class TimelineItemElementComponent {
-  readonly configInput = input<Partial<TimelineItemConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<TimelineItemElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<TimelineItemConfig>,
+    transform: coerceConfigInput<TimelineItemElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -51,9 +44,7 @@ export class TimelineItemElementComponent {
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
   readonly hasDate = computed(() => this.date().trim().length > 0);
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `timeline-item--${this.variant()} timeline-item--${this.theme()}`,
   );

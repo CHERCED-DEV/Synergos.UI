@@ -1,26 +1,40 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Card ──────────────────────────────────────────────────────────────────────
+
 .syn-card {
   display: grid;
   gap: syn.$space-sm;
   padding: syn.$space-md;
   border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(14);
+  border-radius: syn.$radius-lg;
   background: syn.$color-neutral-0;
   box-shadow: syn.$shadow-xs;
+  transition: syn.$transition-colors, syn.$transition-transform;
 }
 
+// Interactive card — elevates on hover
 .syn-card--interactive {
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 
   @include syn.focus-visible;
 
   &:hover {
-    transform: translateY(syn.px-to-rem(-1));
-    border-color: syn.$color-brand-300;
+    border-color: syn.$color-brand-200;
     box-shadow: syn.$shadow-sm;
+    transform: translateY(syn.px-to-rem(-2));
   }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: syn.$shadow-xs;
+  }
+}
+
+// Dark surface variant
+.syn-card--dark {
+  background:   syn.$color-neutral-800;
+  border-color: syn.$color-neutral-700;
 }
 
 .syn-card__header {
@@ -29,12 +43,25 @@
 }
 
 .syn-card__title {
-  font-size: syn.$font-size-lg;
+  font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
-  color: syn.$color-neutral-900;
+  color:       syn.$color-neutral-900;
+  line-height: syn.$line-height-tight;
+
+  .syn-card--dark & { color: syn.$color-neutral-50; }
 }
 
 .syn-card__subtitle {
   font-size: syn.$font-size-sm;
-  color: syn.$color-neutral-600;
+  color:     syn.$color-neutral-500;
+
+  .syn-card--dark & { color: syn.$color-neutral-400; }
+}
+
+.syn-card__body {
+  font-size:   syn.$font-size-sm;
+  color:       syn.$color-neutral-600;
+  line-height: syn.$line-height-relaxed;
+
+  .syn-card--dark & { color: syn.$color-neutral-300; }
 }

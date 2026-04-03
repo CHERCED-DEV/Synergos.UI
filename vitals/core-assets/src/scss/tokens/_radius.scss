@@ -1,0 +1,18 @@
+// ─── Radius Scale ──────────────────────────────────────────────────────────────
+// Use these tokens everywhere — never hardcode border-radius in components.
+//
+// sm   → 6px   — chips, tags, checkboxes, small badges
+// md   → 10px  — buttons, inputs, small panels
+// lg   → 14px  — cards, panels, accordions, modals
+// xl   → 20px  — large panels, pricing cards
+// 2xl  → 24px  — hero sections, major layout blocks
+// full → pill  — toggle tracks, badge pills, circular buttons
+
+@use '../functions/px-to-rem' as *;
+
+$radius-sm:   px-to-rem(6);
+$radius-md:   px-to-rem(10);
+$radius-lg:   px-to-rem(14);
+$radius-xl:   px-to-rem(20);
+$radius-2xl:  px-to-rem(24);
+$radius-full: px-to-rem(9999);

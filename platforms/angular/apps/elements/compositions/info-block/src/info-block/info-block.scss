@@ -6,7 +6,7 @@
 
 .info-block {
   @include syn.flex-column;
-  gap: syn.$space-sm;
+  gap:     syn.$space-sm;
   padding: syn.$space-lg;
 
   &--card {
@@ -15,30 +15,24 @@
       syn.$color-neutral-0,
       syn.$color-neutral-200,
       syn.px-to-rem(1),
-      syn.px-to-rem(8),
-      syn.$shadow-sm
+      syn.$radius-xl,
+      syn.$shadow-xs
     );
   }
 
-  &--dark {
-    .info-block__body {
-      color: syn.$color-neutral-300;
-    }
-  }
+  &--dark .info-block__body { color: syn.$color-neutral-300; }
 
-  &__title {
-    display: block;
-  }
+  &__title { display: block; }
 
   &__body {
-    margin: 0;
-    font-size: syn.$font-size-base;
+    margin:      0;
+    font-size:   syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
-    color: syn.$color-neutral-600;
+    color:       syn.$color-neutral-600;
   }
 
   &__cta {
     text-decoration: none;
-    align-self: flex-start;
+    align-self:      flex-start;
   }
 }

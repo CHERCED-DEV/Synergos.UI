@@ -4,5 +4,4 @@ export interface FeatureJourneyInputs {
   theme: string;
   variant: string;
   elementId: string;
-  domClass: string;
 }

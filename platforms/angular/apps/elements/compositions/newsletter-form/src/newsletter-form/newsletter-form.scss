@@ -10,8 +10,8 @@
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(12),
-    syn.$shadow-sm
+    syn.$radius-xl,
+    syn.$shadow-xs
   );
   @include syn.flex-column;
   gap: syn.$space-lg;
@@ -22,35 +22,26 @@
     gap: syn.$space-sm;
   }
 
-  &__heading {
-    display: block;
-  }
+  &__heading { display: block; }
 
   &__intro {
-    color: syn.$color-neutral-600;
-    font-size: syn.$font-size-base;
+    color:       syn.$color-neutral-600;
+    font-size:   syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
 
-    :first-child {
-      margin-top: 0;
-    }
-
-    :last-child {
-      margin-bottom: 0;
-    }
+    :first-child { margin-top:    0; }
+    :last-child  { margin-bottom: 0; }
   }
 
   &__actions {
-    display: flex;
+    display:         flex;
     justify-content: flex-start;
   }
 
   &--dark {
-    background: syn.$color-neutral-900;
+    background:   syn.$color-neutral-900;
     border-color: syn.$color-neutral-700;
 
-    .newsletter-form__intro {
-      color: syn.$color-neutral-300;
-    }
+    .newsletter-form__intro { color: syn.$color-neutral-300; }
   }
 }

@@ -8,18 +8,18 @@ import {
   input,
   OnDestroy,
 } from '@angular/core';
-import { CustomElementHostService, InitialDataService } from '@synergos/core';
+import {
+  type AngularHostElementConfig,
+} from '@synergos/contracts';
+import {
+  CustomElementHostService,
+  InitialDataService,
+  ScriptService,
+} from '@synergos/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface AngularHostConfig {
-  readonly tagName?: string;
-  readonly props?: Record<string, unknown>;
-  readonly textContent?: string;
-}
 
 @Component({
   selector: 'sg-angular-host',
-  standalone: true,
   templateUrl: './angular-host.html',
   styleUrl: './angular-host.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,27 +29,57 @@ export class AngularHostElementComponent implements OnDestroy {
   readonly #elementRef = inject(ElementRef<HTMLElement>);
   readonly #hostService = inject(CustomElementHostService);
   readonly #initialData = inject(InitialDataService);
+  readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<AngularHostConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<AngularHostElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<AngularHostConfig>,
+    transform: coerceConfigInput<AngularHostElementConfig>,
   });
+  readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
+  readonly endpointInput = input<string | undefined>(undefined, { alias: 'endpoint' });
+  readonly paramsInput = input<string | undefined>(undefined, { alias: 'params' });
+  readonly scriptSrcInput = input<string | undefined>(undefined, { alias: 'scriptSrc' });
   readonly tagNameInput = input<string | undefined>(undefined, { alias: 'tagName' });
   readonly propsInput = input<string | undefined>(undefined, { alias: 'props' });
   readonly textContentInput = input<string | undefined>(undefined, { alias: 'textContent' });
 
-  readonly tagName = computed(() =>
-    resolveConfigValue(this.tagNameInput(), this.configInput()?.tagName, ''),
+  readonly component = computed(() =>
+    resolveConfigValue(this.componentInput(), this.configInput()?.component, ''),
+  );
+  readonly endpoint = computed(() =>
+    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
+  );
+  readonly scriptSrc = computed(() =>
+    resolveConfigValue(this.scriptSrcInput(), undefined, ''),
+  );
+  readonly #legacyTagName = computed(() =>
+    resolveConfigValue(this.tagNameInput(), undefined, ''),
   );
   readonly textContent = computed(() =>
-    resolveConfigValue(this.textContentInput(), this.configInput()?.textContent, ''),
+    resolveConfigValue(this.textContentInput(), undefined, ''),
   );
+  readonly #parsedParams = computed<Record<string, string>>(() => {
+    if (this.paramsInput() !== undefined) {
+      return this.#initialData.parseValue<Record<string, string>>(this.paramsInput()) ?? {};
+    }
+
+    return this.configInput()?.params ?? {};
+  });
   readonly #parsedProps = computed<Record<string, unknown>>(() => {
     if (this.propsInput() !== undefined) {
       return this.#initialData.parseValue<Record<string, unknown>>(this.propsInput()) ?? {};
     }
 
-    return this.configInput()?.props ?? {};
+    return {};
+  });
+  readonly #resolvedProps = computed<Record<string, unknown>>(() => {
+    const endpoint = this.endpoint().trim();
+
+    return {
+      ...this.#parsedParams(),
+      ...this.#parsedProps(),
+      ...(endpoint ? { endpoint } : {}),
+    };
   });
 
   constructor() {
@@ -59,14 +89,28 @@ export class AngularHostElementComponent implements OnDestroy {
         return;
       }
 
-      if (!this.tagName().trim()) {
+      const component = this.component().trim();
+      const tagName = this.#legacyTagName().trim();
+      const scriptSrc = this.scriptSrc().trim();
+
+      if (scriptSrc) {
+        this.#scriptService.addScript({
+          src: scriptSrc,
+          target: 'body',
+          async: true,
+          defer: true,
+        });
+      }
+
+      if (!component && !tagName) {
         this.#hostService.unmount(container);
         return;
       }
 
       this.#hostService.mount(container, {
-        tagName: this.tagName(),
-        props: this.#parsedProps(),
+        component,
+        tagName,
+        props: this.#resolvedProps(),
         textContent: this.textContent(),
       });
     });

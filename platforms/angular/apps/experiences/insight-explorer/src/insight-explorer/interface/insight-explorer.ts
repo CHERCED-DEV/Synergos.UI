@@ -6,6 +6,7 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 import { InsightState } from '../application/insight.state';
 import { selectInsight, overrideItems } from '../application/use-cases/select-insight';
@@ -50,16 +51,14 @@ export class InsightExplorerComponent {
   readonly selectedId = this.#state.selectedId;
   readonly selectedItem = this.#state.selectedItem;
 
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-insight-explorer--${this.variant()} sg-insight-explorer--${this.theme()}`,
   );
 
   // eslint-disable-next-line no-unused-private-class-members
   readonly #itemsEffect = effect(() => {
-    const raw = this.itemsInput() ?? this.configInput()?.items;
+    const raw = this.itemsInput();
     const parsed = parseInsightItems(raw);
     if (parsed) overrideItems(this.#state, parsed);
   });

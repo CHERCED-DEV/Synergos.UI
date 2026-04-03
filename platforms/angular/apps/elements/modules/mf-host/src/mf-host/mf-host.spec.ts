@@ -56,8 +56,9 @@ describe('MfHostElementComponent', () => {
     parseValueSpy.mockReturnValue({ locale: 'en' });
 
     fixture.componentRef.setInput('remoteEntry', 'https://cdn.example.com/remote.js');
-    fixture.componentRef.setInput('tagName', 'remote-banner');
-    fixture.componentRef.setInput('props', '{"locale":"en"}');
+    fixture.componentRef.setInput('component', 'remote-banner');
+    fixture.componentRef.setInput('endpoint', '/api/widget');
+    fixture.componentRef.setInput('params', '{"locale":"en"}');
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -67,16 +68,16 @@ describe('MfHostElementComponent', () => {
     expect(mountSpy).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
-        tagName: 'remote-banner',
-        props: { locale: 'en' },
+        component: 'remote-banner',
+        props: { locale: 'en', endpoint: '/api/widget' },
       }),
     );
   });
 
-  it('should mount from config payloads', async () => {
+  it('should mount from CMS-style config payloads', async () => {
     fixture.componentRef.setInput(
       'config',
-      '{"remoteEntry":"https://cdn.example.com/remote.js","tagName":"remote-banner","props":{"theme":"dark"}}',
+      '{"remoteEntry":"https://cdn.example.com/remote.js","exposedModule":"remote-banner","endpoint":"/api/widget","params":{"theme":"dark"}}',
     );
     fixture.detectChanges();
     await fixture.whenStable();
@@ -84,8 +85,8 @@ describe('MfHostElementComponent', () => {
     expect(mountSpy).toHaveBeenCalledWith(
       expect.any(HTMLElement),
       expect.objectContaining({
-        tagName: 'remote-banner',
-        props: { theme: 'dark' },
+        component: 'remote-banner',
+        props: { theme: 'dark', endpoint: '/api/widget' },
       }),
     );
   });

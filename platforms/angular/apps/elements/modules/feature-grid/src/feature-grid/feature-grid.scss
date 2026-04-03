@@ -8,13 +8,11 @@
   padding: syn.$space-xl 0;
 
   &__heading {
-    display: block;
+    display:       block;
     margin-bottom: syn.$space-xl;
   }
 
-  &__grid {
-    display: block;
-  }
+  &__grid { display: block; }
 
   &__item {
     @include syn.flex-column;
@@ -23,28 +21,39 @@
       syn.$color-neutral-0,
       syn.$color-neutral-200,
       syn.px-to-rem(1),
-      syn.px-to-rem(16),
-      syn.$shadow-sm
+      syn.$radius-xl,
+      syn.$shadow-xs
     );
     align-items: center;
-    text-align: center;
-    gap: syn.$space-sm;
-    height: 100%;
+    text-align:  center;
+    gap:         syn.$space-sm;
+    height:      100%;
+    transition:  box-shadow syn.$duration-base syn.$easing-default,
+                 transform  syn.$duration-base syn.$easing-default;
+
+    &:hover {
+      box-shadow: syn.$shadow-md;
+      transform:  translateY(syn.px-to-rem(-2));
+    }
 
     .sg-feature-grid--dark & {
       background-color: syn.$color-neutral-800;
-      border-color: syn.$color-neutral-700;
+      border-color:     syn.$color-neutral-700;
     }
   }
 
   &__icon {
     @include syn.flex-center;
-    width: syn.px-to-rem(48);
-    height: syn.px-to-rem(48);
-    border-radius: syn.px-to-rem(12);
+    width:            syn.px-to-rem(52);
+    height:           syn.px-to-rem(52);
+    border-radius:    syn.$radius-md;
     background-color: syn.$color-brand-100;
-    color: syn.$color-brand-600;
-    font-size: syn.$font-size-xl;
+
+    img {
+      width:      syn.px-to-rem(28);
+      height:     syn.px-to-rem(28);
+      object-fit: contain;
+    }
   }
 
   &__item-heading {
@@ -52,19 +61,15 @@
     @include syn.heading('xs');
     color: syn.$color-neutral-900;
 
-    .sg-feature-grid--dark & {
-      color: syn.$color-neutral-0;
-    }
+    .sg-feature-grid--dark & { color: syn.$color-neutral-0; }
   }
 
   &__item-body {
-    margin: 0;
-    font-size: syn.$font-size-sm;
+    margin:      0;
+    font-size:   syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
-    color: syn.$color-neutral-600;
+    color:       syn.$color-neutral-600;
 
-    .sg-feature-grid--dark & {
-      color: syn.$color-neutral-300;
-    }
+    .sg-feature-grid--dark & { color: syn.$color-neutral-300; }
   }
 }

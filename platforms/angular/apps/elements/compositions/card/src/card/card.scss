@@ -1,7 +1,7 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  display:     block;
   font-family: inherit;
 }
 
@@ -12,37 +12,38 @@
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(8),
-    syn.$shadow-sm
+    syn.$radius-lg,
+    syn.$shadow-xs
   );
-  overflow: hidden;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  overflow:   hidden;
+  transition: box-shadow syn.$duration-base syn.$easing-default,
+              transform  syn.$duration-base syn.$easing-default;
 
   &:hover {
     box-shadow: syn.$shadow-md;
-    transform: translateY(syn.px-to-rem(-2));
+    transform:  translateY(syn.px-to-rem(-2));
   }
 
   &--dark {
-    background: syn.$color-neutral-800;
+    background:   syn.$color-neutral-900;
     border-color: syn.$color-neutral-700;
   }
 
   &__image {
-    width: 100%;
+    width:        100%;
     aspect-ratio: 16 / 9;
-    overflow: hidden;
+    overflow:     hidden;
 
     img {
-      width: 100%;
-      height: 100%;
+      width:      100%;
+      height:     100%;
       object-fit: cover;
     }
   }
 
   &__content {
     @include syn.flex-column;
-    gap: syn.$space-sm;
+    gap:     syn.$space-sm;
     padding: syn.$space-lg;
   }
 
@@ -51,29 +52,25 @@
   }
 
   &__subtitle {
-    margin: 0;
+    margin:    0;
     font-size: syn.$font-size-sm;
-    color: syn.$color-neutral-500;
+    color:     syn.$color-neutral-500;
 
-    .sg-card--dark & {
-      color: syn.$color-neutral-400;
-    }
+    .sg-card--dark & { color: syn.$color-neutral-400; }
   }
 
   &__body {
-    margin: 0;
-    font-size: syn.$font-size-base;
-    color: syn.$color-neutral-600;
-    line-height: syn.$line-height-normal;
+    margin:      0;
+    font-size:   syn.$font-size-base;
+    color:       syn.$color-neutral-600;
+    line-height: syn.$line-height-relaxed;
 
-    .sg-card--dark & {
-      color: syn.$color-neutral-300;
-    }
+    .sg-card--dark & { color: syn.$color-neutral-300; }
   }
 
   &__cta-link {
     text-decoration: none;
-    align-self: flex-start;
-    margin-top: syn.$space-xs;
+    align-self:      flex-start;
+    margin-top:      syn.$space-xs;
   }
 }

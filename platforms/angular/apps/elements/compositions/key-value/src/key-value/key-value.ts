@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { KeyValueElementConfig } from '@synergos/contracts';
 import {
   DescriptionListComponent,
   type DescriptionListItem,
@@ -6,16 +7,8 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 
-export interface KeyValueConfig {
-  readonly label?: string;
-  readonly value?: string;
-  readonly helpText?: string;
-  readonly theme?: string;
-}
-
 @Component({
   selector: 'sg-key-value',
-  standalone: true,
   imports: [DescriptionListComponent],
   templateUrl: './key-value.html',
   styleUrl: './key-value.scss',
@@ -23,9 +16,9 @@ export interface KeyValueConfig {
   host: { class: 'sg-key-value' },
 })
 export class KeyValueElementComponent {
-  readonly configInput = input<Partial<KeyValueConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<KeyValueElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<KeyValueConfig>,
+    transform: coerceConfigInput<KeyValueElementConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly valueInput = input<string | undefined>(undefined, { alias: 'value' });

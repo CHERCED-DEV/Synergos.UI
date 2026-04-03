@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import type { TabGroupElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   HeadingComponent,
@@ -6,6 +7,7 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 interface TabGroupTabItem {
@@ -13,15 +15,6 @@ interface TabGroupTabItem {
   readonly label: string;
   readonly content: string;
   readonly disabled?: boolean;
-}
-
-export interface TabGroupConfig {
-  readonly title?: string;
-  readonly tabs?: readonly TabGroupTabItem[];
-  readonly activeId?: string;
-  readonly ariaLabel?: string;
-  readonly variant?: string;
-  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,9 +56,9 @@ function normalizeTab(value: unknown): TabGroupTabItem | null {
 export class TabGroupElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<TabGroupConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<TabGroupElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<TabGroupConfig>,
+    transform: coerceConfigInput<TabGroupElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly tabsInput = input<string | undefined>(undefined, { alias: 'tabs' });
@@ -78,7 +71,7 @@ export class TabGroupElementComponent {
     resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
   );
   readonly activeId = computed(() =>
-    resolveConfigValue(this.activeIdInput(), this.configInput()?.activeId, ''),
+    resolveConfigValue(this.activeIdInput(), undefined, ''),
   );
   readonly ariaLabel = computed(() =>
     resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, 'Tabs'),
@@ -101,10 +94,8 @@ export class TabGroupElementComponent {
         .filter((tab): tab is TabGroupTabItem => tab !== null);
     }
 
-    return this.configInput()?.tabs ?? [];
+    return [];
   });
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(() => `tab-group--${this.variant()} tab-group--${this.theme()}`);
 }

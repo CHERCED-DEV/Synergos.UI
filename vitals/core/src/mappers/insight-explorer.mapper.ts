@@ -7,7 +7,6 @@ export function mapInsightExplorerData(data: InsightExplorerElementData): Insigh
     theme: data.domVariant?.theme ?? 'light',
     variant: data.domVariant?.variant ?? 'default',
     elementId: data.domAttributes?.elementId ?? '',
-    domClass: data.domClass?.cssClass ?? '',
     items: data.collection ? JSON.stringify(data.collection) : '',
   };
 }

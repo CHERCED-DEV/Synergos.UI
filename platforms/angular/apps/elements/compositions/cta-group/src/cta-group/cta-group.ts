@@ -1,17 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { CtaGroupElementConfig } from '@synergos/contracts';
 import { ButtonComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface CtaGroupConfig {
-  readonly primaryLabel?: string;
-  readonly primaryUrl?: string;
-  readonly primaryTarget?: string;
-  readonly primaryVariant?: string;
-  readonly secondaryLabel?: string;
-  readonly secondaryUrl?: string;
-  readonly secondaryTarget?: string;
-  readonly secondaryVariant?: string;
-  readonly alignment?: string;
-}
 
 @Component({
   selector: 'sg-cta-group',
@@ -22,9 +11,9 @@ export interface CtaGroupConfig {
   host: { class: 'sg-cta-group' },
 })
 export class CtaGroupComponent {
-  readonly configInput = input<Partial<CtaGroupConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<CtaGroupElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<CtaGroupConfig>,
+    transform: coerceConfigInput<CtaGroupElementConfig>,
   });
   readonly primaryLabelInput = input<string | undefined>(undefined, { alias: 'primaryLabel' });
   readonly primaryUrlInput = input<string | undefined>(undefined, { alias: 'primaryUrl' });

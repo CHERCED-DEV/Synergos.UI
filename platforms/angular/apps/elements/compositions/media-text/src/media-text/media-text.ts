@@ -1,22 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { MediaTextElementConfig } from '@synergos/contracts';
 import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
-
-export interface MediaTextConfig {
-  readonly imageSrc?: string;
-  readonly imageAlt?: string;
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly mediaPosition?: string;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-media-text',
@@ -27,9 +18,9 @@ export interface MediaTextConfig {
   host: { class: 'sg-media-text' },
 })
 export class MediaTextComponent {
-  readonly configInput = input<Partial<MediaTextConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<MediaTextElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<MediaTextConfig>,
+    transform: coerceConfigInput<MediaTextElementConfig>,
   });
   readonly imageSrcInput = input<string | undefined>(undefined, { alias: 'imageSrc' });
   readonly imageAltInput = input<string | undefined>(undefined, { alias: 'imageAlt' });
@@ -37,7 +28,9 @@ export class MediaTextComponent {
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
   readonly ctaLabelInput = input<string | undefined>(undefined, { alias: 'ctaLabel' });
   readonly ctaUrlInput = input<string | undefined>(undefined, { alias: 'ctaUrl' });
+  readonly ctaTargetInput = input<string | undefined>(undefined, { alias: 'ctaTarget' });
   readonly mediaPositionInput = input<string | undefined>(undefined, { alias: 'mediaPosition' });
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly imageSrc = computed(() =>
@@ -58,18 +51,22 @@ export class MediaTextComponent {
   readonly ctaUrl = computed(() =>
     resolveConfigValue(this.ctaUrlInput(), this.configInput()?.ctaUrl, ''),
   );
+  readonly ctaTarget = computed(() =>
+    resolveConfigValue(this.ctaTargetInput(), this.configInput()?.ctaTarget, '_self'),
+  );
   readonly mediaPosition = computed(() =>
     resolveConfigValue(this.mediaPositionInput(), this.configInput()?.mediaPosition, 'left'),
+  );
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
 
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
-    () => `sg-media-text--${this.mediaPosition()} sg-media-text--${this.theme()}`,
+    () => `sg-media-text--${this.mediaPosition()} sg-media-text--${this.variant()} sg-media-text--${this.theme()}`,
   );
 }

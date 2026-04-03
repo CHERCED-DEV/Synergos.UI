@@ -39,3 +39,17 @@ export const LAYOUT_TEMPLATE_MAP = new InjectionToken<LayoutTemplateMap>('LAYOUT
   providedIn: 'root',
   factory: () => ({}),
 });
+
+export interface ElementRegistryEntry {
+  readonly alias?: string;
+  readonly name?: string;
+  readonly tag: string;
+}
+
+export const ELEMENT_REGISTRY_TOKEN = new InjectionToken<readonly ElementRegistryEntry[]>(
+  'ELEMENT_REGISTRY',
+  {
+    providedIn: 'root',
+    factory: () => [],
+  },
+);

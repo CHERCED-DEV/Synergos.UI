@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import type { ScriptEmbedElementConfig } from '@synergos/contracts';
 import { ScriptService } from '@synergos/core';
 import {
   coerceConfigInput,
@@ -8,17 +9,26 @@ import {
 
 type ScriptTarget = 'head' | 'body';
 
-export interface ScriptEmbedConfig {
-  readonly src?: string;
-  readonly type?: string;
-  readonly inlineScript?: string;
-  readonly target?: ScriptTarget;
-  readonly async?: boolean;
-  readonly defer?: boolean;
-}
-
 function resolveTarget(value: string | undefined): ScriptTarget {
   return value === 'head' ? 'head' : 'body';
+}
+
+function looksLikeScriptUrl(value: string): boolean {
+  const trimmedValue = value.trim();
+  return /^https?:\/\//u.test(trimmedValue)
+    || trimmedValue.startsWith('//')
+    || trimmedValue.startsWith('/')
+    || /\.m?js(?:[?#].*)?$/iu.test(trimmedValue);
+}
+
+function resolveScriptMimeType(value: string): string {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue || trimmedValue === 'external' || trimmedValue === 'url') {
+    return 'text/javascript';
+  }
+
+  return trimmedValue;
 }
 
 @Component({
@@ -32,10 +42,12 @@ export class ScriptEmbedElementComponent {
   readonly #scriptService = inject(ScriptService);
   readonly #loaded = signal(false);
 
-  readonly configInput = input<Partial<ScriptEmbedConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<ScriptEmbedElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<ScriptEmbedConfig>,
+    transform: coerceConfigInput<ScriptEmbedElementConfig>,
   });
+  readonly scriptTypeInput = input<string | undefined>(undefined, { alias: 'scriptType' });
+  readonly contentInput = input<string | undefined>(undefined, { alias: 'content' });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly typeInput = input<string | undefined>(undefined, { alias: 'type' });
   readonly inlineScriptInput = input<string | undefined>(undefined, { alias: 'inlineScript' });
@@ -49,23 +61,46 @@ export class ScriptEmbedElementComponent {
     transform: coerceOptionalBooleanInput,
   });
 
-  readonly src = computed(() =>
-    resolveConfigValue(this.srcInput(), this.configInput()?.src, ''),
+  readonly scriptType = computed(() =>
+    resolveConfigValue(
+      this.scriptTypeInput(),
+      this.configInput()?.scriptType,
+      resolveConfigValue(this.typeInput(), undefined, 'text/javascript'),
+    ),
   );
+  readonly content = computed(() =>
+    resolveConfigValue(
+      this.contentInput(),
+      this.configInput()?.content,
+      resolveConfigValue(this.inlineScriptInput(), undefined, resolveConfigValue(this.srcInput(), undefined, '')),
+    ),
+  );
+  readonly src = computed(() => {
+    if (this.srcInput() !== undefined) {
+      return this.srcInput()?.trim() ?? '';
+    }
+
+    const content = this.content().trim();
+    return looksLikeScriptUrl(content) ? content : '';
+  });
   readonly type = computed(() =>
-    resolveConfigValue(this.typeInput(), this.configInput()?.type, 'text/javascript'),
+    resolveScriptMimeType(this.scriptType()),
   );
-  readonly inlineScript = computed(() =>
-    resolveConfigValue(this.inlineScriptInput(), this.configInput()?.inlineScript, ''),
-  );
+  readonly inlineScript = computed(() => {
+    if (this.inlineScriptInput() !== undefined) {
+      return this.inlineScriptInput()?.trim() ?? '';
+    }
+
+    return this.src().trim() ? '' : this.content().trim();
+  });
   readonly target = computed<ScriptTarget>(() =>
-    resolveTarget(resolveConfigValue(this.targetInput(), this.configInput()?.target, 'body')),
+    resolveTarget(resolveConfigValue(this.targetInput(), undefined, 'body')),
   );
   readonly async = computed(() =>
-    resolveConfigValue(this.asyncInput(), this.configInput()?.async, false),
+    resolveConfigValue(this.asyncInput(), undefined, false),
   );
   readonly defer = computed(() =>
-    resolveConfigValue(this.deferInput(), this.configInput()?.defer, true),
+    resolveConfigValue(this.deferInput(), undefined, true),
   );
   readonly hasDefinition = computed(() => this.src().trim().length > 0 || this.inlineScript().trim().length > 0);
 

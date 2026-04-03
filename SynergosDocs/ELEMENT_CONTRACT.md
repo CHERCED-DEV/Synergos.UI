@@ -246,7 +246,140 @@ node tools/manifest-gen.mjs --version $VERSION --out dist/manifests
 node tools/manifest-gen.mjs --validate
 ```
 
-Add to package.json:
-```json
-"validate:manifests": "node tools/manifest-gen.mjs --validate"
+Use the combined gate (runs both audit + manifest validation):
+
+```bash
+npm run contracts:validate
 ```
+
+This is wired into all `npm run release:*` scripts and must pass before any publish.
+
+---
+
+## CDN Path Resolution
+
+**Rule: the `name` field governs the CDN path — never the `tag`.**
+
+The `name` and `tag` can differ:
+
+| `name` | `tag` | CDN path |
+|--------|-------|----------|
+| `stat` | `synergos-stat-counter` | `/synergos/stat/angular/v1/main.js` |
+| `hero` | `synergos-hero` | `/synergos/hero/angular/v1/main.js` |
+
+`publish.mjs` uses `entry.name` to build all CDN paths. The `tag` appears only inside `manifest.json`.
+
+**For CMS:** always use `registry.entry.name` to construct the script URL. Never strip `synergos-` from the tag to derive the path.
+
+---
+
+## Alias-Variant Routing
+
+Multiple registry aliases can map to the same custom element tag. This is intentional for text primitives — they share one CDN bundle but render differently based on `variant` or `headingLevel` in the config.
+
+| CMS alias | Custom element tag | Config to pass |
+|---|---|---|
+| `elementTextHeading` | `synergos-text-block` | `{ headingLevel: "h2" }` |
+| `elementTextParagraph` | `synergos-text-block` | `{ variant: "paragraph" }` |
+| `elementTextRichText` | `synergos-text-block` | `{ variant: "rich-text" }` |
+| `elementTextEyebrow` | `synergos-text-block` | `{ variant: "eyebrow" }` |
+| `elementTextQuote` | `synergos-text-block` | `{ variant: "quote" }` |
+| `elementTextLabel` | `synergos-text-block` | `{ variant: "label" }` |
+| `elementTextBlock` | `synergos-text-block` | `{ variant: "default" }` |
+| `elementActionButton` | `synergos-button-container` | _(same tag as `button-container`)_ |
+
+**Implications:**
+
+- Only **one** CDN bundle exists for all text aliases: `/synergos/text-block/angular/v1/main.js`
+- The CMS resolver must pass the correct `variant` or `headingLevel` in the config attribute
+- Attempting to load `/synergos/heading/...` or `/synergos/paragraph/...` will 404
+
+**When building the script URL from an alias:**
+
+1. Resolve alias → registry entry → `entry.name`
+2. Build URL: `cdn/{entry.name}/{framework}/{slot}/main.js`
+3. Inject `variant` / `headingLevel` via the config payload — the bundle is already shared
+
+---
+
+## Two-Layer Contract Model
+
+The integration uses two contract layers. Understanding both prevents silent mismatches.
+
+### Layer 1 — Element Data (semantic domain model)
+
+Defined in `vitals/contracts/src/elements.contract.ts`. Mirrors CMS domain model. Uses compositions:
+
+```ts
+interface HeroElementData {
+  heading?: ContentHeading;   // { headingText, headingLevel }
+  cta?:     ContentCta;       // { ctaLabel, ctaLink: Link, ctaTarget }
+  media?:   ContentMedia;     // { media: Image, altText }
+}
+```
+
+This is the CMS's native language — what the page API returns in `BlockConfig.data`.
+
+### Layer 2 — Element Config (flat HTML attribute payload)
+
+Defined in `vitals/contracts/src/element-config.contract.ts`. Flat primitive props. What the Angular component `input()` properties receive:
+
+```ts
+interface HeroElementConfig {
+  headingText?: string;   // flattened from ContentHeading.headingText
+  ctaLabel?:   string;    // flattened from ContentCta.ctaLabel
+  ctaUrl?:     string;    // flattened from ContentCta.ctaLink.url
+  imageSrc?:   string;    // flattened from ContentMedia.media.url
+}
+```
+
+### The mapper (CMS responsibility)
+
+The CMS resolver flattens Layer 1 → Layer 2 before serializing to JSON. The mapping is:
+
+```
+ContentCta.ctaLabel    → ctaLabel
+ContentCta.ctaLink.url → ctaUrl       ← NOT ctaLink (the element expects a flat string)
+ContentMedia.media.url → imageSrc     ← NOT a Media object
+```
+
+**Critical rule:** the element always expects the **flat** config (Layer 2). If a CMS resolver accidentally passes a `ContentCta` object where `ctaUrl: string` is expected, the field resolves to `undefined` silently.
+
+---
+
+## Governance Rules
+
+### Adding a new element
+
+1. Add entry to `vitals/contracts/src/element-registry.json`
+2. Add inputs to `vitals/contracts/src/element-inputs.json`
+3. Add config interface to `vitals/contracts/src/element-config.contract.ts`
+4. Add model file `vitals/core/src/models/{tag-slug}-inputs.model.ts`
+5. Export the model from `vitals/core/src/models/index.ts`
+6. Add mapper entry in `vitals/core/src/mappers/block.mapper.ts`
+7. Add element data interface to `vitals/contracts/src/elements.contract.ts`
+8. Run `npm run contracts:validate` — must pass before any publish
+9. Build and publish
+
+### Changing an existing element contract
+
+| Change type | Version bump | CMS action required |
+|---|---|---|
+| Add optional input | MINOR | None (element ignores unknown inputs) |
+| Remove input | **MAJOR** | Update resolver to stop passing that field |
+| Rename input | **MAJOR** | Update resolver field name |
+| Change input type | **MAJOR** | Update resolver serialization |
+| Change default value | PATCH | None |
+| Bug fix, style only | PATCH | None |
+
+### What belongs in UI vs CMS
+
+| Concern | Owned by |
+|---|---|
+| `entry.name`, `entry.tag`, `entry.alias` | UI (element-registry.json) |
+| `inputs[]` shape and defaults | UI (element-inputs.json) |
+| CDN path structure | UI (publish.mjs) |
+| `variant`, `theme` values available | UI (element documentation) |
+| Content field → config field mapping | CMS (resolvers) |
+| Which slot (v1 / latest) to use in production | CMS (appsettings) |
+| Import map injection in `<head>` | CMS (layout partial) |

@@ -1,20 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { InfoBlockElementConfig } from '@synergos/contracts';
 import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
-
-export interface InfoBlockConfig {
-  readonly title?: string;
-  readonly body?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-info-block',
@@ -25,9 +18,9 @@ export interface InfoBlockConfig {
   host: { class: 'sg-info-block' },
 })
 export class InfoBlockComponent {
-  readonly configInput = input<Partial<InfoBlockConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<InfoBlockElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<InfoBlockConfig>,
+    transform: coerceConfigInput<InfoBlockElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -56,9 +49,7 @@ export class InfoBlockComponent {
   );
 
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-info-block--${this.variant()} sg-info-block--${this.theme()}`,
   );

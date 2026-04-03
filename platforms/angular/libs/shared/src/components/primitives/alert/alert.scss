@@ -1,5 +1,7 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Alert ─────────────────────────────────────────────────────────────────────
+
 .syn-alert {
   display: flex;
   align-items: flex-start;
@@ -7,25 +9,42 @@
   gap: syn.$space-sm;
   padding: syn.$space-sm syn.$space-md;
   border: syn.px-to-rem(1) solid;
-  border-radius: syn.px-to-rem(12);
+  border-radius: syn.$radius-lg;
 }
 
+// Neutral — informational, no urgency
 .syn-alert--neutral {
-  background: syn.$color-neutral-0;
-  border-color: syn.$color-neutral-300;
-  color: syn.$color-neutral-900;
+  background:   syn.$color-neutral-50;
+  border-color: syn.$color-neutral-200;
+  color:        syn.$color-neutral-800;
 }
 
+// Brand — highlight or guidance
 .syn-alert--brand {
-  background: syn.$color-brand-100;
-  border-color: syn.$color-brand-300;
-  color: syn.$color-brand-600;
+  background:   syn.$color-brand-100;
+  border-color: syn.$color-brand-200;
+  color:        syn.$color-brand-600;
 }
 
+// Success — confirmation of a positive outcome
+.syn-alert--success {
+  background:   syn.$color-success-100;
+  border-color: syn.$color-success-200;
+  color:        syn.$color-success-600;
+}
+
+// Warning — needs attention, not blocking
+.syn-alert--warning {
+  background:   syn.$color-warning-100;
+  border-color: syn.$color-warning-300;
+  color:        syn.$color-warning-600;
+}
+
+// Critical / Danger — error, destructive, blocking
 .syn-alert--critical {
-  background: syn.$color-neutral-100;
-  border-color: syn.$color-neutral-500;
-  color: syn.$color-neutral-900;
+  background:   syn.$color-danger-100;
+  border-color: syn.$color-danger-200;
+  color:        syn.$color-danger-600;
 }
 
 .syn-alert__content {
@@ -34,20 +53,27 @@
 }
 
 .syn-alert__title {
-  font-size: syn.$font-size-sm;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
 }
 
 .syn-alert__description {
-  font-size: syn.$font-size-sm;
+  font-size:   syn.$font-size-sm;
+  line-height: syn.$line-height-normal;
 }
 
 .syn-alert__dismiss {
   @include syn.focus-visible;
+  flex-shrink: 0;
   border: 0;
   background: transparent;
-  color: inherit;
+  color: currentColor;
   font-size: syn.$font-size-base;
   line-height: 1;
+  opacity: 0.6;
   cursor: pointer;
+  transition: opacity syn.$duration-fast syn.$easing-smooth;
+
+  &:hover { opacity: 1; }
 }

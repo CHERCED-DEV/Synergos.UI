@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, isDevMode } from '@angular/core';
+import type { TestimonialSectionElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   AvatarComponent,
@@ -7,6 +8,7 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 interface TestimonialItem {
@@ -14,12 +16,6 @@ interface TestimonialItem {
   readonly name: string;
   readonly quote: string;
   readonly role: string;
-}
-
-export interface TestimonialSectionConfig {
-  readonly headingText?: string;
-  readonly items?: readonly TestimonialItem[];
-  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,14 +52,14 @@ function normalizeTestimonialItem(value: unknown): TestimonialItem | null {
   templateUrl: './testimonial-section.html',
   styleUrl: './testimonial-section.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-testimonial-section' },
+  host: { class: 'sg-testimonial-section', '[style.display]': 'hasItems() ? null : "none"' },
 })
 export class TestimonialSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly configInput = input<Partial<TestimonialSectionConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<TestimonialSectionElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<TestimonialSectionConfig>,
+    transform: coerceConfigInput<TestimonialSectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
@@ -72,16 +68,13 @@ export class TestimonialSectionComponent {
   readonly headingText = computed(() =>
     resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
   );
-  readonly items = computed(() =>
-    resolveConfigValue(this.itemsInput(), undefined, '[]'),
-  );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
 
   readonly parsedItems = computed<readonly TestimonialItem[]>(() => {
     if (this.itemsInput() !== undefined) {
-      const parsedValue = this.#initialData.parseValue<unknown>(this.items());
+      const parsedValue = this.#initialData.parseValue<unknown>(this.itemsInput());
 
       if (!Array.isArray(parsedValue)) {
         return [];
@@ -92,12 +85,26 @@ export class TestimonialSectionComponent {
         .filter((item): item is TestimonialItem => item !== null);
     }
 
-    return (this.configInput()?.items ?? [])
-      .map((item) => normalizeTestimonialItem(item))
-      .filter((item): item is TestimonialItem => item !== null);
+    const configItems = this.configInput()?.items;
+    if (Array.isArray(configItems)) {
+      return (configItems as unknown[])
+        .map((item) => normalizeTestimonialItem(item))
+        .filter((item): item is TestimonialItem => item !== null);
+    }
+
+    return [];
   });
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
+  readonly hasItems = computed(() => this.parsedItems().length > 0);
   readonly hostClasses = computed(() => `sg-testimonial-section--${this.theme()}`);
+
+  constructor() {
+    if (isDevMode()) {
+      effect(() => {
+        if (!this.hasItems() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+          console.warn('[synergos-testimonial-section] Items resolved to empty. Check your "items" attribute or "config.items" array format.');
+        }
+      });
+    }
+  }
 }

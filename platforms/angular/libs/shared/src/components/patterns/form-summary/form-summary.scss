@@ -1,27 +1,29 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Form Summary ─────────────────────────────────────────────────────────────
+
 .syn-form-summary {
   display: grid;
-  gap: syn.$space-lg;
+  gap:     syn.$space-lg;
 }
 
 .syn-form-summary__list {
   display: grid;
-  gap: syn.$space-md;
+  gap:     syn.$space-md;
 }
 
 .syn-form-summary__item {
-  display: grid;
-  gap: syn.$space-md;
-  padding: syn.$space-md;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(18);
-  background: syn.$color-neutral-0;
+  display:       grid;
+  gap:           syn.$space-md;
+  padding:       syn.$space-md;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-xl;
+  background:    syn.$color-neutral-0;
 }
 
 .syn-form-summary__item--avatar {
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  align-items:           start;
 }
 
 .syn-form-summary__content,
@@ -30,12 +32,12 @@
 .syn-form-summary__meta,
 .syn-form-summary__actions {
   display: grid;
-  gap: syn.$space-sm;
+  gap:     syn.$space-sm;
 }
 
 .syn-form-summary__actions {
   justify-content: start;
-  grid-auto-flow: column;
+  grid-auto-flow:  column;
 }
 
 .syn-form-summary__title,
@@ -45,14 +47,14 @@
 }
 
 .syn-form-summary__title {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-lg;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
 }
 
 .syn-form-summary__description,
 .syn-form-summary__detail {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   line-height: syn.$line-height-relaxed;
 }

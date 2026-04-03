@@ -1,3 +1,4 @@
+import type { BadgeElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   BadgeComponent as SynBadgeComponent,
@@ -7,12 +8,6 @@ import {
 } from '@synergos/shared';
 
 type BadgeTone = NonNullable<BadgeConfig['tone']>;
-
-export interface BadgeElementConfig {
-  readonly text?: string;
-  readonly ariaLabel?: string;
-  readonly tone?: BadgeTone;
-}
 
 @Component({
   selector: 'sg-badge',
@@ -38,6 +33,6 @@ export class BadgeElementComponent {
     resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
   );
   readonly tone = computed<BadgeTone>(() =>
-    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral'),
+    resolveConfigValue(this.toneInput(), this.configInput()?.tone, 'neutral') as BadgeTone,
   );
 }

@@ -5,8 +5,10 @@ import {
   effect,
   inject,
   input,
+  isDevMode,
   signal,
 } from '@angular/core';
+import type { BannerSliderElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   ButtonComponent,
@@ -17,6 +19,7 @@ import {
   coerceConfigInput,
   coerceOptionalBooleanInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 interface BannerSlideItem {
@@ -28,16 +31,6 @@ interface BannerSlideItem {
   readonly ctaLabel: string;
   readonly ctaUrl: string;
   readonly ctaTarget: string;
-}
-
-export interface BannerSliderConfig {
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly items?: readonly BannerSlideItem[];
-  readonly autoplay?: boolean;
-  readonly loop?: boolean;
-  readonly variant?: string;
-  readonly theme?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,8 +46,8 @@ function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
     return null;
   }
 
-  const src = readString(value['src']).trim();
-  const label = readString(value['label']).trim();
+  const src = readString(value['imageSrc'] ?? value['src']).trim();
+  const label = readString(value['title'] ?? value['label']).trim();
   const body = readString(value['body']).trim();
   const ctaLabel = readString(value['ctaLabel']).trim();
   const ctaUrl = readString(value['ctaUrl']).trim();
@@ -68,7 +61,7 @@ function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
     label,
     body,
     src,
-    alt: readString(value['alt']).trim(),
+    alt: readString(value['imageAlt'] ?? value['alt']).trim(),
     ctaLabel,
     ctaUrl,
     ctaTarget: readString(value['ctaTarget']).trim() || '_self',
@@ -77,20 +70,19 @@ function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
 
 @Component({
   selector: 'sg-banner-slider',
-  standalone: true,
   imports: [ButtonComponent, CarouselComponent, HeadingComponent],
   templateUrl: './banner-slider.html',
   styleUrl: './banner-slider.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'sg-banner-slider' },
+  host: { class: 'sg-banner-slider', '[style.display]': 'hasSlides() ? null : "none"' },
 })
 export class BannerSliderElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #activeIndex = signal(0);
 
-  readonly configInput = input<Partial<BannerSliderConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<BannerSliderElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<BannerSliderConfig>,
+    transform: coerceConfigInput<BannerSliderElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -113,10 +105,10 @@ export class BannerSliderElementComponent {
     resolveConfigValue(this.bodyInput(), this.configInput()?.body, ''),
   );
   readonly autoplay = computed(() =>
-    resolveConfigValue(this.autoplayInput(), this.configInput()?.autoplay, false),
+    resolveConfigValue(this.autoplayInput(), undefined, false),
   );
   readonly loop = computed(() =>
-    resolveConfigValue(this.loopInput(), this.configInput()?.loop, true),
+    resolveConfigValue(this.loopInput(), undefined, true),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
@@ -136,9 +128,14 @@ export class BannerSliderElementComponent {
         .filter((item): item is BannerSlideItem => item !== null);
     }
 
-    return (this.configInput()?.items ?? [])
-      .map((item, index) => normalizeSlide(item, index))
-      .filter((item): item is BannerSlideItem => item !== null);
+    const configSlides = this.configInput()?.slides;
+    if (Array.isArray(configSlides)) {
+      return (configSlides as unknown[])
+        .map((item, index) => normalizeSlide(item, index))
+        .filter((item): item is BannerSlideItem => item !== null);
+    }
+
+    return [];
   });
   readonly currentIndex = computed(() => {
     const total = this.parsedItems().length;
@@ -159,14 +156,20 @@ export class BannerSliderElementComponent {
     })),
   );
   readonly hasSlides = computed(() => this.parsedItems().length > 0);
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `banner-slider--${this.variant()} banner-slider--${this.theme()}`,
   );
 
   constructor() {
+    if (isDevMode()) {
+      effect(() => {
+        if (!this.hasSlides() && (this.itemsInput() !== undefined || this.configInput() !== undefined)) {
+          console.warn('[synergos-banner-slider] Slides resolved to empty. Check your "items" attribute or "config.slides" array format.');
+        }
+      });
+    }
+
     effect((onCleanup) => {
       if (!this.autoplay() || this.parsedItems().length < 2) {
         return;

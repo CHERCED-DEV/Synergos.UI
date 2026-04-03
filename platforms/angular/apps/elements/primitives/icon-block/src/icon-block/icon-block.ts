@@ -1,17 +1,10 @@
+import type { IconBlockElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   coerceConfigInput,
   coerceOptionalBooleanInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface IconBlockConfig {
-  readonly icon?: string;
-  readonly size?: string;
-  readonly color?: string;
-  readonly ariaLabel?: string;
-  readonly ariaHidden?: boolean;
-}
 
 @Component({
   selector: 'sg-icon-block',
@@ -22,9 +15,9 @@ export interface IconBlockConfig {
   host: { class: 'sg-icon-block' },
 })
 export class IconBlockComponent {
-  readonly configInput = input<Partial<IconBlockConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<IconBlockElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<IconBlockConfig>,
+    transform: coerceConfigInput<IconBlockElementConfig>,
   });
   readonly iconInput = input<string | undefined>(undefined, { alias: 'icon' });
   readonly sizeInput = input<string | undefined>(undefined, { alias: 'size' });
@@ -35,21 +28,13 @@ export class IconBlockComponent {
     transform: coerceOptionalBooleanInput,
   });
 
-  readonly icon = computed(() =>
-    resolveConfigValue(this.iconInput(), this.configInput()?.icon, ''),
-  );
-  readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
-  );
-  readonly color = computed(() =>
-    resolveConfigValue(this.colorInput(), this.configInput()?.color, ''),
-  );
+  readonly icon = computed(() => this.iconInput()?.trim() || '');
+  readonly size = computed(() => this.sizeInput()?.trim() || 'md');
+  readonly color = computed(() => this.colorInput()?.trim() || '');
   readonly ariaLabel = computed(() =>
     resolveConfigValue(this.ariaLabelInput(), this.configInput()?.ariaLabel, ''),
   );
-  readonly ariaHidden = computed(() =>
-    resolveConfigValue(this.ariaHiddenInput(), this.configInput()?.ariaHidden, false),
-  );
+  readonly ariaHidden = computed(() => this.ariaHiddenInput() ?? false);
 
   readonly hostClasses = computed(() => `sg-icon-block--${this.size()}`);
 }

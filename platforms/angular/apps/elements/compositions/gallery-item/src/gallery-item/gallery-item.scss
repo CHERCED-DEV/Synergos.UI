@@ -10,19 +10,19 @@
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(12),
-    syn.$shadow-sm
+    syn.$radius-lg,
+    syn.$shadow-xs
   );
   @include syn.flex-column;
-  gap: syn.$space-sm;
+  gap:    syn.$space-sm;
   margin: 0;
 
   &__media,
   &__placeholder {
-    display: block;
-    width: 100%;
-    border-radius: syn.px-to-rem(8);
-    overflow: hidden;
+    display:       block;
+    width:         100%;
+    border-radius: syn.$radius-md;
+    overflow:      hidden;
   }
 
   &__media {
@@ -39,16 +39,11 @@
   }
 
   &__caption {
-    color: syn.$color-neutral-600;
-    font-size: syn.$font-size-sm;
+    color:       syn.$color-neutral-500;
+    font-size:   syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
 
-    :first-child {
-      margin-top: 0;
-    }
-
-    :last-child {
-      margin-bottom: 0;
-    }
+    :first-child { margin-top:    0; }
+    :last-child  { margin-bottom: 0; }
   }
 }

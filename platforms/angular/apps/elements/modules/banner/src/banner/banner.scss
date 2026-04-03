@@ -1,7 +1,7 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  display:     block;
   font-family: inherit;
 }
 
@@ -11,30 +11,30 @@
     syn.$color-brand-100,
     syn.$color-brand-200,
     syn.px-to-rem(1),
-    syn.px-to-rem(12),
-    syn.$shadow-sm
+    syn.$radius-xl,
+    syn.$shadow-xs
   );
   @include syn.flex-between;
   gap: syn.$space-lg;
 
   &--dark {
     background-color: syn.$color-neutral-800;
-    border-color: syn.$color-neutral-700;
-    color: syn.$color-neutral-0;
+    border-color:     syn.$color-neutral-700;
+    color:            syn.$color-neutral-0;
   }
 
   &--with-image {
-    display: grid;
+    display:               grid;
     grid-template-columns: auto 1fr auto;
-    align-items: center;
+    align-items:           center;
   }
 
   &__image {
-    width: syn.px-to-rem(80);
-    height: syn.px-to-rem(80);
-    object-fit: cover;
-    border-radius: syn.px-to-rem(8);
-    flex-shrink: 0;
+    width:         syn.px-to-rem(80);
+    height:        syn.px-to-rem(80);
+    object-fit:    cover;
+    border-radius: syn.$radius-md;
+    flex-shrink:   0;
   }
 
   &__content {
@@ -43,41 +43,36 @@
   }
 
   &__eyebrow {
-    display: block;
-    font-size: syn.$font-size-sm;
-    font-weight: 600;
-    color: syn.$color-brand-500;
+    display:        block;
+    font-size:      syn.$font-size-xs;
+    font-weight:    syn.$font-weight-semibold;
+    color:          syn.$color-brand-600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
 
-    .sg-banner--dark & {
-      color: syn.$color-brand-300;
-    }
+    .sg-banner--dark & { color: syn.$color-brand-300; }
   }
 
-  &__title {
-    display: block;
-  }
+  &__title { display: block; }
 
   &__body {
-    margin: 0;
+    margin:    0;
     font-size: syn.$font-size-base;
-    color: syn.$color-neutral-600;
+    color:     syn.$color-neutral-600;
 
-    .sg-banner--dark & {
-      color: syn.$color-neutral-300;
-    }
+    .sg-banner--dark & { color: syn.$color-neutral-300; }
   }
 
   &__actions {
-    @include syn.flex-row;
-    gap: syn.$space-sm;
+    display:     flex;
+    align-items: center;
+    gap:         syn.$space-sm;
     flex-shrink: 0;
-    flex-wrap: wrap;
+    flex-wrap:   wrap;
   }
 
   &__cta-link {
     text-decoration: none;
-    flex-shrink: 0;
+    flex-shrink:     0;
   }
 }

@@ -7,6 +7,5 @@ export function mapFeatureJourneyData(data: FeatureJourneyElementData): FeatureJ
     theme: data.domVariant?.theme ?? 'light',
     variant: data.domVariant?.variant ?? 'default',
     elementId: data.domAttributes?.elementId ?? '',
-    domClass: data.domClass?.cssClass ?? '',
   };
 }

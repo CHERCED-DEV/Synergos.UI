@@ -1,14 +1,16 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Select ────────────────────────────────────────────────────────────────────
+
 .syn-select {
   display: grid;
   gap: syn.$space-xxs;
 }
 
 .syn-select__label {
-  font-size: syn.$font-size-sm;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
-  color: syn.$color-neutral-800;
+  color:       syn.$color-neutral-800;
 }
 
 .syn-select__field {
@@ -16,16 +18,39 @@
   min-height: syn.px-to-rem(40);
   padding: syn.$space-xs syn.$space-sm;
   border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(10);
+  border-radius: syn.$radius-md;
   background: syn.$color-neutral-0;
   color: syn.$color-neutral-900;
   font-size: syn.$font-size-base;
+  cursor: pointer;
+  transition: syn.$transition-colors;
 
   @include syn.focus-visible;
 
+  &:hover:not(:focus-visible):not(:disabled) {
+    border-color: syn.$color-neutral-400;
+  }
+
   &:disabled {
-    background: syn.$color-neutral-100;
-    color: syn.$color-neutral-500;
+    background:   syn.$color-neutral-100;
+    border-color: syn.$color-neutral-200;
+    color:        syn.$color-neutral-400;
     cursor: not-allowed;
   }
+}
+
+.syn-select--error .syn-select__field {
+  border-color: syn.$color-danger-400;
+  background:   syn.$color-danger-100;
+
+  @include syn.focus-visible-danger;
+}
+
+.syn-select__hint {
+  font-size: syn.$font-size-xs;
+  color:     syn.$color-neutral-500;
+}
+
+.syn-select--error .syn-select__hint {
+  color: syn.$color-danger-500;
 }

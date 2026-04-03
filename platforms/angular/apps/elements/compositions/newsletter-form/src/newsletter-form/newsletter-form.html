@@ -28,13 +28,15 @@
       (valueChange)="onEmailChange($event)"
     />
 
-    @if (hasConsent()) {
-      <syn-checkbox
-        [label]="consentText()"
-        [checked]="consent()"
-        [disabled]="isSubmitting()"
-        (checkedChange)="onConsentChange($event)"
-      />
+    @defer (on idle) {
+      @if (hasConsent()) {
+        <syn-checkbox
+          [label]="consentText()"
+          [checked]="consent()"
+          [disabled]="isSubmitting()"
+          (checkedChange)="onConsentChange($event)"
+        />
+      }
     }
 
     <div class="newsletter-form__actions">
@@ -47,12 +49,14 @@
     </div>
   </form>
 
-  @if (hasFeedback()) {
-    <syn-alert
-      [title]="state() === 'success' ? 'Success' : 'Submission error'"
-      [description]="feedback()"
-      [tone]="feedbackTone()"
-      [dismissible]="false"
-    />
+  @defer (on idle) {
+    @if (hasFeedback()) {
+      <syn-alert
+        [title]="state() === 'success' ? 'Success' : 'Submission error'"
+        [description]="feedback()"
+        [tone]="feedbackTone()"
+        [dismissible]="false"
+      />
+    }
   }
 </section>

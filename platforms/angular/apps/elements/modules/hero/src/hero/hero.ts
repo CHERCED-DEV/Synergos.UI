@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { HeroElementConfig } from '@synergos/contracts';
 import {
   ButtonComponent,
   HeadingComponent,
@@ -6,22 +7,10 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 const heroHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
-
-export interface HeroConfig {
-  readonly headingText?: string;
-  readonly headingLevel?: string;
-  readonly body?: string;
-  readonly imageSrc?: string;
-  readonly imageAlt?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly ctaTarget?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
 
 function resolveHeroHeadingLevel(value: string): HeadingLevel {
   return heroHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h1';
@@ -36,9 +25,9 @@ function resolveHeroHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-hero' },
 })
 export class HeroComponent {
-  readonly configInput = input<Partial<HeroConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<HeroElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<HeroConfig>,
+    transform: coerceConfigInput<HeroElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
@@ -87,9 +76,7 @@ export class HeroComponent {
   readonly resolvedHeadingLevel = computed<HeadingLevel>(() =>
     resolveHeroHeadingLevel(this.headingLevel()),
   );
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-hero--${this.variant()} sg-hero--${this.theme()}`,
   );

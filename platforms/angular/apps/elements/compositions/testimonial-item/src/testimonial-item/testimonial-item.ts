@@ -1,18 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { TestimonialItemElementConfig } from '@synergos/contracts';
 import { AvatarComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface TestimonialItemConfig {
-  readonly quote?: string;
-  readonly name?: string;
-  readonly role?: string;
-  readonly avatarSrc?: string;
-  readonly avatarAlt?: string;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-testimonial-item',
-  standalone: true,
   imports: [AvatarComponent],
   templateUrl: './testimonial-item.html',
   styleUrl: './testimonial-item.scss',
@@ -20,9 +11,9 @@ export interface TestimonialItemConfig {
   host: { class: 'sg-testimonial-item' },
 })
 export class TestimonialItemElementComponent {
-  readonly configInput = input<Partial<TestimonialItemConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<TestimonialItemElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<TestimonialItemConfig>,
+    transform: coerceConfigInput<TestimonialItemElementConfig>,
   });
   readonly quoteInput = input<string | undefined>(undefined, { alias: 'quote' });
   readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });

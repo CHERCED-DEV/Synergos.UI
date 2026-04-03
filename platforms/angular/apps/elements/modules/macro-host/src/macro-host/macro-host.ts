@@ -8,14 +8,10 @@ import {
   input,
   OnDestroy,
 } from '@angular/core';
+import type { MacroHostElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 import { ElementMounter } from '@synergos/rendering';
-
-export interface MacroHostConfig {
-  readonly contentType?: string;
-  readonly contentData?: Record<string, unknown>;
-}
 
 @Component({
   selector: 'sg-macro-host',
@@ -29,9 +25,9 @@ export class MacroHostComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #mounter = inject(ElementMounter);
 
-  readonly configInput = input<Partial<MacroHostConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<MacroHostElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<MacroHostConfig>,
+    transform: coerceConfigInput<MacroHostElementConfig>,
   });
   readonly contentTypeInput = input<string | undefined>(undefined, { alias: 'contentType' });
   readonly contentDataInput = input<string | undefined>(undefined, { alias: 'contentData' });

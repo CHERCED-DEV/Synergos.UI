@@ -5,6 +5,7 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 import { JourneyState } from '../application/journey.state';
 import { nextStep, prevStep, goToStep } from '../application/use-cases/navigate-step';
@@ -50,9 +51,7 @@ export class FeatureJourneyComponent {
   readonly isLast = this.#state.isLast;
   readonly progress = this.#state.progress;
 
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-feature-journey--${this.variant()} sg-feature-journey--${this.theme()}`,
   );

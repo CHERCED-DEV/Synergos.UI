@@ -135,6 +135,48 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "eyebrow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional eyebrow copy used as a legacy override."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting image URL used outside CMS config."
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting image alt text."
+    },
+    {
+      "name": "secondaryCtaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy secondary CTA label override."
+    },
+    {
+      "name": "secondaryCtaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy secondary CTA URL override."
+    },
+    {
+      "name": "secondaryCtaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy secondary CTA target override."
     }
   ],
   "card": [
@@ -383,6 +425,13 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
     }
   ],
   "faq-section": [
@@ -705,6 +754,20 @@
       "required": false,
       "default": true,
       "description": "Sets the defer script attribute."
+    },
+    {
+      "name": "scriptType",
+      "type": "string",
+      "required": false,
+      "default": "text/javascript",
+      "description": "Canonical CMS script type."
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS script payload or external URL."
     }
   ],
   "angular-host": [
@@ -715,11 +778,38 @@
       "description": "Base element configuration object for the Angular host."
     },
     {
+      "name": "component",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Catalog alias or custom element tag to mount. Preferred over tagName."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional API endpoint injected into the hosted element props."
+    },
+    {
+      "name": "params",
+      "type": "json",
+      "required": false,
+      "description": "JSON object of lightweight params merged into hosted element props."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional script URL to load before mounting the hosted element."
+    },
+    {
       "name": "tagName",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Custom element tag to render."
+      "description": "Legacy explicit custom element tag to render."
     },
     {
       "name": "props",
@@ -743,18 +833,52 @@
       "description": "Base element configuration object for the remote host."
     },
     {
+      "name": "component",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Remote exposed module name, catalog alias or custom element tag to mount."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional API endpoint injected into the hosted remote element props."
+    },
+    {
+      "name": "params",
+      "type": "json",
+      "required": false,
+      "description": "JSON object of lightweight params merged into hosted remote element props."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Preferred script URL to load before mounting."
+    },
+    {
       "name": "remoteEntry",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Remote entry script URL to load before mounting."
+      "description": "Legacy remote entry script URL to load before mounting."
+    },
+    {
+      "name": "exposedModule",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy exposed module name used as hosted component name."
     },
     {
       "name": "tagName",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Custom element tag exposed by the remote bundle."
+      "description": "Legacy explicit custom element tag exposed by the remote bundle."
     },
     {
       "name": "props",
@@ -846,6 +970,20 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "CTA target from CMS config."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
     }
   ],
   "info-block": [
@@ -976,6 +1114,34 @@
       "required": false,
       "default": "left",
       "description": "Action alignment (left | center | right)"
+    },
+    {
+      "name": "primaryTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy primary CTA target override."
+    },
+    {
+      "name": "primaryVariant",
+      "type": "string",
+      "required": false,
+      "default": "solid",
+      "description": "Legacy primary CTA variant override."
+    },
+    {
+      "name": "secondaryTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy secondary CTA target override."
+    },
+    {
+      "name": "secondaryVariant",
+      "type": "string",
+      "required": false,
+      "default": "outline",
+      "description": "Legacy secondary CTA variant override."
     }
   ],
   "button-group": [
@@ -1668,6 +1834,34 @@
       "required": false,
       "default": "",
       "description": "Optional text content for the widget host."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget script URL."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget tag or type."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget title payload."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS endpoint passed to the widget."
     }
   ],
   "container-block": [
@@ -1704,6 +1898,27 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM id from CMS config."
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "ARIA label from CMS config."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
     }
   ],
   "grid": [
@@ -1833,6 +2048,13 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "justify",
+      "type": "string",
+      "required": false,
+      "default": "start",
+      "description": "Justify-content override for stacked layouts."
     }
   ],
   "divider": [
@@ -2364,6 +2586,13 @@
       "required": false,
       "default": "",
       "description": "Accessible label for assistive technology"
+    },
+    {
+      "name": "ariaHidden",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "Marks the icon as decorative when true."
     }
   ],
   "avatar": [
@@ -2467,6 +2696,133 @@
       "required": false,
       "default": "light",
       "description": "Color theme (light | dark)"
+    }
+  ],
+  "feature-journey": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    }
+  ],
+  "insight-explorer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of insight items."
+    }
+  ],
+  "media-explorer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "dark",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    },
+    {
+      "name": "defaultCategory",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initial category filter."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of media items."
     }
   ]
 }

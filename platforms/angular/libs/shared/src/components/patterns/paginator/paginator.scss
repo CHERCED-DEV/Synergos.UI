@@ -1,61 +1,74 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Paginator ────────────────────────────────────────────────────────────────
+
 .syn-paginator {
-  display: flex;
-  flex-wrap: wrap;
+  display:     flex;
+  flex-wrap:   wrap;
   align-items: center;
-  gap: syn.$space-sm;
+  gap:         syn.$space-sm;
 }
 
 .syn-paginator__list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: syn.$space-2;
-  margin: 0;
-  padding: 0;
+  display:    flex;
+  flex-wrap:  wrap;
+  gap:        syn.$space-xs;
+  margin:     0;
+  padding:    0;
   list-style: none;
 }
 
 .syn-paginator__nav,
 .syn-paginator__page {
   @include syn.focus-visible;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(999);
-  padding: syn.$space-2 syn.$space-4;
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-sm;
-  font-weight: syn.$font-weight-medium;
-  cursor: pointer;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-full;
+  padding:       syn.$space-xs syn.$space-md;
+  background:    syn.$color-neutral-0;
+  color:         syn.$color-neutral-700;
+  font-size:     syn.$font-size-sm;
+  font-weight:   syn.$font-weight-medium;
+  cursor:        pointer;
+  transition:    syn.$transition-colors;
+
+  &:hover:not(:disabled):not(.syn-paginator__page--active) {
+    border-color: syn.$color-neutral-300;
+    background:   syn.$color-neutral-50;
+    color:        syn.$color-neutral-900;
+  }
 }
 
 .syn-paginator__page {
-  min-width: syn.px-to-rem(42);
-  padding-inline: syn.$space-3;
+  min-width:     syn.px-to-rem(38);
+  padding-inline: syn.$space-sm;
+  text-align:    center;
 }
 
 .syn-paginator__page--active {
-  border-color: syn.$color-brand-500;
-  background: syn.$color-brand-100;
-  color: syn.$color-brand-600;
+  border-color: syn.$color-brand-400;
+  background:   syn.$color-brand-100;
+  color:        syn.$color-brand-600;
+  font-weight:  syn.$font-weight-semibold;
 }
 
 .syn-paginator__nav:disabled,
 .syn-paginator__page:disabled {
-  cursor: not-allowed;
-  color: syn.$color-neutral-400;
+  cursor:         not-allowed;
+  color:          syn.$color-neutral-400;
+  pointer-events: none;
 }
 
 .syn-paginator__ellipsis {
-  display: inline-flex;
-  align-items: center;
+  display:         inline-flex;
+  align-items:     center;
   justify-content: center;
-  min-width: syn.px-to-rem(42);
-  min-height: syn.px-to-rem(38);
-  color: syn.$color-neutral-500;
+  min-width:       syn.px-to-rem(38);
+  color:           syn.$color-neutral-400;
 }
+
+// ── Compact ───────────────────────────────────────────────────────────────────
 
 .syn-paginator--compact .syn-paginator__nav,
 .syn-paginator--compact .syn-paginator__page {
-  padding: syn.$space-2 syn.$space-3;
+  padding: syn.$space-xxs syn.$space-sm;
 }

@@ -1,23 +1,18 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Section ──────────────────────────────────────────────────────────────────
+// Layout container for a distinct content area within a page or panel.
+
 .syn-section {
   display: grid;
   gap: syn.$space-md;
-  border-radius: syn.px-to-rem(16);
+  border-radius: syn.$radius-xl;
   background: syn.$color-neutral-0;
 }
 
-.syn-section--padding-sm {
-  padding: syn.$space-sm;
-}
-
-.syn-section--padding-md {
-  padding: syn.$space-md;
-}
-
-.syn-section--padding-lg {
-  padding: syn.$space-lg;
-}
+.syn-section--padding-sm { padding: syn.$space-sm; }
+.syn-section--padding-md { padding: syn.$space-md; }
+.syn-section--padding-lg { padding: syn.$space-lg; }
 
 .syn-section__header {
   display: flex;
@@ -32,45 +27,56 @@
 }
 
 .syn-section__eyebrow {
-  font-size: syn.$font-size-xs;
-  font-weight: syn.$font-weight-semibold;
-  letter-spacing: syn.px-to-rem(0.8);
+  font-size:      syn.$font-size-xs;
+  font-weight:    syn.$font-weight-semibold;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: syn.$color-brand-500;
+  color:          syn.$color-brand-500;
 }
 
 .syn-section__title {
-  font-size: syn.$font-size-2xl;
+  font-size:   syn.$font-size-2xl;
   font-weight: syn.$font-weight-semibold;
-  color: syn.$color-neutral-900;
+  color:       syn.$color-neutral-900;
+  line-height: syn.$line-height-tight;
 }
 
 .syn-section__subtitle {
-  max-width: syn.px-to-rem(720);
-  font-size: syn.$font-size-base;
-  color: syn.$color-neutral-600;
+  max-width:   syn.px-to-rem(680);
+  font-size:   syn.$font-size-base;
+  color:       syn.$color-neutral-500;
+  line-height: syn.$line-height-relaxed;
 }
 
 .syn-section__actions {
-  display: inline-flex;
+  display:     inline-flex;
   align-items: center;
-  gap: syn.$space-sm;
+  gap:         syn.$space-sm;
+  flex-shrink: 0;
 }
 
 .syn-section__toggle {
   @include syn.focus-visible;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(999);
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-800;
-  width: syn.px-to-rem(32);
-  height: syn.px-to-rem(32);
-  cursor: pointer;
+  @include syn.flex-center;
+  width:         syn.px-to-rem(32);
+  height:        syn.px-to-rem(32);
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: 50%;
+  background:    syn.$color-neutral-0;
+  color:         syn.$color-neutral-600;
+  cursor:        pointer;
+  transition:    syn.$transition-colors;
+
+  &:hover {
+    background:   syn.$color-neutral-100;
+    border-color: syn.$color-neutral-300;
+    color:        syn.$color-neutral-900;
+  }
 }
 
 .syn-section__divider {
-  height: syn.px-to-rem(1);
-  background: syn.$color-neutral-200;
+  height:     syn.px-to-rem(1);
+  background: syn.$color-neutral-100;
 }
 
 .syn-section__body,

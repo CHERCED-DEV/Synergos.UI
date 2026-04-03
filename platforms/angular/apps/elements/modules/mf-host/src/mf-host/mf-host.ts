@@ -8,18 +8,14 @@ import {
   input,
   OnDestroy,
 } from '@angular/core';
+import {
+  type MfHostElementConfig,
+} from '@synergos/contracts';
 import { CustomElementHostService, InitialDataService, ScriptService } from '@synergos/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
-export interface MfHostConfig {
-  readonly remoteEntry?: string;
-  readonly tagName?: string;
-  readonly props?: Record<string, unknown>;
-}
-
 @Component({
   selector: 'sg-mf-host',
-  standalone: true,
   templateUrl: './mf-host.html',
   styleUrl: './mf-host.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,26 +27,64 @@ export class MfHostElementComponent implements OnDestroy {
   readonly #initialData = inject(InitialDataService);
   readonly #scriptService = inject(ScriptService);
 
-  readonly configInput = input<Partial<MfHostConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<MfHostElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<MfHostConfig>,
+    transform: coerceConfigInput<MfHostElementConfig>,
   });
+  readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
+  readonly endpointInput = input<string | undefined>(undefined, { alias: 'endpoint' });
+  readonly paramsInput = input<string | undefined>(undefined, { alias: 'params' });
+  readonly scriptSrcInput = input<string | undefined>(undefined, { alias: 'scriptSrc' });
   readonly remoteEntryInput = input<string | undefined>(undefined, { alias: 'remoteEntry' });
+  readonly exposedModuleInput = input<string | undefined>(undefined, { alias: 'exposedModule' });
   readonly tagNameInput = input<string | undefined>(undefined, { alias: 'tagName' });
   readonly propsInput = input<string | undefined>(undefined, { alias: 'props' });
 
-  readonly remoteEntry = computed(() =>
-    resolveConfigValue(this.remoteEntryInput(), this.configInput()?.remoteEntry, ''),
+  readonly component = computed(() =>
+    resolveConfigValue(
+      this.componentInput(),
+      this.configInput()?.exposedModule,
+      '',
+    ),
   );
-  readonly tagName = computed(() =>
-    resolveConfigValue(this.tagNameInput(), this.configInput()?.tagName, ''),
+  readonly endpoint = computed(() =>
+    resolveConfigValue(this.endpointInput(), this.configInput()?.endpoint, ''),
   );
+  readonly scriptSrc = computed(() =>
+    resolveConfigValue(
+      this.scriptSrcInput(),
+      this.configInput()?.remoteEntry,
+      resolveConfigValue(this.remoteEntryInput(), this.configInput()?.remoteEntry, ''),
+    ),
+  );
+  readonly exposedModule = computed(() =>
+    resolveConfigValue(this.exposedModuleInput(), this.configInput()?.exposedModule, ''),
+  );
+  readonly #legacyTagName = computed(() =>
+    resolveConfigValue(this.tagNameInput(), undefined, ''),
+  );
+  readonly #parsedParams = computed<Record<string, string>>(() => {
+    if (this.paramsInput() !== undefined) {
+      return this.#initialData.parseValue<Record<string, string>>(this.paramsInput()) ?? {};
+    }
+
+    return this.configInput()?.params ?? {};
+  });
   readonly #parsedProps = computed<Record<string, unknown>>(() => {
     if (this.propsInput() !== undefined) {
       return this.#initialData.parseValue<Record<string, unknown>>(this.propsInput()) ?? {};
     }
 
-    return this.configInput()?.props ?? {};
+    return {};
+  });
+  readonly #resolvedProps = computed<Record<string, unknown>>(() => {
+    const endpoint = this.endpoint().trim();
+
+    return {
+      ...this.#parsedParams(),
+      ...this.#parsedProps(),
+      ...(endpoint ? { endpoint } : {}),
+    };
   });
 
   constructor() {
@@ -60,23 +94,28 @@ export class MfHostElementComponent implements OnDestroy {
         return;
       }
 
-      if (this.remoteEntry().trim()) {
+      const scriptSrc = this.scriptSrc().trim();
+      const component = this.component().trim() || this.exposedModule().trim();
+      const tagName = this.#legacyTagName().trim();
+
+      if (scriptSrc) {
         this.#scriptService.addScript({
-          src: this.remoteEntry(),
+          src: scriptSrc,
           target: 'body',
           async: true,
           defer: true,
         });
       }
 
-      if (!this.tagName().trim()) {
+      if (!component && !tagName) {
         this.#hostService.unmount(container);
         return;
       }
 
       this.#hostService.mount(container, {
-        tagName: this.tagName(),
-        props: this.#parsedProps(),
+        component,
+        tagName,
+        props: this.#resolvedProps(),
       });
     });
   }

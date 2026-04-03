@@ -27,7 +27,16 @@
       },
       "configurations": {
         "production": {
-          "outputHashing": "none"
+          "outputHashing": "none",
+          "externalDependencies": [
+            "@angular/core",
+            "@angular/common",
+            "@angular/common/http",
+            "@angular/elements",
+            "@angular/platform-browser",
+            "@synergos/core",
+            "@synergos/shared"
+          ]
         },
         "development": {
           "optimization": false,

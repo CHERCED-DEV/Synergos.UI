@@ -335,6 +335,39 @@ Publishing rules:
   - Element registration in element-registry.json is required BEFORE publishing
   - tools/catalog.mjs generates a visual HTML catalog: npm run catalog
 
+CDN path rules:
+  - The `name` field in element-registry.json governs the CDN path, NOT the tag
+    Example: name="stat", tag="synergos-stat-counter" → CDN path is /synergos/stat/angular/...
+  - Never derive the CDN path by stripping the "synergos-" prefix from the tag
+  - Corollary for CMS: always use registry entry.name to build the CDN URL
+
+Alias-variant routing:
+  - Multiple registry aliases may map to the same custom element tag (N→1)
+  - This is the "alias-variant routing" pattern used for text primitives:
+      elementTextHeading   → synergos-text-block (pass headingLevel="h2")
+      elementTextParagraph → synergos-text-block (pass variant="paragraph")
+      elementTextRichText  → synergos-text-block (pass variant="rich-text")
+      elementTextEyebrow   → synergos-text-block (pass variant="eyebrow")
+      elementTextQuote     → synergos-text-block (pass variant="quote")
+      elementTextLabel     → synergos-text-block (pass variant="label")
+  - These aliases share ONE CDN bundle (synergos-text-block/main.js)
+  - CMS must pass the correct variant/headingLevel in the config attribute
+  - Never try to load a "synergos-heading" bundle — it does not exist
+
+Contract validation gates (run before every publish):
+  - npm run element:audit     — fails if registry/mapper/model/inputs are out of sync
+  - npm run manifest:validate — fails if any element has empty inputs array
+  - npm run contracts:validate — runs both in sequence (use this in CI and release scripts)
+  - npm run contracts:export  — generates dist/contracts.json for CMS CI consumption
+  - These gates are already wired into all npm run release:* scripts
+  - publish.mjs always writes contracts.json to CDN alongside registry.json
+
+Cross-project alignment (UI ↔ CMS in separate pods/tenants):
+  - contracts.json on CDN is the formal boundary between projects
+  - CMS CI fetches contracts.json and validates its own resolvers against it
+  - Neither project needs access to the other's repo or runtime
+  - Full cross-project governance: SynergosDocs/INTEGRATION_GOVERNANCE.md
+
 ## 15. EXPERIENCES LAYER RULES (apps/experiences/)
 
 Experiences are rich interactive units that go beyond a static element.

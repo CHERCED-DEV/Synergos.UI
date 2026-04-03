@@ -1,3 +1,5 @@
+@use 'scss' as syn;
+
 :host {
   display: block;
 }
@@ -8,7 +10,7 @@
   &__frame {
     display: block;
     width: 100%;
-    min-height: 16rem;
+    min-height: syn.px-to-rem(256);
     border: 0;
   }
 }

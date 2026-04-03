@@ -1,15 +1,17 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Accordion ────────────────────────────────────────────────────────────────
+
 .syn-accordion {
   overflow: hidden;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(18);
+  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-lg;
   background: syn.$color-neutral-0;
 }
 
 .syn-accordion--brand {
   border-color: syn.$color-brand-200;
-  background: syn.$color-brand-100;
+  background:   syn.$color-brand-100;
 }
 
 .syn-accordion__trigger {
@@ -25,10 +27,20 @@
   color: syn.$color-neutral-900;
   text-align: left;
   cursor: pointer;
+  transition: background syn.$duration-fast syn.$easing-smooth;
+
+  &:hover:not(:disabled) {
+    background: syn.$color-neutral-50;
+  }
+
+  .syn-accordion--brand &:hover:not(:disabled) {
+    background: syn.$color-brand-200;
+  }
 }
 
 .syn-accordion__trigger--static {
   cursor: default;
+  &:hover { background: transparent; }
 }
 
 .syn-accordion__copy {
@@ -37,14 +49,14 @@
 }
 
 .syn-accordion__title {
-  font-size: syn.$font-size-lg;
+  font-size:   syn.$font-size-base;
   font-weight: syn.$font-weight-semibold;
   line-height: syn.$line-height-tight;
 }
 
 .syn-accordion__description {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   line-height: syn.$line-height-normal;
 }
 
@@ -52,24 +64,36 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: syn.px-to-rem(28);
-  min-height: syn.px-to-rem(28);
+  flex-shrink: 0;
+  width:         syn.px-to-rem(26);
+  height:        syn.px-to-rem(26);
   border-radius: 50%;
-  background: syn.$color-neutral-100;
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-lg;
-  font-weight: syn.$font-weight-medium;
+  background:    syn.$color-neutral-100;
+  color:         syn.$color-neutral-600;
+  font-size:     syn.$font-size-sm;
+  transition:    transform syn.$duration-base syn.$easing-default,
+                 background syn.$duration-fast syn.$easing-smooth;
+
+  .syn-accordion--brand & {
+    background: syn.$color-brand-200;
+    color:      syn.$color-brand-600;
+  }
+}
+
+// Rotate icon when open
+.syn-accordion__trigger[aria-expanded='true'] .syn-accordion__icon {
+  transform: rotate(180deg);
+  background: syn.$color-neutral-200;
 }
 
 .syn-accordion__panel {
-  padding:
-    0 syn.$space-md
-    syn.$space-md;
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-base;
-  line-height: syn.$line-height-normal;
+  padding: 0 syn.$space-md syn.$space-md;
+  color:       syn.$color-neutral-600;
+  font-size:   syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
 }
 
 .syn-accordion--disabled {
-  opacity: 0.7;
+  opacity: 0.6;
+  pointer-events: none;
 }

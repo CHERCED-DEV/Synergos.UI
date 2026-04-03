@@ -1,11 +1,17 @@
 <div class="feature-item" [class]="hostClasses()">
   @if (icon()) {
     <span class="feature-item__icon" aria-hidden="true">
-      <i [class]="icon()"></i>
+      <img [src]="icon()" alt="" loading="lazy" />
     </span>
   }
   @if (headingText()) {
-    <h3 class="feature-item__heading">{{ headingText() }}</h3>
+    <syn-heading
+      class="feature-item__heading"
+      [text]="headingText()"
+      [tone]="headingTone()"
+      level="h3"
+      size="sm"
+    />
   }
   @if (body()) {
     <p class="feature-item__body">{{ body() }}</p>

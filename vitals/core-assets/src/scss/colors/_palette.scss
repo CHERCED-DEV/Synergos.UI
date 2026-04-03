@@ -1,8 +1,11 @@
 @use '../tokens/colors' as *;
+@use '../tokens/radius' as *;
+@use '../tokens/motion' as *;
 
 :root {
-  --syn-color-neutral-0: #{$color-neutral-0};
-  --syn-color-neutral-50: #{$color-neutral-50};
+  // ── Neutral ────────────────────────────────────────────────────────────────
+  --syn-color-neutral-0:   #{$color-neutral-0};
+  --syn-color-neutral-50:  #{$color-neutral-50};
   --syn-color-neutral-100: #{$color-neutral-100};
   --syn-color-neutral-200: #{$color-neutral-200};
   --syn-color-neutral-300: #{$color-neutral-300};
@@ -13,10 +16,48 @@
   --syn-color-neutral-800: #{$color-neutral-800};
   --syn-color-neutral-900: #{$color-neutral-900};
 
+  // ── Brand ──────────────────────────────────────────────────────────────────
   --syn-color-brand-100: #{$color-brand-100};
   --syn-color-brand-200: #{$color-brand-200};
   --syn-color-brand-300: #{$color-brand-300};
   --syn-color-brand-400: #{$color-brand-400};
   --syn-color-brand-500: #{$color-brand-500};
   --syn-color-brand-600: #{$color-brand-600};
+
+  // ── Danger ─────────────────────────────────────────────────────────────────
+  --syn-color-danger-100: #{$color-danger-100};
+  --syn-color-danger-200: #{$color-danger-200};
+  --syn-color-danger-300: #{$color-danger-300};
+  --syn-color-danger-400: #{$color-danger-400};
+  --syn-color-danger-500: #{$color-danger-500};
+  --syn-color-danger-600: #{$color-danger-600};
+
+  // ── Success ────────────────────────────────────────────────────────────────
+  --syn-color-success-100: #{$color-success-100};
+  --syn-color-success-200: #{$color-success-200};
+  --syn-color-success-300: #{$color-success-300};
+  --syn-color-success-400: #{$color-success-400};
+  --syn-color-success-500: #{$color-success-500};
+  --syn-color-success-600: #{$color-success-600};
+
+  // ── Warning ────────────────────────────────────────────────────────────────
+  --syn-color-warning-100: #{$color-warning-100};
+  --syn-color-warning-200: #{$color-warning-200};
+  --syn-color-warning-300: #{$color-warning-300};
+  --syn-color-warning-400: #{$color-warning-400};
+  --syn-color-warning-500: #{$color-warning-500};
+  --syn-color-warning-600: #{$color-warning-600};
+
+  // ── Radius ─────────────────────────────────────────────────────────────────
+  --syn-radius-sm:   #{$radius-sm};
+  --syn-radius-md:   #{$radius-md};
+  --syn-radius-lg:   #{$radius-lg};
+  --syn-radius-xl:   #{$radius-xl};
+  --syn-radius-2xl:  #{$radius-2xl};
+  --syn-radius-full: #{$radius-full};
+
+  // ── Motion ─────────────────────────────────────────────────────────────────
+  --syn-duration-fast: #{$duration-fast};
+  --syn-duration-base: #{$duration-base};
+  --syn-duration-slow: #{$duration-slow};
 }

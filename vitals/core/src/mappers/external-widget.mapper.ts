@@ -3,9 +3,13 @@ import type { ExternalWidgetInputs } from '../models/external-widget-inputs.mode
 
 export function mapExternalWidgetData(data: ExternalWidgetElementData): ExternalWidgetInputs {
   return {
-    tagName: data.embed?.embedType ?? 'div',
-    scriptSrc: data.embed?.embedUrl ?? '',
+    src: data.embed?.embedUrl ?? '',
+    type: data.embed?.embedType ?? '',
+    title: data.embed?.embedTitle ?? '',
+    endpoint: data.async?.apiEndpoint ?? '',
+    tagName: '',
+    scriptSrc: '',
     props: '{}',
-    textContent: data.embed?.embedTitle ?? '',
+    textContent: '',
   };
 }

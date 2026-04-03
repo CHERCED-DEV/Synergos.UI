@@ -1,13 +1,6 @@
+import type { ImageBlockElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface ImageBlockConfig {
-  readonly src?: string;
-  readonly alt?: string;
-  readonly caption?: string;
-  readonly aspectRatio?: string;
-  readonly loading?: string;
-}
 
 @Component({
   selector: 'sg-image-block',
@@ -18,9 +11,9 @@ export interface ImageBlockConfig {
   host: { class: 'sg-image-block' },
 })
 export class ImageBlockComponent {
-  readonly configInput = input<Partial<ImageBlockConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<ImageBlockElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<ImageBlockConfig>,
+    transform: coerceConfigInput<ImageBlockElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly altInput = input<string | undefined>(undefined, { alias: 'alt' });
@@ -34,15 +27,9 @@ export class ImageBlockComponent {
   readonly alt = computed(() =>
     resolveConfigValue(this.altInput(), this.configInput()?.alt, ''),
   );
-  readonly caption = computed(() =>
-    resolveConfigValue(this.captionInput(), this.configInput()?.caption, ''),
-  );
-  readonly aspectRatio = computed(() =>
-    resolveConfigValue(this.aspectRatioInput(), this.configInput()?.aspectRatio, 'auto'),
-  );
-  readonly loading = computed(() =>
-    resolveConfigValue(this.loadingInput(), this.configInput()?.loading, 'lazy'),
-  );
+  readonly caption = computed(() => this.captionInput()?.trim() || '');
+  readonly aspectRatio = computed(() => this.aspectRatioInput()?.trim() || 'auto');
+  readonly loading = computed(() => this.loadingInput()?.trim() || 'lazy');
 
   readonly hasCaption = computed(() => !!this.caption());
 }

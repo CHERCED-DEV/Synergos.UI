@@ -1,27 +1,37 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Radio ────────────────────────────────────────────────────────────────────
+
 .syn-radio {
-  display: inline-flex;
+  display:     inline-flex;
   align-items: center;
-  gap: syn.$space-xs;
-  cursor: pointer;
+  gap:         syn.$space-xs;
+  cursor:      pointer;
   user-select: none;
 }
 
 .syn-radio__native {
   position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
+  opacity:  0;
+  width:    0;
+  height:   0;
 }
 
 .syn-radio__dot {
-  width: syn.px-to-rem(18);
-  height: syn.px-to-rem(18);
-  border: syn.px-to-rem(1) solid syn.$color-neutral-400;
+  width:        syn.px-to-rem(18);
+  height:       syn.px-to-rem(18);
+  flex-shrink:  0;
+  border:       syn.px-to-rem(1.5) solid syn.$color-neutral-400;
   border-radius: 50%;
-  background: syn.$color-neutral-0;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  background:   syn.$color-neutral-0;
+  transition:   border-color syn.$duration-fast syn.$easing-smooth,
+                box-shadow   syn.$duration-fast syn.$easing-smooth;
+}
+
+// ── States ───────────────────────────────────────────────────────────────────
+
+.syn-radio:hover .syn-radio__dot {
+  border-color: syn.$color-brand-400;
 }
 
 .syn-radio__native:checked + .syn-radio__dot {
@@ -30,16 +40,23 @@
 }
 
 .syn-radio__native:focus-visible + .syn-radio__dot {
-  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline:        syn.px-to-rem(2) solid syn.$color-brand-300;
   outline-offset: syn.px-to-rem(2);
 }
 
 .syn-radio__native:disabled + .syn-radio__dot {
   border-color: syn.$color-neutral-300;
-  background: syn.$color-neutral-100;
+  background:   syn.$color-neutral-100;
 }
+
+.syn-radio__native:disabled ~ .syn-radio__label {
+  color:  syn.$color-neutral-400;
+  cursor: not-allowed;
+}
+
+// ── Label ────────────────────────────────────────────────────────────────────
 
 .syn-radio__label {
   font-size: syn.$font-size-sm;
-  color: syn.$color-neutral-900;
+  color:     syn.$color-neutral-900;
 }

@@ -10,8 +10,8 @@ export function mapNewsletterFormData(data: NewsletterFormElementData): Newslett
     consentText: data.text?.caption ?? '',
     successMessage: '',
     errorMessage: '',
-    actionUrl: data.cta?.ctaLink?.url ?? '',
-    method: 'post',
+    actionUrl: data.async?.apiEndpoint ?? data.cta?.ctaLink?.url ?? '',
+    method: data.async?.method ?? 'post',
     theme: data.domVariant?.theme ?? 'light',
   };
 }

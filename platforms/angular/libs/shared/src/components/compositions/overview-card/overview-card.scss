@@ -1,11 +1,13 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Overview Card ────────────────────────────────────────────────────────────
+
 .syn-overview-card {
-  display: grid;
-  gap: syn.$space-lg;
-  padding: syn.$space-lg;
-  border-radius: syn.px-to-rem(20);
-  background: syn.$color-neutral-0;
+  display:       grid;
+  gap:           syn.$space-lg;
+  padding:       syn.$space-lg;
+  border-radius: syn.$radius-xl;
+  background:    syn.$color-neutral-0;
 }
 
 .syn-overview-card--bordered {
@@ -22,7 +24,7 @@
 
 .syn-overview-card--split {
   grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), syn.px-to-rem(280));
-  align-items: start;
+  align-items:           start;
 }
 
 .syn-overview-card--stacked {
@@ -34,22 +36,20 @@
 .syn-overview-card__body,
 .syn-overview-card__aside {
   display: grid;
-  gap: syn.$space-md;
+  gap:     syn.$space-md;
 }
 
 .syn-overview-card__description {
-  margin: 0;
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-base;
+  margin:      0;
+  color:       syn.$color-neutral-600;
+  font-size:   syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
 }
 
 .syn-overview-card__aside {
-  padding: syn.$space-md;
-  border-radius: syn.px-to-rem(16);
-  background: syn.$color-neutral-50;
+  padding:       syn.$space-md;
+  border-radius: syn.$radius-lg;
+  background:    syn.$color-neutral-50;
 }
 
-.syn-overview-card__footer:empty {
-  display: none;
-}
+.syn-overview-card__footer:empty { display: none; }

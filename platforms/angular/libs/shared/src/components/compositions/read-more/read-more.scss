@@ -1,13 +1,15 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Read More ────────────────────────────────────────────────────────────────
+
 .syn-read-more {
   display: grid;
-  gap: syn.$space-sm;
+  gap:     syn.$space-sm;
 }
 
 .syn-read-more__content {
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-base;
+  color:       syn.$color-neutral-600;
+  font-size:   syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
   white-space: pre-line;
 }

@@ -1,3 +1,4 @@
+import type { SectionElementConfig } from '@synergos/contracts';
 import { NgStyle } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
@@ -7,22 +8,10 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 const sectionHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
-
-export interface SectionModuleConfig {
-  readonly headingText?: string;
-  readonly headingLevel?: string;
-  readonly containerType?: string;
-  readonly alignment?: string;
-  readonly direction?: string;
-  readonly margin?: string;
-  readonly padding?: string;
-  readonly gap?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
 
 function resolveSectionHeadingLevel(value: string): HeadingLevel {
   return sectionHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h2';
@@ -37,9 +26,9 @@ function resolveSectionHeadingLevel(value: string): HeadingLevel {
   host: { class: 'sg-section' },
 })
 export class SectionComponent {
-  readonly configInput = input<Partial<SectionModuleConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<SectionElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<SectionModuleConfig>,
+    transform: coerceConfigInput<SectionElementConfig>,
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
@@ -52,30 +41,14 @@ export class SectionComponent {
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly headingText = computed(() =>
-    resolveConfigValue(this.headingTextInput(), this.configInput()?.headingText, ''),
-  );
-  readonly headingLevel = computed(() =>
-    resolveConfigValue(this.headingLevelInput(), this.configInput()?.headingLevel, 'h2'),
-  );
-  readonly containerType = computed(() =>
-    resolveConfigValue(this.containerTypeInput(), this.configInput()?.containerType, 'fluid'),
-  );
-  readonly alignment = computed(() =>
-    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'start'),
-  );
-  readonly direction = computed(() =>
-    resolveConfigValue(this.directionInput(), this.configInput()?.direction, 'column'),
-  );
-  readonly margin = computed(() =>
-    resolveConfigValue(this.marginInput(), this.configInput()?.margin, ''),
-  );
-  readonly padding = computed(() =>
-    resolveConfigValue(this.paddingInput(), this.configInput()?.padding, ''),
-  );
-  readonly gap = computed(() =>
-    resolveConfigValue(this.gapInput(), this.configInput()?.gap, '1rem'),
-  );
+  readonly headingText = computed(() => this.headingTextInput()?.trim() || '');
+  readonly headingLevel = computed(() => this.headingLevelInput()?.trim() || 'h2');
+  readonly containerType = computed(() => this.containerTypeInput()?.trim() || 'fluid');
+  readonly alignment = computed(() => this.alignmentInput()?.trim() || 'start');
+  readonly direction = computed(() => this.directionInput()?.trim() || 'column');
+  readonly margin = computed(() => this.marginInput()?.trim() || '');
+  readonly padding = computed(() => this.paddingInput()?.trim() || '');
+  readonly gap = computed(() => this.gapInput()?.trim() || '1rem');
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
   );
@@ -90,9 +63,7 @@ export class SectionComponent {
   readonly headingAlign = computed<HeadingAlign>(() =>
     this.alignment() === 'center' ? 'center' : 'start',
   );
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-section--${this.variant()} sg-section--${this.theme()} sg-section--${this.containerType()}`,
   );

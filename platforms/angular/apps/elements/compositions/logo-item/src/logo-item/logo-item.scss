@@ -6,7 +6,7 @@
 
 .logo-item {
   &__link {
-    display: inline-flex;
+    display:         inline-flex;
     text-decoration: none;
   }
 
@@ -17,24 +17,30 @@
       syn.$color-neutral-0,
       syn.$color-neutral-200,
       syn.px-to-rem(1),
-      syn.px-to-rem(12),
-      syn.$shadow-sm
+      syn.$radius-lg,
+      syn.$shadow-xs
     );
-    gap: syn.$space-sm;
+    gap:            syn.$space-sm;
     min-inline-size: syn.px-to-rem(160);
-    text-align: center;
+    text-align:     center;
+    transition:     syn.$transition-colors;
+
+    &:hover {
+      border-color: syn.$color-neutral-300;
+      box-shadow:   syn.$shadow-sm;
+    }
   }
 
   &__image {
-    display: block;
+    display:        block;
     max-inline-size: 100%;
     max-block-size: syn.px-to-rem(56);
-    object-fit: contain;
+    object-fit:     contain;
   }
 
   &__label {
-    color: syn.$color-neutral-700;
-    font-size: syn.$font-size-sm;
+    color:       syn.$color-neutral-600;
+    font-size:   syn.$font-size-sm;
     line-height: syn.$line-height-normal;
   }
 }

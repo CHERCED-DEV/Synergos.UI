@@ -24,10 +24,11 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON  = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
 const INPUTS_JSON    = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
 const PACKAGE_JSON   = resolve(ROOT, 'package.json');

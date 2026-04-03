@@ -1,19 +1,10 @@
+import type { VideoBlockElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   coerceConfigInput,
   coerceOptionalBooleanInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface VideoBlockConfig {
-  readonly src?: string;
-  readonly title?: string;
-  readonly poster?: string;
-  readonly controls?: boolean;
-  readonly autoplay?: boolean;
-  readonly muted?: boolean;
-  readonly loop?: boolean;
-}
 
 @Component({
   selector: 'sg-video-block',
@@ -23,9 +14,9 @@ export interface VideoBlockConfig {
   host: { class: 'sg-video-block' },
 })
 export class VideoBlockComponent {
-  readonly configInput = input<Partial<VideoBlockConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<VideoBlockElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<VideoBlockConfig>,
+    transform: coerceConfigInput<VideoBlockElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -53,20 +44,10 @@ export class VideoBlockComponent {
   readonly title = computed(() =>
     resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
   );
-  readonly poster = computed(() =>
-    resolveConfigValue(this.posterInput(), this.configInput()?.poster, ''),
-  );
-  readonly controls = computed(() =>
-    resolveConfigValue(this.controlsInput(), this.configInput()?.controls, true),
-  );
-  readonly autoplay = computed(() =>
-    resolveConfigValue(this.autoplayInput(), this.configInput()?.autoplay, false),
-  );
-  readonly muted = computed(() =>
-    resolveConfigValue(this.mutedInput(), this.configInput()?.muted, false),
-  );
-  readonly loop = computed(() =>
-    resolveConfigValue(this.loopInput(), this.configInput()?.loop, false),
-  );
+  readonly poster = computed(() => this.posterInput()?.trim() || '');
+  readonly controls = computed(() => this.controlsInput() ?? true);
+  readonly autoplay = computed(() => this.autoplayInput() ?? false);
+  readonly muted = computed(() => this.mutedInput() ?? false);
+  readonly loop = computed(() => this.loopInput() ?? false);
   readonly hasTitle = computed(() => this.title().trim().length > 0);
 }

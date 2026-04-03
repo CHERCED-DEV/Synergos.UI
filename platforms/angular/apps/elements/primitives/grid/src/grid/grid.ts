@@ -1,3 +1,4 @@
+import type { GridElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   GridColumnsComponent,
@@ -6,13 +7,6 @@ import {
   coerceOptionalNumberInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface GridConfig {
-  readonly columns?: number;
-  readonly gap?: string;
-  readonly minColumnWidth?: string;
-  readonly theme?: string;
-}
 
 function resolveGridGap(value: string): GridColumnsGap {
   return value === 'sm' || value === 'lg' ? value : 'md';
@@ -27,9 +21,9 @@ function resolveGridGap(value: string): GridColumnsGap {
   host: { class: 'sg-grid' },
 })
 export class GridComponent {
-  readonly configInput = input<Partial<GridConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<GridElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<GridConfig>,
+    transform: coerceConfigInput<GridElementConfig>,
   });
   readonly columnsInput = input<number | undefined, unknown>(undefined, {
     alias: 'columns',
@@ -37,16 +31,14 @@ export class GridComponent {
   });
   readonly gapInput = input<string | undefined>(undefined, { alias: 'gap' });
   readonly minColumnWidthInput = input<string | undefined>(undefined, { alias: 'minColumnWidth' });
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly columns = computed(() =>
-    resolveConfigValue(this.columnsInput(), this.configInput()?.columns, 3),
-  );
-  readonly gap = computed(() =>
-    resolveConfigValue(this.gapInput(), this.configInput()?.gap, 'md'),
-  );
-  readonly minColumnWidth = computed(() =>
-    resolveConfigValue(this.minColumnWidthInput(), this.configInput()?.minColumnWidth, ''),
+  readonly columns = computed(() => this.columnsInput() ?? 3);
+  readonly gap = computed(() => this.gapInput()?.trim() || 'md');
+  readonly minColumnWidth = computed(() => this.minColumnWidthInput()?.trim() || '');
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
@@ -60,5 +52,5 @@ export class GridComponent {
     this.minColumnWidth().trim() || '16rem',
   );
   readonly autoFit = computed(() => this.minColumnWidth().trim().length > 0);
-  readonly hostClasses = computed(() => `sg-grid--${this.theme()}`);
+  readonly hostClasses = computed(() => `sg-grid--${this.variant()} sg-grid--${this.theme()}`);
 }

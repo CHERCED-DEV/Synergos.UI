@@ -18,7 +18,7 @@
       <p class="media-text__body">{{ body() }}</p>
     }
     @if (hasCta()) {
-      <a class="media-text__cta" [href]="ctaUrl()" rel="noopener noreferrer">
+      <a class="media-text__cta" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
         <syn-button [label]="ctaLabel()" variant="solid" size="md" />
       </a>
     }

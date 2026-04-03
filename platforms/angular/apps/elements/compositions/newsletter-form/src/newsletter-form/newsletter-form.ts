@@ -5,6 +5,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { NewsletterFormElementConfig } from '@synergos/contracts';
 import {
   AlertComponent,
   ButtonComponent,
@@ -14,23 +15,11 @@ import {
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
+  resolveHeadingTone,
 } from '@synergos/shared';
 
 type SubmissionState = 'idle' | 'submitting' | 'success' | 'error';
 type SubmitMethod = 'get' | 'post';
-
-export interface NewsletterFormConfig {
-  readonly title?: string;
-  readonly intro?: string;
-  readonly placeholder?: string;
-  readonly submitLabel?: string;
-  readonly consentText?: string;
-  readonly successMessage?: string;
-  readonly errorMessage?: string;
-  readonly actionUrl?: string;
-  readonly method?: string;
-  readonly theme?: string;
-}
 
 function normalizeMethod(value: string): SubmitMethod {
   return value.trim().toLowerCase() === 'get' ? 'get' : 'post';
@@ -42,7 +31,6 @@ function isValidEmail(value: string): boolean {
 
 @Component({
   selector: 'sg-newsletter-form',
-  standalone: true,
   imports: [
     AlertComponent,
     ButtonComponent,
@@ -61,9 +49,9 @@ export class NewsletterFormElementComponent {
   readonly #state = signal<SubmissionState>('idle');
   readonly #feedback = signal('');
 
-  readonly configInput = input<Partial<NewsletterFormConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<NewsletterFormElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<NewsletterFormConfig>,
+    transform: coerceConfigInput<NewsletterFormElementConfig>,
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly introInput = input<string | undefined>(undefined, { alias: 'intro' });
@@ -126,9 +114,7 @@ export class NewsletterFormElementComponent {
   readonly feedbackTone = computed(() =>
     this.state() === 'success' ? 'brand' : 'critical',
   );
-  readonly headingTone = computed<HeadingTone>(() =>
-    this.theme() === 'dark' ? 'inverse' : 'neutral',
-  );
+  readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(() => `newsletter-form--${this.theme()}`);
 
   onEmailChange(value: string): void {

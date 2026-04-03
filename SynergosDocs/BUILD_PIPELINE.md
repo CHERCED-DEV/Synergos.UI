@@ -5,7 +5,13 @@
 | Task | Command |
 |------|---------|
 | Build all | `npm run build` |
-| Build Angular (elements + experiences) | `npm run build:angular` |
+| Build Angular (elements + experiences) — **lightweight, CDN mode** | `npm run build:angular` |
+| **Build shared runtime (required once, then cache)** | **`npm run build:runtime`** |
+| Build Angular fast (dev, no optimization) | `npm run build:angular:dev` |
+| Build Angular stable/serial | `npm run build:angular:stable` |
+| Build Angular changed projects only | `npm run build:angular:changed` |
+| Build Angular elements only | `npm run build:angular:elements` |
+| Build Angular experiences only | `npm run build:angular:experiences` |
 | Build React | `npm run build:react` |
 | Build Svelte | `npm run build:svelte` |
 | Build Vanilla | `npm run build:vanilla` |
@@ -27,8 +33,28 @@ Each framework builds independently:
 # All frameworks (sequential)
 npm run build
 
-# Single framework
+# Single framework (fast default)
 npm run build:react
+
+# Angular — production = lightweight CDN mode by default
+
+# 1. Fast dev iteration — no optimization (3-4× faster, NOT for release)
+npm run build:angular:dev
+
+# 2. Incremental — only projects affected by your changes (fastest once cache is warm)
+npm run build:angular:changed
+
+# 3. Elements only — skip experiences (for element-focused work)
+npm run build:angular:elements
+
+# 4. Full production catalog (elements + experiences, optimization on)
+npm run build:angular
+
+# 5. Serial fallback — use only when debugging parallel build flakiness
+npm run build:angular:stable
+
+# Angular experiences only
+npm run build:angular:experiences
 
 # Single Angular experience or element (run from platforms/angular/)
 cd platforms/angular
@@ -44,6 +70,81 @@ npx nx run react-pricing-card:build
 ```
 
 > **Important:** Angular Nx commands require `unset NX_WORKSPACE_ROOT_PATH` to prevent the root daemon from overriding workspace discovery. See `NX_GOVERNANCE.md` for details.
+
+### CDN Runtime mode (lightweight elements)
+
+The **production build is CDN mode by default** — Angular and shared libs are loaded **once** from a shared runtime bundle, and each element bundle contains only element-specific code (~5–15 KB).
+
+```
+CDN mode (default):  runtime (loaded once, cached) ≈ 230 KB + each element ≈ 5–10 KB  ✅
+Self-contained:      each element = Angular runtime + shared libs + element code ≈ 130–200 KB
+```
+
+**Typical CMS page** (5–10 elements): ~280 KB total vs 750–1 500 KB → **60–80% smaller**.
+
+```bash
+# Step 1 — build the shared runtime (once; repeat when Angular or shared libs change)
+npm run build:runtime
+
+# Step 2 — build all element bundles (lightweight, Angular externalized)
+npm run build:angular
+
+# Preview what the runtime build will produce (no files written)
+npm run build:runtime:dry
+```
+
+The runtime produces `dist/runtime/` with:
+
+| File | Contents |
+|------|----------|
+| `ng-core.js` | `@angular/core` (self-contained) |
+| `ng-common.js` | `@angular/common` |
+| `ng-elements.js` | `@angular/elements` + rxjs |
+| `ng-platform-browser.js` | `@angular/platform-browser` |
+| `sg-core.js` | `@synergos/core` |
+| `sg-shared.js` | `@synergos/shared` (all design system components) |
+
+It also writes `dist/runtime/import-map.json` — inject this into the CMS page `<head>` before any element `<script>` tags:
+
+```html
+<head>
+  <script type="importmap">
+  {
+    "imports": {
+      "@angular/core":             "https://cdn.example.com/synergos/runtime/latest/ng-core.js",
+      "@angular/common":           "https://cdn.example.com/synergos/runtime/latest/ng-common.js",
+      "@angular/common/http":      "https://cdn.example.com/synergos/runtime/latest/ng-common.js",
+      "@angular/elements":         "https://cdn.example.com/synergos/runtime/latest/ng-elements.js",
+      "@angular/platform-browser": "https://cdn.example.com/synergos/runtime/latest/ng-platform-browser.js",
+      "@synergos/core":            "https://cdn.example.com/synergos/runtime/latest/sg-core.js",
+      "@synergos/shared":          "https://cdn.example.com/synergos/runtime/latest/sg-shared.js"
+    }
+  }
+  </script>
+
+  <!-- element bundles load AFTER the import map -->
+  <script type="module" src="https://cdn.example.com/synergos/hero/angular/latest/main.js" defer></script>
+  <script type="module" src="https://cdn.example.com/synergos/card/angular/latest/main.js" defer></script>
+</head>
+```
+
+> **Browser support**: Import maps are supported by all modern browsers (Chrome 89+, Firefox 108+, Safari 16.4+). For Umbraco, generate the import map in a Razor partial and inject it into `<head>` as the first script.
+
+### Choosing the right Angular build command
+
+| Scenario | Command | Why |
+|----------|---------|-----|
+| Iterating on a single element locally | `build:angular:dev` | Skips optimization — 3-4× faster. Never deploy these. |
+| Day-to-day work (multiple elements changed) | `build:angular:changed` | Nx affected graph. Fastest once the Nx cache is warm. |
+| Element-only work (no experiences) | `build:angular:elements` | Excludes the 3 experience apps. |
+| CI / release (requires import map in CMS) | `build:runtime && build:angular` | Lightweight elements (~5–10 KB). Default production mode. |
+| Debugging a flaky parallel build | `build:angular:stable` | Serial (`--parallel=1`). |
+
+**Rule of thumb:**
+- Local dev → `build:angular:dev`
+- Committing → `build:angular:changed`
+- CI / release → `build:runtime` then `build:angular`
+- Standalone / embed → `build:angular` (self-contained, no import map needed)
 
 ### How builds work
 
@@ -124,7 +225,7 @@ Full contract documentation: [ELEMENT_CONTRACT.md](./ELEMENT_CONTRACT.md)
 
 ## Release
 
-The release command is a full build + publish + clean cycle:
+The release command is a full build + validate + publish + clean cycle:
 
 ```bash
 npm run release
@@ -132,9 +233,24 @@ npm run release
 
 This runs:
 1. `npm run build` — builds all frameworks
-2. `node tools/publish.mjs --clean` — publishes to CDN (with manifests) and cleans element dists
+2. `npm run contracts:validate` — **gate: fails if registry/models/inputs are out of sync**
+3. `npm run publish:runtime` — publishes runtime bundles + import-map.json
+4. `node tools/publish.mjs --clean` — publishes element bundles (with manifests) and cleans dists
 
 Each CDN slot receives two files: `main.js` (bundle) and `manifest.json` (API contract).
+
+### Contract validation gate
+
+```bash
+# Run both checks in sequence (used by all release scripts):
+npm run contracts:validate
+
+# Run individually:
+npm run element:audit      # registry ↔ mapper ↔ models ↔ inputs consistency
+npm run manifest:validate  # fail if any element has empty inputs array
+```
+
+The gate runs **after build, before publish**. A failed gate means the contracts are incomplete — the publish must not proceed until resolved. Fix the gap, re-run the gate, then publish.
 
 ---
 

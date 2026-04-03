@@ -1,72 +1,49 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Status Tag ───────────────────────────────────────────────────────────────
+// Compact label for workflow states, pipeline stages, entity statuses.
+
 .syn-status-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: syn.$space-1;
-  border: syn.px-to-rem(1) solid currentColor;
-  border-radius: syn.px-to-rem(999);
-  padding: syn.$space-1 syn.$space-3;
-  font-size: syn.$font-size-sm;
-  font-weight: syn.$font-weight-semibold;
-  line-height: 1;
+  display:        inline-flex;
+  align-items:    center;
+  gap:            syn.$space-1;
+  border:         syn.px-to-rem(1) solid transparent;
+  border-radius:  syn.$radius-full;
+  padding:        syn.$space-1 syn.$space-xs;
+  font-size:      syn.$font-size-xs;
+  font-weight:    syn.$font-weight-semibold;
+  letter-spacing: 0.02em;
+  line-height:    1;
+  white-space:    nowrap;
 }
 
-.syn-status-tag--outline {
-  background: syn.$color-neutral-0;
-}
+// ── Outline mode (default) ──────────────────────────────────────────────────
 
-.syn-status-tag--filled {
-  color: syn.$color-neutral-0;
-}
+.syn-status-tag--neutral  { background: syn.$color-neutral-100; border-color: syn.$color-neutral-200; color: syn.$color-neutral-700; }
+.syn-status-tag--pending  { background: syn.$color-brand-100;   border-color: syn.$color-brand-200;   color: syn.$color-brand-600;   }
+.syn-status-tag--success  { background: syn.$color-success-100; border-color: syn.$color-success-200; color: syn.$color-success-600; }
+.syn-status-tag--warning  { background: syn.$color-warning-100; border-color: syn.$color-warning-300; color: syn.$color-warning-600; }
+.syn-status-tag--critical { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;  color: syn.$color-danger-600;  }
+.syn-status-tag--blocked  { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;  color: syn.$color-danger-600;  }
+.syn-status-tag--inactive { background: syn.$color-neutral-100; border-color: syn.$color-neutral-200; color: syn.$color-neutral-400; }
 
-.syn-status-tag--neutral {
-  color: syn.$color-neutral-700;
-}
+// ── Filled mode ─────────────────────────────────────────────────────────────
 
-.syn-status-tag--neutral.syn-status-tag--filled {
-  background: syn.$color-neutral-700;
-}
+.syn-status-tag--filled.syn-status-tag--neutral  { background: syn.$color-neutral-700;  border-color: syn.$color-neutral-700;  color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--pending  { background: syn.$color-brand-500;    border-color: syn.$color-brand-500;    color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--success  { background: syn.$color-success-500;  border-color: syn.$color-success-500;  color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--warning  { background: syn.$color-warning-500;  border-color: syn.$color-warning-500;  color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--critical,
+.syn-status-tag--filled.syn-status-tag--blocked  { background: syn.$color-danger-500;   border-color: syn.$color-danger-500;   color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--inactive { background: syn.$color-neutral-400;  border-color: syn.$color-neutral-400;  color: syn.$color-neutral-0; }
 
-.syn-status-tag--success {
-  color: syn.$color-brand-600;
-}
+// ── Status dot ──────────────────────────────────────────────────────────────
 
-.syn-status-tag--success.syn-status-tag--filled {
-  background: syn.$color-brand-600;
-}
-
-.syn-status-tag--warning {
-  color: syn.$color-neutral-800;
-}
-
-.syn-status-tag--warning.syn-status-tag--filled {
-  background: syn.$color-neutral-800;
-}
-
-.syn-status-tag--critical,
-.syn-status-tag--blocked {
-  color: syn.$color-neutral-900;
-}
-
-.syn-status-tag--critical.syn-status-tag--filled,
-.syn-status-tag--blocked.syn-status-tag--filled {
-  background: syn.$color-neutral-900;
-}
-
-.syn-status-tag--pending {
-  color: syn.$color-brand-500;
-}
-
-.syn-status-tag--pending.syn-status-tag--filled {
-  background: syn.$color-brand-500;
-}
-
-.syn-status-tag--inactive {
-  color: syn.$color-neutral-500;
-}
-
-.syn-status-tag--inactive.syn-status-tag--filled {
-  background: syn.$color-neutral-500;
+.syn-status-tag__dot {
+  display:       block;
+  width:         syn.px-to-rem(6);
+  height:        syn.px-to-rem(6);
+  border-radius: 50%;
+  background:    currentColor;
+  flex-shrink:   0;
 }

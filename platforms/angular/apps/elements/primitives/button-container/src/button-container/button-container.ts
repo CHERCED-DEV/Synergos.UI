@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { ButtonContainerElementConfig } from '@synergos/contracts';
 import {
   ButtonComponent,
   coerceConfigInput,
@@ -8,15 +9,6 @@ import {
 
 type ButtonSize = 'sm' | 'md' | 'lg';
 type ButtonVariant = 'solid' | 'outline' | 'ghost';
-
-export interface ButtonContainerConfig {
-  readonly label?: string;
-  readonly variant?: string;
-  readonly size?: string;
-  readonly href?: string;
-  readonly target?: string;
-  readonly disabled?: boolean;
-}
 
 function resolveButtonVariant(value: string): ButtonVariant {
   return value === 'outline' || value === 'ghost' ? value : 'solid';
@@ -35,9 +27,9 @@ function resolveButtonSize(value: string): ButtonSize {
   host: { class: 'sg-button-container' },
 })
 export class ButtonContainerComponent {
-  readonly configInput = input<Partial<ButtonContainerConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<ButtonContainerElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<ButtonContainerConfig>,
+    transform: coerceConfigInput<ButtonContainerElementConfig>,
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
@@ -53,10 +45,10 @@ export class ButtonContainerComponent {
     resolveConfigValue(this.labelInput(), this.configInput()?.label, ''),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'solid'),
+    resolveConfigValue(this.variantInput(), undefined, 'solid'),
   );
   readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), this.configInput()?.size, 'md'),
+    resolveConfigValue(this.sizeInput(), undefined, 'md'),
   );
   readonly href = computed(() =>
     resolveConfigValue(this.hrefInput(), this.configInput()?.href, ''),
@@ -65,7 +57,7 @@ export class ButtonContainerComponent {
     resolveConfigValue(this.targetInput(), this.configInput()?.target, '_self'),
   );
   readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), this.configInput()?.disabled, false),
+    resolveConfigValue(this.disabledInput(), undefined, false),
   );
 
   readonly isLink = computed(() => this.href().trim().length > 0);

@@ -1,18 +1,10 @@
+import type { StackElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   coerceConfigInput,
   coerceOptionalBooleanInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface StackConfig {
-  readonly direction?: string;
-  readonly gap?: string;
-  readonly alignment?: string;
-  readonly justify?: string;
-  readonly wrap?: boolean;
-  readonly theme?: string;
-}
 
 @Component({
   selector: 'sg-stack',
@@ -23,9 +15,9 @@ export interface StackConfig {
   host: { class: 'sg-stack' },
 })
 export class StackComponent {
-  readonly configInput = input<Partial<StackConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<StackElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<StackConfig>,
+    transform: coerceConfigInput<StackElementConfig>,
   });
   readonly directionInput = input<string | undefined>(undefined, { alias: 'direction' });
   readonly gapInput = input<string | undefined>(undefined, { alias: 'gap' });
@@ -35,28 +27,22 @@ export class StackComponent {
     alias: 'wrap',
     transform: coerceOptionalBooleanInput,
   });
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly direction = computed(() =>
-    resolveConfigValue(this.directionInput(), this.configInput()?.direction, 'column'),
-  );
-  readonly gap = computed(() =>
-    resolveConfigValue(this.gapInput(), this.configInput()?.gap, 'md'),
-  );
-  readonly alignment = computed(() =>
-    resolveConfigValue(this.alignmentInput(), this.configInput()?.alignment, 'stretch'),
-  );
-  readonly justify = computed(() =>
-    resolveConfigValue(this.justifyInput(), this.configInput()?.justify, 'start'),
-  );
-  readonly wrap = computed(() =>
-    resolveConfigValue(this.wrapInput(), this.configInput()?.wrap, false),
+  readonly direction = computed(() => this.directionInput()?.trim() || 'column');
+  readonly gap = computed(() => this.gapInput()?.trim() || 'md');
+  readonly alignment = computed(() => this.alignmentInput()?.trim() || 'stretch');
+  readonly justify = computed(() => this.justifyInput()?.trim() || 'start');
+  readonly wrap = computed(() => this.wrapInput() ?? false);
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
 
   readonly hostClasses = computed(() =>
-    `sg-stack--${this.direction()} sg-stack--gap-${this.gap()} sg-stack--align-${this.alignment()} sg-stack--justify-${this.justify()}${this.wrap() ? ' sg-stack--wrap' : ''} sg-stack--${this.theme()}`,
+    `sg-stack--${this.variant()} sg-stack--${this.direction()} sg-stack--gap-${this.gap()} sg-stack--align-${this.alignment()} sg-stack--justify-${this.justify()}${this.wrap() ? ' sg-stack--wrap' : ''} sg-stack--${this.theme()}`,
   );
 }

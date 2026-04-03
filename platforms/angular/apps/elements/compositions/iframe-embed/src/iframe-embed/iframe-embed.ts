@@ -1,17 +1,10 @@
+import type { IframeEmbedElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, input, viewChild } from '@angular/core';
 import {
   coerceConfigInput,
   coerceOptionalBooleanInput,
   resolveConfigValue,
 } from '@synergos/shared';
-
-export interface IframeEmbedConfig {
-  readonly src?: string;
-  readonly title?: string;
-  readonly loading?: string;
-  readonly allowFullscreen?: boolean;
-  readonly height?: string;
-}
 
 @Component({
   selector: 'sg-iframe-embed',
@@ -22,9 +15,9 @@ export interface IframeEmbedConfig {
 })
 export class IframeEmbedElementComponent {
   readonly frameRef = viewChild<ElementRef<HTMLIFrameElement>>('frame');
-  readonly configInput = input<Partial<IframeEmbedConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<IframeEmbedElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<IframeEmbedConfig>,
+    transform: coerceConfigInput<IframeEmbedElementConfig>,
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -41,14 +34,12 @@ export class IframeEmbedElementComponent {
   readonly title = computed(() =>
     resolveConfigValue(this.titleInput(), this.configInput()?.title, ''),
   );
-  readonly loading = computed(() =>
-    resolveConfigValue(this.loadingInput(), this.configInput()?.loading, 'lazy'),
-  );
+  readonly loading = computed(() => this.loadingInput()?.trim() || 'lazy');
   readonly allowFullscreen = computed(() =>
-    resolveConfigValue(this.allowFullscreenInput(), this.configInput()?.allowFullscreen, true),
+    this.allowFullscreenInput() ?? this.configInput()?.allowFullscreen ?? true,
   );
   readonly height = computed(() =>
-    resolveConfigValue(this.heightInput(), this.configInput()?.height, '480'),
+    this.heightInput()?.trim() || this.configInput()?.height?.trim() || '480',
   );
 
   constructor() {

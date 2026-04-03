@@ -1,5 +1,7 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Dropdown ─────────────────────────────────────────────────────────────────
+
 .syn-dropdown {
   position: relative;
   display: inline-block;
@@ -9,18 +11,28 @@
   @include syn.button-base;
   @include syn.button-variant(
     syn.$color-neutral-0,
-    syn.$color-neutral-900,
-    syn.$color-neutral-300,
+    syn.$color-neutral-800,
+    syn.$color-neutral-200,
     syn.$color-neutral-0,
     syn.$color-brand-600,
-    syn.$color-brand-400
+    syn.$color-brand-300
   );
 }
 
 .syn-dropdown__menu {
-  @include syn.dropdown-panel(syn.px-to-rem(180), syn.$space-xxs);
+  @include syn.dropdown-panel(syn.px-to-rem(200), syn.$space-xxs);
+  border-radius: syn.$radius-lg;
+  padding: syn.$space-xxs;
 }
 
 .syn-dropdown__item {
   @include syn.dropdown-item;
+  border-radius: syn.$radius-md;
+  font-size: syn.$font-size-sm;
+}
+
+.syn-dropdown__separator {
+  height:     syn.px-to-rem(1);
+  margin:     syn.$space-xxs 0;
+  background: syn.$color-neutral-100;
 }

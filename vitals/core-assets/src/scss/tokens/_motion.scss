@@ -1,0 +1,32 @@
+// ─── Motion Tokens ─────────────────────────────────────────────────────────────
+// Centralized transition values — never hardcode durations in components.
+//
+// fast   → 120ms — hover states, checkboxes, small interactive elements
+// base   → 200ms — panel open/close, tab transitions, card hover
+// slow   → 280ms — modal/overlay entrance, drawer open
+//
+// default → spring-like deceleration (feels intentional and premium)
+// smooth  → linear ease (for color/opacity changes)
+// in      → accelerates (for exit animations)
+// out     → decelerates (for entrance animations)
+
+$duration-fast:   120ms;
+$duration-base:   200ms;
+$duration-slow:   280ms;
+
+$easing-default:  cubic-bezier(0.16, 1, 0.3, 1);
+$easing-smooth:   ease;
+$easing-in:       cubic-bezier(0.4, 0, 1, 1);
+$easing-out:      cubic-bezier(0, 0, 0.2, 1);
+
+// Composed shorthands for common use
+$transition-colors:    background-color $duration-fast $easing-smooth,
+                       border-color     $duration-fast $easing-smooth,
+                       color            $duration-fast $easing-smooth,
+                       box-shadow       $duration-fast $easing-smooth,
+                       opacity          $duration-fast $easing-smooth;
+
+$transition-transform: transform $duration-base $easing-default;
+
+$transition-panel:     opacity   $duration-base $easing-out,
+                       transform $duration-base $easing-out;

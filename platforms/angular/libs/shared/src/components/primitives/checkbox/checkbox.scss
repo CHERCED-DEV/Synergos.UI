@@ -1,5 +1,8 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Checkbox ─────────────────────────────────────────────────────────────────
+// Custom checkbox: visually hidden native + styled box with checkmark SVG.
+
 .syn-checkbox {
   display: inline-flex;
   align-items: center;
@@ -13,33 +16,95 @@
   opacity: 0;
   width: 0;
   height: 0;
+  pointer-events: none;
 }
 
 .syn-checkbox__box {
-  width: syn.px-to-rem(18);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width:  syn.px-to-rem(18);
   height: syn.px-to-rem(18);
-  border: syn.px-to-rem(1) solid syn.$color-neutral-400;
-  border-radius: syn.px-to-rem(4);
+  border: syn.px-to-rem(1.5) solid syn.$color-neutral-300;
+  border-radius: syn.$radius-sm;
   background: syn.$color-neutral-0;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  transition: syn.$transition-colors;
 }
 
+// Checkmark — SVG background, always present but invisible unchecked
+.syn-checkbox__box::after {
+  content: '';
+  display: block;
+  width:  syn.px-to-rem(10);
+  height: syn.px-to-rem(8);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4L3.5 6.5L9 1' stroke='white' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity    syn.$duration-fast syn.$easing-smooth,
+    transform  syn.$duration-fast syn.$easing-default;
+}
+
+// Hover — border darkens
+.syn-checkbox:hover .syn-checkbox__box {
+  border-color: syn.$color-neutral-500;
+}
+
+// Checked — fill + checkmark appears
 .syn-checkbox__native:checked + .syn-checkbox__box {
-  background: syn.$color-brand-500;
+  background:   syn.$color-brand-500;
   border-color: syn.$color-brand-500;
 }
 
+.syn-checkbox__native:checked + .syn-checkbox__box::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+// Focus ring
 .syn-checkbox__native:focus-visible + .syn-checkbox__box {
   outline: syn.px-to-rem(2) solid syn.$color-brand-300;
   outline-offset: syn.px-to-rem(2);
 }
 
+// Disabled
 .syn-checkbox__native:disabled + .syn-checkbox__box {
-  background: syn.$color-neutral-100;
-  border-color: syn.$color-neutral-300;
+  background:   syn.$color-neutral-100;
+  border-color: syn.$color-neutral-200;
+  cursor: not-allowed;
+}
+
+.syn-checkbox--disabled {
+  cursor: not-allowed;
 }
 
 .syn-checkbox__label {
-  font-size: syn.$font-size-sm;
-  color: syn.$color-neutral-900;
+  font-size:   syn.$font-size-sm;
+  color:       syn.$color-neutral-900;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-checkbox--disabled .syn-checkbox__label {
+  color: syn.$color-neutral-400;
+}
+
+// Indeterminate state
+.syn-checkbox__native:indeterminate + .syn-checkbox__box {
+  background:   syn.$color-brand-100;
+  border-color: syn.$color-brand-400;
+}
+
+.syn-checkbox__native:indeterminate + .syn-checkbox__box::after {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 10 2' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1H9' stroke='%234f6ef7' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-checkbox__box::after {
+    transition: none;
+  }
 }

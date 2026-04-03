@@ -1,4 +1,8 @@
-import type { BlockConfig } from '@synergos/contracts';
+import {
+  ELEMENT_CONFIG_FIELDS,
+  ELEMENT_CONFIG_JSON_FIELDS,
+  type BlockConfig,
+} from '@synergos/contracts';
 import type {
   HeroElementData,
   CardElementData,
@@ -120,6 +124,44 @@ function toRecord(obj: object): Record<string, string> {
     }
   }
   return result;
+}
+
+function tryParseJsonValue(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function withConfigPayload(tag: string, inputs: Record<string, string>): Record<string, string> {
+  const slug = tag.startsWith('synergos-') ? tag.slice('synergos-'.length) : tag;
+  if (!Object.prototype.hasOwnProperty.call(ELEMENT_CONFIG_FIELDS, slug)) {
+    return inputs;
+  }
+
+  const configFields = new Set<string>(ELEMENT_CONFIG_FIELDS[slug as keyof typeof ELEMENT_CONFIG_FIELDS]);
+  const jsonFields = new Set<string>(ELEMENT_CONFIG_JSON_FIELDS[slug as keyof typeof ELEMENT_CONFIG_JSON_FIELDS] ?? []);
+  const config: Record<string, unknown> = {};
+  const extraInputs: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(inputs)) {
+    if (!configFields.has(key)) {
+      extraInputs[key] = value;
+      continue;
+    }
+
+    if (value === '') {
+      continue;
+    }
+
+    config[key] = jsonFields.has(key) ? tryParseJsonValue(value) : value;
+  }
+
+  return {
+    ...extraInputs,
+    config: JSON.stringify(config),
+  };
 }
 
 const REGISTRY: Record<string, MapperEntry> = {
@@ -373,7 +415,7 @@ export function mapBlockToElement(block: BlockConfig): MappedBlock | null {
 
   return {
     tag: entry.tag,
-    inputs: entry.map(block.data),
+    inputs: withConfigPayload(entry.tag, entry.map(block.data)),
     blockClass: block.blockClass,
   };
 }

@@ -1,57 +1,66 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Stepper ──────────────────────────────────────────────────────────────────
+
 .syn-stepper {
   display: grid;
-  gap: syn.$space-2;
+  gap:     syn.$space-xs;
 }
 
 .syn-stepper__label {
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-700;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
 }
 
 .syn-stepper__control {
-  display: inline-grid;
+  display:               inline-grid;
   grid-template-columns: auto minmax(syn.px-to-rem(80), 1fr) auto;
-  align-items: center;
-  overflow: hidden;
-  width: fit-content;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(16);
-  background: syn.$color-neutral-0;
+  align-items:           center;
+  overflow:              hidden;
+  width:                 fit-content;
+  border:                syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius:         syn.$radius-full;
+  background:            syn.$color-neutral-0;
+  transition:            border-color syn.$duration-fast syn.$easing-smooth;
+
+  &:focus-within {
+    border-color: syn.$color-brand-400;
+    box-shadow:   0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
+  }
 }
 
 .syn-stepper__button {
   @include syn.focus-visible;
-  border: 0;
-  min-width: syn.px-to-rem(44);
-  min-height: syn.px-to-rem(44);
-  background: syn.$color-neutral-100;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-lg;
+  border:      0;
+  min-width:   syn.px-to-rem(44);
+  min-height:  syn.px-to-rem(44);
+  background:  syn.$color-neutral-100;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
-  cursor: pointer;
-}
+  cursor:      pointer;
+  transition:  background syn.$duration-fast syn.$easing-smooth;
 
-.syn-stepper__button:disabled {
-  color: syn.$color-neutral-400;
-  cursor: not-allowed;
+  &:hover:not(:disabled) { background: syn.$color-neutral-200; }
+  &:disabled { color: syn.$color-neutral-400; cursor: not-allowed; }
 }
 
 .syn-stepper__input {
-  border: 0;
-  width: 100%;
-  padding: syn.$space-2 syn.$space-3;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-base;
+  border:      0;
+  width:       100%;
+  padding:     syn.$space-sm syn.$space-md;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-base;
   font-weight: syn.$font-weight-medium;
-  text-align: center;
-  appearance: textfield;
-}
+  text-align:  center;
+  appearance:  textfield;
+  background:  transparent;
+  outline:     0;
 
-.syn-stepper__input::-webkit-outer-spin-button,
-.syn-stepper__input::-webkit-inner-spin-button {
-  margin: 0;
-  appearance: none;
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    margin:     0;
+    appearance: none;
+  }
 }

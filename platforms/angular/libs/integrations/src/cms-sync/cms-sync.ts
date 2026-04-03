@@ -11,19 +11,22 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseCSharpFile } from './csharp-parser.js';
 import { emitFileHeader, emitInterface, emitBarrelExport } from './ts-emitter.js';
 import { mapCSharpTypeToTs } from './type-mapper.js';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 
-const WORKSPACE_ROOT = path.resolve(import.meta.dirname, '../../../../');
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const ANGULAR_ROOT = path.resolve(SCRIPT_DIR, '../../../../');
+const UI_ROOT = path.resolve(ANGULAR_ROOT, '../..');
 
 /** Path to the CMS project — sibling directory to the UI project */
-const CMS_ROOT = path.resolve(WORKSPACE_ROOT, '../Synergos.CMS');
+const CMS_ROOT = path.resolve(UI_ROOT, '../Synergos.CMS');
 
 /** Output directory for generated contracts — vitals/contracts is the single source of truth */
-const OUTPUT_DIR = path.resolve(WORKSPACE_ROOT, '../../vitals/contracts/src/generated');
+const OUTPUT_DIR = path.resolve(UI_ROOT, 'vitals/contracts/src/generated');
 
 /** Source directories to scan in the CMS project */
 const SOURCE_DIRS: ReadonlyArray<{ dir: string; outputFile: string }> = [
@@ -31,9 +34,12 @@ const SOURCE_DIRS: ReadonlyArray<{ dir: string; outputFile: string }> = [
   { dir: 'Domain/Compositions/Content', outputFile: 'compositions-content.generated.ts' },
   { dir: 'Domain/Compositions/Dom', outputFile: 'compositions-dom.generated.ts' },
   { dir: 'Domain/Compositions/Behavior', outputFile: 'compositions-behavior.generated.ts' },
+  { dir: 'Domain/Compositions/Integration', outputFile: 'compositions-integration.generated.ts' },
   { dir: 'Domain/Compositions/Seo', outputFile: 'compositions-seo.generated.ts' },
+  { dir: 'Application/Components', outputFile: 'components.generated.ts' },
   { dir: 'Application/Elements', outputFile: 'elements.generated.ts' },
   { dir: 'Application/Output/Config', outputFile: 'page-config.generated.ts' },
+  { dir: 'Application/Rendering', outputFile: 'rendering.generated.ts' },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

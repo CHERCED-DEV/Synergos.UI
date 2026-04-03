@@ -65,6 +65,26 @@ export interface ContentEmbed {
   embedTitle?: string;
 }
 
+export interface IntegrationConfig {
+  integrationProvider?: string;
+  integrationId?: string;
+  apiKey?: string;
+  webhookUrl?: string;
+  apiEndpoint?: string;
+}
+
+export interface MountParam {
+  key?: string;
+  value?: string;
+}
+
+export interface MountConfig {
+  elementAlias?: string;
+  remoteEntry?: string;
+  exposedModule?: string;
+  params?: readonly MountParam[];
+}
+
 // ── DOM Compositions ─────────────────────────────────────────────────────────
 // Mirror: Synergos.CMS/Domain/Compositions/Dom/
 

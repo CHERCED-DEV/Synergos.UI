@@ -1,18 +1,32 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Badge ─────────────────────────────────────────────────────────────────────
+
 .syn-badge {
-  @include syn.badge(syn.$color-neutral-100, syn.$color-neutral-800);
+  @include syn.badge(syn.$color-neutral-100, syn.$color-neutral-700);
 }
 
 .syn-badge--neutral {
   background: syn.$color-neutral-100;
-  color: syn.$color-neutral-800;
+  color:      syn.$color-neutral-700;
 }
 
 .syn-badge--brand {
-  @include syn.badge(syn.$color-brand-200, syn.$color-brand-600);
+  @include syn.badge(syn.$color-brand-100, syn.$color-brand-600);
 }
 
 .syn-badge--inverse {
-  @include syn.badge(syn.$color-neutral-900, syn.$color-neutral-0);
+  @include syn.badge(syn.$color-neutral-800, syn.$color-neutral-0);
+}
+
+.syn-badge--danger {
+  @include syn.badge(syn.$color-danger-100, syn.$color-danger-600);
+}
+
+.syn-badge--success {
+  @include syn.badge(syn.$color-success-100, syn.$color-success-600);
+}
+
+.syn-badge--warning {
+  @include syn.badge(syn.$color-warning-100, syn.$color-warning-600);
 }

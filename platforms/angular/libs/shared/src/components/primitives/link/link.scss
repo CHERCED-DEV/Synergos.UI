@@ -1,43 +1,33 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Link ─────────────────────────────────────────────────────────────────────
+
 .syn-link {
-  display: inline-flex;
-  align-items: center;
-  gap: syn.$space-xxs;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  font: inherit;
-  cursor: pointer;
+  display:                   inline-flex;
+  align-items:               center;
+  gap:                       syn.$space-xxs;
+  border:                    0;
+  padding:                   0;
+  background:                transparent;
+  font:                      inherit;
+  cursor:                    pointer;
   text-decoration-thickness: syn.px-to-rem(1.5);
-  text-underline-offset: syn.px-to-rem(3);
+  text-underline-offset:     syn.px-to-rem(3);
+  transition:                color syn.$duration-fast syn.$easing-smooth,
+                             opacity syn.$duration-fast syn.$easing-smooth;
 
   @include syn.focus-visible;
 }
 
-.syn-link--brand {
-  color: syn.$color-brand-500;
-}
+.syn-link--brand   { color: syn.$color-brand-500;   &:hover { color: syn.$color-brand-600;   } }
+.syn-link--neutral { color: syn.$color-neutral-800; &:hover { color: syn.$color-neutral-900; } }
+.syn-link--inverse { color: syn.$color-neutral-0;   &:hover { opacity: 0.8;                  } }
 
-.syn-link--neutral {
-  color: syn.$color-neutral-800;
-}
-
-.syn-link--inverse {
-  color: syn.$color-neutral-0;
-}
-
-.syn-link--underline {
-  text-decoration: underline;
-}
+.syn-link--underline { text-decoration: underline; }
 
 .syn-link--disabled {
-  color: syn.$color-neutral-500;
-  cursor: not-allowed;
+  color:           syn.$color-neutral-400;
+  cursor:          not-allowed;
   text-decoration: none;
-}
-
-.syn-link.syn-focus-visible {
-  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
-  outline-offset: syn.px-to-rem(2);
+  pointer-events:  none;
 }

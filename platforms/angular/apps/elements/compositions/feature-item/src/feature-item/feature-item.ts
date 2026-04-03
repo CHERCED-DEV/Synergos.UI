@@ -1,26 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-
-export interface FeatureItemConfig {
-  readonly icon?: string;
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly variant?: string;
-  readonly theme?: string;
-}
+import type { FeatureItemElementConfig } from '@synergos/contracts';
+import { HeadingComponent, coerceConfigInput, resolveConfigValue, resolveHeadingTone } from '@synergos/shared';
 
 @Component({
   selector: 'sg-feature-item',
-  imports: [],
+  imports: [HeadingComponent],
   templateUrl: './feature-item.html',
   styleUrl: './feature-item.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-feature-item' },
 })
 export class FeatureItemComponent {
-  readonly configInput = input<Partial<FeatureItemConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<FeatureItemElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<FeatureItemConfig>,
+    transform: coerceConfigInput<FeatureItemElementConfig>,
   });
   readonly iconInput = input<string | undefined>(undefined, { alias: 'icon' });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
@@ -44,5 +37,6 @@ export class FeatureItemComponent {
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
   );
 
+  readonly headingTone = computed(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(() => `sg-feature-item--${this.variant()} sg-feature-item--${this.theme()}`);
 }

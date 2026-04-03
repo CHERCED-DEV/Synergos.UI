@@ -1,18 +1,24 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Pricing Card ─────────────────────────────────────────────────────────────
+
 .syn-pricing-card {
   display: grid;
   gap: syn.$space-lg;
   padding: syn.$space-lg;
   border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(20);
+  border-radius: syn.$radius-xl;
   background: syn.$color-neutral-0;
   box-shadow: syn.$shadow-xs;
+  transition: syn.$transition-colors;
 }
 
+// Featured — stands out from the pricing grid
 .syn-pricing-card--featured {
   border-color: syn.$color-brand-300;
-  box-shadow: syn.$shadow-md;
+  box-shadow:
+    syn.$shadow-md,
+    0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
 }
 
 .syn-pricing-card--brand {
@@ -20,12 +26,12 @@
 }
 
 .syn-pricing-card--disabled {
-  opacity: 0.7;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .syn-pricing-card__header,
 .syn-pricing-card__copy,
-.syn-pricing-card__heading,
 .syn-pricing-card__price,
 .syn-pricing-card__highlights,
 .syn-pricing-card__body,
@@ -35,35 +41,38 @@
 }
 
 .syn-pricing-card__heading {
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
+  gap: syn.$space-sm;
 }
 
 .syn-pricing-card__amount-group {
-  display: flex;
-  flex-wrap: wrap;
+  display:     flex;
+  flex-wrap:   wrap;
   align-items: baseline;
-  gap: syn.$space-xs;
+  gap:         syn.$space-xs;
 }
 
 .syn-pricing-card__amount-prefix,
 .syn-pricing-card__currency,
 .syn-pricing-card__amount-suffix,
 .syn-pricing-card__price-description {
-  color: syn.$color-neutral-600;
+  color:     syn.$color-neutral-500;
   font-size: syn.$font-size-sm;
 }
 
 .syn-pricing-card__amount {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-3xl;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-4xl;
   font-weight: syn.$font-weight-bold;
-  line-height: syn.$line-height-tight;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .syn-pricing-card__unavailable {
-  margin: 0;
-  color: syn.$color-neutral-700;
-  font-size: syn.$font-size-base;
+  margin:      0;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
 }

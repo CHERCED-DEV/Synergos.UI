@@ -13,31 +13,22 @@
     gap: syn.$space-sm;
   }
 
-  &__heading {
-    display: block;
-  }
+  &__heading { display: block; }
 
   &__body {
-    color: syn.$color-neutral-600;
-    font-size: syn.$font-size-base;
+    color:       syn.$color-neutral-600;
+    font-size:   syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
 
-    :first-child {
-      margin-top: 0;
-    }
-
-    :last-child {
-      margin-bottom: 0;
-    }
+    :first-child { margin-top:    0; }
+    :last-child  { margin-bottom: 0; }
   }
 
-  &__item {
-    display: flex;
-  }
+  &__item  { display: flex; }
 
   &__link {
-    display: flex;
-    inline-size: 100%;
+    display:         flex;
+    inline-size:     100%;
     text-decoration: none;
   }
 
@@ -48,36 +39,40 @@
       syn.$color-neutral-0,
       syn.$color-neutral-200,
       syn.px-to-rem(1),
-      syn.px-to-rem(12),
-      syn.$shadow-sm
+      syn.$radius-lg,
+      syn.$shadow-xs
     );
-    gap: syn.$space-sm;
-    inline-size: 100%;
+    gap:            syn.$space-sm;
+    inline-size:    100%;
     min-block-size: syn.px-to-rem(120);
-    text-align: center;
+    text-align:     center;
+    transition:     syn.$transition-colors;
+
+    &:hover {
+      border-color: syn.$color-neutral-300;
+      box-shadow:   syn.$shadow-sm;
+    }
   }
 
   &__image {
-    display: block;
+    display:        block;
     max-inline-size: 100%;
     max-block-size: syn.px-to-rem(56);
-    object-fit: contain;
+    object-fit:     contain;
   }
 
   &__label {
-    color: syn.$color-neutral-700;
-    font-size: syn.$font-size-sm;
+    color:       syn.$color-neutral-600;
+    font-size:   syn.$font-size-sm;
     line-height: syn.$line-height-normal;
   }
 
   &--dark {
     .logo-cloud__body,
-    .logo-cloud__label {
-      color: syn.$color-neutral-300;
-    }
+    .logo-cloud__label { color: syn.$color-neutral-300; }
 
     .logo-cloud__frame {
-      background: syn.$color-neutral-900;
+      background:   syn.$color-neutral-900;
       border-color: syn.$color-neutral-700;
     }
   }

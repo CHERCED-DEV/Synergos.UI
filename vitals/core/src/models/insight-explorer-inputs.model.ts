@@ -4,7 +4,6 @@ export interface InsightExplorerInputs {
   theme: string;
   variant: string;
   elementId: string;
-  domClass: string;
   /** Serialized JSON array of InsightItem */
   items: string;
 }

@@ -1,53 +1,48 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Description List ─────────────────────────────────────────────────────────
+
 .syn-description-list {
   display: grid;
-  margin: 0;
+  margin:  0;
 }
 
-.syn-description-list--separated {
-  gap: syn.$space-md;
-}
+.syn-description-list--separated { gap: syn.$space-md; }
 
 .syn-description-list__row {
   display: grid;
-  gap: syn.$space-1;
+  gap:     syn.$space-xxs;
 }
 
 .syn-description-list--inline .syn-description-list__row {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  align-items: start;
-  gap: syn.$space-md;
+  align-items:           start;
+  gap:                   syn.$space-md;
 }
 
 .syn-description-list__term {
-  margin: 0;
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  margin:      0;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
   line-height: syn.$line-height-normal;
 }
 
 .syn-description-list__value {
-  display: grid;
-  gap: syn.$space-1;
-  margin: 0;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-base;
+  display:     grid;
+  gap:         syn.$space-xxs;
+  margin:      0;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-base;
   font-weight: syn.$font-weight-semibold;
   line-height: syn.$line-height-normal;
 }
 
-.syn-description-list__value--muted {
-  color: syn.$color-neutral-600;
-}
-
-.syn-description-list__value--brand {
-  color: syn.$color-brand-600;
-}
+.syn-description-list__value--muted { color: syn.$color-neutral-500; }
+.syn-description-list__value--brand { color: syn.$color-brand-600;   }
 
 .syn-description-list__detail {
-  color: syn.$color-neutral-500;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-regular;
 }

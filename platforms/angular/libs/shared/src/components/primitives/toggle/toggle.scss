@@ -1,5 +1,7 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Toggle ────────────────────────────────────────────────────────────────────
+
 .syn-toggle {
   display: inline-flex;
   align-items: center;
@@ -15,15 +17,15 @@
 }
 
 .syn-toggle__label {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-base;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-base;
   font-weight: syn.$font-weight-medium;
   line-height: syn.$line-height-tight;
 }
 
 .syn-toggle__description {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   line-height: syn.$line-height-normal;
 }
 
@@ -38,51 +40,55 @@
 }
 
 .syn-toggle__native:focus-visible + .syn-toggle__track {
-  @include syn.focus-visible;
+  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline-offset: syn.px-to-rem(2);
 }
 
 .syn-toggle__track {
   display: inline-flex;
   align-items: center;
-  width: syn.px-to-rem(48);
-  padding: syn.px-to-rem(3);
-  border-radius: syn.px-to-rem(999);
-  background: syn.$color-neutral-300;
-  transition:
-    background 160ms ease,
-    transform 160ms ease;
+  width:        syn.px-to-rem(48);
+  height:       syn.px-to-rem(26);
+  padding:      syn.px-to-rem(3);
+  border-radius: syn.$radius-full;
+  background:   syn.$color-neutral-300;
+  transition:   background syn.$duration-fast syn.$easing-smooth;
 }
 
 .syn-toggle--sm .syn-toggle__track {
-  width: syn.px-to-rem(40);
+  width:  syn.px-to-rem(38);
+  height: syn.px-to-rem(22);
 }
 
 .syn-toggle__thumb {
   display: block;
-  width: syn.px-to-rem(18);
-  height: syn.px-to-rem(18);
+  width:         syn.px-to-rem(20);
+  height:        syn.px-to-rem(20);
   border-radius: 50%;
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-sm;
-  transform: translateX(0);
-  transition: transform 160ms ease;
+  background:    syn.$color-neutral-0;
+  box-shadow:    syn.$shadow-sm;
+  transform:     translateX(0);
+  transition:    transform syn.$duration-fast syn.$easing-default;
 }
 
 .syn-toggle--sm .syn-toggle__thumb {
-  width: syn.px-to-rem(14);
-  height: syn.px-to-rem(14);
+  width:  syn.px-to-rem(16);
+  height: syn.px-to-rem(16);
 }
 
 .syn-toggle__native:checked + .syn-toggle__track {
   background: syn.$color-brand-500;
 }
 
+// Thumb travel = track width - 2×padding - thumb width
+// Default: 48 - 6 - 20 = 22px
 .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
   transform: translateX(syn.px-to-rem(22));
 }
 
+// sm: 38 - 6 - 16 = 16px
 .syn-toggle--sm .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
-  transform: translateX(syn.px-to-rem(18));
+  transform: translateX(syn.px-to-rem(16));
 }
 
 .syn-toggle--disabled {

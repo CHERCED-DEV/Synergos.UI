@@ -1,14 +1,16 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Input ─────────────────────────────────────────────────────────────────────
+
 .syn-input {
   display: grid;
   gap: syn.$space-xxs;
 }
 
 .syn-input__label {
-  font-size: syn.$font-size-sm;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
-  color: syn.$color-neutral-800;
+  color:       syn.$color-neutral-800;
 }
 
 .syn-input__field {
@@ -16,16 +18,44 @@
   min-height: syn.px-to-rem(40);
   padding: syn.$space-xs syn.$space-sm;
   border: syn.px-to-rem(1) solid syn.$color-neutral-300;
-  border-radius: syn.px-to-rem(10);
+  border-radius: syn.$radius-md;
   background: syn.$color-neutral-0;
   color: syn.$color-neutral-900;
   font-size: syn.$font-size-base;
+  transition: syn.$transition-colors;
 
+  @include syn.placeholder(syn.$color-neutral-400, syn.$font-size-base, syn.$font-weight-regular);
   @include syn.focus-visible;
 
+  &:hover:not(:focus-visible):not(:disabled) {
+    border-color: syn.$color-neutral-400;
+  }
+
   &:disabled {
-    background: syn.$color-neutral-100;
-    color: syn.$color-neutral-500;
+    background:   syn.$color-neutral-100;
+    border-color: syn.$color-neutral-200;
+    color:        syn.$color-neutral-400;
     cursor: not-allowed;
   }
+}
+
+// Error / invalid state
+.syn-input--error .syn-input__field {
+  border-color: syn.$color-danger-400;
+  background:   syn.$color-danger-100;
+
+  @include syn.focus-visible-danger;
+
+  &:hover:not(:focus-visible) {
+    border-color: syn.$color-danger-500;
+  }
+}
+
+.syn-input__hint {
+  font-size: syn.$font-size-xs;
+  color:     syn.$color-neutral-500;
+}
+
+.syn-input--error .syn-input__hint {
+  color: syn.$color-danger-500;
 }

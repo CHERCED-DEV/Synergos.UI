@@ -1,22 +1,19 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
+// ─── Configurable Form ────────────────────────────────────────────────────────
+
 .syn-configurable-form {
   display: grid;
-  gap: syn.$space-xl;
+  gap:     syn.$space-xl;
 }
 
-.syn-configurable-form--compact {
-  gap: syn.$space-lg;
-}
-
-.syn-configurable-form--disabled {
-  opacity: 0.72;
-}
+.syn-configurable-form--compact { gap: syn.$space-lg; }
+.syn-configurable-form--disabled { opacity: 0.6; pointer-events: none; }
 
 .syn-configurable-form__section,
 .syn-configurable-form__section-header {
   display: grid;
-  gap: syn.$space-md;
+  gap:     syn.$space-md;
 }
 
 .syn-configurable-form__section-title,
@@ -30,61 +27,60 @@
 
 .syn-configurable-form__section-title,
 .syn-configurable-form__legend {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-lg;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
 }
 
 .syn-configurable-form__section-description,
 .syn-configurable-form__field-description,
 .syn-configurable-form__helper {
-  color: syn.$color-neutral-600;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-neutral-500;
+  font-size:   syn.$font-size-sm;
   line-height: syn.$line-height-relaxed;
 }
 
 .syn-configurable-form__error {
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-sm;
+  color:       syn.$color-danger-600;
+  font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
 }
 
+// ── Layout ────────────────────────────────────────────────────────────────────
+
 .syn-configurable-form__grid {
-  display: grid;
-  gap: syn.$space-md;
+  display:               grid;
+  gap:                   syn.$space-md;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .syn-configurable-form__field {
   display: grid;
-  gap: syn.$space-xs;
+  gap:     syn.$space-xs;
 }
 
-.syn-configurable-form__field--full {
-  grid-column: span 2;
-}
-
-.syn-configurable-form__field--half {
-  grid-column: span 1;
-}
+.syn-configurable-form__field--full { grid-column: span 2; }
+.syn-configurable-form__field--half { grid-column: span 1; }
 
 .syn-configurable-form__field--invalid {
-  padding: syn.$space-sm;
-  border-radius: syn.px-to-rem(14);
-  background: syn.$color-neutral-100;
+  padding:       syn.$space-sm;
+  border-radius: syn.$radius-lg;
+  background:    syn.$color-danger-100;
 }
 
+// ── Radio set ─────────────────────────────────────────────────────────────────
+
 .syn-configurable-form__radio-set {
-  display: grid;
-  gap: syn.$space-sm;
-  padding: syn.$space-sm;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.px-to-rem(14);
+  display:       grid;
+  gap:           syn.$space-sm;
+  padding:       syn.$space-sm;
+  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-lg;
 }
 
 .syn-configurable-form__radio-options,
 .syn-configurable-form__actions {
-  display: flex;
+  display:   flex;
   flex-wrap: wrap;
-  gap: syn.$space-sm;
+  gap:       syn.$space-sm;
 }

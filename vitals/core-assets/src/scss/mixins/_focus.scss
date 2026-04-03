@@ -1,13 +1,32 @@
 @use '../tokens/colors' as *;
+@use '../tokens/motion' as *;
 @use '../functions/px-to-rem' as *;
 
+// ─── Focus Ring ────────────────────────────────────────────────────────────────
+// Consistent keyboard-navigation focus indicator.
+// Uses brand-300 at full opacity — visible but not aggressive.
+// All interactive components MUST include this mixin.
+
 @mixin focus-visible(
-  $ring-color: $color-brand-300,
-  $ring-width: px-to-rem(2),
+  $ring-color:  $color-brand-300,
+  $ring-width:  px-to-rem(2),
   $ring-offset: px-to-rem(2)
 ) {
+  &:focus {
+    outline: none;
+  }
+
   &:focus-visible {
     outline: $ring-width solid $ring-color;
     outline-offset: $ring-offset;
+    transition: outline-offset $duration-fast $easing-smooth;
   }
+}
+
+// ─── Danger Focus (for error-state inputs) ─────────────────────────────────────
+@mixin focus-visible-danger(
+  $ring-width:  px-to-rem(2),
+  $ring-offset: px-to-rem(2)
+) {
+  @include focus-visible($color-danger-300, $ring-width, $ring-offset);
 }

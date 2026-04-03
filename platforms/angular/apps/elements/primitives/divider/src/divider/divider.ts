@@ -1,3 +1,4 @@
+import type { DividerElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 
@@ -18,12 +19,6 @@ function resolveSpaceToken(value: string): string {
   return spacingValues[value] ?? value;
 }
 
-export interface DividerConfig {
-  readonly orientation?: string;
-  readonly inset?: string;
-  readonly theme?: string;
-}
-
 @Component({
   selector: 'sg-divider',
   templateUrl: './divider.html',
@@ -32,19 +27,19 @@ export interface DividerConfig {
   host: { class: 'sg-divider' },
 })
 export class DividerComponent {
-  readonly configInput = input<Partial<DividerConfig> | undefined, unknown>(undefined, {
+  readonly configInput = input<Partial<DividerElementConfig> | undefined, unknown>(undefined, {
     alias: 'config',
-    transform: coerceConfigInput<DividerConfig>,
+    transform: coerceConfigInput<DividerElementConfig>,
   });
   readonly orientationInput = input<string | undefined>(undefined, { alias: 'orientation' });
   readonly insetInput = input<string | undefined>(undefined, { alias: 'inset' });
+  readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly orientation = computed(() =>
-    resolveConfigValue(this.orientationInput(), this.configInput()?.orientation, 'horizontal'),
-  );
-  readonly inset = computed(() =>
-    resolveConfigValue(this.insetInput(), this.configInput()?.inset, 'none'),
+  readonly orientation = computed(() => this.orientationInput()?.trim() || 'horizontal');
+  readonly inset = computed(() => this.insetInput()?.trim() || 'none');
+  readonly variant = computed(() =>
+    resolveConfigValue(this.variantInput(), this.configInput()?.variant, 'default'),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.configInput()?.theme, 'light'),
@@ -52,6 +47,6 @@ export class DividerComponent {
 
   readonly resolvedInset = computed(() => resolveSpaceToken(this.inset()));
   readonly hostClasses = computed(
-    () => `sg-divider--${this.orientation()} sg-divider--${this.theme()}`,
+    () => `sg-divider--${this.orientation()} sg-divider--${this.variant()} sg-divider--${this.theme()}`,
   );
 }

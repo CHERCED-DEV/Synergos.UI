@@ -24,6 +24,9 @@ import type {
   BehaviorTracking,
   BehaviorNavigation,
   BehaviorInteraction,
+  BehaviorAsync,
+  BehaviorScript,
+  MountConfig,
 } from './compositions.contract';
 
 // ── Base (inherited by all elements) ─────────────────────────────────────────
@@ -202,7 +205,7 @@ export interface TestimonialItemElementData extends BaseElementData {
 // ── Integration Elements (c9) ────────────────────────────────────────────────
 
 export interface ScriptEmbedElementData extends BaseElementData {
-  embed?: ContentEmbed;
+  script?: BehaviorScript;
 }
 
 export interface IframeEmbedElementData extends BaseElementData {
@@ -211,11 +214,18 @@ export interface IframeEmbedElementData extends BaseElementData {
 
 export interface ExternalWidgetElementData extends BaseElementData {
   embed?: ContentEmbed;
+  async?: BehaviorAsync;
 }
 
-export interface AngularHostElementData extends BaseElementData {}
+export interface AngularHostElementData extends BaseElementData {
+  mount?: MountConfig;
+  async?: BehaviorAsync;
+}
 
-export interface MfHostElementData extends BaseElementData {}
+export interface MfHostElementData extends BaseElementData {
+  mount?: MountConfig;
+  async?: BehaviorAsync;
+}
 
 export interface MacroHostElementData extends BaseElementData {
   contentType?: string;
@@ -242,6 +252,7 @@ export interface BannerSliderElementData extends BaseElementData {
 export interface NewsletterFormElementData extends BaseElementData {
   text?: ContentText;
   cta?: ContentCta;
+  async?: BehaviorAsync;
 }
 
 export interface SocialShareElementData extends BaseElementData {
