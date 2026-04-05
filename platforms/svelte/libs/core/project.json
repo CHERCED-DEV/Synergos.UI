@@ -1,6 +1,7 @@
 {
   "name": "svelte-core",
   "projectType": "library",
+  "implicitDependencies": ["core"],
   "tags": ["scope:core", "type:lib", "framework:svelte"],
   "targets": {
     "test": {

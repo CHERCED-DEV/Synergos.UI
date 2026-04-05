@@ -1,6 +1,7 @@
 {
   "name": "vanilla-shared",
   "projectType": "library",
+  "implicitDependencies": ["shared"],
   "tags": ["scope:shared", "type:lib", "framework:vanilla"],
   "targets": {
     "lint": {

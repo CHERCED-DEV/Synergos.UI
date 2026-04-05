@@ -1,6 +1,7 @@
 {
   "name": "vanilla-core",
   "projectType": "library",
+  "implicitDependencies": ["core"],
   "tags": ["scope:core", "type:lib", "framework:vanilla"],
   "targets": {
     "lint": {

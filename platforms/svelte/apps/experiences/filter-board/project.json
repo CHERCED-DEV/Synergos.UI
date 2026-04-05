@@ -1,5 +1,6 @@
 {
   "name": "svelte-filter-board",
+  "implicitDependencies": ["svelte-core"],
   "tags": [
     "scope:experiences",
     "tier:module",

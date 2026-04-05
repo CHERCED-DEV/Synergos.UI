@@ -6,5 +6,13 @@
   "tags": [
     "scope:contracts",
     "framework:agnostic"
-  ]
+  ],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx tsc -p vitals/contracts/tsconfig.json --noEmit"
+      }
+    }
+  }
 }

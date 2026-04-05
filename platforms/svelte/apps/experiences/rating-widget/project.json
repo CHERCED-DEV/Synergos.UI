@@ -1,5 +1,6 @@
 {
   "name": "svelte-rating-widget",
+  "implicitDependencies": ["svelte-core"],
   "tags": [
     "scope:experiences",
     "tier:module",

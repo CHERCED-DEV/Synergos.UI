@@ -1,5 +1,6 @@
 {
   "name": "vanilla-notification-stack",
+  "implicitDependencies": ["vanilla-core", "vanilla-shared"],
   "tags": [
     "scope:experiences",
     "tier:module",

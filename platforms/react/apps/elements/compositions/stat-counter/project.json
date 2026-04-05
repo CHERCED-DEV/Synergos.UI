@@ -1,5 +1,6 @@
 {
   "name": "react-stat-counter",
+  "implicitDependencies": ["react-shared"],
   "tags": [
     "scope:elements",
     "tier:composition",

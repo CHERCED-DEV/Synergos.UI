@@ -1,5 +1,6 @@
 {
   "name": "react-pricing-card",
+  "implicitDependencies": ["react-shared"],
   "tags": [
     "scope:elements",
     "tier:composition",

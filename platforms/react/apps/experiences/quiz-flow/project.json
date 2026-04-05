@@ -1,5 +1,6 @@
 {
   "name": "react-quiz-flow",
+  "implicitDependencies": ["react-core", "react-shared"],
   "tags": [
     "scope:experiences",
     "tier:module",

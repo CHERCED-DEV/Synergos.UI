@@ -1,5 +1,6 @@
 {
   "name": "react-content-carousel",
+  "implicitDependencies": ["react-core", "react-shared"],
   "tags": [
     "scope:experiences",
     "tier:module",

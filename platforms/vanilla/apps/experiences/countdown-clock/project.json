@@ -1,5 +1,6 @@
 {
   "name": "vanilla-countdown-clock",
+  "implicitDependencies": ["vanilla-core", "vanilla-shared"],
   "tags": [
     "scope:experiences",
     "tier:module",
