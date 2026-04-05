@@ -11,9 +11,10 @@
  *   node tools/publish-runtime.mjs --dry-run
  */
 
-import { readdir, readFile, writeFile, mkdir, copyFile, stat } from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { readdir, readFile, writeFile, mkdir, copyFile, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -24,7 +25,7 @@ const baseArg  = process.argv.find((a) => a.startsWith('--base='));
 
 const CDN_ROOT  = cdnArg
   ? cdnArg.slice('--cdn='.length)
-  : (process.env.SYNERGOS_CDN || 'C:\\LOCAL_CDN');
+  : (process.env.SYNERGOS_CDN || String.raw`C:\LOCAL_CDN`);
 
 const CDN_ORIGIN = process.env.SYNERGOS_CDN_ORIGIN || 'https://synergos-static-local';
 
@@ -105,7 +106,17 @@ async function main() {
     }
   }
 
-  // Write import-map.json with real CDN URLs
+  // Write import-map.json with real CDN URLs + SRI integrity hashes
+  const integrityMap = {};
+  for (const file of RUNTIME_FILES) {
+    const filePath = path.join(dir, file);
+    try {
+      const content = await readFile(filePath);
+      const hash = createHash('sha256').update(content).digest('base64');
+      integrityMap[file] = `sha256-${hash}`;
+    } catch { /* file may not exist — skip */ }
+  }
+
   const importMap = {
     imports: {
       '@angular/core':             `${base}/ng-core.js`,
@@ -121,6 +132,7 @@ async function main() {
       '@synergos/core':            `${base}/sg-core.js`,
       '@synergos/shared':          `${base}/sg-shared.js`,
     },
+    integrity: integrityMap,
   };
   const importMapJson = JSON.stringify(importMap, null, 2);
 
@@ -138,7 +150,9 @@ async function main() {
   console.log(`  </script>\n`);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error('\n[publish-runtime]', err.message);
   process.exit(1);
-});
+}

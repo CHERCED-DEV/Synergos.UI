@@ -26,6 +26,7 @@ import { mkdir, stat, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -133,7 +134,7 @@ async function gzipSize(filePath) {
 
 // ── Import map builder ──────────────────────────────────────────────────────
 
-function buildImportMap(base) {
+function buildImportMap(base, integrity = {}) {
   const b = base.replace(/\/$/, '');
   return {
     imports: {
@@ -150,6 +151,7 @@ function buildImportMap(base) {
       '@synergos/core':            `${b}/sg-core.js`,
       '@synergos/shared':          `${b}/sg-shared.js`,
     },
+    integrity,
   };
 }
 
@@ -202,7 +204,21 @@ async function main() {
   // ── Import map ─────────────────────────────────────────────────────────
 
   if (!isDryRun) {
-    const importMap = buildImportMap(base);
+    // Compute SRI integrity hashes for all built runtime files
+    const runtimeFiles = [
+      'ng-core.js', 'ng-compiler.js', 'ng-common.js', 'ng-common-http.js',
+      'ng-elements.js', 'ng-forms.js', 'ng-platform-browser.js', 'ng-router.js',
+      'rxjs.js', 'sg-core.js', 'sg-shared.js',
+    ];
+    const integrity = {};
+    for (const file of runtimeFiles) {
+      try {
+        const content = await readFile(path.join(dir, file));
+        integrity[file] = `sha256-${createHash('sha256').update(content).digest('base64')}`;
+      } catch { /* file may not exist */ }
+    }
+
+    const importMap = buildImportMap(base, integrity);
     await writeFile(path.join(dir, 'import-map.json'), JSON.stringify(importMap, null, 2));
     console.log(`\n  ✓ import-map.json → dist/runtime/angular/${ngVersion}/import-map.json`);
   }

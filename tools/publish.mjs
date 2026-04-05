@@ -19,11 +19,13 @@
  *   node tools/publish.mjs --dry-run                # preview without copying
  *   node tools/publish.mjs --element hero            # publish a single element
  *   node tools/publish.mjs --clean                   # clean element dists after publish
+ *   node tools/publish.mjs --verify                  # verify integrity post-publish
  */
 
-import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, statSync } from 'node:fs';
+import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, statSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 
 import {
   ROOT, PLATFORMS, loadRegistry, loadInputs, readPackageVersion, resolveCdnRoot,
@@ -37,6 +39,7 @@ const CDN_ROOT = resolveCdnRoot(getArg('cdn'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
 const VERSION = getArg('version', readPackageVersion());
 const CLEAN = process.argv.includes('--clean');
+const VERIFY = process.argv.includes('--verify');
 const ELEMENT_FILTER   = getArg('element');
 const FRAMEWORK_FILTER = getArg('framework');
 
@@ -44,6 +47,12 @@ const FRAMEWORK_FILTER = getArg('framework');
 
 let GIT_SHA = '';
 try { GIT_SHA = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { /* ignore */ }
+
+/** Compute SHA-256 integrity string (SRI format) for a file */
+function sha256(filePath) {
+  const hash = createHash('sha256').update(readFileSync(filePath)).digest('base64');
+  return `sha256-${hash}`;
+}
 
 // ── Load element registry ────────────────────────────────────────────────────
 
@@ -108,6 +117,7 @@ for (const entry of registry) {
 
     // Build metadata — traces every published bundle to its source
     const bundleSize = statSync(bundlePath).size;
+    const integrity  = sha256(bundlePath);
     const meta = {
       element:   entry.name,
       framework: platform.name,
@@ -115,6 +125,7 @@ for (const entry of registry) {
       commit:    GIT_SHA,
       builtAt:   new Date().toISOString(),
       bundleSize,
+      integrity,
     };
 
     const majorAlias   = `v${VERSION.split('.')[0]}`;
@@ -216,6 +227,44 @@ if (skipped.length > 0) {
   console.log(`${LOG_PREFIX}   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
 }
 console.log('');
+
+// ── Post-publish integrity verification (--verify) ───────────────────────────
+
+if (VERIFY && !DRY_RUN && published.length > 0) {
+  console.log(`${LOG_PREFIX}🔒 Verifying published bundle integrity...\n`);
+  let verifyOk = 0;
+  let verifyFail = 0;
+
+  for (const item of published) {
+    const cdnBundle = join(CDN_SYNERGOS, item.name, item.framework, 'latest', 'main.js');
+    const cdnMeta   = join(CDN_SYNERGOS, item.name, item.framework, 'latest', 'meta.json');
+
+    if (!existsSync(cdnBundle) || !existsSync(cdnMeta)) {
+      console.warn(`   ⚠ ${item.name} [${item.framework}] — files missing from CDN`);
+      verifyFail++;
+      continue;
+    }
+
+    const metaData = JSON.parse(readFileSync(cdnMeta, 'utf-8'));
+    const actual   = sha256(cdnBundle);
+
+    if (actual === metaData.integrity) {
+      verifyOk++;
+    } else {
+      console.error(`   ❌ ${item.name} [${item.framework}] — integrity mismatch!`);
+      console.error(`      Expected: ${metaData.integrity}`);
+      console.error(`      Actual:   ${actual}`);
+      verifyFail++;
+    }
+  }
+
+  console.log(`\n${LOG_PREFIX}   Verified: ${verifyOk} OK, ${verifyFail} failed`);
+  if (verifyFail > 0) {
+    console.error(`\n${LOG_PREFIX}   ❌ Integrity verification FAILED — CDN may be corrupted.\n`);
+    process.exit(1);
+  }
+  console.log('');
+}
 
 // ── Clean element dists (--clean) ───────────────────────────────────────────
 
