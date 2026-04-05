@@ -1,6 +1,11 @@
 # Feature Architecture
 
-Feature modules implement business functionality. They sit in `modules/` and follow a consistent internal structure.
+This document covers two related architecture patterns:
+
+1. **Feature modules** — Angular business-domain applications in `modules/`
+2. **Cross-framework experiences** — interactive Web Components in `apps/experiences/` (all frameworks)
+
+Both follow a layered architecture that separates domain logic from UI concerns.
 
 ---
 
@@ -227,4 +232,144 @@ When a feature module grows large enough, it can be extracted:
 1. Move `modules/<name>/` to its own Git repository
 2. Register as a submodule: `git submodule add <url> modules/<name>`
 3. The `mountModule` export is already the contract — no changes needed in Umbraco
+
+---
+
+---
+
+# Cross-Framework Experience Architecture
+
+Experiences are complex interactive Web Components in `apps/experiences/`. They follow the same **domain / application / infrastructure / interface** layering regardless of framework.
+
+## Folder structure (all frameworks)
+
+```
+src/<experience-name>/
+├── domain/           → Pure types, constants, pure functions. No framework imports.
+├── application/      → State and business logic. Framework-idiomatic.
+├── infrastructure/   → Config interface + adapter. CMS raw data → typed domain model.
+└── interface/        → UI component. No business rules — only rendering.
+```
+
+## Layer rules
+
+| Layer | Imports allowed | Never imports |
+|-------|----------------|---------------|
+| `domain/` | Nothing (pure TS) | Any framework |
+| `application/` | `domain/`, framework state primitives | HTTP, DOM, `infrastructure/` |
+| `infrastructure/` | `domain/` (types only) | `application/`, any framework |
+| `interface/` | All three layers, framework UI | Nothing external |
+
+## Angular experience
+
+State lives in a plain class using Angular signals. Use-cases are standalone functions that receive the state instance:
+
+```typescript
+// application/journey.state.ts
+export class JourneyState {
+  readonly activeIndex = signal(0);
+  readonly isFirst = computed(() => this.activeIndex() === 0);
+}
+
+// application/use-cases/navigate-step.ts
+export function nextStep(state: JourneyState): void {
+  if (!state.isLast()) state.activeIndex.update(i => i + 1);
+}
+
+// interface/feature-journey.ts
+@Component({ ... })
+export class FeatureJourneyComponent {
+  readonly #state = new JourneyState();
+  next(): void { nextStep(this.#state); }
+}
+```
+
+## React experience
+
+State lives in custom hooks using `useState` or `useReducer`. Multi-step flows use `useReducer`:
+
+```typescript
+// application/quiz.state.ts
+export function useQuizState(questions: QuizQuestion[]): QuizState {
+  const [state, dispatch] = useReducer(quizReducer, initialState);
+  return { ...state, start, answer, restart };
+}
+
+// interface/QuizFlow.tsx
+export function QuizFlow({ config = '' }: QuizFlowProps) {
+  const logger = useLogger('quiz-flow');          // hook, not module-level
+  const { questions } = adaptQuizConfig(parsed);
+  const { phase, answer } = useQuizState(questions);
+  // ...
+}
+```
+
+> Use `useLogger` (React hook) inside the component, not `createLogger` at module level.
+
+## Svelte experience
+
+State uses Svelte 5 runes (`$state`, `$derived`, `$derived.by`). Config parsing goes in `$derived.by` to stay reactive:
+
+```svelte
+<svelte:options customElement="synergos-filter-board" />
+<script lang="ts">
+  let { config = '' }: { config?: string } = $props();
+
+  const instance = $derived.by(() => adaptFilterConfig(JSON.parse(config || '{}')));
+  let activeTag = $state<string | null>(null);
+  const filteredItems = $derived(filterByTag(instance.items, activeTag));
+</script>
+```
+
+The `main.ts` entry just imports the `.svelte` file — Svelte's compiler registers the custom element automatically:
+
+```typescript
+import './filter-board/interface/FilterBoard.svelte';
+```
+
+## Vanilla JS experience
+
+State lives in a class with a pub-sub subscribe/notify pattern. The `interface/` render function returns a cleanup function:
+
+```typescript
+// application/countdown.state.ts
+export class CountdownState {
+  start(): () => void {
+    this.#interval = setInterval(() => { /* tick */ }, 1000);
+    return () => this.stop();
+  }
+  subscribe(listener: CountdownListener): () => void { /* ... */ }
+}
+
+// interface/countdown-clock.ts
+export function render(host: ShadowRoot, state: CountdownState, label: string, theme: string): () => void {
+  const unsubscribe = state.subscribe(update);
+  const stopInterval = state.start();
+  return () => { unsubscribe(); stopInterval(); };
+}
+
+// main.ts — store cleanup, call on disconnect/re-render
+disconnectedCallback() { this.#cleanup?.(); }
+```
+
+## The `config` contract
+
+All experiences receive a single `config` JSON attribute. The infrastructure adapter is the only place that knows the CMS contract:
+
+```typescript
+// infrastructure/quiz.adapter.ts
+export function adaptQuizConfig(raw: Partial<QuizConfig> | undefined): QuizInstance {
+  return {
+    title: raw?.title ?? '',
+    questions: (raw?.questions ?? []).map(q => ({ ... })),
+    theme: raw?.theme ?? 'light',
+  };
+}
+```
+
+This means: CMS contract changes → only the adapter changes. Domain and interface are untouched.
+
+---
+
+> For the full experiences catalog, creation guide, and per-framework examples, see [EXPERIENCES.md](EXPERIENCES.md).
 

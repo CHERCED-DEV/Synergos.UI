@@ -386,6 +386,65 @@ export interface MediaExplorerElementConfig {
   readonly defaultCategory?: string;
 }
 
+export interface ContentCarouselElementConfig {
+  readonly title?: string;
+  readonly items?: ReadonlyArray<{
+    readonly title?: string;
+    readonly body?: string;
+    readonly image?: string;
+    readonly ctaLabel?: string;
+    readonly ctaUrl?: string;
+  }>;
+  readonly autoplay?: boolean;
+  readonly interval?: number;
+  readonly theme?: string;
+}
+
+export interface QuizFlowElementConfig {
+  readonly title?: string;
+  readonly subtitle?: string;
+  readonly questions?: ReadonlyArray<{
+    readonly text?: string;
+    readonly options?: ReadonlyArray<string>;
+    readonly correct?: number;
+  }>;
+  readonly theme?: string;
+}
+
+export interface RatingWidgetElementConfig {
+  readonly title?: string;
+  readonly subtitle?: string;
+  readonly max?: number;
+  readonly labels?: ReadonlyArray<string>;
+  readonly theme?: string;
+}
+
+export interface FilterBoardElementConfig {
+  readonly title?: string;
+  readonly items?: ReadonlyArray<{
+    readonly title?: string;
+    readonly body?: string;
+    readonly tags?: ReadonlyArray<string>;
+  }>;
+  readonly theme?: string;
+}
+
+export interface NotificationStackElementConfig {
+  readonly notifications?: ReadonlyArray<{
+    readonly id?: string;
+    readonly message?: string;
+    readonly type?: string;
+    readonly duration?: number;
+  }>;
+  readonly theme?: string;
+}
+
+export interface CountdownClockElementConfig {
+  readonly targetDate?: string;
+  readonly label?: string;
+  readonly theme?: string;
+}
+
 export const ELEMENT_CONFIG_FIELDS = {
   'alert-bar': ['title', 'description', 'ctaLabel', 'ctaUrl', 'variant', 'theme', 'dismissible'],
   'angular-host': ['component', 'endpoint', 'params'],
@@ -433,6 +492,12 @@ export const ELEMENT_CONFIG_FIELDS = {
   'text-block': ['headingText', 'headingLevel', 'variant', 'theme'],
   'timeline-item': ['headingText', 'body', 'date', 'variant', 'theme'],
   'video-block': ['src', 'title'],
+  'content-carousel': ['title', 'items', 'autoplay', 'interval', 'theme'],
+  'quiz-flow': ['title', 'subtitle', 'questions', 'theme'],
+  'rating-widget': ['title', 'subtitle', 'max', 'labels', 'theme'],
+  'filter-board': ['title', 'items', 'theme'],
+  'notification-stack': ['notifications', 'theme'],
+  'countdown-clock': ['targetDate', 'label', 'theme'],
 } as const satisfies Record<string, readonly string[]>;
 
 export const ELEMENT_CONFIG_JSON_FIELDS = {
@@ -447,6 +512,11 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'mf-host': ['params'],
   'social-share': ['links'],
   'testimonial-section': ['items'],
+  'content-carousel': ['items'],
+  'quiz-flow': ['questions'],
+  'rating-widget': ['labels'],
+  'filter-board': ['items'],
+  'notification-stack': ['notifications'],
 } as const satisfies Record<string, readonly string[]>;
 
 // ---------------------------------------------------------------------------
@@ -502,6 +572,12 @@ export type ElementConfigMap = {
   'text-block': TextBlockElementConfig;
   'timeline-item': TimelineItemElementConfig;
   'video-block': VideoBlockElementConfig;
+  'content-carousel': ContentCarouselElementConfig;
+  'quiz-flow': QuizFlowElementConfig;
+  'rating-widget': RatingWidgetElementConfig;
+  'filter-board': FilterBoardElementConfig;
+  'notification-stack': NotificationStackElementConfig;
+  'countdown-clock': CountdownClockElementConfig;
 };
 
 /** All valid element type keys. */

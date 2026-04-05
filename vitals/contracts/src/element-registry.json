@@ -19,7 +19,7 @@
   { "name": "info-block",           "alias": "elementCompInfoBlock",         "tag": "synergos-info-block",           "tier": "composition" },
   { "name": "accordion",            "alias": "elementCompAccordion",         "tag": "synergos-accordion",            "tier": "composition" },
   { "name": "cta-group",            "alias": "elementActionCtaGroup",        "tag": "synergos-cta-group",            "tier": "composition" },
-  { "name": "button-group",         "alias": "elementCompButtonGroup",       "tag": "synergos-button-group",         "tier": "composition" },
+  { "name": "button-group",         "alias": "elementActionButtonGroup",       "tag": "synergos-button-group",         "tier": "composition" },
   { "name": "feature-item",         "alias": "elementInfoFeature",           "tag": "synergos-feature-item",         "tier": "composition" },
   { "name": "stat",                 "alias": "elementInfoStat",              "tag": "synergos-stat-counter",         "tier": "composition" },
   { "name": "pricing-card",         "alias": "elementInfoPricingCard",       "tag": "synergos-pricing-card",         "tier": "composition" },
@@ -59,5 +59,12 @@
 
   { "name": "feature-journey",     "alias": "experienceFeatureJourney",     "tag": "synergos-feature-journey",     "tier": "module" },
   { "name": "insight-explorer",    "alias": "experienceInsightExplorer",    "tag": "synergos-insight-explorer",    "tier": "module" },
-  { "name": "media-explorer",      "alias": "experienceMediaExplorer",      "tag": "synergos-media-explorer",      "tier": "module" }
+  { "name": "media-explorer",      "alias": "experienceMediaExplorer",      "tag": "synergos-media-explorer",      "tier": "module" },
+
+  { "name": "content-carousel",    "alias": "experienceContentCarousel",    "tag": "synergos-content-carousel",    "tier": "module" },
+  { "name": "quiz-flow",           "alias": "experienceQuizFlow",           "tag": "synergos-quiz-flow",           "tier": "module" },
+  { "name": "rating-widget",       "alias": "experienceRatingWidget",       "tag": "synergos-rating-widget",       "tier": "module" },
+  { "name": "filter-board",        "alias": "experienceFilterBoard",        "tag": "synergos-filter-board",        "tier": "module" },
+  { "name": "notification-stack",  "alias": "experienceNotificationStack",  "tag": "synergos-notification-stack",  "tier": "module" },
+  { "name": "countdown-clock",     "alias": "experienceCountdownClock",     "tag": "synergos-countdown-clock",     "tier": "module" }
 ]

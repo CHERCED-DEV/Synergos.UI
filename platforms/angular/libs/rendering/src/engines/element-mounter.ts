@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import type { BlockConfig } from '@synergos/contracts';
 import { LoggerService } from '@synergos/core';
-import { mapBlockToElement } from '../../../../../../vitals/core/src/mappers/block.mapper';
+import { mapBlockToElement } from '@synergos/vitals-core';
 import { ComponentResolver } from './component-resolver';
 import { InputMapper } from './input-mapper';
 

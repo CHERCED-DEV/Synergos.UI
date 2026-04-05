@@ -29,6 +29,10 @@
     "build:svelte":               "npx nx run-many --target=build --projects=tag:framework:svelte",
     "build:vanilla":              "npx nx run-many --target=build --projects=tag:framework:vanilla",
 
+    "// ─── BUILD — experiences (cross-framework) ─────────────────────────────": "",
+    "build:experiences:cross":    "npx nx run-many --target=build --projects=tag:scope:experiences --parallel=6",
+    "build:experiences":          "npm run build:angular:experiences && npm run build:experiences:cross",
+
     "// ─── RELEASE — completo ────────────────────────────────────────────────": "",
     "release":                    "npm run build:angular && npm run build:runtime && npm run build:react && npm run build:svelte && npm run build:vanilla && npm run contracts:validate && npm run publish:runtime && node tools/publish.mjs --clean",
 
@@ -37,6 +41,7 @@
     "release:react":              "npm run build:react   && npm run contracts:validate && node tools/publish.mjs --framework react    --clean",
     "release:svelte":             "npm run build:svelte  && npm run contracts:validate && node tools/publish.mjs --framework svelte   --clean",
     "release:vanilla":            "npm run build:vanilla && npm run contracts:validate && node tools/publish.mjs --framework vanilla  --clean",
+    "release:experiences":        "npm run build:experiences && npm run contracts:validate && npm run publish:runtime && node tools/publish.mjs --clean",
 
     "// ─── RELEASE — por elemento (requiere build previo) ────────────────────": "",
     "release:element":            "node tools/publish.mjs",
@@ -60,6 +65,7 @@
     "lint:vanilla":               "npx nx run-many --target=lint --projects=tag:framework:vanilla",
 
     "// ─── HERRAMIENTAS ───────────────────────────────────────────────────────": "",
+    "dev:cdn":                    "node tools/dev-cdn.mjs",
     "clean:dist":                 "node tools/clean-dist.mjs",
     "manifest:gen":               "node tools/manifest-gen.mjs",
     "manifest:validate":          "node tools/manifest-gen.mjs --validate",

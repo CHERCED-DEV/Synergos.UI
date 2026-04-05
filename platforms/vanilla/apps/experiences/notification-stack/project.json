@@ -1,0 +1,52 @@
+{
+  "name": "vanilla-notification-stack",
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "platforms/vanilla/apps/experiences/notification-stack/src",
+  "tags": [
+    "scope:experiences",
+    "tier:module",
+    "type:app",
+    "element:notification-stack",
+    "framework:vanilla"
+  ],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/platforms/vanilla/dist/notification-stack"],
+      "options": {
+        "command": "npx vite build",
+        "cwd": "platforms/vanilla",
+        "env": {
+          "ELEMENT_NAME": "notification-stack",
+          "ELEMENT_ENTRY": "apps/experiences/notification-stack/src/main.ts"
+        }
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite build --watch",
+        "cwd": "platforms/vanilla",
+        "env": {
+          "ELEMENT_NAME": "notification-stack",
+          "ELEMENT_ENTRY": "apps/experiences/notification-stack/src/main.ts"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts",
+        "cwd": "platforms/vanilla"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx eslint apps/experiences/notification-stack/src/",
+        "cwd": "platforms/vanilla"
+      }
+    }
+  }
+}

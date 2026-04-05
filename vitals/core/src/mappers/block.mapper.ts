@@ -100,6 +100,12 @@ import { mapHelloWorldData } from './hello-world.mapper';
 import { mapFeatureJourneyData } from './feature-journey.mapper';
 import { mapInsightExplorerData } from './insight-explorer.mapper';
 import { mapMediaExplorerData } from './media-explorer.mapper';
+import { mapContentCarouselData } from './content-carousel.mapper';
+import { mapQuizFlowData } from './quiz-flow.mapper';
+import { mapRatingWidgetData } from './rating-widget.mapper';
+import { mapFilterBoardData } from './filter-board.mapper';
+import { mapNotificationStackData } from './notification-stack.mapper';
+import { mapCountdownClockData } from './countdown-clock.mapper';
 
 export interface MappedBlock {
   tag: string;
@@ -259,7 +265,7 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-info-block',
     map: (d) => toRecord(mapInfoBlockData(d as unknown as Record<string, unknown>)),
   },
-  elementCompButtonGroup: {
+  elementActionButtonGroup: {
     tag: 'synergos-button-group',
     map: (d) => toRecord(mapButtonGroupData(d as unknown as Record<string, unknown>)),
   },
@@ -404,6 +410,30 @@ const REGISTRY: Record<string, MapperEntry> = {
   experienceMediaExplorer: {
     tag: 'synergos-media-explorer',
     map: (d) => toRecord(mapMediaExplorerData(d as unknown as MediaExplorerElementData)),
+  },
+  experienceContentCarousel: {
+    tag: 'synergos-content-carousel',
+    map: (d) => toRecord(mapContentCarouselData(d as Record<string, unknown>)),
+  },
+  experienceQuizFlow: {
+    tag: 'synergos-quiz-flow',
+    map: (d) => toRecord(mapQuizFlowData(d as Record<string, unknown>)),
+  },
+  experienceRatingWidget: {
+    tag: 'synergos-rating-widget',
+    map: (d) => toRecord(mapRatingWidgetData(d as Record<string, unknown>)),
+  },
+  experienceFilterBoard: {
+    tag: 'synergos-filter-board',
+    map: (d) => toRecord(mapFilterBoardData(d as Record<string, unknown>)),
+  },
+  experienceNotificationStack: {
+    tag: 'synergos-notification-stack',
+    map: (d) => toRecord(mapNotificationStackData(d as Record<string, unknown>)),
+  },
+  experienceCountdownClock: {
+    tag: 'synergos-countdown-clock',
+    map: (d) => toRecord(mapCountdownClockData(d as Record<string, unknown>)),
   },
 };
 

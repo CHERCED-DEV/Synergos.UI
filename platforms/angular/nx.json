@@ -10,13 +10,19 @@
     "sharedGlobals": [
       "{workspaceRoot}/tsconfig.json",
       "{workspaceRoot}/nx.json"
+    ],
+    "vitals": [
+      "{workspaceRoot}/../../vitals/contracts/src/**/*",
+      "{workspaceRoot}/../../vitals/core/src/**/*",
+      "{workspaceRoot}/../../vitals/core-assets/src/**/*",
+      "{workspaceRoot}/../../vitals/shared/src/**/*"
     ]
   },
   "targetDefaults": {
     "@angular/build:application": {
       "cache": true,
       "dependsOn": ["^build"],
-      "inputs": ["production", "^production"],
+      "inputs": ["production", "^production", "vitals"],
       "options": {
         "inlineStyleLanguage": "scss",
         "stylePreprocessorOptions": {
@@ -30,10 +36,15 @@
           "outputHashing": "none",
           "externalDependencies": [
             "@angular/core",
+            "@angular/compiler",
             "@angular/common",
             "@angular/common/http",
             "@angular/elements",
+            "@angular/forms",
             "@angular/platform-browser",
+            "@angular/router",
+            "rxjs",
+            "rxjs/operators",
             "@synergos/core",
             "@synergos/shared"
           ]
@@ -42,6 +53,26 @@
           "optimization": false,
           "extractLicenses": false,
           "sourceMap": true
+        },
+        "cdn-dev": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true,
+          "outputHashing": "none",
+          "externalDependencies": [
+            "@angular/core",
+            "@angular/compiler",
+            "@angular/common",
+            "@angular/common/http",
+            "@angular/elements",
+            "@angular/forms",
+            "@angular/platform-browser",
+            "@angular/router",
+            "rxjs",
+            "rxjs/operators",
+            "@synergos/core",
+            "@synergos/shared"
+          ]
         }
       },
       "defaultConfiguration": "production"
@@ -81,7 +112,7 @@
     },
     "@angular/build:unit-test": {
       "cache": true,
-      "inputs": ["default", "^production"],
+      "inputs": ["default", "^production", "vitals"],
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
         "runner": "vitest",

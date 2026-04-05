@@ -65,10 +65,15 @@ function defaultBase(ngVersion) {
 
 const ALL_ANGULAR_EXTERNALS = [
   '@angular/core',
+  '@angular/compiler',
   '@angular/common',
   '@angular/common/http',
   '@angular/elements',
+  '@angular/forms',
   '@angular/platform-browser',
+  '@angular/router',
+  'rxjs',
+  'rxjs/operators',
 ];
 
 const ALL_SG_EXTERNALS = [
@@ -79,15 +84,19 @@ const ALL_SG_EXTERNALS = [
 
 // ── esbuild shared options ──────────────────────────────────────────────────
 
-function esbuildOptions(outFile, dir) {
+function esbuildOptions(outFile, dir, { needsCompiler = false } = {}) {
   return {
     bundle: true,
     format: 'esm',
     minify: true,
     outfile: path.join(dir, outFile),
     absWorkingDir: NG_DIR,
-    conditions: ['browser', 'module'],
+    conditions: ['production', 'browser', 'module'],
     mainFields: ['browser', 'module', 'main'],
+    // Inject compiler as static dependency so the browser loads it BEFORE
+    // the bundle evaluates. This lets Angular's JIT fallback work for
+    // partial declarations that the Linker hasn't processed.
+    ...(needsCompiler ? { banner: { js: `import "@angular/compiler";` } } : {}),
     logLevel: 'warning',
   };
 }
@@ -105,7 +114,7 @@ async function assertExists(filePath, label) {
   }
 }
 
-async function buildModule(label, entryPoints, external, outFile, dir) {
+async function buildModule(label, entryPoints, external, outFile, dir, opts = {}) {
   if (isDryRun) {
     const ext = external.length
       ? `\n    external: [${external.join(', ')}]`
@@ -113,7 +122,7 @@ async function buildModule(label, entryPoints, external, outFile, dir) {
     console.log(`  [dry-run] ${label.padEnd(28)} → ${outFile}${ext}`);
     return;
   }
-  await build({ entryPoints, external, ...esbuildOptions(outFile, dir) });
+  await build({ entryPoints, external, ...esbuildOptions(outFile, dir, opts) });
   const kb = Math.round((await stat(path.join(dir, outFile))).size / 1024);
   const kbGz = await gzipSize(path.join(dir, outFile));
   console.log(
@@ -142,10 +151,15 @@ function buildImportMap(base) {
   return {
     imports: {
       '@angular/core':             `${b}/ng-core.js`,
+      '@angular/compiler':         `${b}/ng-compiler.js`,
       '@angular/common':           `${b}/ng-common.js`,
-      '@angular/common/http':      `${b}/ng-common.js`,
+      '@angular/common/http':      `${b}/ng-common-http.js`,
       '@angular/elements':         `${b}/ng-elements.js`,
+      '@angular/forms':            `${b}/ng-forms.js`,
       '@angular/platform-browser': `${b}/ng-platform-browser.js`,
+      '@angular/router':           `${b}/ng-router.js`,
+      'rxjs':                      `${b}/rxjs.js`,
+      'rxjs/operators':            `${b}/rxjs.js`,
       '@synergos/core':            `${b}/sg-core.js`,
       '@synergos/shared':          `${b}/sg-shared.js`,
     },
@@ -180,11 +194,18 @@ async function main() {
   }
 
   // ── Angular packages ───────────────────────────────────────────────────
+  // needsCompiler: true → injects `import "@angular/compiler"` as banner
+  // so the browser loads the JIT compiler before partial declarations run.
 
-  await buildModule('@angular/core',             ['@angular/core'],             [],                                              'ng-core.js',             dir);
-  await buildModule('@angular/common',           ['@angular/common'],           ['@angular/core'],                               'ng-common.js',           dir);
-  await buildModule('@angular/elements',         ['@angular/elements'],         ['@angular/core'],                               'ng-elements.js',         dir);
-  await buildModule('@angular/platform-browser', ['@angular/platform-browser'], ['@angular/core', '@angular/common'],            'ng-platform-browser.js', dir);
+  await buildModule('@angular/core',             ['@angular/core'],             ['@angular/compiler'],                                                      'ng-core.js',             dir);
+  await buildModule('@angular/compiler',          ['@angular/compiler'],          ['@angular/core'],                                                          'ng-compiler.js',         dir);
+  await buildModule('@angular/common',           ['@angular/common'],           ['@angular/core', '@angular/compiler'],                                      'ng-common.js',           dir, { needsCompiler: true });
+  await buildModule('@angular/common/http',      ['@angular/common/http'],      ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-common-http.js',      dir, { needsCompiler: true });
+  await buildModule('@angular/elements',         ['@angular/elements'],         ['@angular/core', '@angular/compiler'],                                      'ng-elements.js',         dir, { needsCompiler: true });
+  await buildModule('@angular/forms',            ['@angular/forms'],            ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-forms.js',            dir, { needsCompiler: true });
+  await buildModule('@angular/platform-browser', ['@angular/platform-browser'], ['@angular/core', '@angular/compiler', '@angular/common', '@angular/common/http'], 'ng-platform-browser.js', dir, { needsCompiler: true });
+  await buildModule('@angular/router',           ['@angular/router'],           ['@angular/core', '@angular/compiler', '@angular/common', '@angular/platform-browser'], 'ng-router.js', dir, { needsCompiler: true });
+  await buildModule('rxjs',                      ['rxjs'],                      [],                                                                        'rxjs.js',                dir);
 
   // ── Synergos shared packages ───────────────────────────────────────────
 

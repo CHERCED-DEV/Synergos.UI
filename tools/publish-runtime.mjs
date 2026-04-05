@@ -26,6 +26,8 @@ const CDN_ROOT  = cdnArg
   ? cdnArg.slice('--cdn='.length)
   : (process.env.SYNERGOS_CDN || 'C:\\LOCAL_CDN');
 
+const CDN_ORIGIN = process.env.SYNERGOS_CDN_ORIGIN || 'https://synergos-static-local';
+
 // ── Locate built runtime version ────────────────────────────────────────────
 
 async function resolveRuntimeDir() {
@@ -53,9 +55,14 @@ async function resolveRuntimeDir() {
 
 const RUNTIME_FILES = [
   'ng-core.js',
+  'ng-compiler.js',
   'ng-common.js',
+  'ng-common-http.js',
   'ng-elements.js',
+  'ng-forms.js',
   'ng-platform-browser.js',
+  'ng-router.js',
+  'rxjs.js',
   'sg-core.js',
   'sg-shared.js',
 ];
@@ -70,7 +77,7 @@ async function main() {
 
   const base = baseArg
     ? `${baseArg.slice('--base='.length).replace(/\/$/, '')}/runtime/angular/${version}`
-    : `${cdnVersionedDir}`;
+    : `${CDN_ORIGIN}/synergos/runtime/angular/${version}`;
 
   console.log(`\nSynergos Runtime Publish${isDryRun ? ' (dry-run)' : ''}`);
   console.log(`  Source  : dist/runtime/angular/${version}/`);
@@ -102,10 +109,15 @@ async function main() {
   const importMap = {
     imports: {
       '@angular/core':             `${base}/ng-core.js`,
+      '@angular/compiler':          `${base}/ng-compiler.js`,
       '@angular/common':           `${base}/ng-common.js`,
-      '@angular/common/http':      `${base}/ng-common.js`,
+      '@angular/common/http':      `${base}/ng-common-http.js`,
       '@angular/elements':         `${base}/ng-elements.js`,
+      '@angular/forms':            `${base}/ng-forms.js`,
       '@angular/platform-browser': `${base}/ng-platform-browser.js`,
+      '@angular/router':           `${base}/ng-router.js`,
+      'rxjs':                      `${base}/rxjs.js`,
+      'rxjs/operators':            `${base}/rxjs.js`,
       '@synergos/core':            `${base}/sg-core.js`,
       '@synergos/shared':          `${base}/sg-shared.js`,
     },

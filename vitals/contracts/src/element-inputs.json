@@ -2824,5 +2824,59 @@
       "required": false,
       "description": "JSON array of media items."
     }
+  ],
+
+  "content-carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Carousel configuration: title, items[], autoplay, interval, theme."
+    }
+  ],
+
+  "quiz-flow": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Quiz configuration: title, subtitle, questions[], theme."
+    }
+  ],
+
+  "rating-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Rating widget configuration: title, subtitle, max, labels[], theme."
+    }
+  ],
+
+  "filter-board": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Filter board configuration: title, items[]{title,body,tags[]}, theme."
+    }
+  ],
+
+  "notification-stack": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Notification stack configuration: notifications[]{id,message,type,duration}, theme."
+    }
+  ],
+
+  "countdown-clock": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Countdown clock configuration: targetDate, label, theme."
+    }
   ]
 }
