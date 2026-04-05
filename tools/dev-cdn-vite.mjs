@@ -128,15 +128,15 @@ function syncToCdn(element) {
 
 function runCommand(cmd, cmdArgs, options = {}) {
   return new Promise((resolveP, reject) => {
+    const env = options.daemonEnv
+      ? { ...process.env, NX_TUI: 'false' }
+      : { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
       shell: true,
       cwd: options.cwd || PLATFORM_DIR,
-      env: {
-        ...process.env,
-        NX_WORKSPACE_ROOT_PATH: '',
-        NX_DAEMON: 'false',
-      },
+      env,
     });
 
     let stdout = '';
@@ -200,34 +200,45 @@ function startDistWatcher() {
   return watchers;
 }
 
-// ── Phase 3: Start Vite build --watch ───────────────────────────────────────
+// ── Phase 3: Single nx watch → rebuild only affected projects ───────────────
 
 const watchProcs = [];
 
-function startWatchBuild() {
-  for (const element of elementNames) {
-    const nxProject = projectMap.get(element);
-    console.log(`  👁 ${element} → ${nxProject} (watch mode)`);
+async function startWatchBuild() {
+  const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
 
-    const proc = spawn(NX_BIN, [
-      'serve', nxProject,
-    ], {
-      stdio: 'inherit',
-      shell: true,
-      cwd: PLATFORM_DIR,
-      env: {
-        ...process.env,
-        NX_WORKSPACE_ROOT_PATH: '',
-        NX_DAEMON: 'false',
-      },
-    });
-
-    proc.on('error', (err) => {
-      console.error(`  ❌ watch failed for ${element}:`, err.message);
-    });
-
-    watchProcs.push(proc);
+  // nx watch requires the daemon — start it first
+  console.log(`  🔧 Starting Nx daemon...`);
+  try {
+    await runCommand(NX_BIN, ['daemon', '--start'], { daemonEnv: true });
+  } catch {
+    // daemon may already be running
   }
+
+  console.log(`  👁 Watching ${elementNames.length} element(s) via single nx watch`);
+
+  const watchEnv = { ...process.env, NX_TUI: 'false' };
+  delete watchEnv.NX_WORKSPACE_ROOT_PATH;
+
+  const proc = spawn(NX_BIN, [
+    'watch',
+    `--projects=${nxProjects}`,
+    '--includeDependentProjects',
+    '--',
+    NX_BIN, 'build', '{projectName}',
+    '--skip-nx-cache',
+  ], {
+    stdio: 'inherit',
+    shell: true,
+    cwd: PLATFORM_DIR,
+    env: watchEnv,
+  });
+
+  proc.on('error', (err) => {
+    console.error(`  ❌ nx watch failed:`, err.message);
+  });
+
+  watchProcs.push(proc);
 }
 
 // ── Phase 4 (optional): LiveReload via CDN polling ─────────────────────────
@@ -263,7 +274,7 @@ async function main() {
 
   initLiveReload();
   const watchers = startDistWatcher();
-  startWatchBuild();
+  await startWatchBuild();
 
   // Cleanup on exit
   const cleanup = () => {

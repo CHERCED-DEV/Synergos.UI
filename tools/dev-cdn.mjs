@@ -129,16 +129,16 @@ function syncToCdn(element) {
 
 function runCommand(cmd, cmdArgs, options = {}) {
   return new Promise((resolve, reject) => {
+    // For daemon commands, don't override NX_WORKSPACE_ROOT_PATH
+    const env = options.daemonEnv
+      ? { ...process.env, NX_TUI: 'false' }
+      : { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
       shell: true,
       cwd: options.cwd || NG_DIR,
-      env: {
-        ...process.env,
-        NX_WORKSPACE_ROOT_PATH: '',
-        NX_DAEMON: 'false',
-        NX_TUI: 'false',
-      },
+      env,
     });
 
     let stdout = '';
@@ -226,13 +226,25 @@ function startDistWatcher() {
 
 // ── Phase 4: Single nx watch → rebuild only affected projects ────────────────
 
-function startWatchBuild() {
+async function startWatchBuild() {
   const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
 
-  // Single nx watch process — monitors the dep graph and rebuilds only
-  // the project(s) affected by each file change.
-  // {projectName} is replaced by Nx with the affected project name at runtime.
+  // nx watch requires the daemon — start it first
+  console.log(`  🔧 Starting Nx daemon...`);
+  try {
+    await runCommand(NX_BIN, ['daemon', '--start'], {
+      cwd: NG_DIR,
+      daemonEnv: true,
+    });
+  } catch {
+    // daemon may already be running — that's fine
+  }
+
   console.log(`  👁 Watching ${elementNames.length} element(s) via single nx watch`);
+
+  // Build the env for watch — daemon needs NX_WORKSPACE_ROOT_PATH unset
+  const watchEnv = { ...process.env, NX_TUI: 'false' };
+  delete watchEnv.NX_WORKSPACE_ROOT_PATH;
 
   const proc = spawn(NX_BIN, [
     'watch',
@@ -246,12 +258,7 @@ function startWatchBuild() {
     stdio: 'inherit',
     shell: true,
     cwd: NG_DIR,
-    env: {
-      ...process.env,
-      NX_WORKSPACE_ROOT_PATH: '',
-      NX_DAEMON: 'true',
-      NX_TUI: 'false',
-    },
+    env: watchEnv,
   });
 
   proc.on('error', (err) => {
@@ -297,7 +304,7 @@ async function main() {
 
   initLiveReload();
   const watchers = startDistWatcher();
-  startWatchBuild();
+  await startWatchBuild();
 
   // Cleanup on exit
   const cleanup = () => {

@@ -230,3 +230,78 @@ export async function interactiveDevCdnFull() {
 
   return { framework, elements, livereload, skipRuntime };
 }
+
+// ── Release flows ────────────────────────────────────────────────────────────
+
+/**
+ * Interactive release scope selection.
+ * Returns { scope, framework?, elements?, verify, clean }
+ */
+export async function interactiveRelease() {
+  console.log('\n  🚀 Synergos CDN Release — Interactive Mode\n');
+
+  const scope = await select({
+    message: '📦 Release scope:',
+    choices: [
+      { name: '🎯 Specific elements',           value: 'elements' },
+      { name: '🏗  Entire framework',             value: 'framework' },
+      { name: '📚 Runtime only (Angular shared)', value: 'runtime' },
+      { name: '🔥 Everything (full release)',     value: 'full' },
+    ],
+  });
+
+  let framework = null;
+  let elements = [];
+
+  if (scope === 'elements') {
+    framework = await selectFramework();
+    elements = await selectElements(framework);
+  } else if (scope === 'framework') {
+    framework = await selectFramework();
+    // all elements for that framework
+    const all = await discoverElements(framework);
+    elements = all.map((p) => p.element);
+  }
+
+  const verify = await confirm({
+    message: '🔍 Verify integrity after publish?',
+    default: true,
+  });
+
+  const clean = await confirm({
+    message: '🧹 Clean dist/ after publish?',
+    default: false,
+  });
+
+  // Summary
+  console.log('');
+  console.log('  ─'.repeat(30));
+  if (scope === 'full') {
+    console.log('  Scope      : FULL RELEASE (all frameworks + runtime)');
+  } else if (scope === 'runtime') {
+    console.log('  Scope      : Runtime only (Angular shared libs)');
+  } else {
+    console.log(`  Scope      : ${scope}`);
+    console.log(`  Framework  : ${framework}`);
+    console.log(`  Elements   : ${elements.length} selected`);
+    if (elements.length <= 10) {
+      console.log(`               ${elements.join(', ')}`);
+    }
+  }
+  console.log(`  Verify     : ${verify ? 'yes' : 'no'}`);
+  console.log(`  Clean dist : ${clean ? 'yes' : 'no'}`);
+  console.log('  ─'.repeat(30));
+
+  const go = await confirm({
+    message: '🚀 Proceed with release?',
+    default: true,
+  });
+
+  if (!go) {
+    console.log('\n  ❌ Release cancelled.\n');
+    process.exit(0);
+  }
+
+  console.log('');
+  return { scope, framework, elements, verify, clean };
+}

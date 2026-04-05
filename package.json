@@ -43,6 +43,7 @@
     "// ─── PUBLISH (solo sube a CDN, sin build) ──────────────────────────────": "",
     "publish:cdn":                "node tools/publish.mjs",
     "publish:runtime":            "node tools/publish-runtime.mjs",
+    "release:cdn":                "node tools/release-cdn.mjs",
 
     "// ─── HERRAMIENTAS ───────────────────────────────────────────────────────": "",
     "dev:cdn":                    "node tools/dev-cdn.mjs",

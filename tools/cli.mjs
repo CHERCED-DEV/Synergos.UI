@@ -61,12 +61,11 @@ async function main() {
     message: 'What do you want to do?',
     choices: [
       { name: '🔥 Dev CDN (hot reload)', value: 'dev-cdn' },
+      { name: '🚀 Release to CDN', value: 'release-cdn' },
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
       { name: 'Lint', value: 'lint' },
-      { name: 'Build + Publish (CDN)', value: 'build-publish' },
-      { name: 'Release (Build + Publish + Clean)', value: 'release' },
-      { name: 'Publish to CDN', value: 'publish' },
+      { name: 'Publish to CDN (no build)', value: 'publish' },
       { name: 'Clean dist', value: 'clean' },
       { name: 'Graph', value: 'graph' },
       { name: 'Setup (npm install)', value: 'setup' },
@@ -97,20 +96,14 @@ async function main() {
     return;
   }
 
-  if (action === 'graph') {
-    console.log('\n  Opening Nx graph...\n');
-    run('npx nx graph');
+  if (action === 'release-cdn') {
+    run('node tools/release-cdn.mjs');
     return;
   }
 
-  if (action === 'release') {
-    console.log('\n  \u{1F680} Running full release: build \u2192 publish \u2192 clean\n');
-    const ok = run('npm run release');
-    if (ok) {
-      console.log('\n  \u2705 Release complete. Artifacts published to CDN, dist cleaned.\n');
-    } else {
-      console.log('\n  \u274C Release failed. Check output above.\n');
-    }
+  if (action === 'graph') {
+    console.log('\n  Opening Nx graph...\n');
+    run('npx nx graph');
     return;
   }
 
@@ -129,29 +122,6 @@ async function main() {
   // ── Framework selection ────────────────────────────────────────────────
 
   const frameworks = unique(projects.map((p) => p.framework).filter((f) => f !== 'unknown'));
-
-  if (action === 'build-publish') {
-    const framework = await select({
-      message: 'Which framework to build + publish?',
-      choices: [
-        { name: 'All frameworks', value: 'all' },
-        ...frameworks.map((f) => ({ name: f.charAt(0).toUpperCase() + f.slice(1), value: f })),
-      ],
-    });
-
-    console.log(`\n  \u{1F3D7}\uFE0F  Building ${framework === 'all' ? 'all frameworks' : framework}...\n`);
-    const buildCmd = framework === 'all' ? 'npm run build' : `npm run build:${framework}`;
-    const buildOk = run(buildCmd);
-
-    if (buildOk) {
-      console.log('\n  \u{1F4E6} Publishing to CDN...\n');
-      run('node tools/publish.mjs');
-      console.log('\n  \u2705 Build + Publish complete.\n');
-    } else {
-      console.log('\n  \u274C Build failed. Publish skipped.\n');
-    }
-    return;
-  }
 
   const framework = await select({
     message: 'Which framework?',
