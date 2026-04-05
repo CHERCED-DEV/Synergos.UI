@@ -10,9 +10,6 @@
   { "name": "banner-slider",        "alias": "elementCorpBannerSlider",      "tag": "synergos-banner-slider",        "tier": "module" },
   { "name": "data-table",           "alias": "elementCorpDataTable",         "tag": "synergos-data-table",           "tier": "module" },
   { "name": "script-embed",         "alias": "elementIntScriptEmbed",        "tag": "synergos-script-embed",         "tier": "module" },
-  { "name": "angular-host",         "alias": "elementIntAngularHost",        "tag": "synergos-angular-host",         "tier": "module" },
-  { "name": "mf-host",              "alias": "elementIntMfHost",             "tag": "synergos-mf-host",              "tier": "module" },
-  { "name": "macro-host",           "alias": "elementIntegrationMacroHost",  "tag": "synergos-macro-host",           "tier": "module" },
 
   { "name": "card",                 "alias": "elementCompCard",              "tag": "synergos-card",                 "tier": "composition" },
   { "name": "media-text",           "alias": "elementCompMediaTextSplit",    "tag": "synergos-media-text",           "tier": "composition" },
