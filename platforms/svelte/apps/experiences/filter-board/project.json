@@ -36,6 +36,7 @@
         "command": "npx eslint apps/experiences/filter-board/src/",
         "cwd": "platforms/svelte"
       }
-    }
+    },
+    "publish": {}
   }
 }

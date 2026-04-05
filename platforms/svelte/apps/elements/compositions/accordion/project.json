@@ -35,6 +35,7 @@
         "command": "npx eslint apps/elements/compositions/accordion/src/",
         "cwd": "platforms/svelte"
       }
-    }
+    },
+    "publish": {}
   }
 }

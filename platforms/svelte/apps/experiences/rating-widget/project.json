@@ -36,6 +36,7 @@
         "command": "npx eslint apps/experiences/rating-widget/src/",
         "cwd": "platforms/svelte"
       }
-    }
+    },
+    "publish": {}
   }
 }

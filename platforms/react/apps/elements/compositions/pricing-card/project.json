@@ -36,6 +36,7 @@
         "command": "npx eslint apps/elements/compositions/pricing-card/src/",
         "cwd": "platforms/react"
       }
-    }
+    },
+    "publish": {}
   }
 }

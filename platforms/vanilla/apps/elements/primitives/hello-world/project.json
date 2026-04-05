@@ -35,6 +35,7 @@
         "command": "npx eslint apps/elements/primitives/hello-world/src/",
         "cwd": "platforms/vanilla"
       }
-    }
+    },
+    "publish": {}
   }
 }

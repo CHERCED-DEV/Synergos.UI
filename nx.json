@@ -46,6 +46,14 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": ["default"]
+    },
+    "publish": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "cache": false,
+      "options": {
+        "command": "node tools/publish-element.mjs --project={projectName}"
+      }
     }
   }
 }

@@ -36,6 +36,7 @@
         "command": "npx eslint apps/experiences/quiz-flow/src/",
         "cwd": "platforms/react"
       }
-    }
+    },
+    "publish": {}
   }
 }

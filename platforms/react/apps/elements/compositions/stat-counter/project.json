@@ -36,6 +36,7 @@
         "command": "npx eslint apps/elements/compositions/stat-counter/src/",
         "cwd": "platforms/react"
       }
-    }
+    },
+    "publish": {}
   }
 }

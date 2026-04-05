@@ -36,6 +36,7 @@
         "command": "npx eslint apps/experiences/countdown-clock/src/",
         "cwd": "platforms/vanilla"
       }
-    }
+    },
+    "publish": {}
   }
 }

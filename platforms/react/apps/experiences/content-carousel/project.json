@@ -36,6 +36,7 @@
         "command": "npx eslint apps/experiences/content-carousel/src/",
         "cwd": "platforms/react"
       }
-    }
+    },
+    "publish": {}
   }
 }
