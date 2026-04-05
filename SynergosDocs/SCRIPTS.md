@@ -1,8 +1,7 @@
 # Synergos.UI — Scripts de NPM (Raíz)
 
 > Referencia rápida de los scripts disponibles en el `package.json` raíz.
-> Los scripts Angular siempre incluyen `cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false`
-> para evitar el conflicto de dual workspace Nx. Ver `TROUBLESHOOTING.md#G1`.
+> Todos los scripts pueden lanzarse desde el CLI interactivo (`npm run cli`).
 
 ---
 
@@ -10,8 +9,8 @@
 
 | Script | Descripción |
 |---|---|
-| `npm run cli` / `npm run c` | Lanza el CLI interactivo (`tools/cli.mjs`) |
-| `npm run catalog` | Genera o actualiza el catálogo de elementos |
+| `npm run cli` / `npm run c` | CLI interactivo — Dev CDN, Release, Build, Test, Lint, Graph, Setup |
+| `npm run catalog` | Genera o actualiza el catálogo HTML de elementos |
 
 ---
 
@@ -62,6 +61,27 @@
 
 Un "release" es `build` + `contracts:validate` + `publish:cdn`. Nunca hacer publish sin validate.
 
+### Release interactivo (recomendado)
+
+| Script | Descripción |
+|---|---|
+| `npm run release:cdn` | Lanza el release interactivo (`tools/release-cdn.mjs`) |
+| `npm run cli` → "Release to CDN" | Mismo flujo desde el CLI principal |
+
+El release interactivo soporta 4 scopes:
+
+| Scope | Qué hace |
+|---|---|
+| 🎯 Specific elements | Build + publish solo N elementos seleccionados |
+| 🏗 Entire framework | Build + publish todos los elementos de un framework |
+| 📚 Runtime only | Build + publish solo Angular shared runtime |
+| 🔥 Everything | Pipeline completo: build all + validate + publish all + verify + clean |
+
+Después de elegir scope incluye: selección de framework, picker de elementos,
+toggle de verificación de integridad, toggle de limpieza de dist, y confirmación final.
+
+### Release directo (scripts npm)
+
 | Script | Descripción |
 |---|---|
 | `npm run release` | Release completo todos los frameworks |
@@ -69,8 +89,8 @@ Un "release" es `build` + `contracts:validate` + `publish:cdn`. Nunca hacer publ
 | `npm run release:react` | Release React: build + validate + publish |
 | `npm run release:svelte` | Release Svelte: build + validate + publish |
 | `npm run release:vanilla` | Release Vanilla: build + validate + publish |
-| `npm run release:experiences` | Release todas las experiences (Angular + cross-framework): build + validate + runtime + publish |
-| `npm run release:element` | Release interactivo de un elemento específico (requiere build previo) |
+| `npm run release:experiences` | Release todas las experiences (Angular + cross-framework) |
+| `npm run release:element` | Release de un elemento específico (requiere build previo) |
 
 ---
 
@@ -129,10 +149,18 @@ Gate de integridad. Ejecutar antes de cualquier publish.
 
 | Script | Descripción |
 |---|---|
+| `npm run dev:cdn` | Dev CDN Angular — watch + rebuild + sync a CDN local |
+| `npm run dev:cdn:react` | Dev CDN React — watch via Vite |
+| `npm run dev:cdn:svelte` | Dev CDN Svelte — watch via Vite |
+| `npm run dev:cdn:vanilla` | Dev CDN Vanilla — watch via Vite |
 | `npm run manifest:gen` | Genera `element-manifest.json` para el CDN |
 | `npm run clean:dist` | Limpia directorios `dist/` en todos los frameworks |
 | `npm run graph` | Visualiza el grafo Nx del workspace raíz |
 | `npm run graph:angular` | Visualiza el grafo Nx del workspace Angular |
+
+> **Dev CDN**: Sin argumentos abre modo interactivo (picker de framework + elementos).
+> Con flags: `node tools/dev-cdn.mjs --element=hero --livereload --skip-runtime`
+> Ver `DEV_CDN_MODE.md` para documentación completa.
 
 ---
 
@@ -154,41 +182,50 @@ Gate de integridad. Ejecutar antes de cualquier publish.
 
 ## Flujos típicos de desarrollo
 
-### Desarrollar un elemento Angular
+### Dev CDN — desarrollo en caliente contra el CMS (recomendado)
 
 ```bash
-# Iteración rápida en un elemento específico
-cd platforms/angular
-unset NX_WORKSPACE_ROOT_PATH
-npx nx serve hero
+# Modo interactivo — elige framework, elementos, LiveReload
+npm run cli
+# → "Dev CDN (hot reload)" → Angular → pick elements → LiveReload: yes
 
-# Build solo lo que cambió
-npm run build:angular:changed
+# O directo desde terminal:
+node tools/dev-cdn.mjs --element=alert-bar --livereload
 
-# Antes de publicar: siempre validar
-npm run contracts:validate
-npm run release:angular
+# Cross-framework (React/Svelte/Vanilla):
+node tools/dev-cdn-vite.mjs --element=pricing-card --framework=react --livereload
+
+# Todos los elementos Angular con LiveReload:
+node tools/dev-cdn.mjs  # → interactive → ALL → LiveReload: yes
 ```
 
-### Desarrollar una experience cross-framework (React/Svelte/Vanilla)
+### Release unitario — publicar un elemento a CDN
 
 ```bash
-# Build solo las 6 experiences cross-framework
-npm run build:experiences:cross
+# Modo interactivo:
+npm run release:cdn
+# → "Specific elements" → Angular → pick alert-bar → Verify: yes → Proceed
 
-# Build y publicar una experience específica
-npx nx run react-quiz-flow:build
-node tools/publish.mjs --element quiz-flow --dry-run
+# O con flags:
+node tools/release-cdn.mjs --scope=elements --framework=angular --element=hero,card
+```
 
-# Release completo de experiences
-npm run release:experiences
+### Release de un framework completo
+
+```bash
+npm run release:cdn
+# → "Entire framework" → React → Verify: yes → Clean: no → Proceed
+
+# O directo:
+npm run release:react
 ```
 
 ### Release completo
 
 ```bash
-npm run setup          # primera vez
-npm run build          # todos los frameworks
-npm run contracts:validate
-npm run release        # build + validate + publish
+npm run release:cdn
+# → "Everything (full release)" → Proceed
+
+# O directo:
+npm run release
 ```

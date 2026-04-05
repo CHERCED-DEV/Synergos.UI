@@ -29,8 +29,27 @@ En vez de apuntar el CMS a un `localhost:4200` de Angular, **la CDN local ES el 
 
 ## Uso
 
+### Modo interactivo (recomendado)
+
 ```bash
-# Desarrollar alert-bar con auto-reload
+# Desde el CLI principal:
+npm run cli  →  "Dev CDN (hot reload)"
+
+# O directamente (sin args = interactivo):
+node tools/dev-cdn.mjs           # Angular
+node tools/dev-cdn-vite.mjs      # React/Svelte/Vanilla
+```
+
+El modo interactivo guía paso a paso:
+1. **Framework** → Angular / React / Svelte / Vanilla
+2. **Elementos** → ALL (47) o selección individual con checkbox
+3. **LiveReload** → sí/no
+4. **Skip runtime** → sí/no (solo Angular)
+
+### Modo directo (con flags)
+
+```bash
+# Un elemento con auto-reload
 node tools/dev-cdn.mjs --element=alert-bar --livereload
 
 # Múltiples elementos
@@ -52,22 +71,17 @@ node tools/dev-cdn-vite.mjs --element=hello-world --framework=vanilla --liverelo
 Si `import-map.json` no existe en `LOCAL_CDN/synergos/runtime/angular/latest/`, lo compila y publica automáticamente.
 
 ### Phase 2 — Build inicial + sync
-Compila los elementos con config `cdn-dev` y copia a CDN. Si `--livereload`, inyecta el snippet del poll client en el bundle.
+Compila los elementos con `nx run-many --parallel=4 -c cdn-dev` y copia a CDN. Si `--livereload`, inyecta el snippet del poll client en el bundle.
 
 ### Phase 3 — Watch dist/ (fs.watch)
 Un `fs.watch` en `dist/{element}/browser/` detecta cuando esbuild termina un rebuild y copia `main.js` + `.map` a la CDN.
 
-### Phase 4 — Angular build --watch (esbuild)
-Inicia `nx build <project> -c cdn-dev --watch`. Usa esbuild incremental (~200ms rebuilds). Detecta cambios en el source del propio elemento automáticamente.
+### Phase 4 — nx watch (single process)
+Un solo proceso `nx watch --includeDependentProjects` monitorea el grafo de dependencias completo. Cuando un archivo cambia (ya sea en el elemento, en `libs/`, o en `vitals/`), Nx identifica qué proyecto(s) están afectados y lanza `nx build {projectName} -c cdn-dev` solo para esos.
 
-### Phase 4b — Lib watcher (libs + vitals)
-Observa `libs/` y `vitals/` recursivamente. Cuando detecta un cambio en `.ts`, `.html`, `.scss` o `.css`:
-
-1. Hace `utimesSync` (touch) en el `main.ts` entry de cada elemento activo
-2. Esto fuerza a esbuild a re-compilar el árbol completo de dependencias
-3. El rebuild arrastra los cambios de la lib modificada
-
-**Sin esto**, esbuild no siempre detecta cambios en archivos resueltos vía `tsconfig paths` (`@synergos/shared` → `libs/shared/src/`).
+- **Requiere el Nx daemon** — se arranca automáticamente (`nx daemon --start`)
+- **1 proceso** para todos los elementos (antes era N procesos esbuild)
+- **Detecta cambios en libs** nativamente via `--includeDependentProjects`
 
 ### Phase 5 — LiveReload via CDN polling (opcional, `--livereload`)
 No levanta servidores adicionales. Usa la CDN existente (IIS `synergos-static-local`):
