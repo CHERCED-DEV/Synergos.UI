@@ -5,6 +5,7 @@ import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { resolve, dirname, relative } from 'path';
+import { interactiveDevCdnFull } from './lib/interactive.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')));
 const WORKSPACE_ROOT = resolve(ROOT, '..');
@@ -59,6 +60,7 @@ async function main() {
   const action = await select({
     message: 'What do you want to do?',
     choices: [
+      { name: '🔥 Dev CDN (hot reload)', value: 'dev-cdn' },
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
       { name: 'Lint', value: 'lint' },
@@ -72,6 +74,28 @@ async function main() {
   });
 
   // ── Quick actions (no framework selection needed) ──────────────────────
+
+  if (action === 'dev-cdn') {
+    const answers = await interactiveDevCdnFull();
+    const elementsArg = answers.elements.join(',');
+
+    if (answers.framework === 'angular') {
+      const flags = [
+        `--element=${elementsArg}`,
+        answers.livereload ? '--livereload' : '',
+        answers.skipRuntime ? '--skip-runtime' : '',
+      ].filter(Boolean).join(' ');
+      run(`node tools/dev-cdn.mjs ${flags}`);
+    } else {
+      const flags = [
+        `--element=${elementsArg}`,
+        `--framework=${answers.framework}`,
+        answers.livereload ? '--livereload' : '',
+      ].filter(Boolean).join(' ');
+      run(`node tools/dev-cdn-vite.mjs ${flags}`);
+    }
+    return;
+  }
 
   if (action === 'graph') {
     console.log('\n  Opening Nx graph...\n');

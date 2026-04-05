@@ -28,23 +28,27 @@ import { spawn } from 'node:child_process';
 import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 import { ROOT, ALL_FRAMEWORKS, resolveCdnRoot } from './lib/synergos-config.mjs';
 import { getArg } from './lib/cli-utils.mjs';
+import { interactiveDevCdnVite } from './lib/interactive.mjs';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
 const CDN_ROOT = resolveCdnRoot(getArg('cdn'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
 
-// ── CLI args ─────────────────────────────────────────────────────────────────
+// ── CLI args (or interactive mode) ───────────────────────────────────────────
 
 const args = process.argv.slice(2);
 
-const ELEMENT_ARG   = getArg('element');
-const FRAMEWORK_ARG = getArg('framework');
-const LIVERELOAD    = args.includes('--livereload');
+let ELEMENT_ARG   = getArg('element');
+let FRAMEWORK_ARG = getArg('framework');
+let LIVERELOAD    = args.includes('--livereload');
 
+// No args → interactive mode
 if (!ELEMENT_ARG || !FRAMEWORK_ARG) {
-  console.error('\n  Usage: node tools/dev-cdn-vite.mjs --element=hero --framework=react\n');
-  process.exit(1);
+  const answers = await interactiveDevCdnVite();
+  ELEMENT_ARG = answers.elements.join(',');
+  FRAMEWORK_ARG = answers.framework;
+  LIVERELOAD = answers.livereload;
 }
 
 if (!ALL_FRAMEWORKS.includes(FRAMEWORK_ARG) || FRAMEWORK_ARG === 'angular') {

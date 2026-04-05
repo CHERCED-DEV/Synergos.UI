@@ -29,6 +29,7 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
+import { interactiveDevCdn } from './lib/interactive.mjs';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ const CDN_ROOT = resolve(process.env.SYNERGOS_CDN || String.raw`C:\LOCAL_CDN`);
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
 const NX_BIN = resolve(NG_DIR, 'node_modules/.bin/nx');
 
-// ── CLI args ─────────────────────────────────────────────────────────────────
+// ── CLI args (or interactive mode) ───────────────────────────────────────────
 
 const args = process.argv.slice(2);
 function getArg(flag, fallback = null) {
@@ -47,13 +48,16 @@ function getArg(flag, fallback = null) {
   return found ? found.slice(`--${flag}=`.length) : fallback;
 }
 
-const ELEMENT_ARG = getArg('element');
-const SKIP_RUNTIME = args.includes('--skip-runtime');
-const LIVERELOAD = args.includes('--livereload');
+let ELEMENT_ARG = getArg('element');
+let SKIP_RUNTIME = args.includes('--skip-runtime');
+let LIVERELOAD = args.includes('--livereload');
 
+// No args → interactive mode
 if (!ELEMENT_ARG) {
-  console.error('\n  Usage: node tools/dev-cdn.mjs --element=hero\n');
-  process.exit(1);
+  const answers = await interactiveDevCdn();
+  ELEMENT_ARG = answers.elements.join(',');
+  LIVERELOAD = answers.livereload;
+  SKIP_RUNTIME = answers.skipRuntime;
 }
 
 const elementNames = ELEMENT_ARG.split(',').map((e) => e.trim());
