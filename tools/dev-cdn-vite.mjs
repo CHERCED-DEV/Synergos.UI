@@ -157,18 +157,21 @@ function runCommand(cmd, cmdArgs, options = {}) {
 // ── Phase 1: Initial build + sync ───────────────────────────────────────────
 
 async function initialBuild() {
-  for (const element of elementNames) {
-    const nxProject = projectMap.get(element);
-    console.log(`  🔨 Building ${element} → ${nxProject}...`);
-    try {
-      await runCommand(NX_BIN, [
-        'build', nxProject,
-        '--skip-nx-cache',
-      ], { inherit: true });
+  const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
+  console.log(`  🔨 Building ${elementNames.length} element(s) [${FRAMEWORK_ARG}]...`);
+  try {
+    await runCommand(NX_BIN, [
+      'run-many',
+      '--target=build',
+      `--projects=${nxProjects}`,
+      '--skip-nx-cache',
+      '--parallel=4',
+    ], { inherit: true });
+    for (const element of elementNames) {
       syncToCdn(element);
-    } catch (err) {
-      console.error(`  ❌ Build failed for ${element}:`, err.message);
     }
+  } catch (err) {
+    console.error(`  ❌ Build failed:`, err.message);
   }
 }
 
@@ -263,20 +266,15 @@ async function main() {
   startWatchBuild();
 
   // Cleanup on exit
-  process.on('SIGINT', () => {
+  const cleanup = () => {
     console.log('\n  🛑 Stopping dev-cdn-vite...');
     for (const p of watchProcs) p.kill();
     for (const [, w] of watchers) w.close();
     if (liveReload) liveReload.clean();
     process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    for (const p of watchProcs) p.kill();
-    for (const [, w] of watchers) w.close();
-    if (liveReload) liveReload.clean();
-    process.exit(0);
-  });
+  };
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 }
 
 try {
