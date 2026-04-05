@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch"
+    "build": "npx nx run-many --target=build --projects=tag:framework:react",
+    "dev":   "vite build --watch",
+    "test":  "npx nx run-many --target=test --projects=tag:framework:react",
+    "lint":  "npx nx run-many --target=lint --projects=tag:framework:react"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite build --watch"
+    "build": "npx nx run-many --target=build --projects=tag:framework:svelte",
+    "dev":   "vite build --watch",
+    "test":  "npx nx run-many --target=test --projects=tag:framework:svelte",
+    "lint":  "npx nx run-many --target=lint --projects=tag:framework:svelte"
   },
   "dependencies": {
     "svelte": "^5.35.0"
