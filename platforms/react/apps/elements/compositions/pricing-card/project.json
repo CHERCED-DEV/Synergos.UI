@@ -33,7 +33,7 @@
     },
     "lint": {
       "options": {
-        "command": "npx eslint apps/elements/compositions/pricing-card/src/",
+        "command": "node ../../tools/run.mjs eslint apps/elements/compositions/pricing-card/src/",
         "cwd": "platforms/react"
       }
     },

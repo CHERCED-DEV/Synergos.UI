@@ -1,7 +1,6 @@
 {
   "name": "react-core",
   "projectType": "library",
-  "implicitDependencies": ["core"],
   "tags": ["scope:core", "type:lib", "framework:react"],
   "targets": {
     "test": {
@@ -9,7 +8,7 @@
     },
     "lint": {
       "options": {
-        "command": "npx eslint libs/core/src/",
+        "command": "node ../../tools/run.mjs eslint libs/core/src/",
         "cwd": "platforms/react"
       }
     }

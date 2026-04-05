@@ -38,7 +38,6 @@
     "@angular/compiler-cli": "~21.1.0",
     "@angular/language-service": "~21.1.0",
     "@babel/core": "^7.29.0",
-    "@eslint/js": "^9.8.0",
     "@nx/angular": "22.5.4",
     "@nx/eslint": "22.5.4",
     "@nx/eslint-plugin": "22.5.4",
@@ -49,20 +48,10 @@
     "@swc-node/register": "~1.11.1",
     "@swc/core": "~1.15.5",
     "@swc/helpers": "~0.5.18",
-    "@types/node": "20.19.9",
-    "@typescript-eslint/utils": "^8.40.0",
-    "@vitest/coverage-v8": "^4.0.18",
     "angular-eslint": "^21.0.1",
     "cross-env": "^7.0.3",
-    "eslint": "^9.8.0",
-    "eslint-config-prettier": "^10.0.0",
-    "jsdom": "^27.1.0",
     "ng-packagr": "^21.2.0",
     "nx": "22.5.4",
-    "prettier": "~3.6.2",
-    "tsx": "^4.19.4",
-    "typescript": "~5.9.2",
-    "typescript-eslint": "^8.40.0",
-    "vitest": "^4.0.8"
+    "tsx": "^4.19.4"
   }
 }

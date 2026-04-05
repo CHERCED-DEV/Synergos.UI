@@ -56,9 +56,10 @@ if (!PROJECT_NAME) {
  */
 function resolveFromNxProject(projectName) {
   try {
+    // Use inherited CWD — works from both platform workspaces and root
     const result = execSync(
       `npx nx show project ${projectName} --json`,
-      { cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'] },
+      { stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const project = JSON.parse(result.toString());
     const tags = project.tags || [];

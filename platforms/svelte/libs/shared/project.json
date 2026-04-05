@@ -8,7 +8,7 @@
     },
     "lint": {
       "options": {
-        "command": "npx eslint libs/shared/src/",
+        "command": "node ../../tools/run.mjs eslint libs/shared/src/",
         "cwd": "platforms/svelte"
       }
     }

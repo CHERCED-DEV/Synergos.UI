@@ -33,7 +33,6 @@ import { getArg } from './lib/cli-utils.mjs';
 
 const CDN_ROOT = resolveCdnRoot(getArg('cdn'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
-const NX_BIN = resolve(ROOT, 'node_modules/.bin/nx');
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -56,6 +55,7 @@ if (!ALL_FRAMEWORKS.includes(FRAMEWORK_ARG) || FRAMEWORK_ARG === 'angular') {
 
 const elementNames = ELEMENT_ARG.split(',').map((e) => e.trim());
 const PLATFORM_DIR = resolve(ROOT, 'platforms', FRAMEWORK_ARG);
+const NX_BIN = resolve(PLATFORM_DIR, 'node_modules/.bin/nx');
 
 // ── Resolve short names → Nx project names ───────────────────────────────────
 
@@ -120,7 +120,12 @@ function runCommand(cmd, cmdArgs, options = {}) {
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
       shell: true,
-      cwd: options.cwd || ROOT,
+      cwd: options.cwd || PLATFORM_DIR,
+      env: {
+        ...process.env,
+        NX_WORKSPACE_ROOT_PATH: '',
+        NX_DAEMON: 'false',
+      },
     });
 
     let stdout = '';
@@ -195,7 +200,12 @@ function startWatchBuild() {
     ], {
       stdio: 'inherit',
       shell: true,
-      cwd: ROOT,
+      cwd: PLATFORM_DIR,
+      env: {
+        ...process.env,
+        NX_WORKSPACE_ROOT_PATH: '',
+        NX_DAEMON: 'false',
+      },
     });
 
     proc.on('error', (err) => {

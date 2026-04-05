@@ -4,27 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npx nx run-many --target=build --projects=tag:framework:react",
-    "dev":   "vite build --watch",
-    "test":  "npx nx run-many --target=test --projects=tag:framework:react",
-    "lint":  "npx nx run-many --target=lint --projects=tag:framework:react"
+    "build": "node ../../tools/run.mjs nx run-many --target=build --projects=tag:framework:react",
+    "dev":   "node ../../tools/run.mjs vite build --watch",
+    "test":  "node ../../tools/run.mjs nx run-many --target=test --projects=tag:framework:react",
+    "lint":  "node ../../tools/run.mjs nx run-many --target=lint --projects=tag:framework:react",
+    "graph": "node ../../tools/run.mjs nx graph"
   },
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.8.0",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^4.5.2",
-    "@vitest/coverage-v8": "^4.0.18",
-    "eslint": "^9.8.0",
-    "jsdom": "^27.1.0",
-    "typescript": "~5.9.2",
-    "typescript-eslint": "^8.40.0",
-    "vite": "^6.3.5",
-    "vitest": "^4.0.8"
+    "@vitejs/plugin-react": "^4.5.2"
   }
 }

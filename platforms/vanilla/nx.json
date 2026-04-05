@@ -1,6 +1,5 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "defaultBase": "master",
   "namedInputs": {
     "default": ["{projectRoot}/**/*"],
     "production": [
@@ -11,10 +10,10 @@
       "!{projectRoot}/eslint.config.mjs"
     ],
     "vitals": [
-      "{workspaceRoot}/vitals/contracts/src/**/*",
-      "{workspaceRoot}/vitals/core/src/**/*",
-      "{workspaceRoot}/vitals/core-assets/src/**/*",
-      "{workspaceRoot}/vitals/shared/src/**/*"
+      "{workspaceRoot}/../../vitals/contracts/src/**/*",
+      "{workspaceRoot}/../../vitals/core/src/**/*",
+      "{workspaceRoot}/../../vitals/core-assets/src/**/*",
+      "{workspaceRoot}/../../vitals/shared/src/**/*"
     ]
   },
   "targetDefaults": {
@@ -24,13 +23,13 @@
       "cache": true,
       "inputs": ["production", "^production", "vitals"],
       "options": {
-        "command": "node ../../tools/run.mjs vite build"
+        "command": "npx vite build"
       }
     },
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node ../../tools/run.mjs vite build --watch"
+        "command": "npx vite build --watch"
       }
     },
     "test": {
@@ -38,7 +37,7 @@
       "cache": true,
       "inputs": ["default", "^production", "vitals"],
       "options": {
-        "command": "node ../../tools/run.mjs vitest run --config vitest.config.ts"
+        "command": "npx vitest run --config vitest.config.ts"
       }
     },
     "lint": {
@@ -51,7 +50,7 @@
       "dependsOn": ["build"],
       "cache": false,
       "options": {
-        "command": "node tools/publish-element.mjs --project={projectName}"
+        "command": "node ../../tools/publish-element.mjs --project={projectName}"
       }
     }
   }

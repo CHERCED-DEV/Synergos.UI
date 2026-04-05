@@ -11,7 +11,7 @@
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "npx tsc -p vitals/core/tsconfig.json --noEmit"
+        "command": "node tools/run.mjs tsc -p vitals/core/tsconfig.json --noEmit"
       }
     }
   }

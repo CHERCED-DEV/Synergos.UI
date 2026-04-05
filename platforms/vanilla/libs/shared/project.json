@@ -1,12 +1,11 @@
 {
   "name": "vanilla-shared",
   "projectType": "library",
-  "implicitDependencies": ["shared"],
   "tags": ["scope:shared", "type:lib", "framework:vanilla"],
   "targets": {
     "lint": {
       "options": {
-        "command": "npx eslint libs/shared/src/",
+        "command": "node ../../tools/run.mjs eslint libs/shared/src/",
         "cwd": "platforms/vanilla"
       }
     }

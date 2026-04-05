@@ -1,12 +1,11 @@
 {
   "name": "vanilla-core",
   "projectType": "library",
-  "implicitDependencies": ["core"],
   "tags": ["scope:core", "type:lib", "framework:vanilla"],
   "targets": {
     "lint": {
       "options": {
-        "command": "npx eslint libs/core/src/",
+        "command": "node ../../tools/run.mjs eslint libs/core/src/",
         "cwd": "platforms/vanilla"
       }
     }
