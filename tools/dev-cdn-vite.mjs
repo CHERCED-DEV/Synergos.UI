@@ -21,11 +21,11 @@
  *   6. (optional) LiveReload WS server for instant browser refresh
  */
 
-import { existsSync, copyFileSync, mkdirSync, watch as fsWatch } from 'node:fs';
+import { existsSync, copyFileSync, readFileSync, writeFileSync, mkdirSync, watch as fsWatch } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { startLiveReload, LIVERELOAD_SNIPPET } from './lib/livereload.mjs';
+import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 import { ROOT, ALL_FRAMEWORKS, resolveCdnRoot } from './lib/synergos-config.mjs';
 import { getArg } from './lib/cli-utils.mjs';
 
@@ -101,7 +101,14 @@ function syncToCdn(element) {
   }
 
   mkdirSync(dest, { recursive: true });
-  copyFileSync(src, join(dest, 'main.js'));
+
+  // If LiveReload is active, inject the WS client into the bundle
+  if (liveReload) {
+    const code = readFileSync(src, 'utf-8') + LIVERELOAD_CLIENT_JS;
+    writeFileSync(join(dest, 'main.js'), code);
+  } else {
+    copyFileSync(src, join(dest, 'main.js'));
+  }
 
   // Copy sourcemap if present
   const srcMap = src + '.map';
@@ -111,7 +118,7 @@ function syncToCdn(element) {
 
   const now = new Date().toLocaleTimeString();
   console.log(`  ✓ ${element} [${FRAMEWORK_ARG}] → CDN  [${now}]`);
-  if (liveReload) liveReload.notify();
+  if (liveReload) liveReload.touch();
   return true;
 }
 
@@ -216,16 +223,16 @@ function startWatchBuild() {
   }
 }
 
-// ── Phase 4 (optional): LiveReload server ───────────────────────────────────
+// ── Phase 4 (optional): LiveReload via CDN polling ─────────────────────────
 
-/** @type {{ notify: () => void, close: () => void } | null} */
+/** @type {{ touch: () => void, clean: () => void } | null} */
 let liveReload = null;
 
 function initLiveReload() {
   if (!LIVERELOAD) return;
-  liveReload = startLiveReload();
-  console.log(`\n  Inject this snippet in your CMS page for auto-reload:\n`);
-  console.log(`  ${LIVERELOAD_SNIPPET.replace(/\n/g, '\n  ')}\n`);
+  liveReload = createDevSignal(CDN_SYNERGOS);
+  liveReload.touch();
+  console.log(`  📡 LiveReload via CDN polling (__dev.json) — auto-injected into bundles\n`);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -256,14 +263,14 @@ async function main() {
     console.log('\n  🛑 Stopping dev-cdn-vite...');
     for (const p of watchProcs) p.kill();
     for (const [, w] of watchers) w.close();
-    if (liveReload) liveReload.close();
+    if (liveReload) liveReload.clean();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
     for (const p of watchProcs) p.kill();
     for (const [, w] of watchers) w.close();
-    if (liveReload) liveReload.close();
+    if (liveReload) liveReload.clean();
     process.exit(0);
   });
 }

@@ -1,140 +1,80 @@
 /**
- * LiveReload WebSocket server for Synergos dev-cdn modes.
+ * LiveReload via CDN polling for Synergos dev-cdn modes.
  *
- * Opens a tiny WebSocket server on a configurable port.
- * When `notify()` is called (e.g. after syncing a bundle to CDN),
- * every connected browser client receives a "reload" message.
+ * Instead of a WebSocket server, this writes a `__dev.json` file to the CDN
+ * on each sync. The client script (injected into the bundle) polls this file
+ * and reloads when the timestamp changes.
+ *
+ * No extra servers — everything flows through the existing IIS static CDN
+ * (synergos-static-local → C:\LOCAL_CDN).
  *
  * Usage (from any dev-cdn script):
- *   import { startLiveReload, LIVERELOAD_SNIPPET } from './lib/livereload.mjs';
- *   const lr = startLiveReload();       // port 35729 by default
+ *   import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
+ *   const signal = createDevSignal(cdnSynergosPath);
  *   // after sync:
- *   lr.notify();
- *   // on shutdown:
- *   lr.close();
- *
- * In the CMS page, inject `LIVERELOAD_SNIPPET` during local development
- * so the browser auto-refreshes when CDN files are updated.
+ *   signal.touch();
+ *   // cleanup:
+ *   signal.clean();
  */
 
-import { createServer } from 'node:http';
-import { createHash } from 'node:crypto';
-
-const DEFAULT_PORT = 35729;
+import { writeFileSync, unlinkSync, existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 /**
- * Start the LiveReload WebSocket server.
+ * Create a dev signal file manager.
+ * Writes `__dev.json` with a timestamp to the CDN root on each `touch()`.
  *
- * Uses raw HTTP upgrade + minimal WebSocket framing to avoid
- * any npm dependency (ws, socket.io, etc.).
- *
- * @param {{ port?: number }} [options]
- * @returns {{ notify: () => void, close: () => void }}
+ * @param {string} cdnSynergosDir — e.g. C:\LOCAL_CDN\synergos
+ * @returns {{ touch: () => void, clean: () => void }}
  */
-export function startLiveReload(options = {}) {
-  const port = options.port || DEFAULT_PORT;
-  /** @type {Set<import('node:net').Socket>} */
-  const clients = new Set();
-
-  const server = createServer((_req, res) => {
-    // Health check endpoint for tooling
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('livereload ok');
-  });
-
-  server.on('upgrade', (req, socket) => {
-    const key = req.headers['sec-websocket-key'];
-    if (!key) { socket.destroy(); return; }
-
-    // WebSocket handshake (RFC 6455)
-    const accept = createHash('sha1')
-      .update(key + '258EAFA5-E914-47DA-95CA-5AB5DC11E5A3')
-      .digest('base64');
-
-    socket.write(
-      'HTTP/1.1 101 Switching Protocols\r\n' +
-      'Upgrade: websocket\r\n' +
-      'Connection: Upgrade\r\n' +
-      `Sec-WebSocket-Accept: ${accept}\r\n` +
-      '\r\n',
-    );
-
-    clients.add(socket);
-    socket.on('close', () => clients.delete(socket));
-    socket.on('error', () => clients.delete(socket));
-  });
-
-  server.listen(port, () => {
-    console.log(`  🔄 LiveReload server → ws://localhost:${port}`);
-  });
-
-  /**
-   * Send a WebSocket text frame to every connected client.
-   * @param {string} message
-   */
-  function broadcast(message) {
-    const payload = Buffer.from(message, 'utf-8');
-    const frame = buildTextFrame(payload);
-
-    for (const socket of clients) {
-      try { socket.write(frame); } catch { clients.delete(socket); }
-    }
-  }
+export function createDevSignal(cdnSynergosDir) {
+  const signalPath = join(cdnSynergosDir, '__dev.json');
 
   return {
-    /** Notify all clients to reload */
-    notify() { broadcast('reload'); },
+    /** Write/update the signal file with current timestamp */
+    touch() {
+      mkdirSync(cdnSynergosDir, { recursive: true });
+      writeFileSync(signalPath, JSON.stringify({
+        ts: Date.now(),
+        at: new Date().toISOString(),
+      }));
+    },
 
-    /** Shut down the server and close all connections */
-    close() {
-      for (const socket of clients) {
-        try { socket.destroy(); } catch { /* ignore */ }
-      }
-      clients.clear();
-      server.close();
+    /** Remove the signal file (on shutdown) */
+    clean() {
+      try { if (existsSync(signalPath)) unlinkSync(signalPath); } catch { /* ignore */ }
     },
   };
 }
 
-/**
- * Build a WebSocket text frame (opcode 0x1, FIN bit set).
- * Supports payload up to 65 535 bytes (enough for short messages).
- * @param {Buffer} payload
- * @returns {Buffer}
- */
-function buildTextFrame(payload) {
-  const len = payload.length;
-  let header;
-
-  if (len < 126) {
-    header = Buffer.alloc(2);
-    header[0] = 0x81; // FIN + text opcode
-    header[1] = len;
-  } else {
-    header = Buffer.alloc(4);
-    header[0] = 0x81;
-    header[1] = 126;
-    header.writeUInt16BE(len, 2);
-  }
-
-  return Buffer.concat([header, payload]);
-}
-
-// ── Client-side snippet ──────────────────────────────────────────────────────
+// ── Client-side polling snippet ──────────────────────────────────────────────
 
 /**
- * Inline `<script>` to inject in the CMS page during local dev.
- * Connects to the LiveReload WS and reloads the page on "reload" message.
- * Includes reconnect logic (1 s backoff).
+ * Pure JS snippet injected into bundles during dev-cdn --livereload.
+ *
+ * Polls `__dev.json` from the same CDN origin every 1.5s.
+ * When the timestamp changes → reload. Idempotent via global flag.
+ * Resolves the CDN base URL from the script's own `src` attribute.
  */
-export const LIVERELOAD_SNIPPET = `<script data-synergos-livereload>
-(function () {
-  var port = ${DEFAULT_PORT};
-  function connect() {
-    var ws = new WebSocket('ws://localhost:' + port);
-    ws.onmessage = function (e) { if (e.data === 'reload') location.reload(); };
-    ws.onclose = function () { setTimeout(connect, 1000); };
+export const LIVERELOAD_CLIENT_JS = `
+;(function(){
+  if(window.__synergosLR)return;window.__synergosLR=1;
+  var scripts=document.querySelectorAll('script[src*="/synergos/"]');
+  var base='';
+  for(var i=0;i<scripts.length;i++){
+    var m=scripts[i].src.match(/(.*\\/synergos)\\//)
+    if(m){base=m[1];break}
   }
-  connect();
+  if(!base)return;
+  var url=base+'/__dev.json';
+  var lastTs=0;
+  function poll(){
+    fetch(url,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+      if(lastTs&&d.ts!==lastTs)location.reload();
+      lastTs=d.ts;
+    }).catch(function(){});
+    setTimeout(poll,1500);
+  }
+  poll();
 })();
-</script>`;
+`;

@@ -2,124 +2,129 @@
 
 ## Concepto
 
-En vez de apuntar el CMS a un `localhost:4200` de Angular, **la CDN local ES el dev server**. El CMS sigue apuntando a `https://synergos-static-local` como siempre, y los cambios en el código fuente Angular se reflejan ahí directamente.
+En vez de apuntar el CMS a un `localhost:4200` de Angular, **la CDN local ES el dev server**. El CMS sigue apuntando a `https://synergos-static-local` como siempre, y los cambios en el código fuente se reflejan ahí directamente — tanto en los elementos como en las libs compartidas.
 
 ```
-┌────────────────┐     ┌──────────────┐     ┌────────────────────────┐
-│  Editor (VS Code)  │──> │  nx watch    │──> │  dist/{element}/browser/ │
-│  save archivo      │     │  rebuild     │     │  main.js (+ .map)       │
-└────────────────┘     └──────────────┘     └──────────┬─────────────┘
-                                                        │ fs.watch
-                                                        ▼
-                            ┌────────────────────────────────────────┐
-                            │  LOCAL_CDN/synergos/{element}/angular/  │
-                            │  latest/main.js                        │
-                            └──────────┬─────────────────────────────┘
-                                       │ https://synergos-static-local
-                                       ▼
-                            ┌────────────────────────┐
-                            │  Browser (CMS page)     │
-                            │  refresh → ve cambios   │
-                            └────────────────────────┘
+┌──────────────────┐     ┌──────────────────┐     ┌─────────────────────────┐
+│  Editor (VS Code) │     │  esbuild --watch  │     │  dist/{element}/browser/ │
+│  save en:         │────>│  rebuild (~200ms)  │────>│  main.js (+ .map)       │
+│  • element src    │     └──────────────────┘     └──────────┬──────────────┘
+│  • libs/shared    │                                          │ fs.watch
+│  • libs/core      │     ┌──────────────────┐                │
+│  • vitals/        │────>│  lib watcher      │──(touch)──>  main.ts entry
+└──────────────────┘     │  (utimesSync)     │     
+                          └──────────────────┘     
+                                                               ▼
+                          ┌─────────────────────────────────────────────────┐
+                          │  LOCAL_CDN/synergos/{element}/angular/latest/    │
+                          │  main.js  (+LiveReload snippet when --livereload)│
+                          └──────────┬──────────────────────────────────────┘
+                                     │ https://synergos-static-local
+                                     ▼
+                          ┌─────────────────────────┐
+                          │  Browser (CMS page)      │
+                          │  CDN poll → auto reload   │
+                          └─────────────────────────┘
 ```
 
 ## Uso
 
 ```bash
-# Desarrollar el hero
-npm run dev:cdn -- --element=hero
+# Desarrollar alert-bar con auto-reload
+node tools/dev-cdn.mjs --element=alert-bar --livereload
 
 # Múltiples elementos
-npm run dev:cdn -- --element=hero,card,footer
+node tools/dev-cdn.mjs --element=hero,card,footer --livereload
+
+# Sin LiveReload (refresh manual)
+node tools/dev-cdn.mjs --element=hero
 
 # Si el runtime ya está publicado
-npm run dev:cdn -- --element=hero --skip-runtime
+node tools/dev-cdn.mjs --element=hero --skip-runtime --livereload
+
+# Cross-framework (React, Svelte, Vanilla)
+node tools/dev-cdn-vite.mjs --element=hello-world --framework=vanilla --livereload
 ```
 
-## Qué hace
+## Fases del script
 
-1. **Verifica runtime** — Si `import-map.json` no existe en la CDN, lo compila y publica automáticamente.
-2. **Build inicial** — Compila el/los elemento(s) con config `cdn-dev` y copia a CDN.
-3. **Watch mode** — Inicia `nx watch` que detecta cambios en el source del elemento Y sus dependencias (libs/shared, libs/core, vitals/).
-4. **Sync automático** — Un `fs.watch` en `dist/` detecta cuando el build termina y copia `main.js` + `main.js.map` a la CDN.
+### Phase 1 — Verificar runtime
+Si `import-map.json` no existe en `LOCAL_CDN/synergos/runtime/angular/latest/`, lo compila y publica automáticamente.
+
+### Phase 2 — Build inicial + sync
+Compila los elementos con config `cdn-dev` y copia a CDN. Si `--livereload`, inyecta el snippet del poll client en el bundle.
+
+### Phase 3 — Watch dist/ (fs.watch)
+Un `fs.watch` en `dist/{element}/browser/` detecta cuando esbuild termina un rebuild y copia `main.js` + `.map` a la CDN.
+
+### Phase 4 — Angular build --watch (esbuild)
+Inicia `nx build <project> -c cdn-dev --watch`. Usa esbuild incremental (~200ms rebuilds). Detecta cambios en el source del propio elemento automáticamente.
+
+### Phase 4b — Lib watcher (libs + vitals)
+Observa `libs/` y `vitals/` recursivamente. Cuando detecta un cambio en `.ts`, `.html`, `.scss` o `.css`:
+
+1. Hace `utimesSync` (touch) en el `main.ts` entry de cada elemento activo
+2. Esto fuerza a esbuild a re-compilar el árbol completo de dependencias
+3. El rebuild arrastra los cambios de la lib modificada
+
+**Sin esto**, esbuild no siempre detecta cambios en archivos resueltos vía `tsconfig paths` (`@synergos/shared` → `libs/shared/src/`).
+
+### Phase 5 — LiveReload via CDN polling (opcional, `--livereload`)
+No levanta servidores adicionales. Usa la CDN existente (IIS `synergos-static-local`):
+
+1. Escribe `__dev.json` con `{ ts, at }` en `LOCAL_CDN/synergos/` cada vez que se sincroniza
+2. Un snippet JS (auto-inyectado en el bundle) hace `fetch('/__dev.json', {cache:'no-store'})` cada 1.5s
+3. Si el timestamp cambió → `location.reload()`
+4. Al terminar el proceso, borra `__dev.json` (cleanup)
+
+El snippet descubre la URL base de la CDN automáticamente desde el `<script src>` que contiene `/synergos/`.
 
 ## Configuración `cdn-dev`
 
-Definida en `platforms/angular/nx.json`. Es un híbrido de production + development:
+Definida en `platforms/angular/nx.json`:
 
 | Propiedad | Valor | Por qué |
 |---|---|---|
-| `externalDependencies` | Todos los Angular + @synergos/* | Bundles livianos (~10 KB), resueltos vía import-map |
-| `sourceMap` | `true` | DevTools del browser muestra el source original |
+| `externalDependencies` | Angular + @synergos/* | Bundles livianos (~10 KB), vía import-map |
+| `sourceMap` | `true` | DevTools muestra source original |
 | `optimization` | `false` | Build más rápido, sin minificar |
-| `outputHashing` | `"none"` | Nombre fijo `main.js` (sin hash), CDN siempre sirve la misma URL |
+| `outputHashing` | `"none"` | Nombre fijo `main.js`, CDN sirve la misma URL |
 
-## Flujo de cambio
+## Flujo de cambio completo
 
+### Cambio en el elemento (ej: `alert-bar.ts`)
 ```
-1. Editas hero.ts o hero.html
-2. nx watch detecta el cambio (~200ms)
-3. Angular rebuild con cdn-dev (~1-3s, esbuild es rápido)
-4. dist/hero/browser/main.js se actualiza
-5. fs.watch detecta el cambio, copia a LOCAL_CDN (~50ms)
-6. Refresh en el browser → ves el cambio en el CMS real
+1. Guardas alert-bar.ts
+2. esbuild --watch detecta el cambio (~200ms)
+3. Rebuild con cdn-dev (~1-3s)
+4. dist/alert-bar/browser/main.js actualizado
+5. fs.watch → copia a LOCAL_CDN + inyecta LiveReload snippet (~50ms)
+6. __dev.json actualizado con nuevo timestamp
+7. Browser poll detecta cambio → auto reload (~1.5s max)
 ```
+**Tiempo total: ~3-5 segundos**
 
-**Tiempo total estimado: 2-4 segundos** desde guardar hasta ver el cambio.
-
-## Investigación: Rutas para mejorar
-
-### Ruta 1: LiveReload automático (próximo paso natural)
-
-Agregar un mini servidor WebSocket al script `dev-cdn.mjs` que:
-- Escuche en `ws://localhost:35729`
-- Envíe `"reload"` cada vez que se sincroniza un archivo a CDN
-- En el CMS, inyectar un `<script>` pequeño en dev que conecte al WebSocket y haga `location.reload()`
-
-Esto elimina el refresh manual. Complejidad: baja. Solo requiere el módulo `ws` o un WebSocket vanilla.
-
-### Ruta 2: Angular dev-server como proxy a CDN
-
-Usar `nx serve hero` (Vite + HMR) y redirigir la salida a CDN:
-
-- **Pro**: HMR real — cambios en templates/styles se aplican sin refresh completo.
-- **Contra**: El dev-server de Angular NO usa `externalDependencies` en modo development — bundlea TODO Angular (~150 KB por elemento). Habría que crear un plugin Vite custom que resuelva externals al import-map.
-- **Contra**: El CMS y el dev-server son hosts distintos — CORS y import-map complications.
-- **Viabilidad**: Media-alta, pero requiere un Vite plugin personalizado.
-
-### Ruta 3: esbuild watch directo (sin nx watch)
-
-Usar la API `context.watch()` de esbuild directamente para re-bundlear el entry point del elemento:
-
-```javascript
-const ctx = await esbuild.context({
-  entryPoints: ['apps/elements/modules/hero/src/main.ts'],
-  bundle: true, format: 'esm',
-  external: ['@angular/*', 'rxjs', '@synergos/*'],
-  outfile: 'C:\\LOCAL_CDN\\synergos\\hero\\angular\\latest\\main.js',
-});
-await ctx.watch(); // ~50ms rebuilds
+### Cambio en una lib (ej: `libs/shared/.../alert.scss`)
 ```
-
-- **Pro**: Rebuilds de ~50ms (vs 1-3s con Angular builder). Output directo a CDN, sin copia.
-- **Contra**: Bypasea el Angular compiler — no compila templates `.html` ni procesa SCSS. Solo funciona para cambios en TypeScript puro que no tocan templates.
-- **Viabilidad**: Solo útil como complemento, no como reemplazo.
-
-### Ruta 4: Windows Junctions (symlinks de directorio)
-
-En vez de copiar archivos, crear un junction:
+1. Guardas alert.scss en libs/shared/
+2. Lib watcher detecta el cambio (200ms debounce)
+3. utimesSync toca main.ts del elemento
+4. esbuild --watch detecta main.ts modificado
+5. Rebuild arrastra todo el árbol (incluyendo el SCSS cambiado)
+6. dist → fs.watch → CDN → __dev.json → browser reload
 ```
-C:\LOCAL_CDN\synergos\hero\angular\latest\ → platforms\angular\dist\hero\browser\
-```
+**Tiempo total: ~4-6 segundos**
 
-- **Pro**: Zero-copy. Angular escribe, CDN lo sirve instantáneamente.
-- **Contra**: Si Angular limpia `dist/` en cada build, el junction puede quebrarse temporalmente. Los sourcemaps y archivos extra (`index.html`) también quedarían visibles en CDN.
-- **Viabilidad**: Alta para desarrollo local, pero frágil.
+## Archivos involucrados
 
-## Recomendación
+| Archivo | Rol |
+|---|---|
+| `tools/dev-cdn.mjs` | Script principal (Angular) |
+| `tools/dev-cdn-vite.mjs` | Script para React/Svelte/Vanilla |
+| `tools/lib/livereload.mjs` | CDN polling: `createDevSignal()` + `LIVERELOAD_CLIENT_JS` |
 
-**Fase actual** (implementada): `nx watch` + `fs.watch` sync — funcional, confiable, 2-4s por ciclo.
+## Requisitos
 
-**Próximo paso**: Agregar LiveReload (Ruta 1) — elimina el refresh manual con complejidad mínima.
-
-**Futuro**: Explorar Ruta 2 (Vite proxy) si el ciclo de 2-4s se siente lento. Es la ruta más ambiciosa pero la que da HMR real.
+- Runtime publicado en CDN al menos una vez (`npm run publish:runtime`)
+- IIS site `synergos-static-local` apuntando a `C:\LOCAL_CDN`
+- Config `cdn-dev` en `nx.json` (externals + sourcemaps)

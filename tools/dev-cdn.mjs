@@ -24,11 +24,11 @@
  *   - The "cdn-dev" configuration must exist in nx.json (externals + sourcemaps)
  */
 
-import { existsSync, copyFileSync, mkdirSync, watch as fsWatch } from 'node:fs';
+import { existsSync, copyFileSync, readFileSync, writeFileSync, mkdirSync, utimesSync, watch as fsWatch } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { startLiveReload, LIVERELOAD_SNIPPET } from './lib/livereload.mjs';
+import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +63,9 @@ const elementNames = ELEMENT_ARG.split(',').map((e) => e.trim());
 /** Map from short name (hero) → Nx name (elements-modules-hero) */
 const projectMap = new Map();
 
+/** Map from short name (hero) → absolute path to main.ts entry file */
+const entryFiles = new Map();
+
 async function resolveProjectNames() {
   for (const name of elementNames) {
     try {
@@ -75,6 +78,23 @@ async function resolveProjectNames() {
     } catch {
       console.error(`  ❌ Cannot resolve Nx project for "${name}". Check element:${name} tag in project.json`);
       process.exit(1);
+    }
+  }
+}
+
+// ── Resolve entry files (for lib-touch rebuild) ────────────────────────────
+
+async function resolveEntryFiles() {
+  for (const [element, nxProject] of projectMap) {
+    try {
+      const json = await runCommand(NX_BIN, ['show', 'project', nxProject, '--json']);
+      const config = JSON.parse(json);
+      const browser = config.targets?.build?.options?.browser;
+      if (browser) {
+        entryFiles.set(element, resolve(NG_DIR, browser));
+      }
+    } catch {
+      console.warn(`  ⚠ Could not resolve entry file for ${element}`);
     }
   }
 }
@@ -104,7 +124,14 @@ function syncToCdn(element) {
   }
 
   mkdirSync(dest, { recursive: true });
-  copyFileSync(src, join(dest, 'main.js'));
+
+  // If LiveReload is active, inject the WS client into the bundle
+  if (liveReload) {
+    const code = readFileSync(src, 'utf-8') + LIVERELOAD_CLIENT_JS;
+    writeFileSync(join(dest, 'main.js'), code);
+  } else {
+    copyFileSync(src, join(dest, 'main.js'));
+  }
 
   if (existsSync(srcMap)) {
     copyFileSync(srcMap, join(dest, 'main.js.map'));
@@ -112,7 +139,7 @@ function syncToCdn(element) {
 
   const now = new Date().toLocaleTimeString();
   console.log(`  ✓ ${element} → CDN  [${now}]`);
-  if (liveReload) liveReload.notify();
+  if (liveReload) liveReload.touch();
   return true;
 }
 
@@ -247,16 +274,52 @@ function startWatchBuild() {
 
 const watchProcs = [];
 
-// ── Phase 5 (optional): LiveReload server ───────────────────────────────────
+// ── Phase 4b: Watch libs + vitals → touch entry files to trigger esbuild ───
 
-/** @type {{ notify: () => void, close: () => void } | null} */
+function startLibWatcher() {
+  const libDirs = [
+    resolve(NG_DIR, 'libs'),
+    resolve(ROOT, 'vitals'),
+  ].filter((d) => existsSync(d));
+
+  if (!libDirs.length || !entryFiles.size) return [];
+
+  const watchers = [];
+  let debounce = null;
+
+  for (const dir of libDirs) {
+    const watcher = fsWatch(dir, { recursive: true }, (_eventType, filename) => {
+      if (!filename) return;
+      if (!/\.(ts|html|scss|css)$/.test(filename)) return;
+
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        console.log(`  🔄 Lib change: ${filename}`);
+        const now = new Date();
+        for (const [, entryFile] of entryFiles) {
+          if (existsSync(entryFile)) {
+            utimesSync(entryFile, now, now);
+          }
+        }
+      }, 200);
+    });
+    watchers.push(watcher);
+  }
+
+  console.log(`  👁 Watching libs + vitals for dependency changes`);
+  return watchers;
+}
+
+// ── Phase 5 (optional): LiveReload via CDN polling ─────────────────────────
+
+/** @type {{ touch: () => void, clean: () => void } | null} */
 let liveReload = null;
 
 function initLiveReload() {
   if (!LIVERELOAD) return;
-  liveReload = startLiveReload();
-  console.log(`\n  Inject this snippet in your CMS page for auto-reload:\n`);
-  console.log(`  ${LIVERELOAD_SNIPPET.replace(/\n/g, '\n  ')}\n`);
+  liveReload = createDevSignal(CDN_SYNERGOS);
+  liveReload.touch();
+  console.log(`  📡 LiveReload via CDN polling (__dev.json) — auto-injected into bundles\n`);
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -273,6 +336,7 @@ async function main() {
     console.log(`  📦 ${short} → ${nx}`);
   }
 
+  await resolveEntryFiles();
   await verifyRuntime();
   await initialBuild();
 
@@ -281,23 +345,20 @@ async function main() {
 
   initLiveReload();
   const watchers = startDistWatcher();
+  const libWatchers = startLibWatcher();
   startWatchBuild();
 
   // Cleanup on exit
-  process.on('SIGINT', () => {
+  const cleanup = () => {
     console.log('\n  🛑 Stopping dev-cdn...');
     for (const p of watchProcs) p.kill();
     for (const [, w] of watchers) w.close();
-    if (liveReload) liveReload.close();
+    for (const w of libWatchers) w.close();
+    if (liveReload) liveReload.clean();
     process.exit(0);
-  });
-
-  process.on('SIGTERM', () => {
-    for (const p of watchProcs) p.kill();
-    for (const [, w] of watchers) w.close();
-    if (liveReload) liveReload.close();
-    process.exit(0);
-  });
+  };
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 }
 
 try {
