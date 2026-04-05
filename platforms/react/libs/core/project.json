@@ -1,19 +1,12 @@
 {
   "name": "react-core",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "platforms/react/libs/core/src",
   "projectType": "library",
   "tags": ["scope:core", "type:lib", "framework:react"],
   "targets": {
     "test": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "npx vitest run --config vitest.config.ts",
-        "cwd": "platforms/react"
-      }
+      "options": { "cwd": "platforms/react" }
     },
     "lint": {
-      "executor": "nx:run-commands",
       "options": {
         "command": "npx eslint libs/core/src/",
         "cwd": "platforms/react"

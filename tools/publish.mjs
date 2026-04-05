@@ -69,6 +69,25 @@ if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework:  ${FRAMEWORK_FILTE
 if (CLEAN) console.log(`${LOG_PREFIX}   Clean:      enabled`);
 console.log('');
 
+// ── Runtime validation gate ──────────────────────────────────────────────────
+// Angular elements require the shared runtime (import-map.json) to be published
+// first. Warn early if it's missing to avoid broken CDN deployments.
+
+if (!DRY_RUN) {
+  const runtimeLatest = resolve(CDN_SYNERGOS, 'runtime', 'angular', 'latest', 'import-map.json');
+  const runtimeGlob   = resolve(CDN_SYNERGOS, 'runtime', 'angular');
+  const hasLatest     = existsSync(runtimeLatest);
+  const hasAnyRuntime = existsSync(runtimeGlob);
+
+  if (!hasLatest && !hasAnyRuntime) {
+    console.warn(`${LOG_PREFIX}   ⚠ Angular runtime NOT found in CDN.`);
+    console.warn(`${LOG_PREFIX}     Run first: node tools/build-runtime.mjs && node tools/publish-runtime.mjs`);
+    console.warn(`${LOG_PREFIX}     Angular elements will NOT work without the shared runtime.\n`);
+  } else if (!hasLatest) {
+    console.warn(`${LOG_PREFIX}   ⚠ Runtime exists but 'latest' slot is missing. Consider re-publishing runtime.\n`);
+  }
+}
+
 const published = [];
 const skipped = [];
 

@@ -7,20 +7,45 @@
     "production": [
       "default",
       "!{projectRoot}/**/*.spec.ts",
+      "!{projectRoot}/**/*.test.ts",
       "!{projectRoot}/.eslintrc.json",
       "!{projectRoot}/eslint.config.mjs"
+    ],
+    "vitals": [
+      "{workspaceRoot}/vitals/contracts/src/**/*",
+      "{workspaceRoot}/vitals/core/src/**/*",
+      "{workspaceRoot}/vitals/core-assets/src/**/*",
+      "{workspaceRoot}/vitals/shared/src/**/*"
     ]
   },
   "targetDefaults": {
     "build": {
+      "executor": "nx:run-commands",
       "dependsOn": ["^build"],
-      "cache": true
+      "cache": true,
+      "inputs": ["production", "^production", "vitals"],
+      "options": {
+        "command": "npx vite build"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx vite build --watch"
+      }
     },
     "test": {
-      "cache": true
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^production", "vitals"],
+      "options": {
+        "command": "npx vitest run --config vitest.config.ts"
+      }
     },
     "lint": {
-      "cache": true
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default"]
     }
   }
 }

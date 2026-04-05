@@ -22,10 +22,10 @@
  *   node tools/build-runtime.mjs --version=21.1.6   (override version folder name)
  */
 
-import { mkdir, stat, readFile, writeFile } from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
+import { mkdir, stat, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -61,26 +61,13 @@ function defaultBase(ngVersion) {
   return `__BASE_URL__/runtime/angular/${ngVersion}`;
 }
 
-// ── Angular externals ───────────────────────────────────────────────────────
+// ── Angular externals (read from Angular nx.json — single source of truth) ──
 
-const ALL_ANGULAR_EXTERNALS = [
-  '@angular/core',
-  '@angular/compiler',
-  '@angular/common',
-  '@angular/common/http',
-  '@angular/elements',
-  '@angular/forms',
-  '@angular/platform-browser',
-  '@angular/router',
-  'rxjs',
-  'rxjs/operators',
-];
-
-const ALL_SG_EXTERNALS = [
-  ...ALL_ANGULAR_EXTERNALS,
-  '@synergos/core',
-  '@synergos/shared',
-];
+const NG_NX_JSON = JSON.parse(await readFile(path.join(NG_DIR, 'nx.json'), 'utf8'));
+const ALL_SG_EXTERNALS = NG_NX_JSON
+  .targetDefaults['@angular/build:application']
+  .configurations.production.externalDependencies;
+const ALL_ANGULAR_EXTERNALS = ALL_SG_EXTERNALS.filter(e => !e.startsWith('@synergos/'));
 
 // ── esbuild shared options ──────────────────────────────────────────────────
 
@@ -131,8 +118,8 @@ async function buildModule(label, entryPoints, external, outFile, dir, opts = {}
 }
 
 async function gzipSize(filePath) {
-  const { createGzip } = await import('zlib');
-  const { createReadStream } = await import('fs');
+  const { createGzip } = await import('node:zlib');
+  const { createReadStream } = await import('node:fs');
   return new Promise((resolve) => {
     let bytes = 0;
     const gz = createGzip({ level: 9 });
@@ -239,7 +226,9 @@ async function main() {
 `);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error('\n[build-runtime]', err.message);
   process.exit(1);
-});
+}

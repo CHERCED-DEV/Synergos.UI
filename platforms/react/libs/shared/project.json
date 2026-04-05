@@ -1,19 +1,12 @@
 {
   "name": "react-shared",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "platforms/react/libs/shared/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:lib", "framework:react"],
   "targets": {
     "test": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "npx vitest run --config vitest.config.ts",
-        "cwd": "platforms/react"
-      }
+      "options": { "cwd": "platforms/react" }
     },
     "lint": {
-      "executor": "nx:run-commands",
       "options": {
         "command": "npx eslint libs/shared/src/",
         "cwd": "platforms/react"

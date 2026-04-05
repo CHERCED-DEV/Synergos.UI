@@ -1,12 +1,9 @@
 {
   "name": "vanilla-shared",
-  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "platforms/vanilla/libs/shared/src",
   "projectType": "library",
   "tags": ["scope:shared", "type:lib", "framework:vanilla"],
   "targets": {
     "lint": {
-      "executor": "nx:run-commands",
       "options": {
         "command": "npx eslint libs/shared/src/",
         "cwd": "platforms/vanilla"
