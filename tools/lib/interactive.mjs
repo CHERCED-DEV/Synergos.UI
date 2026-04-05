@@ -112,6 +112,19 @@ export async function selectElements(framework) {
     return [elements[0].element];
   }
 
+  // Ask: all or pick?
+  const mode = await select({
+    message: `📦 Elements (${elements.length} available):`,
+    choices: [
+      { name: `🔥 ALL (${elements.length} elements)`, value: 'all' },
+      { name: '🎯 Pick specific elements', value: 'pick' },
+    ],
+  });
+
+  if (mode === 'all') {
+    return elements.map((p) => p.element);
+  }
+
   // Group by tier for visual clarity
   const choices = elements.map((p) => ({
     name: elementLabel(p),
@@ -120,7 +133,7 @@ export async function selectElements(framework) {
   }));
 
   const selected = await checkbox({
-    message: `📦 Select elements (${elements.length} available):`,
+    message: `Select elements:`,
     choices,
     required: true,
   });
