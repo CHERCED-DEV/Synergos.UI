@@ -22,40 +22,25 @@
  *   node tools/manifest-gen.mjs --validate               # exit 1 if any element has empty inputs
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { resolve, dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
-// ── Paths ─────────────────────────────────────────────────────────────────────
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REGISTRY_JSON  = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
-const INPUTS_JSON    = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
-const PACKAGE_JSON   = resolve(ROOT, 'package.json');
-
-const ALL_FRAMEWORKS = ['angular', 'react', 'svelte', 'vanilla'];
+import { ROOT, ALL_FRAMEWORKS, loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
+import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
+import { buildManifest } from './lib/manifest-builder.mjs';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-
-function getArg(flag, fallback) {
-  const idx = args.indexOf(flag);
-  return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
-}
-
-const ELEMENT_FILTER    = getArg('--element', null);
-const FRAMEWORK_FILTER  = getArg('--framework', null);
-const OUT_DIR           = resolve(ROOT, getArg('--out', 'dist/manifests'));
-const pkgVersion        = JSON.parse(readFileSync(PACKAGE_JSON, 'utf-8')).version;
-const VERSION           = getArg('--version', pkgVersion);
-const DRY_RUN           = args.includes('--dry-run');
-const VALIDATE          = args.includes('--validate');
+const ELEMENT_FILTER    = getArg('element');
+const FRAMEWORK_FILTER  = getArg('framework');
+const OUT_DIR           = resolve(ROOT, getArg('out', 'dist/manifests'));
+const VERSION           = getArg('version', readPackageVersion());
+const VALIDATE          = process.argv.includes('--validate');
 
 // ── Load data ────────────────────────────────────────────────────────────────
 
-const registry   = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
-const inputsData = JSON.parse(readFileSync(INPUTS_JSON,   'utf-8'));
+const registry   = loadRegistry();
+const inputsData = loadInputs();
 
 // ── Filter ───────────────────────────────────────────────────────────────────
 
@@ -74,15 +59,14 @@ if (FRAMEWORK_FILTER && !ALL_FRAMEWORKS.includes(FRAMEWORK_FILTER)) {
 
 // ── Generate ─────────────────────────────────────────────────────────────────
 
-const prefix = DRY_RUN ? '[DRY RUN] ' : '';
 const generated = [];
 const warnings  = [];
 
-console.log(`\n${prefix}📄 Synergos Manifest Generator`);
-console.log(`${prefix}   Version:  ${VERSION}`);
-if (!DRY_RUN) console.log(`${prefix}   Out dir:  ${OUT_DIR}`);
-if (ELEMENT_FILTER)   console.log(`${prefix}   Element:  ${ELEMENT_FILTER}`);
-if (FRAMEWORK_FILTER) console.log(`${prefix}   Framework: ${FRAMEWORK_FILTER}`);
+console.log(`\n${LOG_PREFIX}📄 Synergos Manifest Generator`);
+console.log(`${LOG_PREFIX}   Version:  ${VERSION}`);
+if (!DRY_RUN) console.log(`${LOG_PREFIX}   Out dir:  ${OUT_DIR}`);
+if (ELEMENT_FILTER)   console.log(`${LOG_PREFIX}   Element:  ${ELEMENT_FILTER}`);
+if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework: ${FRAMEWORK_FILTER}`);
 console.log('');
 
 for (const entry of elements) {
@@ -93,18 +77,10 @@ for (const entry of elements) {
   }
 
   for (const framework of frameworks) {
-    const manifest = {
-      tag:         entry.tag,
-      alias:       entry.alias,
-      framework,
-      version:     VERSION,
-      tier:        entry.tier,
-      entryScript: 'main.js',
-      inputs,
-    };
+    const manifest = buildManifest(entry, framework, VERSION, inputs);
 
     if (DRY_RUN) {
-      console.log(`${prefix}   ${entry.name} [${framework}]:`);
+      console.log(`${LOG_PREFIX}   ${entry.name} [${framework}]:`);
       console.log(JSON.stringify(manifest, null, 2));
       console.log('');
     } else {
@@ -120,15 +96,15 @@ for (const entry of elements) {
 // ── Summary ───────────────────────────────────────────────────────────────────
 
 if (!DRY_RUN) {
-  console.log(`${prefix}   ✅ Generated: ${generated.length} manifests → ${OUT_DIR}`);
+  console.log(`${LOG_PREFIX}   ✅ Generated: ${generated.length} manifests → ${OUT_DIR}`);
 }
 
 if (warnings.length > 0) {
-  console.log(`\n${prefix}   ⚠️  Elements with no declared inputs (${warnings.length}):`);
+  console.log(`\n${LOG_PREFIX}   ⚠️  Elements with no declared inputs (${warnings.length}):`);
   for (const name of warnings) {
-    console.log(`${prefix}      - ${name}`);
+    console.log(`${LOG_PREFIX}      - ${name}`);
   }
-  console.log(`\n${prefix}   Add inputs to vitals/contracts/src/element-inputs.json to resolve warnings.\n`);
+  console.log(`\n${LOG_PREFIX}   Add inputs to vitals/contracts/src/element-inputs.json to resolve warnings.\n`);
 }
 
 if (VALIDATE && warnings.length > 0) {

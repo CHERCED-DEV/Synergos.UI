@@ -135,7 +135,7 @@ interface QuizFlowProps {
   config?: string;
 }
 
-export function QuizFlow({ config = '' }: QuizFlowProps) {
+export function QuizFlow({ config = '' }: Readonly<QuizFlowProps>) {
   const logger = useLogger('quiz-flow');
   let parsed: Partial<QuizConfig> = {};
   try {
@@ -176,7 +176,7 @@ export function QuizFlow({ config = '' }: QuizFlowProps) {
             <p className="sg-quiz-flow__text">{current.text}</p>
             <ul className="sg-quiz-flow__options">
               {current.options.map((opt, i) => (
-                <li key={i}>
+                <li key={opt}>
                   <button
                     className="sg-quiz-flow__option"
                     onClick={() => answer(i)}

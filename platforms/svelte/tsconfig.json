@@ -1,12 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
-      "@synergos/core": ["libs/core/src/index.ts"],
-      "@synergos/shared": ["libs/shared/src/index.ts"],
-      "@synergos/core-assets": ["libs/core-assets/src/index.ts"]
+      "@synergos/core": ["./libs/core/src/index.ts"],
+      "@synergos/shared": ["./libs/shared/src/index.ts"],
+      "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"]
     }
   },
   "compileOnSave": false,

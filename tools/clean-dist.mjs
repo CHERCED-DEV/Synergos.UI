@@ -10,43 +10,13 @@
  *   node tools/clean-dist.mjs
  */
 
-import { readFileSync, rmSync, existsSync } from 'fs';
-import { resolve, dirname, join } from 'path';
+import { rmSync, existsSync } from 'node:fs';
 
-// ── Paths ────────────────────────────────────────────────────────────────────
-
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')), '..');
-const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
-
-// Platform dist configurations: where each framework stores element builds
-const PLATFORMS = [
-  {
-    name: 'angular',
-    // Angular element dist: platforms/angular/dist/<element>/
-    // NOTE: platforms/angular/dist/libs/ is PRESERVED — only element dirs are removed
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/angular/dist', elementName),
-  },
-  {
-    name: 'react',
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/react/dist', elementName),
-  },
-  {
-    name: 'svelte',
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/svelte/dist', elementName),
-  },
-  {
-    name: 'vanilla',
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/vanilla/dist', elementName),
-  },
-];
+import { PLATFORMS, loadRegistry } from './lib/synergos-config.mjs';
 
 // ── Load element registry ────────────────────────────────────────────────────
 
-const registry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
+const registry = loadRegistry();
 
 // ── Clean ────────────────────────────────────────────────────────────────────
 

@@ -1,18 +1,17 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "emitDecoratorMetadata": false,
     "resolveJsonModule": true,
     "noPropertyAccessFromIndexSignature": true,
     "paths": {
       "@synergos/contracts": ["../../vitals/contracts/src/index.ts"],
-      "@synergos/core": ["libs/core/src/index.ts"],
+      "@synergos/core": ["./libs/core/src/index.ts"],
       "@synergos/vitals-core": ["../../vitals/core/src/index.ts"],
-      "@synergos/shared": ["libs/shared/src/index.ts"],
+      "@synergos/shared": ["./libs/shared/src/index.ts"],
       "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"],
-      "@synergos/rendering": ["libs/rendering/src/index.ts"],
-      "@synergos/integrations": ["libs/integrations/src/index.ts"]
+      "@synergos/rendering": ["./libs/rendering/src/index.ts"],
+      "@synergos/integrations": ["./libs/integrations/src/index.ts"]
     }
   },
   "angularCompilerOptions": {

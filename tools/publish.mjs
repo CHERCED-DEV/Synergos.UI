@@ -9,6 +9,7 @@
  * CDN structure:
  *   synergos/<element>/<framework>/latest/main.js
  *   synergos/<element>/<framework>/latest/manifest.json
+ *   synergos/<element>/<framework>/latest/meta.json
  *   synergos/registry.json  ← global index
  *
  * Usage:
@@ -20,71 +21,34 @@
  *   node tools/publish.mjs --clean                   # clean element dists after publish
  */
 
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from 'fs';
-import { resolve, dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, statSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { execSync } from 'node:child_process';
 
-// ── Paths ────────────────────────────────────────────────────────────────────
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
-const INPUTS_JSON   = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
-
-// Framework dist configurations: where each framework puts its built bundles
-const PLATFORMS = [
-  {
-    name: 'angular',
-    distDir: resolve(ROOT, 'platforms/angular/dist'),
-    // Angular puts bundles at dist/<element>/browser/main.js
-    bundlePath: (elementName) => join('angular', 'dist', elementName, 'browser', 'main.js'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/angular/dist', elementName, 'browser', 'main.js'),
-  },
-  {
-    name: 'react',
-    distDir: resolve(ROOT, 'platforms/react/dist'),
-    // React puts bundles at dist/<element>/main.js
-    bundlePath: (elementName) => join('react', 'dist', elementName, 'main.js'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/react/dist', elementName, 'main.js'),
-  },
-  {
-    name: 'svelte',
-    distDir: resolve(ROOT, 'platforms/svelte/dist'),
-    bundlePath: (elementName) => join('svelte', 'dist', elementName, 'main.js'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/svelte/dist', elementName, 'main.js'),
-  },
-  {
-    name: 'vanilla',
-    distDir: resolve(ROOT, 'platforms/vanilla/dist'),
-    bundlePath: (elementName) => join('vanilla', 'dist', elementName, 'main.js'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/vanilla/dist', elementName, 'main.js'),
-  },
-];
+import {
+  ROOT, PLATFORMS, loadRegistry, loadInputs, readPackageVersion, resolveCdnRoot,
+} from './lib/synergos-config.mjs';
+import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
+import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-function getArg(flag, fallback) {
-  const idx = args.indexOf(flag);
-  return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
-}
-
-const CDN_ROOT = resolve(getArg('--cdn', process.env.SYNERGOS_CDN || 'C:\\LOCAL_CDN'));
+const CDN_ROOT = resolveCdnRoot(getArg('cdn'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
-const pkgVersion = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')).version;
-const VERSION = getArg('--version', pkgVersion);
-const DRY_RUN = args.includes('--dry-run');
-const CLEAN = args.includes('--clean');
-const ELEMENT_FILTER   = getArg('--element', null);
-const FRAMEWORK_FILTER = getArg('--framework', null);
+const VERSION = getArg('version', readPackageVersion());
+const CLEAN = process.argv.includes('--clean');
+const ELEMENT_FILTER   = getArg('element');
+const FRAMEWORK_FILTER = getArg('framework');
+
+// ── Git commit SHA (best-effort) ─────────────────────────────────────────────
+
+let GIT_SHA = '';
+try { GIT_SHA = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { /* ignore */ }
 
 // ── Load element registry ────────────────────────────────────────────────────
 
-let registry    = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
-const inputsData  = JSON.parse(readFileSync(INPUTS_JSON,   'utf-8'));
+let registry   = loadRegistry();
+const inputsData = loadInputs();
 
 if (ELEMENT_FILTER) {
   const filtered = registry.filter((e) => e.name === ELEMENT_FILTER);
@@ -97,14 +61,12 @@ if (ELEMENT_FILTER) {
 
 // ── Discover and publish ─────────────────────────────────────────────────────
 
-const prefix = DRY_RUN ? '[DRY RUN] ' : '';
-
-console.log(`\n${prefix}📦 Synergos CDN Publish (multi-framework)`);
-console.log(`${prefix}   CDN target: ${CDN_SYNERGOS}`);
-console.log(`${prefix}   Version:    ${VERSION}`);
-if (ELEMENT_FILTER)   console.log(`${prefix}   Element:    ${ELEMENT_FILTER}`);
-if (FRAMEWORK_FILTER) console.log(`${prefix}   Framework:  ${FRAMEWORK_FILTER}`);
-if (CLEAN) console.log(`${prefix}   Clean:      enabled`);
+console.log(`\n${LOG_PREFIX}📦 Synergos CDN Publish (multi-framework)`);
+console.log(`${LOG_PREFIX}   CDN target: ${CDN_SYNERGOS}`);
+console.log(`${LOG_PREFIX}   Version:    ${VERSION}`);
+if (ELEMENT_FILTER)   console.log(`${LOG_PREFIX}   Element:    ${ELEMENT_FILTER}`);
+if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework:  ${FRAMEWORK_FILTER}`);
+if (CLEAN) console.log(`${LOG_PREFIX}   Clean:      enabled`);
 console.log('');
 
 const published = [];
@@ -123,38 +85,40 @@ for (const entry of registry) {
     // CDN path: synergos/<element>/<framework>/latest/
     const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
 
-    const manifest = {
-      tag:         entry.tag,
-      alias:       entry.alias,
-      framework:   platform.name,
-      version:     VERSION,
-      tier:        entry.tier,
-      entryScript: 'main.js',
-      inputs:      inputsData[entry.name] ?? [],
+    const manifest = buildManifest(entry, platform.name, VERSION, inputsData[entry.name] ?? []);
+
+    // Build metadata — traces every published bundle to its source
+    const bundleSize = statSync(bundlePath).size;
+    const meta = {
+      element:   entry.name,
+      framework: platform.name,
+      version:   VERSION,
+      commit:    GIT_SHA,
+      builtAt:   new Date().toISOString(),
+      bundleSize,
     };
 
     const majorAlias   = `v${VERSION.split('.')[0]}`;
 
     if (DRY_RUN) {
-      console.log(`${prefix}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} / ${majorAlias})`);
+      console.log(`${LOG_PREFIX}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} / ${majorAlias})`);
     } else {
-      // Publish to exact semver slot (immutable — never overwrite once published)
-      const versionedDir = join(CDN_SYNERGOS, entry.name, platform.name, VERSION);
-      mkdirSync(versionedDir, { recursive: true });
-      copyFileSync(bundlePath, join(versionedDir, 'main.js'));
-      writeFileSync(join(versionedDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+      // Helper: write bundle + manifest + meta to a CDN slot directory
+      function publishSlot(dir) {
+        mkdirSync(dir, { recursive: true });
+        copyFileSync(bundlePath, join(dir, 'main.js'));
+        writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+        writeFileSync(join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
+      }
 
-      // Publish to major-pinned slot (updated each patch within the major)
-      // Production consumers should pin to v{major} for stability
-      const majorDir = join(CDN_SYNERGOS, entry.name, platform.name, majorAlias);
-      mkdirSync(majorDir, { recursive: true });
-      copyFileSync(bundlePath, join(majorDir, 'main.js'));
-      writeFileSync(join(majorDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+      // Exact semver slot (immutable — never overwrite once published)
+      publishSlot(join(CDN_SYNERGOS, entry.name, platform.name, VERSION));
 
-      // Overwrite latest/ slot (always the newest release — use in staging/dev)
-      mkdirSync(targetDir, { recursive: true });
-      copyFileSync(bundlePath, join(targetDir, 'main.js'));
-      writeFileSync(join(targetDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+      // Major-pinned slot (updated each patch within the major)
+      publishSlot(join(CDN_SYNERGOS, entry.name, platform.name, majorAlias));
+
+      // Latest slot (always the newest release — use in staging/dev)
+      publishSlot(targetDir);
 
       console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} | ${majorAlias} | latest)`);
     }
@@ -198,7 +162,7 @@ if (published.length > 0) {
   };
 
   if (DRY_RUN) {
-    console.log(`\n${prefix}   📋 registry.json → ${byElement.size} elements, ${published.length} bundles`);
+    console.log(`\n${LOG_PREFIX}   📋 registry.json → ${byElement.size} elements, ${published.length} bundles`);
   } else {
     mkdirSync(CDN_SYNERGOS, { recursive: true });
     writeFileSync(
@@ -212,32 +176,11 @@ if (published.length > 0) {
   // CMS fetches this from CDN in its own CI pipeline to validate resolver outputs.
   // Neither project needs to run in the same pod or tenant.
 
-  const fullRegistry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
-  const contracts = {
-    generated: new Date().toISOString(),
-    version:   VERSION,
-    $schema:   'synergos-contracts/v1',
-    elements:  fullRegistry.map(entry => {
-      const inputs = (inputsData[entry.name] ?? []).filter(i => !String(i.name).startsWith('_'));
-      return {
-        name:         entry.name,
-        alias:        entry.alias,
-        tag:          entry.tag,
-        tier:         entry.tier,
-        configFields: inputs.map(({ name, type, required = false, default: def, description }) => ({
-          name,
-          type,
-          required,
-          ...(def !== undefined ? { default: def } : {}),
-          ...(description       ? { description }  : {}),
-        })),
-        jsonFields: inputs.filter(i => i.type === 'json').map(i => i.name),
-      };
-    }),
-  };
+  const fullRegistry = loadRegistry();
+  const contracts = buildContracts(fullRegistry, inputsData, VERSION);
 
   if (DRY_RUN) {
-    console.log(`${prefix}   📋 contracts.json → ${fullRegistry.length} element contracts (CMS CI)`);
+    console.log(`${LOG_PREFIX}   📋 contracts.json → ${fullRegistry.length} element contracts (CMS CI)`);
   } else {
     writeFileSync(
       join(CDN_SYNERGOS, 'contracts.json'),
@@ -249,22 +192,22 @@ if (published.length > 0) {
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 
-console.log(`\n${prefix}   Published: ${published.length} bundles`);
+console.log(`\n${LOG_PREFIX}   Published: ${published.length} bundles`);
 if (skipped.length > 0) {
-  console.log(`${prefix}   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
+  console.log(`${LOG_PREFIX}   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
 }
 console.log('');
 
 // ── Clean element dists (--clean) ───────────────────────────────────────────
 
 if (CLEAN) {
-  console.log(`${prefix}🧹 Cleaning element dist directories...\n`);
+  console.log(`${LOG_PREFIX}🧹 Cleaning element dist directories...\n`);
 
   // Reload full registry for cleaning (in case --element filtered it)
-  const fullRegistry = JSON.parse(readFileSync(REGISTRY_JSON, 'utf-8'));
+  const fullReg = loadRegistry();
   let cleanRemoved = 0;
 
-  for (const entry of fullRegistry) {
+  for (const entry of fullReg) {
     for (const platform of PLATFORMS) {
       // For Angular, only remove element dists — preserve libs dist
       const distDir = resolve(ROOT, `platforms/${platform.name}/dist`, entry.name);
@@ -272,7 +215,7 @@ if (CLEAN) {
       if (!existsSync(distDir)) continue;
 
       if (DRY_RUN) {
-        console.log(`${prefix}   🗑️  ${entry.name} [${platform.name}] → would remove`);
+        console.log(`${LOG_PREFIX}   🗑️  ${entry.name} [${platform.name}] → would remove`);
       } else {
         rmSync(distDir, { recursive: true, force: true });
         console.log(`   🗑️  ${entry.name} [${platform.name}] → removed`);
@@ -281,6 +224,6 @@ if (CLEAN) {
     }
   }
 
-  console.log(`\n${prefix}   Cleaned: ${cleanRemoved} dist directories`);
+  console.log(`\n${LOG_PREFIX}   Cleaned: ${cleanRemoved} dist directories`);
   console.log('');
 }

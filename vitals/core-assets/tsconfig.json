@@ -1,8 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "declaration": true,
+    "rootDir": "./src",
     "outDir": "../dist/core-assets"
   },
   "include": ["src/**/*.ts"],

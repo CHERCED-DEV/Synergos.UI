@@ -24,17 +24,17 @@
  *   - The "cdn-dev" configuration must exist in nx.json (externals + sourcemaps)
  */
 
-import { existsSync, copyFileSync, mkdirSync, watch as fsWatch } from 'fs';
-import { resolve, join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { existsSync, copyFileSync, mkdirSync, watch as fsWatch } from 'node:fs';
+import { resolve, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawn } from 'node:child_process';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const NG_DIR = resolve(ROOT, 'platforms/angular');
-const CDN_ROOT = resolve(process.env.SYNERGOS_CDN || 'C:\\LOCAL_CDN');
+const CDN_ROOT = resolve(process.env.SYNERGOS_CDN || String.raw`C:\LOCAL_CDN`);
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
 const NX_BIN = resolve(NG_DIR, 'node_modules/.bin/nx');
 
@@ -289,7 +289,9 @@ async function main() {
   });
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error('\n[dev-cdn]', err.message);
   process.exit(1);
-});
+}

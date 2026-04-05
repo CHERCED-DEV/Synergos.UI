@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync } from 'fs';
-import { dirname, resolve } from 'path';
-import { fileURLToPath } from 'url';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
