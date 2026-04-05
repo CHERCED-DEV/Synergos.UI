@@ -25,11 +25,15 @@
     :last-child  { margin-bottom: 0; }
   }
 
+  // Mobile-first: stack vertically, side-by-side from md upward (2fr / 1fr)
   &__layout {
-    display:               grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-    gap:                   syn.$space-lg;
-    align-items:           start;
+    display: grid;
+    gap:     syn.$space-lg;
+
+    @include syn.respond-to(md) {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      align-items:           start;
+    }
   }
 
   &__carousel { display: block; }
@@ -65,6 +69,3 @@
   }
 }
 
-@media (max-width: 768px) {
-  .banner-slider__layout { grid-template-columns: 1fr; }
-}

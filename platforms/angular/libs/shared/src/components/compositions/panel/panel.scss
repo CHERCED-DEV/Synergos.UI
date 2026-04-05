@@ -73,6 +73,9 @@
 
 .syn-panel__description {
   font-size:   syn.$font-size-sm;
+  // Inherit the tone color but soften it slightly via opacity.
+  // 0.85 is intentional — it softens description relative to title
+  // without losing semantic color inheritance from the panel tone.
   color:       inherit;
   opacity:     0.85;
   line-height: syn.$line-height-normal;
@@ -102,6 +105,6 @@
 
   &:hover {
     opacity:    1;
-    background: rgb(0 0 0 / 0.06);
+    background: syn.$color-overlay-subtle;
   }
 }

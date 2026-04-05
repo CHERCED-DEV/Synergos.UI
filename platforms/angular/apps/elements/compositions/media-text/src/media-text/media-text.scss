@@ -4,15 +4,24 @@
   display: block;
 }
 
+// ─── Media Text ───────────────────────────────────────────────────────────────
+// Mobile-first: stacks vertically below md, side-by-side from md upward.
+// --right variant swaps column order on desktop only (order has no effect at 1-col).
 .media-text {
-  display:               grid;
-  grid-template-columns: 1fr 1fr;
-  gap:                   syn.$space-xl;
-  align-items:           center;
+  display: grid;
+  gap:     syn.$space-lg;
+
+  @include syn.respond-to(md) {
+    grid-template-columns: 1fr 1fr;
+    gap:         syn.$space-xl;
+    align-items: center;
+  }
 
   &--right {
-    .media-text__media   { order: 2; }
-    .media-text__content { order: 1; }
+    @include syn.respond-to(md) {
+      .media-text__media   { order: 2; }
+      .media-text__content { order: 1; }
+    }
   }
 
   &--dark .media-text__body { color: syn.$color-neutral-300; }

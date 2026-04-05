@@ -5,26 +5,54 @@
   font-family: inherit;
 }
 
+// ─── Section ──────────────────────────────────────────────────────────────────
+// Vertical rhythm scales progressively with viewport width.
+// Horizontal containment uses layout tokens for consistent max-widths.
+// Mobile-first: minimal padding grows as screen expands.
 .section {
-  padding: syn.$space-xl 0;
+  // Mobile: 32px top/bottom
+  padding-block: syn.$section-pad-y-sm;
+  // Mobile: horizontal padding prevents edge-to-edge content
+  padding-inline: syn.$container-pad-x-sm;
 
-  &--contained {
-    max-width: syn.px-to-rem(1200);
-    margin-inline: auto;
-    padding-inline: syn.$space-lg;
+  @include syn.respond-to(md) {
+    padding-block:  syn.$section-pad-y-md;   // 48px
+    padding-inline: syn.$container-pad-x-md; // 24px
   }
 
+  @include syn.respond-to(lg) {
+    padding-block:  syn.$section-pad-y-lg;   // 64px
+    padding-inline: syn.$container-pad-x-lg; // 32px
+  }
+
+  @include syn.respond-to(xl) {
+    padding-block: syn.$section-pad-y-xl;    // 80px
+  }
+
+  // --contained: max-width constrained, horizontally centered.
+  // Padding-inline is already handled above; remove double padding on wide screens.
+  &--contained {
+    max-width:     syn.$max-width-content;
+    margin-inline: auto;
+  }
+
+  // --fluid: full-width, no max-width constraint.
+  // Horizontal padding still applies from the mobile-first rules above.
   &--fluid {
-    padding-inline: syn.$space-lg;
+    max-width: none;
   }
 
   &--dark {
     background-color: syn.$color-neutral-900;
-    color: syn.$color-neutral-0;
+    color:            syn.$color-neutral-0;
   }
 
   &__header {
     margin-bottom: syn.$space-lg;
+
+    @include syn.respond-to(md) {
+      margin-bottom: syn.$space-xl;
+    }
   }
 
   &__heading {
@@ -32,7 +60,7 @@
   }
 
   &__body {
-    display: flex;
+    display:   flex;
     flex-wrap: wrap;
   }
 }

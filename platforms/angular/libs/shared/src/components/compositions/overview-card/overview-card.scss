@@ -23,8 +23,14 @@
 }
 
 .syn-overview-card--split {
-  grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), syn.px-to-rem(280));
+  // Mobile: single column
+  grid-template-columns: 1fr;
   align-items:           start;
+
+  // From md: main content + constrained aside
+  @include syn.respond-to(md) {
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), syn.px-to-rem(280));
+  }
 }
 
 .syn-overview-card--stacked {

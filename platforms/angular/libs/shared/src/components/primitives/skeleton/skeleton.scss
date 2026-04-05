@@ -19,7 +19,7 @@
     syn.$color-neutral-100 100%
   );
   background-size: 200% 100%;
-  animation: syn-skeleton-shimmer 1.4s ease-in-out infinite;
+  animation: syn-skeleton-shimmer syn.$duration-shimmer ease-in-out infinite;
 }
 
 .syn-skeleton--sm .syn-skeleton__item { border-radius: syn.$radius-sm; }

@@ -1,0 +1,40 @@
+// ─── Layout Tokens ────────────────────────────────────────────────────────────
+// Governs container widths, section spacing, and horizontal padding.
+// Never hardcode these values in components — reference these tokens.
+//
+// Content widths:
+//   content  → 1200px — Standard wide page sections (grids, feature blocks)
+//   reading  → 800px  — Long-form content, article sidebars
+//   article  → 680px  — Optimal prose reading line length
+//   hero     → 720px  — Centered hero text blocks
+//
+// Container padding evolves with viewport:
+//   sm viewport  → $space-md  (16px) — minimal breathing room
+//   md viewport  → $space-lg  (24px) — comfortable inset
+//   lg viewport  → $space-xl  (32px) — generous inset
+//
+// Section vertical rhythm scales with viewport:
+//   mobile   → $space-xl  (32px)  — compact
+//   tablet   → $space-12  (48px)  — breathing
+//   desktop  → $space-16  (64px)  — editorial
+//   wide     → $space-20  (80px)  — premium
+
+@use '../functions/px-to-rem' as *;
+@use 'spacing' as *;
+
+// ── Content width constraints ─────────────────────────────────────────────────
+$max-width-content:  px-to-rem(1200);  // Wide page sections, grids
+$max-width-reading:  px-to-rem(800);   // Long-form content, sidebars
+$max-width-article:  px-to-rem(680);   // Prose body, optimal line length
+$max-width-hero:     px-to-rem(720);   // Hero text block
+
+// ── Container horizontal padding ─────────────────────────────────────────────
+$container-pad-x-sm: $space-md;   // 16px — mobile
+$container-pad-x-md: $space-lg;   // 24px — tablet
+$container-pad-x-lg: $space-xl;   // 32px — desktop
+
+// ── Section vertical rhythm ───────────────────────────────────────────────────
+$section-pad-y-sm:  $space-xl;    // 32px — mobile sections
+$section-pad-y-md:  $space-12;    // 48px — tablet sections
+$section-pad-y-lg:  $space-16;    // 64px — desktop sections
+$section-pad-y-xl:  $space-20;    // 80px — wide desktop sections

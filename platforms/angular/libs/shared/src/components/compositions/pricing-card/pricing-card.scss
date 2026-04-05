@@ -63,11 +63,11 @@
 }
 
 .syn-pricing-card__amount {
-  color:       syn.$color-neutral-900;
-  font-size:   syn.$font-size-4xl;
-  font-weight: syn.$font-weight-bold;
-  line-height: 1;
-  letter-spacing: -0.02em;
+  color:          syn.$color-neutral-900;
+  font-size:      syn.$font-size-4xl;
+  font-weight:    syn.$font-weight-bold;
+  line-height:    1;
+  letter-spacing: syn.$letter-spacing-display;
 }
 
 .syn-pricing-card__unavailable {

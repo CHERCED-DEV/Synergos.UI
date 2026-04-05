@@ -8,7 +8,9 @@
 .hero {
   @include syn.flex-center;
   position:            relative;
-  min-height:          syn.px-to-rem(480);
+  // Fluid min-height: compact on mobile, grows with viewport.
+  // clamp: min 280px (mobile), fluid, max 600px (wide desktop).
+  min-height:          clamp(#{syn.px-to-rem(280)}, 50vw, #{syn.px-to-rem(600)});
   padding:             syn.$space-xl syn.$space-lg;
   background-color:    syn.$color-neutral-0;
   background-size:     cover;
@@ -16,6 +18,10 @@
   background-repeat:   no-repeat;
   border-radius:       syn.$radius-2xl;
   overflow:            hidden;
+
+  @include syn.respond-to(md) {
+    padding: syn.$space-12 syn.$space-xl;
+  }
 
   &--dark {
     background-color: syn.$color-neutral-900;
@@ -36,11 +42,13 @@
 
   &__content {
     @include syn.flex-column-center;
-    position:  relative;
-    z-index:   1;
-    gap:       syn.$space-md;
+    position:   relative;
+    z-index:    1;
+    gap:        syn.$space-md;
     text-align: center;
-    max-width: syn.px-to-rem(720);
+    max-width:  syn.$max-width-hero;
+    width:      100%;
+    padding-inline: syn.$space-sm; // Prevent edge bleed on very small viewports
   }
 
   &__heading {
@@ -49,11 +57,12 @@
 
   &__body {
     margin:      0;
-    font-size:   syn.$font-size-lg;
+    // Fluid body: base on mobile, lg on desktop — stays readable at all sizes.
+    font-size:   clamp(#{syn.$font-size-base}, 2.5vw, #{syn.$font-size-lg});
     color:       syn.$color-neutral-600;
     line-height: syn.$line-height-relaxed;
 
-    .sg-hero--dark & { color: syn.$color-neutral-300; }
+    .sg-hero--dark &    { color: syn.$color-neutral-300; }
     .sg-hero--overlay & { color: syn.$color-neutral-200; }
   }
 

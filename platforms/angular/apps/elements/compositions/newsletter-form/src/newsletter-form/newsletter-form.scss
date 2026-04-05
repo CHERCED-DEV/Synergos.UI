@@ -1,47 +1,229 @@
 @use 'scss' as syn;
 
+@keyframes nf-spin {
+  to { transform: rotate(360deg); }
+}
+
 :host {
   display: block;
 }
 
-.newsletter-form {
-  @include syn.surface-panel(
-    syn.$space-lg,
-    syn.$color-neutral-0,
-    syn.$color-neutral-200,
-    syn.px-to-rem(1),
-    syn.$radius-xl,
-    syn.$shadow-xs
-  );
-  @include syn.flex-column;
-  gap: syn.$space-lg;
+// ─── Newsletter Form ───────────────────────────────────────────────────────────
+// Base: sizing, spacing, proportions — identical in both variants.
+// Variants: --light (card), --dark (transparent footer integration).
 
-  &__header,
-  &__form {
+.newsletter-form {
+  @include syn.flex-column;
+  gap: syn.$space-md;
+
+  &__header {
     @include syn.flex-column;
-    gap: syn.$space-sm;
+    gap: syn.$space-xxs;
   }
 
   &__heading { display: block; }
 
   &__intro {
-    color:       syn.$color-neutral-600;
-    font-size:   syn.$font-size-base;
+    margin:      0;
+    font-size:   syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
-
-    :first-child { margin-top:    0; }
-    :last-child  { margin-bottom: 0; }
   }
 
-  &__actions {
-    display:         flex;
-    justify-content: flex-start;
+  &__form {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
   }
 
-  &--dark {
-    background:   syn.$color-neutral-900;
-    border-color: syn.$color-neutral-700;
+  // ── Pill ──────────────────────────────────────────────────────────────────
+  &__pill {
+    display:       flex;
+    align-items:   center;
+    gap:           syn.px-to-rem(2);
+    padding:       syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    border:        syn.px-to-rem(1.5) solid transparent;
+    transition:    box-shadow   syn.$duration-fast syn.$easing-smooth,
+                   border-color syn.$duration-fast syn.$easing-smooth;
 
-    .newsletter-form__intro { color: syn.$color-neutral-300; }
+    &.is-loading { opacity: 0.65; pointer-events: none; }
   }
+
+  // @ — brand identity mark inside the pill
+  &__at {
+    flex-shrink:             0;
+    padding-inline:          syn.$space-sm syn.px-to-rem(6);
+    font-size:               syn.$font-size-xl;
+    font-weight:             syn.$font-weight-bold;
+    line-height:             1;
+    background:              linear-gradient(135deg, syn.$color-brand-500, syn.$color-accent-500);
+    background-clip:         text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color:                   transparent;
+    user-select:             none;
+  }
+
+  // Native email input
+  &__input {
+    flex:        1 1 auto;
+    min-width:   0;
+    border:      0;
+    background:  transparent;
+    outline:     0;
+    padding:     syn.$space-sm syn.px-to-rem(4);
+    font-size:   syn.$font-size-sm;
+    font-family: inherit;
+
+    &:disabled { cursor: not-allowed; }
+  }
+
+  // Embedded CTA — gradient, same in both variants
+  &__submit {
+    @include syn.focus-visible;
+    display:         inline-flex;
+    align-items:     center;
+    gap:             syn.$space-xs;
+    flex-shrink:     0;
+    border:          0;
+    border-radius:   syn.$radius-full;
+    padding:         syn.px-to-rem(10) syn.$space-lg;
+    background:      linear-gradient(135deg, syn.$color-brand-500 0%, syn.$color-accent-500 100%);
+    color:           syn.$color-neutral-0;
+    font-size:       syn.$font-size-sm;
+    font-weight:     syn.$font-weight-semibold;
+    font-family:     inherit;
+    white-space:     nowrap;
+    cursor:          pointer;
+    box-shadow:      syn.$shadow-brand-sm;
+    transition:      background  syn.$duration-fast syn.$easing-smooth,
+                     box-shadow  syn.$duration-fast syn.$easing-smooth,
+                     transform   syn.$duration-fast syn.$easing-smooth;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(135deg, syn.$color-brand-600 0%, syn.$color-accent-600 100%);
+      box-shadow: syn.$shadow-brand-md;
+      transform:  translateY(syn.px-to-rem(-1));
+    }
+
+    &:active:not(:disabled) { transform: translateY(0); }
+
+    &:disabled {
+      opacity:    0.5;
+      cursor:     not-allowed;
+      box-shadow: none;
+    }
+  }
+
+  &__arrow {
+    display:    inline-block;
+    transition: transform syn.$duration-fast syn.$easing-smooth;
+
+    .newsletter-form__submit:hover:not(:disabled) & {
+      transform: translateX(syn.px-to-rem(3));
+    }
+  }
+
+  &__spinner {
+    display:          block;
+    width:            syn.px-to-rem(14);
+    height:           syn.px-to-rem(14);
+    border:           syn.px-to-rem(2) solid syn.$color-overlay-inverse;
+    border-top-color: syn.$color-neutral-0;
+    border-radius:    50%;
+    animation:        nf-spin syn.$duration-loop linear infinite;
+  }
+
+  &__note {
+    margin:         0;
+    font-size:      syn.$font-size-xs;
+    text-align:     center;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+}
+
+// ── Light — standalone card ────────────────────────────────────────────────────
+// Clean white surface with vivid gradient border.
+// No glow effect — the border itself provides all the brand color.
+.newsletter-form--light {
+  padding:       syn.$space-lg;
+  border-radius: syn.$radius-2xl;
+  border:        syn.px-to-rem(1.5) solid transparent;
+  // Gradient border: vivid brand→accent on the border-box
+  background:
+    linear-gradient(syn.$color-neutral-0, syn.$color-neutral-0) padding-box,
+    linear-gradient(135deg, syn.$color-brand-400 0%, syn.$color-accent-400 100%) border-box;
+  box-shadow:
+    syn.$shadow-sm,
+    0 0 0 syn.px-to-rem(4) syn.$color-brand-100;
+
+  .newsletter-form__intro { color: syn.$color-neutral-500; }
+  .newsletter-form__note  { color: syn.$color-neutral-400; }
+
+  // Pill: clean white surface, neutral border → vivid gradient on focus
+  .newsletter-form__pill {
+    background:    syn.$color-neutral-0;
+    border-color:  syn.$color-neutral-200;
+    box-shadow:    syn.$shadow-xs;
+
+    &:focus-within {
+      border-color: transparent;
+      background:
+        linear-gradient(syn.$color-neutral-0, syn.$color-neutral-0) padding-box,
+        linear-gradient(135deg, syn.$color-brand-400 0%, syn.$color-accent-400 100%) border-box;
+      box-shadow:
+        0 0 0 syn.px-to-rem(3) syn.$color-brand-100,
+        syn.$shadow-xs;
+    }
+  }
+
+  .newsletter-form__input {
+    color: syn.$color-neutral-900;
+    &::placeholder { color: syn.$color-neutral-400; }
+  }
+}
+
+// ── Dark — footer integration ──────────────────────────────────────────────────
+// No outer card. Transparent container. Only the pill has a surface.
+.newsletter-form--dark {
+  padding:    0;
+  background: transparent;
+  border:     none;
+  box-shadow: none;
+
+  .newsletter-form__intro { color: syn.$color-neutral-500; }
+  .newsletter-form__note  { color: syn.$color-neutral-600; }
+
+  .newsletter-form__at {
+    background:              linear-gradient(135deg, syn.$color-brand-300, syn.$color-accent-300);
+    background-clip:         text;
+    -webkit-background-clip: text;
+  }
+
+  // Pill: elevated dark surface, gradient border
+  .newsletter-form__pill {
+    background:
+      linear-gradient(syn.$color-neutral-800, syn.$color-neutral-800) padding-box,
+      linear-gradient(135deg, syn.$color-brand-500 0%, syn.$color-accent-500 100%) border-box;
+    box-shadow: 0 syn.px-to-rem(2) syn.px-to-rem(8) rgb(0 0 0 / 0.4);
+
+    &:focus-within {
+      background:
+        linear-gradient(syn.$color-neutral-800, syn.$color-neutral-800) padding-box,
+        linear-gradient(135deg, syn.$color-brand-400 0%, syn.$color-accent-400 100%) border-box;
+      box-shadow:
+        0 0 0 syn.px-to-rem(3) rgb(79 110 247 / 0.25),
+        0 syn.px-to-rem(2) syn.px-to-rem(8) rgb(0 0 0 / 0.4);
+    }
+  }
+
+  .newsletter-form__input {
+    color: syn.$color-neutral-200;
+    &::placeholder { color: syn.$color-neutral-600; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newsletter-form__spinner { animation: none; }
+  .newsletter-form__submit,
+  .newsletter-form__arrow   { transition: none; }
 }

@@ -22,24 +22,15 @@ h6 {
   color: $color-neutral-900;
 }
 
-h1 {
-  font-size: $font-size-4xl;
-}
-h2 {
-  font-size: $font-size-3xl;
-}
-h3 {
-  font-size: $font-size-2xl;
-}
-h4 {
-  font-size: $font-size-xl;
-}
-h5 {
-  font-size: $font-size-lg;
-}
-h6 {
-  font-size: $font-size-base;
-}
+// Fluid heading scale: each heading scales between a mobile min and desktop max.
+// The viewport-relative mid value ensures smooth growth — no abrupt jumps.
+// Target: reaches max at ~lg breakpoint (992px / 62rem).
+h1 { font-size: clamp(#{$font-size-3xl}, 5vw, #{$font-size-5xl}); }  // 30px → 48px
+h2 { font-size: clamp(#{$font-size-2xl}, 4vw, #{$font-size-4xl}); }  // 24px → 36px
+h3 { font-size: clamp(#{$font-size-xl},  3vw, #{$font-size-3xl}); }  // 20px → 30px
+h4 { font-size: clamp(#{$font-size-lg},  2.5vw, #{$font-size-2xl}); } // 18px → 24px
+h5 { font-size: $font-size-lg; }    // 18px — fixed
+h6 { font-size: $font-size-base; }  // 16px — fixed
 
 p {
   margin: 0;

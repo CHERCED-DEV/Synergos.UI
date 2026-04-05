@@ -7,15 +7,24 @@
 
 .banner {
   @include syn.surface-panel(
-    syn.$space-lg syn.$space-xl,
+    syn.$space-md syn.$space-lg,
     syn.$color-brand-100,
     syn.$color-brand-200,
     syn.px-to-rem(1),
     syn.$radius-xl,
     syn.$shadow-xs
   );
-  @include syn.flex-between;
-  gap: syn.$space-lg;
+  display:     flex;
+  flex-wrap:   wrap;
+  gap:         syn.$space-md;
+  align-items: flex-start;
+
+  @include syn.respond-to(md) {
+    padding:     syn.$space-lg syn.$space-xl;
+    flex-wrap:   nowrap;
+    align-items: center;
+    gap:         syn.$space-lg;
+  }
 
   &--dark {
     background-color: syn.$color-neutral-800;
@@ -23,18 +32,32 @@
     color:            syn.$color-neutral-0;
   }
 
+  // When an image is present, switch to a grid with columns.
+  // On mobile: stack image above content+actions.
+  // On desktop: image | content | actions in a row.
   &--with-image {
     display:               grid;
-    grid-template-columns: auto 1fr auto;
-    align-items:           center;
+    grid-template-columns: auto 1fr;
+    align-items:           flex-start;
+
+    @include syn.respond-to(md) {
+      grid-template-columns: auto 1fr auto;
+      align-items:           center;
+    }
   }
 
   &__image {
-    width:         syn.px-to-rem(80);
-    height:        syn.px-to-rem(80);
+    // Slightly smaller on mobile, full size on desktop
+    width:         syn.px-to-rem(60);
+    height:        syn.px-to-rem(60);
     object-fit:    cover;
     border-radius: syn.$radius-md;
     flex-shrink:   0;
+
+    @include syn.respond-to(md) {
+      width:  syn.px-to-rem(80);
+      height: syn.px-to-rem(80);
+    }
   }
 
   &__content {
@@ -48,7 +71,7 @@
     font-weight:    syn.$font-weight-semibold;
     color:          syn.$color-brand-600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: syn.$letter-spacing-eyebrow;
 
     .sg-banner--dark & { color: syn.$color-brand-300; }
   }
@@ -67,8 +90,14 @@
     display:     flex;
     align-items: center;
     gap:         syn.$space-sm;
-    flex-shrink: 0;
     flex-wrap:   wrap;
+    // Actions take full width on mobile so CTAs are accessible on small screens.
+    width:       100%;
+
+    @include syn.respond-to(md) {
+      width:       auto;
+      flex-shrink: 0;
+    }
   }
 
   &__cta-link {

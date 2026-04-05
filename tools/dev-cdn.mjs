@@ -129,10 +129,14 @@ function syncToCdn(element) {
 
 function runCommand(cmd, cmdArgs, options = {}) {
   return new Promise((resolve, reject) => {
-    // For daemon commands, don't override NX_WORKSPACE_ROOT_PATH
-    const env = options.daemonEnv
-      ? { ...process.env, NX_TUI: 'false' }
-      : { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+    let env;
+    if (options.daemonEnv) {
+      // Daemon needs NX_WORKSPACE_ROOT_PATH unset — otherwise it can't locate the workspace root
+      env = { ...process.env, NX_TUI: 'false' };
+      delete env.NX_WORKSPACE_ROOT_PATH;
+    } else {
+      env = { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+    }
 
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
@@ -226,18 +230,36 @@ function startDistWatcher() {
 
 // ── Phase 4: Single nx watch → rebuild only affected projects ────────────────
 
+/** Poll nx daemon --status until the daemon is responsive or maxAttempts is reached. */
+async function waitForDaemon(maxAttempts = 12, delayMs = 500) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const out = await runCommand(NX_BIN, ['daemon', '--status'], { cwd: NG_DIR, daemonEnv: true });
+      if (/running|started|connected/i.test(out)) return true;
+    } catch {
+      // not ready yet — keep polling
+    }
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
 async function startWatchBuild() {
   const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
 
-  // nx watch requires the daemon — start it first
+  // nx watch requires the daemon — start it and wait until it's responsive
   console.log(`  🔧 Starting Nx daemon...`);
   try {
-    await runCommand(NX_BIN, ['daemon', '--start'], {
-      cwd: NG_DIR,
-      daemonEnv: true,
-    });
+    await runCommand(NX_BIN, ['daemon', '--start'], { cwd: NG_DIR, daemonEnv: true });
   } catch {
-    // daemon may already be running — that's fine
+    // may already be running — continue
+  }
+
+  const ready = await waitForDaemon();
+  if (!ready) {
+    console.warn(`  ⚠ Daemon did not respond in time — watch may fail. Try restarting.`);
+  } else {
+    console.log(`  ✓ Daemon ready`);
   }
 
   console.log(`  👁 Watching ${elementNames.length} element(s) via single nx watch`);

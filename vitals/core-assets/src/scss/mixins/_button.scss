@@ -119,7 +119,7 @@
     border: $stroke-width solid currentColor;
     border-right-color: transparent;
     border-radius: 50%;
-    animation: syn-button-spin 0.75s linear infinite;
+    animation: syn-button-spin motion.$duration-loop linear infinite;
 
     @if $placement == before {
       margin-right: $gap;

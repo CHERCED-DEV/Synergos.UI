@@ -65,7 +65,7 @@ function nxBuild(fw, projectNames) {
     : `npx --prefix platforms/${fw} nx`;
 
   return run(
-    `${bin} run-many --target=build --projects=${projectNames} --parallel=4`,
+    `${bin} run-many --target=build --projects=${projectNames} --parallel=4 --skip-nx-cache`,
     `Building ${projectNames.split(',').length} element(s) [${fw}]`,
   );
 }

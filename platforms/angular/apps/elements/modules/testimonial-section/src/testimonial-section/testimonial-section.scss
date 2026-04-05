@@ -4,15 +4,27 @@
   display: block;
 }
 
+// ─── Testimonial Section ──────────────────────────────────────────────────────
+// Responsive grid of testimonial cards. Auto-fit: 1 col on mobile, 2-3 on desktop.
+// Cards stretch to equal height within each row — clean editorial rhythm.
 .testimonial-section {
-  padding: syn.$space-xl 0;
-
   &__heading {
     display:       block;
     margin-bottom: syn.$space-xl;
+
+    @include syn.respond-to(md) {
+      margin-bottom: syn.$space-12;
+    }
   }
 
-  &__grid { display: block; }
+  // Auto-fit: minimum card width 280px.
+  // Mobile: 1 col. Tablet+: 2-3 cols depending on available space.
+  &__grid {
+    display:               grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(280)), 1fr));
+    gap:                   syn.$space-lg;
+    align-items:           stretch; // Equal-height cards per row
+  }
 
   &__card {
     @include syn.surface-panel(
@@ -24,21 +36,54 @@
       syn.$shadow-xs
     );
     @include syn.flex-column;
-    margin: 0;
-    gap:    syn.$space-md;
-    height: 100%;
+    position: relative;
+    margin:   0;
+    gap:      syn.$space-md;
+    height:   100%; // Fill grid cell for equal-height alignment
+    transition: box-shadow syn.$duration-base syn.$easing-default,
+                transform  syn.$duration-base syn.$easing-default;
+
+    &:hover {
+      box-shadow: syn.$shadow-md;
+      transform:  translateY(syn.px-to-rem(-2));
+    }
+
+    // Decorative opening quote mark — editorial premium accent
+    &::before {
+      content:        '\201C';  // " Left double quotation mark
+      position:       absolute;
+      top:            syn.$space-sm;
+      right:          syn.$space-lg;
+      font-size:      syn.px-to-rem(72);
+      font-weight:    syn.$font-weight-bold;
+      line-height:    1;
+      color:          syn.$color-brand-100;
+      pointer-events: none;
+      user-select:    none;
+      z-index:        0;
+    }
 
     .sg-testimonial-section--dark & {
       background-color: syn.$color-neutral-800;
       border-color:     syn.$color-neutral-700;
+
+      &::before { color: syn.$color-neutral-700; }
     }
+  }
+
+  // Text content sits above the decorative quote mark
+  &__quote,
+  &__author {
+    position: relative;
+    z-index:  1;
   }
 
   &__quote {
     margin:      0;
-    font-size:   syn.$font-size-base;
+    flex:        1 1 auto; // Pushes author to bottom — aligned across all cards
+    font-size:   clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
+    color:       syn.$color-neutral-700;
     font-style:  italic;
 
     .sg-testimonial-section--dark & { color: syn.$color-neutral-300; }
@@ -48,22 +93,28 @@
     display:     flex;
     align-items: center;
     gap:         syn.$space-sm;
+    margin-top:  auto; // Stick to bottom regardless of quote length
   }
 
   &__author-info {
     @include syn.flex-column;
+    gap: syn.$space-1;
   }
 
   &__name {
     font-size:   syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
     color:       syn.$color-neutral-900;
+    line-height: syn.$line-height-tight;
 
     .sg-testimonial-section--dark & { color: syn.$color-neutral-0; }
   }
 
   &__role {
-    font-size: syn.$font-size-xs;
-    color:     syn.$color-neutral-500;
+    font-size:   syn.$font-size-xs;
+    color:       syn.$color-neutral-500;
+    line-height: syn.$line-height-normal;
+
+    .sg-testimonial-section--dark & { color: syn.$color-neutral-400; }
   }
 }

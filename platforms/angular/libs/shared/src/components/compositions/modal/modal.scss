@@ -27,10 +27,10 @@
 }
 
 .syn-modal__panel {
-  position: relative;
-  width: min(100%, syn.px-to-rem(560));
-  max-height: 90vh;
-  overflow: auto;
+  position:   relative;
+  width:      min(100%, syn.px-to-rem(560));
+  max-height: 90dvh;
+  overflow:   auto;
   @include syn.surface-panel(
     syn.$space-lg,
     syn.$color-neutral-0,
@@ -40,6 +40,18 @@
     syn.$shadow-2xl
   );
   @include syn.custom-scrollbar;
+
+  // Mobile: bottom-sheet anchored to viewport bottom
+  @include syn.respond-below(sm) {
+    position:      fixed;
+    inset-inline:  0;
+    inset-block-end: 0;
+    width:         100%;
+    max-height:    90dvh;
+    border-radius: syn.$radius-2xl syn.$radius-2xl 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, syn.$space-lg);
+  }
 }
 
 .syn-modal__header {

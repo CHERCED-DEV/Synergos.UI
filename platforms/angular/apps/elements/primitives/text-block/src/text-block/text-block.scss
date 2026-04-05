@@ -4,30 +4,51 @@
   display: block;
 }
 
+// ─── Text Block ───────────────────────────────────────────────────────────────
+// Heading + optional body text with alignment and tone variants.
+// --muted: de-emphasized body for secondary/supporting content.
+// --reading: constrained max-width for long-form prose comfort.
 .text-block {
-  &--center {
-    text-align: center;
-  }
+  &--center { text-align: center; }
+  &--right  { text-align: right;  }
 
-  &--right {
-    text-align: right;
-  }
+  &--dark .text-block__body  { color: syn.$color-neutral-300; }
+  &--muted .text-block__body { color: syn.$color-neutral-400; }
 
-  &--dark {
-    .text-block__body {
-      color: syn.$color-neutral-300;
-    }
+  // Reading-optimized max-width for long body paragraphs
+  &--reading {
+    max-width: syn.$max-width-article;
+
+    &.sg-text-block--center { margin-inline: auto; }
   }
 
   &__heading {
-    display: block;
+    display:       block;
     margin-bottom: syn.$space-xs;
   }
 
   &__body {
-    margin: 0;
-    font-size: syn.$font-size-base;
+    margin:      0;
+    font-size:   syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
-    color: syn.$color-neutral-600;
+    color:       syn.$color-neutral-600;
+
+    // Prevent line-length creep on large screens
+    max-width: syn.$max-width-article;
+
+    .sg-text-block--center & { margin-inline: auto; }
+    .sg-text-block--right  & { margin-inline-start: auto; }
+  }
+
+  &__eyebrow {
+    display:        block;
+    font-size:      syn.$font-size-xs;
+    font-weight:    syn.$font-weight-semibold;
+    color:          syn.$color-brand-500;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    margin-bottom:  syn.$space-xs;
+
+    .sg-text-block--dark & { color: syn.$color-brand-300; }
   }
 }

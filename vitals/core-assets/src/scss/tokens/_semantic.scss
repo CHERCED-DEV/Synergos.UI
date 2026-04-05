@@ -1,0 +1,37 @@
+// ─── Semantic Tokens ──────────────────────────────────────────────────────────
+// Aliases over the raw palette. Reference these when building new components
+// or adding theming support. They decouple components from specific shade numbers,
+// making the system resilient to palette evolution and future dark-mode adoption.
+//
+// Usage: prefer $color-surface over $color-neutral-0 in new component code.
+// Existing components can migrate gradually — both layers coexist without conflict.
+
+@use 'colors' as *;
+
+// ── Surface ──────────────────────────────────────────────────────────────────
+// The layered surface model: default → subtle → muted → inverse
+$color-surface:          $color-neutral-0;    // Base: white card, panel, page background
+$color-surface-subtle:   $color-neutral-50;   // Slightly tinted: table headers, alt rows
+$color-surface-muted:    $color-neutral-100;  // Clearly tinted: disabled backgrounds, chips
+$color-surface-inverse:  $color-neutral-900;  // Dark surfaces: dark cards, dark sections
+
+// ── Text ─────────────────────────────────────────────────────────────────────
+$color-text-primary:   $color-neutral-900;  // Body copy, headings
+$color-text-secondary: $color-neutral-600;  // Supporting paragraphs, card body
+$color-text-muted:     $color-neutral-500;  // Captions, metadata, placeholder labels
+$color-text-disabled:  $color-neutral-400;  // Disabled fields, inactive nav
+$color-text-inverse:   $color-neutral-0;    // Text on dark or image backgrounds
+$color-text-brand:     $color-brand-600;    // Brand-tinted labels, active links
+
+// ── Border ───────────────────────────────────────────────────────────────────
+$color-border-subtle:  $color-neutral-100;  // Near-invisible separators
+$color-border-default: $color-neutral-200;  // Standard card and input borders
+$color-border-strong:  $color-neutral-300;  // Emphasized borders, hover states
+$color-border-brand:   $color-brand-300;    // Focus rings, active selections
+
+// ── Overlay ──────────────────────────────────────────────────────────────────
+// Semi-transparent values that can't be expressed as solid tokens.
+// Used for hover states on colored surfaces, inverse spinners, backdrops.
+$color-overlay-subtle:  rgb(0 0 0 / 0.06);    // Hover on light surface (dismiss button, ghost)
+$color-overlay-medium:  rgb(0 0 0 / 0.16);    // Moderate overlay (image captions)
+$color-overlay-inverse: rgb(255 255 255 / 0.25); // Inverse spinner track, glass effects

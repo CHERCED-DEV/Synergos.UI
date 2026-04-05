@@ -10,9 +10,11 @@
 // in      → accelerates (for exit animations)
 // out     → decelerates (for entrance animations)
 
-$duration-fast:   120ms;
-$duration-base:   200ms;
-$duration-slow:   280ms;
+$duration-fast:    120ms;
+$duration-base:    200ms;
+$duration-slow:    280ms;
+$duration-loop:    750ms;   // Continuous spin animations (spinner, button loading)
+$duration-shimmer: 1400ms;  // Skeleton shimmer, progress indeterminate
 
 $easing-default:  cubic-bezier(0.16, 1, 0.3, 1);
 $easing-smooth:   ease;

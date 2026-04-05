@@ -13,7 +13,7 @@
   border-color:  syn.$color-neutral-200;
   border-right-color: transparent;
   border-bottom-color: transparent;
-  animation: syn-spinner-rotate 0.75s linear infinite;
+  animation: syn-spinner-rotate syn.$duration-loop linear infinite;
 }
 
 .syn-spinner--sm {
@@ -53,7 +53,7 @@
 }
 
 .syn-spinner--inverse {
-  border-color:        rgb(255 255 255 / 0.25);
+  border-color:        syn.$color-overlay-inverse;
   border-top-color:    syn.$color-neutral-0;
   border-left-color:   transparent;
   border-right-color:  transparent;

@@ -4,22 +4,30 @@
   display: block;
 }
 
+// ─── Container Block ──────────────────────────────────────────────────────────
+// Width-constraining wrapper. Pairs with --pad-* for horizontal spacing.
+// Use --contained for standard page sections (max 1200px).
+// Use --narrow for reading columns, article content (max 800px).
+// Use --full for edge-to-edge sections (hero, bands, full-bleed media).
 .container-block {
-  width: 100%;
-  margin: 0 auto;
+  width:         100%;
+  margin-inline: auto;
 
-  &--contained { max-width: syn.px-to-rem(1200); }
-  &--narrow { max-width: syn.px-to-rem(800); }
-  &--full { max-width: none; }
+  // Width constraints use layout tokens — never hardcode max-widths.
+  &--contained { max-width: syn.$max-width-content; }
+  &--narrow    { max-width: syn.$max-width-reading; }
+  &--full      { max-width: none; }
 
+  // Padding variants — apply horizontal inset when needed.
+  // Responsive containers should prefer section-level padding over --pad-*.
   &--pad-none { padding: 0; }
-  &--pad-sm { padding: syn.$space-sm; }
-  &--pad-md { padding: syn.$space-md; }
-  &--pad-lg { padding: syn.$space-lg; }
-  &--pad-xl { padding: syn.$space-xl; }
+  &--pad-sm   { padding: syn.$space-sm; }
+  &--pad-md   { padding: syn.$space-md; }
+  &--pad-lg   { padding: syn.$space-lg; }
+  &--pad-xl   { padding: syn.$space-xl; }
 
   &--dark {
     background-color: syn.$color-neutral-900;
-    color: syn.$color-neutral-0;
+    color:            syn.$color-neutral-0;
   }
 }

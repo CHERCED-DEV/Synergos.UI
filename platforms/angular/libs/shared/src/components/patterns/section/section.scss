@@ -29,7 +29,7 @@
 .syn-section__eyebrow {
   font-size:      syn.$font-size-xs;
   font-weight:    syn.$font-weight-semibold;
-  letter-spacing: 0.08em;
+  letter-spacing: syn.$letter-spacing-eyebrow;
   text-transform: uppercase;
   color:          syn.$color-brand-500;
 }
@@ -42,7 +42,7 @@
 }
 
 .syn-section__subtitle {
-  max-width:   syn.px-to-rem(680);
+  max-width:   syn.$max-width-article; // 680px — optimal prose line length
   font-size:   syn.$font-size-base;
   color:       syn.$color-neutral-500;
   line-height: syn.$line-height-relaxed;

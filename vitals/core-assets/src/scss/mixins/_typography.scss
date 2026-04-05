@@ -14,15 +14,35 @@
   overflow: hidden;
 }
 
+// heading($size) — Fluid typographic scale using clamp().
+// Sizes xs and sm are fixed (they're already compact and don't need scaling).
+// Sizes md, lg, xl scale fluidly between mobile and desktop viewport widths.
+//
+// Clamp formula: clamp(min, fluid, max)
+//   fluid = viewport-relative value that grows with screen width
+//   Tuned so text reaches its max at roughly lg breakpoint (992px = 62rem).
+//
+// xs → 18px  (fixed — component labels, small cards)
+// sm → 20px  (fixed — minor headings, list titles)
+// md → 20px → 24px  (minor sections, feature items)
+// lg → 22px → 30px  (section headings, page sub-headings)
+// xl → 24px → 36px  (page headings, hero titles)
 @mixin heading($size: 'base') {
   font-family: $font-family-sans;
   font-weight: $font-weight-bold;
   line-height: $line-height-tight;
 
-  @if $size == 'xs' { font-size: $font-size-lg; }
-  @else if $size == 'sm' { font-size: $font-size-xl; }
-  @else if $size == 'md' { font-size: $font-size-2xl; }
-  @else if $size == 'lg' { font-size: $font-size-3xl; }
-  @else if $size == 'xl' { font-size: $font-size-4xl; }
-  @else { font-size: $font-size-2xl; }
+  @if $size == 'xs' {
+    font-size: $font-size-lg;                                   // 18px — fixed
+  } @else if $size == 'sm' {
+    font-size: $font-size-xl;                                   // 20px — fixed
+  } @else if $size == 'md' {
+    font-size: clamp(#{$font-size-xl}, 3vw, #{$font-size-2xl}); // 20px → 24px
+  } @else if $size == 'lg' {
+    font-size: clamp(#{$font-size-2xl}, 4vw, #{$font-size-3xl}); // 24px → 30px
+  } @else if $size == 'xl' {
+    font-size: clamp(#{$font-size-2xl}, 5vw, #{$font-size-4xl}); // 24px → 36px
+  } @else {
+    font-size: clamp(#{$font-size-xl}, 3vw, #{$font-size-2xl}); // fallback = md
+  }
 }

@@ -13,16 +13,20 @@
   font-weight: syn.$font-weight-medium;
 }
 
+// Min-width for the input cell: wide enough to display 3–4 digit values comfortably
+$_input-min: syn.px-to-rem(80);
+
 .syn-stepper__control {
   display:               inline-grid;
-  grid-template-columns: auto minmax(syn.px-to-rem(80), 1fr) auto;
+  grid-template-columns: auto minmax($_input-min, 1fr) auto;
   align-items:           center;
   overflow:              hidden;
   width:                 fit-content;
   border:                syn.px-to-rem(1) solid syn.$color-neutral-300;
   border-radius:         syn.$radius-full;
   background:            syn.$color-neutral-0;
-  transition:            border-color syn.$duration-fast syn.$easing-smooth;
+  transition:            border-color syn.$duration-fast syn.$easing-smooth,
+                         box-shadow   syn.$duration-fast syn.$easing-smooth;
 
   &:focus-within {
     border-color: syn.$color-brand-400;

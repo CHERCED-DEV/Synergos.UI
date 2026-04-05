@@ -4,6 +4,9 @@
   display: block;
 }
 
+// ─── Feature Item ─────────────────────────────────────────────────────────────
+// Centered by default (for feature grids). --left for inline/list contexts.
+// --card adds surface panel + hover lift. --accent uses violet icon.
 .feature-item {
   @include syn.flex-column;
   align-items: center;
@@ -11,6 +14,29 @@
   gap:         syn.$space-sm;
   padding:     syn.$space-lg;
 
+  // Left-aligned variant: icon on top, content left-aligned — for listicle layouts
+  &--left {
+    align-items: flex-start;
+    text-align:  left;
+  }
+
+  // Inline icon-left variant: icon beside content horizontally — for compact lists
+  &--inline {
+    flex-direction: row;
+    align-items:    flex-start;
+    text-align:     left;
+
+    .feature-item__icon {
+      flex-shrink: 0;
+    }
+
+    .feature-item__copy {
+      @include syn.flex-column;
+      gap: syn.$space-xxs;
+    }
+  }
+
+  // Surface card variant — elevated with hover lift
   &--card {
     background-color: syn.$color-neutral-0;
     border:           syn.px-to-rem(1) solid syn.$color-neutral-200;
@@ -30,12 +56,20 @@
     .feature-item__body    { color: syn.$color-neutral-300; }
   }
 
+  // Icon container — brand tint default, accent violet variant
   &__icon {
     @include syn.flex-center;
+    flex-shrink:      0;
     width:            syn.px-to-rem(52);
     height:           syn.px-to-rem(52);
     border-radius:    syn.$radius-md;
     background-color: syn.$color-brand-100;
+    transition:       background-color syn.$duration-fast syn.$easing-smooth;
+
+    // Accent variant — violet icon background
+    .sg-feature-item--accent & {
+      background-color: syn.$color-accent-100;
+    }
 
     img {
       width:      syn.px-to-rem(28);

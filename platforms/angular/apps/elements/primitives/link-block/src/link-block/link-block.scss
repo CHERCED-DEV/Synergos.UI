@@ -4,7 +4,56 @@
   display: inline-flex;
 }
 
+// ─── Link Block ───────────────────────────────────────────────────────────────
+// Inline or block link with icon support and hover/focus states.
+// Variants: --subtle (muted), --brand (colored), --standalone (with arrow).
 .link-block {
-  display: inline-flex;
-  font-size: syn.$font-size-base;
+  @include syn.focus-visible;
+  display:         inline-flex;
+  align-items:     center;
+  gap:             syn.$space-xs;
+  font-size:       syn.$font-size-base;
+  font-weight:     syn.$font-weight-medium;
+  color:           syn.$color-brand-600;
+  text-decoration: none;
+  transition:      color      syn.$duration-fast syn.$easing-smooth,
+                   opacity    syn.$duration-fast syn.$easing-smooth,
+                   gap        syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    color:   syn.$color-brand-500;
+    opacity: 0.85;
+    gap:     syn.$space-sm; // Icon slides right on hover
+  }
+
+  // Subtle — neutral color, brand on hover
+  &--subtle {
+    color:       syn.$color-neutral-600;
+    font-weight: syn.$font-weight-regular;
+
+    &:hover { color: syn.$color-brand-600; }
+  }
+
+  // Muted — de-emphasized secondary link
+  &--muted {
+    color:       syn.$color-neutral-500;
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-regular;
+
+    &:hover { color: syn.$color-neutral-800; }
+  }
+
+  // Standalone CTA — larger, with persistent arrow
+  &--standalone {
+    font-size:   syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    gap:         syn.$space-sm;
+
+    &:hover { gap: syn.$space-md; }
+  }
+
+  &--dark {
+    color: syn.$color-brand-300;
+    &:hover { color: syn.$color-brand-200; }
+  }
 }

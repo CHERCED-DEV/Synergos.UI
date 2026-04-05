@@ -4,23 +4,36 @@
   display: block;
 }
 
+// ─── Timeline Item ────────────────────────────────────────────────────────────
+// Mobile: date stacks above content card. Connector line hidden.
+// From sm: sidebar date with vertical connector running to next item.
 .timeline-item {
-  display:               grid;
-  grid-template-columns: auto 1fr;
-  gap:                   syn.$space-md;
+  // Mobile: single column stack
+  @include syn.flex-column;
+  gap: syn.$space-md;
+
+  // Tablet+: sidebar with connector line
+  @include syn.respond-to(sm) {
+    display:               grid;
+    grid-template-columns: auto 1fr;
+  }
 
   &__date {
-    position:        relative;
+    position:           relative;
     padding-inline-end: syn.$space-md;
 
     &::after {
-      content:            '';
-      position:           absolute;
-      inset-block-start:  syn.px-to-rem(48);
-      inset-inline-end:   syn.px-to-rem(3);
-      inline-size:        syn.px-to-rem(2);
-      block-size:         calc(100% - #{syn.px-to-rem(48)});
-      background:         syn.$color-neutral-200;
+      content:           '';
+      position:          absolute;
+      inset-block-start: syn.px-to-rem(48);
+      inset-inline-end:  syn.px-to-rem(3);
+      inline-size:       syn.px-to-rem(2);
+      block-size:        0; // Hidden on mobile
+
+      @include syn.respond-to(sm) {
+        block-size:  calc(100% - #{syn.px-to-rem(48)});
+        background:  syn.$color-neutral-200;
+      }
     }
   }
 

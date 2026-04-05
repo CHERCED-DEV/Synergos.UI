@@ -8,21 +8,30 @@
 }
 
 .syn-tabs__list {
-  display: flex;
-  gap: syn.$space-1;
-  border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  display:           flex;
+  gap:               syn.$space-1;
+  border-bottom:     syn.px-to-rem(1) solid syn.$color-neutral-200;
+  // Horizontal scroll when tabs overflow on narrow viewports
+  overflow-x:        auto;
+  scroll-snap-type:  x mandatory;
+  scrollbar-width:   none;
+
+  &::-webkit-scrollbar { display: none; }
 }
 
 .syn-tabs__tab {
-  position: relative;
-  padding: syn.$space-xs syn.$space-md;
-  border: 0;
-  border-bottom: syn.px-to-rem(2) solid transparent;
-  background: transparent;
-  color: syn.$color-neutral-500;
-  font-size: syn.$font-size-sm;
-  font-weight: syn.$font-weight-medium;
-  cursor: pointer;
+  position:          relative;
+  padding:           syn.$space-xs syn.$space-md;
+  border:            0;
+  border-bottom:     syn.px-to-rem(2) solid transparent;
+  background:        transparent;
+  color:             syn.$color-neutral-500;
+  font-size:         syn.$font-size-sm;
+  font-weight:       syn.$font-weight-medium;
+  white-space:       nowrap;   // Prevent wrapping inside scroll container
+  flex-shrink:       0;
+  scroll-snap-align: start;
+  cursor:            pointer;
   transition: color syn.$duration-fast syn.$easing-smooth,
               border-color syn.$duration-fast syn.$easing-smooth;
 

@@ -1,9 +1,27 @@
 @use '../functions/px-to-rem' as *;
 
+// ── Neutral shadows — base elevation scale ────────────────────────────────────
+// Shadow color is $color-neutral-900 (#0f172a) at varying opacities.
+// Use: xs for resting cards, sm for hover lift, md for floating panels,
+//      lg/xl/2xl for modals and deep overlays.
 $shadow-none: none;
-$shadow-xs: 0 px-to-rem(1) px-to-rem(2) 0 rgb(15 23 42 / 0.08);
-$shadow-sm: 0 px-to-rem(2) px-to-rem(4) 0 rgb(15 23 42 / 0.1);
-$shadow-md: 0 px-to-rem(6) px-to-rem(12) px-to-rem(-2) rgb(15 23 42 / 0.14);
-$shadow-lg: 0 px-to-rem(12) px-to-rem(24) px-to-rem(-4) rgb(15 23 42 / 0.16);
-$shadow-xl: 0 px-to-rem(20) px-to-rem(40) px-to-rem(-6) rgb(15 23 42 / 0.2);
-$shadow-2xl: 0 px-to-rem(30) px-to-rem(64) px-to-rem(-12) rgb(15 23 42 / 0.24);
+$shadow-xs:  0 px-to-rem(1)  px-to-rem(2)  0                  rgb(15 23 42 / 0.08);
+$shadow-sm:  0 px-to-rem(2)  px-to-rem(4)  0                  rgb(15 23 42 / 0.10);
+$shadow-md:  0 px-to-rem(6)  px-to-rem(12) px-to-rem(-2)      rgb(15 23 42 / 0.14);
+$shadow-lg:  0 px-to-rem(12) px-to-rem(24) px-to-rem(-4)      rgb(15 23 42 / 0.16);
+$shadow-xl:  0 px-to-rem(20) px-to-rem(40) px-to-rem(-6)      rgb(15 23 42 / 0.20);
+$shadow-2xl: 0 px-to-rem(30) px-to-rem(64) px-to-rem(-12)     rgb(15 23 42 / 0.24);
+
+// ── Brand shadows — colored glow for primary interactive elements ──────────────
+// Shadow color is $color-brand-500 (#4f6ef7) at varying opacities.
+// Use: solid/primary buttons, active focus rings, premium CTAs.
+// sm → resting state, md → hover/focus state.
+$shadow-brand-sm: 0 px-to-rem(1) px-to-rem(2)  0 rgb(79 110 247 / 0.20);
+$shadow-brand-md: 0 px-to-rem(2) px-to-rem(8)  0 rgb(79 110 247 / 0.28);
+$shadow-brand-lg: 0 px-to-rem(4) px-to-rem(16) 0 rgb(79 110 247 / 0.32);
+
+// ── Accent shadows — violet glow for premium accents ──────────────────────────
+// Shadow color is $color-accent-500 (#8b5cf6) at varying opacities.
+// Use: accent buttons, premium badges, highlighted CTAs.
+$shadow-accent-sm: 0 px-to-rem(1) px-to-rem(4)  0 rgb(139 92 246 / 0.20);
+$shadow-accent-md: 0 px-to-rem(2) px-to-rem(10) 0 rgb(139 92 246 / 0.28);

@@ -4,11 +4,82 @@
   display: block;
 }
 
+// ─── Alert Bar ────────────────────────────────────────────────────────────────
+// Full-width notification banner. Sits above or within page sections.
+// Semantic tones: neutral (info), brand (highlight), success, warning, critical.
 .alert-bar {
-  @include syn.flex-column;
-  gap: syn.$space-sm;
+  display:     flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap:         syn.$space-md;
+  padding:     syn.$space-sm syn.$space-lg;
+  border-radius: syn.$radius-md;
+  border:      syn.px-to-rem(1) solid transparent;
+
+  // Tones — semantically meaningful color per intent
+  &--neutral  { background: syn.$color-neutral-50;  border-color: syn.$color-neutral-200;  color: syn.$color-neutral-800;  }
+  &--brand    { background: syn.$color-brand-100;   border-color: syn.$color-brand-200;    color: syn.$color-brand-600;    }
+  &--success  { background: syn.$color-success-100; border-color: syn.$color-success-200;  color: syn.$color-success-600;  }
+  &--warning  { background: syn.$color-warning-100; border-color: syn.$color-warning-300;  color: syn.$color-warning-600;  }
+  &--critical { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;   color: syn.$color-danger-600;   }
+
+  // Full-width sticky variant (no radius, full bleed)
+  &--sticky {
+    border-radius: 0;
+    border-left:   0;
+    border-right:  0;
+  }
+
+  &__main {
+    @include syn.flex-column;
+    gap: syn.$space-xxs;
+    flex: 1 1 auto;
+  }
+
+  &__title {
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__body {
+    font-size:   syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    opacity:     0.9;
+  }
 
   &__link {
-    align-self: flex-start;
+    align-self:      flex-start;
+    font-size:       syn.$font-size-sm;
+    font-weight:     syn.$font-weight-semibold;
+    color:           currentColor;
+    text-decoration: underline;
+    text-underline-offset: syn.px-to-rem(3);
+
+    &:hover { opacity: 0.75; }
+  }
+
+  &__dismiss {
+    @include syn.focus-visible;
+    flex-shrink: 0;
+    display:     inline-flex;
+    align-items: center;
+    justify-content: center;
+    width:       syn.px-to-rem(28);
+    height:      syn.px-to-rem(28);
+    border:      0;
+    border-radius: 50%;
+    padding:     0;
+    background:  transparent;
+    color:       currentColor;
+    opacity:     0.6;
+    cursor:      pointer;
+    transition:  opacity syn.$duration-fast syn.$easing-smooth,
+                 background syn.$duration-fast syn.$easing-smooth;
+
+    &:hover {
+      opacity:    1;
+      background: syn.$color-overlay-subtle;
+    }
   }
 }

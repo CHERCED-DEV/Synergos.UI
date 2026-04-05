@@ -20,7 +20,7 @@
   },
   "targetDefaults": {
     "@angular/build:application": {
-      "cache": true,
+      "cache": false,
       "dependsOn": ["^build"],
       "inputs": ["production", "^production", "vitals"],
       "options": {

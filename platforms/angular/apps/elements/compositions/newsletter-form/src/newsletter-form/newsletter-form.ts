@@ -8,10 +8,8 @@ import {
 import type { NewsletterFormElementConfig } from '@synergos/contracts';
 import {
   AlertComponent,
-  ButtonComponent,
   CheckboxComponent,
   HeadingComponent,
-  InputComponent,
   type HeadingTone,
   coerceConfigInput,
   resolveConfigValue,
@@ -33,10 +31,8 @@ function isValidEmail(value: string): boolean {
   selector: 'sg-newsletter-form',
   imports: [
     AlertComponent,
-    ButtonComponent,
     CheckboxComponent,
     HeadingComponent,
-    InputComponent,
   ],
   templateUrl: './newsletter-form.html',
   styleUrl: './newsletter-form.scss',

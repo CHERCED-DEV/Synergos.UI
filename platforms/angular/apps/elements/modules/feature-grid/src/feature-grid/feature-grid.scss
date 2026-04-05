@@ -4,15 +4,27 @@
   display: block;
 }
 
+// ─── Feature Grid ─────────────────────────────────────────────────────────────
+// Responsive auto-fit grid: items fill available space, minimum 260px wide.
+// 1 column on very small screens → 2 columns on tablet → 3+ on desktop.
+// No media query breakpoints needed — CSS grid handles it intrinsically.
 .feature-grid {
-  padding: syn.$space-xl 0;
-
   &__heading {
     display:       block;
     margin-bottom: syn.$space-xl;
   }
 
-  &__grid { display: block; }
+  // Auto-fit grid: items are at least 260px wide. The browser decides the
+  // column count — no brittle breakpoint logic needed.
+  &__grid {
+    display:               grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(260)), 1fr));
+    gap:                   syn.$space-lg;
+
+    @include syn.respond-to(md) {
+      gap: syn.$space-xl;
+    }
+  }
 
   &__item {
     @include syn.flex-column;
@@ -42,17 +54,28 @@
     }
   }
 
+  // Icon container scales slightly on mobile to preserve visual weight
   &__icon {
     @include syn.flex-center;
-    width:            syn.px-to-rem(52);
-    height:           syn.px-to-rem(52);
+    width:            syn.px-to-rem(44);
+    height:           syn.px-to-rem(44);
     border-radius:    syn.$radius-md;
     background-color: syn.$color-brand-100;
 
+    @include syn.respond-to(md) {
+      width:  syn.px-to-rem(52);
+      height: syn.px-to-rem(52);
+    }
+
     img {
-      width:      syn.px-to-rem(28);
-      height:     syn.px-to-rem(28);
+      width:      syn.px-to-rem(24);
+      height:     syn.px-to-rem(24);
       object-fit: contain;
+
+      @include syn.respond-to(md) {
+        width:  syn.px-to-rem(28);
+        height: syn.px-to-rem(28);
+      }
     }
   }
 

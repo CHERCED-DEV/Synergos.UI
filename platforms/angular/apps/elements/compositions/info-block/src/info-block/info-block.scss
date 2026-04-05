@@ -4,11 +4,16 @@
   display: block;
 }
 
+// ─── Info Block ───────────────────────────────────────────────────────────────
+// Flexible content block: title + body + optional CTA.
+// Default: no surface (inline in page). --card: elevated panel variant.
+// --featured: brand left-border accent — draws attention without full card chrome.
 .info-block {
   @include syn.flex-column;
   gap:     syn.$space-sm;
   padding: syn.$space-lg;
 
+  // Surface card variant
   &--card {
     @include syn.surface-panel(
       syn.$space-lg,
@@ -18,11 +23,48 @@
       syn.$radius-xl,
       syn.$shadow-xs
     );
+    transition: box-shadow syn.$duration-base syn.$easing-default,
+                transform  syn.$duration-base syn.$easing-default;
+
+    &:hover {
+      box-shadow: syn.$shadow-md;
+      transform:  translateY(syn.px-to-rem(-2));
+    }
+  }
+
+  // Featured: left border accent — editorial callout style
+  &--featured {
+    border-left:    syn.px-to-rem(3) solid syn.$color-brand-400;
+    padding-left:   syn.$space-lg;
+    border-radius:  0 syn.$radius-lg syn.$radius-lg 0;
+
+    .sg-info-block--card & {
+      border-radius: 0 syn.$radius-xl syn.$radius-xl 0;
+    }
+  }
+
+  // Accent: violet left border
+  &--accent {
+    border-left:  syn.px-to-rem(3) solid syn.$color-accent-400;
+    padding-left: syn.$space-lg;
+    border-radius: 0 syn.$radius-lg syn.$radius-lg 0;
   }
 
   &--dark .info-block__body { color: syn.$color-neutral-300; }
 
-  &__title { display: block; }
+  &__eyebrow {
+    font-size:      syn.$font-size-xs;
+    font-weight:    syn.$font-weight-semibold;
+    color:          syn.$color-brand-500;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+
+    .sg-info-block--dark & { color: syn.$color-brand-300; }
+  }
+
+  &__title {
+    display: block;
+  }
 
   &__body {
     margin:      0;
@@ -34,5 +76,6 @@
   &__cta {
     text-decoration: none;
     align-self:      flex-start;
+    margin-top:      auto;
   }
 }

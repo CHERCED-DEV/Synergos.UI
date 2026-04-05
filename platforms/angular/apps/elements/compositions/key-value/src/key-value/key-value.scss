@@ -4,19 +4,113 @@
   display: block;
 }
 
+// ─── Key Value ────────────────────────────────────────────────────────────────
+// Structured label/value pairs inside a surface panel.
+// Each row separates key (left, muted) from value (right, prominent).
+// Last row has no separator border.
 .key-value {
   @include syn.surface-panel(
-    syn.$space-md,
+    0,
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
     syn.$radius-xl,
     syn.$shadow-xs
   );
+  overflow: hidden; // Keep child rows within rounded corners
 
   &--dark {
-    background:   syn.$color-neutral-900;
+    background:   syn.$color-neutral-800;
     border-color: syn.$color-neutral-700;
     color:        syn.$color-neutral-0;
+  }
+
+  // ── Header (optional title + subtitle above rows) ──────────────────────────
+  &__header {
+    padding:       syn.$space-md syn.$space-lg;
+    border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-100;
+
+    .sg-key-value--dark & { border-bottom-color: syn.$color-neutral-700; }
+  }
+
+  &__title {
+    display:     block;
+    font-size:   syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    color:       syn.$color-neutral-900;
+    line-height: syn.$line-height-tight;
+
+    .sg-key-value--dark & { color: syn.$color-neutral-0; }
+  }
+
+  &__subtitle {
+    margin-top: syn.$space-xxs;
+    font-size:  syn.$font-size-sm;
+    color:      syn.$color-neutral-500;
+
+    .sg-key-value--dark & { color: syn.$color-neutral-400; }
+  }
+
+  // ── Individual key/value rows ─────────────────────────────────────────────
+  &__row {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     baseline;
+    gap:             syn.$space-md;
+    padding:         syn.$space-sm syn.$space-lg;
+    border-bottom:   syn.px-to-rem(1) solid syn.$color-border-subtle;
+
+    // No separator on last row
+    &:last-child { border-bottom: none; }
+
+    // Striped variant — alternate rows
+    .sg-key-value--striped &:nth-child(even) {
+      background: syn.$color-surface-subtle;
+    }
+
+    .sg-key-value--dark & {
+      border-bottom-color: syn.$color-neutral-700;
+    }
+
+    .sg-key-value--dark.sg-key-value--striped &:nth-child(even) {
+      background: syn.$color-neutral-700;
+    }
+  }
+
+  // Label / key — left side, muted
+  &__key {
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    color:       syn.$color-text-muted;
+    flex-shrink: 0;
+    min-width:   0; // Allow text truncation if necessary
+
+    .sg-key-value--dark & { color: syn.$color-neutral-400; }
+  }
+
+  // Value — right side, prominent
+  &__value {
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color:       syn.$color-text-primary;
+    text-align:  right;
+    @include syn.long-words; // Handle long unbreakable values gracefully
+
+    &--brand   { color: syn.$color-brand-600; }
+    &--success { color: syn.$color-success-600; }
+    &--warning { color: syn.$color-warning-600; }
+    &--danger  { color: syn.$color-danger-600; }
+
+    .sg-key-value--dark & { color: syn.$color-neutral-0; }
+  }
+
+  // ── Footer (optional actions below rows) ──────────────────────────────────
+  &__footer {
+    display:    flex;
+    gap:        syn.$space-sm;
+    padding:    syn.$space-md syn.$space-lg;
+    border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
+
+    .sg-key-value--dark & { border-top-color: syn.$color-neutral-700; }
   }
 }

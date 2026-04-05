@@ -128,9 +128,13 @@ function syncToCdn(element) {
 
 function runCommand(cmd, cmdArgs, options = {}) {
   return new Promise((resolveP, reject) => {
-    const env = options.daemonEnv
-      ? { ...process.env, NX_TUI: 'false' }
-      : { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+    let env;
+    if (options.daemonEnv) {
+      env = { ...process.env, NX_TUI: 'false' };
+      delete env.NX_WORKSPACE_ROOT_PATH;
+    } else {
+      env = { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
+    }
 
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
@@ -204,15 +208,36 @@ function startDistWatcher() {
 
 const watchProcs = [];
 
+/** Poll nx daemon --status until responsive or maxAttempts is reached. */
+async function waitForDaemon(maxAttempts = 12, delayMs = 500) {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const out = await runCommand(NX_BIN, ['daemon', '--status'], { daemonEnv: true });
+      if (/running|started|connected/i.test(out)) return true;
+    } catch {
+      // not ready yet
+    }
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
 async function startWatchBuild() {
   const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
 
-  // nx watch requires the daemon — start it first
+  // nx watch requires the daemon — start it and wait until responsive
   console.log(`  🔧 Starting Nx daemon...`);
   try {
     await runCommand(NX_BIN, ['daemon', '--start'], { daemonEnv: true });
   } catch {
-    // daemon may already be running
+    // may already be running — continue
+  }
+
+  const ready = await waitForDaemon();
+  if (!ready) {
+    console.warn(`  ⚠ Daemon did not respond in time — watch may fail. Try restarting.`);
+  } else {
+    console.log(`  ✓ Daemon ready`);
   }
 
   console.log(`  👁 Watching ${elementNames.length} element(s) via single nx watch`);

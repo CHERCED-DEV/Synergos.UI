@@ -18,8 +18,8 @@
     syn.$color-brand-600,
     syn.$color-neutral-0,
     transparent,
-    0 syn.px-to-rem(1) syn.px-to-rem(2) 0 rgb(79 110 247 / 0.20),
-    0 syn.px-to-rem(2) syn.px-to-rem(8) 0 rgb(79 110 247 / 0.28)
+    syn.$shadow-brand-sm,
+    syn.$shadow-brand-md
   );
 }
 
@@ -57,6 +57,25 @@
     syn.$color-neutral-0,
     transparent
   );
+}
+
+// Gradient — hero CTA. Cool brand-to-accent gradient, elevated shadow.
+.syn-button--gradient {
+  background:  linear-gradient(135deg, syn.$color-brand-500, syn.$color-accent-500);
+  color:       syn.$color-neutral-0;
+  border:      0;
+  box-shadow:  syn.$shadow-brand-sm;
+  transition:  background   syn.$duration-fast syn.$easing-smooth,
+               box-shadow   syn.$duration-fast syn.$easing-smooth,
+               transform    syn.$duration-fast syn.$easing-smooth;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, syn.$color-brand-600, syn.$color-accent-600);
+    box-shadow: syn.$shadow-brand-md;
+    transform:  translateY(syn.px-to-rem(-1));
+  }
+
+  &:active:not(:disabled) { transform: translateY(0); }
 }
 
 .syn-button--sm { @include syn.button-size(sm); }

@@ -57,7 +57,7 @@
 
 .syn-progress--indeterminate .syn-progress__bar {
   width: 40%;
-  animation: syn-progress-indeterminate 1.4s ease-in-out infinite;
+  animation: syn-progress-indeterminate syn.$duration-shimmer ease-in-out infinite;
 }
 
 .syn-progress__label {

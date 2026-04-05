@@ -4,6 +4,7 @@
   display: block;
 }
 
+// ─── Gallery Item ─────────────────────────────────────────────────────────────
 .gallery-item {
   @include syn.surface-panel(
     syn.$space-sm,
@@ -14,8 +15,16 @@
     syn.$shadow-xs
   );
   @include syn.flex-column;
-  gap:    syn.$space-sm;
-  margin: 0;
+  gap:        syn.$space-sm;
+  margin:     0;
+  overflow:   hidden;
+  transition: box-shadow syn.$duration-base syn.$easing-default,
+              transform  syn.$duration-base syn.$easing-default;
+
+  &:hover {
+    box-shadow: syn.$shadow-md;
+    transform:  translateY(syn.px-to-rem(-2));
+  }
 
   &__media,
   &__placeholder {

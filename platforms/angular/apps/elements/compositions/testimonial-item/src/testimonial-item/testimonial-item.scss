@@ -4,6 +4,9 @@
   display: block;
 }
 
+// ─── Testimonial Item ─────────────────────────────────────────────────────────
+// Premium editorial testimonial card. Quote mark accent adds visual depth.
+// Fluid quote size for comfortable reading at all viewport widths.
 .testimonial-item {
   @include syn.flex-column;
   @include syn.surface-panel(
@@ -14,7 +17,16 @@
     syn.$radius-xl,
     syn.$shadow-xs
   );
-  gap: syn.$space-lg;
+  position: relative;
+  gap:      syn.$space-lg;
+  height:   100%;
+  transition: box-shadow syn.$duration-base syn.$easing-default,
+              transform  syn.$duration-base syn.$easing-default;
+
+  &:hover {
+    box-shadow: syn.$shadow-md;
+    transform:  translateY(syn.px-to-rem(-2));
+  }
 
   &--dark {
     background:   syn.$color-neutral-900;
@@ -25,12 +37,35 @@
     .testimonial-item__role  { color: syn.$color-neutral-400; }
   }
 
-  &__quote      { margin: 0; }
+  // Decorative large opening quote mark — editorial accent
+  &__quote {
+    position: relative;
+    margin:   0;
+    flex:     1 1 auto; // Pushes author to bottom
+
+    // The " character sits in the top-right as a large watermark-like accent
+    &::before {
+      content:        '\201C';  // Left double quotation mark "
+      position:       absolute;
+      top:            syn.px-to-rem(-8);
+      right:          0;
+      font-size:      syn.px-to-rem(64);
+      font-weight:    syn.$font-weight-bold;
+      line-height:    1;
+      color:          syn.$color-brand-100;
+      pointer-events: none;
+      user-select:    none;
+
+      .sg-testimonial-item--dark & { color: syn.$color-neutral-700; }
+    }
+  }
 
   &__quote-copy {
+    position:    relative;
+    z-index:     1; // Sits above the decorative quote mark
     margin:      0;
     color:       syn.$color-neutral-700;
-    font-size:   syn.$font-size-lg;
+    font-size:   clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
     font-style:  italic;
     line-height: syn.$line-height-relaxed;
 
@@ -40,8 +75,9 @@
 
   &__author {
     @include syn.flex-start;
-    gap:    syn.$space-sm;
-    margin: 0;
+    gap:        syn.$space-sm;
+    margin:     0;
+    margin-top: auto; // Sticks to bottom regardless of quote length
   }
 
   &__meta {
@@ -50,12 +86,14 @@
   }
 
   &__name {
-    color:     syn.$color-neutral-900;
-    font-size: syn.$font-size-base;
+    color:       syn.$color-neutral-900;
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-tight;
   }
 
   &__role {
     color:     syn.$color-neutral-500;
-    font-size: syn.$font-size-sm;
+    font-size: syn.$font-size-xs;
   }
 }

@@ -1,19 +1,33 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
 // ─── Toggle ────────────────────────────────────────────────────────────────────
+// Travel = track-width - (2 × padding) - thumb-width
+
+// Default size
+$_track-w:  48;
+$_track-h:  26;
+$_thumb-w:  20;
+$_pad:       3;
+$_travel:   $_track-w - (2 * $_pad) - $_thumb-w; // = 22
+
+// Small size
+$_track-w-sm: 38;
+$_track-h-sm: 22;
+$_thumb-w-sm: 16;
+$_travel-sm:  $_track-w-sm - (2 * $_pad) - $_thumb-w-sm; // = 16
 
 .syn-toggle {
-  display: inline-flex;
-  align-items: center;
+  display:         inline-flex;
+  align-items:     center;
   justify-content: space-between;
-  gap: syn.$space-md;
-  width: 100%;
-  cursor: pointer;
+  gap:             syn.$space-md;
+  width:           100%;
+  cursor:          pointer;
 }
 
 .syn-toggle__copy {
   display: grid;
-  gap: syn.$space-1;
+  gap:     syn.$space-1;
 }
 
 .syn-toggle__label {
@@ -31,8 +45,8 @@
 
 .syn-toggle__control {
   position: relative;
-  display: inline-flex;
-  flex: 0 0 auto;
+  display:  inline-flex;
+  flex:     0 0 auto;
 }
 
 .syn-toggle__native {
@@ -40,30 +54,30 @@
 }
 
 .syn-toggle__native:focus-visible + .syn-toggle__track {
-  outline: syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline:        syn.px-to-rem(2) solid syn.$color-brand-300;
   outline-offset: syn.px-to-rem(2);
 }
 
 .syn-toggle__track {
-  display: inline-flex;
-  align-items: center;
-  width:        syn.px-to-rem(48);
-  height:       syn.px-to-rem(26);
-  padding:      syn.px-to-rem(3);
+  display:       inline-flex;
+  align-items:   center;
+  width:         syn.px-to-rem($_track-w);
+  height:        syn.px-to-rem($_track-h);
+  padding:       syn.px-to-rem($_pad);
   border-radius: syn.$radius-full;
-  background:   syn.$color-neutral-300;
-  transition:   background syn.$duration-fast syn.$easing-smooth;
+  background:    syn.$color-neutral-300;
+  transition:    background syn.$duration-fast syn.$easing-smooth;
 }
 
 .syn-toggle--sm .syn-toggle__track {
-  width:  syn.px-to-rem(38);
-  height: syn.px-to-rem(22);
+  width:  syn.px-to-rem($_track-w-sm);
+  height: syn.px-to-rem($_track-h-sm);
 }
 
 .syn-toggle__thumb {
-  display: block;
-  width:         syn.px-to-rem(20);
-  height:        syn.px-to-rem(20);
+  display:       block;
+  width:         syn.px-to-rem($_thumb-w);
+  height:        syn.px-to-rem($_thumb-w);
   border-radius: 50%;
   background:    syn.$color-neutral-0;
   box-shadow:    syn.$shadow-sm;
@@ -72,23 +86,20 @@
 }
 
 .syn-toggle--sm .syn-toggle__thumb {
-  width:  syn.px-to-rem(16);
-  height: syn.px-to-rem(16);
+  width:  syn.px-to-rem($_thumb-w-sm);
+  height: syn.px-to-rem($_thumb-w-sm);
 }
 
 .syn-toggle__native:checked + .syn-toggle__track {
   background: syn.$color-brand-500;
 }
 
-// Thumb travel = track width - 2×padding - thumb width
-// Default: 48 - 6 - 20 = 22px
 .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
-  transform: translateX(syn.px-to-rem(22));
+  transform: translateX(syn.px-to-rem($_travel));
 }
 
-// sm: 38 - 6 - 16 = 16px
 .syn-toggle--sm .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
-  transform: translateX(syn.px-to-rem(16));
+  transform: translateX(syn.px-to-rem($_travel-sm));
 }
 
 .syn-toggle--disabled {

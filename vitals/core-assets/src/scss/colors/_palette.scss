@@ -1,6 +1,7 @@
 @use '../tokens/colors' as *;
 @use '../tokens/radius' as *;
 @use '../tokens/motion' as *;
+@use '../tokens/semantic' as *;
 
 :root {
   // ── Neutral ────────────────────────────────────────────────────────────────
@@ -23,6 +24,14 @@
   --syn-color-brand-400: #{$color-brand-400};
   --syn-color-brand-500: #{$color-brand-500};
   --syn-color-brand-600: #{$color-brand-600};
+
+  // ── Accent (violet) ────────────────────────────────────────────────────────
+  --syn-color-accent-100: #{$color-accent-100};
+  --syn-color-accent-200: #{$color-accent-200};
+  --syn-color-accent-300: #{$color-accent-300};
+  --syn-color-accent-400: #{$color-accent-400};
+  --syn-color-accent-500: #{$color-accent-500};
+  --syn-color-accent-600: #{$color-accent-600};
 
   // ── Danger ─────────────────────────────────────────────────────────────────
   --syn-color-danger-100: #{$color-danger-100};
@@ -48,6 +57,26 @@
   --syn-color-warning-500: #{$color-warning-500};
   --syn-color-warning-600: #{$color-warning-600};
 
+  // ── Semantic surface ───────────────────────────────────────────────────────
+  --syn-surface:         #{$color-surface};
+  --syn-surface-subtle:  #{$color-surface-subtle};
+  --syn-surface-muted:   #{$color-surface-muted};
+  --syn-surface-inverse: #{$color-surface-inverse};
+
+  // ── Semantic text ──────────────────────────────────────────────────────────
+  --syn-text-primary:   #{$color-text-primary};
+  --syn-text-secondary: #{$color-text-secondary};
+  --syn-text-muted:     #{$color-text-muted};
+  --syn-text-disabled:  #{$color-text-disabled};
+  --syn-text-inverse:   #{$color-text-inverse};
+  --syn-text-brand:     #{$color-text-brand};
+
+  // ── Semantic border ────────────────────────────────────────────────────────
+  --syn-border-subtle:  #{$color-border-subtle};
+  --syn-border-default: #{$color-border-default};
+  --syn-border-strong:  #{$color-border-strong};
+  --syn-border-brand:   #{$color-border-brand};
+
   // ── Radius ─────────────────────────────────────────────────────────────────
   --syn-radius-sm:   #{$radius-sm};
   --syn-radius-md:   #{$radius-md};
@@ -57,7 +86,9 @@
   --syn-radius-full: #{$radius-full};
 
   // ── Motion ─────────────────────────────────────────────────────────────────
-  --syn-duration-fast: #{$duration-fast};
-  --syn-duration-base: #{$duration-base};
-  --syn-duration-slow: #{$duration-slow};
+  --syn-duration-fast:    #{$duration-fast};
+  --syn-duration-base:    #{$duration-base};
+  --syn-duration-slow:    #{$duration-slow};
+  --syn-duration-loop:    #{$duration-loop};
+  --syn-duration-shimmer: #{$duration-shimmer};
 }
