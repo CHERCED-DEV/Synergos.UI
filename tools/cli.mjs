@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { select, checkbox } from '@inquirer/prompts';
+import { select, checkbox, confirm } from '@inquirer/prompts';
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
@@ -69,8 +69,14 @@ async function main() {
       { name: 'Clean dist', value: 'clean' },
       { name: 'Graph', value: 'graph' },
       { name: 'Setup (npm install)', value: 'setup' },
+      { name: '← Salir', value: '__exit' },
     ],
   });
+
+  if (action === '__exit') {
+    console.log('\n  👋 Hasta luego.\n');
+    return;
+  }
 
   // ── Quick actions (no framework selection needed) ──────────────────────
 
@@ -128,8 +134,13 @@ async function main() {
     choices: [
       { name: 'All frameworks', value: 'all' },
       ...frameworks.map((f) => ({ name: f.charAt(0).toUpperCase() + f.slice(1), value: f })),
+      { name: '← Volver', value: '__back' },
     ],
   });
+
+  if (framework === '__back') {
+    return main(); // restart from beginning
+  }
 
   if (action === 'setup') {
     const dirs = framework === 'all' ? frameworks : [framework];
@@ -156,8 +167,13 @@ async function main() {
       choices: [
         { name: 'All tiers', value: 'all' },
         ...tiers.map((t) => ({ name: t.charAt(0).toUpperCase() + t.slice(1), value: t })),
+        { name: '← Volver', value: '__back' },
       ],
     });
+
+    if (tier === '__back') {
+      return main();
+    }
   }
 
   if (tier !== 'all') {
@@ -183,12 +199,42 @@ async function main() {
     return;
   }
 
-  // Step 5: Execute
-  const projectNames = selected.map((p) => p.name).join(',');
-  const cmd = `npx nx run-many --target=${action} --projects=${projectNames}`;
-  console.log(`\n  Running: ${cmd}\n`);
+  // Summary + confirm
+  console.log('');
+  console.log('  ─'.repeat(30));
+  console.log(`  Action     : ${action}`);
+  console.log(`  Framework  : ${framework}`);
+  console.log(`  Projects   : ${selected.length} selected`);
+  if (selected.length <= 8) {
+    console.log(`               ${selected.map((p) => p.element || p.name).join(', ')}`);
+  }
+  console.log('  ─'.repeat(30));
 
-  run(cmd);
+  const go = await confirm({ message: `▶  Proceed with ${action}?`, default: true });
+  if (!go) {
+    console.log('\n  ❌ Cancelled.\n');
+    return;
+  }
+
+  // Step 5: Execute — route to the correct nested workspace per framework
+  // Angular/React/Svelte/Vanilla each have their own Nx workspace under platforms/<fw>/
+  const byFramework = new Map();
+  for (const p of selected) {
+    const fw = p.framework || 'unknown';
+    if (!byFramework.has(fw)) byFramework.set(fw, []);
+    byFramework.get(fw).push(p.name);
+  }
+
+  for (const [fw, names] of byFramework) {
+    const projectNames = names.join(',');
+    const platformDir = resolve(WORKSPACE_ROOT, 'platforms', fw);
+    const nxBin = resolve(platformDir, 'node_modules', 'nx', 'bin', 'nx.js');
+
+    // Use the nested workspace's own Nx binary so it finds the projects
+    const cmd = `node "${nxBin}" run-many --target=${action} --projects=${projectNames}`;
+    console.log(`\n  Running [${fw}]: ${cmd}\n`);
+    run(cmd, platformDir);
+  }
 }
 
 main().catch(console.error);

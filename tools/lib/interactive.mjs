@@ -84,12 +84,13 @@ function elementLabel(p) {
  * Prompt user to select a framework.
  * @param {{ includeAngular?: boolean, includeVite?: boolean }} options
  */
-export async function selectFramework({ includeAngular = true, includeVite = true } = {}) {
+export async function selectFramework({ includeAngular = true, includeVite = true, includeCancel = false } = {}) {
   const choices = [];
   if (includeAngular) choices.push({ name: 'Angular',  value: 'angular' });
   if (includeVite)    choices.push({ name: 'React',    value: 'react' });
   if (includeVite)    choices.push({ name: 'Svelte',   value: 'svelte' });
   if (includeVite)    choices.push({ name: 'Vanilla',  value: 'vanilla' });
+  if (includeCancel)  choices.push({ name: '← Cancelar', value: '__cancel' });
 
   return select({ message: '🏗  Framework:', choices });
 }
@@ -247,21 +248,40 @@ export async function interactiveRelease() {
       { name: '🏗  Entire framework',             value: 'framework' },
       { name: '📚 Runtime only (Angular shared)', value: 'runtime' },
       { name: '🔥 Everything (full release)',     value: 'full' },
+      { name: '← Cancelar',                       value: '__cancel' },
     ],
   });
+
+  if (scope === '__cancel') {
+    console.log('\n  👋 Cancelado.\n');
+    process.exit(0);
+  }
 
   let framework = null;
   let elements = [];
 
   if (scope === 'elements') {
-    framework = await selectFramework();
+    framework = await selectFramework({ includeCancel: true });
+    if (framework === '__cancel') {
+      console.log('\n  👋 Cancelado.\n');
+      process.exit(0);
+    }
     elements = await selectElements(framework);
   } else if (scope === 'framework') {
-    framework = await selectFramework();
+    framework = await selectFramework({ includeCancel: true });
+    if (framework === '__cancel') {
+      console.log('\n  👋 Cancelado.\n');
+      process.exit(0);
+    }
     // all elements for that framework
     const all = await discoverElements(framework);
     elements = all.map((p) => p.element);
   }
+
+  const rebuildLibs = await confirm({
+    message: '📚 Rebuild libs/shared? (solo si cambiaste shared, core o contracts)',
+    default: false,
+  });
 
   const verify = await confirm({
     message: '🔍 Verify integrity after publish?',
@@ -288,6 +308,7 @@ export async function interactiveRelease() {
       console.log(`               ${elements.join(', ')}`);
     }
   }
+  console.log(`  Rebuild libs: ${rebuildLibs ? 'yes' : 'no (cache)'}`);
   console.log(`  Verify     : ${verify ? 'yes' : 'no'}`);
   console.log(`  Clean dist : ${clean ? 'yes' : 'no'}`);
   console.log('  ─'.repeat(30));
@@ -303,5 +324,5 @@ export async function interactiveRelease() {
   }
 
   console.log('');
-  return { scope, framework, elements, verify, clean };
+  return { scope, framework, elements, verify, clean, rebuildLibs };
 }

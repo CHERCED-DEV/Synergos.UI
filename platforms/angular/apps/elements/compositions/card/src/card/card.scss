@@ -1,8 +1,13 @@
 @use 'scss' as syn;
 
 :host {
-  display:     block;
-  font-family: inherit;
+  display:        flex;
+  flex-direction: column;
+  font-family:    inherit;
+  height:         100%;
+  min-height:     0;            // allow shrinking inside flex parents
+  border-radius:  syn.$radius-xl; // match .card radius for overflow clipping
+  overflow:       hidden;       // clip content to radius
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
@@ -17,12 +22,14 @@
     syn.$color-neutral-0,
     syn.$color-neutral-200,
     syn.px-to-rem(1),
-    syn.$radius-lg,
+    syn.$radius-xl,
     syn.$shadow-xs
   );
   overflow:   hidden;
+  height:     100%; // Fill parent for grid alignment
   transition: box-shadow syn.$duration-base syn.$easing-default,
-              transform  syn.$duration-base syn.$easing-default;
+              transform  syn.$duration-base syn.$easing-default,
+              border-color syn.$duration-base syn.$easing-default;
 
   &:hover {
     box-shadow: syn.$shadow-md;
@@ -93,9 +100,16 @@
 
   &__content {
     @include syn.flex-column;
-    flex:    1 1 auto;
-    gap:     syn.$space-sm;
-    padding: syn.$space-lg;
+    flex:       1 1 auto;
+    gap:        syn.$space-sm;
+    padding:    syn.$space-lg;
+    min-height: 0;        // prevent flex blowout
+    overflow:   hidden;   // clip overflow from children
+
+    // Extra top padding when card has no image
+    .card:not(:has(.card__image)) & {
+      padding-top: syn.$space-xl;
+    }
   }
 
   // Optional category/topic label above title — eyebrow style
@@ -110,7 +124,11 @@
   }
 
   &__title {
-    display: block;
+    display:            -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow:           hidden;
+    text-overflow:      ellipsis;
   }
 
   &__subtitle {
@@ -123,10 +141,17 @@
 
   &__body {
     margin:      0;
-    flex:        1 1 auto; // Pushes CTA to bottom
+    flex:        1 1 auto;
     font-size:   syn.$font-size-base;
     color:       syn.$color-neutral-600;
     line-height: syn.$line-height-relaxed;
+
+    // Clamp to 3 lines — overflow becomes "..."
+    display:            -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow:           hidden;
+    text-overflow:      ellipsis;
 
     .sg-card--dark & { color: syn.$color-neutral-300; }
   }

@@ -27,31 +27,45 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // ── Parse CLI or interactive ─────────────────────────────────────────────────
 
-let scope     = getArg('scope');
-let framework = getArg('framework');
-let elements  = getArg('element')?.split(',').map((e) => e.trim()) || [];
-let verify    = !process.argv.includes('--no-verify');
-let clean     = process.argv.includes('--clean');
+let scope       = getArg('scope');
+let framework   = getArg('framework');
+let elements    = getArg('element')?.split(',').map((e) => e.trim()) || [];
+let verify      = !process.argv.includes('--no-verify');
+let clean       = process.argv.includes('--clean');
+let rebuildLibs = process.argv.includes('--rebuild-libs');
 
 if (!scope) {
   const answers = await interactiveRelease();
-  scope     = answers.scope;
-  framework = answers.framework;
-  elements  = answers.elements;
-  verify    = answers.verify;
-  clean     = answers.clean;
+  scope       = answers.scope;
+  framework   = answers.framework;
+  elements    = answers.elements;
+  verify      = answers.verify;
+  clean       = answers.clean;
+  rebuildLibs = answers.rebuildLibs;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function run(cmd, label) {
+/** Clean env for running Nx in a nested (per-framework) workspace */
+function nxCleanEnv() {
+  return {
+    ...process.env,
+    NX_DAEMON: 'false',
+    NX_WORKSPACE_ROOT_PATH: '',
+    NX_TUI: 'false',
+  };
+}
+
+function run(cmd, label, cwd = ROOT, env) {
   console.log(`\n  ⚡ ${label}`);
   if (DRY_RUN) {
     console.log(`     [DRY RUN] ${cmd}`);
     return true;
   }
   try {
-    execSync(cmd, { cwd: ROOT, stdio: 'inherit' });
+    const opts = { cwd, stdio: 'inherit' };
+    if (env) opts.env = env;
+    execSync(cmd, opts);
     return true;
   } catch {
     console.error(`  ❌ Failed: ${label}`);
@@ -60,28 +74,25 @@ function run(cmd, label) {
 }
 
 function nxBuild(fw, projectNames) {
-  const bin = fw === 'angular'
-    ? 'npx --prefix platforms/angular nx'
-    : `npx --prefix platforms/${fw} nx`;
+  const nxBin = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
+  const cwd   = resolve(ROOT, 'platforms', fw);
 
-  return run(
-    `${bin} run-many --target=build --projects=${projectNames} --parallel=4 --skip-nx-cache`,
-    `Building ${projectNames.split(',').length} element(s) [${fw}]`,
-  );
+  // When rebuildLibs is false, only build the element itself (deps come from cache)
+  const cacheFlag = rebuildLibs ? '--skip-nx-cache' : '';
+  const cmd = `node "${nxBin}" run-many --target=build --projects=${projectNames} --parallel=4 ${cacheFlag}`.trim();
+  return run(cmd, `Building ${projectNames.split(',').length} element(s) [${fw}]${rebuildLibs ? ' + libs' : ' (libs from cache)'}`, cwd, nxCleanEnv());
 }
 
 function resolveNxProjects(fw, elementList) {
-  const bin = fw === 'angular'
-    ? resolve(ROOT, 'platforms/angular/node_modules/.bin/nx')
-    : resolve(ROOT, 'platforms', fw, 'node_modules/.bin/nx');
-  const cwd = resolve(ROOT, 'platforms', fw);
+  const nxBin = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
+  const cwd   = resolve(ROOT, 'platforms', fw);
 
   const projects = [];
   for (const el of elementList) {
     try {
       const result = execSync(
-        `"${bin}" show projects --projects=tag:element:${el}`,
-        { cwd, encoding: 'utf-8', env: { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' } },
+        `node "${nxBin}" show projects --projects=tag:element:${el}`,
+        { cwd, encoding: 'utf-8', env: nxCleanEnv() },
       ).trim();
       if (result) projects.push(result);
     } catch {

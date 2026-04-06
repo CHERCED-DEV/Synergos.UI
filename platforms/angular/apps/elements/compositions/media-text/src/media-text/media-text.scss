@@ -29,6 +29,7 @@
   &__media {
     overflow:      hidden;
     border-radius: syn.$radius-xl;
+    box-shadow:    syn.$shadow-sm;
   }
 
   &__img {
@@ -36,11 +37,16 @@
     width:      100%;
     height:     auto;
     object-fit: cover;
+    transition: transform syn.$duration-slow syn.$easing-default;
+  }
+
+  &:hover &__img {
+    transform: scale(1.02);
   }
 
   &__content {
     @include syn.flex-column;
-    gap: syn.$space-md;
+    gap: syn.$space-lg;
   }
 
   &__heading { display: block; }

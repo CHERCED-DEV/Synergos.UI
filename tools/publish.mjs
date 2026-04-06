@@ -165,8 +165,20 @@ for (const entry of registry) {
 // ── Generate global registry.json ────────────────────────────────────────────
 
 if (published.length > 0) {
-  // Group by element name to list all available frameworks and version slots
+  // Load existing registry so single-element publishes don't clobber it
+  const registryPath = join(CDN_SYNERGOS, 'registry.json');
   const byElement = new Map();
+
+  if (existsSync(registryPath)) {
+    try {
+      const existing = JSON.parse(readFileSync(registryPath, 'utf8'));
+      for (const entry of existing.elements ?? []) {
+        byElement.set(entry.name, { ...entry });
+      }
+    } catch { /* corrupt file — start fresh */ }
+  }
+
+  // Merge newly published elements (upsert)
   for (const item of published) {
     if (!byElement.has(item.name)) {
       byElement.set(item.name, {
