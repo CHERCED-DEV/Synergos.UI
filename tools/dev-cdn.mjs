@@ -3,32 +3,31 @@
 /**
  * dev-cdn.mjs — CDN-native development mode for Angular Elements
  *
- * Watches element source files, rebuilds on change, and syncs the output
- * directly to LOCAL_CDN so the CMS sees updates without a manual publish step.
+ * Uses Angular's native --watch flag for sub-second incremental rebuilds,
+ * then syncs output to LOCAL_CDN so the CMS sees updates instantly.
  *
  * Usage:
  *   node tools/dev-cdn.mjs --element=hero
- *   node tools/dev-cdn.mjs --element=hero,card,footer
+ *   node tools/dev-cdn.mjs --element=hero,card
  *   node tools/dev-cdn.mjs --element=hero --skip-runtime
  *   node tools/dev-cdn.mjs --element=hero --livereload
  *
  * How it works:
  *   1. Verifies runtime bundles exist in CDN (builds if missing)
- *   2. Builds the target element(s) with "cdn-dev" config (externals + sourcemaps)
- *   3. Copies output to LOCAL_CDN
- *   4. Starts nx watch on element + dependencies → auto-rebuild on change
- *   5. Watches dist/ output → auto-sync to CDN on each build
- *
- * Requirements:
- *   - Runtime must be published to CDN at least once (npm run publish:runtime)
- *   - The "cdn-dev" configuration must exist in nx.json (externals + sourcemaps)
+ *   2. Launches `nx build <project> -c cdn-dev --watch` per element
+ *      → Angular's builder stays alive in memory (no plugin worker re-spawns)
+ *      → Incremental rebuilds in <1s (vs 15-30s with run-many)
+ *   3. Watches dist/ output → auto-sync to CDN on each rebuild
+ *   4. Optional LiveReload via CDN polling
  */
 
-import { existsSync, copyFileSync, readFileSync, writeFileSync, mkdirSync, watch as fsWatch } from 'node:fs';
+import { existsSync, copyFileSync, readFileSync, writeFileSync, mkdirSync, watch as fsWatch, statSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
+import { registerDevServer, unregisterDevServer, watchStopSignal, clearStopSignal } from './lib/dev-servers.mjs';
+import { DEFAULT_CDN_ORIGIN } from './lib/synergos-config.mjs';
 import { interactiveDevCdn } from './lib/interactive.mjs';
 
 // ── Paths ────────────────────────────────────────────────────────────────────
@@ -38,7 +37,7 @@ const ROOT = resolve(__dirname, '..');
 const NG_DIR = resolve(ROOT, 'platforms/angular');
 const CDN_ROOT = resolve(process.env.SYNERGOS_CDN || String.raw`C:\LOCAL_CDN`);
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
-const NX_BIN = resolve(NG_DIR, 'node_modules/.bin/nx');
+const NX_BIN = resolve(NG_DIR, 'node_modules', 'nx', 'bin', 'nx.js');
 
 // ── CLI args (or interactive mode) ───────────────────────────────────────────
 
@@ -70,7 +69,7 @@ const projectMap = new Map();
 async function resolveProjectNames() {
   for (const name of elementNames) {
     try {
-      const result = await runCommand(NX_BIN, [
+      const result = await runCommand('node', [NX_BIN,
         'show', 'projects', `--projects=tag:element:${name}`,
       ]);
       const nxName = result.trim();
@@ -85,12 +84,12 @@ async function resolveProjectNames() {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function distPath(element) {
-  return resolve(NG_DIR, 'dist', element, 'browser', 'main.js');
+function distDir(element) {
+  return resolve(NG_DIR, 'dist', element, 'browser');
 }
 
-function distMapPath(element) {
-  return resolve(NG_DIR, 'dist', element, 'browser', 'main.js.map');
+function distPath(element) {
+  return resolve(distDir(element), 'main.js');
 }
 
 function cdnPath(element) {
@@ -99,17 +98,13 @@ function cdnPath(element) {
 
 function syncToCdn(element) {
   const src = distPath(element);
-  const srcMap = distMapPath(element);
+  const srcMap = src + '.map';
   const dest = cdnPath(element);
 
-  if (!existsSync(src)) {
-    console.log(`  ⚠ ${element}: dist not found, skipping sync`);
-    return false;
-  }
+  if (!existsSync(src)) return false;
 
   mkdirSync(dest, { recursive: true });
 
-  // If LiveReload is active, inject the WS client into the bundle
   if (liveReload) {
     const code = readFileSync(src, 'utf-8') + LIVERELOAD_CLIENT_JS;
     writeFileSync(join(dest, 'main.js'), code);
@@ -127,22 +122,33 @@ function syncToCdn(element) {
   return true;
 }
 
+/** Clean env — strips every NX_* var so the root workspace cannot bleed in. */
+function cleanEnv() {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith('NX_')),
+  );
+  env.NX_PLUGIN_NO_TIMEOUTS = 'true';
+  env.NX_DAEMON = 'false';
+  env.NX_TUI    = 'false';
+  return env;
+}
+
+/** Kill any Nx daemons that could interfere (root + nested workspace). */
+function stopNxDaemons() {
+  const env = cleanEnv();
+  const rootNx = resolve(ROOT, 'node_modules', 'nx', 'bin', 'nx.js');
+  try { execSync(`node "${NX_BIN}" daemon --stop`, { cwd: NG_DIR, stdio: 'ignore', env, timeout: 10_000 }); } catch {}
+  try { execSync(`node "${rootNx}" daemon --stop`, { cwd: ROOT, stdio: 'ignore', env, timeout: 10_000 }); } catch {}
+}
+
+/** Run a command and return stdout (for short-lived commands like show projects). */
 function runCommand(cmd, cmdArgs, options = {}) {
   return new Promise((resolve, reject) => {
-    let env;
-    if (options.daemonEnv) {
-      // Daemon needs NX_WORKSPACE_ROOT_PATH unset — otherwise it can't locate the workspace root
-      env = { ...process.env, NX_TUI: 'false' };
-      delete env.NX_WORKSPACE_ROOT_PATH;
-    } else {
-      env = { ...process.env, NX_WORKSPACE_ROOT_PATH: '', NX_DAEMON: 'false', NX_TUI: 'false' };
-    }
-
     const proc = spawn(cmd, cmdArgs, {
       stdio: options.inherit ? 'inherit' : 'pipe',
       shell: true,
       cwd: options.cwd || NG_DIR,
-      env,
+      env: cleanEnv(),
     });
 
     let stdout = '';
@@ -180,119 +186,84 @@ async function verifyRuntime() {
   }
 }
 
-// ── Phase 2: Initial build + sync ───────────────────────────────────────────
+// ── Phase 2: Launch `nx build --watch` per element ──────────────────────────
+// Angular's @angular/build:application with --watch keeps the compiler alive
+// in memory.  Incremental rebuilds are sub-second (no Nx plugin workers
+// re-spawned, no full project graph recalculation).
 
-async function initialBuild() {
-  const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
-  console.log(`  🔨 Building ${elementNames.length} element(s) (cdn-dev)...`);
-  try {
-    await runCommand(NX_BIN, [
-      'run-many',
-      '--target=build',
-      `--projects=${nxProjects}`,
+/** @type {import('child_process').ChildProcess[]} */
+const watchProcesses = [];
+
+function launchWatchBuilders() {
+  for (const [element, nxProject] of projectMap) {
+    console.log(`  🔨 ${element} → nx build ${nxProject} -c cdn-dev --watch`);
+
+    const proc = spawn('node', [
+      NX_BIN, 'build', nxProject,
       '-c', 'cdn-dev',
-      '--skip-nx-cache',
-      '--parallel=4',
-    ], { inherit: true });
-    for (const element of elementNames) {
-      syncToCdn(element);
-    }
-  } catch (err) {
-    console.error(`  ❌ Build failed:`, err.message);
+      '--watch',
+    ], {
+      cwd: NG_DIR,
+      env: cleanEnv(),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
+
+    // Forward output with element prefix
+    proc.stdout.on('data', (d) => {
+      const text = d.toString();
+      process.stdout.write(text);
+    });
+    proc.stderr.on('data', (d) => {
+      process.stderr.write(d.toString());
+    });
+
+    proc.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`  ❌ ${element} watcher exited with code ${code}`);
+      }
+    });
+
+    watchProcesses.push(proc);
   }
 }
 
-// ── Phase 3: Watch dist/ for changes and sync to CDN ────────────────────────
+// ── Phase 3: Watch dist/ output → sync to CDN ──────────────────────────────
+// When the Angular builder writes new output, we copy it to the CDN.
 
-function startDistWatcher() {
-  const watchers = new Map();
+function startDistWatchers() {
+  const watchers = [];
 
   for (const element of elementNames) {
-    const distDir = resolve(NG_DIR, 'dist', element, 'browser');
+    const dir = distDir(element);
 
-    if (!existsSync(distDir)) {
-      mkdirSync(distDir, { recursive: true });
-    }
+    // Create dist dir if it doesn't exist yet (first build will create it)
+    mkdirSync(dir, { recursive: true });
 
-    // Debounce: esbuild may write multiple times rapidly
+    // Track last mtime to avoid duplicate syncs
+    let lastMtime = 0;
     let debounce = null;
-    const watcher = fsWatch(distDir, { recursive: false }, (eventType, filename) => {
-      if (filename !== 'main.js') return;
+
+    const watcher = fsWatch(dir, { recursive: false }, (_event, filename) => {
+      if (!filename || !filename.endsWith('main.js')) return;
       clearTimeout(debounce);
-      debounce = setTimeout(() => syncToCdn(element), 300);
+      debounce = setTimeout(() => {
+        const file = distPath(element);
+        if (!existsSync(file)) return;
+        const mtime = statSync(file).mtimeMs;
+        if (mtime <= lastMtime) return;   // same file, skip
+        lastMtime = mtime;
+        syncToCdn(element);
+      }, 300);
     });
 
-    watchers.set(element, watcher);
+    watchers.push(watcher);
   }
 
   return watchers;
 }
 
-// ── Phase 4: Single nx watch → rebuild only affected projects ────────────────
-
-/** Poll nx daemon --status until the daemon is responsive or maxAttempts is reached. */
-async function waitForDaemon(maxAttempts = 12, delayMs = 500) {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const out = await runCommand(NX_BIN, ['daemon', '--status'], { cwd: NG_DIR, daemonEnv: true });
-      if (/running|started|connected/i.test(out)) return true;
-    } catch {
-      // not ready yet — keep polling
-    }
-    await new Promise(r => setTimeout(r, delayMs));
-  }
-  return false;
-}
-
-async function startWatchBuild() {
-  const nxProjects = elementNames.map((e) => projectMap.get(e)).join(',');
-
-  // nx watch requires the daemon — start it and wait until it's responsive
-  console.log(`  🔧 Starting Nx daemon...`);
-  try {
-    await runCommand(NX_BIN, ['daemon', '--start'], { cwd: NG_DIR, daemonEnv: true });
-  } catch {
-    // may already be running — continue
-  }
-
-  const ready = await waitForDaemon();
-  if (!ready) {
-    console.warn(`  ⚠ Daemon did not respond in time — watch may fail. Try restarting.`);
-  } else {
-    console.log(`  ✓ Daemon ready`);
-  }
-
-  console.log(`  👁 Watching ${elementNames.length} element(s) via single nx watch`);
-
-  // Build the env for watch — daemon needs NX_WORKSPACE_ROOT_PATH unset
-  const watchEnv = { ...process.env, NX_TUI: 'false' };
-  delete watchEnv.NX_WORKSPACE_ROOT_PATH;
-
-  const proc = spawn(NX_BIN, [
-    'watch',
-    `--projects=${nxProjects}`,
-    '--includeDependentProjects',
-    '--',
-    NX_BIN, 'build', '{projectName}',
-    '-c', 'cdn-dev',
-    '--skip-nx-cache',
-  ], {
-    stdio: 'inherit',
-    shell: true,
-    cwd: NG_DIR,
-    env: watchEnv,
-  });
-
-  proc.on('error', (err) => {
-    console.error(`  ❌ nx watch failed:`, err.message);
-  });
-
-  watchProcs.push(proc);
-}
-
-const watchProcs = [];
-
-// ── Phase 5 (optional): LiveReload via CDN polling ─────────────────────────
+// ── Phase 4 (optional): LiveReload via CDN polling ─────────────────────────
 
 /** @type {{ touch: () => void, clean: () => void } | null} */
 let liveReload = null;
@@ -311,33 +282,69 @@ async function main() {
   console.log(`   Elements : ${elementNames.join(', ')}`);
   console.log(`   CDN      : ${CDN_SYNERGOS}`);
   console.log(`   Config   : cdn-dev (externals + sourcemaps)`);
+  console.log(`   Strategy : Angular native --watch (sub-second rebuilds)`);
   console.log('─'.repeat(60));
+
+  // Kill stale daemons before any Nx calls
+  stopNxDaemons();
 
   await resolveProjectNames();
   for (const [short, nx] of projectMap) {
     console.log(`  📦 ${short} → ${nx}`);
   }
 
+  // Register in __dev-servers.json — CMS picks up overrides via FileSystemWatcher
+  for (const [element] of projectMap) {
+    const devUrl = `${DEFAULT_CDN_ORIGIN}/synergos/${element}/angular/latest`;
+    registerDevServer(CDN_SYNERGOS, element, devUrl, 'angular');
+  }
+  console.log(`  📡 ${elementNames.length} element(s) registered in __dev-servers.json`);
+
   await verifyRuntime();
-  await initialBuild();
 
   console.log('─'.repeat(60));
-  console.log('  Starting watch mode...\n');
+  console.log('  Launching watch builders...\n');
 
   initLiveReload();
-  const watchers = startDistWatcher();
-  await startWatchBuild();
+  const distWatchers = startDistWatchers();
+  launchWatchBuilders();
+
+  console.log(`\n  ✓ ${elementNames.length} builder(s) running — edit any .ts/.html/.scss and CDN updates automatically`);
+  console.log('  Press q + Enter to stop\n');
 
   // Cleanup on exit
   const cleanup = () => {
     console.log('\n  🛑 Stopping dev-cdn...');
-    for (const p of watchProcs) p.kill();
-    for (const [, w] of watchers) w.close();
+    for (const proc of watchProcesses) {
+      try { proc.kill(); } catch {}
+    }
+    for (const w of distWatchers) w.close();
     if (liveReload) liveReload.clean();
+    for (const element of elementNames) {
+      unregisterDevServer(CDN_SYNERGOS, element);
+    }
+    clearStopSignal(CDN_SYNERGOS);
+    stopWatcher.close();
     process.exit(0);
   };
+
+  // Watch for graceful stop signal (__dev-stop file)
+  const stopWatcher = watchStopSignal(CDN_SYNERGOS, () => {
+    console.log('\n  📩 Stop signal received — shutting down gracefully...');
+    cleanup();
+  });
+
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+
+  // Listen for 'q' on stdin to stop from this terminal
+  process.stdin.setEncoding('utf-8');
+  process.stdin.resume();
+  process.stdin.on('data', (key) => {
+    if (key.trim().toLowerCase() === 'q') {
+      cleanup();
+    }
+  });
 }
 
 try {

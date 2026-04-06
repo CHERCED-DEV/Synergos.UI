@@ -26,7 +26,8 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createDevSignal, LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
-import { ROOT, ALL_FRAMEWORKS, resolveCdnRoot } from './lib/synergos-config.mjs';
+import { registerDevServer, unregisterDevServer, watchStopSignal, clearStopSignal } from './lib/dev-servers.mjs';
+import { ROOT, ALL_FRAMEWORKS, resolveCdnRoot, DEFAULT_CDN_ORIGIN } from './lib/synergos-config.mjs';
 import { getArg } from './lib/cli-utils.mjs';
 import { interactiveDevCdnVite } from './lib/interactive.mjs';
 
@@ -292,6 +293,13 @@ async function main() {
     console.log(`  📦 ${short} → ${nx}`);
   }
 
+  // Register in __dev-servers.json — CMS picks up overrides via FileSystemWatcher
+  for (const [element] of projectMap) {
+    const devUrl = `${DEFAULT_CDN_ORIGIN}/synergos/${element}/${FRAMEWORK_ARG}/latest`;
+    registerDevServer(CDN_SYNERGOS, element, devUrl, FRAMEWORK_ARG);
+  }
+  console.log(`  📡 ${elementNames.length} element(s) registered in __dev-servers.json`);
+
   await initialBuild();
 
   console.log('─'.repeat(60));
@@ -307,10 +315,31 @@ async function main() {
     for (const p of watchProcs) p.kill();
     for (const [, w] of watchers) w.close();
     if (liveReload) liveReload.clean();
+    for (const element of elementNames) {
+      unregisterDevServer(CDN_SYNERGOS, element);
+    }
+    clearStopSignal(CDN_SYNERGOS);
+    stopWatcher.close();
     process.exit(0);
   };
+
+  // Watch for graceful stop signal (__dev-stop file)
+  const stopWatcher = watchStopSignal(CDN_SYNERGOS, () => {
+    console.log('\n  📩 Stop signal received — shutting down gracefully...');
+    cleanup();
+  });
+
   process.on('SIGINT', cleanup);
   process.on('SIGTERM', cleanup);
+
+  // Listen for 'q' on stdin to stop from this terminal
+  process.stdin.setEncoding('utf-8');
+  process.stdin.resume();
+  process.stdin.on('data', (key) => {
+    if (key.trim().toLowerCase() === 'q') {
+      cleanup();
+    }
+  });
 }
 
 try {

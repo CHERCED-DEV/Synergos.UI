@@ -40,9 +40,23 @@ function unique(arr) {
   return [...new Set(arr)].sort();
 }
 
-function run(cmd, cwd = WORKSPACE_ROOT) {
+/** Clean env for running Nx in a nested (per-framework) workspace.
+ *  Strips every NX_* var so the root workspace cannot bleed into the child. */
+function nxCleanEnv() {
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith('NX_')),
+  );
+  env.NX_DAEMON              = 'false';
+  env.NX_TUI                 = 'false';
+  env.NX_PLUGIN_NO_TIMEOUTS  = 'true';
+  return env;
+}
+
+function run(cmd, cwd = WORKSPACE_ROOT, env) {
   try {
-    execSync(cmd, { cwd, stdio: 'inherit' });
+    const opts = { cwd, stdio: 'inherit' };
+    if (env) opts.env = env;
+    execSync(cmd, opts);
     return true;
   } catch {
     return false;
@@ -61,7 +75,8 @@ async function main() {
     message: 'What do you want to do?',
     choices: [
       { name: '🔥 Dev CDN (hot reload)', value: 'dev-cdn' },
-      { name: '🚀 Release to CDN', value: 'release-cdn' },
+      { name: '� Stop Dev CDN', value: 'dev-cdn-stop' },
+      { name: '�🚀 Release to CDN', value: 'release-cdn' },
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
       { name: 'Lint', value: 'lint' },
@@ -99,6 +114,11 @@ async function main() {
       ].filter(Boolean).join(' ');
       run(`node tools/dev-cdn-vite.mjs ${flags}`);
     }
+    return;
+  }
+
+  if (action === 'dev-cdn-stop') {
+    run('node tools/dev-cdn-stop.mjs');
     return;
   }
 
@@ -233,7 +253,7 @@ async function main() {
     // Use the nested workspace's own Nx binary so it finds the projects
     const cmd = `node "${nxBin}" run-many --target=${action} --projects=${projectNames}`;
     console.log(`\n  Running [${fw}]: ${cmd}\n`);
-    run(cmd, platformDir);
+    run(cmd, platformDir, nxCleanEnv());
   }
 }
 

@@ -47,6 +47,7 @@
 
     "// ─── HERRAMIENTAS ───────────────────────────────────────────────────────": "",
     "dev:cdn":                    "node tools/dev-cdn.mjs",
+    "dev:cdn:stop":               "node tools/dev-cdn-stop.mjs",
     "dev:cdn:react":              "node tools/dev-cdn-vite.mjs --framework=react",
     "dev:cdn:svelte":             "node tools/dev-cdn-vite.mjs --framework=svelte",
     "dev:cdn:vanilla":            "node tools/dev-cdn-vite.mjs --framework=vanilla",
