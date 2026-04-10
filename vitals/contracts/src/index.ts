@@ -6,4 +6,6 @@ export * from './page-config.contract';
 export * from './elements.contract';
 export * from './rendering.contract';
 export * from './element-manifest.schema';
+export * from './form.contract';
+export * from './flow.contract';
 export { default as ELEMENT_REGISTRY } from './element-registry.json';

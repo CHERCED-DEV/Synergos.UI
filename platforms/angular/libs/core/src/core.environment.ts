@@ -8,6 +8,8 @@ export interface Environment {
   production: boolean;
   apiBaseUrl: string;
   cdnBaseUrl: string;
+  /** API key sent as X-Api-Key on requests to apiBaseUrl. Leave unset in public/browser contexts. */
+  apiKey?: string;
   cache?: CacheConfig;
 }
 
