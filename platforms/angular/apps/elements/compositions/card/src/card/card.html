@@ -4,7 +4,6 @@
       <img [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
     </div>
   }
-
   <div class="card__content">
     @defer (on idle) {
       @if (hasBadge()) {
@@ -21,7 +20,6 @@
         size="sm"
       />
     }
-
     @if (subtitle()) {
       <p class="card__subtitle">{{ subtitle() }}</p>
     }

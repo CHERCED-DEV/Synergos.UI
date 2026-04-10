@@ -20,7 +20,7 @@
   @include syn.surface-panel(
     0,
     syn.$color-neutral-0,
-    syn.$color-neutral-200,
+    transparent,
     syn.px-to-rem(1),
     syn.$radius-xl,
     syn.$shadow-xs

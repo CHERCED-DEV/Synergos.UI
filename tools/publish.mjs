@@ -22,7 +22,7 @@
  *   node tools/publish.mjs --verify                  # verify integrity post-publish
  */
 
-import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, statSync, readFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, statSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -175,7 +175,53 @@ if (published.length > 0) {
       for (const entry of existing.elements ?? []) {
         byElement.set(entry.name, { ...entry });
       }
-    } catch { /* corrupt file — start fresh */ }
+    } catch { /* corrupt file — rebuild below */ }
+  }
+
+  // Fallback: if CDN registry is empty/corrupt, rebuild from published manifests
+  if (byElement.size === 0) {
+    const srcRegistry = loadRegistry();
+    const dirs = existsSync(CDN_SYNERGOS)
+      ? readdirSync(CDN_SYNERGOS, { withFileTypes: true })
+          .filter((d) => d.isDirectory() && d.name !== 'runtime')
+          .map((d) => d.name)
+      : [];
+
+    for (const elName of dirs) {
+      const elDir = join(CDN_SYNERGOS, elName);
+      const fwDirs = readdirSync(elDir, { withFileTypes: true }).filter((d) => d.isDirectory());
+
+      for (const fwDir of fwDirs) {
+        const manifestPath = join(elDir, fwDir.name, 'latest', 'manifest.json');
+        if (!existsSync(manifestPath)) continue;
+
+        try {
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+          // Prefer source registry for alias/tag/tier; fall back to manifest
+          const src = srcRegistry.find((r) => r.name === elName);
+
+          if (!byElement.has(elName)) {
+            byElement.set(elName, {
+              name:  elName,
+              alias: src?.alias ?? manifest.alias ?? elName,
+              tag:   src?.tag   ?? manifest.tag   ?? `synergos-${elName}`,
+              tier:  src?.tier  ?? manifest.tier   ?? 'unknown',
+              implementations: {},
+            });
+          }
+          const metaPath = join(elDir, fwDir.name, 'latest', 'meta.json');
+          const ver = existsSync(metaPath)
+            ? JSON.parse(readFileSync(metaPath, 'utf8')).version ?? VERSION
+            : VERSION;
+          const major = `v${ver.split('.')[0]}`;
+          byElement.get(elName).implementations[fwDir.name] = { latest: ver, [major]: ver };
+        } catch { /* skip unreadable manifest */ }
+      }
+    }
+
+    if (byElement.size > 0) {
+      console.log(`   ♻️  Rebuilt registry from ${byElement.size} CDN manifests`);
+    }
   }
 
   // Merge newly published elements (upsert)

@@ -58,6 +58,7 @@
           "optimization": false,
           "extractLicenses": false,
           "sourceMap": true,
+          "deleteOutputPath": false,
           "outputHashing": "none",
           "externalDependencies": [
             "@angular/core",

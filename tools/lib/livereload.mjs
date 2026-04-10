@@ -52,9 +52,10 @@ export function createDevSignal(cdnSynergosDir) {
 /**
  * Pure JS snippet injected into bundles during dev-cdn --livereload.
  *
- * Polls `__dev.json` from the same CDN origin every 1.5s.
- * When the timestamp changes → reload. Idempotent via global flag.
- * Resolves the CDN base URL from the script's own `src` attribute.
+ * Polls `__dev.json` from the CDN origin. Starts checking every 3s,
+ * backs off to 10s after 20 consecutive unchanged polls (idle mode).
+ * Any detected change resets to fast mode and reloads the page.
+ * Only ONE poller runs per page (idempotent via global flag).
  */
 export const LIVERELOAD_CLIENT_JS = `
 ;(function(){
@@ -68,13 +69,19 @@ export const LIVERELOAD_CLIENT_JS = `
   if(!base)return;
   var url=base+'/__dev.json';
   var lastTs=0;
+  var idle=0;
+  var FAST=3000;
+  var SLOW=10000;
+  var IDLE_AFTER=20;
   function poll(){
+    var interval=idle>=IDLE_AFTER?SLOW:FAST;
     fetch(url,{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
-      if(lastTs&&d.ts!==lastTs)location.reload();
+      if(lastTs&&d.ts!==lastTs){location.reload();return}
       lastTs=d.ts;
-    }).catch(function(){});
-    setTimeout(poll,1500);
+      idle++;
+    }).catch(function(){idle++});
+    setTimeout(poll,interval);
   }
-  poll();
+  setTimeout(poll,FAST);
 })();
 `;

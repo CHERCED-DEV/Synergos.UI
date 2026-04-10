@@ -46,14 +46,27 @@ if (!scope) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Clean env for running Nx in a nested (per-framework) workspace */
+/** Clean env for running Nx in a nested (per-framework) workspace.
+ *  Strips every NX_* var so the root workspace cannot bleed into the child. */
 function nxCleanEnv() {
-  return {
-    ...process.env,
-    NX_DAEMON: 'false',
-    NX_WORKSPACE_ROOT_PATH: '',
-    NX_TUI: 'false',
-  };
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !k.startsWith('NX_')),
+  );
+  env.NX_DAEMON              = 'false';
+  env.NX_TUI                 = 'false';
+  env.NX_PLUGIN_NO_TIMEOUTS  = 'true';
+  return env;
+}
+
+/** Kill any Nx daemons that could interfere with nested workspace operations. */
+function stopNxDaemons(fw) {
+  const fwNx = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
+  const rootNx = resolve(ROOT, 'node_modules', 'nx', 'bin', 'nx.js');
+  const env = nxCleanEnv();
+  // Stop nested workspace daemon
+  try { execSync(`node "${fwNx}" daemon --stop`, { cwd: resolve(ROOT, 'platforms', fw), stdio: 'ignore', env, timeout: 10_000 }); } catch {}
+  // Stop root workspace daemon (VS Code Nx Console can start this)
+  try { execSync(`node "${rootNx}" daemon --stop`, { cwd: ROOT, stdio: 'ignore', env, timeout: 10_000 }); } catch {}
 }
 
 function run(cmd, label, cwd = ROOT, env) {
@@ -92,11 +105,15 @@ function resolveNxProjects(fw, elementList) {
     try {
       const result = execSync(
         `node "${nxBin}" show projects --projects=tag:element:${el}`,
-        { cwd, encoding: 'utf-8', env: nxCleanEnv() },
+        { cwd, encoding: 'utf-8', env: nxCleanEnv(), timeout: 30_000 },
       ).trim();
       if (result) projects.push(result);
-    } catch {
-      console.warn(`  ⚠ Could not resolve project for "${el}" [${fw}]`);
+    } catch (err) {
+      if (err.killed) {
+        console.warn(`  ⚠ Timed out resolving "${el}" [${fw}] — is another Nx process running?`);
+      } else {
+        console.warn(`  ⚠ Could not resolve project for "${el}" [${fw}]`);
+      }
     }
   }
   return projects;
@@ -106,6 +123,9 @@ function resolveNxProjects(fw, elementList) {
 
 async function releaseElements() {
   console.log(`\n  📦 Releasing ${elements.length} element(s) [${framework}]...\n`);
+
+  // 0. Kill stale daemons that could interfere with nested workspace
+  stopNxDaemons(framework);
 
   // 1. Build
   const projects = resolveNxProjects(framework, elements);
