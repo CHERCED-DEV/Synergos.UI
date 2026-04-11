@@ -10,9 +10,9 @@ import {
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-import { PriceDisplayComponent } from '../../price-display/src/price-display/price-display';
-import { QuantitySelectorComponent } from '../../quantity-selector/src/quantity-selector/quantity-selector';
-import { VariantPickerComponent } from '../../variant-picker/src/variant-picker/variant-picker';
+import { PriceDisplayComponent } from '../../../price-display/src/price-display/price-display';
+import { QuantitySelectorComponent } from '../../../quantity-selector/src/quantity-selector/quantity-selector';
+import { VariantPickerComponent } from '../../../variant-picker/src/variant-picker/variant-picker';
 @Component({
   selector: 'sg-product-detail',
   imports: [PriceDisplayComponent, QuantitySelectorComponent, VariantPickerComponent],

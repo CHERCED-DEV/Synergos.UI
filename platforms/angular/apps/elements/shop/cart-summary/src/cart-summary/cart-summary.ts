@@ -1,7 +1,7 @@
 import type { CartSummaryElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, effect, HostBinding, input, signal } from '@angular/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-import { CartItemComponent } from '../../cart-item/src/cart-item/cart-item';
+import { CartItemComponent } from '../../../cart-item/src/cart-item/cart-item';
 import { cartStore } from '../../../cart.store';
 
 @Component({

@@ -2,7 +2,7 @@ import type { CartItemElementConfig } from '@synergos/contracts';
 import type { CartItem } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
-import { QuantitySelectorComponent } from '../../quantity-selector/src/quantity-selector/quantity-selector';
+import { QuantitySelectorComponent } from '../../../quantity-selector/src/quantity-selector/quantity-selector';
 import { cartStore } from '../../../cart.store';
 
 @Component({
