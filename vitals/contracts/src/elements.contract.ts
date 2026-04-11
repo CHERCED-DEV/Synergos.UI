@@ -217,16 +217,19 @@ export interface ExternalWidgetElementData extends BaseElementData {
   async?: BehaviorAsync;
 }
 
+/** @deprecated Pre-Block Grid wrapper-component architecture — do not use. */
 export interface AngularHostElementData extends BaseElementData {
   mount?: MountConfig;
   async?: BehaviorAsync;
 }
 
+/** @deprecated Pre-Block Grid wrapper-component architecture — do not use. */
 export interface MfHostElementData extends BaseElementData {
   mount?: MountConfig;
   async?: BehaviorAsync;
 }
 
+/** @deprecated Pre-Block Grid wrapper-component architecture — do not use. */
 export interface MacroHostElementData extends BaseElementData {
   contentType?: string;
   contentData?: Record<string, unknown>;
@@ -298,6 +301,31 @@ export interface MediaExplorerElementData extends BaseElementData {
   collection?: ContentCollection;
 }
 
+export interface ContentCarouselElementData extends BaseElementData {
+  text?: ContentText;
+}
+
+export interface QuizFlowElementData extends BaseElementData {
+  text?: ContentText;
+}
+
+export interface FilterBoardElementData extends BaseElementData {
+  text?: ContentText;
+}
+
+export interface RatingWidgetElementData extends BaseElementData {
+  text?: ContentText;
+}
+
+export interface CountdownClockElementData extends BaseElementData {
+  text?: ContentText;
+  date?: ContentDate;
+}
+
+export interface NotificationStackElementData extends BaseElementData {
+  text?: ContentText;
+}
+
 // ── Element Registry ─────────────────────────────────────────────────────────
 
 import registry from './element-registry.json';
@@ -308,7 +336,7 @@ export interface ElementRegistryEntry {
   name: string;
   alias: string;
   tag: string;
-  tier: 'module' | 'composition' | 'primitive';
+  tier: 'module' | 'composition' | 'primitive' | 'experience';
 }
 
 // ── Element Type Alias Registry (derived from element-registry.json) ────────

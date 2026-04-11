@@ -1,8 +1,27 @@
-// Mirror: Synergos.CMS/Application/Rendering/Content/Resolvers/*
+// Mirror: Synergos.CMS/Application/Cdn/Configs/*
 //
-// These interfaces define the exact `config` payload expected by Angular
-// elements and experiences when they are mounted from CMS content resolvers.
+// These interfaces define the exact `config` payload expected by web components
+// when mounted from CMS content (macro RTE, Block Grid, LayoutComposer, or List).
+//
+// CONVENTIONS:
+// • Every interface carries `translations` — a flat dict emitted by CMS with all
+//   dictionary items relevant to that component. Components read labels from it
+//   instead of hardcoding strings.
+// • Experience elements (feature-journey, insight-explorer, etc.) receive only
+//   structural config; they fetch their own data via internal APIs.
+// • Collection items (faq-section, banner-slider, etc.) are fully server-assembled
+//   by CMS resolvers — editors never write raw JSON.
+// • Three-way mirror: CdnConfig (C#) ↔ element-config.contract.ts (TS) ↔ Web Component `config` prop.
+//   All three MUST be kept in sync.
 
+/** Flat dictionary of CMS dictionary items relevant to this component. */
+export type ComponentTranslations = Record<string, string>;
+
+// ---------------------------------------------------------------------------
+// Module-tier configs (c8* — compositions with own layout and data)
+// ---------------------------------------------------------------------------
+
+/** Mirror of HeroCdnConfig. */
 export interface HeroElementConfig {
   readonly headingText?: string;
   readonly headingLevel?: string;
@@ -14,8 +33,10 @@ export interface HeroElementConfig {
   readonly ctaTarget?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of BannerCdnConfig. */
 export interface BannerElementConfig {
   readonly title?: string;
   readonly body?: string;
@@ -24,89 +45,122 @@ export interface BannerElementConfig {
   readonly ctaTarget?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of BannerSliderCdnConfig — slide item shape. */
+export interface BannerSliderSlideConfig {
+  readonly imageSrc?: string;
+  readonly imageAlt?: string;
+  readonly title?: string;
+  readonly body?: string;
+  readonly ctaLabel?: string;
+  readonly ctaUrl?: string;
+  readonly ctaTarget?: string;
+}
+
+/** Mirror of BannerSliderCdnConfig. */
 export interface BannerSliderElementConfig {
   readonly headingText?: string;
   readonly body?: string;
   readonly variant?: string;
   readonly theme?: string;
-  readonly slides?: ReadonlyArray<{
-    readonly imageSrc?: string;
-    readonly imageAlt?: string;
-    readonly title?: string;
-    readonly body?: string;
-    readonly ctaLabel?: string;
-    readonly ctaUrl?: string;
-    readonly ctaTarget?: string;
-  }>;
+  readonly slides?: ReadonlyArray<BannerSliderSlideConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of FaqSectionCdnConfig — item shape. */
+export interface FaqSectionItemConfig {
+  readonly question?: string;
+  readonly answer?: string;
+  readonly initiallyExpanded?: boolean;
+}
+
+/** Mirror of FaqSectionCdnConfig. */
 export interface FaqSectionElementConfig {
   readonly headingText?: string;
   readonly theme?: string;
-  readonly items?: ReadonlyArray<{
-    readonly question?: string;
-    readonly answer?: string;
-    readonly initiallyExpanded?: boolean;
-  }>;
+  readonly items?: ReadonlyArray<FaqSectionItemConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of FeatureGridCdnConfig — item shape. */
+export interface FeatureGridItemConfig {
+  readonly headingText?: string;
+  readonly body?: string;
+  readonly icon?: string;
+}
+
+/** Mirror of FeatureGridCdnConfig. */
 export interface FeatureGridElementConfig {
   readonly headingText?: string;
   readonly variant?: string;
   readonly theme?: string;
-  readonly items?: ReadonlyArray<{
-    readonly headingText?: string;
-    readonly body?: string;
-    readonly icon?: string;
-  }>;
+  readonly items?: ReadonlyArray<FeatureGridItemConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of LogoCloudCdnConfig — item shape. */
+export interface LogoCloudItemConfig {
+  readonly src?: string;
+  readonly alt?: string;
+  readonly label?: string;
+  readonly href?: string;
+  readonly target?: string;
+}
+
+/** Mirror of LogoCloudCdnConfig. */
 export interface LogoCloudElementConfig {
   readonly headingText?: string;
   readonly body?: string;
   readonly variant?: string;
   readonly theme?: string;
-  readonly items?: ReadonlyArray<{
-    readonly src?: string;
-    readonly alt?: string;
-    readonly label?: string;
-    readonly href?: string;
-    readonly target?: string;
-  }>;
+  readonly items?: ReadonlyArray<LogoCloudItemConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of TestimonialSectionCdnConfig — item shape. */
+export interface TestimonialSectionItemConfig {
+  readonly quote?: string;
+  readonly name?: string;
+  readonly role?: string;
+  readonly avatarSrc?: string;
+  readonly avatarAlt?: string;
+}
+
+/** Mirror of TestimonialSectionCdnConfig. */
 export interface TestimonialSectionElementConfig {
   readonly headingText?: string;
   readonly theme?: string;
-  readonly items?: ReadonlyArray<{
-    readonly quote?: string;
-    readonly name?: string;
-    readonly role?: string;
-    readonly avatarSrc?: string;
-    readonly avatarAlt?: string;
-  }>;
+  readonly items?: ReadonlyArray<TestimonialSectionItemConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of TabGroupCdnConfig. */
 export interface TabGroupElementConfig {
   readonly title?: string;
   readonly ariaLabel?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of DataTableCdnConfig. */
 export interface DataTableElementConfig {
   readonly caption?: string;
   readonly headers?: ReadonlyArray<string>;
   readonly rows?: ReadonlyArray<ReadonlyArray<string>>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of SectionCdnConfig. */
 export interface SectionElementConfig {
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of CardCdnConfig. */
 export interface CardElementConfig {
   readonly title?: string;
   readonly subtitle?: string;
@@ -119,8 +173,10 @@ export interface CardElementConfig {
   readonly badgeType?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of MediaTextCdnConfig. */
 export interface MediaTextElementConfig {
   readonly imageSrc?: string;
   readonly imageAlt?: string;
@@ -132,8 +188,10 @@ export interface MediaTextElementConfig {
   readonly mediaPosition?: 'left' | 'right';
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of AlertBarCdnConfig. */
 export interface AlertBarElementConfig {
   readonly title?: string;
   readonly description?: string;
@@ -142,22 +200,29 @@ export interface AlertBarElementConfig {
   readonly variant?: string;
   readonly theme?: string;
   readonly dismissible?: boolean;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ButtonGroupCdnConfig — item shape. */
+export interface ButtonGroupItemConfig {
+  readonly label?: string;
+  readonly href?: string;
+  readonly target?: string;
+  readonly variant?: 'solid' | 'outline' | 'ghost';
+  readonly size?: 'sm' | 'md' | 'lg';
+  readonly disabled?: boolean;
+}
+
+/** Mirror of ButtonGroupCdnConfig. */
 export interface ButtonGroupElementConfig {
   readonly alignment?: 'left' | 'center' | 'right';
   readonly direction?: 'row' | 'column';
   readonly gap?: 'xs' | 'sm' | 'md' | 'lg';
-  readonly items?: ReadonlyArray<{
-    readonly label?: string;
-    readonly href?: string;
-    readonly target?: string;
-    readonly variant?: 'solid' | 'outline' | 'ghost';
-    readonly size?: 'sm' | 'md' | 'lg';
-    readonly disabled?: boolean;
-  }>;
+  readonly items?: ReadonlyArray<ButtonGroupItemConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of CtaGroupCdnConfig. */
 export interface CtaGroupElementConfig {
   readonly primaryLabel?: string;
   readonly primaryUrl?: string;
@@ -168,37 +233,49 @@ export interface CtaGroupElementConfig {
   readonly secondaryTarget?: string;
   readonly secondaryVariant?: string;
   readonly alignment?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+// ---------------------------------------------------------------------------
+// Composition-tier configs (c8* / ca* — atomic compositions)
+// ---------------------------------------------------------------------------
+
+/** Mirror of FaqItemCdnConfig. */
 export interface FaqItemElementConfig {
   readonly question?: string;
   readonly answer?: string;
   readonly theme?: string;
-  // UI-only — no viene del CMS:
-  // readonly initiallyExpanded?: boolean;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of FeatureItemCdnConfig. */
 export interface FeatureItemElementConfig {
   readonly headingText?: string;
   readonly body?: string;
   readonly icon?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of GalleryItemCdnConfig. */
 export interface GalleryItemElementConfig {
   readonly src?: string;
   readonly alt?: string;
   readonly caption?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of IframeEmbedCdnConfig. */
 export interface IframeEmbedElementConfig {
   readonly src?: string;
   readonly title?: string;
   readonly height?: string;
   readonly allowFullscreen?: boolean;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of InfoBlockCdnConfig. */
 export interface InfoBlockElementConfig {
   readonly title?: string;
   readonly body?: string;
@@ -206,23 +283,29 @@ export interface InfoBlockElementConfig {
   readonly ctaUrl?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of KeyValueCdnConfig. */
 export interface KeyValueElementConfig {
   readonly label?: string;
   readonly value?: string;
   readonly helpText?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of LogoItemCdnConfig. */
 export interface LogoItemElementConfig {
   readonly src?: string;
   readonly alt?: string;
   readonly href?: string;
   readonly label?: string;
   readonly target?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of NewsletterFormCdnConfig. */
 export interface NewsletterFormElementConfig {
   readonly title?: string;
   readonly intro?: string;
@@ -234,20 +317,27 @@ export interface NewsletterFormElementConfig {
   readonly actionUrl?: string;
   readonly method?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of SocialShareCdnConfig — link shape. */
+export interface SocialShareLinkConfig {
+  readonly label?: string;
+  readonly href?: string;
+  readonly iconSymbol?: string;
+  readonly target?: string;
+}
+
+/** Mirror of SocialShareCdnConfig. */
 export interface SocialShareElementConfig {
   readonly title?: string;
   readonly pageUrl?: string;
   readonly layout?: 'row' | 'stack';
-  readonly links?: ReadonlyArray<{
-    readonly label?: string;
-    readonly href?: string;
-    readonly iconSymbol?: string;
-    readonly target?: string;
-  }>;
+  readonly links?: ReadonlyArray<SocialShareLinkConfig>;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of TestimonialItemCdnConfig. */
 export interface TestimonialItemElementConfig {
   readonly quote?: string;
   readonly name?: string;
@@ -255,268 +345,397 @@ export interface TestimonialItemElementConfig {
   readonly avatarSrc?: string;
   readonly avatarAlt?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of TimelineItemCdnConfig. */
 export interface TimelineItemElementConfig {
   readonly headingText?: string;
   readonly body?: string;
   readonly date?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ExternalWidgetCdnConfig. */
 export interface ExternalWidgetElementConfig {
   readonly src?: string;
   readonly type?: string;
   readonly title?: string;
   readonly endpoint?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of StatCdnConfig. */
+export interface StatElementConfig {
+  readonly value?: string;
+  readonly label?: string;
+  readonly prefix?: string;
+  readonly suffix?: string;
+  readonly variant?: string;
+  readonly theme?: string;
+  readonly translations?: ComponentTranslations;
+}
+
+/** Mirror of PricingCardCdnConfig. */
+export interface PricingCardElementConfig {
+  readonly title?: string;
+  readonly price?: string;
+  readonly period?: string;
+  readonly description?: string;
+  readonly ctaLabel?: string;
+  readonly ctaUrl?: string;
+  readonly badgeText?: string;
+  readonly badgeTone?: string;
+  readonly variant?: string;
+  readonly theme?: string;
+  readonly featured?: boolean;
+  readonly translations?: ComponentTranslations;
+}
+
+// ---------------------------------------------------------------------------
+// Primitive-tier configs (c3*–c7* — structural and atomic)
+// ---------------------------------------------------------------------------
+
+/** Mirror of BadgeCdnConfig. */
 export interface BadgeElementConfig {
   readonly text?: string;
   readonly tone?: string;
   readonly ariaLabel?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ButtonContainerCdnConfig. */
 export interface ButtonContainerElementConfig {
   readonly label?: string;
   readonly href?: string;
   readonly target?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ColumnCdnConfig. */
 export interface ColumnElementConfig {
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ContainerBlockCdnConfig. */
 export interface ContainerBlockElementConfig {
   readonly elementId?: string;
   readonly ariaLabel?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of DividerCdnConfig. */
 export interface DividerElementConfig {
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of GridCdnConfig. */
 export interface GridElementConfig {
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of IconBlockCdnConfig. */
 export interface IconBlockElementConfig {
   readonly ariaLabel?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ImageBlockCdnConfig. */
 export interface ImageBlockElementConfig {
   readonly src?: string;
   readonly alt?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of LinkBlockCdnConfig. */
 export interface LinkBlockElementConfig {
   readonly href?: string;
   readonly label?: string;
   readonly target?: string;
   readonly ariaLabel?: string;
+  readonly translations?: ComponentTranslations;
 }
 
-export interface SpacerElementConfig {}
+/** Mirror of SpacerCdnConfig (no fields). */
+export interface SpacerElementConfig {
+  readonly translations?: ComponentTranslations;
+}
 
+/** Mirror of StackCdnConfig. */
 export interface StackElementConfig {
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of TextBlockCdnConfig. */
 export interface TextBlockElementConfig {
   readonly headingText?: string;
   readonly headingLevel?: string;
   readonly variant?: string;
   readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of VideoBlockCdnConfig. */
 export interface VideoBlockElementConfig {
   readonly src?: string;
   readonly title?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ScriptEmbedCdnConfig. */
 export interface ScriptEmbedElementConfig {
   readonly scriptType?: string;
   readonly content?: string;
+  readonly translations?: ComponentTranslations;
 }
 
-export interface AngularHostElementConfig {
-  readonly component?: string;
-  readonly endpoint?: string;
-  readonly params?: Record<string, string>;
+/** Mirror of AvatarCdnConfig. */
+export interface AvatarElementConfig {
+  readonly src?: string;
+  readonly alt?: string;
+  readonly name?: string;
+  readonly size?: string;
+  readonly variant?: string;
+  readonly translations?: ComponentTranslations;
 }
 
-export interface MfHostElementConfig {
-  readonly remoteEntry?: string;
-  readonly exposedModule?: string;
-  readonly endpoint?: string;
-  readonly params?: Record<string, string>;
-}
+// ---------------------------------------------------------------------------
+// Experience-tier configs (ce* — stateful experiences, load own data)
+// Structural config only — data fetched via internal APIs by the component.
+// ---------------------------------------------------------------------------
 
-export interface MacroHostElementConfig {
-  readonly contentType?: string;
-  readonly contentData?: Record<string, unknown>;
-}
-
+/** Mirror of FeatureJourneyCdnConfig. */
 export interface FeatureJourneyElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
   readonly elementId?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of InsightExplorerCdnConfig. */
 export interface InsightExplorerElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
   readonly elementId?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of MediaExplorerCdnConfig. */
 export interface MediaExplorerElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
   readonly elementId?: string;
   readonly defaultCategory?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of ContentCarouselCdnConfig. */
 export interface ContentCarouselElementConfig {
   readonly title?: string;
-  readonly items?: ReadonlyArray<{
-    readonly title?: string;
-    readonly body?: string;
-    readonly image?: string;
-    readonly ctaLabel?: string;
-    readonly ctaUrl?: string;
-  }>;
+  readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
   readonly autoplay?: boolean;
   readonly interval?: number;
-  readonly theme?: string;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of QuizFlowCdnConfig. */
 export interface QuizFlowElementConfig {
   readonly title?: string;
-  readonly subtitle?: string;
-  readonly questions?: ReadonlyArray<{
-    readonly text?: string;
-    readonly options?: ReadonlyArray<string>;
-    readonly correct?: number;
-  }>;
   readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
+  readonly submitLabel?: string;
+  readonly translations?: ComponentTranslations;
 }
 
-export interface RatingWidgetElementConfig {
-  readonly title?: string;
-  readonly subtitle?: string;
-  readonly max?: number;
-  readonly labels?: ReadonlyArray<string>;
-  readonly theme?: string;
-}
-
+/** Mirror of FilterBoardCdnConfig. */
 export interface FilterBoardElementConfig {
   readonly title?: string;
-  readonly items?: ReadonlyArray<{
-    readonly title?: string;
-    readonly body?: string;
-    readonly tags?: ReadonlyArray<string>;
-  }>;
   readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
+  readonly defaultFilter?: string;
+  readonly translations?: ComponentTranslations;
 }
 
-export interface NotificationStackElementConfig {
-  readonly notifications?: ReadonlyArray<{
-    readonly id?: string;
-    readonly message?: string;
-    readonly type?: string;
-    readonly duration?: number;
-  }>;
+/** Mirror of RatingWidgetCdnConfig. */
+export interface RatingWidgetElementConfig {
+  readonly title?: string;
   readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
+  readonly maxRating?: number;
+  readonly translations?: ComponentTranslations;
 }
 
+/** Mirror of CountdownClockCdnConfig. */
 export interface CountdownClockElementConfig {
-  readonly targetDate?: string;
-  readonly label?: string;
+  readonly title?: string;
   readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
+  readonly targetDate?: string;
+  readonly expiredText?: string;
+  readonly translations?: ComponentTranslations;
 }
+
+/** Mirror of NotificationStackCdnConfig. */
+export interface NotificationStackElementConfig {
+  readonly title?: string;
+  readonly theme?: string;
+  readonly variant?: string;
+  readonly elementId?: string;
+  readonly maxItems?: number;
+  readonly translations?: ComponentTranslations;
+}
+
+// ---------------------------------------------------------------------------
+// ELEMENT_CONFIG_FIELDS
+// Scalar fields per element type (string | boolean | number — not nested JSON).
+// Used by macro param readers and config attribute builders.
+// ---------------------------------------------------------------------------
 
 export const ELEMENT_CONFIG_FIELDS = {
-  'alert-bar': ['title', 'description', 'ctaLabel', 'ctaUrl', 'variant', 'theme', 'dismissible'],
-  'angular-host': ['component', 'endpoint', 'params'],
-  banner: ['title', 'body', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
-  'banner-slider': ['headingText', 'body', 'variant', 'theme', 'slides'],
-  badge: ['text', 'tone', 'ariaLabel'],
+  // Structural
+  section:            ['variant', 'theme'],
+  column:             ['variant', 'theme'],
+  grid:               ['variant', 'theme'],
+  stack:              ['variant', 'theme'],
+  divider:            ['variant', 'theme'],
+  spacer:             [],
+  'container-block':  ['elementId', 'ariaLabel', 'variant', 'theme'],
+  // Primitives
+  badge:              ['text', 'tone', 'ariaLabel'],
   'button-container': ['label', 'href', 'target'],
-  'button-group': ['alignment', 'direction', 'gap', 'items'],
-  card: ['title', 'subtitle', 'body', 'imageSrc', 'imageAlt', 'ctaLabel', 'ctaUrl', 'badgeText', 'badgeType', 'variant', 'theme'],
-  column: ['variant', 'theme'],
-  'container-block': ['elementId', 'ariaLabel', 'variant', 'theme'],
-  'cta-group': ['primaryLabel', 'primaryUrl', 'primaryTarget', 'primaryVariant', 'secondaryLabel', 'secondaryUrl', 'secondaryTarget', 'secondaryVariant', 'alignment'],
-  'data-table': ['caption', 'headers', 'rows'],
-  divider: ['variant', 'theme'],
-  'external-widget': ['src', 'type', 'title', 'endpoint'],
-  'faq-item': ['question', 'answer', 'theme'],
-  'faq-section': ['headingText', 'theme', 'items'],
-  'feature-grid': ['headingText', 'variant', 'theme', 'items'],
-  'feature-item': ['headingText', 'body', 'icon', 'variant', 'theme'],
-  'feature-journey': ['title', 'theme', 'variant', 'elementId'],
-  'gallery-item': ['src', 'alt', 'caption'],
-  grid: ['variant', 'theme'],
-  hero: ['headingText', 'headingLevel', 'body', 'imageSrc', 'imageAlt', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
-  'icon-block': ['ariaLabel'],
-  'iframe-embed': ['src', 'title', 'height', 'allowFullscreen'],
-  'info-block': ['title', 'body', 'ctaLabel', 'ctaUrl', 'variant', 'theme'],
-  'insight-explorer': ['title', 'theme', 'variant', 'elementId'],
-  'key-value': ['label', 'value', 'helpText', 'theme'],
-  'link-block': ['href', 'label', 'target', 'ariaLabel'],
-  'logo-cloud': ['headingText', 'body', 'variant', 'theme', 'items'],
-  'logo-item': ['src', 'alt', 'href', 'label', 'target'],
-  'macro-host': ['contentType', 'contentData'],
-  'media-explorer': ['title', 'theme', 'variant', 'elementId', 'defaultCategory'],
-  'media-text': ['imageSrc', 'imageAlt', 'headingText', 'body', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'mediaPosition', 'variant', 'theme'],
-  'mf-host': ['remoteEntry', 'exposedModule', 'endpoint', 'params'],
-  'newsletter-form': ['title', 'intro', 'placeholder', 'submitLabel', 'consentText', 'successMessage', 'errorMessage', 'actionUrl', 'method', 'theme'],
-  section: ['variant', 'theme'],
-  'script-embed': ['scriptType', 'content'],
-  'social-share': ['title', 'pageUrl', 'layout', 'links'],
-  spacer: [],
-  stack: ['variant', 'theme'],
-  'tab-group': ['title', 'ariaLabel', 'variant', 'theme'],
+  'icon-block':       ['ariaLabel'],
+  'image-block':      ['src', 'alt'],
+  'link-block':       ['href', 'label', 'target', 'ariaLabel'],
+  'text-block':       ['headingText', 'headingLevel', 'variant', 'theme'],
+  'video-block':      ['src', 'title'],
+  avatar:             ['src', 'alt', 'name', 'size', 'variant'],
+  stat:               ['value', 'label', 'prefix', 'suffix', 'variant', 'theme'],
+  // Compositions
+  card:               ['title', 'subtitle', 'body', 'imageSrc', 'imageAlt', 'ctaLabel', 'ctaUrl', 'badgeText', 'badgeType', 'variant', 'theme'],
+  'media-text':       ['imageSrc', 'imageAlt', 'headingText', 'body', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'mediaPosition', 'variant', 'theme'],
+  'info-block':       ['title', 'body', 'ctaLabel', 'ctaUrl', 'variant', 'theme'],
+  'cta-group':        ['primaryLabel', 'primaryUrl', 'primaryTarget', 'primaryVariant', 'secondaryLabel', 'secondaryUrl', 'secondaryTarget', 'secondaryVariant', 'alignment'],
+  'key-value':        ['label', 'value', 'helpText', 'theme'],
+  'timeline-item':    ['headingText', 'body', 'date', 'variant', 'theme'],
+  'faq-item':         ['question', 'answer', 'theme'],
+  'feature-item':     ['headingText', 'body', 'icon', 'variant', 'theme'],
   'testimonial-item': ['quote', 'name', 'role', 'avatarSrc', 'avatarAlt', 'theme'],
-  'testimonial-section': ['headingText', 'theme', 'items'],
-  'text-block': ['headingText', 'headingLevel', 'variant', 'theme'],
-  'timeline-item': ['headingText', 'body', 'date', 'variant', 'theme'],
-  'video-block': ['src', 'title'],
-  'content-carousel': ['title', 'items', 'autoplay', 'interval', 'theme'],
-  'quiz-flow': ['title', 'subtitle', 'questions', 'theme'],
-  'rating-widget': ['title', 'subtitle', 'max', 'labels', 'theme'],
-  'filter-board': ['title', 'items', 'theme'],
-  'notification-stack': ['notifications', 'theme'],
-  'countdown-clock': ['targetDate', 'label', 'theme'],
+  'gallery-item':     ['src', 'alt', 'caption'],
+  'logo-item':        ['src', 'alt', 'href', 'label', 'target'],
+  'pricing-card':     ['title', 'price', 'period', 'description', 'ctaLabel', 'ctaUrl', 'badgeText', 'badgeTone', 'variant', 'theme', 'featured'],
+  // Modules
+  hero:               ['headingText', 'headingLevel', 'body', 'imageSrc', 'imageAlt', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
+  banner:             ['title', 'body', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
+  'banner-slider':    ['headingText', 'body', 'variant', 'theme'],
+  'faq-section':      ['headingText', 'theme'],
+  'feature-grid':     ['headingText', 'variant', 'theme'],
+  'logo-cloud':       ['headingText', 'body', 'variant', 'theme'],
+  'testimonial-section': ['headingText', 'theme'],
+  'tab-group':        ['title', 'ariaLabel', 'variant', 'theme'],
+  'data-table':       ['caption'],
+  'alert-bar':        ['title', 'description', 'ctaLabel', 'ctaUrl', 'variant', 'theme', 'dismissible'],
+  'button-group':     ['alignment', 'direction', 'gap'],
+  'newsletter-form':  ['title', 'intro', 'placeholder', 'submitLabel', 'consentText', 'successMessage', 'errorMessage', 'actionUrl', 'method', 'theme'],
+  'social-share':     ['title', 'pageUrl', 'layout'],
+  'iframe-embed':     ['src', 'title', 'height', 'allowFullscreen'],
+  'external-widget':  ['src', 'type', 'title', 'endpoint'],
+  'script-embed':     ['scriptType', 'content'],
+  // Experiences — structural config only, no item arrays
+  'feature-journey':      ['title', 'theme', 'variant', 'elementId'],
+  'insight-explorer':     ['title', 'theme', 'variant', 'elementId'],
+  'media-explorer':       ['title', 'theme', 'variant', 'elementId', 'defaultCategory'],
+  'content-carousel':     ['title', 'theme', 'variant', 'elementId', 'autoplay', 'interval'],
+  'quiz-flow':            ['title', 'theme', 'variant', 'elementId', 'submitLabel'],
+  'filter-board':         ['title', 'theme', 'variant', 'elementId', 'defaultFilter'],
+  'rating-widget':        ['title', 'theme', 'variant', 'elementId', 'maxRating'],
+  'countdown-clock':      ['title', 'theme', 'variant', 'elementId', 'targetDate', 'expiredText'],
+  'notification-stack':   ['title', 'theme', 'variant', 'elementId', 'maxItems'],
 } as const satisfies Record<string, readonly string[]>;
 
+// ---------------------------------------------------------------------------
+// ELEMENT_CONFIG_JSON_FIELDS
+// Fields that carry serialized JSON (parsed by the config bridge before binding).
+// `translations` is always JSON — a flat Record<string, string> from the CMS
+// dictionary, emitted for every element type via its macro/resolver.
+// ---------------------------------------------------------------------------
+
 export const ELEMENT_CONFIG_JSON_FIELDS = {
-  'angular-host': ['params'],
-  'banner-slider': ['slides'],
-  'button-group': ['items'],
-  'data-table': ['headers', 'rows'],
-  'faq-section': ['items'],
-  'feature-grid': ['items'],
-  'logo-cloud': ['items'],
-  'macro-host': ['contentData'],
-  'mf-host': ['params'],
-  'social-share': ['links'],
-  'testimonial-section': ['items'],
-  'content-carousel': ['items'],
-  'quiz-flow': ['questions'],
-  'rating-widget': ['labels'],
-  'filter-board': ['items'],
-  'notification-stack': ['notifications'],
+  // Collections — server-assembled arrays
+  'banner-slider':        ['slides', 'translations'],
+  'button-group':         ['items', 'translations'],
+  'data-table':           ['headers', 'rows', 'translations'],
+  'faq-section':          ['items', 'translations'],
+  'feature-grid':         ['items', 'translations'],
+  'logo-cloud':           ['items', 'translations'],
+  'social-share':         ['links', 'translations'],
+  'testimonial-section':  ['items', 'translations'],
+  // All remaining — translations only
+  section:                ['translations'],
+  column:                 ['translations'],
+  grid:                   ['translations'],
+  stack:                  ['translations'],
+  divider:                ['translations'],
+  spacer:                 ['translations'],
+  'container-block':      ['translations'],
+  badge:                  ['translations'],
+  'button-container':     ['translations'],
+  'icon-block':           ['translations'],
+  'image-block':          ['translations'],
+  'link-block':           ['translations'],
+  'text-block':           ['translations'],
+  'video-block':          ['translations'],
+  avatar:                 ['translations'],
+  stat:                   ['translations'],
+  card:                   ['translations'],
+  'media-text':           ['translations'],
+  'info-block':           ['translations'],
+  'cta-group':            ['translations'],
+  'key-value':            ['translations'],
+  'timeline-item':        ['translations'],
+  'faq-item':             ['translations'],
+  'feature-item':         ['translations'],
+  'testimonial-item':     ['translations'],
+  'gallery-item':         ['translations'],
+  'logo-item':            ['translations'],
+  'pricing-card':         ['translations'],
+  hero:                   ['translations'],
+  banner:                 ['translations'],
+  'tab-group':            ['translations'],
+  'alert-bar':            ['translations'],
+  'newsletter-form':      ['translations'],
+  'iframe-embed':         ['translations'],
+  'external-widget':      ['translations'],
+  'script-embed':         ['translations'],
+  'feature-journey':      ['translations'],
+  'insight-explorer':     ['translations'],
+  'media-explorer':       ['translations'],
+  'content-carousel':     ['translations'],
+  'quiz-flow':            ['translations'],
+  'filter-board':         ['translations'],
+  'rating-widget':        ['translations'],
+  'countdown-clock':      ['translations'],
+  'notification-stack':   ['translations'],
 } as const satisfies Record<string, readonly string[]>;
 
 // ---------------------------------------------------------------------------
@@ -525,59 +744,64 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
 
 /** Maps each element type key to its config interface. */
 export type ElementConfigMap = {
-  'alert-bar': AlertBarElementConfig;
-  'angular-host': AngularHostElementConfig;
-  'badge': BadgeElementConfig;
-  'banner': BannerElementConfig;
-  'banner-slider': BannerSliderElementConfig;
-  'button-container': ButtonContainerElementConfig;
-  'button-group': ButtonGroupElementConfig;
-  'card': CardElementConfig;
-  'column': ColumnElementConfig;
-  'container-block': ContainerBlockElementConfig;
-  'cta-group': CtaGroupElementConfig;
-  'data-table': DataTableElementConfig;
-  'divider': DividerElementConfig;
-  'external-widget': ExternalWidgetElementConfig;
-  'faq-item': FaqItemElementConfig;
-  'faq-section': FaqSectionElementConfig;
-  'feature-grid': FeatureGridElementConfig;
-  'feature-item': FeatureItemElementConfig;
-  'feature-journey': FeatureJourneyElementConfig;
-  'gallery-item': GalleryItemElementConfig;
-  'grid': GridElementConfig;
-  'hero': HeroElementConfig;
-  'icon-block': IconBlockElementConfig;
-  'iframe-embed': IframeEmbedElementConfig;
-  'image-block': ImageBlockElementConfig;
-  'info-block': InfoBlockElementConfig;
-  'insight-explorer': InsightExplorerElementConfig;
-  'key-value': KeyValueElementConfig;
-  'link-block': LinkBlockElementConfig;
-  'logo-cloud': LogoCloudElementConfig;
-  'logo-item': LogoItemElementConfig;
-  'macro-host': MacroHostElementConfig;
-  'media-explorer': MediaExplorerElementConfig;
-  'media-text': MediaTextElementConfig;
-  'mf-host': MfHostElementConfig;
-  'newsletter-form': NewsletterFormElementConfig;
-  'script-embed': ScriptEmbedElementConfig;
-  'section': SectionElementConfig;
-  'social-share': SocialShareElementConfig;
-  'spacer': SpacerElementConfig;
-  'stack': StackElementConfig;
-  'tab-group': TabGroupElementConfig;
-  'testimonial-item': TestimonialItemElementConfig;
-  'testimonial-section': TestimonialSectionElementConfig;
-  'text-block': TextBlockElementConfig;
-  'timeline-item': TimelineItemElementConfig;
-  'video-block': VideoBlockElementConfig;
-  'content-carousel': ContentCarouselElementConfig;
-  'quiz-flow': QuizFlowElementConfig;
-  'rating-widget': RatingWidgetElementConfig;
-  'filter-board': FilterBoardElementConfig;
-  'notification-stack': NotificationStackElementConfig;
-  'countdown-clock': CountdownClockElementConfig;
+  // Structural
+  'section':              SectionElementConfig;
+  'column':               ColumnElementConfig;
+  'grid':                 GridElementConfig;
+  'stack':                StackElementConfig;
+  'divider':              DividerElementConfig;
+  'spacer':               SpacerElementConfig;
+  'container-block':      ContainerBlockElementConfig;
+  // Primitives
+  'badge':                BadgeElementConfig;
+  'button-container':     ButtonContainerElementConfig;
+  'icon-block':           IconBlockElementConfig;
+  'image-block':          ImageBlockElementConfig;
+  'link-block':           LinkBlockElementConfig;
+  'text-block':           TextBlockElementConfig;
+  'video-block':          VideoBlockElementConfig;
+  'avatar':               AvatarElementConfig;
+  'stat':                 StatElementConfig;
+  // Compositions
+  'card':                 CardElementConfig;
+  'media-text':           MediaTextElementConfig;
+  'info-block':           InfoBlockElementConfig;
+  'cta-group':            CtaGroupElementConfig;
+  'key-value':            KeyValueElementConfig;
+  'timeline-item':        TimelineItemElementConfig;
+  'faq-item':             FaqItemElementConfig;
+  'feature-item':         FeatureItemElementConfig;
+  'testimonial-item':     TestimonialItemElementConfig;
+  'gallery-item':         GalleryItemElementConfig;
+  'logo-item':            LogoItemElementConfig;
+  'pricing-card':         PricingCardElementConfig;
+  // Modules
+  'hero':                 HeroElementConfig;
+  'banner':               BannerElementConfig;
+  'banner-slider':        BannerSliderElementConfig;
+  'faq-section':          FaqSectionElementConfig;
+  'feature-grid':         FeatureGridElementConfig;
+  'logo-cloud':           LogoCloudElementConfig;
+  'testimonial-section':  TestimonialSectionElementConfig;
+  'tab-group':            TabGroupElementConfig;
+  'data-table':           DataTableElementConfig;
+  'alert-bar':            AlertBarElementConfig;
+  'button-group':         ButtonGroupElementConfig;
+  'newsletter-form':      NewsletterFormElementConfig;
+  'social-share':         SocialShareElementConfig;
+  'iframe-embed':         IframeEmbedElementConfig;
+  'external-widget':      ExternalWidgetElementConfig;
+  'script-embed':         ScriptEmbedElementConfig;
+  // Experiences
+  'feature-journey':      FeatureJourneyElementConfig;
+  'insight-explorer':     InsightExplorerElementConfig;
+  'media-explorer':       MediaExplorerElementConfig;
+  'content-carousel':     ContentCarouselElementConfig;
+  'quiz-flow':            QuizFlowElementConfig;
+  'filter-board':         FilterBoardElementConfig;
+  'rating-widget':        RatingWidgetElementConfig;
+  'countdown-clock':      CountdownClockElementConfig;
+  'notification-stack':   NotificationStackElementConfig;
 };
 
 /** All valid element type keys. */
@@ -586,12 +810,15 @@ export type ElementType = keyof ElementConfigMap;
 /** Union of all element config shapes. */
 export type AnyElementConfig = ElementConfigMap[ElementType];
 
-/** Element types whose config carries an items/slides collection. */
+/** Element types whose config carries a server-assembled items/slides collection. */
 export type CollectionElementType =
   | 'banner-slider'
+  | 'button-group'
+  | 'data-table'
   | 'faq-section'
   | 'feature-grid'
   | 'logo-cloud'
+  | 'social-share'
   | 'testimonial-section';
 
 /** Union of collection element config shapes. */

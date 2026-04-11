@@ -56,7 +56,8 @@
     "manifest:gen":               "node tools/manifest-gen.mjs",
     "manifest:validate":          "node tools/manifest-gen.mjs --validate",
     "element:audit":              "node tools/element-contract-audit.mjs",
-    "contracts:validate":         "npm run element:audit && npm run manifest:validate",
+    "cms:validate":               "node tools/validate-cms-contracts.mjs",
+    "contracts:validate":         "npm run element:audit && npm run manifest:validate && npm run cms:validate",
     "contracts:export":           "node tools/contracts-export.mjs",
     "catalog":                    "node tools/catalog.mjs",
 
