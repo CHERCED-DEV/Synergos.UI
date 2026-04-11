@@ -1,0 +1,222 @@
+@use 'scss' as syn;
+
+// ── Host ──────────────────────────────────────────────────────────────────────
+:host {
+  display:        flex;
+  flex-direction: column;
+  font-family:    inherit;
+  height:         100%;
+  min-height:     0;
+  border-radius:  syn.$radius-xl;
+  overflow:       hidden;
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+.product-card {
+  @include syn.flex-column;
+  @include syn.surface-panel(
+    0,
+    syn.$color-neutral-0,
+    transparent,
+    syn.px-to-rem(1),
+    syn.$radius-xl,
+    syn.$shadow-xs
+  );
+  overflow:   hidden;
+  height:     100%;
+  transition:
+    box-shadow  syn.$duration-base syn.$easing-default,
+    transform   syn.$duration-base syn.$easing-default,
+    border-color syn.$duration-base syn.$easing-default;
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: syn.$shadow-md;
+    transform:  translateY(syn.px-to-rem(-2));
+  }
+
+  // ── Layout variants ─────────────────────────────────────────────────────
+  &--horizontal {
+    @include syn.respond-to(sm) {
+      flex-direction: row;
+
+      .product-card__image {
+        width:        syn.px-to-rem(200);
+        flex-shrink:  0;
+        aspect-ratio: 1 / 1;
+      }
+
+      .product-card__content {
+        flex: 1 1 auto;
+      }
+    }
+  }
+
+  // ── Theme variants ──────────────────────────────────────────────────────
+  &--dark {
+    background:   syn.$color-neutral-900;
+    border-color: syn.$color-neutral-700;
+
+    .product-card__name {
+      color: syn.$color-neutral-50;
+    }
+  }
+
+  // ── Image ────────────────────────────────────────────────────────────────
+  &__image {
+    position:     relative;
+    width:        100%;
+    aspect-ratio: 4 / 3;
+    overflow:     hidden;
+    background:   syn.$color-neutral-50;
+  }
+
+  &__img {
+    width:      100%;
+    height:     100%;
+    object-fit: cover;
+    transition: transform syn.$duration-slow syn.$easing-default;
+
+    .product-card:hover & {
+      transform: scale(1.04);
+    }
+  }
+
+  &__badge-overlay {
+    position:   absolute;
+    top:        syn.$space-sm;
+    left:       syn.$space-sm;
+    z-index:    1;
+  }
+
+  &__out-of-stock-overlay {
+    position:    absolute;
+    inset:       0;
+    background:  rgba(syn.$color-neutral-900, 0.5);
+    display:     flex;
+    align-items: center;
+    justify-content: center;
+
+    span {
+      font-size:   syn.$font-size-sm;
+      font-weight: syn.$font-weight-semibold;
+      color:       syn.$color-neutral-0;
+      background:  rgba(syn.$color-neutral-900, 0.8);
+      padding:     syn.$space-xs syn.$space-sm;
+      border-radius: syn.$radius-sm;
+      letter-spacing: 0.025em;
+    }
+  }
+
+  // ── Content ──────────────────────────────────────────────────────────────
+  &__content {
+    @include syn.flex-column;
+    flex:    1 1 auto;
+    gap:     syn.$space-sm;
+    padding: syn.$space-md;
+  }
+
+  &__name {
+    margin:             0;
+    font-size:          syn.$font-size-sm;
+    font-weight:        syn.$font-weight-semibold;
+    color:              syn.$color-neutral-900;
+    line-height:        syn.$line-height-snug;
+
+    // 2-line clamp
+    display:            -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow:           hidden;
+    text-overflow:      ellipsis;
+  }
+
+  // ── Price block ──────────────────────────────────────────────────────────
+  &__price-block {
+    display:     flex;
+    align-items: baseline;
+    gap:         syn.$space-xs;
+    flex-wrap:   wrap;
+    margin-top:  auto;
+  }
+
+  &__price-current {
+    font-size:   syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    color:       syn.$color-neutral-900;
+
+    .product-card--dark & {
+      color: syn.$color-neutral-50;
+    }
+  }
+
+  &__price-original {
+    font-size:       syn.$font-size-sm;
+    color:           syn.$color-neutral-400;
+    text-decoration: line-through;
+  }
+
+  &__price-discount {
+    font-size:   syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color:       syn.$color-error-600;
+    background:  syn.$color-error-50;
+    padding:     syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-xs;
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  &__actions {
+    margin-top: syn.$space-xs;
+
+    syn-button, .sg-button {
+      width: 100%;
+    }
+  }
+
+  // ── Skeleton loader ──────────────────────────────────────────────────────
+  &__skeleton {
+    @include syn.flex-column;
+    height: 100%;
+    animation: sg-shimmer 1.6s infinite linear;
+  }
+
+  &__skeleton-image {
+    width:        100%;
+    aspect-ratio: 4 / 3;
+    background:   syn.$color-neutral-100;
+  }
+
+  &__skeleton-content {
+    @include syn.flex-column;
+    gap:     syn.$space-sm;
+    padding: syn.$space-md;
+  }
+
+  &__skeleton-line {
+    background:    syn.$color-neutral-100;
+    border-radius: syn.$radius-xs;
+
+    &--title {
+      height: syn.px-to-rem(16);
+      width:  80%;
+    }
+
+    &--price {
+      height: syn.px-to-rem(24);
+      width:  50%;
+    }
+
+    &--cta {
+      height: syn.px-to-rem(36);
+      width:  100%;
+      margin-top: syn.$space-xs;
+    }
+  }
+}
+
+@keyframes sg-shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.5; }
+  100% { opacity: 1; }
+}

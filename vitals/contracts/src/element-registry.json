@@ -63,5 +63,14 @@
   { "name": "rating-widget",       "alias": "experienceRatingWidget",       "tag": "synergos-rating-widget",       "tier": "module" },
   { "name": "filter-board",        "alias": "experienceFilterBoard",        "tag": "synergos-filter-board",        "tier": "module" },
   { "name": "notification-stack",  "alias": "experienceNotificationStack",  "tag": "synergos-notification-stack",  "tier": "module" },
-  { "name": "countdown-clock",     "alias": "experienceCountdownClock",     "tag": "synergos-countdown-clock",     "tier": "module" }
+  { "name": "countdown-clock",     "alias": "experienceCountdownClock",     "tag": "synergos-countdown-clock",     "tier": "module" },
+
+  { "name": "product-card",        "alias": "elementShopProductCard",       "tag": "synergos-product-card",         "tier": "composition" },
+  { "name": "product-grid",        "alias": "elementShopProductGrid",       "tag": "synergos-product-grid",         "tier": "module" },
+  { "name": "product-detail",      "alias": "elementShopProductDetail",     "tag": "synergos-product-detail",       "tier": "module" },
+  { "name": "cart-summary",        "alias": "elementShopCartSummary",       "tag": "synergos-cart-summary",         "tier": "module" },
+  { "name": "cart-item",           "alias": "elementShopCartItem",          "tag": "synergos-cart-item",            "tier": "composition" },
+  { "name": "price-display",       "alias": "elementShopPriceDisplay",      "tag": "synergos-price-display",        "tier": "primitive" },
+  { "name": "quantity-selector",   "alias": "elementShopQuantitySelector",  "tag": "synergos-quantity-selector",    "tier": "primitive" },
+  { "name": "variant-picker",      "alias": "elementShopVariantPicker",     "tag": "synergos-variant-picker",       "tier": "composition" }
 ]

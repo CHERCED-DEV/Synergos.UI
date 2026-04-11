@@ -1,0 +1,76 @@
+<article class="product-card" [class]="hostClasses()">
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="product-card__skeleton" aria-busy="true" aria-label="Loading product…">
+      <div class="product-card__skeleton-image"></div>
+      <div class="product-card__skeleton-content">
+        <div class="product-card__skeleton-line product-card__skeleton-line--title"></div>
+        <div class="product-card__skeleton-line product-card__skeleton-line--price"></div>
+        <div class="product-card__skeleton-line product-card__skeleton-line--cta"></div>
+      </div>
+    </div>
+  }
+
+  @if (!loading()) {
+    <!-- Product image -->
+    @if (hasImage()) {
+      <div class="product-card__image">
+        <img
+          [src]="imageSrc()"
+          [alt]="imageAlt()"
+          loading="lazy"
+          decoding="async"
+          class="product-card__img"
+        />
+        @if (hasBadge()) {
+          <div class="product-card__badge-overlay">
+            <syn-badge [text]="badge()" tone="brand" size="sm" />
+          </div>
+        }
+        @if (!inStock()) {
+          <div class="product-card__out-of-stock-overlay">
+            <span>{{ outOfStockLabel() }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Content -->
+    <div class="product-card__content">
+      @if (name()) {
+        <h3 class="product-card__name">{{ name() }}</h3>
+      }
+
+      <!-- Price -->
+      @if (hasPrice()) {
+        <div class="product-card__price-block">
+          @if (hasDiscount() && originalPrice()) {
+            <span class="product-card__price-original">
+              {{ formatPrice(originalPrice()!) }}
+            </span>
+            <span class="product-card__price-discount">
+              -{{ discount() }}%
+            </span>
+          }
+          <span class="product-card__price-current">
+            {{ formatPrice(price()!) }}
+          </span>
+        </div>
+      }
+
+      <!-- Add to cart -->
+      <div class="product-card__actions">
+        <syn-button
+          [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
+          [disabled]="!inStock()"
+          variant="primary"
+          size="sm"
+          class="product-card__add-btn"
+          (click)="addToCart()"
+        />
+      </div>
+    </div>
+  }
+
+</article>

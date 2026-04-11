@@ -1,0 +1,62 @@
+{
+  "name": "elements-shop-product-card",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/shop/product-card/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:product-card",
+    "domain:shop",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/product-card",
+        "browser": "apps/elements/shop/product-card/src/main.ts",
+        "index": "apps/elements/shop/product-card/src/index.html",
+        "tsConfig": "apps/elements/shop/product-card/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "400kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4260
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4260,
+        "staticFilePath": "dist/product-card/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/shop/product-card/src/**/*.ts",
+          "apps/elements/shop/product-card/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

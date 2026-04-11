@@ -8,4 +8,5 @@ export * from './rendering.contract';
 export * from './element-manifest.schema';
 export * from './form.contract';
 export * from './flow.contract';
+export * from './shop.contract';
 export { default as ELEMENT_REGISTRY } from './element-registry.json';

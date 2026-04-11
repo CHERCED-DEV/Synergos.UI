@@ -671,6 +671,15 @@ export const ELEMENT_CONFIG_FIELDS = {
   'rating-widget':        ['title', 'theme', 'variant', 'elementId', 'maxRating'],
   'countdown-clock':      ['title', 'theme', 'variant', 'elementId', 'targetDate', 'expiredText'],
   'notification-stack':   ['title', 'theme', 'variant', 'elementId', 'maxItems'],
+  // Shop — e-commerce components (cf000001–cf000008)
+  'product-card':         ['productSku', 'name', 'imageSrc', 'imageAlt', 'showPrice', 'showBadge', 'layout', 'theme', 'variant'],
+  'product-grid':         ['headingText', 'categoryAlias', 'maxItems', 'columns', 'showFilters', 'sortOrder', 'theme', 'variant'],
+  'product-detail':       ['productSku', 'showVariantPicker', 'showQuantitySelector', 'showRating', 'layout', 'theme', 'variant'],
+  'cart-summary':         ['showCoupon', 'checkoutUrl', 'continueShoppingUrl', 'theme', 'variant'],
+  'cart-item':            ['theme', 'variant'],
+  'price-display':        ['showOriginalPrice', 'showDiscount', 'priceSize', 'currency', 'theme', 'variant'],
+  'quantity-selector':    ['min', 'max', 'step', 'theme', 'variant'],
+  'variant-picker':       ['variantType', 'displayAs', 'theme', 'variant'],
 } as const satisfies Record<string, readonly string[]>;
 
 // ---------------------------------------------------------------------------
@@ -736,7 +745,107 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'rating-widget':        ['translations'],
   'countdown-clock':      ['translations'],
   'notification-stack':   ['translations'],
+  // Shop
+  'product-card':         ['translations'],
+  'product-grid':         ['translations'],
+  'product-detail':       ['translations'],
+  'cart-summary':         ['translations'],
+  'cart-item':            ['translations'],
+  'price-display':        ['translations'],
+  'quantity-selector':    ['translations'],
+  'variant-picker':       ['translations'],
 } as const satisfies Record<string, readonly string[]>;
+
+// ---------------------------------------------------------------------------
+// Shop-tier configs (cf000001–cf000008 — e-commerce components)
+// Three-way mirror: ShopCdnConfigs.cs ↔ here ↔ synergos-product-card etc.
+// ---------------------------------------------------------------------------
+
+/** Mirror of ProductCardCdnConfig. SKU fetched from /api/shop/products/sku/{sku} at runtime. */
+export interface ProductCardElementConfig {
+  readonly productSku?:    string;
+  readonly name?:          string;    // editorial override — API name used if null
+  readonly imageSrc?:      string;    // editorial override
+  readonly imageAlt?:      string;
+  readonly showPrice?:     boolean;
+  readonly showBadge?:     boolean;
+  readonly layout?:        'vertical' | 'horizontal';
+  readonly theme?:         string;
+  readonly variant?:       string;
+  readonly translations?:  ComponentTranslations;
+}
+
+/** Mirror of ProductGridCdnConfig. Fetches products from /api/shop/products?category={alias}. */
+export interface ProductGridElementConfig {
+  readonly headingText?:   string;
+  readonly categoryAlias?: string;
+  readonly maxItems?:      number;
+  readonly columns?:       2 | 3 | 4;
+  readonly showFilters?:   boolean;
+  readonly sortOrder?:     'relevance' | 'newest' | 'price-asc' | 'price-desc';
+  readonly theme?:         string;
+  readonly variant?:       string;
+  readonly translations?:  ComponentTranslations;
+}
+
+/** Mirror of ProductDetailCdnConfig. Full product data fetched from API. */
+export interface ProductDetailElementConfig {
+  readonly productSku?:             string;
+  readonly showVariantPicker?:      boolean;
+  readonly showQuantitySelector?:   boolean;
+  readonly showRating?:             boolean;
+  readonly layout?:                 'imageLeft' | 'imageRight' | 'imageTop';
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
+
+/** Mirror of CartSummaryCdnConfig. Cart state managed client-side via cart.store.ts. */
+export interface CartSummaryElementConfig {
+  readonly showCoupon?:             boolean;
+  readonly checkoutUrl?:            string;
+  readonly continueShoppingUrl?:    string;
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
+
+/** Mirror of CartItemCdnConfig. Rendered internally by CartSummary. */
+export interface CartItemElementConfig {
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
+
+/** Mirror of PriceDisplayCdnConfig. */
+export interface PriceDisplayElementConfig {
+  readonly showOriginalPrice?:      boolean;
+  readonly showDiscount?:           boolean;
+  readonly priceSize?:              'sm' | 'md' | 'lg';
+  readonly currency?:               string;
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
+
+/** Mirror of QuantitySelectorCdnConfig. */
+export interface QuantitySelectorElementConfig {
+  readonly min?:                    number;
+  readonly max?:                    number;
+  readonly step?:                   number;
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
+
+/** Mirror of VariantPickerCdnConfig. */
+export interface VariantPickerElementConfig {
+  readonly variantType?:            'color' | 'size' | 'storage' | 'custom';
+  readonly displayAs?:              'buttons' | 'swatches' | 'dropdown';
+  readonly theme?:                  string;
+  readonly variant?:                string;
+  readonly translations?:           ComponentTranslations;
+}
 
 // ---------------------------------------------------------------------------
 // Union types
@@ -802,6 +911,15 @@ export type ElementConfigMap = {
   'rating-widget':        RatingWidgetElementConfig;
   'countdown-clock':      CountdownClockElementConfig;
   'notification-stack':   NotificationStackElementConfig;
+  // Shop (cf000001–cf000008)
+  'product-card':         ProductCardElementConfig;
+  'product-grid':         ProductGridElementConfig;
+  'product-detail':       ProductDetailElementConfig;
+  'cart-summary':         CartSummaryElementConfig;
+  'cart-item':            CartItemElementConfig;
+  'price-display':        PriceDisplayElementConfig;
+  'quantity-selector':    QuantitySelectorElementConfig;
+  'variant-picker':       VariantPickerElementConfig;
 };
 
 /** All valid element type keys. */
