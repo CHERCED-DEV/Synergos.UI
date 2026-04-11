@@ -1,0 +1,114 @@
+<section class="product-grid" [class]="gridClass()">
+
+  @if (hasHeading()) {
+    <h2 class="product-grid__heading">{{ headingText() }}</h2>
+  }
+
+  @if (showFilters()) {
+    <div class="product-grid__filters" role="search">
+      <input
+        class="product-grid__search"
+        type="search"
+        [value]="searchQuery()"
+        placeholder="Buscar..."
+        aria-label="Search products"
+        (input)="onSearch($event)"
+      />
+
+      <label class="product-grid__sort-label" for="pg-sort">{{ sortByLabel() }}</label>
+      <select
+        class="product-grid__sort"
+        id="pg-sort"
+        [value]="activeSort()"
+        (change)="onSortChange($event)"
+        aria-label="Sort products"
+      >
+        @for (opt of sortOptions(); track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+
+      @if (searchQuery()) {
+        <button class="product-grid__clear" type="button" (click)="clearFilters()">
+          {{ filterClearLabel() }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="product-grid__loading" role="status" aria-live="polite">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="product-grid__skeleton"></div>
+      }
+    </div>
+  }
+
+  @if (apiError()) {
+    <p class="product-grid__error" role="alert">Error loading products. Please try again.</p>
+  }
+
+  @if (!loading() && !apiError()) {
+    @if (isEmpty()) {
+      <p class="product-grid__empty" role="status">{{ noResultsLabel() }}</p>
+    } @else {
+      <ul class="product-grid__list" role="list">
+        @for (product of products(); track trackById($index, product)) {
+          <li class="product-grid__card" role="listitem">
+
+            @if (product.images?.[0]) {
+              <figure class="product-grid__card-figure">
+                <img
+                  class="product-grid__card-img"
+                  [src]="product.images[0].src"
+                  [alt]="product.images[0].alt"
+                  loading="lazy"
+                />
+              </figure>
+            }
+
+            @if (product.badge) {
+              <span class="product-grid__card-badge">{{ product.badge }}</span>
+            }
+
+            <div class="product-grid__card-body">
+              <h3 class="product-grid__card-name">{{ product.name }}</h3>
+              <p class="product-grid__card-category">{{ product.category.name }}</p>
+
+              <div class="product-grid__card-pricing">
+                @if (product.originalPrice) {
+                  <span class="product-grid__card-original">
+                    {{ formatPrice(product.originalPrice, product.currency) }}
+                  </span>
+                }
+                <span class="product-grid__card-price">
+                  {{ formatPrice(product.price, product.currency) }}
+                </span>
+                @if (product.discount) {
+                  <span class="product-grid__card-discount">-{{ product.discount }}%</span>
+                }
+              </div>
+
+              @if (product.rating) {
+                <div class="product-grid__card-rating" aria-label="Rating {{ product.rating.average }} out of 5">
+                  <span class="product-grid__card-stars" aria-hidden="true">★</span>
+                  <span>{{ product.rating.average }}</span>
+                  <span class="product-grid__card-review-count">({{ product.rating.count }})</span>
+                </div>
+              }
+
+              <button
+                class="product-grid__card-cta"
+                type="button"
+                [disabled]="!product.inStock"
+                (click)="addToCart(product)"
+              >
+                {{ product.inStock ? (t()['Shop.Product.AddToCart'] ?? 'Add to cart') : (t()['Shop.Product.OutOfStock'] ?? 'Out of stock') }}
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

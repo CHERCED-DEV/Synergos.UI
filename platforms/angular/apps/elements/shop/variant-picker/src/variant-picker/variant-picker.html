@@ -1,0 +1,55 @@
+<div class="variant-picker" [class]="hostClasses()">
+
+  @if (displayAs() === 'dropdown') {
+    <label class="variant-picker__label" [for]="'vp-select'">{{ selectLabel() }}</label>
+    <select
+      class="variant-picker__select"
+      id="vp-select"
+      (change)="selectVariant(variants()[$any($event.target).selectedIndex - 1])"
+    >
+      <option value="" disabled selected>{{ selectLabel() }}</option>
+      @for (v of variants(); track trackById($index, v)) {
+        <option [value]="v.id" [disabled]="!v.inStock" [selected]="isSelected(v)">
+          {{ v.name }}{{ !v.inStock ? ' — ' + outOfStockLabel() : '' }}
+        </option>
+      }
+    </select>
+  }
+
+  @if (displayAs() !== 'dropdown') {
+    <span class="variant-picker__label">{{ selectLabel() }}</span>
+    <div
+      class="variant-picker__options"
+      [class.variant-picker__options--swatches]="displayAs() === 'swatches'"
+      role="group"
+      [attr.aria-label]="selectLabel()"
+    >
+      @for (v of variants(); track trackById($index, v)) {
+        <button
+          class="variant-picker__option"
+          [class.variant-picker__option--selected]="isSelected(v)"
+          [class.variant-picker__option--out-of-stock]="!v.inStock"
+          [class.variant-picker__option--swatch]="displayAs() === 'swatches'"
+          type="button"
+          [disabled]="!v.inStock"
+          [attr.aria-pressed]="isSelected(v)"
+          [attr.aria-label]="v.name + (!v.inStock ? ' — ' + outOfStockLabel() : '')"
+          [attr.title]="v.name"
+          (click)="selectVariant(v)"
+        >
+          @if (displayAs() === 'swatches' && v.image) {
+            <img class="variant-picker__swatch-img" [src]="v.image" [alt]="v.name" />
+          } @else {
+            {{ v.value }}
+          }
+        </button>
+      }
+    </div>
+  }
+
+  @if (selectedVariant()) {
+    <p class="variant-picker__selected-label" aria-live="polite">
+      {{ selectedVariant()?.name }}
+    </p>
+  }
+</div>

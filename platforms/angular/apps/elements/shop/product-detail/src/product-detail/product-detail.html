@@ -1,0 +1,155 @@
+<article class="product-detail" [class]="hostClasses()" [attr.aria-busy]="loading()">
+
+  @if (loading()) {
+    <div class="product-detail__skeleton" role="status" aria-label="Loading product...">
+      <div class="product-detail__skeleton-media"></div>
+      <div class="product-detail__skeleton-body">
+        <div class="product-detail__skeleton-line product-detail__skeleton-line--title"></div>
+        <div class="product-detail__skeleton-line"></div>
+        <div class="product-detail__skeleton-line product-detail__skeleton-line--short"></div>
+      </div>
+    </div>
+  }
+
+  @if (apiError()) {
+    <p class="product-detail__error" role="alert">Error loading product. Please try again.</p>
+  }
+
+  @if (!loading() && !apiError() && product()) {
+    <!-- Media gallery -->
+    <div class="product-detail__media">
+      @if (activeImage()) {
+        <figure class="product-detail__main-figure">
+          <img
+            class="product-detail__main-img"
+            [src]="activeImage()!.src"
+            [alt]="activeImage()!.alt"
+          />
+        </figure>
+      }
+
+      @if (images().length > 1) {
+        <div class="product-detail__thumbnails" role="list" aria-label="Product images">
+          @for (img of images(); track img.src; let i = $index) {
+            <button
+              class="product-detail__thumb"
+              [class.product-detail__thumb--active]="activeImageIdx() === i"
+              type="button"
+              [attr.aria-label]="img.alt"
+              [attr.aria-pressed]="activeImageIdx() === i"
+              (click)="selectImage(i)"
+            >
+              <img [src]="img.src" [alt]="img.alt" />
+            </button>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Info panel -->
+    <div class="product-detail__info">
+
+      @if (product()!.badge) {
+        <span class="product-detail__badge">{{ product()!.badge }}</span>
+      }
+
+      <h1 class="product-detail__name">{{ product()!.name }}</h1>
+
+      <!-- Rating -->
+      @if (hasRating()) {
+        <div class="product-detail__rating" [attr.aria-label]="ratingLabel() + ' ' + product()!.rating!.average + '/5'">
+          <div class="product-detail__stars" aria-hidden="true">
+            @for (star of ratingStars(product()!.rating!.average); track star) {
+              <span [class.product-detail__star--filled]="isStarFilled(star, product()!.rating!.average)">★</span>
+            }
+          </div>
+          <span class="product-detail__rating-avg">{{ product()!.rating!.average }}</span>
+          <span class="product-detail__rating-count">({{ product()!.rating!.count }})</span>
+        </div>
+      }
+
+      <!-- Price -->
+      <div class="product-detail__price-block">
+        <sg-price-display
+          [price]="effectivePrice()"
+          [originalPrice]="product()!.originalPrice"
+          [discount]="product()!.discount"
+          [currency]="product()!.currency"
+          priceSize="lg"
+          [theme]="theme()"
+        />
+      </div>
+
+      <!-- Stock status -->
+      <p class="product-detail__stock"
+         [class.product-detail__stock--in]="inStock()"
+         [class.product-detail__stock--out]="!inStock()"
+         [class.product-detail__stock--low]="lowStock()"
+      >
+        @if (!inStock()) { {{ outOfStockLabel() }} }
+        @else if (lowStock()) { {{ lowStockLabel() }} — {{ stockQty() }} {{ t()['Shop.Product.Quantity'] ?? 'left' }} }
+        @else { {{ inStockLabel() }} }
+      </p>
+
+      <!-- SKU -->
+      <p class="product-detail__sku">
+        <span class="product-detail__sku-label">{{ skuLabel() }}:</span>
+        {{ product()!.sku }}
+      </p>
+
+      <!-- Description -->
+      <p class="product-detail__description">{{ product()!.description }}</p>
+
+      <!-- Variant picker -->
+      @if (hasVariants()) {
+        <div class="product-detail__variants">
+          <sg-variant-picker
+            [variants]="variants()"
+            variantType="size"
+            displayAs="buttons"
+            [theme]="theme()"
+            (variantSelected)="onVariantSelected($event)"
+          />
+        </div>
+      }
+
+      <!-- Quantity selector -->
+      @if (showQuantitySelector()) {
+        <div class="product-detail__qty">
+          <label class="product-detail__qty-label">{{ quantityLabel() }}</label>
+          <sg-quantity-selector
+            [min]="1"
+            [max]="stockQty() ?? 99"
+            [step]="1"
+            [value]="quantity()"
+            [theme]="theme()"
+            (quantityChange)="onQuantityChange($event)"
+          />
+        </div>
+      }
+
+      <!-- Add to cart CTA -->
+      <button
+        class="product-detail__cta"
+        type="button"
+        [disabled]="!inStock()"
+        (click)="addToCart()"
+      >
+        {{ inStock() ? addToCartLabel() : outOfStockLabel() }}
+      </button>
+
+      <!-- Attributes -->
+      @if (product()!.attributes?.length) {
+        <dl class="product-detail__attrs">
+          @for (attr of product()!.attributes!; track attr.key) {
+            <div class="product-detail__attr-row">
+              <dt class="product-detail__attr-key">{{ attr.key }}</dt>
+              <dd class="product-detail__attr-val">{{ attr.value }}</dd>
+            </div>
+          }
+        </dl>
+      }
+
+    </div>
+  }
+</article>
