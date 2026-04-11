@@ -70,7 +70,7 @@
             class="cart-drawer__coupon-input"
             type="text"
             [placeholder]="couponLabel()"
-            [(ngModel)]="couponCode"
+            [value]="couponCode()" (input)="couponCode.set($any($event.target).value)"
             (keydown.enter)="applyCoupon()"
           />
           <button

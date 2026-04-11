@@ -13,8 +13,6 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 import { PriceDisplayComponent } from '../../price-display/src/price-display/price-display';
 import { QuantitySelectorComponent } from '../../quantity-selector/src/quantity-selector/quantity-selector';
 import { VariantPickerComponent } from '../../variant-picker/src/variant-picker/variant-picker';
-import { cartStore } from '../../../cart.store';
-
 @Component({
   selector: 'sg-product-detail',
   imports: [PriceDisplayComponent, QuantitySelectorComponent, VariantPickerComponent],
@@ -148,18 +146,21 @@ export class ProductDetailComponent {
 
     const variant = this.selectedVariant();
 
-    cartStore.add({
-      productId: p.id,
-      sku:       variant?.sku ?? p.sku,
-      name:      variant ? `${p.name} — ${variant.name}` : p.name,
-      price:     this.effectivePrice(),
-      currency:  p.currency,
-      quantity:  this.quantity(),
-      variantId: variant?.id,
-      image:     p.images?.[0]?.src,
-    });
-
-    cartStore.openDrawer();
+    window.dispatchEvent(
+      new CustomEvent('sg:product:addToCart', {
+        bubbles: true, composed: true,
+        detail: {
+          productId:  p.id,
+          productSku: variant?.sku ?? p.sku,
+          name:       variant ? `${p.name} — ${variant.name}` : p.name,
+          price:      this.effectivePrice(),
+          currency:   p.currency,
+          quantity:   this.quantity(),
+          variantId:  variant?.id,
+          image:      p.images?.[0]?.src,
+        },
+      }),
+    );
   }
 
   formatPrice(value: number): string {
