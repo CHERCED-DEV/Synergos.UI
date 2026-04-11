@@ -40,7 +40,7 @@
   background:     syn.$color-neutral-0;
   box-shadow:     syn.$shadow-xl;
   transform:      translateX(100%);
-  transition:     transform syn.$duration-slow syn.$easing-decelerate;
+  transition:     transform syn.$duration-slow syn.$easing-out;
   will-change:    transform;
   overflow:       hidden;
 
@@ -122,7 +122,7 @@
     align-items:     center;
     justify-content: center;
     gap:             syn.$space-md;
-    padding:         syn.$space-3xl 0;
+    padding:         syn.px-to-rem(56) 0;
     text-align:      center;
 
     svg { color: syn.$color-neutral-300; }
@@ -242,8 +242,8 @@
     transition:      background syn.$duration-fast syn.$easing-default,
                      transform  syn.$duration-fast syn.$easing-default;
 
-    &:hover  { background: syn.$color-brand-700; transform: translateY(syn.px-to-rem(-1)); }
-    &:active { background: syn.$color-brand-800; transform: translateY(0); }
+    &:hover  { background: syn.$color-brand-500; box-shadow: syn.$shadow-brand-md; transform: translateY(syn.px-to-rem(-1)); }
+    &:active { background: syn.$color-brand-600; box-shadow: none; transform: translateY(0); }
   }
 
   &__continue {

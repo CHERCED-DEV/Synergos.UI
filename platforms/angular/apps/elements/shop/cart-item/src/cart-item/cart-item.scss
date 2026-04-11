@@ -38,7 +38,7 @@
     font-size:          syn.$font-size-sm;
     font-weight:        syn.$font-weight-semibold;
     color:              syn.$color-neutral-900;
-    line-height:        syn.$line-height-snug;
+    line-height:        syn.$line-height-tight;
     display:            -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -97,8 +97,8 @@
     padding:    0;
 
     &:hover {
-      color:      syn.$color-error-600;
-      background: syn.$color-error-50;
+      color:      syn.$color-danger-600;
+      background: syn.$color-danger-100;
     }
 
     &:focus-visible {

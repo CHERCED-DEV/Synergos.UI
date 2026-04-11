@@ -1,78 +1,122 @@
+@use 'scss' as syn;
+
+// ── Host ──────────────────────────────────────────────────────────────────────
 :host {
-  display: block;
-  width: 100%;
+  display:     block;
+  width:       100%;
   font-family: inherit;
 }
 
+// ── Root block ────────────────────────────────────────────────────────────────
 .product-grid {
   width: 100%;
 
   // ── Heading ───────────────────────────────────────────────────────────────
   &__heading {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0 0 1.5rem;
-    color: #111827;
+    font-size:      syn.$font-size-2xl;
+    font-weight:    syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+    color:          syn.$color-text-primary;
+    margin:         0 0 syn.$space-lg;
+    line-height:    syn.$line-height-tight;
   }
 
-  // ── Filters ───────────────────────────────────────────────────────────────
+  // ── Filters bar ───────────────────────────────────────────────────────────
   &__filters {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
+    display:       flex;
+    align-items:   center;
+    gap:           syn.$space-sm;
+    flex-wrap:     wrap;
+    margin-bottom: syn.$space-lg;
   }
 
   &__search {
-    flex: 1;
-    min-width: 10rem;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
+    flex:          1 1 syn.px-to-rem(200);
+    min-width:     syn.px-to-rem(160);
+    height:        syn.px-to-rem(40);
+    padding:       0 syn.$space-md;
+    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    border-radius: syn.$radius-md;
+    font-size:     syn.$font-size-sm;
+    color:         syn.$color-text-primary;
+    background:    syn.$color-surface;
+    transition:    syn.$transition-colors;
 
-    &:focus { outline: 2px solid #6366f1; outline-offset: 2px; }
+    &::placeholder { color: syn.$color-text-muted; }
+
+    &:focus {
+      outline:      none;
+      border-color: syn.$color-border-brand;
+      box-shadow:   0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-300, 0.3);
+    }
   }
 
-  &__sort-label { font-size: 0.875rem; color: #374151; white-space: nowrap; }
+  &__sort-label {
+    font-size:   syn.$font-size-sm;
+    color:       syn.$color-text-secondary;
+    white-space: nowrap;
+    font-weight: syn.$font-weight-medium;
+  }
 
   &__sort {
-    padding: 0.5rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    background: #fff;
+    height:        syn.px-to-rem(40);
+    padding:       0 syn.$space-md;
+    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    border-radius: syn.$radius-md;
+    font-size:     syn.$font-size-sm;
+    color:         syn.$color-text-primary;
+    background:    syn.$color-surface;
+    cursor:        pointer;
+    transition:    syn.$transition-colors;
 
-    &:focus { outline: 2px solid #6366f1; outline-offset: 2px; }
+    &:focus {
+      outline:      none;
+      border-color: syn.$color-border-brand;
+      box-shadow:   0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-300, 0.3);
+    }
   }
 
   &__clear {
-    padding: 0.5rem 0.875rem;
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    background: #fff;
-    font-size: 0.875rem;
-    cursor: pointer;
-    color: #6b7280;
+    height:        syn.px-to-rem(40);
+    padding:       0 syn.$space-md;
+    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    border-radius: syn.$radius-md;
+    background:    syn.$color-surface;
+    font-size:     syn.$font-size-sm;
+    color:         syn.$color-text-secondary;
+    cursor:        pointer;
+    transition:    syn.$transition-colors;
+    white-space:   nowrap;
 
-    &:hover { background: #f9fafb; }
+    &:hover { background: syn.$color-surface-subtle; color: syn.$color-text-primary; }
   }
 
-  // ── Loading skeletons ─────────────────────────────────────────────────────
+  // ── Skeleton loading ──────────────────────────────────────────────────────
   &__loading {
-    display: grid;
+    display:               grid;
     grid-template-columns: repeat(var(--sg-pg-cols, 3), 1fr);
-    gap: 1.5rem;
+    gap:                   syn.$space-lg;
   }
 
   &__skeleton {
-    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
-    background-size: 200% 100%;
-    animation: pg-shimmer 1.4s ease-in-out infinite;
-    border-radius: 0.75rem;
-    height: 320px;
+    background:    syn.$color-surface-subtle;
+    border-radius: syn.$radius-lg;
+    height:        syn.px-to-rem(340);
+    position:      relative;
+    overflow:      hidden;
+
+    &::after {
+      content:         '';
+      position:        absolute;
+      inset:           0;
+      background:      linear-gradient(90deg,
+                         transparent 0%,
+                         syn.$color-surface-muted 50%,
+                         transparent 100%
+                       );
+      background-size: 200% 100%;
+      animation:       pg-shimmer syn.$duration-shimmer syn.$easing-smooth infinite;
+    }
   }
 
   @keyframes pg-shimmer {
@@ -80,170 +124,231 @@
     100% { background-position: -200% 0; }
   }
 
-  // ── Error / empty ─────────────────────────────────────────────────────────
-  &__error { color: #dc2626; font-size: 0.875rem; }
-  &__empty { color: #6b7280; font-size: 0.875rem; text-align: center; padding: 3rem 0; }
+  // ── Error / empty states ──────────────────────────────────────────────────
+  &__error {
+    color:     syn.$color-danger-600;
+    font-size: syn.$font-size-sm;
+    padding:   syn.$space-lg 0;
+  }
 
-  // ── Grid list ─────────────────────────────────────────────────────────────
+  &__empty {
+    color:      syn.$color-text-muted;
+    font-size:  syn.$font-size-base;
+    text-align: center;
+    padding:    syn.px-to-rem(64) 0;
+  }
+
+  // ── Grid ──────────────────────────────────────────────────────────────────
   &__list {
-    display: grid;
-    gap: 1.5rem;
+    display:    grid;
+    gap:        syn.$space-lg;
     list-style: none;
-    margin: 0;
-    padding: 0;
+    margin:     0;
+    padding:    0;
   }
 
-  &--cols-2 .product-grid__list { grid-template-columns: repeat(2, 1fr); --sg-pg-cols: 2; }
-  &--cols-3 .product-grid__list { grid-template-columns: repeat(3, 1fr); --sg-pg-cols: 3; }
-  &--cols-4 .product-grid__list { grid-template-columns: repeat(4, 1fr); --sg-pg-cols: 4; }
+  &--cols-2 {
+    --sg-pg-cols: 2;
+    .product-grid__list { grid-template-columns: repeat(2, 1fr); }
+  }
 
-  @media (max-width: 768px) {
+  &--cols-3 {
+    --sg-pg-cols: 3;
+    .product-grid__list { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  &--cols-4 {
+    --sg-pg-cols: 4;
+    .product-grid__list { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (max-width: syn.px-to-rem(1024)) {
+    &--cols-4 .product-grid__list { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: syn.px-to-rem(768)) {
     &--cols-3 .product-grid__list,
-    &--cols-4 .product-grid__list {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    &--cols-4 .product-grid__list { grid-template-columns: repeat(2, 1fr); }
   }
 
-  @media (max-width: 480px) {
-    .product-grid__list { grid-template-columns: 1fr; }
+  @media (max-width: syn.px-to-rem(480)) {
+    &--cols-2 .product-grid__list,
+    &--cols-3 .product-grid__list,
+    &--cols-4 .product-grid__list { grid-template-columns: 1fr; }
   }
 
   // ── Product card ──────────────────────────────────────────────────────────
   &__card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.75rem;
-    overflow: hidden;
-    display: flex;
+    background:     syn.$color-surface;
+    border:         syn.px-to-rem(1) solid syn.$color-border-subtle;
+    border-radius:  syn.$radius-lg;
+    overflow:       hidden;
+    display:        flex;
     flex-direction: column;
-    transition: box-shadow 0.2s, transform 0.2s;
-    position: relative;
+    box-shadow:     syn.$shadow-xs;
+    transition:     box-shadow syn.$duration-base syn.$easing-default,
+                    border-color syn.$duration-base syn.$easing-default;
+    position:       relative;
+    cursor:         pointer;
 
     &:hover {
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-      transform: translateY(-2px);
+      box-shadow:   syn.$shadow-md;
+      border-color: syn.$color-border-default;
     }
   }
 
   &__card-figure {
-    margin: 0;
-    aspect-ratio: 1;
-    overflow: hidden;
-    background: #f9fafb;
+    margin:       0;
+    aspect-ratio: 4 / 3;
+    overflow:     hidden;
+    background:   syn.$color-surface-subtle;
+    flex-shrink:  0;
   }
 
   &__card-img {
-    width: 100%;
-    height: 100%;
+    width:      100%;
+    height:     100%;
     object-fit: cover;
-    transition: transform 0.3s;
+    transition: transform syn.$duration-slow syn.$easing-default;
 
-    .product-grid__card:hover & { transform: scale(1.03); }
+    .product-grid__card:hover & { transform: scale(1.04); }
   }
 
   &__card-badge {
-    position: absolute;
-    top: 0.75rem;
-    left: 0.75rem;
-    background: #6366f1;
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.2rem 0.5rem;
-    border-radius: 9999px;
+    position:       absolute;
+    top:            syn.$space-sm;
+    left:           syn.$space-sm;
+    background:     syn.$color-accent-500;
+    color:          syn.$color-text-inverse;
+    font-size:      syn.$font-size-xs;
+    font-weight:    syn.$font-weight-semibold;
+    padding:        syn.px-to-rem(3) syn.$space-xs;
+    border-radius:  syn.$radius-full;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: syn.$letter-spacing-wide;
+    line-height:    1.4;
+    pointer-events: none;
   }
 
   &__card-body {
-    display: flex;
+    display:        flex;
     flex-direction: column;
-    gap: 0.375rem;
-    padding: 1rem;
-    flex: 1;
-  }
-
-  &__card-name {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0;
-    line-height: 1.4;
+    gap:            syn.$space-xs;
+    padding:        syn.$space-md;
+    flex:           1;
   }
 
   &__card-category {
-    font-size: 0.75rem;
-    color: #9ca3af;
-    margin: 0;
+    font-size:      syn.$font-size-xs;
+    color:          syn.$color-text-muted;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    font-weight:    syn.$font-weight-semibold;
+    margin:         0;
+  }
+
+  &__card-name {
+    font-size:   syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    color:       syn.$color-text-primary;
+    line-height: syn.$line-height-tight;
+    margin:      0;
   }
 
   &__card-pricing {
-    display: flex;
+    display:     flex;
     align-items: baseline;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    margin-top: 0.25rem;
+    gap:         syn.$space-xs;
+    flex-wrap:   wrap;
+    margin-top:  syn.$space-xxs;
   }
 
   &__card-original {
-    font-size: 0.8125rem;
-    color: #9ca3af;
+    font-size:       syn.$font-size-sm;
+    color:           syn.$color-text-disabled;
     text-decoration: line-through;
   }
 
   &__card-price {
-    font-size: 1.0625rem;
-    font-weight: 700;
-    color: #111827;
+    font-size:      syn.$font-size-lg;
+    font-weight:    syn.$font-weight-bold;
+    color:          syn.$color-text-primary;
+    letter-spacing: syn.$letter-spacing-display;
   }
 
   &__card-discount {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #16a34a;
-    background: #dcfce7;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
+    font-size:     syn.$font-size-xs;
+    font-weight:   syn.$font-weight-semibold;
+    color:         syn.$color-success-600;
+    background:    syn.$color-success-100;
+    padding:       syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    white-space:   nowrap;
   }
 
   &__card-rating {
-    display: flex;
+    display:     flex;
     align-items: center;
-    gap: 0.25rem;
-    font-size: 0.8125rem;
-    color: #374151;
+    gap:         syn.px-to-rem(4);
+    font-size:   syn.$font-size-xs;
+    color:       syn.$color-text-secondary;
   }
 
-  &__card-stars { color: #f59e0b; }
-  &__card-review-count { color: #9ca3af; }
+  &__card-stars        { color: syn.$color-warning-500; }
+  &__card-review-count { color: syn.$color-text-muted; }
 
   &__card-cta {
-    margin-top: auto;
-    padding: 0.625rem 1rem;
-    background: #6366f1;
-    color: #fff;
-    border: none;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
+    margin-top:    auto;
+    padding:       syn.px-to-rem(10) syn.$space-md;
+    background:    syn.$color-brand-600;
+    color:         syn.$color-text-inverse;
+    border:        none;
+    border-radius: syn.$radius-md;
+    font-size:     syn.$font-size-sm;
+    font-weight:   syn.$font-weight-semibold;
+    cursor:        pointer;
+    transition:    syn.$transition-colors, box-shadow syn.$duration-fast syn.$easing-default;
+    width:         100%;
 
-    &:hover:not(:disabled) { background: #4f46e5; }
-    &:disabled { background: #d1d5db; cursor: not-allowed; color: #6b7280; }
+    &:hover:not(:disabled) {
+      background: syn.$color-brand-500;
+      box-shadow: syn.$shadow-brand-sm;
+    }
+
+    &:active:not(:disabled) {
+      background: syn.$color-brand-600;
+      box-shadow: none;
+    }
+
+    &:disabled {
+      background: syn.$color-surface-muted;
+      color:      syn.$color-text-disabled;
+      cursor:     not-allowed;
+    }
+
+    &:focus-visible {
+      outline:        syn.px-to-rem(2) solid syn.$color-border-brand;
+      outline-offset: syn.px-to-rem(2);
+    }
   }
 
   // ── Dark theme ────────────────────────────────────────────────────────────
   &--dark {
-    .product-grid__heading { color: #f9fafb; }
-    .product-grid__card { background: #1f2937; border-color: #374151; }
-    .product-grid__card-name { color: #f9fafb; }
-    .product-grid__card-figure { background: #111827; }
-    .product-grid__card-price { color: #f9fafb; }
+    .product-grid__heading     { color: syn.$color-neutral-50; }
+    .product-grid__card        { background: syn.$color-neutral-800; border-color: syn.$color-neutral-700; }
+    .product-grid__card:hover  { border-color: syn.$color-neutral-600; }
+    .product-grid__card-figure { background: syn.$color-neutral-900; }
+    .product-grid__card-name   { color: syn.$color-neutral-50; }
+    .product-grid__card-price  { color: syn.$color-neutral-50; }
+    .product-grid__card-category { color: syn.$color-neutral-500; }
+    .product-grid__skeleton    { background: syn.$color-neutral-700; }
+
     .product-grid__search,
     .product-grid__sort,
-    .product-grid__clear { background: #1f2937; color: #f9fafb; border-color: #4b5563; }
+    .product-grid__clear {
+      background:   syn.$color-neutral-800;
+      color:        syn.$color-neutral-100;
+      border-color: syn.$color-neutral-600;
+    }
   }
 }

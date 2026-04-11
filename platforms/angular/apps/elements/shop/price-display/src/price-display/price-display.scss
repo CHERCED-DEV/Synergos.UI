@@ -48,10 +48,10 @@
 
   &__discount {
     font-weight:   syn.$font-weight-semibold;
-    color:         syn.$color-error-600;
-    background:    syn.$color-error-50;
+    color:         syn.$color-danger-600;
+    background:    syn.$color-danger-100;
     padding:       syn.px-to-rem(2) syn.$space-xs;
-    border-radius: syn.$radius-xs;
+    border-radius: syn.$radius-sm;
     line-height:   1.4;
     white-space:   nowrap;
   }
