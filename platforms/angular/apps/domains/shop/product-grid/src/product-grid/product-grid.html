@@ -1,0 +1,115 @@
+<section class="product-grid" [class]="gridClass()">
+
+  @if (hasHeading()) {
+    <h2 class="product-grid__heading">{{ headingText() }}</h2>
+  }
+
+  @if (showFilters()) {
+    <div class="product-grid__filters">
+      <input
+        class="product-grid__search"
+        type="search"
+        [value]="searchQuery()"
+        placeholder="Buscar..."
+        aria-label="Search products"
+        (input)="onSearch($event)"
+      />
+
+      <syn-select
+        [label]="sortByLabel()"
+        [options]="sortOptions()"
+        [value]="activeSort()"
+        (valueChange)="onSortChange($event)"
+      />
+
+      @if (searchQuery()) {
+        <syn-button
+          variant="ghost"
+          size="sm"
+          [label]="filterClearLabel()"
+          (pressed)="clearFilters()"
+        />
+      }
+    </div>
+  }
+
+  @if (loading()) {
+    <output class="product-grid__loading" aria-live="polite" aria-label="Loading products">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <syn-skeleton shape="block" size="lg" />
+      }
+    </output>
+  }
+
+  @if (apiError()) {
+    <p class="product-grid__error" role="alert">Error loading products. Please try again.</p>
+  }
+
+  @if (!loading() && !apiError()) {
+    @if (isEmpty()) {
+      <syn-empty-state
+        [title]="noResultsLabel()"
+        [description]="searchQuery() ? tryDifferentLabel() : ''"
+        align="center"
+      />
+    } @else {
+      <ul class="product-grid__list">
+        @for (product of products(); track trackById($index, product)) {
+          <li class="product-grid__card">
+
+            @if (product.images && product.images[0]) {
+              <figure class="product-grid__card-figure">
+                <img
+                  class="product-grid__card-img"
+                  [src]="product.images[0].src"
+                  [alt]="product.images[0].alt"
+                  loading="lazy"
+                />
+              </figure>
+            }
+
+            @if (product.badge) {
+              <syn-badge [text]="product.badge" tone="brand" />
+            }
+
+            <div class="product-grid__card-body">
+              <h3 class="product-grid__card-name">{{ product.name }}</h3>
+              <p class="product-grid__card-category">{{ product.category.name }}</p>
+
+              <div class="product-grid__card-pricing">
+                @if (product.originalPrice) {
+                  <span class="product-grid__card-original">
+                    {{ formatPrice(product.originalPrice, product.currency) }}
+                  </span>
+                }
+                <span class="product-grid__card-price">
+                  {{ formatPrice(product.price, product.currency) }}
+                </span>
+                @if (product.discount) {
+                  <span class="product-grid__card-discount">-{{ product.discount }}%</span>
+                }
+              </div>
+
+              @if (product.rating) {
+                <div class="product-grid__card-rating"
+                     [attr.aria-label]="'Rating ' + product.rating.average + ' out of 5'">
+                  <span class="product-grid__card-stars" aria-hidden="true">★</span>
+                  <span>{{ product.rating.average }}</span>
+                  <span class="product-grid__card-review-count">({{ product.rating.count }})</span>
+                </div>
+              }
+
+              <syn-button
+                variant="solid"
+                size="sm"
+                [label]="product.inStock ? addToCartLabel() : outOfStockLabel()"
+                [disabled]="!product.inStock"
+                (pressed)="addToCart(product)"
+              />
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

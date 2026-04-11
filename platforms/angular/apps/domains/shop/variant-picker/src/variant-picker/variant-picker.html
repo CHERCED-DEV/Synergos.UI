@@ -1,0 +1,45 @@
+<div class="variant-picker" [class]="hostClasses()">
+
+  @if (displayAs() === 'dropdown') {
+    <span class="variant-picker__label">{{ selectLabel() }}</span>
+    <syn-select
+      [label]="selectLabel()"
+      [options]="selectOptions()"
+      [value]="selectedValue()"
+      (valueChange)="onDropdownChange($event)"
+    />
+  }
+
+  @if (displayAs() !== 'dropdown') {
+    <span class="variant-picker__label">{{ selectLabel() }}</span>
+    <fieldset class="variant-picker__options" [class.variant-picker__options--swatches]="displayAs() === 'swatches'">
+      <legend class="variant-picker__legend">{{ selectLabel() }}</legend>
+      @for (v of variants(); track trackById($index, v)) {
+        <button
+          class="variant-picker__option"
+          [class.variant-picker__option--selected]="isSelected(v)"
+          [class.variant-picker__option--out-of-stock]="!v.inStock"
+          [class.variant-picker__option--swatch]="displayAs() === 'swatches'"
+          type="button"
+          [disabled]="!v.inStock"
+          [attr.aria-pressed]="isSelected(v)"
+          [attr.aria-label]="v.name + (!v.inStock ? ' — ' + outOfStockLabel() : '')"
+          [attr.title]="v.name"
+          (click)="selectVariant(v)"
+        >
+          @if (displayAs() === 'swatches' && v.image) {
+            <img class="variant-picker__option-img" [src]="v.image" [alt]="v.name" />
+          } @else {
+            {{ v.value }}
+          }
+        </button>
+      }
+    </fieldset>
+  }
+
+  @if (selectedVariant()) {
+    <p class="variant-picker__selected-label" aria-live="polite">
+      {{ selectedVariant()?.name }}
+    </p>
+  }
+</div>

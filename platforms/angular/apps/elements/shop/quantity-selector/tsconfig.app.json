@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "outDir": "../../../../dist/out-tsc/apps/elements/shop/quantity-selector",
-    "types": []
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts"]
-}

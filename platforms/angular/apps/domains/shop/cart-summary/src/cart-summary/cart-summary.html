@@ -1,0 +1,96 @@
+<!-- Backdrop -->
+<div
+  class="cart-backdrop"
+  aria-hidden="true"
+  (click)="close()"
+></div>
+
+<!-- Drawer -->
+<aside class="cart-drawer" [class]="hostClasses()" role="dialog" aria-modal="true" [attr.aria-label]="titleLabel()">
+
+  <!-- Header -->
+  <div class="cart-drawer__header">
+    <h2 class="cart-drawer__title">
+      {{ titleLabel() }}
+      @if (count() > 0) {
+        <span class="cart-drawer__count">({{ count() }})</span>
+      }
+    </h2>
+    <syn-icon-button
+      class="cart-drawer__close"
+      icon="×"
+      ariaLabel="Close cart"
+      (pressed)="close()"
+    />
+  </div>
+
+  <!-- Items -->
+  <div class="cart-drawer__body">
+    @if (isEmpty()) {
+      <syn-empty-state
+        [title]="emptyLabel()"
+        [description]="continueLabel()"
+        align="center"
+      />
+    }
+
+    @if (!isEmpty()) {
+      <ul class="cart-drawer__items" role="list">
+        @for (item of items(); track item.sku + (item.variantId ?? '')) {
+          <li>
+            <sg-cart-item
+              [item]="item"
+              [theme]="theme()"
+              [config]="config()"
+            />
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <!-- Footer -->
+  @if (!isEmpty()) {
+    <div class="cart-drawer__footer">
+
+      <!-- Coupon -->
+      @if (showCoupon()) {
+        <div class="cart-drawer__coupon">
+          <syn-input
+            [placeholder]="couponLabel()"
+            [value]="couponCode()"
+            (valueChange)="couponCode.set($event)"
+          />
+          <syn-button
+            variant="ghost"
+            size="sm"
+            [label]="applyCouponLabel()"
+            (pressed)="applyCoupon()"
+          />
+        </div>
+      }
+
+      <!-- Totals -->
+      <div class="cart-drawer__totals">
+        <div class="cart-drawer__total-row">
+          <span>{{ subtotalLabel() }}</span>
+          <span>{{ formatPrice(subtotal()) }}</span>
+        </div>
+        <div class="cart-drawer__total-row cart-drawer__total-row--grand">
+          <span>{{ totalLabel() }}</span>
+          <span>{{ formatPrice(total()) }}</span>
+        </div>
+      </div>
+
+      <!-- Checkout CTA -->
+      <a [href]="checkoutUrl()" class="cart-drawer__checkout-btn">
+        {{ checkoutLabel() }}
+      </a>
+
+      <a [href]="continueShoppingUrl()" class="cart-drawer__continue">
+        {{ continueLabel() }}
+      </a>
+    </div>
+  }
+
+</aside>

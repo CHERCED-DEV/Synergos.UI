@@ -1,0 +1,29 @@
+<fieldset class="qty" [class]="hostClasses()">
+  <legend class="qty__legend">Quantity</legend>
+
+  <syn-icon-button
+    icon="−"
+    ariaLabel="Decrease quantity"
+    [disabled]="!canDecrement()"
+    (pressed)="decrement()"
+  />
+
+  <input
+    class="qty__input"
+    type="number"
+    [min]="min()"
+    [max]="max()"
+    [step]="step()"
+    [value]="quantity()"
+    aria-label="Quantity"
+    (change)="onInput($event)"
+    (blur)="onInput($event)"
+  />
+
+  <syn-icon-button
+    icon="+"
+    ariaLabel="Increase quantity"
+    [disabled]="!canIncrement()"
+    (pressed)="increment()"
+  />
+</fieldset>

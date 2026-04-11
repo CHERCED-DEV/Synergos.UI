@@ -1,0 +1,45 @@
+@let item = itemInput();
+
+@if (item) {
+  <div class="cart-item" [class]="'cart-item--' + theme()">
+    <!-- Thumbnail -->
+    @if (hasImage()) {
+      <div class="cart-item__thumb">
+        <img [src]="item.image" [alt]="item.name" loading="lazy" />
+      </div>
+    }
+
+    <!-- Info -->
+    <div class="cart-item__info">
+      <p class="cart-item__name">{{ item.name }}</p>
+
+      @if (item.variantId) {
+        <p class="cart-item__variant">{{ item.variantId }}</p>
+      }
+
+      <p class="cart-item__price">{{ formatPrice(item.price, item.currency) }}</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="cart-item__controls">
+      <sg-quantity-selector
+        [min]="1"
+        [max]="99"
+        [value]="item.quantity"
+        [theme]="theme()"
+        (quantityChange)="updateQty($event)"
+      />
+
+      <p class="cart-item__subtotal">
+        {{ formatPrice(item.subtotal, item.currency) }}
+      </p>
+
+      <syn-icon-button
+        class="cart-item__remove"
+        icon="×"
+        [ariaLabel]="removeLabel() + ' ' + item.name"
+        (pressed)="remove()"
+      />
+    </div>
+  </div>
+}

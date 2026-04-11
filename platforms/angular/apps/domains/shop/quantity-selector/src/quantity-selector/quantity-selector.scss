@@ -1,0 +1,100 @@
+@use 'scss' as syn;
+
+:host { display: inline-flex; font-family: inherit; }
+
+.qty {
+  display:      inline-flex;
+  align-items:  stretch;
+  border:       syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border-radius: syn.$radius-md;
+  overflow:     hidden;
+  background:   syn.$color-neutral-0;
+  height:       syn.px-to-rem(40);
+  padding:      0; // reset fieldset browser default
+
+  // ── Visually-hidden legend (semantic label for fieldset) ─────────────────
+  &__legend {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    border: 0;
+  }
+
+  &--dark {
+    background:   syn.$color-neutral-800;
+    border-color: syn.$color-neutral-600;
+
+    // Override syn-icon-button styles for dark context
+    syn-icon-button {
+      color: syn.$color-neutral-200;
+      &:hover { background: syn.$color-neutral-700; }
+    }
+
+    .qty__input { color: syn.$color-neutral-0; background: transparent; }
+  }
+
+  // ── syn-icon-button integration ──────────────────────────────────────────
+  // Force icon buttons to match the quantity-selector's look-and-feel
+  syn-icon-button {
+    display:    contents; // let the inner button be the flex item
+
+    ::ng-deep .syn-icon-button {
+      display:        flex;
+      align-items:    center;
+      justify-content: center;
+      width:          syn.px-to-rem(40);
+      flex-shrink:    0;
+      border:         none;
+      border-radius:  0;
+      background:     transparent;
+      color:          syn.$color-neutral-700;
+      font-size:      syn.$font-size-lg;
+      font-weight:    syn.$font-weight-regular;
+      cursor:         pointer;
+      transition:     background syn.$duration-fast syn.$easing-default,
+                      color      syn.$duration-fast syn.$easing-default;
+      line-height:    1;
+      padding:        0;
+
+      &:hover:not(:disabled) {
+        background: syn.$color-neutral-50;
+        color:      syn.$color-brand-600;
+      }
+
+      &:active:not(:disabled) { background: syn.$color-neutral-100; }
+
+      &:disabled {
+        opacity: 0.38;
+        cursor:  not-allowed;
+      }
+
+      &:focus-visible {
+        outline:        syn.px-to-rem(2) solid syn.$color-brand-400;
+        outline-offset: syn.px-to-rem(-2);
+      }
+    }
+  }
+
+  // ── Input ────────────────────────────────────────────────────────────────
+  &__input {
+    width:        syn.px-to-rem(52);
+    min-width:    0;
+    border:       none;
+    border-left:  syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-right: syn.px-to-rem(1) solid syn.$color-neutral-200;
+    text-align:   center;
+    font-size:    syn.$font-size-base;
+    font-weight:  syn.$font-weight-semibold;
+    color:        syn.$color-neutral-900;
+    background:   transparent;
+    padding:      0;
+    appearance:   textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+    &:focus { outline: none; background: syn.$color-brand-100; }
+  }
+}
