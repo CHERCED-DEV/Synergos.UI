@@ -1,0 +1,257 @@
+@use 'scss' as syn;
+
+// ── Host — full-screen overlay, invisible by default ─────────────────────────
+:host {
+  position:       fixed;
+  inset:          0;
+  z-index:        var(--sg-z-overlay, 900);
+  pointer-events: none;
+  font-family:    inherit;
+
+  // When open attribute is set, become interactive
+  &[open] {
+    pointer-events: auto;
+
+    .cart-backdrop { opacity: 1; }
+    .cart-drawer   { transform: translateX(0); }
+  }
+}
+
+// ── Backdrop ──────────────────────────────────────────────────────────────────
+.cart-backdrop {
+  position:   absolute;
+  inset:      0;
+  background: rgba(syn.$color-neutral-900, 0.5);
+  backdrop-filter: blur(syn.px-to-rem(2));
+  opacity:    0;
+  transition: opacity syn.$duration-base syn.$easing-default;
+  cursor:     pointer;
+}
+
+// ── Drawer ────────────────────────────────────────────────────────────────────
+.cart-drawer {
+  position:       absolute;
+  top:            0;
+  right:          0;
+  bottom:         0;
+  width:          min(syn.px-to-rem(440), 100vw);
+  display:        flex;
+  flex-direction: column;
+  background:     syn.$color-neutral-0;
+  box-shadow:     syn.$shadow-xl;
+  transform:      translateX(100%);
+  transition:     transform syn.$duration-slow syn.$easing-decelerate;
+  will-change:    transform;
+  overflow:       hidden;
+
+  &--dark {
+    background: syn.$color-neutral-900;
+
+    .cart-drawer__title, .cart-drawer__close {
+      color: syn.$color-neutral-50;
+    }
+  }
+
+  // ── Header ────────────────────────────────────────────────────────────
+  &__header {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         syn.$space-lg syn.$space-xl;
+    border-bottom:   syn.px-to-rem(1) solid syn.$color-neutral-100;
+    flex-shrink:     0;
+
+    .cart-drawer--dark & { border-bottom-color: syn.$color-neutral-700; }
+  }
+
+  &__title {
+    margin:      0;
+    font-size:   syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    color:       syn.$color-neutral-900;
+    display:     flex;
+    align-items: center;
+    gap:         syn.$space-xs;
+  }
+
+  &__count {
+    font-size:   syn.$font-size-sm;
+    font-weight: syn.$font-weight-regular;
+    color:       syn.$color-neutral-500;
+  }
+
+  &__close {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    width:           syn.px-to-rem(36);
+    height:          syn.px-to-rem(36);
+    border:          none;
+    background:      transparent;
+    color:           syn.$color-neutral-600;
+    cursor:          pointer;
+    border-radius:   syn.$radius-sm;
+    transition:      background syn.$duration-fast syn.$easing-default;
+    padding:         0;
+
+    &:hover  { background: syn.$color-neutral-100; color: syn.$color-neutral-900; }
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid syn.$color-brand-400;
+      outline-offset: syn.px-to-rem(2);
+    }
+  }
+
+  // ── Body (scrollable) ─────────────────────────────────────────────────
+  &__body {
+    flex:        1 1 auto;
+    overflow-y:  auto;
+    padding:     syn.$space-lg syn.$space-xl;
+    overscroll-behavior: contain;
+  }
+
+  &__items {
+    list-style: none;
+    margin:     0;
+    padding:    0;
+  }
+
+  // ── Empty state ───────────────────────────────────────────────────────
+  &__empty {
+    display:         flex;
+    flex-direction:  column;
+    align-items:     center;
+    justify-content: center;
+    gap:             syn.$space-md;
+    padding:         syn.$space-3xl 0;
+    text-align:      center;
+
+    svg { color: syn.$color-neutral-300; }
+
+    p {
+      margin:      0;
+      font-size:   syn.$font-size-base;
+      color:       syn.$color-neutral-500;
+      font-weight: syn.$font-weight-medium;
+    }
+  }
+
+  &__continue-link {
+    font-size:       syn.$font-size-sm;
+    color:           syn.$color-brand-600;
+    text-decoration: none;
+    font-weight:     syn.$font-weight-medium;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  // ── Footer ────────────────────────────────────────────────────────────
+  &__footer {
+    @include syn.flex-column;
+    gap:          syn.$space-md;
+    padding:      syn.$space-lg syn.$space-xl;
+    border-top:   syn.px-to-rem(1) solid syn.$color-neutral-100;
+    flex-shrink:  0;
+    background:   inherit;
+
+    .cart-drawer--dark & { border-top-color: syn.$color-neutral-700; }
+  }
+
+  // ── Coupon ────────────────────────────────────────────────────────────
+  &__coupon {
+    display:   flex;
+    gap:       syn.$space-xs;
+  }
+
+  &__coupon-input {
+    flex:          1 1 auto;
+    height:        syn.px-to-rem(40);
+    border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-radius: syn.$radius-md;
+    padding:       0 syn.$space-md;
+    font-size:     syn.$font-size-sm;
+    color:         syn.$color-neutral-900;
+    background:    syn.$color-neutral-0;
+
+    &:focus {
+      outline:       none;
+      border-color:  syn.$color-brand-400;
+      box-shadow:    0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-400, 0.2);
+    }
+
+    &::placeholder { color: syn.$color-neutral-400; }
+  }
+
+  &__coupon-btn {
+    height:        syn.px-to-rem(40);
+    padding:       0 syn.$space-md;
+    border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+    border-radius: syn.$radius-md;
+    background:    syn.$color-neutral-50;
+    color:         syn.$color-neutral-700;
+    font-size:     syn.$font-size-sm;
+    font-weight:   syn.$font-weight-medium;
+    cursor:        pointer;
+    white-space:   nowrap;
+    transition:    background syn.$duration-fast syn.$easing-default;
+
+    &:hover { background: syn.$color-neutral-100; }
+  }
+
+  // ── Totals ────────────────────────────────────────────────────────────
+  &__totals {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
+  }
+
+  &__total-row {
+    display:         flex;
+    justify-content: space-between;
+    align-items:     center;
+    font-size:       syn.$font-size-sm;
+    color:           syn.$color-neutral-600;
+
+    &--grand {
+      font-size:   syn.$font-size-base;
+      font-weight: syn.$font-weight-bold;
+      color:       syn.$color-neutral-900;
+      padding-top: syn.$space-xs;
+      border-top:  syn.px-to-rem(1) solid syn.$color-neutral-100;
+      margin-top:  syn.$space-xs;
+
+      .cart-drawer--dark & {
+        color: syn.$color-neutral-50;
+        border-top-color: syn.$color-neutral-700;
+      }
+    }
+
+    .cart-drawer--dark & { color: syn.$color-neutral-400; }
+  }
+
+  // ── Checkout CTA ─────────────────────────────────────────────────────
+  &__checkout-btn {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    height:          syn.px-to-rem(48);
+    background:      syn.$color-brand-600;
+    color:           syn.$color-neutral-0;
+    border-radius:   syn.$radius-md;
+    font-size:       syn.$font-size-base;
+    font-weight:     syn.$font-weight-semibold;
+    text-decoration: none;
+    transition:      background syn.$duration-fast syn.$easing-default,
+                     transform  syn.$duration-fast syn.$easing-default;
+
+    &:hover  { background: syn.$color-brand-700; transform: translateY(syn.px-to-rem(-1)); }
+    &:active { background: syn.$color-brand-800; transform: translateY(0); }
+  }
+
+  &__continue {
+    text-align:      center;
+    font-size:       syn.$font-size-sm;
+    color:           syn.$color-neutral-500;
+    text-decoration: none;
+
+    &:hover { color: syn.$color-brand-600; text-decoration: underline; }
+  }
+}

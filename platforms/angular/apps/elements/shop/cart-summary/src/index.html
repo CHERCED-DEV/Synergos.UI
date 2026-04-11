@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>synergos-cart-summary — Dev Preview</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: 'Inter', sans-serif; background: #f1f5f9; padding: 2rem; margin: 0; }
+      .trigger { padding: 0.75rem 1.5rem; background: #2563eb; color: #fff; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <button class="trigger" onclick="document.querySelector('synergos-cart-summary').setAttribute('open','')">Open cart</button>
+    <synergos-cart-summary checkout-url="/checkout" continue-shopping-url="/"></synergos-cart-summary>
+  </body>
+</html>

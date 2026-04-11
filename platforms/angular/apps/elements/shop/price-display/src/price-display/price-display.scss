@@ -1,0 +1,58 @@
+@use 'scss' as syn;
+
+:host {
+  display:     inline-flex;
+  font-family: inherit;
+}
+
+.price-display {
+  display:     flex;
+  align-items: baseline;
+  flex-wrap:   wrap;
+  gap:         syn.$space-xs;
+
+  // ── Size variants ────────────────────────────────────────────────────────
+  &--sm {
+    .price-display__current  { font-size: syn.$font-size-base; }
+    .price-display__original { font-size: syn.$font-size-xs; }
+    .price-display__discount { font-size: syn.$font-size-xs; }
+  }
+
+  &--md {
+    .price-display__current  { font-size: syn.$font-size-xl; }
+    .price-display__original { font-size: syn.$font-size-sm; }
+    .price-display__discount { font-size: syn.$font-size-xs; }
+  }
+
+  &--lg {
+    .price-display__current  { font-size: syn.$font-size-2xl; }
+    .price-display__original { font-size: syn.$font-size-base; }
+    .price-display__discount { font-size: syn.$font-size-sm; }
+  }
+
+  // ── Elements ─────────────────────────────────────────────────────────────
+  &__current {
+    font-weight: syn.$font-weight-bold;
+    color:       syn.$color-neutral-900;
+    line-height: 1;
+
+    .price-display--dark & { color: syn.$color-neutral-50; }
+  }
+
+  &__original {
+    color:           syn.$color-neutral-400;
+    text-decoration: line-through;
+    font-weight:     syn.$font-weight-regular;
+    line-height:     1;
+  }
+
+  &__discount {
+    font-weight:   syn.$font-weight-semibold;
+    color:         syn.$color-error-600;
+    background:    syn.$color-error-50;
+    padding:       syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-xs;
+    line-height:   1.4;
+    white-space:   nowrap;
+  }
+}
