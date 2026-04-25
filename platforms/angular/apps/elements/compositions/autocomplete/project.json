@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-autocomplete",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/autocomplete/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:autocomplete",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/autocomplete",
+        "browser": "apps/elements/compositions/autocomplete/src/main.ts",
+        "index": "apps/elements/compositions/autocomplete/src/index.html",
+        "tsConfig": "apps/elements/compositions/autocomplete/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4303 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/autocomplete/src/**/*.ts",
+          "apps/elements/compositions/autocomplete/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

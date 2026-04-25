@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-file-uploader",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/file-uploader/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:file-uploader",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/file-uploader",
+        "browser": "apps/elements/modules/file-uploader/src/main.ts",
+        "index": "apps/elements/modules/file-uploader/src/index.html",
+        "tsConfig": "apps/elements/modules/file-uploader/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4328 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/file-uploader/src/**/*.ts",
+          "apps/elements/modules/file-uploader/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

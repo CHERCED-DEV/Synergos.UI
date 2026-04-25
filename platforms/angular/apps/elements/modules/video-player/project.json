@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-video-player",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/video-player/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:video-player",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/video-player",
+        "browser": "apps/elements/modules/video-player/src/main.ts",
+        "index": "apps/elements/modules/video-player/src/index.html",
+        "tsConfig": "apps/elements/modules/video-player/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4371 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/video-player/src/**/*.ts",
+          "apps/elements/modules/video-player/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

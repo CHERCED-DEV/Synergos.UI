@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-lightbox-gallery",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/lightbox-gallery/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:lightbox-gallery",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/lightbox-gallery",
+        "browser": "apps/elements/modules/lightbox-gallery/src/main.ts",
+        "index": "apps/elements/modules/lightbox-gallery/src/index.html",
+        "tsConfig": "apps/elements/modules/lightbox-gallery/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4333 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/lightbox-gallery/src/**/*.ts",
+          "apps/elements/modules/lightbox-gallery/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

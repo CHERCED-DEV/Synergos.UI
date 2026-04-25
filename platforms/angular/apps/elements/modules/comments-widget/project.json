@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-comments-widget",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/comments-widget/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:comments-widget",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/comments-widget",
+        "browser": "apps/elements/modules/comments-widget/src/main.ts",
+        "index": "apps/elements/modules/comments-widget/src/index.html",
+        "tsConfig": "apps/elements/modules/comments-widget/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4316 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/comments-widget/src/**/*.ts",
+          "apps/elements/modules/comments-widget/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

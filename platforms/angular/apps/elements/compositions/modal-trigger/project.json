@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-modal-trigger",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/modal-trigger/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:modal-trigger",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/modal-trigger",
+        "browser": "apps/elements/compositions/modal-trigger/src/main.ts",
+        "index": "apps/elements/compositions/modal-trigger/src/index.html",
+        "tsConfig": "apps/elements/compositions/modal-trigger/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4336 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/modal-trigger/src/**/*.ts",
+          "apps/elements/compositions/modal-trigger/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

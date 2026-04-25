@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-splitter",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/splitter/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:splitter",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/splitter",
+        "browser": "apps/elements/compositions/splitter/src/main.ts",
+        "index": "apps/elements/compositions/splitter/src/index.html",
+        "tsConfig": "apps/elements/compositions/splitter/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4359 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/splitter/src/**/*.ts",
+          "apps/elements/compositions/splitter/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

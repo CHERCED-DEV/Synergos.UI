@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-badge-group",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/badge-group/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:badge-group",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/badge-group",
+        "browser": "apps/elements/compositions/badge-group/src/main.ts",
+        "index": "apps/elements/compositions/badge-group/src/index.html",
+        "tsConfig": "apps/elements/compositions/badge-group/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4308 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/badge-group/src/**/*.ts",
+          "apps/elements/compositions/badge-group/src/**/*.html"
+        ]
+      }
+    }
+  }
+}
