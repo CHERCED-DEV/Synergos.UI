@@ -57,7 +57,9 @@
     "manifest:validate":          "node tools/manifest-gen.mjs --validate",
     "element:audit":              "node tools/element-contract-audit.mjs",
     "cms:validate":               "node tools/validate-cms-contracts.mjs",
-    "contracts:validate":         "npm run element:audit && npm run manifest:validate && npm run cms:validate",
+    "cms:sync":                   "node tools/cms-sync.mjs",
+    "cms:sync:check":             "node tools/cms-sync.mjs --dry-run",
+    "contracts:validate":         "npm run element:audit && npm run manifest:validate && npm run cms:validate && npm run cms:sync:check",
     "contracts:export":           "node tools/contracts-export.mjs",
     "catalog":                    "node tools/catalog.mjs",
 
