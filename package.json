@@ -75,7 +75,13 @@
     "setup:angular":              "npm install --prefix platforms/angular",
     "setup:react":                "npm install --prefix platforms/react",
     "setup:svelte":               "npm install --prefix platforms/svelte",
-    "setup:vanilla":              "npm install --prefix platforms/vanilla"
+    "setup:vanilla":              "npm install --prefix platforms/vanilla",
+
+    "// ─── ALIAS sync tokens (Cap-250 Batch D) ────────────────────────────────": "",
+    "sync:tokens":                "npm run --prefix platforms/angular sync:tokens",
+
+    "// ─── HUSKY (pre-commit hooks) ──────────────────────────────────────────": "",
+    "prepare":                    "husky"
 
   },
   "devDependencies": {
@@ -88,6 +94,7 @@
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "glob": "^11.0.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.1.0",
     "nx": "22.5.4",
     "prettier": "~3.6.2",

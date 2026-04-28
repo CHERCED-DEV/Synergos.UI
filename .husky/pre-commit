@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+
+# Pre-commit hook — sync:tokens guard (Cap-250 Batch D, Ola 247).
+#
+# Si el commit incluye cambios al bridge SCSS o al script generador,
+# regenera el output via `npm run sync:tokens` y re-stages el resultado
+# para garantizar que el commit nunca contenga _tokens-bridge.scss
+# stale (ej. editado a mano) ni que un nuevo script genere output sin
+# committear.
+#
+# El hook solo se activa si los staged files matchean los patterns
+# canónicos — commits "everyday" sin tocar tokens son no-op (~0ms
+# overhead).
+
+set -e
+
+CHANGED=$(git diff --cached --name-only --diff-filter=ACMR | \
+    grep -E "^platforms/angular/libs/shared/src/styles/_tokens-bridge\.scss$|^platforms/angular/tools/sync-tokens\.mjs$" || true)
+
+if [ -z "$CHANGED" ]; then
+    exit 0
+fi
+
+echo "[husky] tokens-related changes detectados — running sync:tokens..."
+npm run sync:tokens --silent
+
+# Re-add output regenerated. Si no hubo cambio efectivo, git add es no-op.
+git add platforms/angular/libs/shared/src/styles/_tokens-bridge.scss
+
+echo "[husky] sync:tokens OK — _tokens-bridge.scss freshly regenerated."
