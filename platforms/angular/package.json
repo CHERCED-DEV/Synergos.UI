@@ -17,7 +17,8 @@
     "test":               "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=test",
     "lint":               "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=lint",
     "graph":              "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx graph",
-    "nx":                 "nx"
+    "nx":                 "nx",
+    "sync:tokens":        "node tools/sync-tokens.mjs"
   },
   "dependencies": {
     "@angular/common": "~21.1.0",
