@@ -1,0 +1,181 @@
+// =============================================================================
+// Synergos UI — CSS tokens bridge
+//
+// Contract: docs/contracts/css-tokens.md (Synergos.CMS repo, cap-220).
+// Owner: Synergos.CMS host emite las tokens via wwwroot/css/syn-tokens.css.
+// Consumer: este archivo declara fallbacks defensivos para que los components
+// UI funcionen también STANDALONE (Storybook, dev preview) cuando no hay host.
+//
+// Cada token consumido por un component DEBE usar var(--syn-X, $fallback)
+// referenciando un valor de este archivo. NO HARDCODES VALUES en SCSS local
+// — siempre via var() para que el host pueda override en runtime.
+//
+// Si el CMS publica un token nuevo, agregar acá su fallback ANTES de consumirlo
+// en algún component. Update sin breaking — defaults siempre presentes.
+// =============================================================================
+
+:root {
+  // ────────────────────────────────────────────────────────────────────────
+  // Color — primitive scales (mismas que CMS syn-tokens.css)
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-color-neutral-0:    #ffffff;
+  --syn-color-neutral-50:   #f8fafc;
+  --syn-color-neutral-100:  #f1f5f9;
+  --syn-color-neutral-200:  #e2e8f0;
+  --syn-color-neutral-300:  #cbd5e1;
+  --syn-color-neutral-400:  #94a3b8;
+  --syn-color-neutral-500:  #64748b;
+  --syn-color-neutral-600:  #475569;
+  --syn-color-neutral-700:  #334155;
+  --syn-color-neutral-800:  #1e293b;
+  --syn-color-neutral-900:  #0f172a;
+  --syn-color-neutral-950:  #020617;
+
+  --syn-color-brand-50:   #eef2ff;
+  --syn-color-brand-100:  #e0e7ff;
+  --syn-color-brand-300:  #a5b4fc;
+  --syn-color-brand-500:  #6366f1;
+  --syn-color-brand-600:  #4f46e5;
+  --syn-color-brand-700:  #4338ca;
+
+  --syn-color-accent-500: #8b5cf6;
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Color — semantic
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-color-text-primary:    var(--syn-color-neutral-900);
+  --syn-color-text-secondary:  var(--syn-color-neutral-600);
+  --syn-color-text-muted:      var(--syn-color-neutral-600); // bumpeado en cap-200 (WCAG)
+  --syn-color-text-disabled:   var(--syn-color-neutral-400);
+  --syn-color-text-inverse:    var(--syn-color-neutral-0);
+  --syn-color-text-accent:     var(--syn-color-brand-600);
+  --syn-color-text-on-accent:  var(--syn-color-neutral-0);
+
+  --syn-color-surface-default:   var(--syn-color-neutral-0);
+  --syn-color-surface-subtle:    var(--syn-color-neutral-50);
+  --syn-color-surface-elevated:  var(--syn-color-neutral-0);
+  --syn-color-surface-overlay:   rgba(255, 255, 255, 0.88);
+  --syn-color-surface-strong:    var(--syn-color-neutral-800);
+
+  --syn-color-border-subtle:   var(--syn-color-neutral-100);
+  --syn-color-border-default:  var(--syn-color-neutral-200);
+  --syn-color-border-strong:   var(--syn-color-neutral-300);
+  --syn-color-border-accent:   var(--syn-color-brand-300);
+
+  --syn-color-state-success:   #16a34a;
+  --syn-color-state-warning:   #f59e0b;
+  --syn-color-state-danger:    #dc2626;
+  --syn-color-state-info:      var(--syn-color-brand-500);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Spacing
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-space-xs:    0.25rem;
+  --syn-space-sm:    0.5rem;
+  --syn-space-md:    1rem;
+  --syn-space-lg:    1.5rem;
+  --syn-space-xl:    2rem;
+  --syn-space-2xl:   3rem;
+  --syn-space-3xl:   4rem;
+  --syn-space-4xl:   6rem;
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Typography
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-font-family-body:     "Manrope", system-ui, -apple-system, sans-serif;
+  --syn-font-family-heading:  "Manrope", system-ui, -apple-system, sans-serif;
+  --syn-font-family-mono:     ui-monospace, "SF Mono", Consolas, monospace;
+
+  --syn-font-size-xs:    0.75rem;
+  --syn-font-size-sm:    0.875rem;
+  --syn-font-size-base:  1rem;
+  --syn-font-size-md:    1.125rem;
+  --syn-font-size-lg:    1.25rem;
+  --syn-font-size-xl:    1.5rem;
+  --syn-font-size-2xl:   2rem;
+  --syn-font-size-3xl:   2.5rem;
+
+  --syn-font-weight-regular:    400;
+  --syn-font-weight-medium:     500;
+  --syn-font-weight-semibold:   600;
+  --syn-font-weight-bold:       700;
+
+  --syn-line-height-tight:    1.2;
+  --syn-line-height-normal:   1.5;
+  --syn-line-height-relaxed:  1.7;
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Border + radius
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-radius-none:  0;
+  --syn-radius-sm:    4px;
+  --syn-radius-md:    8px;
+  --syn-radius-lg:    12px;
+  --syn-radius-xl:    16px;
+  --syn-radius-full:  9999px;
+
+  --syn-border-width-thin:   1px;
+  --syn-border-width-medium: 2px;
+  --syn-border-width-thick:  4px;
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Shadow
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-shadow-none:  none;
+  --syn-shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.08);
+  --syn-shadow-md:    0 4px 12px rgba(0, 0, 0, 0.1);
+  --syn-shadow-lg:    0 10px 24px rgba(0, 0, 0, 0.12);
+  --syn-shadow-xl:    0 20px 40px rgba(0, 0, 0, 0.16);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Z-index layers
+  // ────────────────────────────────────────────────────────────────────────
+  --syn-z-base:     0;
+  --syn-z-sticky:   100;
+  --syn-z-overlay:  500;
+  --syn-z-modal:    1000;
+  --syn-z-toast:    2000;
+}
+
+// =============================================================================
+// Theme overrides — el CMS host setea data-theme en <html>. Si el UI corre
+// standalone, queda en "light" implícito.
+// =============================================================================
+
+[data-theme="dark"] {
+  --syn-color-text-primary:    var(--syn-color-neutral-0);
+  --syn-color-text-secondary:  var(--syn-color-neutral-300);
+  --syn-color-text-muted:      var(--syn-color-neutral-400);
+  --syn-color-text-disabled:   var(--syn-color-neutral-500);
+
+  --syn-color-surface-default:   var(--syn-color-neutral-900);
+  --syn-color-surface-subtle:    var(--syn-color-neutral-800);
+  --syn-color-surface-elevated:  var(--syn-color-neutral-800);
+  --syn-color-surface-overlay:   rgba(15, 23, 42, 0.92);
+
+  --syn-color-border-subtle:   var(--syn-color-neutral-800);
+  --syn-color-border-default:  var(--syn-color-neutral-700);
+  --syn-color-border-strong:   var(--syn-color-neutral-600);
+}
+
+[data-theme="silvergold"] {
+  --syn-color-brand-500:  #c9a455;
+  --syn-color-brand-600:  #b08a3a;
+  --syn-color-brand-300:  #e2c98c;
+  --syn-color-accent-500: #6e6a5a;
+
+  --syn-color-text-accent:    var(--syn-color-brand-600);
+  --syn-color-border-accent:  var(--syn-color-brand-300);
+}
+
+// =============================================================================
+// Reduced motion respect (UI components opt-in con esta query)
+// =============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --syn-motion-duration-instant:  0ms;
+    --syn-motion-duration-fast:     0ms;
+    --syn-motion-duration-default:  0ms;
+  }
+}

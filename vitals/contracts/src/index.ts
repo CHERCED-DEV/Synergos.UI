@@ -10,5 +10,6 @@ export * from './element-manifest.schema';
 export * from './component-resolution.contract';
 export * from './form.contract';
 export * from './flow.contract';
+export * from './host-bridge.contract';
 export * from './shop.contract';
 export { default as ELEMENT_REGISTRY } from './element-registry.json';
