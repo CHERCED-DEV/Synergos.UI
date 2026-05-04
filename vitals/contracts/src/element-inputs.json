@@ -3535,28 +3535,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Audio File\" del componente synergos-audio-player. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "trackTitle",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Título mostrado destacado (campo \"Track Title\" del componente synergos-audio-player)"
     },
     {
       "name": "artistName",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Identificador o nombre mostrado (campo \"Artist Name\" del componente synergos-audio-player)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "autocomplete": [
@@ -3571,28 +3571,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "placeholder",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto guía mostrado cuando el campo está vacío"
     },
     {
       "name": "suggestionsEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Suggestions Endpoint\" del componente synergos-autocomplete. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "avatar-group": [
@@ -3607,21 +3607,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Avatars Json\" del componente synergos-avatar-group. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxVisible",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Visible\" del componente synergos-avatar-group. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "avatar-upload": [
@@ -3636,21 +3636,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "uploadEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Upload Endpoint\" del componente synergos-avatar-upload. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "badge-group": [
@@ -3665,21 +3665,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Badges Json\" del componente synergos-badge-group. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "layout",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Layout\" del componente synergos-badge-group. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "breadcrumb": [
@@ -3694,21 +3694,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Array de items serializado como JSON string"
     },
     {
       "name": "includeStructuredData",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Include Structured Data\" del componente synergos-breadcrumb. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "calendar": [
@@ -3723,21 +3723,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Events Endpoint\" del componente synergos-calendar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "initialMonth",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Initial Month\" del componente synergos-calendar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "carousel": [
@@ -3752,21 +3752,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Slides Json\" del componente synergos-carousel. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "autoplayInterval",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Autoplay Interval\" del componente synergos-carousel. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "chart-bar": [
@@ -3781,28 +3781,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Título mostrado destacado (campo \"Chart Title\" del componente synergos-chart-bar)"
     },
     {
       "name": "dataJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Data Json\" del componente synergos-chart-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "orientation",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Orientation\" del componente synergos-chart-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "code-block": [
@@ -3817,28 +3817,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Code\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "language",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Language\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "showLineNumbers",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Show Line Numbers\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "color-picker": [
@@ -3853,28 +3853,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "initialColor",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Initial Color\" del componente synergos-color-picker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "paletteJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Palette Json\" del componente synergos-color-picker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "color-swatches": [
@@ -3889,21 +3889,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Swatches Json\" del componente synergos-color-swatches. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "shape",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Shape\" del componente synergos-color-swatches. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "comments-widget": [
@@ -3918,28 +3918,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Provider\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "threadId",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Thread Id\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "configNote",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Config Note\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "cookie-consent": [
@@ -3954,42 +3954,42 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Banner Text\" del componente synergos-cookie-consent. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "acceptLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Accept Label\" del componente synergos-cookie-consent)"
     },
     {
       "name": "rejectLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Reject Label\" del componente synergos-cookie-consent)"
     },
     {
       "name": "settingsLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Settings Label\" del componente synergos-cookie-consent)"
     },
     {
       "name": "policyLink",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Policy Link\" del componente synergos-cookie-consent. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "copy-button": [
@@ -4004,28 +4004,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Copy Text\" del componente synergos-copy-button. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "buttonLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Button Label\" del componente synergos-copy-button)"
     },
     {
       "name": "feedbackLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Feedback Label\" del componente synergos-copy-button)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "countdown-digital": [
@@ -4040,28 +4040,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"End Date Time\" del componente synergos-countdown-digital. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "showLabels",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Show Labels\" del componente synergos-countdown-digital)"
     },
     {
       "name": "style",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Style\" del componente synergos-countdown-digital. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "data-grid": [
@@ -4076,28 +4076,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Data Source\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "columnsJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Columns Json\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "pageSize",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Page Size\" del componente synergos-data-grid)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "date-picker": [
@@ -4112,35 +4112,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "initialDate",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Initial Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "minDate",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Min Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxDate",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "drawer": [
@@ -4155,28 +4155,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-drawer)"
     },
     {
       "name": "drawerContent",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Drawer Content\" del componente synergos-drawer. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "side",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Side\" del componente synergos-drawer. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "dropdown": [
@@ -4191,35 +4191,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-dropdown)"
     },
     {
       "name": "optionsJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Options Json\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "selectedValue",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Selected Value\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "searchable",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Searchable\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "dropzone": [
@@ -4234,28 +4234,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "acceptedTypes",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Accepted Types\" del componente synergos-dropzone. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "uploadEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Upload Endpoint\" del componente synergos-dropzone. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "fab": [
@@ -4270,28 +4270,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Nombre del icono stock o URL del SVG custom (campo \"Icon Key\" del componente synergos-fab)"
     },
     {
       "name": "actionLink",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "URL destino del form submit o action handler (campo \"Action Link\" del componente synergos-fab)"
     },
     {
       "name": "position",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Position\" del componente synergos-fab. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "file-uploader": [
@@ -4306,42 +4306,42 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Upload Endpoint\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "acceptedTypes",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Accepted Types\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxFileSizeMb",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Max File Size Mb\" del componente synergos-file-uploader)"
     },
     {
       "name": "maxFiles",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Files\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "label",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "form-stepper": [
@@ -4356,28 +4356,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Steps Json\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "submitEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Submit Endpoint\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "allowSkip",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Allow Skip\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "hero-banner": [
@@ -4392,42 +4392,42 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Título mostrado destacado"
     },
     {
       "name": "subtitle",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto secundario debajo del título"
     },
     {
       "name": "media",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Media\" del componente synergos-hero-banner. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "ctaLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto del call-to-action (botón)"
     },
     {
       "name": "ctaLink",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Cta Link\" del componente synergos-hero-banner. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "icon-label": [
@@ -4442,21 +4442,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Nombre del icono stock o URL del SVG custom (campo \"Icon Key\" del componente synergos-icon-label)"
     },
     {
       "name": "labelText",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Label Text\" del componente synergos-icon-label)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "kpi-card": [
@@ -4471,42 +4471,42 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Kpi Label\" del componente synergos-kpi-card)"
     },
     {
       "name": "kpiValue",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Kpi Value\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "kpiTrend",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Kpi Trend\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "kpiDelta",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Kpi Delta\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "kpiPeriod",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Kpi Period\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "lightbox-gallery": [
@@ -4521,21 +4521,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Images Json\" del componente synergos-lightbox-gallery. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "columns",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Columns\" del componente synergos-lightbox-gallery. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "livestream": [
@@ -4550,28 +4550,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Stream Url\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "streamType",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Stream Type\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "viewerCountEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Viewer Count Endpoint\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "map-pin": [
@@ -4586,35 +4586,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Center Lat\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "centerLng",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Center Lng\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "zoomLevel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Zoom Level\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "pinsJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Pins Json\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "modal-trigger": [
@@ -4629,35 +4629,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-modal-trigger)"
     },
     {
       "name": "modalTitle",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Título mostrado destacado (campo \"Modal Title\" del componente synergos-modal-trigger)"
     },
     {
       "name": "modalContent",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Modal Content\" del componente synergos-modal-trigger. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "modalSize",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Modal Size\" del componente synergos-modal-trigger)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "notification-center": [
@@ -4672,21 +4672,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Fetch Endpoint\" del componente synergos-notification-center. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "pollingInterval",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Polling Interval\" del componente synergos-notification-center. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "notification-toast": [
@@ -4701,28 +4701,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Message\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "type",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Type\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "durationMs",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Duration Ms\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "oembed": [
@@ -4737,14 +4737,14 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Embed Url\" del componente synergos-oembed. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "otp-input": [
@@ -4759,21 +4759,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "length",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Length\" del componente synergos-otp-input. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "pagination": [
@@ -4788,35 +4788,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Total Items\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "itemsPerPage",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Items Per Page\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "currentPage",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Current Page\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "urlTemplate",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Url Template\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "poll": [
@@ -4831,35 +4831,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Question\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "optionsJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Options Json\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "voteEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Vote Endpoint\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "resultsEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Results Endpoint\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "popover": [
@@ -4874,28 +4874,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-popover)"
     },
     {
       "name": "popoverContent",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Popover Content\" del componente synergos-popover. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "placement",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Placement\" del componente synergos-popover. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "progress-bar": [
@@ -4910,21 +4910,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Value Now\" del componente synergos-progress-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "valueMax",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Value Max\" del componente synergos-progress-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "qr-code": [
@@ -4939,28 +4939,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Data\" del componente synergos-qr-code. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "size",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Tamaño: sm | md | lg | xl según escala del componente"
     },
     {
       "name": "ecLevel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Ec Level\" del componente synergos-qr-code. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "quote-animated": [
@@ -4975,28 +4975,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Quote\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "attribution",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Attribution\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "animationMode",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Animation Mode\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "range-slider": [
@@ -5011,42 +5011,42 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "minValue",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Min Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxValue",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "step",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Step\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "initialValue",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Initial Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "rating-stars": [
@@ -5061,21 +5061,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Value Now\" del componente synergos-rating-stars. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxStars",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Stars\" del componente synergos-rating-stars. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "rich-tooltip": [
@@ -5090,28 +5090,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Trigger Text\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "tooltipContent",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Tooltip Content\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "placement",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Placement\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "scroll-top": [
@@ -5126,21 +5126,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Scroll Threshold\" del componente synergos-scroll-top. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "position",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Position\" del componente synergos-scroll-top. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "search-box": [
@@ -5155,28 +5155,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto guía mostrado cuando el campo está vacío (campo \"Search Placeholder\" del componente synergos-search-box)"
     },
     {
       "name": "searchEndpoint",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Search Endpoint\" del componente synergos-search-box. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "searchParamName",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Identificador o nombre mostrado (campo \"Search Param Name\" del componente synergos-search-box)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "select-multi": [
@@ -5191,28 +5191,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "optionsJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Options Json\" del componente synergos-select-multi. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxSelections",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Selections\" del componente synergos-select-multi. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "separator": [
@@ -5227,14 +5227,14 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Style\" del componente synergos-separator. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "share-bar": [
@@ -5249,28 +5249,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Platforms\" del componente synergos-share-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "shareLink",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Share Link\" del componente synergos-share-bar. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "shareTitle",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Título mostrado destacado (campo \"Share Title\" del componente synergos-share-bar)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "signature-pad": [
@@ -5285,28 +5285,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
     },
     {
       "name": "width",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Ancho explícito (CSS value: px / % / fr / auto)"
     },
     {
       "name": "height",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Alto explícito (CSS value)"
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "skeleton": [
@@ -5321,21 +5321,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Shape\" del componente synergos-skeleton. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "count",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Count\" del componente synergos-skeleton. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "social-proof": [
@@ -5350,28 +5350,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Template\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "dataSource",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Data Source\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "rotationInterval",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Rotation Interval\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "splitter": [
@@ -5386,28 +5386,28 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Left Content\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "rightContent",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Right Content\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "orientation",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Orientation\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "stat-ticker": [
@@ -5422,35 +5422,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Stat Value\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "statLabel",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Stat Label\" del componente synergos-stat-ticker)"
     },
     {
       "name": "statPrefix",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Stat Prefix\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "statSuffix",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Stat Suffix\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "stepper": [
@@ -5465,21 +5465,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Steps Json\" del componente synergos-stepper. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "currentStep",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Current Step\" del componente synergos-stepper. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "tabs": [
@@ -5494,21 +5494,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Tabs Json\" del componente synergos-tabs. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "initialTab",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Initial Tab\" del componente synergos-tabs. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "tag": [
@@ -5523,21 +5523,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Tag Label\" del componente synergos-tag)"
     },
     {
       "name": "tagColor",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Tag Color\" del componente synergos-tag. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "testimonial-carousel": [
@@ -5552,21 +5552,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Testimonials Json\" del componente synergos-testimonial-carousel. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "autoplayInterval",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Autoplay Interval\" del componente synergos-testimonial-carousel. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "timeline": [
@@ -5581,21 +5581,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Events Json\" del componente synergos-timeline. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "orientation",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Orientation\" del componente synergos-timeline. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "timeline-horizontal": [
@@ -5610,21 +5610,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Events Json\" del componente synergos-timeline-horizontal. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "snapEnabled",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Snap Enabled\" del componente synergos-timeline-horizontal. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "toast-center": [
@@ -5639,21 +5639,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Position\" del componente synergos-toast-center. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "maxVisible",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Max Visible\" del componente synergos-toast-center. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "tooltip": [
@@ -5668,21 +5668,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Trigger Text\" del componente synergos-tooltip. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "tooltipText",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Tooltip Text\" del componente synergos-tooltip. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "tour-guide": [
@@ -5697,21 +5697,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Steps Json\" del componente synergos-tour-guide. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "autoStart",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Auto Start\" del componente synergos-tour-guide. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "tree-view": [
@@ -5726,21 +5726,21 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Tree Json\" del componente synergos-tree-view. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "expandAll",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Expand All\" del componente synergos-tree-view. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ],
   "video-player": [
@@ -5755,35 +5755,35 @@
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Video File\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "posterImage",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Poster Image\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "chaptersJson",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Chapters Json\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "enableAnalytics",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Campo \"Enable Analytics\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
     },
     {
       "name": "integration",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+      "description": "Hook opcional para integración custom — vacío por default"
     }
   ]
 }

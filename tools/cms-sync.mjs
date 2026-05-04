@@ -252,7 +252,80 @@ ${propLines}
 `;
 }
 
-function buildInputEntry(props) {
+// Hints contextuales por sufijo / prefijo común de prop name. Mejora las
+// descriptions del element-inputs.json que se exponen al editor en docs.
+// Prioridad: match más específico (full token) > sufijo > default.
+const PROP_HINT_BY_TOKEN = new Map([
+  // Identidad / contenido
+  ['heading',         'Texto principal mostrado como heading'],
+  ['headingText',     'Texto principal mostrado como heading'],
+  ['headingLevel',    'Nivel HTML del heading: h1-h6 (afecta solo semántica, no estilo)'],
+  ['title',           'Título mostrado destacado'],
+  ['subtitle',        'Texto secundario debajo del título'],
+  ['body',            'Texto descriptivo / párrafo de contenido'],
+  ['description',     'Descripción extendida del elemento'],
+  ['label',           'Texto visible del elemento (botón, input, badge, etc.)'],
+  ['placeholder',     'Texto guía mostrado cuando el campo está vacío'],
+  ['name',            'Identificador o nombre mostrado'],
+  ['caption',         'Texto descriptivo bajo el contenido principal'],
+  // Media
+  ['imageSrc',        'URL de la imagen (típicamente picker MediaPicker3)'],
+  ['imageAlt',        'Texto alternativo para accesibilidad de la imagen'],
+  ['videoSrc',        'URL del video'],
+  ['avatarImage',     'URL de la imagen avatar'],
+  ['icon',            'Nombre del icono stock o URL del SVG custom'],
+  ['logo',            'URL del logo'],
+  // CTA / acciones
+  ['ctaLabel',        'Texto del call-to-action (botón)'],
+  ['ctaUrl',          'URL destino del call-to-action'],
+  ['ctaTarget',       'Comportamiento click: _self (misma pestaña) | _blank (nueva)'],
+  ['href',            'URL destino del link'],
+  ['target',          'Comportamiento click: _self | _blank'],
+  ['action',          'URL destino del form submit o action handler'],
+  // Estado / variantes
+  ['variant',         'Variante visual (definida por el theme del host CSS)'],
+  ['theme',           'Tema visual: light | dark | silverGold u override custom'],
+  ['size',            'Tamaño: sm | md | lg | xl según escala del componente'],
+  ['tone',            'Tono semántico: neutral | success | warning | danger | info'],
+  ['disabled',        'Si "true", desactiva interacción del elemento'],
+  // Layout
+  ['width',           'Ancho explícito (CSS value: px / % / fr / auto)'],
+  ['minWidth',        'Ancho mínimo (CSS value)'],
+  ['maxWidth',        'Ancho máximo (CSS value)'],
+  ['height',          'Alto explícito (CSS value)'],
+  ['gap',             'Separación entre items hijos (CSS value)'],
+  ['alignment',       'Alineación: start | center | end | stretch'],
+  // Datos / colecciones
+  ['itemsJson',       'Array de items serializado como JSON string'],
+  ['allowMultiple',   'Si "true", permite múltiples items abiertos/seleccionados a la vez'],
+  ['integration',     'Hook opcional para integración custom — vacío por default'],
+  ['ariaLabel',       'Texto descriptivo para screen readers (override)'],
+  ['ariaRole',        'Rol ARIA semántico custom'],
+]);
+
+function humanizeProp(p) {
+  // camelCase → "Camel Case"
+  return p
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, c => c.toUpperCase())
+    .trim();
+}
+
+function describeProp(p, kebab) {
+  const exact = PROP_HINT_BY_TOKEN.get(p);
+  if (exact) return exact;
+  // Match por substring: si el prop contiene un token conocido, usa esa hint
+  // como base + agrega el sufijo distintivo.
+  for (const [token, hint] of PROP_HINT_BY_TOKEN) {
+    if (p.toLowerCase().includes(token.toLowerCase()) && p !== token) {
+      return `${hint} (campo "${humanizeProp(p)}" del componente synergos-${kebab})`;
+    }
+  }
+  // Fallback: humanize del prop name + tag context.
+  return `Campo "${humanizeProp(p)}" del componente synergos-${kebab}. Editor: editar manualmente para enriquecer documentación.`;
+}
+
+function buildInputEntry(props, kebab) {
   // Shape exigido por element-inputs.json: array de descriptores con
   // name/type/required/default/description (ver hero entry como referencia).
   const inputs = [
@@ -267,7 +340,7 @@ function buildInputEntry(props) {
       type: 'string',
       required: false,
       default: '',
-      description: 'Auto-generated from CMS schema. Edit description manually for editor docs.',
+      description: describeProp(p, kebab),
     })),
   ];
   return inputs;
@@ -320,15 +393,30 @@ function syncModelsIndex(entries) {
 function syncInputsJson(entries) {
   const current = JSON.parse(readFileSync(INPUTS_JSON_PATH, 'utf8'));
   let added = 0;
+  let enriched = 0;
   for (const { kebab, props } of entries) {
-    if (kebab in current) continue; // hand-curated o ya generado
-    current[kebab] = buildInputEntry(props);
+    if (kebab in current) {
+      // Re-enrich descriptions if existing entry tiene el stub generic
+      // viejo. Preserva manual customizations.
+      const arr = current[kebab];
+      if (!Array.isArray(arr) || arr.length === 0) continue;
+      let touched = false;
+      for (const inp of arr) {
+        if (inp.description === 'Auto-generated from CMS schema. Edit description manually for editor docs.') {
+          inp.description = describeProp(inp.name, kebab);
+          touched = true;
+        }
+      }
+      if (touched) enriched++;
+      continue;
+    }
+    current[kebab] = buildInputEntry(props, kebab);
     added++;
   }
-  if (added > 0 && !DRY_RUN) {
+  if ((added > 0 || enriched > 0) && !DRY_RUN) {
     writeFileSync(INPUTS_JSON_PATH, JSON.stringify(current, null, 2) + '\n', 'utf8');
   }
-  return { added };
+  return { added, enriched };
 }
 
 function syncBlockMapper(entries) {
@@ -431,6 +519,7 @@ function main() {
   console.log(`  model files written:   ${modelsResult.written} (${modelsResult.skipped} preserved)`);
   console.log(`  models index added:    ${indexResult.added}`);
   console.log(`  input entries added:   ${inputsResult.added}`);
+  console.log(`  input entries enriched: ${inputsResult.enriched}`);
   console.log(`  mapper entries added:  ${mapperResult.added}`);
   console.log(`  registry tier-updated: ${updated}`);
   console.log(`  missing Web Components: ${missing.length}`);
