@@ -10,7 +10,8 @@
     "c":                          "node tools/cli.mjs",
 
     "// ─── BUILD (orquesta plataformas) ───────────────────────────────────────": "",
-    "build":                      "npm run build:angular && npm run build:runtime && npm run build:react && npm run build:svelte && npm run build:vanilla",
+    "build":                      "npm run build:vitals && npm run build:angular && npm run build:runtime && npm run build:react && npm run build:svelte && npm run build:vanilla",
+    "build:vitals":               "node tools/build-vitals.mjs",
     "build:angular":              "npm run --prefix platforms/angular build",
     "build:react":                "npm run --prefix platforms/react build",
     "build:svelte":               "npm run --prefix platforms/svelte build",
@@ -35,7 +36,7 @@
 
     "// ─── RELEASE (build + validate + publish) ──────────────────────────────": "",
     "release":                    "npm run build && npm run contracts:validate && npm run publish:runtime && node tools/publish.mjs --verify --clean",
-    "release:angular":            "npm run build:angular && npm run build:runtime && npm run contracts:validate && npm run publish:runtime && node tools/publish.mjs --framework angular --verify --clean",
+    "release:angular":            "npm run build:vitals && npm run build:angular && npm run build:runtime && npm run contracts:validate && npm run publish:runtime && node tools/publish.mjs --framework angular --verify --clean && npm run skill:refresh",
     "release:react":              "npm run build:react   && npm run contracts:validate && node tools/publish.mjs --framework react    --verify --clean",
     "release:svelte":             "npm run build:svelte  && npm run contracts:validate && node tools/publish.mjs --framework svelte   --verify --clean",
     "release:vanilla":            "npm run build:vanilla && npm run contracts:validate && node tools/publish.mjs --framework vanilla  --verify --clean",
@@ -46,6 +47,7 @@
     "release:cdn":                "node tools/release-cdn.mjs",
 
     "// ─── HERRAMIENTAS ───────────────────────────────────────────────────────": "",
+    "skill:refresh":              "node tools/refresh-skill-catalog.mjs",
     "dev:cdn":                    "node tools/dev-cdn.mjs",
     "dev:cdn:stop":               "node tools/dev-cdn-stop.mjs",
     "dev:cdn:react":              "node tools/dev-cdn-vite.mjs --framework=react",
