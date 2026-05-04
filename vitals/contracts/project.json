@@ -5,9 +5,24 @@
   "projectType": "library",
   "tags": [
     "scope:contracts",
+    "scope:vitals",
     "framework:agnostic"
   ],
   "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": [
+        "{workspaceRoot}/vitals/dist/contracts"
+      ],
+      "options": {
+        "command": "node tools/run.mjs tsc -p vitals/contracts/tsconfig.json"
+      },
+      "configurations": {
+        "production": {},
+        "development": {}
+      },
+      "defaultConfiguration": "production"
+    },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
