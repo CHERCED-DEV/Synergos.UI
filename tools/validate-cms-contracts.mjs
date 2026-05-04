@@ -48,10 +48,26 @@ const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT_CMS = resolve(ROOT_UI, '..', 'Synergos.CMS');
 
 const REGISTRY_JSON       = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
-const USYNC_CONTENT       = resolve(ROOT_CMS, 'uSync/v9/ContentTypes');
-const USYNC_MACROS        = resolve(ROOT_CMS, 'uSync/v9/Macros');
 const BLOCK_MAPPER_TS     = resolve(ROOT_UI,  'vitals/core/src/mappers/block.mapper.ts');
 const ELEMENT_CONTRACT_TS = resolve(ROOT_UI,  'vitals/contracts/src/element-config.contract.ts');
+
+const USYNC_CONTENT_CANDIDATES = [
+  resolve(ROOT_CMS, 'uSync/v9/ContentTypes'),
+  resolve(ROOT_CMS, 'uSync/ContentTypes'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/v9/ContentTypes'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/ContentTypes'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/App_Data/uSync/v9/ContentTypes'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/App_Data/uSync/ContentTypes'),
+];
+
+const USYNC_MACROS_CANDIDATES = [
+  resolve(ROOT_CMS, 'uSync/v9/Macros'),
+  resolve(ROOT_CMS, 'uSync/Macros'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/v9/Macros'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/Macros'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/App_Data/uSync/v9/Macros'),
+  resolve(ROOT_CMS, 'Synergos.CMS.Web/App_Data/uSync/Macros'),
+];
 
 // ── Args ──────────────────────────────────────────────────────────────────────
 
@@ -106,6 +122,15 @@ function parseElementConfigFields(source) {
   return keys;
 }
 
+function resolveFirstExistingPath(candidates) {
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 // ── Load data ─────────────────────────────────────────────────────────────────
 
 if (!existsSync(REGISTRY_JSON)) {
@@ -113,9 +138,36 @@ if (!existsSync(REGISTRY_JSON)) {
   process.exit(2);
 }
 
-if (!existsSync(USYNC_CONTENT)) {
-  console.error(`[validate-cms-contracts] uSync ContentTypes directory not found at:\n  ${USYNC_CONTENT}`);
-  process.exit(2);
+const USYNC_CONTENT = resolveFirstExistingPath(USYNC_CONTENT_CANDIDATES);
+const USYNC_MACROS = resolveFirstExistingPath(USYNC_MACROS_CANDIDATES);
+
+if (!USYNC_CONTENT) {
+  const warning = [
+    '[validate-cms-contracts] No uSync ContentTypes directory was found.',
+    'Checked paths:',
+    ...USYNC_CONTENT_CANDIDATES.map((path) => `  - ${path}`),
+    'Skipping CMS cross-validation for this workspace snapshot.',
+  ].join('\n');
+
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          errors: { e1: [], e2: [] },
+          warnings: { w0: [{ note: warning }] },
+          errorCount: 0,
+          warningCount: 1,
+          skipped: true,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    console.warn(`${warning}\n`);
+  }
+
+  process.exit(strict ? 1 : 0);
 }
 
 const registry = readJson(REGISTRY_JSON);
@@ -142,7 +194,7 @@ scanDir(USYNC_CONTENT);
 
 // uSync Macro aliases
 const macroAliases = new Set();
-if (existsSync(USYNC_MACROS)) {
+if (USYNC_MACROS && existsSync(USYNC_MACROS)) {
   for (const name of readdirSync(USYNC_MACROS)) {
     if (name.endsWith('.config')) {
       const xml   = readFileSync(join(USYNC_MACROS, name), 'utf8');
@@ -181,14 +233,49 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementFormEmbed',
   'elementFormField',
   'elementCompFormBlock',
+  'elementFormContainer',
   // Corporate / Navigation (server-rendered, no CDN mount)
   'elementCorpContactInfo',
   'elementCorpMapEmbed',
   'elementCorpMissionBlock',
+  'elementCorpTabPanel',
   'elementNavItem',
+  'elementNavGroup',
   // Deprecated wrapper-component arch — still in DB, removed by CleanupLegacyTypes on next bump
   'elementIntAngularHost',
   'elementIntMfHost',
+  'elementIntIframeHost',
+  'elementIntScriptHost',
+  // Layout presets (server-rendered Umbraco layouts — Block Grid sections)
+  'elementLayout1Col',
+  'elementLayout2ColEven',
+  'elementLayout2ColMainSidebar',
+  'elementLayout3Col',
+  'elementLayout4Col',
+  'elementLayoutColumn',
+  'elementLayoutContainer',
+  'elementLayoutGrid',
+  'elementLayoutHero',
+  'elementLayoutHolyGrail',
+  'elementLayoutSection',
+  'elementLayoutSidebarMain',
+  'elementLayoutSnippetRef',
+  'elementLayoutStack',
+  // Member auth (server-rendered Razor views)
+  'elementMemberGate',
+  'elementMemberLogin',
+  'elementMemberLogout',
+  'elementMemberProfile',
+  // Comments / Flow / Info / Media (server-rendered — distinct from elementSyn* CDN equivalents)
+  'elementCommentThread',
+  'elementFlowProgress',
+  'elementFlowTrigger',
+  'elementInfoFaqList',
+  'elementInfoTestimonialCarousel',
+  'elementInfoTimelineList',
+  'elementMediaGallery',
+  'elementMediaLogoCloud',
+  'elementTextRichtext',
 ]);
 
 /**
@@ -197,6 +284,39 @@ const CMS_INTERNAL_ALIASES = new Set([
  */
 const UI_ONLY_ALIASES = new Set([
   'elementTemplateHelloWorld', // development placeholder — not a real CMS element type
+]);
+
+/**
+ * Legacy registry aliases retained for backward compat con payloads viejos
+ * del CMS. El CMS ya migró estos elementos a `elementSyn*` (e.g.
+ * elementStructColumn → elementSynColumn) pero el registry + block.mapper.ts
+ * mantienen los nombres viejos porque podrían existir en DB content cards
+ * publicadas hace tiempo. Cuando el operador haga full re-publish del
+ * content tree, estos quedan obsoletos y se pueden remover en una pasada
+ * de cleanup.
+ *
+ * Suppresses [E1] (registry alias not in CMS) sin pretender que están vivos.
+ */
+const LEGACY_RENAMED_ALIASES = new Set([
+  // Structural — renamed to elementSyn*
+  'elementStructSection',
+  'elementStructContainer',
+  'elementStructGrid',
+  'elementStructColumn',
+  'elementStructStack',
+  // Composition — renamed to elementSyn*
+  'elementCompAccordion',
+  'elementCompFaqList',
+  'elementCompTestimonialList',
+  'elementCompLogoCloud',
+  // Integration — renamed to elementSyn*
+  'elementIntScriptEmbed',
+  'elementIntIframeEmbed',
+  'elementIntExternalWidget',
+  // Info — renamed to elementSyn*
+  'elementInfoPricingCard',
+  // Text — renamed to elementSyn*
+  'elementTextRichText',
 ]);
 
 /**
@@ -233,7 +353,12 @@ const warnings = { w1: [], w2: [], w3: [], w4: [], w5: [] };
 
 // [E1] Registry alias with no matching CMS element type
 for (const entry of registry) {
-  if (!cmsAliases.has(entry.alias) && !UI_ONLY_ALIASES.has(entry.alias) && !SCHEMA_MANAGED_ALIASES.has(entry.alias)) {
+  if (
+    !cmsAliases.has(entry.alias)
+    && !UI_ONLY_ALIASES.has(entry.alias)
+    && !SCHEMA_MANAGED_ALIASES.has(entry.alias)
+    && !LEGACY_RENAMED_ALIASES.has(entry.alias)
+  ) {
     errors.e1.push({
       alias: entry.alias,
       name:  entry.name,
