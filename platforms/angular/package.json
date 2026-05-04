@@ -4,21 +4,22 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build":              "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter --parallel=6 --outputStyle=static --skip-nx-cache",
-    "build:elements":     "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:cms-adapter --parallel=6 --outputStyle=static --skip-nx-cache",
-    "build:experiences":  "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:experiences --parallel=3 --outputStyle=static --skip-nx-cache",
-    "build:dev":          "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements --configuration=development --parallel=6 --outputStyle=static --skip-nx-cache",
-    "build:changed":      "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx affected --target=build --parallel=6 --outputStyle=static --skip-nx-cache",
-    "build:stable":       "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter --parallel=1 --outputStyle=static --skip-nx-cache",
-    "build:primitives":   "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:tier:primitive --skip-nx-cache",
+    "build": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter --parallel=6 --outputStyle=static --skip-nx-cache",
+    "build:elements": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:cms-adapter --parallel=6 --outputStyle=static --skip-nx-cache",
+    "build:experiences": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:experiences --parallel=3 --outputStyle=static --skip-nx-cache",
+    "build:dev": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements --configuration=development --parallel=6 --outputStyle=static --skip-nx-cache",
+    "build:changed": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx affected --target=build --parallel=6 --outputStyle=static --skip-nx-cache",
+    "build:stable": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter --parallel=1 --outputStyle=static --skip-nx-cache",
+    "build:primitives": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:tier:primitive --skip-nx-cache",
     "build:compositions": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:tier:composition --skip-nx-cache",
-    "build:modules":      "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:tier:module --skip-nx-cache",
-    "dev":                "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx watch --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter -- npx nx build {}",
-    "test":               "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=test",
-    "lint":               "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=lint",
-    "graph":              "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx graph",
-    "nx":                 "nx",
-    "sync:tokens":        "node tools/sync-tokens.mjs"
+    "build:modules": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=build --projects=tag:tier:module --skip-nx-cache",
+    "dev": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx watch --projects=tag:scope:elements,tag:scope:experiences,tag:scope:cms-adapter -- npx nx build {}",
+    "test": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=test",
+    "lint": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx run-many --target=lint",
+    "graph": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx graph",
+    "nx": "nx",
+    "sync:tokens": "node tools/sync-tokens.mjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@angular/common": "~21.1.0",
@@ -53,6 +54,7 @@
     "cross-env": "^7.0.3",
     "ng-packagr": "^21.2.0",
     "nx": "22.5.4",
+    "patch-package": "^8.0.1",
     "tsx": "^4.19.4"
   }
 }

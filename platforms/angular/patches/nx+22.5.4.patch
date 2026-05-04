@@ -1,0 +1,13 @@
+diff --git a/node_modules/nx/src/project-graph/plugins/isolation/plugin-worker.js b/node_modules/nx/src/project-graph/plugins/isolation/plugin-worker.js
+index 0466810..ff50f15 100644
+--- a/node_modules/nx/src/project-graph/plugins/isolation/plugin-worker.js
++++ b/node_modules/nx/src/project-graph/plugins/isolation/plugin-worker.js
+@@ -19,7 +19,7 @@ global.NX_PLUGIN_WORKER = true;
+ let plugin;
+ const socketPath = process.argv[2];
+ const expectedPluginName = process.argv[3];
+-let connectErrorTimeout = setErrorTimeout(5000, `The plugin worker for ${expectedPluginName} is exiting as it was not connected to within 5 seconds. ` +
++let connectErrorTimeout = setErrorTimeout(30000, `The plugin worker for ${expectedPluginName} is exiting as it was not connected to within 30 seconds. ` +
+     'Plugin workers expect to receive a socket connection from the parent process shortly after being started. ' +
+     'If you are seeing this issue, please report it to the Nx team at https://github.com/nrwl/nx/issues.');
+ const server = (0, net_1.createServer)((socket) => {
