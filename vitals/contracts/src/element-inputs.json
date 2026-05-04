@@ -2825,7 +2825,6 @@
       "description": "JSON array of media items."
     }
   ],
-
   "content-carousel": [
     {
       "name": "config",
@@ -2834,7 +2833,6 @@
       "description": "Carousel configuration: title, items[], autoplay, interval, theme."
     }
   ],
-
   "quiz-flow": [
     {
       "name": "config",
@@ -2843,7 +2841,6 @@
       "description": "Quiz configuration: title, subtitle, questions[], theme."
     }
   ],
-
   "rating-widget": [
     {
       "name": "config",
@@ -2852,7 +2849,6 @@
       "description": "Rating widget configuration: title, subtitle, max, labels[], theme."
     }
   ],
-
   "filter-board": [
     {
       "name": "config",
@@ -2861,7 +2857,6 @@
       "description": "Filter board configuration: title, items[]{title,body,tags[]}, theme."
     }
   ],
-
   "notification-stack": [
     {
       "name": "config",
@@ -2870,13 +2865,2925 @@
       "description": "Notification stack configuration: notifications[]{id,message,type,duration}, theme."
     }
   ],
-
   "countdown-clock": [
     {
       "name": "config",
       "type": "json",
       "required": false,
       "description": "Countdown clock configuration: targetDate, label, theme."
+    }
+  ],
+  "product-card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product card configuration from CMS contract bridge."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product SKU resolved from CMS."
+    },
+    {
+      "name": "productUrlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product detail URL template with placeholders ({id}, {sku}, {slug})."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial product name override."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial product image override."
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial image alt override."
+    },
+    {
+      "name": "showPrice",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the price section is rendered."
+    },
+    {
+      "name": "showBadge",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the product badge is rendered."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "vertical",
+      "description": "Card layout mode (vertical | horizontal)."
+    },
+    {
+      "name": "cardLayout",
+      "type": "string",
+      "required": false,
+      "default": "standard",
+      "description": "CMS compatibility alias for card layout (standard | vertical | horizontal)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "product-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product grid configuration from CMS contract bridge."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional grid heading."
+    },
+    {
+      "name": "categoryAlias",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Category alias used for product API filtering."
+    },
+    {
+      "name": "categoryFilter",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for category-based filtering."
+    },
+    {
+      "name": "productUrlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product detail URL template with placeholders ({id}, {sku}, {slug})."
+    },
+    {
+      "name": "maxItems",
+      "type": "number",
+      "required": false,
+      "default": 12,
+      "description": "Maximum items per page."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred grid columns."
+    },
+    {
+      "name": "showFilters",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enables search/sort controls."
+    },
+    {
+      "name": "sortOrder",
+      "type": "string",
+      "required": false,
+      "default": "relevance",
+      "description": "Initial sort key."
+    },
+    {
+      "name": "sortBy",
+      "type": "string",
+      "required": false,
+      "default": "name",
+      "description": "CMS compatibility alias for initial sort mode."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "grid",
+      "description": "CMS compatibility layout hint emitted by current Web partials."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "product-detail": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product detail configuration from CMS contract bridge."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product SKU to fetch."
+    },
+    {
+      "name": "showVariantPicker",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows variant picker block."
+    },
+    {
+      "name": "showQuantitySelector",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows quantity selector block."
+    },
+    {
+      "name": "showRating",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows rating summary block."
+    },
+    {
+      "name": "showReviews",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for reviews placeholder rendering."
+    },
+    {
+      "name": "showRelated",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for related-products placeholder rendering."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "imageLeft",
+      "description": "Layout mode (imageLeft | imageRight | imageTop)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "cart-summary": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Cart summary configuration from CMS contract bridge."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional drawer title override."
+    },
+    {
+      "name": "summaryTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the cart summary title."
+    },
+    {
+      "name": "showCoupon",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enables coupon input controls."
+    },
+    {
+      "name": "checkoutUrl",
+      "type": "string",
+      "required": false,
+      "default": "/checkout",
+      "description": "Checkout destination URL."
+    },
+    {
+      "name": "checkoutEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for checkout destination."
+    },
+    {
+      "name": "continueShoppingUrl",
+      "type": "string",
+      "required": false,
+      "default": "/",
+      "description": "Continue shopping URL."
+    },
+    {
+      "name": "showShipping",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for shipping line rendering."
+    },
+    {
+      "name": "showTax",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for tax line rendering."
+    },
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "External open-state override for drawer mode."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "cart-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Cart item configuration from CMS contract bridge."
+    },
+    {
+      "name": "item",
+      "type": "json",
+      "required": false,
+      "description": "Serialized CartItem object for direct rendering."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility field for flat cart item payloads."
+    },
+    {
+      "name": "quantity",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility quantity field for flat cart item payloads."
+    },
+    {
+      "name": "unitPrice",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility unit price field for flat cart item payloads."
+    },
+    {
+      "name": "updateEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility endpoint field for server-driven cart updates."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "price-display": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Price display configuration from CMS contract bridge."
+    },
+    {
+      "name": "showOriginalPrice",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Show original/base price."
+    },
+    {
+      "name": "showDiscount",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Show discount badge/value."
+    },
+    {
+      "name": "priceSize",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Price typography size token."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "default": "COP",
+      "description": "ISO currency code."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "price",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Current product price."
+    },
+    {
+      "name": "originalPrice",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Original product price."
+    },
+    {
+      "name": "discount",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Discount percent value."
+    }
+  ],
+  "quantity-selector": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Quantity selector configuration from CMS contract bridge."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible field label or visible caption for the quantity selector."
+    },
+    {
+      "name": "min",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Lower allowed quantity bound."
+    },
+    {
+      "name": "minQty",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility alias for the lower allowed quantity bound."
+    },
+    {
+      "name": "max",
+      "type": "number",
+      "required": false,
+      "default": 99,
+      "description": "Upper allowed quantity bound."
+    },
+    {
+      "name": "maxQty",
+      "type": "number",
+      "required": false,
+      "default": 99,
+      "description": "CMS compatibility alias for the upper allowed quantity bound."
+    },
+    {
+      "name": "step",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Increment/decrement step."
+    },
+    {
+      "name": "value",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Initial quantity value."
+    },
+    {
+      "name": "initialQty",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility alias for the initial quantity value."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "variant-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Variant picker configuration from CMS contract bridge."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible group label or legend for the variant picker."
+    },
+    {
+      "name": "selectedValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initial selected variant value or id."
+    },
+    {
+      "name": "variants",
+      "type": "json",
+      "required": false,
+      "description": "Serialized product variant list."
+    },
+    {
+      "name": "variantsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility JSON string emitted by current Web partials."
+    },
+    {
+      "name": "variantType",
+      "type": "string",
+      "required": false,
+      "default": "size",
+      "description": "Variant family to display (size | color | storage | custom)."
+    },
+    {
+      "name": "displayAs",
+      "type": "string",
+      "required": false,
+      "default": "buttons",
+      "description": "UI mode (buttons | swatches | dropdown)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "audio-player": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "audioFile",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "trackTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "artistName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "autocomplete": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "placeholder",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "suggestionsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "avatar-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "avatarsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxVisible",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "avatar-upload": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "badge-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "badgesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "breadcrumb": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "itemsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "includeStructuredData",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "calendar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "initialMonth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "slidesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "autoplayInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "chart-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "chartTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "dataJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "code-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "code",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "language",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "showLineNumbers",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "color-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "initialColor",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "paletteJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "color-swatches": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "swatchesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "comments-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "provider",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "threadId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "configNote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "cookie-consent": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "bannerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "acceptLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "rejectLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "settingsLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "policyLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "copy-button": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "copyText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "buttonLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "feedbackLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "countdown-digital": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "endDateTime",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "showLabels",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "style",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "data-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "dataSource",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "columnsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "pageSize",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "date-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "initialDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "minDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "drawer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "drawerContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "side",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "dropdown": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "selectedValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "searchable",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "dropzone": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "acceptedTypes",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "fab": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "iconKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "actionLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "file-uploader": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "acceptedTypes",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxFileSizeMb",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxFiles",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "form-stepper": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "submitEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "allowSkip",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "hero-banner": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "subtitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "media",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "ctaLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "icon-label": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "iconKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "labelText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "kpi-card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "kpiLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "kpiValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "kpiTrend",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "kpiDelta",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "kpiPeriod",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "lightbox-gallery": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "imagesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "columns",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "livestream": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "streamUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "streamType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "viewerCountEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "map-pin": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "centerLat",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "centerLng",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "zoomLevel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "pinsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "modal-trigger": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "modalTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "modalContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "modalSize",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "notification-center": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "fetchEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "pollingInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "notification-toast": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "durationMs",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "oembed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "embedUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "otp-input": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "length",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "pagination": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "totalItems",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "itemsPerPage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "currentPage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "urlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "poll": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "question",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "voteEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "resultsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "popover": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "popoverContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "placement",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "progress-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "valueNow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "valueMax",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "qr-code": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "data",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "ecLevel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "quote-animated": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "quote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "attribution",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "animationMode",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "range-slider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "minValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "step",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "initialValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "rating-stars": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "valueNow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxStars",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "rich-tooltip": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "tooltipContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "placement",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "scroll-top": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "scrollThreshold",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "search-box": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "searchPlaceholder",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "searchEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "searchParamName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "select-multi": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxSelections",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "separator": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "style",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "share-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "platforms",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "shareLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "shareTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "signature-pad": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "width",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "height",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "skeleton": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "count",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "social-proof": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "template",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "dataSource",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "rotationInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "splitter": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "leftContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "rightContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "stat-ticker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "statValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "statLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "statPrefix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "statSuffix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "stepper": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "currentStep",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "tabs": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "tabsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "initialTab",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "tag": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "tagLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "tagColor",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "testimonial-carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "testimonialsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "autoplayInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "timeline": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "timeline-horizontal": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "snapEnabled",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "toast-center": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "maxVisible",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "tooltip": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "tooltipText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "tour-guide": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "autoStart",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "tree-view": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "treeJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "expandAll",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    }
+  ],
+  "video-player": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "videoFile",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "posterImage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "chaptersJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "enableAnalytics",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Auto-generated from CMS schema. Edit description manually for editor docs."
     }
   ]
 }

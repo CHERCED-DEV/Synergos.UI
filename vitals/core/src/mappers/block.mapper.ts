@@ -47,6 +47,7 @@ import type {
   FeatureJourneyElementData,
   InsightExplorerElementData,
   MediaExplorerElementData,
+  QuoteElementData,
 } from '@synergos/contracts';
 import { mapHeroData } from './hero.mapper';
 import { mapCardData } from './card.mapper';
@@ -106,6 +107,14 @@ import { mapRatingWidgetData } from './rating-widget.mapper';
 import { mapFilterBoardData } from './filter-board.mapper';
 import { mapNotificationStackData } from './notification-stack.mapper';
 import { mapCountdownClockData } from './countdown-clock.mapper';
+import { mapProductCardData } from './product-card.mapper';
+import { mapProductGridData } from './product-grid.mapper';
+import { mapProductDetailData } from './product-detail.mapper';
+import { mapCartSummaryData } from './cart-summary.mapper';
+import { mapCartItemData } from './cart-item.mapper';
+import { mapPriceDisplayData } from './price-display.mapper';
+import { mapQuantitySelectorData } from './quantity-selector.mapper';
+import { mapVariantPickerData } from './variant-picker.mapper';
 
 export interface MappedBlock {
   tag: string;
@@ -117,6 +126,18 @@ interface MapperEntry {
   tag: string;
   map: (data: Record<string, unknown>) => Record<string, string>;
 }
+
+export type BlockMappingErrorCode = 'mapper_not_found';
+
+export interface BlockMappingError {
+  code: BlockMappingErrorCode;
+  blockType: string;
+  message: string;
+}
+
+export type BlockMappingResult =
+  | { ok: true; value: MappedBlock }
+  | { ok: false; error: BlockMappingError };
 
 function toRecord(obj: object): Record<string, string> {
   const result: Record<string, string> = {};
@@ -231,7 +252,8 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-media-text',
     map: (d) => toRecord(mapMediaTextData(d as unknown as MediaTextSplitElementData)),
   },
-  elementIntegrationMacroHost: {
+  // Canonical CMS alias is "elementIntMacroHost" — the old UI key was wrong.
+  elementIntMacroHost: {
     tag: 'synergos-macro-host',
     map: (d) => toRecord(mapMacroHostData(d as unknown as MacroHostElementData)),
   },
@@ -435,17 +457,438 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-countdown-clock',
     map: (d) => toRecord(mapCountdownClockData(d as Record<string, unknown>)),
   },
+
+  // ── Layout Presets ──────────────────────────────────────────────────────────
+  // Structural grid wrappers — DOM compositions only, blockClass carries preset semantics.
+  layoutPreset1Col: {
+    tag: 'synergos-section',
+    map: (d) => toRecord(mapSectionData(d as unknown as SectionElementData)),
+  },
+  layoutPreset2ColEqual: {
+    tag: 'synergos-grid',
+    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
+  },
+  layoutPreset3ColEqual: {
+    tag: 'synergos-grid',
+    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
+  },
+  layoutPreset4ColEqual: {
+    tag: 'synergos-grid',
+    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
+  },
+  layoutPresetMainSidebar: {
+    tag: 'synergos-grid',
+    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
+  },
+
+  // ── Corporate (new) ─────────────────────────────────────────────────────────
+  elementCorpContactInfo: {
+    tag: 'synergos-contact-info',
+    map: (d) => toRecord(mapInfoBlockData(d as unknown as Parameters<typeof mapInfoBlockData>[0])),
+  },
+  elementCorpMapEmbed: {
+    tag: 'synergos-map-embed',
+    map: (d) => toRecord(mapIframeEmbedData(d as unknown as IframeEmbedElementData)),
+  },
+  elementCorpMissionBlock: {
+    tag: 'synergos-mission-block',
+    map: (d) => toRecord(mapMediaTextData(d as unknown as MediaTextSplitElementData)),
+  },
+  // AlertBox uses the same presentation component as AlertBar (different editor alias)
+  elementCorpAlertBox: {
+    tag: 'synergos-alert-bar',
+    map: (d) => toRecord(mapAlertBarData(d as unknown as AlertBarElementData)),
+  },
+
+  // ── Textual (new) ───────────────────────────────────────────────────────────
+  elementTextCodeBlock: {
+    tag: 'synergos-code-block',
+    map: (d) => toRecord(mapTextBlockData(d as unknown as Parameters<typeof mapTextBlockData>[0])), // TextBlockElementData local type
+  },
+  elementTextAttributedQuote: {
+    tag: 'synergos-attributed-quote',
+    map: (d) => {
+      const data = d as unknown as QuoteElementData;
+      return toRecord({
+        quoteText:   data.text?.body ?? '',
+        authorName:  data.author?.authorName ?? '',
+        authorRole:  data.author?.authorRole ?? '',
+        variant:     data.domVariant?.variant ?? 'default',
+        theme:       data.domVariant?.theme ?? 'light',
+      });
+    },
+  },
+
+  // ── Action (second alias for ButtonContainer) ────────────────────────────────
+  elementActionButtonContainer: {
+    tag: 'synergos-button-container',
+    map: (d) => toRecord(mapButtonContainerData(d as unknown as ButtonElementData)),
+  },
+
+  // ── Blog blocks ─────────────────────────────────────────────────────────────
+  elementCompBlogHighlight: {
+    tag: 'synergos-blog-highlight',
+    map: (d) => toRecord(mapMediaTextData(d as unknown as MediaTextSplitElementData)),
+  },
+  elementCompArticleList: {
+    tag: 'synergos-article-list',
+    map: (d) => toRecord(mapInfoBlockData(d as unknown as Parameters<typeof mapInfoBlockData>[0])),
+  },
+
+  // ── Forms ────────────────────────────────────────────────────────────────────
+  elementFormEmbed: {
+    tag: 'synergos-form-embed',
+    map: (d) => toRecord(mapIframeEmbedData(d as unknown as IframeEmbedElementData)),
+  },
+  elementCompFormBlock: {
+    tag: 'synergos-form-block',
+    map: (d) => toRecord(mapInfoBlockData(d as unknown as Parameters<typeof mapInfoBlockData>[0])),
+  },
+
+  // ── Shop domain ──────────────────────────────────────────────────────────────
+  elementShopProductCard: {
+    tag: 'synergos-product-card',
+    map: (d) => toRecord(mapProductCardData(d)),
+  },
+  elementShopProductGrid: {
+    tag: 'synergos-product-grid',
+    map: (d) => toRecord(mapProductGridData(d)),
+  },
+  elementShopProductDetail: {
+    tag: 'synergos-product-detail',
+    map: (d) => toRecord(mapProductDetailData(d)),
+  },
+  elementShopCartSummary: {
+    tag: 'synergos-cart-summary',
+    map: (d) => toRecord(mapCartSummaryData(d)),
+  },
+  elementShopCartItem: {
+    tag: 'synergos-cart-item',
+    map: (d) => toRecord(mapCartItemData(d)),
+  },
+  elementShopPriceDisplay: {
+    tag: 'synergos-price-display',
+    map: (d) => toRecord(mapPriceDisplayData(d)),
+  },
+  elementShopQuantitySelector: {
+    tag: 'synergos-quantity-selector',
+    map: (d) => toRecord(mapQuantitySelectorData(d)),
+  },
+  elementShopVariantPicker: {
+    tag: 'synergos-variant-picker',
+    map: (d) => toRecord(mapVariantPickerData(d)),
+  },
+  elementSynAccordion: {
+    tag: 'synergos-accordion',
+    map: (d) => toRecord(d),
+  },
+  elementSynAudioPlayer: {
+    tag: 'synergos-audio-player',
+    map: (d) => toRecord(d),
+  },
+  elementSynAutocomplete: {
+    tag: 'synergos-autocomplete',
+    map: (d) => toRecord(d),
+  },
+  elementSynAvatar: {
+    tag: 'synergos-avatar',
+    map: (d) => toRecord(d),
+  },
+  elementSynAvatarGroup: {
+    tag: 'synergos-avatar-group',
+    map: (d) => toRecord(d),
+  },
+  elementSynAvatarUpload: {
+    tag: 'synergos-avatar-upload',
+    map: (d) => toRecord(d),
+  },
+  elementSynBadge: {
+    tag: 'synergos-badge',
+    map: (d) => toRecord(d),
+  },
+  elementSynBadgeGroup: {
+    tag: 'synergos-badge-group',
+    map: (d) => toRecord(d),
+  },
+  elementSynBreadcrumb: {
+    tag: 'synergos-breadcrumb',
+    map: (d) => toRecord(d),
+  },
+  elementSynCalendar: {
+    tag: 'synergos-calendar',
+    map: (d) => toRecord(d),
+  },
+  elementSynCarousel: {
+    tag: 'synergos-carousel',
+    map: (d) => toRecord(d),
+  },
+  elementSynChartBar: {
+    tag: 'synergos-chart-bar',
+    map: (d) => toRecord(d),
+  },
+  elementSynCodeBlock: {
+    tag: 'synergos-code-block',
+    map: (d) => toRecord(d),
+  },
+  elementSynColorPicker: {
+    tag: 'synergos-color-picker',
+    map: (d) => toRecord(d),
+  },
+  elementSynColorSwatches: {
+    tag: 'synergos-color-swatches',
+    map: (d) => toRecord(d),
+  },
+  elementSynCommentsWidget: {
+    tag: 'synergos-comments-widget',
+    map: (d) => toRecord(d),
+  },
+  elementSynCookieConsent: {
+    tag: 'synergos-cookie-consent',
+    map: (d) => toRecord(d),
+  },
+  elementSynCopyButton: {
+    tag: 'synergos-copy-button',
+    map: (d) => toRecord(d),
+  },
+  elementSynCountdownClock: {
+    tag: 'synergos-countdown-clock',
+    map: (d) => toRecord(d),
+  },
+  elementSynCountdownDigital: {
+    tag: 'synergos-countdown-digital',
+    map: (d) => toRecord(d),
+  },
+  elementSynDataGrid: {
+    tag: 'synergos-data-grid',
+    map: (d) => toRecord(d),
+  },
+  elementSynDatePicker: {
+    tag: 'synergos-date-picker',
+    map: (d) => toRecord(d),
+  },
+  elementSynDivider: {
+    tag: 'synergos-divider',
+    map: (d) => toRecord(d),
+  },
+  elementSynDrawer: {
+    tag: 'synergos-drawer',
+    map: (d) => toRecord(d),
+  },
+  elementSynDropdown: {
+    tag: 'synergos-dropdown',
+    map: (d) => toRecord(d),
+  },
+  elementSynDropzone: {
+    tag: 'synergos-dropzone',
+    map: (d) => toRecord(d),
+  },
+  elementSynFab: {
+    tag: 'synergos-fab',
+    map: (d) => toRecord(d),
+  },
+  elementSynFileUploader: {
+    tag: 'synergos-file-uploader',
+    map: (d) => toRecord(d),
+  },
+  elementSynFormStepper: {
+    tag: 'synergos-form-stepper',
+    map: (d) => toRecord(d),
+  },
+  elementSynHeroBanner: {
+    tag: 'synergos-hero-banner',
+    map: (d) => toRecord(d),
+  },
+  elementSynIconLabel: {
+    tag: 'synergos-icon-label',
+    map: (d) => toRecord(d),
+  },
+  elementSynKpiCard: {
+    tag: 'synergos-kpi-card',
+    map: (d) => toRecord(d),
+  },
+  elementSynLightboxGallery: {
+    tag: 'synergos-lightbox-gallery',
+    map: (d) => toRecord(d),
+  },
+  elementSynLivestream: {
+    tag: 'synergos-livestream',
+    map: (d) => toRecord(d),
+  },
+  elementSynMapPin: {
+    tag: 'synergos-map-pin',
+    map: (d) => toRecord(d),
+  },
+  elementSynModalTrigger: {
+    tag: 'synergos-modal-trigger',
+    map: (d) => toRecord(d),
+  },
+  elementSynNotificationCenter: {
+    tag: 'synergos-notification-center',
+    map: (d) => toRecord(d),
+  },
+  elementSynNotificationToast: {
+    tag: 'synergos-notification-toast',
+    map: (d) => toRecord(d),
+  },
+  elementSynOEmbed: {
+    tag: 'synergos-oembed',
+    map: (d) => toRecord(d),
+  },
+  elementSynOtpInput: {
+    tag: 'synergos-otp-input',
+    map: (d) => toRecord(d),
+  },
+  elementSynPagination: {
+    tag: 'synergos-pagination',
+    map: (d) => toRecord(d),
+  },
+  elementSynPoll: {
+    tag: 'synergos-poll',
+    map: (d) => toRecord(d),
+  },
+  elementSynPopover: {
+    tag: 'synergos-popover',
+    map: (d) => toRecord(d),
+  },
+  elementSynProgressBar: {
+    tag: 'synergos-progress-bar',
+    map: (d) => toRecord(d),
+  },
+  elementSynQrCode: {
+    tag: 'synergos-qr-code',
+    map: (d) => toRecord(d),
+  },
+  elementSynQuoteAnimated: {
+    tag: 'synergos-quote-animated',
+    map: (d) => toRecord(d),
+  },
+  elementSynRangeSlider: {
+    tag: 'synergos-range-slider',
+    map: (d) => toRecord(d),
+  },
+  elementSynRatingStars: {
+    tag: 'synergos-rating-stars',
+    map: (d) => toRecord(d),
+  },
+  elementSynRichTooltip: {
+    tag: 'synergos-rich-tooltip',
+    map: (d) => toRecord(d),
+  },
+  elementSynScrollTop: {
+    tag: 'synergos-scroll-top',
+    map: (d) => toRecord(d),
+  },
+  elementSynSearchBox: {
+    tag: 'synergos-search-box',
+    map: (d) => toRecord(d),
+  },
+  elementSynSelectMulti: {
+    tag: 'synergos-select-multi',
+    map: (d) => toRecord(d),
+  },
+  elementSynSeparator: {
+    tag: 'synergos-separator',
+    map: (d) => toRecord(d),
+  },
+  elementSynShareBar: {
+    tag: 'synergos-share-bar',
+    map: (d) => toRecord(d),
+  },
+  elementSynSignaturePad: {
+    tag: 'synergos-signature-pad',
+    map: (d) => toRecord(d),
+  },
+  elementSynSkeleton: {
+    tag: 'synergos-skeleton',
+    map: (d) => toRecord(d),
+  },
+  elementSynSocialProof: {
+    tag: 'synergos-social-proof',
+    map: (d) => toRecord(d),
+  },
+  elementSynSpacer: {
+    tag: 'synergos-spacer',
+    map: (d) => toRecord(d),
+  },
+  elementSynSplitter: {
+    tag: 'synergos-splitter',
+    map: (d) => toRecord(d),
+  },
+  elementSynStatTicker: {
+    tag: 'synergos-stat-ticker',
+    map: (d) => toRecord(d),
+  },
+  elementSynStepper: {
+    tag: 'synergos-stepper',
+    map: (d) => toRecord(d),
+  },
+  elementSynTabs: {
+    tag: 'synergos-tabs',
+    map: (d) => toRecord(d),
+  },
+  elementSynTag: {
+    tag: 'synergos-tag',
+    map: (d) => toRecord(d),
+  },
+  elementSynTestimonialCarousel: {
+    tag: 'synergos-testimonial-carousel',
+    map: (d) => toRecord(d),
+  },
+  elementSynTimeline: {
+    tag: 'synergos-timeline',
+    map: (d) => toRecord(d),
+  },
+  elementSynTimelineHorizontal: {
+    tag: 'synergos-timeline-horizontal',
+    map: (d) => toRecord(d),
+  },
+  elementSynToastCenter: {
+    tag: 'synergos-toast-center',
+    map: (d) => toRecord(d),
+  },
+  elementSynTooltip: {
+    tag: 'synergos-tooltip',
+    map: (d) => toRecord(d),
+  },
+  elementSynTourGuide: {
+    tag: 'synergos-tour-guide',
+    map: (d) => toRecord(d),
+  },
+  elementSynTreeView: {
+    tag: 'synergos-tree-view',
+    map: (d) => toRecord(d),
+  },
+  elementSynVideoPlayer: {
+    tag: 'synergos-video-player',
+    map: (d) => toRecord(d),
+  },
 };
 
-export function mapBlockToElement(block: BlockConfig): MappedBlock | null {
-  const entry = REGISTRY[block.type];
+export function mapBlockToElementResult(block: BlockConfig): BlockMappingResult {
+  const blockType = block.type.trim();
+  const entry = REGISTRY[blockType];
   if (!entry) {
-    return null;
+    return {
+      ok: false,
+      error: {
+        code: 'mapper_not_found',
+        blockType,
+        message: `No mapper is registered for block type "${blockType}".`,
+      },
+    };
   }
 
   return {
-    tag: entry.tag,
-    inputs: withConfigPayload(entry.tag, entry.map(block.data)),
-    blockClass: block.blockClass,
+    ok: true,
+    value: {
+      tag: entry.tag,
+      inputs: withConfigPayload(entry.tag, entry.map(block.data)),
+      blockClass: block.blockClass,
+    },
   };
+}
+
+export function mapBlockToElement(block: BlockConfig): MappedBlock | null {
+  const result = mapBlockToElementResult(block);
+  return result.ok ? result.value : null;
 }

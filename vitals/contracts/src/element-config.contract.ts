@@ -1,3 +1,5 @@
+import type { CartItem } from './shop.contract';
+
 // Mirror: Synergos.CMS/Application/Cdn/Configs/*
 //
 // These interfaces define the exact `config` payload expected by web components
@@ -32,18 +34,26 @@ export interface HeroElementConfig {
   readonly ctaUrl?: string;
   readonly ctaTarget?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of BannerCdnConfig. */
 export interface BannerElementConfig {
+  readonly eyebrow?: string;
   readonly title?: string;
   readonly body?: string;
+  readonly imageSrc?: string;
+  readonly imageAlt?: string;
   readonly ctaLabel?: string;
   readonly ctaUrl?: string;
   readonly ctaTarget?: string;
+  readonly secondaryCtaLabel?: string;
+  readonly secondaryCtaUrl?: string;
+  readonly secondaryCtaTarget?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -63,7 +73,10 @@ export interface BannerSliderSlideConfig {
 export interface BannerSliderElementConfig {
   readonly headingText?: string;
   readonly body?: string;
+  readonly autoplay?: boolean;
+  readonly loop?: boolean;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly slides?: ReadonlyArray<BannerSliderSlideConfig>;
   readonly translations?: ComponentTranslations;
@@ -94,7 +107,9 @@ export interface FeatureGridItemConfig {
 /** Mirror of FeatureGridCdnConfig. */
 export interface FeatureGridElementConfig {
   readonly headingText?: string;
+  readonly columns?: number;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly items?: ReadonlyArray<FeatureGridItemConfig>;
   readonly translations?: ComponentTranslations;
@@ -113,7 +128,9 @@ export interface LogoCloudItemConfig {
 export interface LogoCloudElementConfig {
   readonly headingText?: string;
   readonly body?: string;
+  readonly columns?: number;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly items?: ReadonlyArray<LogoCloudItemConfig>;
   readonly translations?: ComponentTranslations;
@@ -139,8 +156,16 @@ export interface TestimonialSectionElementConfig {
 /** Mirror of TabGroupCdnConfig. */
 export interface TabGroupElementConfig {
   readonly title?: string;
+  readonly activeId?: string;
   readonly ariaLabel?: string;
+  readonly tabs?: ReadonlyArray<{
+    readonly id?: string;
+    readonly label?: string;
+    readonly content?: string;
+    readonly disabled?: boolean;
+  }>;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -148,14 +173,35 @@ export interface TabGroupElementConfig {
 /** Mirror of DataTableCdnConfig. */
 export interface DataTableElementConfig {
   readonly caption?: string;
+  readonly emptyLabel?: string;
+  readonly striped?: boolean;
+  readonly bordered?: boolean;
+  readonly hoverable?: boolean;
+  readonly compact?: boolean;
+  readonly columns?: ReadonlyArray<{
+    readonly key?: string;
+    readonly label?: string;
+    readonly align?: 'left' | 'center' | 'right';
+    readonly sortable?: boolean;
+    readonly width?: string;
+  }>;
   readonly headers?: ReadonlyArray<string>;
-  readonly rows?: ReadonlyArray<ReadonlyArray<string>>;
+  readonly rows?: ReadonlyArray<ReadonlyArray<string>> | ReadonlyArray<Record<string, unknown>>;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of SectionCdnConfig. */
 export interface SectionElementConfig {
+  readonly headingText?: string;
+  readonly headingLevel?: string;
+  readonly containerType?: string;
+  readonly alignment?: string;
+  readonly direction?: string;
+  readonly margin?: string;
+  readonly padding?: string;
+  readonly gap?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -172,6 +218,7 @@ export interface CardElementConfig {
   readonly badgeText?: string;
   readonly badgeType?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -187,6 +234,7 @@ export interface MediaTextElementConfig {
   readonly ctaTarget?: string;
   readonly mediaPosition?: 'left' | 'right';
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -198,6 +246,7 @@ export interface AlertBarElementConfig {
   readonly ctaLabel?: string;
   readonly ctaUrl?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly dismissible?: boolean;
   readonly translations?: ComponentTranslations;
@@ -244,6 +293,7 @@ export interface CtaGroupElementConfig {
 export interface FaqItemElementConfig {
   readonly question?: string;
   readonly answer?: string;
+  readonly initiallyExpanded?: boolean;
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -254,6 +304,7 @@ export interface FeatureItemElementConfig {
   readonly body?: string;
   readonly icon?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -263,6 +314,7 @@ export interface GalleryItemElementConfig {
   readonly src?: string;
   readonly alt?: string;
   readonly caption?: string;
+  readonly aspectRatio?: string;
   readonly translations?: ComponentTranslations;
 }
 
@@ -282,6 +334,7 @@ export interface InfoBlockElementConfig {
   readonly ctaLabel?: string;
   readonly ctaUrl?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -354,6 +407,7 @@ export interface TimelineItemElementConfig {
   readonly body?: string;
   readonly date?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -374,6 +428,7 @@ export interface StatElementConfig {
   readonly prefix?: string;
   readonly suffix?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -389,6 +444,7 @@ export interface PricingCardElementConfig {
   readonly badgeText?: string;
   readonly badgeTone?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly featured?: boolean;
   readonly translations?: ComponentTranslations;
@@ -411,12 +467,22 @@ export interface ButtonContainerElementConfig {
   readonly label?: string;
   readonly href?: string;
   readonly target?: string;
+  readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
+  readonly size?: string;
+  readonly disabled?: boolean;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of ColumnCdnConfig. */
 export interface ColumnElementConfig {
+  readonly width?: string;
+  readonly minWidth?: string;
+  readonly alignment?: string;
+  readonly padding?: string;
+  readonly gap?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -425,28 +491,43 @@ export interface ColumnElementConfig {
 export interface ContainerBlockElementConfig {
   readonly elementId?: string;
   readonly ariaLabel?: string;
+  readonly containerType?: string;
+  readonly maxWidth?: string;
+  readonly padding?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of DividerCdnConfig. */
 export interface DividerElementConfig {
+  readonly orientation?: string;
+  readonly inset?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of GridCdnConfig. */
 export interface GridElementConfig {
+  readonly columns?: number;
+  readonly gap?: string;
+  readonly minColumnWidth?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of IconBlockCdnConfig. */
 export interface IconBlockElementConfig {
+  readonly icon?: string;
+  readonly size?: string;
+  readonly color?: string;
   readonly ariaLabel?: string;
+  readonly ariaHidden?: boolean;
   readonly translations?: ComponentTranslations;
 }
 
@@ -454,6 +535,9 @@ export interface IconBlockElementConfig {
 export interface ImageBlockElementConfig {
   readonly src?: string;
   readonly alt?: string;
+  readonly caption?: string;
+  readonly aspectRatio?: string;
+  readonly loading?: string;
   readonly translations?: ComponentTranslations;
 }
 
@@ -463,17 +547,27 @@ export interface LinkBlockElementConfig {
   readonly label?: string;
   readonly target?: string;
   readonly ariaLabel?: string;
+  readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of SpacerCdnConfig (no fields). */
+/** Mirror of SpacerCdnConfig. */
 export interface SpacerElementConfig {
+  readonly size?: string;
+  readonly axis?: string;
   readonly translations?: ComponentTranslations;
 }
 
 /** Mirror of StackCdnConfig. */
 export interface StackElementConfig {
+  readonly direction?: string;
+  readonly gap?: string;
+  readonly alignment?: string;
+  readonly justify?: string;
+  readonly wrap?: boolean;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -482,7 +576,10 @@ export interface StackElementConfig {
 export interface TextBlockElementConfig {
   readonly headingText?: string;
   readonly headingLevel?: string;
+  readonly body?: string;
+  readonly alignment?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly theme?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -491,6 +588,11 @@ export interface TextBlockElementConfig {
 export interface VideoBlockElementConfig {
   readonly src?: string;
   readonly title?: string;
+  readonly poster?: string;
+  readonly controls?: boolean;
+  readonly autoplay?: boolean;
+  readonly muted?: boolean;
+  readonly loop?: boolean;
   readonly translations?: ComponentTranslations;
 }
 
@@ -508,6 +610,7 @@ export interface AvatarElementConfig {
   readonly name?: string;
   readonly size?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly translations?: ComponentTranslations;
 }
 
@@ -521,6 +624,7 @@ export interface FeatureJourneyElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -530,6 +634,7 @@ export interface InsightExplorerElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly translations?: ComponentTranslations;
 }
@@ -539,6 +644,7 @@ export interface MediaExplorerElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly defaultCategory?: string;
   readonly translations?: ComponentTranslations;
@@ -549,6 +655,7 @@ export interface ContentCarouselElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly autoplay?: boolean;
   readonly interval?: number;
@@ -560,6 +667,7 @@ export interface QuizFlowElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly submitLabel?: string;
   readonly translations?: ComponentTranslations;
@@ -570,6 +678,7 @@ export interface FilterBoardElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly defaultFilter?: string;
   readonly translations?: ComponentTranslations;
@@ -580,6 +689,7 @@ export interface RatingWidgetElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly maxRating?: number;
   readonly translations?: ComponentTranslations;
@@ -590,6 +700,7 @@ export interface CountdownClockElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly targetDate?: string;
   readonly expiredText?: string;
@@ -601,6 +712,7 @@ export interface NotificationStackElementConfig {
   readonly title?: string;
   readonly theme?: string;
   readonly variant?: string;
+  readonly tone?: string; // runtime compatibility alias
   readonly elementId?: string;
   readonly maxItems?: number;
   readonly translations?: ComponentTranslations;
@@ -638,7 +750,7 @@ export const ELEMENT_CONFIG_FIELDS = {
   'cta-group':        ['primaryLabel', 'primaryUrl', 'primaryTarget', 'primaryVariant', 'secondaryLabel', 'secondaryUrl', 'secondaryTarget', 'secondaryVariant', 'alignment'],
   'key-value':        ['label', 'value', 'helpText', 'theme'],
   'timeline-item':    ['headingText', 'body', 'date', 'variant', 'theme'],
-  'faq-item':         ['question', 'answer', 'theme'],
+  'faq-item':         ['question', 'answer', 'initiallyExpanded', 'theme'],
   'feature-item':     ['headingText', 'body', 'icon', 'variant', 'theme'],
   'testimonial-item': ['quote', 'name', 'role', 'avatarSrc', 'avatarAlt', 'theme'],
   'gallery-item':     ['src', 'alt', 'caption'],
@@ -654,7 +766,7 @@ export const ELEMENT_CONFIG_FIELDS = {
   'testimonial-section': ['headingText', 'theme'],
   'tab-group':        ['title', 'ariaLabel', 'variant', 'theme'],
   'data-table':       ['caption'],
-  'alert-bar':        ['title', 'description', 'ctaLabel', 'ctaUrl', 'variant', 'theme', 'dismissible'],
+  'alert-bar':        ['title', 'description', 'ctaLabel', 'ctaUrl', 'variant', 'tone', 'theme', 'dismissible'],
   'button-group':     ['alignment', 'direction', 'gap'],
   'newsletter-form':  ['title', 'intro', 'placeholder', 'submitLabel', 'consentText', 'successMessage', 'errorMessage', 'actionUrl', 'method', 'theme'],
   'social-share':     ['title', 'pageUrl', 'layout'],
@@ -672,14 +784,14 @@ export const ELEMENT_CONFIG_FIELDS = {
   'countdown-clock':      ['title', 'theme', 'variant', 'elementId', 'targetDate', 'expiredText'],
   'notification-stack':   ['title', 'theme', 'variant', 'elementId', 'maxItems'],
   // Shop — e-commerce components (cf000001–cf000008)
-  'product-card':         ['productSku', 'name', 'imageSrc', 'imageAlt', 'showPrice', 'showBadge', 'layout', 'theme', 'variant'],
-  'product-grid':         ['headingText', 'categoryAlias', 'maxItems', 'columns', 'showFilters', 'sortOrder', 'theme', 'variant'],
-  'product-detail':       ['productSku', 'showVariantPicker', 'showQuantitySelector', 'showRating', 'layout', 'theme', 'variant'],
-  'cart-summary':         ['showCoupon', 'checkoutUrl', 'continueShoppingUrl', 'theme', 'variant'],
-  'cart-item':            ['theme', 'variant'],
+  'product-card':         ['productSku', 'productUrlTemplate', 'name', 'imageSrc', 'imageAlt', 'showPrice', 'showBadge', 'layout', 'cardLayout', 'theme', 'variant', 'variantKey'],
+  'product-grid':         ['headingText', 'categoryAlias', 'categoryFilter', 'productUrlTemplate', 'maxItems', 'columns', 'showFilters', 'sortOrder', 'sortBy', 'layout', 'theme', 'variant', 'variantKey'],
+  'product-detail':       ['productSku', 'showVariantPicker', 'showQuantitySelector', 'showRating', 'showReviews', 'showRelated', 'layout', 'theme', 'variant', 'variantKey'],
+  'cart-summary':         ['title', 'summaryTitle', 'showCoupon', 'checkoutUrl', 'checkoutEndpoint', 'continueShoppingUrl', 'showShipping', 'showTax', 'theme', 'variant', 'variantKey'],
+  'cart-item':            ['item', 'productSku', 'quantity', 'unitPrice', 'updateEndpoint', 'theme', 'variant', 'variantKey'],
   'price-display':        ['showOriginalPrice', 'showDiscount', 'priceSize', 'currency', 'theme', 'variant'],
-  'quantity-selector':    ['min', 'max', 'step', 'theme', 'variant'],
-  'variant-picker':       ['variantType', 'displayAs', 'theme', 'variant'],
+  'quantity-selector':    ['label', 'min', 'minQty', 'max', 'maxQty', 'step', 'value', 'initialQty', 'theme', 'variant', 'variantKey'],
+  'variant-picker':       ['label', 'selectedValue', 'variantType', 'displayAs', 'variantsJson', 'theme', 'variant', 'variantKey'],
 } as const satisfies Record<string, readonly string[]>;
 
 // ---------------------------------------------------------------------------
@@ -764,14 +876,17 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
 /** Mirror of ProductCardCdnConfig. SKU fetched from /api/shop/products/sku/{sku} at runtime. */
 export interface ProductCardElementConfig {
   readonly productSku?:    string;
+  readonly productUrlTemplate?: string; // e.g. '/products/{slug}' or '/shop/{sku}'
   readonly name?:          string;    // editorial override — API name used if null
   readonly imageSrc?:      string;    // editorial override
   readonly imageAlt?:      string;
   readonly showPrice?:     boolean;
   readonly showBadge?:     boolean;
   readonly layout?:        'vertical' | 'horizontal';
+  readonly cardLayout?:    'standard' | 'vertical' | 'horizontal'; // CMS Web compatibility alias
   readonly theme?:         string;
   readonly variant?:       string;
+  readonly variantKey?:    string; // CMS Web compatibility alias
   readonly translations?:  ComponentTranslations;
 }
 
@@ -779,12 +894,17 @@ export interface ProductCardElementConfig {
 export interface ProductGridElementConfig {
   readonly headingText?:   string;
   readonly categoryAlias?: string;
+  readonly categoryFilter?: string; // CMS Web compatibility alias
+  readonly productUrlTemplate?: string; // e.g. '/products/{slug}' or '/shop/{sku}'
   readonly maxItems?:      number;
   readonly columns?:       2 | 3 | 4;
   readonly showFilters?:   boolean;
   readonly sortOrder?:     'relevance' | 'newest' | 'price-asc' | 'price-desc';
+  readonly sortBy?:        'name' | 'relevance' | 'newest' | 'price-asc' | 'price-desc'; // CMS Web compatibility alias
+  readonly layout?:        'grid' | 'list'; // CMS Web compatibility alias
   readonly theme?:         string;
   readonly variant?:       string;
+  readonly variantKey?:    string; // CMS Web compatibility alias
   readonly translations?:  ComponentTranslations;
 }
 
@@ -794,26 +914,41 @@ export interface ProductDetailElementConfig {
   readonly showVariantPicker?:      boolean;
   readonly showQuantitySelector?:   boolean;
   readonly showRating?:             boolean;
+  readonly showReviews?:            boolean; // CMS Web compatibility alias
+  readonly showRelated?:            boolean; // CMS Web compatibility alias
   readonly layout?:                 'imageLeft' | 'imageRight' | 'imageTop';
   readonly theme?:                  string;
   readonly variant?:                string;
+  readonly variantKey?:             string; // CMS Web compatibility alias
   readonly translations?:           ComponentTranslations;
 }
 
 /** Mirror of CartSummaryCdnConfig. Cart state managed client-side via cart.store.ts. */
 export interface CartSummaryElementConfig {
+  readonly title?:                  string;
+  readonly summaryTitle?:           string; // CMS Web compatibility alias
   readonly showCoupon?:             boolean;
   readonly checkoutUrl?:            string;
+  readonly checkoutEndpoint?:       string; // CMS Web compatibility alias
   readonly continueShoppingUrl?:    string;
+  readonly showShipping?:           boolean; // CMS Web compatibility alias
+  readonly showTax?:                boolean; // CMS Web compatibility alias
   readonly theme?:                  string;
   readonly variant?:                string;
+  readonly variantKey?:             string; // CMS Web compatibility alias
   readonly translations?:           ComponentTranslations;
 }
 
 /** Mirror of CartItemCdnConfig. Rendered internally by CartSummary. */
 export interface CartItemElementConfig {
+  readonly item?:                   CartItem;
+  readonly productSku?:             string; // CMS Web compatibility alias
+  readonly quantity?:               number; // CMS Web compatibility alias
+  readonly unitPrice?:              string; // CMS Web compatibility alias
+  readonly updateEndpoint?:         string; // CMS Web compatibility alias
   readonly theme?:                  string;
   readonly variant?:                string;
+  readonly variantKey?:             string; // CMS Web compatibility alias
   readonly translations?:           ComponentTranslations;
 }
 
@@ -830,21 +965,59 @@ export interface PriceDisplayElementConfig {
 
 /** Mirror of QuantitySelectorCdnConfig. */
 export interface QuantitySelectorElementConfig {
+  readonly label?:                  string;
   readonly min?:                    number;
+  readonly minQty?:                 number; // CMS Web compatibility alias
   readonly max?:                    number;
+  readonly maxQty?:                 number; // CMS Web compatibility alias
   readonly step?:                   number;
+  readonly value?:                  number;
+  readonly initialQty?:             number; // CMS Web compatibility alias
   readonly theme?:                  string;
   readonly variant?:                string;
+  readonly variantKey?:             string; // CMS Web compatibility alias
   readonly translations?:           ComponentTranslations;
 }
 
 /** Mirror of VariantPickerCdnConfig. */
 export interface VariantPickerElementConfig {
+  readonly label?:                  string;
+  readonly selectedValue?:          string;
   readonly variantType?:            'color' | 'size' | 'storage' | 'custom';
   readonly displayAs?:              'buttons' | 'swatches' | 'dropdown';
+  readonly variantsJson?:           string; // CMS Web compatibility alias
   readonly theme?:                  string;
   readonly variant?:                string;
+  readonly variantKey?:             string; // CMS Web compatibility alias
   readonly translations?:           ComponentTranslations;
+}
+
+// ---------------------------------------------------------------------------
+// Host-tier configs (mounting points for external code: angular apps,
+// macros, micro-frontends). These hosts NO tienen schema CMS uSync
+// equivalente — son técnicos, configurados via window.synergos bridge
+// o props directos. Mirror runtime config consumed by *-host components.
+// ---------------------------------------------------------------------------
+
+/** Mounts a self-contained Angular app at runtime via dynamic component. */
+export interface AngularHostElementConfig {
+  readonly component?:    string;
+  readonly endpoint?:     string;
+  readonly params?:       Record<string, string>;
+}
+
+/** Renders a CMS macro / partial via internal API. */
+export interface MacroHostElementConfig {
+  readonly contentType?:  string;
+  readonly contentData?:  Record<string, unknown>;
+}
+
+/** Mounts a Module Federation remote module. */
+export interface MfHostElementConfig {
+  readonly exposedModule?: string;
+  readonly endpoint?:      string;
+  readonly remoteEntry?:   string;
+  readonly params?:        Record<string, string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -941,3 +1114,4 @@ export type CollectionElementType =
 
 /** Union of collection element config shapes. */
 export type CollectionElementConfig = ElementConfigMap[CollectionElementType];
+
