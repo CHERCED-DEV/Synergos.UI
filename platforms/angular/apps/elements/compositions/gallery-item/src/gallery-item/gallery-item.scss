@@ -1,58 +1,73 @@
 @use 'scss' as syn;
 
 :host {
+  --gi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --gi-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --gi-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --gi-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --gi-media-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --gi-placeholder-start: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --gi-placeholder-end: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --gi-caption-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
 }
 
-// ─── Gallery Item ─────────────────────────────────────────────────────────────
 .gallery-item {
-  @include syn.surface-panel(
-    syn.$space-sm,
-    syn.$color-neutral-0,
-    syn.$color-neutral-200,
-    syn.px-to-rem(1),
-    syn.$radius-lg,
-    syn.$shadow-xs
-  );
+  @include syn.surface-panel(syn.$space-sm, var(--gi-surface), var(--gi-border), syn.px-to-rem(1), syn.$radius-xl, var(--gi-shadow));
   @include syn.flex-column;
-  gap:        syn.$space-sm;
-  margin:     0;
-  overflow:   hidden;
-  transition: box-shadow syn.$duration-base syn.$easing-default,
-              transform  syn.$duration-base syn.$easing-default;
+
+  gap: syn.$space-sm;
+  margin: 0;
+  overflow: hidden;
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
   &:hover {
-    box-shadow: syn.$shadow-md;
-    transform:  translateY(syn.px-to-rem(-2));
+    box-shadow: var(--gi-shadow-hover);
+    transform: translateY(#{syn.px-to-rem(-2)});
   }
 
+  &__media-frame,
   &__media,
   &__placeholder {
-    display:       block;
-    width:         100%;
-    border-radius: syn.$radius-md;
-    overflow:      hidden;
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    border-radius: syn.$radius-lg;
+  }
+
+  &__media-frame {
+    background: var(--gi-media-surface);
   }
 
   &__media {
-    background: syn.$color-neutral-100;
     object-fit: cover;
+    transition: transform var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-default;
+
+    .gallery-item:hover & {
+      transform: scale(1.03);
+    }
   }
 
   &__placeholder {
-    background: linear-gradient(
-      135deg,
-      syn.$color-neutral-100,
-      syn.$color-neutral-200
-    );
+    background: linear-gradient(135deg, var(--gi-placeholder-start), var(--gi-placeholder-end));
   }
 
   &__caption {
-    color:       syn.$color-neutral-500;
-    font-size:   syn.$font-size-sm;
+    color: var(--gi-caption-color);
+    font-size: syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
 
-    :first-child { margin-top:    0; }
-    :last-child  { margin-bottom: 0; }
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
   }
 }

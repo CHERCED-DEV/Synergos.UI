@@ -4,10 +4,24 @@ import {
   DateDisplayComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
+
+function sanitizeTimelineItemConfig(
+  value: Partial<TimelineItemElementConfig>,
+): Partial<TimelineItemElementConfig> {
+  return omitUndefinedProperties<TimelineItemElementConfig>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    body: coerceTrimmedStringInput(value.body),
+    date: coerceTrimmedStringInput(value.date),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-timeline-item',
@@ -19,7 +33,7 @@ import {
 })
 export class TimelineItemElementComponent {
   readonly config = input<Partial<TimelineItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<TimelineItemElementConfig>,
+    transform: createConfigInputTransform<TimelineItemElementConfig>(sanitizeTimelineItemConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -45,6 +59,8 @@ export class TimelineItemElementComponent {
   readonly hasDate = computed(() => this.date().trim().length > 0);
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
-    () => `timeline-item--${this.variant()} timeline-item--${this.theme()}`,
+    () =>
+      `timeline-item--${this.variant()} timeline-item--${this.theme()} ` +
+      `sg-timeline-item--${this.variant()} sg-timeline-item--${this.theme()}`,
   );
 }

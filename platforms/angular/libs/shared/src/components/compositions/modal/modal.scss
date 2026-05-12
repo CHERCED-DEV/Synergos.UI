@@ -1,6 +1,17 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
+.syn-modal {
+  --syn-modal-backdrop: color-mix(in srgb, var(--syn-color-overlay, rgba(15, 23, 42, 0.7)) 72%, transparent);
+  --syn-modal-panel-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-modal-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-modal-panel-shadow: var(--syn-shadow-floating, #{syn.$shadow-2xl});
+  --syn-modal-panel-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-modal-panel-description: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-modal-footer-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --syn-modal-close-surface-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --syn-modal-close-text: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-modal-close-text-hover: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+}
 
 .syn-modal__trigger {
   @include syn.button-base;
@@ -18,39 +29,44 @@
   position: fixed;
   inset: 0;
   z-index: syn.$z-modal;
-  @include syn.flex-center;
-  padding: syn.$space-md;
+  display: grid;
+  place-items: center;
+  padding: clamp(syn.$space-md, 3vw, syn.$space-xl);
 }
 
 .syn-modal__backdrop {
-  @include syn.overlay-backdrop;
+  position: absolute;
+  inset: 0;
+  background: var(--syn-modal-backdrop);
+  backdrop-filter: blur(var(--syn-backdrop-blur-subtle, #{syn.px-to-rem(10)}));
 }
 
 .syn-modal__panel {
-  position:   relative;
-  width:      min(100%, syn.px-to-rem(560));
-  max-height: 90dvh;
-  overflow:   auto;
+  position: relative;
+  width: min(100%, syn.px-to-rem(620));
+  max-height: min(90dvh, syn.px-to-rem(760));
+  overflow: auto;
+  color: var(--syn-modal-panel-title);
   @include syn.surface-panel(
-    syn.$space-lg,
-    syn.$color-neutral-0,
-    syn.$color-neutral-200,
+    clamp(syn.$space-lg, 3vw, syn.$space-xl),
+    var(--syn-modal-panel-surface),
+    var(--syn-modal-panel-border),
     syn.px-to-rem(1),
-    syn.$radius-xl,
-    syn.$shadow-2xl
+    syn.$radius-2xl,
+    var(--syn-modal-panel-shadow)
   );
   @include syn.custom-scrollbar;
+  backdrop-filter: blur(var(--syn-backdrop-blur-subtle, #{syn.px-to-rem(16)}));
 
-  // Mobile: bottom-sheet anchored to viewport bottom
   @include syn.respond-below(sm) {
-    position:      fixed;
-    inset-inline:  0;
+    position: fixed;
+    inset-inline: 0;
     inset-block-end: 0;
-    width:         100%;
-    max-height:    90dvh;
+    width: 100%;
+    max-height: 92dvh;
     border-radius: syn.$radius-2xl syn.$radius-2xl 0 0;
     border-bottom: 0;
-    padding-bottom: env(safe-area-inset-bottom, syn.$space-lg);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + #{syn.$space-lg});
   }
 }
 
@@ -58,59 +74,67 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: syn.$space-md;
-  margin-bottom: syn.$space-md;
+  gap: syn.$space-lg;
+  margin-bottom: syn.$space-lg;
 }
 
 .syn-modal__title-group {
   display: grid;
-  gap: syn.$space-xxs;
+  gap: syn.$space-xs;
 }
 
 .syn-modal__title {
-  font-size:   syn.$font-size-xl;
+  font-size: clamp(syn.$font-size-xl, 2vw, syn.$font-size-2xl);
   font-weight: syn.$font-weight-semibold;
-  color:       syn.$color-neutral-900;
+  color: var(--syn-modal-panel-title);
   line-height: syn.$line-height-tight;
+  letter-spacing: syn.$letter-spacing-tight;
 }
 
 .syn-modal__description {
-  font-size:   syn.$font-size-sm;
-  color:       syn.$color-neutral-500;
-  line-height: syn.$line-height-normal;
+  max-width: 62ch;
+  font-size: syn.$font-size-sm;
+  color: var(--syn-modal-panel-description);
+  line-height: syn.$line-height-relaxed;
 }
 
 .syn-modal__content {
   display: grid;
-  gap: syn.$space-md;
+  gap: syn.$space-lg;
 }
 
 .syn-modal__footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: syn.$space-sm;
-  margin-top: syn.$space-lg;
+  margin-top: syn.$space-xl;
   padding-top: syn.$space-md;
-  border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
+  border-top: syn.px-to-rem(1) solid var(--syn-modal-footer-border);
 }
 
 .syn-modal__close {
   @include syn.focus-visible;
-  @include syn.flex-center;
-  width:         syn.px-to-rem(32);
-  height:        syn.px-to-rem(32);
-  border:        0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: syn.px-to-rem(36);
+  height: syn.px-to-rem(36);
+  border: 0;
   border-radius: 50%;
-  background:    transparent;
-  color:         syn.$color-neutral-500;
-  font-size:     syn.$font-size-lg;
-  cursor:        pointer;
-  flex-shrink:   0;
-  transition:    background syn.$duration-fast syn.$easing-smooth,
-                 color      syn.$duration-fast syn.$easing-smooth;
+  background: transparent;
+  color: var(--syn-modal-close-text);
+  font-size: syn.$font-size-lg;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background-color syn.$duration-fast syn.$easing-smooth,
+    color syn.$duration-fast syn.$easing-smooth,
+    transform syn.$duration-fast syn.$easing-smooth;
 
   &:hover {
-    background: syn.$color-neutral-100;
-    color:      syn.$color-neutral-800;
+    background: var(--syn-modal-close-surface-hover);
+    color: var(--syn-modal-close-text-hover);
+    transform: translateY(-#{syn.px-to-rem(1)});
   }
 }

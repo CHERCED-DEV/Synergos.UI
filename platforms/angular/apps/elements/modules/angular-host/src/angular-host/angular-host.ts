@@ -16,7 +16,23 @@ import {
   InitialDataService,
   ScriptService,
 } from '@synergos/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeAngularHostConfig(
+  value: Partial<AngularHostElementConfig>,
+): Partial<AngularHostElementConfig> {
+  return omitUndefinedProperties<AngularHostElementConfig>({
+    component: coerceTrimmedStringInput(value.component),
+    endpoint: coerceTrimmedStringInput(value.endpoint),
+    params: coerceStringRecordInput(value.params),
+  });
+}
 
 @Component({
   selector: 'sg-angular-host',
@@ -32,7 +48,7 @@ export class AngularHostElementComponent implements OnDestroy {
   readonly #scriptService = inject(ScriptService);
 
   readonly config = input<Partial<AngularHostElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<AngularHostElementConfig>,
+    transform: createConfigInputTransform<AngularHostElementConfig>(sanitizeAngularHostConfig),
   });
   readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
   readonly endpointInput = input<string | undefined>(undefined, { alias: 'endpoint' });

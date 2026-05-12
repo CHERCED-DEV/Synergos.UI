@@ -4,10 +4,30 @@ import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
+
+function sanitizeBannerConfig(value: Partial<BannerElementConfig>): Partial<BannerElementConfig> {
+  return omitUndefinedProperties<Partial<BannerElementConfig>>({
+    eyebrow: coerceTrimmedStringInput(value.eyebrow),
+    title: coerceTrimmedStringInput(value.title),
+    body: coerceTrimmedStringInput(value.body),
+    imageSrc: coerceTrimmedStringInput(value.imageSrc),
+    imageAlt: coerceTrimmedStringInput(value.imageAlt),
+    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    ctaUrl: coerceTrimmedStringInput(value.ctaUrl),
+    ctaTarget: coerceTrimmedStringInput(value.ctaTarget),
+    secondaryCtaLabel: coerceTrimmedStringInput(value.secondaryCtaLabel),
+    secondaryCtaUrl: coerceTrimmedStringInput(value.secondaryCtaUrl),
+    secondaryCtaTarget: coerceTrimmedStringInput(value.secondaryCtaTarget),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-banner',
@@ -19,7 +39,7 @@ import {
 })
 export class BannerComponent {
   readonly config = input<Partial<BannerElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<BannerElementConfig>,
+    transform: createConfigInputTransform<Partial<BannerElementConfig>>(sanitizeBannerConfig),
   });
   readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -36,7 +56,7 @@ export class BannerComponent {
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
   readonly eyebrow = computed(() =>
-    resolveConfigValue(this.eyebrowInput(), undefined, ''),
+    resolveConfigValue(this.eyebrowInput(), this.config()?.eyebrow, ''),
   );
   readonly title = computed(() =>
     resolveConfigValue(this.titleInput(), this.config()?.title, ''),
@@ -45,10 +65,10 @@ export class BannerComponent {
     resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly imageSrc = computed(() =>
-    resolveConfigValue(this.imageSrcInput(), undefined, ''),
+    resolveConfigValue(this.imageSrcInput(), this.config()?.imageSrc, ''),
   );
   readonly imageAlt = computed(() =>
-    resolveConfigValue(this.imageAltInput(), undefined, ''),
+    resolveConfigValue(this.imageAltInput(), this.config()?.imageAlt, ''),
   );
   readonly ctaLabel = computed(() =>
     resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, ''),
@@ -60,13 +80,13 @@ export class BannerComponent {
     resolveConfigValue(this.ctaTargetInput(), this.config()?.ctaTarget, '_self'),
   );
   readonly secondaryCtaLabel = computed(() =>
-    resolveConfigValue(this.secondaryCtaLabelInput(), undefined, ''),
+    resolveConfigValue(this.secondaryCtaLabelInput(), this.config()?.secondaryCtaLabel, ''),
   );
   readonly secondaryCtaUrl = computed(() =>
-    resolveConfigValue(this.secondaryCtaUrlInput(), undefined, ''),
+    resolveConfigValue(this.secondaryCtaUrlInput(), this.config()?.secondaryCtaUrl, ''),
   );
   readonly secondaryCtaTarget = computed(() =>
-    resolveConfigValue(this.secondaryCtaTargetInput(), undefined, '_self'),
+    resolveConfigValue(this.secondaryCtaTargetInput(), this.config()?.secondaryCtaTarget, '_self'),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),

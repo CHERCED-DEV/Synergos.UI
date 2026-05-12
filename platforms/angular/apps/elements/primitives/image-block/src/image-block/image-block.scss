@@ -1,45 +1,42 @@
 @use 'scss' as syn;
 
 :host {
+  --ib-image-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --ib-caption-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
 }
 
-// ─── Image Block ──────────────────────────────────────────────────────────────
-// Responsive image with optional caption. Aspect ratio variants via --ratio-*.
-// Default: natural height. --cover: fills container with cover fit.
 .image-block {
-  margin:  0;
+  margin: 0;
   padding: 0;
 
-  // Aspect ratio variants — useful for consistent grid heights
-  &--ratio-16-9  .image-block__img { aspect-ratio: 16 / 9;  }
-  &--ratio-4-3   .image-block__img { aspect-ratio: 4 / 3;   }
-  &--ratio-1-1   .image-block__img { aspect-ratio: 1 / 1;   }
-  &--ratio-3-2   .image-block__img { aspect-ratio: 3 / 2;   }
-  &--ratio-21-9  .image-block__img { aspect-ratio: 21 / 9;  }
+  &--ratio-16-9 .image-block__img { aspect-ratio: 16 / 9; }
+  &--ratio-4-3 .image-block__img { aspect-ratio: 4 / 3; }
+  &--ratio-1-1 .image-block__img { aspect-ratio: 1 / 1; }
+  &--ratio-3-2 .image-block__img { aspect-ratio: 3 / 2; }
+  &--ratio-21-9 .image-block__img { aspect-ratio: 21 / 9; }
 
-  // Radius variants
   &--rounded .image-block__img { border-radius: syn.$radius-2xl; }
-  &--sharp   .image-block__img { border-radius: 0; }
+  &--sharp .image-block__img { border-radius: 0; }
 
   &__img {
-    display:       block;
-    width:         100%;
-    height:        auto;
-    object-fit:    cover;
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
     border-radius: syn.$radius-lg;
-    // Prevent layout shift before image loads
-    background:    syn.$color-neutral-100;
+    background: var(--ib-image-surface);
   }
 
   &__caption {
-    display:     flex;
+    display: flex;
     align-items: flex-start;
-    gap:         syn.$space-xs;
-    margin-top:  syn.$space-sm;
-    font-size:   syn.$font-size-sm;
-    color:       syn.$color-neutral-500;
+    gap: syn.$space-xs;
+    margin-top: syn.$space-sm;
+    font-size: syn.$font-size-sm;
+    color: var(--ib-caption-color);
     line-height: syn.$line-height-relaxed;
-    font-style:  italic;
+    font-style: italic;
   }
 }

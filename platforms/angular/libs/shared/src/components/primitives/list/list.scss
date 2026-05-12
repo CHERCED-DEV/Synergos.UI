@@ -1,12 +1,17 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── List ─────────────────────────────────────────────────────────────────────
-
 .syn-list {
-  display:    grid;
-  gap:        0;
-  margin:     0;
-  padding:    0;
+  --syn-list-divider-color: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --syn-list-surface-hover: var(--syn-color-action-secondary-surface-hover, #{syn.$color-brand-100});
+  --syn-list-marker-color: var(--syn-color-text-accent, #{syn.$color-brand-500});
+  --syn-list-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-list-supporting-color: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-list-disabled-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
@@ -15,65 +20,72 @@
 }
 
 .syn-list--divided .syn-list__item + .syn-list__item {
-  border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
+  border-top: syn.px-to-rem(1) solid var(--syn-list-divider-color);
 }
-
-// ── Row ──────────────────────────────────────────────────────────────────────
 
 .syn-list__row {
-  display:         flex;
-  align-items:     flex-start;
-  gap:             syn.$space-sm;
-  padding-block:   syn.$space-md;
-  border-radius:   syn.$radius-md;
-  transition:      background syn.$duration-fast syn.$easing-smooth;
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-sm;
+  width: 100%;
+  padding-block: syn.$space-md;
+  border: 0;
+  border-radius: syn.$radius-md;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: background syn.$duration-fast syn.$easing-smooth;
 }
 
-.syn-list--compact .syn-list__row { padding-block: syn.$space-xs; }
+.syn-list--compact .syn-list__row {
+  padding-block: syn.$space-xs;
+}
 
 .syn-list--interactive .syn-list__row {
   cursor: pointer;
-  &:hover { background: syn.$color-neutral-50; }
+
+  @include syn.focus-visible;
+
+  &:hover {
+    background: var(--syn-list-surface-hover);
+  }
 }
 
-// ── Marker (bullet / number / icon) ──────────────────────────────────────────
-
 .syn-list__marker {
-  display:     inline-flex;
+  display: inline-flex;
   align-items: center;
-  min-width:   syn.px-to-rem(24);
-  color:       syn.$color-brand-500;
-  font-size:   syn.$font-size-sm;
+  min-width: syn.px-to-rem(24);
+  color: var(--syn-list-marker-color);
+  font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-semibold;
 }
 
-// ── Copy ─────────────────────────────────────────────────────────────────────
-
 .syn-list__copy {
   display: grid;
-  gap:     syn.$space-xxs;
-  flex:    1 1 auto;
+  gap: syn.$space-xxs;
+  flex: 1 1 auto;
 }
 
 .syn-list__label {
-  color:       syn.$color-neutral-900;
-  font-size:   syn.$font-size-base;
+  color: var(--syn-list-label-color);
+  font-size: syn.$font-size-base;
   font-weight: syn.$font-weight-medium;
   line-height: syn.$line-height-normal;
 }
 
 .syn-list__supporting {
-  color:       syn.$color-neutral-500;
-  font-size:   syn.$font-size-sm;
+  color: var(--syn-list-supporting-color);
+  font-size: syn.$font-size-sm;
   line-height: syn.$line-height-normal;
 }
-
-// ── Disabled ─────────────────────────────────────────────────────────────────
 
 .syn-list__item--disabled .syn-list__label,
 .syn-list__item--disabled .syn-list__supporting,
 .syn-list__item--disabled .syn-list__marker {
-  color: syn.$color-neutral-400;
+  color: var(--syn-list-disabled-color);
 }
 
-.syn-list__item--disabled .syn-list__row { cursor: not-allowed; }
+.syn-list__item--disabled .syn-list__row {
+  cursor: not-allowed;
+}

@@ -15,7 +15,7 @@
     </div>
   }
 
-  <nav class="feature-journey__nav" aria-label="Journey steps">
+  <nav class="feature-journey__nav" [attr.aria-label]="stepsAriaLabel()">
     @for (step of steps(); track step.id; let i = $index) {
       <button
         type="button"
@@ -31,7 +31,7 @@
     }
   </nav>
 
-  <section class="feature-journey__panel" aria-live="polite" aria-label="Step content">
+  <section class="feature-journey__panel" aria-live="polite" [attr.aria-label]="contentAriaLabel()">
     <div class="feature-journey__panel-icon" aria-hidden="true">
       {{ activeStep().icon }}
     </div>
@@ -48,7 +48,7 @@
 
   <div class="feature-journey__controls">
     <syn-button
-      label="← Anterior"
+      [label]="previousLabel()"
       variant="outline"
       size="md"
       [disabled]="isFirst()"
@@ -58,7 +58,7 @@
       {{ progress().current }} / {{ progress().total }}
     </span>
     <syn-button
-      label="Siguiente →"
+      [label]="nextLabel()"
       variant="solid"
       size="md"
       [disabled]="isLast()"

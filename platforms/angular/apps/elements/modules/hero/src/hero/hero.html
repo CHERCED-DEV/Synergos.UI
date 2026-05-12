@@ -4,25 +4,29 @@
   [style.background-image]="hasImage() ? 'url(' + imageSrc() + ')' : null"
 >
   <div class="hero__content">
-    @if (headingText()) {
-      <syn-heading
-        class="hero__heading"
-        [text]="headingText()"
-        [level]="resolvedHeadingLevel()"
-        [tone]="headingTone()"
-        size="xl"
-        align="center"
-      />
-    }
+    <div class="hero__copy">
+      @if (headingText()) {
+        <syn-heading
+          class="hero__heading"
+          [text]="headingText()"
+          [level]="resolvedHeadingLevel()"
+          [tone]="headingTone()"
+          size="xl"
+          align="center"
+        />
+      }
 
-    @if (body()) {
-      <p class="hero__body">{{ body() }}</p>
-    }
+      @if (body()) {
+        <p class="hero__body">{{ body() }}</p>
+      }
+    </div>
 
     @if (hasCta()) {
-      <a class="hero__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
-        <syn-button [label]="ctaLabel()" variant="solid" size="lg" />
-      </a>
+      <div class="hero__actions">
+        <a class="hero__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="ctaLabel()" variant="solid" size="lg" />
+        </a>
+      </div>
     }
   </div>
 </section>

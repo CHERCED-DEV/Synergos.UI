@@ -1,28 +1,37 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Pricing Card ─────────────────────────────────────────────────────────────
-
 .syn-pricing-card {
+  --syn-pricing-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-pricing-card-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-pricing-card-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --syn-pricing-card-featured-ring: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  --syn-pricing-card-featured-surface: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 52%, var(--syn-color-surface-primary, #{syn.$color-neutral-0}));
+  --syn-pricing-card-muted: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-pricing-card-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
   display: grid;
   gap: syn.$space-lg;
-  padding: syn.$space-lg;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.$radius-xl;
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-xs;
-  transition: syn.$transition-colors;
+  padding: clamp(syn.$space-lg, 2.5vw, syn.$space-xl);
+  border: syn.px-to-rem(1) solid var(--syn-pricing-card-border);
+  border-radius: syn.$radius-2xl;
+  background: var(--syn-pricing-card-surface);
+  box-shadow: var(--syn-pricing-card-shadow);
+  transition:
+    border-color syn.$duration-fast syn.$easing-smooth,
+    box-shadow syn.$duration-fast syn.$easing-smooth,
+    transform syn.$duration-fast syn.$easing-smooth;
 }
 
-// Featured — stands out from the pricing grid
 .syn-pricing-card--featured {
-  border-color: syn.$color-brand-300;
+  border-color: var(--syn-pricing-card-featured-ring);
+  background: var(--syn-pricing-card-featured-surface);
   box-shadow:
-    syn.$shadow-md,
-    0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
+    var(--syn-shadow-panel, #{syn.$shadow-md}),
+    0 0 0 syn.px-to-rem(3) color-mix(in srgb, var(--syn-pricing-card-featured-ring) 30%, transparent);
 }
 
 .syn-pricing-card--brand {
-  background: syn.$color-brand-100;
+  background: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 68%, var(--syn-pricing-card-surface));
 }
 
 .syn-pricing-card--disabled {
@@ -48,31 +57,31 @@
 }
 
 .syn-pricing-card__amount-group {
-  display:     flex;
-  flex-wrap:   wrap;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap:         syn.$space-xs;
+  gap: syn.$space-xs;
 }
 
 .syn-pricing-card__amount-prefix,
 .syn-pricing-card__currency,
 .syn-pricing-card__amount-suffix,
 .syn-pricing-card__price-description {
-  color:     syn.$color-neutral-500;
+  color: var(--syn-pricing-card-muted);
   font-size: syn.$font-size-sm;
 }
 
 .syn-pricing-card__amount {
-  color:          syn.$color-neutral-900;
-  font-size:      syn.$font-size-4xl;
-  font-weight:    syn.$font-weight-bold;
-  line-height:    1;
+  color: var(--syn-pricing-card-title);
+  font-size: clamp(syn.$font-size-3xl, 4vw, syn.$font-size-4xl);
+  font-weight: syn.$font-weight-bold;
+  line-height: 1;
   letter-spacing: syn.$letter-spacing-display;
 }
 
 .syn-pricing-card__unavailable {
-  margin:      0;
-  color:       syn.$color-neutral-500;
-  font-size:   syn.$font-size-base;
+  margin: 0;
+  color: var(--syn-pricing-card-muted);
+  font-size: syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
 }

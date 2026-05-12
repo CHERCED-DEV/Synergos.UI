@@ -1,5 +1,4 @@
 <section class="newsletter-form" [class]="hostClasses()">
-
   @if (title() || intro()) {
     <header class="newsletter-form__header">
       @if (title()) {
@@ -18,7 +17,6 @@
   }
 
   <form class="newsletter-form__form" (submit)="onSubmit($event)" novalidate>
-
     <div class="newsletter-form__pill" [class.is-loading]="isSubmitting()">
       <span class="newsletter-form__at" aria-hidden="true">@</span>
       <input
@@ -31,7 +29,7 @@
         required
         #emailInput
         (input)="onEmailChange(emailInput.value)"
-        aria-label="Email address"
+        [attr.aria-label]="emailAriaLabel()"
       />
       <button
         class="newsletter-form__submit"
@@ -43,35 +41,29 @@
           <span class="newsletter-form__spinner" aria-hidden="true"></span>
         } @else {
           <span>{{ submitLabel() }}</span>
-          <span class="newsletter-form__arrow" aria-hidden="true">→</span>
+          <span class="newsletter-form__arrow" aria-hidden="true">&#8594;</span>
         }
       </button>
     </div>
 
-    <p class="newsletter-form__note">No spam &middot; Unsubscribe anytime</p>
+    <p class="newsletter-form__note">{{ noteText() }}</p>
 
-    @defer (on idle) {
-      @if (hasConsent()) {
-        <syn-checkbox
-          [label]="consentText()"
-          [checked]="consent()"
-          [disabled]="isSubmitting()"
-          (checkedChange)="onConsentChange($event)"
-        />
-      }
-    }
-
-  </form>
-
-  @defer (on idle) {
-    @if (hasFeedback()) {
-      <syn-alert
-        [title]="state() === 'success' ? 'You\'re in!' : 'Something went wrong'"
-        [description]="feedback()"
-        [tone]="feedbackTone()"
-        [dismissible]="false"
+    @if (hasConsent()) {
+      <syn-checkbox
+        [label]="consentText()"
+        [checked]="consent()"
+        [disabled]="isSubmitting()"
+        (checkedChange)="onConsentChange($event)"
       />
     }
-  }
+  </form>
 
+  @if (hasFeedback()) {
+    <syn-alert
+      [title]="feedbackTitle()"
+      [description]="feedback()"
+      [tone]="feedbackTone()"
+      [dismissible]="false"
+    />
+  }
 </section>

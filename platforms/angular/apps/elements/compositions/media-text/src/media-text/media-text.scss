@@ -1,41 +1,65 @@
 @use 'scss' as syn;
 
 :host {
+  --mt-surface-media: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --mt-shadow-media: var(--syn-shadow-card, #{syn.$shadow-sm});
+  --mt-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --mt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --mt-media-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+
   display: block;
 }
 
-// ─── Media Text ───────────────────────────────────────────────────────────────
-// Mobile-first: stacks vertically below md, side-by-side from md upward.
-// --right variant swaps column order on desktop only (order has no effect at 1-col).
 .media-text {
   display: grid;
-  gap:     syn.$space-lg;
+  gap: syn.$space-lg;
 
   @include syn.respond-to(md) {
-    grid-template-columns: 1fr 1fr;
-    gap:         syn.$space-xl;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
+    gap: syn.$space-xl;
   }
 
-  &--right {
+  &--right,
+  &.sg-media-text--right {
     @include syn.respond-to(md) {
-      .media-text__media   { order: 2; }
-      .media-text__content { order: 1; }
+      .media-text__media {
+        order: 2;
+      }
+
+      .media-text__content {
+        order: 1;
+      }
     }
   }
 
-  &--dark .media-text__body { color: syn.$color-neutral-300; }
+  &--dark,
+  &.sg-media-text--dark {
+    --mt-surface-media: var(--syn-color-surface-secondary, #{syn.$color-neutral-800});
+    --mt-shadow-media: var(--syn-shadow-card, #{syn.$shadow-xs});
+    --mt-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --mt-media-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-media-text--silver-gold,
+  &.sg-media-text--silverGold {
+    --mt-surface-media: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  }
 
   &__media {
-    overflow:      hidden;
-    border-radius: syn.$radius-xl;
-    box-shadow:    syn.$shadow-sm;
+    overflow: hidden;
+    border: syn.px-to-rem(1) solid var(--mt-media-border);
+    border-radius: syn.$radius-2xl;
+    background: var(--mt-surface-media);
+    box-shadow: var(--mt-shadow-media);
   }
 
   &__img {
-    display:    block;
-    width:      100%;
-    height:     auto;
+    display: block;
+    width: 100%;
+    height: auto;
     object-fit: cover;
     transition: transform syn.$duration-slow syn.$easing-default;
   }
@@ -46,20 +70,39 @@
 
   &__content {
     @include syn.flex-column;
+
     gap: syn.$space-lg;
   }
 
-  &__heading { display: block; }
+  &__copy {
+    display: grid;
+    gap: syn.$space-md;
+    max-width: 64ch;
+  }
+
+  &__heading {
+    display: block;
+  }
 
   &__body {
-    margin:      0;
-    font-size:   syn.$font-size-base;
+    margin: 0;
+    color: var(--mt-body-color);
+    font-size: syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
+    text-wrap: pretty;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
   }
 
   &__cta {
+    @include syn.focus-visible(var(--mt-focus-ring, #{syn.$color-brand-300}));
+
+    align-self: flex-start;
     text-decoration: none;
-    align-self:      flex-start;
+    border-radius: syn.$radius-md;
   }
 }

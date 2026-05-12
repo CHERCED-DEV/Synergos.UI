@@ -13,7 +13,7 @@ let selectId = 0;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="syn-select">
+    <div class="syn-select" [class.syn-select--error]="invalid()">
       @if (label()) {
         <label class="syn-select__label" [attr.for]="fieldId()">{{ label() }}</label>
       }
@@ -24,7 +24,9 @@ let selectId = 0;
         [value]="value()"
         [disabled]="disabled()"
         [required]="required()"
+        [attr.aria-invalid]="invalid() || null"
         [attr.aria-label]="ariaLabel() || label() || 'Select option'"
+        [attr.aria-describedby]="describedByIds() || null"
         (change)="onChange($event)"
       >
         @for (option of options(); track option.value) {
@@ -33,6 +35,10 @@ let selectId = 0;
           </option>
         }
       </select>
+
+      @if (hint()) {
+        <p class="syn-select__hint" [id]="hintId()">{{ hint() }}</p>
+      }
     </div>
   `,
   styleUrl: './select.scss',
@@ -40,15 +46,23 @@ let selectId = 0;
 export class SelectComponent {
   readonly id = input('');
   readonly label = input('');
+  readonly hint = input('');
   readonly ariaLabel = input('');
+  readonly describedBy = input('');
   readonly value = input('');
   readonly options = input<readonly SelectOption[]>([]);
   readonly disabled = input(false);
+  readonly invalid = input(false);
   readonly required = input(false);
 
   readonly valueChange = output<string>();
 
   readonly fieldId = computed(() => this.id() || `syn-select-${selectId}`);
+  readonly hintId = computed(() => `${this.fieldId()}-hint`);
+  readonly describedByIds = computed(() => {
+    const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
+    return ids.join(' ');
+  });
 
   constructor() {
     selectId += 1;

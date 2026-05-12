@@ -1,7 +1,39 @@
+@use 'scss' as syn;
+
 :host {
+  --dt-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --dt-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --dt-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --dt-head-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --dt-heading-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --dt-cell-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --dt-row-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --dt-row-striped: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --dt-row-hover: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --dt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-400});
+  --dt-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dt-cell-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
 }
 
 .data-table {
+  --syn-data-table-surface: var(--dt-surface);
+  --syn-data-table-border: var(--dt-border);
+  --syn-data-table-shadow: var(--dt-shadow);
+  --syn-data-table-head-surface: var(--dt-head-surface);
+  --syn-data-table-heading-color: var(--dt-heading-color);
+  --syn-data-table-cell-color: var(--dt-cell-color);
+  --syn-data-table-row-border: var(--dt-row-border);
+  --syn-data-table-row-striped: var(--dt-row-striped);
+  --syn-data-table-row-hover: var(--dt-row-hover);
+  --syn-data-table-focus-ring: var(--dt-focus-ring);
+  --syn-data-table-empty-color: var(--dt-empty-color);
+  --syn-data-table-cell-label-color: var(--dt-cell-label-color);
+
   display: block;
+
+  &__table {
+    display: block;
+  }
 }

@@ -6,7 +6,9 @@ import {
   type HeadingAlign,
   type HeadingLevel,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -15,6 +17,21 @@ const sectionHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', '
 
 function resolveSectionHeadingLevel(value: string): HeadingLevel {
   return sectionHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h2';
+}
+
+function sanitizeSectionConfig(value: Partial<SectionElementConfig>): Partial<SectionElementConfig> {
+  return omitUndefinedProperties<Partial<SectionElementConfig>>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    headingLevel: coerceTrimmedStringInput(value.headingLevel),
+    containerType: coerceTrimmedStringInput(value.containerType),
+    alignment: coerceTrimmedStringInput(value.alignment),
+    direction: coerceTrimmedStringInput(value.direction),
+    margin: coerceTrimmedStringInput(value.margin),
+    padding: coerceTrimmedStringInput(value.padding),
+    gap: coerceTrimmedStringInput(value.gap),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
 }
 
 @Component({
@@ -27,7 +44,7 @@ function resolveSectionHeadingLevel(value: string): HeadingLevel {
 })
 export class SectionComponent {
   readonly config = input<Partial<SectionElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<SectionElementConfig>,
+    transform: createConfigInputTransform<Partial<SectionElementConfig>>(sanitizeSectionConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
@@ -40,14 +57,14 @@ export class SectionComponent {
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly headingText = computed(() => this.headingTextInput()?.trim() || '');
-  readonly headingLevel = computed(() => this.headingLevelInput()?.trim() || 'h2');
-  readonly containerType = computed(() => this.containerTypeInput()?.trim() || 'fluid');
-  readonly alignment = computed(() => this.alignmentInput()?.trim() || 'start');
-  readonly direction = computed(() => this.directionInput()?.trim() || 'column');
-  readonly margin = computed(() => this.marginInput()?.trim() || '');
-  readonly padding = computed(() => this.paddingInput()?.trim() || '');
-  readonly gap = computed(() => this.gapInput()?.trim() || '1rem');
+  readonly headingText = computed(() => resolveConfigValue(this.headingTextInput()?.trim(), this.config()?.headingText, ''));
+  readonly headingLevel = computed(() => resolveConfigValue(this.headingLevelInput()?.trim(), this.config()?.headingLevel, 'h2'));
+  readonly containerType = computed(() => resolveConfigValue(this.containerTypeInput()?.trim(), this.config()?.containerType, 'fluid'));
+  readonly alignment = computed(() => resolveConfigValue(this.alignmentInput()?.trim(), this.config()?.alignment, 'start'));
+  readonly direction = computed(() => resolveConfigValue(this.directionInput()?.trim(), this.config()?.direction, 'column'));
+  readonly margin = computed(() => resolveConfigValue(this.marginInput()?.trim(), this.config()?.margin, ''));
+  readonly padding = computed(() => resolveConfigValue(this.paddingInput()?.trim(), this.config()?.padding, ''));
+  readonly gap = computed(() => resolveConfigValue(this.gapInput()?.trim(), this.config()?.gap, '1rem'));
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );

@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 export type HeadingAlign = 'start' | 'center';
 export type HeadingLevel = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
@@ -16,6 +23,19 @@ export interface HeadingConfig {
   readonly tone?: HeadingTone;
   readonly align?: HeadingAlign;
   readonly visuallyHidden?: boolean;
+}
+
+function sanitizeHeadingConfig(value: Partial<HeadingConfig>): Partial<HeadingConfig> {
+  return omitUndefinedProperties<HeadingConfig>({
+    text: coerceTrimmedStringInput(value.text),
+    eyebrow: coerceTrimmedStringInput(value.eyebrow),
+    supportingText: coerceTrimmedStringInput(value.supportingText),
+    level: coerceStringEnumInput(value.level, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const),
+    size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg', 'xl'] as const),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'muted', 'brand', 'inverse'] as const),
+    align: coerceStringEnumInput(value.align, ['start', 'center'] as const),
+    visuallyHidden: coerceOptionalBooleanInput(value.visuallyHidden),
+  });
 }
 
 @Component({
@@ -70,7 +90,7 @@ export interface HeadingConfig {
 })
 export class HeadingComponent {
   readonly config = input<Partial<HeadingConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<HeadingConfig>,
+    transform: createConfigInputTransform<HeadingConfig>(sanitizeHeadingConfig),
   });
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
   readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });

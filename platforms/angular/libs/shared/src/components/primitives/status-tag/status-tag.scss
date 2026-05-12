@@ -1,49 +1,104 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Status Tag ───────────────────────────────────────────────────────────────
-// Compact label for workflow states, pipeline stages, entity statuses.
-
 .syn-status-tag {
-  display:        inline-flex;
-  align-items:    center;
-  gap:            syn.$space-1;
-  border:         syn.px-to-rem(1) solid transparent;
-  border-radius:  syn.$radius-full;
-  padding:        syn.$space-1 syn.$space-xs;
-  font-size:      syn.$font-size-xs;
-  font-weight:    syn.$font-weight-semibold;
+  --syn-status-tag-background: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  --syn-status-tag-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-status-tag-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  border: syn.px-to-rem(1) solid var(--syn-status-tag-border);
+  border-radius: syn.$radius-full;
+  padding: syn.$space-1 syn.$space-xs;
+  background: var(--syn-status-tag-background);
+  color: var(--syn-status-tag-text);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
   letter-spacing: 0.02em;
-  line-height:    1;
-  white-space:    nowrap;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-// ── Outline mode (default) ──────────────────────────────────────────────────
+.syn-status-tag--neutral {
+  --syn-status-tag-background: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  --syn-status-tag-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-status-tag-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+}
 
-.syn-status-tag--neutral  { background: syn.$color-neutral-100; border-color: syn.$color-neutral-200; color: syn.$color-neutral-700; }
-.syn-status-tag--pending  { background: syn.$color-brand-100;   border-color: syn.$color-brand-200;   color: syn.$color-brand-600;   }
-.syn-status-tag--success  { background: syn.$color-success-100; border-color: syn.$color-success-200; color: syn.$color-success-600; }
-.syn-status-tag--warning  { background: syn.$color-warning-100; border-color: syn.$color-warning-300; color: syn.$color-warning-600; }
-.syn-status-tag--critical { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;  color: syn.$color-danger-600;  }
-.syn-status-tag--blocked  { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;  color: syn.$color-danger-600;  }
-.syn-status-tag--inactive { background: syn.$color-neutral-100; border-color: syn.$color-neutral-200; color: syn.$color-neutral-400; }
+.syn-status-tag--pending {
+  --syn-status-tag-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-status-tag-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  --syn-status-tag-text: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+}
 
-// ── Filled mode ─────────────────────────────────────────────────────────────
+.syn-status-tag--success {
+  --syn-status-tag-background: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --syn-status-tag-border: var(--syn-color-state-success-border, #{syn.$color-success-200});
+  --syn-status-tag-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
+}
 
-.syn-status-tag--filled.syn-status-tag--neutral  { background: syn.$color-neutral-700;  border-color: syn.$color-neutral-700;  color: syn.$color-neutral-0; }
-.syn-status-tag--filled.syn-status-tag--pending  { background: syn.$color-brand-500;    border-color: syn.$color-brand-500;    color: syn.$color-neutral-0; }
-.syn-status-tag--filled.syn-status-tag--success  { background: syn.$color-success-500;  border-color: syn.$color-success-500;  color: syn.$color-neutral-0; }
-.syn-status-tag--filled.syn-status-tag--warning  { background: syn.$color-warning-500;  border-color: syn.$color-warning-500;  color: syn.$color-neutral-0; }
+.syn-status-tag--warning {
+  --syn-status-tag-background: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  --syn-status-tag-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
+  --syn-status-tag-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+}
+
+.syn-status-tag--critical,
+.syn-status-tag--blocked {
+  --syn-status-tag-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-status-tag-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  --syn-status-tag-text: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+}
+
+.syn-status-tag--inactive {
+  --syn-status-tag-background: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+  --syn-status-tag-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+  --syn-status-tag-text: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+}
+
+.syn-status-tag--filled.syn-status-tag--neutral {
+  --syn-status-tag-background: var(--syn-color-surface-strong, #{syn.$color-neutral-700});
+  --syn-status-tag-border: var(--syn-color-surface-strong, #{syn.$color-neutral-700});
+  --syn-status-tag-text: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+}
+
+.syn-status-tag--filled.syn-status-tag--pending {
+  --syn-status-tag-background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-status-tag-border: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-status-tag-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+}
+
+.syn-status-tag--filled.syn-status-tag--success {
+  --syn-status-tag-background: var(--syn-color-success-500, #{syn.$color-success-500});
+  --syn-status-tag-border: var(--syn-color-success-500, #{syn.$color-success-500});
+  --syn-status-tag-text: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+}
+
+.syn-status-tag--filled.syn-status-tag--warning {
+  --syn-status-tag-background: var(--syn-color-warning-500, #{syn.$color-warning-500});
+  --syn-status-tag-border: var(--syn-color-warning-500, #{syn.$color-warning-500});
+  --syn-status-tag-text: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+}
+
 .syn-status-tag--filled.syn-status-tag--critical,
-.syn-status-tag--filled.syn-status-tag--blocked  { background: syn.$color-danger-500;   border-color: syn.$color-danger-500;   color: syn.$color-neutral-0; }
-.syn-status-tag--filled.syn-status-tag--inactive { background: syn.$color-neutral-400;  border-color: syn.$color-neutral-400;  color: syn.$color-neutral-0; }
+.syn-status-tag--filled.syn-status-tag--blocked {
+  --syn-status-tag-background: var(--syn-color-danger-500, #{syn.$color-danger-500});
+  --syn-status-tag-border: var(--syn-color-danger-500, #{syn.$color-danger-500});
+  --syn-status-tag-text: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+}
 
-// ── Status dot ──────────────────────────────────────────────────────────────
+.syn-status-tag--filled.syn-status-tag--inactive {
+  --syn-status-tag-background: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+  --syn-status-tag-border: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+  --syn-status-tag-text: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+}
 
 .syn-status-tag__dot {
-  display:       block;
-  width:         syn.px-to-rem(6);
-  height:        syn.px-to-rem(6);
+  display: block;
+  width: syn.px-to-rem(6);
+  height: syn.px-to-rem(6);
   border-radius: 50%;
-  background:    currentColor;
-  flex-shrink:   0;
+  background: currentColor;
+  flex-shrink: 0;
 }

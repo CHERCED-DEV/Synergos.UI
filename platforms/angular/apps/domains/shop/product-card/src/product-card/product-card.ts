@@ -12,9 +12,34 @@ import { HttpClient } from '@angular/common/http';
 import {
   BadgeComponent,
   ButtonComponent,
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+
+function sanitizeProductCardConfig(
+  value: Partial<ProductCardElementConfig>,
+): Partial<ProductCardElementConfig> {
+  return omitUndefinedProperties<ProductCardElementConfig>({
+    productSku: coerceTrimmedStringInput(value.productSku),
+    productUrlTemplate: coerceTrimmedStringInput(value.productUrlTemplate),
+    name: coerceTrimmedStringInput(value.name),
+    imageSrc: coerceTrimmedStringInput(value.imageSrc),
+    imageAlt: coerceTrimmedStringInput(value.imageAlt),
+    showPrice: coerceOptionalBooleanInput(value.showPrice),
+    showBadge: coerceOptionalBooleanInput(value.showBadge),
+    layout: coerceStringEnumInput(value.layout, ['vertical', 'horizontal'] as const),
+    cardLayout: coerceStringEnumInput(value.cardLayout, ['standard', 'vertical', 'horizontal'] as const),
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    variantKey: coerceTrimmedStringInput(value.variantKey),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-product-card',
@@ -27,27 +52,49 @@ import {
 export class ProductCardComponent {
   private readonly http = inject(HttpClient);
 
+  private normalizeLayout(value: string | undefined): 'vertical' | 'horizontal' {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'horizontal':
+        return 'horizontal';
+      case 'standard':
+      case 'vertical':
+      default:
+        return 'vertical';
+    }
+  }
+
   // ── Inputs ────────────────────────────────────────────────────────────────
   readonly config = input<Partial<ProductCardElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ProductCardElementConfig>,
+    transform: createConfigInputTransform<ProductCardElementConfig>(sanitizeProductCardConfig),
   });
   readonly productSkuInput = input<string | undefined>(undefined, { alias: 'productSku' });
+  readonly productUrlTemplateInput = input<string | undefined>(undefined, { alias: 'productUrlTemplate' });
   readonly layoutInput     = input<string | undefined>(undefined, { alias: 'layout' });
+  readonly cardLayoutInput = input<string | undefined>(undefined, { alias: 'cardLayout' });
   readonly themeInput      = input<string | undefined>(undefined, { alias: 'theme' });
   readonly variantInput    = input<string | undefined>(undefined, { alias: 'variant' });
+  readonly variantKeyInput = input<string | undefined>(undefined, { alias: 'variantKey' });
 
   // ── Resolved config values ────────────────────────────────────────────────
   readonly productSku = computed(() =>
     resolveConfigValue(this.productSkuInput(), this.config()?.productSku, ''),
   );
+  readonly productUrlTemplate = computed(() =>
+    resolveConfigValue(this.productUrlTemplateInput(), this.config()?.productUrlTemplate, ''),
+  );
   readonly layout = computed(() =>
-    resolveConfigValue(this.layoutInput(), this.config()?.layout, 'vertical'),
+    this.normalizeLayout(
+      this.layoutInput()
+      ?? this.cardLayoutInput()
+      ?? this.config()?.layout
+      ?? this.config()?.cardLayout,
+    ),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
   readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
+    resolveConfigValue(this.variantInput() ?? this.variantKeyInput(), this.config()?.variant ?? this.config()?.variantKey, 'default'),
   );
   readonly translations = computed(() => this.config()?.translations ?? {});
 
@@ -73,6 +120,14 @@ export class ProductCardComponent {
   readonly inStock  = computed(() => this.product()?.inStock ?? true);
   readonly badge    = computed(() => this.product()?.badge ?? '');
   readonly currency = computed(() => this.product()?.currency ?? 'COP');
+  readonly productUrl = computed(() => {
+    const product = this.product();
+    if (!product) {
+      return null;
+    }
+
+    return this.resolveProductUrl(product);
+  });
 
   // ── Computed display state ────────────────────────────────────────────────
   readonly hasImage     = computed(() => this.imageSrc().length > 0);
@@ -93,6 +148,12 @@ export class ProductCardComponent {
   );
   readonly inStockLabel = computed(
     () => this.t()['Shop.Product.InStock'] ?? 'In stock',
+  );
+  readonly viewDetailsLabel = computed(
+    () => this.t()['Shop.Product.ViewDetails'] ?? 'View details',
+  );
+  readonly loadingProductLabel = computed(
+    () => this.t()['Shop.Product.Loading'] ?? 'Loading product...',
   );
 
   // ── Fetch product on SKU change ───────────────────────────────────────────
@@ -135,6 +196,20 @@ export class ProductCardComponent {
     );
   }
 
+  onProductLinkClick(event: MouseEvent, source: 'image' | 'title' | 'details-link'): void {
+    const product = this.product();
+    const productUrl = this.productUrl();
+    if (!product || !productUrl) {
+      event.preventDefault();
+      return;
+    }
+
+    const allowDefaultNavigation = this.dispatchProductSelected(product, productUrl, source);
+    if (!allowDefaultNavigation) {
+      event.preventDefault();
+    }
+  }
+
   // ── Price formatter ───────────────────────────────────────────────────────
   formatPrice(value: number): string {
     return new Intl.NumberFormat('es-CO', {
@@ -142,5 +217,47 @@ export class ProductCardComponent {
       currency: this.currency(),
       maximumFractionDigits: 0,
     }).format(value);
+  }
+
+  viewDetailsAriaLabel(): string {
+    const productName = this.name();
+    if (!productName) {
+      return this.viewDetailsLabel();
+    }
+
+    return `${this.viewDetailsLabel()} - ${productName}`;
+  }
+
+  private resolveProductUrl(product: Product): string | null {
+    const template = this.productUrlTemplate().trim();
+    if (!template) {
+      return null;
+    }
+
+    return template
+      .replaceAll('{id}', encodeURIComponent(product.id))
+      .replaceAll('{sku}', encodeURIComponent(product.sku))
+      .replaceAll('{slug}', encodeURIComponent(product.slug));
+  }
+
+  private dispatchProductSelected(
+    product: Product,
+    productUrl: string,
+    source: 'image' | 'title' | 'details-link',
+  ): boolean {
+    return window.dispatchEvent(
+      new CustomEvent('sg:product:selected', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        detail: {
+          productId: product.id,
+          productSku: product.sku,
+          productSlug: product.slug,
+          productUrl,
+          source,
+        },
+      }),
+    );
   }
 }

@@ -1,14 +1,58 @@
 @use 'scss' as syn;
 
 :host {
+  --tg-gap: #{syn.$space-md};
+
+  --syn-tabs-list-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-tabs-tab-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-tabs-tab-color-hover: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --syn-tabs-tab-color-active: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --syn-tabs-tab-border-active: var(--syn-color-border-accent, #{syn.$color-brand-500});
+  --syn-tabs-tab-padding-y: #{syn.$space-xs};
+  --syn-tabs-tab-padding-x: #{syn.$space-md};
+  --syn-tabs-panel-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-tabs-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-tabs-panel-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
   display: block;
 }
 
 .tab-group {
   @include syn.flex-column;
-  gap: syn.$space-md;
+
+  gap: var(--tg-gap);
+
+  &--dark,
+  &.sg-tab-group--dark {
+    --syn-tabs-list-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-tabs-tab-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --syn-tabs-tab-color-hover: var(--syn-color-text-primary, #{syn.$color-neutral-100});
+    --syn-tabs-tab-color-active: var(--syn-color-text-accent, #{syn.$color-brand-300});
+    --syn-tabs-tab-border-active: var(--syn-color-border-accent, #{syn.$color-brand-300});
+    --syn-tabs-panel-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-900});
+    --syn-tabs-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-tabs-panel-color: var(--syn-color-text-primary, #{syn.$color-neutral-100});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-tab-group--silver-gold,
+  &.sg-tab-group--silverGold {
+    --syn-tabs-tab-border-active: var(--syn-color-border-strong, #{syn.$color-neutral-400});
+  }
+
+  &--compact,
+  &.sg-tab-group--compact {
+    --tg-gap: #{syn.$space-sm};
+    --syn-tabs-tab-padding-y: #{syn.$space-xxs};
+    --syn-tabs-tab-padding-x: #{syn.$space-sm};
+  }
 
   &__title {
+    display: block;
+  }
+
+  &__tabs {
     display: block;
   }
 }

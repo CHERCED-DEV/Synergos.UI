@@ -32,6 +32,8 @@ export interface SocialLinkItem {
               class="syn-social-links__link"
               [href]="link.href"
               [label]="link.label"
+              tone="neutral"
+              [underline]="false"
               [target]="link.target || '_blank'"
               [rel]="link.rel || 'noopener noreferrer'"
               [ariaLabel]="link.label"

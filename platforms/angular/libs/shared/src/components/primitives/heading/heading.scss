@@ -1,8 +1,10 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Heading ──────────────────────────────────────────────────────────────────
-
 .syn-heading {
+  --syn-heading-eyebrow-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-500}));
+  --syn-heading-title-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-heading-supporting-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-600}));
+
   display: grid;
   gap: syn.$space-xs;
 }
@@ -12,7 +14,7 @@
 }
 
 .syn-heading__eyebrow {
-  color:          syn.$color-brand-500;
+  color:          var(--syn-heading-eyebrow-color);
   font-size:      syn.$font-size-xs;
   font-weight:    syn.$font-weight-semibold;
   letter-spacing: syn.$letter-spacing-eyebrow;
@@ -20,8 +22,12 @@
 }
 
 .syn-heading__title {
-  margin:      0;
-  line-height: syn.$line-height-tight;
+  margin:         0;
+  color:          var(--syn-heading-title-color);
+  font-weight:    var(--sg-brand-heading-weight, #{syn.$font-weight-semibold});
+  letter-spacing: var(--sg-brand-heading-letter-spacing, normal);
+  line-height:    syn.$line-height-tight;
+  text-wrap:      balance;
 }
 
 .syn-heading__title--hidden {
@@ -33,37 +39,33 @@
 .syn-heading--lg .syn-heading__title  { @include syn.heading('lg'); }
 .syn-heading--xl .syn-heading__title  { @include syn.heading('xl'); }
 
-// Tones
-.syn-heading--neutral .syn-heading__title,
-.syn-heading--neutral .syn-heading__supporting {
-  color: syn.$color-neutral-900;
+.syn-heading--neutral {
+  --syn-heading-title-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-heading-supporting-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-600}));
 }
 
-.syn-heading--muted .syn-heading__title,
-.syn-heading--muted .syn-heading__supporting {
-  color: syn.$color-neutral-500;
+.syn-heading--muted {
+  --syn-heading-title-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-500}));
+  --syn-heading-supporting-color: var(--syn-color-text-muted, var(--syn-text-muted, #{syn.$color-neutral-500}));
 }
 
-.syn-heading--brand .syn-heading__title,
-.syn-heading--brand .syn-heading__supporting {
-  color: syn.$color-brand-600;
+.syn-heading--brand {
+  --syn-heading-title-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-600}));
+  --syn-heading-supporting-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-600}));
 }
 
-.syn-heading--inverse .syn-heading__title,
-.syn-heading--inverse .syn-heading__supporting,
-.syn-heading--inverse .syn-heading__eyebrow {
-  color: syn.$color-neutral-0;
-}
-
-.syn-heading--inverse .syn-heading__eyebrow {
-  color: syn.$color-brand-300;
+.syn-heading--inverse {
+  --syn-heading-eyebrow-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-300}));
+  --syn-heading-title-color: var(--syn-color-text-inverse, var(--syn-text-inverse, #{syn.$color-neutral-0}));
+  --syn-heading-supporting-color: var(--syn-color-text-inverse, var(--syn-text-inverse, #{syn.$color-neutral-0}));
 }
 
 .syn-heading__supporting {
   margin:      0;
-  color:       syn.$color-neutral-500;
+  color:       var(--syn-heading-supporting-color);
   font-size:   syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
+  text-wrap:   pretty;
 
   .syn-heading--lg &,
   .syn-heading--xl & {

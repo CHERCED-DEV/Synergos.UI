@@ -1,8 +1,18 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Input ─────────────────────────────────────────────────────────────────────
-
 .syn-input {
+  --syn-input-label-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-800}));
+  --syn-input-hint-color: var(--syn-color-text-muted, var(--syn-text-muted, #{syn.$color-neutral-500}));
+  --syn-input-background: var(--syn-color-surface-primary, var(--syn-surface, #{syn.$color-neutral-0}));
+  --syn-input-border: var(--syn-color-border-default, var(--syn-border-default, #{syn.$color-neutral-300}));
+  --syn-input-border-hover: var(--syn-color-border-strong, var(--syn-border-strong, #{syn.$color-neutral-400}));
+  --syn-input-text-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-input-placeholder-color: var(--syn-color-text-muted, var(--syn-text-muted, #{syn.$color-neutral-400}));
+  --syn-input-disabled-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --syn-input-disabled-border: var(--syn-color-border-subtle, #{syn.$color-neutral-200});
+  --syn-input-disabled-text: var(--syn-color-text-disabled, var(--syn-text-disabled, #{syn.$color-neutral-400}));
+  --syn-input-shadow: 0 0 0 0 transparent;
+
   display: grid;
   gap: syn.$space-xxs;
 }
@@ -10,52 +20,59 @@
 .syn-input__label {
   font-size:   syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
-  color:       syn.$color-neutral-800;
+  color:       var(--syn-input-label-color);
 }
 
 .syn-input__field {
-  width: 100%;
-  min-height: syn.px-to-rem(40);
-  padding: syn.$space-xs syn.$space-sm;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  width:         100%;
+  min-height:    syn.px-to-rem(44);
+  padding:       syn.$space-sm syn.$space-sm;
+  border:        syn.px-to-rem(1) solid var(--syn-input-border);
   border-radius: syn.$radius-md;
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
-  font-size: syn.$font-size-base;
-  transition: syn.$transition-colors;
+  background:    var(--syn-input-background);
+  color:         var(--syn-input-text-color);
+  font-size:     syn.$font-size-base;
+  line-height:   syn.$line-height-normal;
+  box-shadow:    var(--syn-input-shadow);
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
-  @include syn.placeholder(syn.$color-neutral-400, syn.$font-size-base, syn.$font-weight-regular);
+  @include syn.placeholder(
+    var(--syn-input-placeholder-color),
+    syn.$font-size-base,
+    syn.$font-weight-regular
+  );
   @include syn.focus-visible;
 
   &:hover:not(:focus-visible):not(:disabled) {
-    border-color: syn.$color-neutral-400;
+    border-color: var(--syn-input-border-hover);
   }
 
   &:disabled {
-    background:   syn.$color-neutral-100;
-    border-color: syn.$color-neutral-200;
-    color:        syn.$color-neutral-400;
-    cursor: not-allowed;
+    background:   var(--syn-input-disabled-background);
+    border-color: var(--syn-input-disabled-border);
+    color:        var(--syn-input-disabled-text);
+    cursor:       not-allowed;
   }
 }
 
-// Error / invalid state
+.syn-input--error {
+  --syn-input-border: var(--syn-color-state-danger-border, #{syn.$color-danger-400});
+  --syn-input-border-hover: var(--syn-color-action-danger, #{syn.$color-danger-500});
+  --syn-input-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-input-hint-color: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --syn-input-shadow: inset 0 0 0 1px var(--syn-color-state-danger-border, #{syn.$color-danger-400});
+}
+
 .syn-input--error .syn-input__field {
-  border-color: syn.$color-danger-400;
-  background:   syn.$color-danger-100;
-
   @include syn.focus-visible-danger;
-
-  &:hover:not(:focus-visible) {
-    border-color: syn.$color-danger-500;
-  }
 }
 
 .syn-input__hint {
   font-size: syn.$font-size-xs;
-  color:     syn.$color-neutral-500;
-}
-
-.syn-input--error .syn-input__hint {
-  color: syn.$color-danger-500;
+  color:     var(--syn-input-hint-color);
+  line-height: syn.$line-height-normal;
 }

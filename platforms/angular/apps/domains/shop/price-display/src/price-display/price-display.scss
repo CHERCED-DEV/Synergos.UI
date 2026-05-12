@@ -1,58 +1,102 @@
 @use 'scss' as syn;
 
 :host {
-  display:     inline-flex;
+  --prc-current: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --prc-original: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+  --prc-discount-surface: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --prc-discount-text: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+
+  display: inline-flex;
   font-family: inherit;
 }
 
 .price-display {
-  display:     flex;
+  display: flex;
   align-items: baseline;
-  flex-wrap:   wrap;
-  gap:         syn.$space-xs;
+  flex-wrap: wrap;
+  gap: syn.$space-xs;
 
-  // ── Size variants ────────────────────────────────────────────────────────
-  &--sm {
-    .price-display__current  { font-size: syn.$font-size-base; }
-    .price-display__original { font-size: syn.$font-size-xs; }
-    .price-display__discount { font-size: syn.$font-size-xs; }
+  &--sm,
+  &.sg-price-display--sm {
+    .price-display__current {
+      font-size: syn.$font-size-base;
+    }
+
+    .price-display__original {
+      font-size: syn.$font-size-xs;
+    }
+
+    .price-display__discount {
+      font-size: syn.$font-size-xs;
+    }
   }
 
-  &--md {
-    .price-display__current  { font-size: syn.$font-size-xl; }
-    .price-display__original { font-size: syn.$font-size-sm; }
-    .price-display__discount { font-size: syn.$font-size-xs; }
+  &--md,
+  &.sg-price-display--md {
+    .price-display__current {
+      font-size: syn.$font-size-xl;
+    }
+
+    .price-display__original {
+      font-size: syn.$font-size-sm;
+    }
+
+    .price-display__discount {
+      font-size: syn.$font-size-xs;
+    }
   }
 
-  &--lg {
-    .price-display__current  { font-size: syn.$font-size-2xl; }
-    .price-display__original { font-size: syn.$font-size-base; }
-    .price-display__discount { font-size: syn.$font-size-sm; }
+  &--lg,
+  &.sg-price-display--lg {
+    .price-display__current {
+      font-size: syn.$font-size-2xl;
+    }
+
+    .price-display__original {
+      font-size: syn.$font-size-base;
+    }
+
+    .price-display__discount {
+      font-size: syn.$font-size-sm;
+    }
   }
 
-  // ── Elements ─────────────────────────────────────────────────────────────
+  &--dark,
+  &.sg-price-display--dark {
+    --prc-current: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --prc-original: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --prc-discount-surface: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+    --prc-discount-text: var(--syn-color-state-danger-text, #{syn.$color-danger-300});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-price-display--silver-gold,
+  &.sg-price-display--silverGold {
+    --prc-discount-surface: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+    --prc-discount-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+  }
+
   &__current {
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-900;
+    color: var(--prc-current);
     line-height: 1;
-
-    .price-display--dark & { color: syn.$color-neutral-50; }
   }
 
   &__original {
-    color:           syn.$color-neutral-400;
+    color: var(--prc-original);
     text-decoration: line-through;
-    font-weight:     syn.$font-weight-regular;
-    line-height:     1;
+    font-weight: syn.$font-weight-regular;
+    line-height: 1;
   }
 
   &__discount {
-    font-weight:   syn.$font-weight-semibold;
-    color:         syn.$color-danger-600;
-    background:    syn.$color-danger-100;
-    padding:       syn.px-to-rem(2) syn.$space-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--prc-discount-text);
+    background: var(--prc-discount-surface);
+    padding: syn.px-to-rem(2) syn.$space-xs;
     border-radius: syn.$radius-sm;
-    line-height:   1.4;
-    white-space:   nowrap;
+    line-height: 1.4;
+    white-space: nowrap;
   }
 }

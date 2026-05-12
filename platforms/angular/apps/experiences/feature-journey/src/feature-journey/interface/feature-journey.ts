@@ -1,15 +1,31 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { ComponentTranslations } from '@synergos/contracts';
 import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
 import { JourneyState } from '../application/journey.state';
 import { nextStep, prevStep, goToStep } from '../application/use-cases/navigate-step';
 import type { FeatureJourneyConfig } from '../infrastructure/feature-journey.config';
+
+function sanitizeFeatureJourneyConfig(
+  value: Partial<FeatureJourneyConfig>,
+): Partial<FeatureJourneyConfig> {
+  return omitUndefinedProperties<Partial<FeatureJourneyConfig>>({
+    title: coerceTrimmedStringInput(value.title),
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    elementId: coerceTrimmedStringInput(value.elementId),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-feature-journey',
@@ -23,7 +39,7 @@ export class FeatureJourneyComponent {
   readonly #state = new JourneyState();
 
   readonly config = input<Partial<FeatureJourneyConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<FeatureJourneyConfig>,
+    transform: createConfigInputTransform<FeatureJourneyConfig>(sanitizeFeatureJourneyConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
@@ -49,11 +65,16 @@ export class FeatureJourneyComponent {
   readonly isFirst = this.#state.isFirst;
   readonly isLast = this.#state.isLast;
   readonly progress = this.#state.progress;
+  readonly translations = computed<ComponentTranslations>(() => this.config()?.translations ?? {});
 
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-feature-journey--${this.variant()} sg-feature-journey--${this.theme()}`,
   );
+  readonly stepsAriaLabel = computed(() => this.translations()['stepsAriaLabel'] ?? 'Journey steps');
+  readonly contentAriaLabel = computed(() => this.translations()['contentAriaLabel'] ?? 'Step content');
+  readonly previousLabel = computed(() => this.translations()['previousLabel'] ?? 'Previous');
+  readonly nextLabel = computed(() => this.translations()['nextLabel'] ?? 'Next');
 
   next(): void { nextStep(this.#state); }
   prev(): void { prevStep(this.#state); }

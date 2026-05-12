@@ -1,6 +1,21 @@
 import type { ImageBlockElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeImageBlockConfig(value: Partial<ImageBlockElementConfig>): Partial<ImageBlockElementConfig> {
+  return omitUndefinedProperties<Partial<ImageBlockElementConfig>>({
+    src: coerceTrimmedStringInput(value.src),
+    alt: coerceTrimmedStringInput(value.alt),
+    caption: coerceTrimmedStringInput(value.caption),
+    aspectRatio: coerceTrimmedStringInput(value.aspectRatio),
+    loading: coerceTrimmedStringInput(value.loading),
+  });
+}
 
 @Component({
   selector: 'sg-image-block',
@@ -12,7 +27,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 })
 export class ImageBlockComponent {
   readonly config = input<Partial<ImageBlockElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ImageBlockElementConfig>,
+    transform: createConfigInputTransform<Partial<ImageBlockElementConfig>>(sanitizeImageBlockConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly altInput = input<string | undefined>(undefined, { alias: 'alt' });
@@ -26,9 +41,9 @@ export class ImageBlockComponent {
   readonly alt = computed(() =>
     resolveConfigValue(this.altInput(), this.config()?.alt, ''),
   );
-  readonly caption = computed(() => this.captionInput()?.trim() || '');
-  readonly aspectRatio = computed(() => this.aspectRatioInput()?.trim() || 'auto');
-  readonly loading = computed(() => this.loadingInput()?.trim() || 'lazy');
+  readonly caption = computed(() => resolveConfigValue(this.captionInput()?.trim(), this.config()?.caption, ''));
+  readonly aspectRatio = computed(() => resolveConfigValue(this.aspectRatioInput()?.trim(), this.config()?.aspectRatio, 'auto'));
+  readonly loading = computed(() => resolveConfigValue(this.loadingInput()?.trim(), this.config()?.loading, 'lazy'));
 
   readonly hasCaption = computed(() => !!this.caption());
 }

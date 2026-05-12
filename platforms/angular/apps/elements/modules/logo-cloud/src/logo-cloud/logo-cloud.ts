@@ -6,8 +6,10 @@ import {
   HeadingComponent,
   LinkComponent,
   type HeadingTone,
-  coerceConfigInput,
   coerceOptionalNumberInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -28,7 +30,22 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeItem(value: unknown): LogoCloudItem | null {
+export function readPositiveInteger(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return Math.floor(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+export function normalizeItem(value: unknown): LogoCloudItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -47,6 +64,31 @@ function normalizeItem(value: unknown): LogoCloudItem | null {
   };
 }
 
+export function normalizeItems(value: unknown): readonly LogoCloudItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item) => normalizeItem(item))
+    .filter((item): item is LogoCloudItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+export function sanitizeLogoCloudConfig(
+  value: Partial<LogoCloudElementConfig>,
+): Partial<LogoCloudElementConfig> {
+  return omitUndefinedProperties<Partial<LogoCloudElementConfig>>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    body: coerceTrimmedStringInput(value.body),
+    columns: coerceOptionalNumberInput(value.columns),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+    items: normalizeItems(value.items),
+  });
+}
+
 @Component({
   selector: 'sg-logo-cloud',
   imports: [GridColumnsComponent, HeadingComponent, LinkComponent],
@@ -59,7 +101,7 @@ export class LogoCloudElementComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<LogoCloudElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<LogoCloudElementConfig>,
+    transform: createConfigInputTransform<Partial<LogoCloudElementConfig>>(sanitizeLogoCloudConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -78,7 +120,7 @@ export class LogoCloudElementComponent {
     resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly columns = computed(() =>
-    resolveConfigValue(this.columnsInput(), undefined, 4),
+    resolveConfigValue(this.columnsInput(), readPositiveInteger(this.config()?.columns), 4),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
@@ -98,11 +140,9 @@ export class LogoCloudElementComponent {
         .filter((item): item is LogoCloudItem => item !== null);
     }
 
-    const configItems = this.config()?.items;
-    if (Array.isArray(configItems)) {
-      return (configItems as unknown[])
-        .map((item) => normalizeItem(item))
-        .filter((item): item is LogoCloudItem => item !== null);
+    const configItems = normalizeItems(this.config()?.items);
+    if (configItems) {
+      return configItems;
     }
 
     return [];
@@ -110,11 +150,17 @@ export class LogoCloudElementComponent {
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly resolvedColumns = computed(() => {
     const columns = this.columns();
-    return columns > 0 ? columns : 4;
+    if (!Number.isFinite(columns) || columns <= 0) {
+      return 4;
+    }
+
+    return Math.min(12, Math.max(1, Math.floor(columns)));
   });
   readonly hasItems = computed(() => this.parsedItems().length > 0);
   readonly hostClasses = computed(
-    () => `logo-cloud--${this.variant()} logo-cloud--${this.theme()}`,
+    () =>
+      `logo-cloud--${this.variant()} logo-cloud--${this.theme()} ` +
+      `sg-logo-cloud--${this.variant()} sg-logo-cloud--${this.theme()}`,
   );
 
   constructor() {

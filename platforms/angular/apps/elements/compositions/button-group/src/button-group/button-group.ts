@@ -1,7 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import type { ButtonGroupElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
-import { ButtonComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  ButtonComponent,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
 
 type ButtonGroupAlignment = 'left' | 'center' | 'right';
 type ButtonGroupDirection = 'row' | 'column';
@@ -30,27 +36,27 @@ function readBoolean(value: unknown): boolean {
   return value === true;
 }
 
-function resolveButtonVariant(value: string): ButtonVariant {
+export function resolveButtonVariant(value: string): ButtonVariant {
   return value === 'outline' || value === 'ghost' ? value : 'solid';
 }
 
-function resolveButtonSize(value: string): ButtonSize {
+export function resolveButtonSize(value: string): ButtonSize {
   return value === 'sm' || value === 'lg' ? value : 'md';
 }
 
-function resolveAlignment(value: string): ButtonGroupAlignment {
+export function resolveAlignment(value: string): ButtonGroupAlignment {
   return value === 'center' || value === 'right' ? value : 'left';
 }
 
-function resolveDirection(value: string): ButtonGroupDirection {
+export function resolveDirection(value: string): ButtonGroupDirection {
   return value === 'column' ? 'column' : 'row';
 }
 
-function resolveGap(value: string): ButtonGroupGap {
+export function resolveGap(value: string): ButtonGroupGap {
   return value === 'xs' || value === 'md' || value === 'lg' ? value : 'sm';
 }
 
-function normalizeButtonGroupItem(value: unknown): ButtonGroupItem | null {
+export function normalizeButtonGroupItem(value: unknown): ButtonGroupItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -70,6 +76,38 @@ function normalizeButtonGroupItem(value: unknown): ButtonGroupItem | null {
   };
 }
 
+export function normalizeButtonGroupItems(value: unknown): readonly ButtonGroupItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item) => normalizeButtonGroupItem(item))
+    .filter((item): item is ButtonGroupItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function readLegacyButtons(value: Partial<ButtonGroupElementConfig>): unknown {
+  return isRecord(value) ? (value as Record<string, unknown>)['buttons'] : undefined;
+}
+
+export function sanitizeButtonGroupConfig(
+  value: Partial<ButtonGroupElementConfig>,
+): Partial<ButtonGroupElementConfig> {
+  const alignment = coerceTrimmedStringInput(value.alignment);
+  const direction = coerceTrimmedStringInput(value.direction);
+  const gap = coerceTrimmedStringInput(value.gap);
+  const items = normalizeButtonGroupItems(value.items) ?? normalizeButtonGroupItems(readLegacyButtons(value));
+
+  return omitUndefinedProperties<Partial<ButtonGroupElementConfig>>({
+    alignment: alignment ? resolveAlignment(alignment) : undefined,
+    direction: direction ? resolveDirection(direction) : undefined,
+    gap: gap ? resolveGap(gap) : undefined,
+    items: items as Partial<ButtonGroupElementConfig>['items'],
+  });
+}
+
 @Component({
   selector: 'sg-button-group',
   imports: [ButtonComponent],
@@ -82,7 +120,7 @@ export class ButtonGroupComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<ButtonGroupElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ButtonGroupElementConfig>,
+    transform: createConfigInputTransform<ButtonGroupElementConfig>(sanitizeButtonGroupConfig),
   });
   readonly buttonsInput = input<string | undefined>(undefined, { alias: 'buttons' });
   readonly alignmentInput = input<string | undefined>(undefined, { alias: 'alignment' });
@@ -112,11 +150,9 @@ export class ButtonGroupComponent {
         .filter((item): item is ButtonGroupItem => item !== null);
     }
 
-    const configItems = this.config()?.items;
-    if (Array.isArray(configItems)) {
-      return configItems
-        .map((item) => normalizeButtonGroupItem(item))
-        .filter((item): item is ButtonGroupItem => item !== null);
+    const configItems = normalizeButtonGroupItems(this.config()?.items);
+    if (configItems) {
+      return configItems;
     }
 
     return [];

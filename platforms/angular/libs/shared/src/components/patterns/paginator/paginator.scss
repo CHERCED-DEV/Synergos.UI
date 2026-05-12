@@ -1,74 +1,95 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Paginator ────────────────────────────────────────────────────────────────
-
 .syn-paginator {
-  display:     flex;
-  flex-wrap:   wrap;
+  --syn-paginator-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-paginator-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-paginator-button-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-paginator-button-color: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --syn-paginator-button-hover-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-paginator-button-hover-border: var(--syn-color-border-strong, #{syn.$color-border-strong});
+  --syn-paginator-button-hover-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-paginator-button-active-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-paginator-button-active-border: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  --syn-paginator-button-active-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-paginator-button-active-shadow: inset 0 0 0 #{syn.px-to-rem(1)} var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --syn-paginator-disabled-color: var(--syn-color-text-disabled, #{syn.$color-text-disabled});
+  --syn-paginator-ellipsis-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap:         syn.$space-sm;
+  gap: syn.$space-sm;
 }
 
 .syn-paginator__list {
-  display:    flex;
-  flex-wrap:  wrap;
-  gap:        syn.$space-xs;
-  margin:     0;
-  padding:    0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-xs;
+  margin: 0;
+  padding: syn.$space-xxs;
   list-style: none;
+  border: syn.px-to-rem(1) solid var(--syn-paginator-border);
+  border-radius: syn.$radius-full;
+  background: var(--syn-paginator-surface);
 }
 
 .syn-paginator__nav,
 .syn-paginator__page {
   @include syn.focus-visible;
-  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+
+  min-height: syn.px-to-rem(40);
+  border: syn.px-to-rem(1) solid transparent;
   border-radius: syn.$radius-full;
-  padding:       syn.$space-xs syn.$space-md;
-  background:    syn.$color-neutral-0;
-  color:         syn.$color-neutral-700;
-  font-size:     syn.$font-size-sm;
-  font-weight:   syn.$font-weight-medium;
-  cursor:        pointer;
-  transition:    syn.$transition-colors;
+  padding: syn.$space-xs syn.$space-md;
+  background: var(--syn-paginator-button-surface);
+  color: var(--syn-paginator-button-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  cursor: pointer;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:hover:not(:disabled):not(.syn-paginator__page--active) {
-    border-color: syn.$color-neutral-300;
-    background:   syn.$color-neutral-50;
-    color:        syn.$color-neutral-900;
+    border-color: var(--syn-paginator-button-hover-border);
+    background: var(--syn-paginator-button-hover-surface);
+    color: var(--syn-paginator-button-hover-color);
   }
 }
 
 .syn-paginator__page {
-  min-width:     syn.px-to-rem(38);
+  min-width: syn.px-to-rem(40);
   padding-inline: syn.$space-sm;
-  text-align:    center;
+  text-align: center;
 }
 
 .syn-paginator__page--active {
-  border-color: syn.$color-brand-400;
-  background:   syn.$color-brand-100;
-  color:        syn.$color-brand-600;
-  font-weight:  syn.$font-weight-semibold;
+  border-color: var(--syn-paginator-button-active-border);
+  background: var(--syn-paginator-button-active-surface);
+  color: var(--syn-paginator-button-active-color);
+  box-shadow: var(--syn-paginator-button-active-shadow);
+  font-weight: syn.$font-weight-semibold;
 }
 
 .syn-paginator__nav:disabled,
 .syn-paginator__page:disabled {
-  cursor:         not-allowed;
-  color:          syn.$color-neutral-400;
+  cursor: not-allowed;
+  color: var(--syn-paginator-disabled-color);
   pointer-events: none;
 }
 
 .syn-paginator__ellipsis {
-  display:         inline-flex;
-  align-items:     center;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  min-width:       syn.px-to-rem(38);
-  color:           syn.$color-neutral-400;
+  min-width: syn.px-to-rem(40);
+  color: var(--syn-paginator-ellipsis-color);
 }
-
-// ── Compact ───────────────────────────────────────────────────────────────────
 
 .syn-paginator--compact .syn-paginator__nav,
 .syn-paginator--compact .syn-paginator__page {
+  min-height: syn.px-to-rem(34);
   padding: syn.$space-xxs syn.$space-sm;
 }

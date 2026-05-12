@@ -1,5 +1,6 @@
-<section class="data-table">
+<section class="data-table" [attr.aria-label]="caption() || null">
   <syn-data-table
+    class="data-table__table"
     [caption]="caption()"
     [columns]="parsedColumns()"
     [rows]="parsedRows()"

@@ -10,8 +10,28 @@ import {
 } from '@angular/core';
 import type { MacroHostElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
 import { ElementMounter } from '@synergos/rendering';
+
+function sanitizeUnknownRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? omitUndefinedProperties(value as Record<string, unknown>)
+    : undefined;
+}
+
+function sanitizeMacroHostConfig(
+  value: Partial<MacroHostElementConfig>,
+): Partial<MacroHostElementConfig> {
+  return omitUndefinedProperties<MacroHostElementConfig>({
+    contentType: coerceTrimmedStringInput(value.contentType),
+    contentData: sanitizeUnknownRecord(value.contentData),
+  });
+}
 
 @Component({
   selector: 'sg-macro-host',
@@ -26,7 +46,7 @@ export class MacroHostComponent implements OnDestroy {
   readonly #mounter = inject(ElementMounter);
 
   readonly config = input<Partial<MacroHostElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<MacroHostElementConfig>,
+    transform: createConfigInputTransform<MacroHostElementConfig>(sanitizeMacroHostConfig),
   });
   readonly contentTypeInput = input<string | undefined>(undefined, { alias: 'contentType' });
   readonly contentDataInput = input<string | undefined>(undefined, { alias: 'contentData' });

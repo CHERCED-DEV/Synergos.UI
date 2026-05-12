@@ -33,4 +33,21 @@ describe(SelectComponent.name, () => {
 
     expect(changed).toHaveBeenCalledWith('b');
   });
+
+  it('applies invalid state and renders hint content', () => {
+    const fixture = TestBed.createComponent(SelectComponent);
+    fixture.componentRef.setInput('options', [{ value: 'a', label: 'A' }]);
+    fixture.componentRef.setInput('hint', 'Pick one');
+    fixture.componentRef.setInput('invalid', true);
+    fixture.detectChanges();
+
+    const wrapper = fixture.nativeElement.querySelector('.syn-select') as HTMLDivElement;
+    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    const hint = fixture.nativeElement.querySelector('.syn-select__hint') as HTMLParagraphElement;
+
+    expect(wrapper.className).toContain('syn-select--error');
+    expect(select.getAttribute('aria-invalid')).toBe('true');
+    expect(select.getAttribute('aria-describedby')).toContain(hint.id);
+    expect(hint.textContent).toContain('Pick one');
+  });
 });

@@ -1,10 +1,12 @@
+@use 'scss' as syn;
+
 :host {
   display: inline-block;
 }
 
 .button-container {
   &__link {
+    display: inline-flex;
     text-decoration: none;
-    display: inline-block;
   }
 }

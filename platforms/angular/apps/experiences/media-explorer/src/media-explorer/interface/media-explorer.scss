@@ -1,7 +1,29 @@
 @use 'scss' as syn;
 
 :host {
-  display:     block;
+  --me-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --me-filter-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 72%, transparent);
+  --me-filter-text: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+  --me-filter-active-surface: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --me-filter-active-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --me-empty-text: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --me-item-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 50%, transparent);
+  --me-item-hover-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 80%, white);
+  --me-item-active-surface: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 18%, transparent);
+  --me-item-thumb: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+  --me-item-title: var(--syn-color-text-inverse, #{syn.$color-neutral-200});
+  --me-item-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --me-item-category: var(--syn-color-text-accent, #{syn.$color-brand-400});
+  --me-sidebar-scroll: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 72%, transparent);
+  --me-video-surface: var(--syn-color-surface-strong, #{syn.$color-neutral-900});
+  --me-play-surface: color-mix(in srgb, var(--syn-color-action-primary, #{syn.$color-brand-500}) 90%, transparent);
+  --me-info-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --me-info-body: var(--syn-color-text-secondary, #{syn.$color-neutral-400});
+  --me-tag-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 70%, white);
+  --me-tag-text: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  --me-tag-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 60%, transparent);
+
+  display: block;
   font-family: syn.$font-family-sans;
 }
 
@@ -9,319 +31,132 @@
   @include syn.flex-column;
   gap: syn.$space-xl;
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-
-  &__header {
-    @include syn.flex-between;
-    flex-wrap: wrap;
-    gap:       syn.$space-md;
-  }
-
+  &__header { @include syn.flex-between; flex-wrap: wrap; gap: syn.$space-md; }
   &__title {
-    font-size:   syn.$font-size-2xl;
+    font-size: syn.$font-size-2xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-0;
-    margin:      0;
+    color: var(--me-title);
+    margin: 0;
     line-height: syn.$line-height-tight;
   }
 
-  // ── Category filters ─────────────────────────────────────────────────────────
-
-  &__filters {
-    display:   flex;
-    gap:       syn.$space-xs;
-    flex-wrap: wrap;
-  }
-
+  &__filters { display: flex; gap: syn.$space-xs; flex-wrap: wrap; }
   &__filter {
-    padding:       syn.$space-xxs syn.$space-md;
+    padding: syn.$space-xxs syn.$space-md;
     border-radius: syn.$radius-full;
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-medium;
-    font-family:   inherit;
-    cursor:        pointer;
-    border:        syn.px-to-rem(1) solid rgb(255 255 255 / 0.2);
-    background:    none;
-    color:         syn.$color-neutral-400;
-    transition:    syn.$transition-colors;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    font-family: inherit;
+    cursor: pointer;
+    border: syn.px-to-rem(1) solid var(--me-filter-border);
+    background: none;
+    color: var(--me-filter-text);
+    transition: syn.$transition-colors;
 
-    &:hover     { border-color: syn.$color-brand-400; color: syn.$color-neutral-100; }
-    &--active   { background: syn.$color-brand-500; border-color: syn.$color-brand-500; color: syn.$color-neutral-0; }
+    &:hover { border-color: var(--syn-color-state-brand-border, #{syn.$color-brand-400}); color: var(--syn-color-text-inverse, #{syn.$color-neutral-100}); }
+    &--active { background: var(--me-filter-active-surface); border-color: var(--me-filter-active-surface); color: var(--me-filter-active-text); }
   }
 
-  // ── Empty state ──────────────────────────────────────────────────────────────
-
-  &__empty {
-    @include syn.flex-column-center;
-    gap:        syn.$space-md;
-    padding:    syn.$space-16;
-    color:      syn.$color-neutral-500;
-    text-align: center;
-  }
-
+  &__empty { @include syn.flex-column-center; gap: syn.$space-md; padding: syn.$space-16; color: var(--me-empty-text); text-align: center; }
   &__empty-icon { font-size: syn.px-to-rem(48); line-height: 1; }
   &__empty-text { font-size: syn.$font-size-base; margin: 0; }
 
-  // ── Layout ───────────────────────────────────────────────────────────────────
-
-  &__layout {
-    display:               grid;
-    grid-template-columns: syn.px-to-rem(280) 1fr;
-    gap:                   syn.$space-lg;
-    align-items:           start;
-  }
-
-  // ── Sidebar ──────────────────────────────────────────────────────────────────
-
+  &__layout { display: grid; grid-template-columns: syn.px-to-rem(280) 1fr; gap: syn.$space-lg; align-items: start; }
   &__sidebar {
     @include syn.flex-column;
-    gap:            syn.$space-xs;
-    max-height:     syn.px-to-rem(520);
-    overflow-y:     auto;
+    gap: syn.$space-xs;
+    max-height: syn.px-to-rem(520);
+    overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+    scrollbar-color: var(--me-sidebar-scroll) transparent;
 
     &::-webkit-scrollbar { width: syn.px-to-rem(4); }
-    &::-webkit-scrollbar-thumb {
-      background:    rgb(255 255 255 / 0.15);
-      border-radius: syn.px-to-rem(2);
-    }
+    &::-webkit-scrollbar-thumb { background: var(--me-sidebar-scroll); border-radius: syn.px-to-rem(2); }
   }
 
   &__item {
-    display:               grid;
+    display: grid;
     grid-template-columns: syn.px-to-rem(80) 1fr;
-    gap:                   syn.$space-sm;
-    width:                 100%;
-    padding:               syn.$space-sm;
-    background:            none;
-    border:                syn.px-to-rem(1) solid rgb(255 255 255 / 0.08);
-    border-radius:         syn.$radius-md;
-    cursor:                pointer;
-    text-align:            left;
-    font-family:           inherit;
-    transition:            syn.$transition-colors;
-
-    &:hover:not(.media-explorer__item--active) {
-      border-color: rgb(255 255 255 / 0.20);
-      background:   rgb(255 255 255 / 0.04);
-    }
-
-    &--active {
-      border-color: syn.$color-brand-500;
-      background:   rgb(79 110 247 / 0.10);
-    }
-  }
-
-  &__item-thumb {
-    @include syn.flex-center;
-    width:         syn.px-to-rem(80);
-    height:        syn.px-to-rem(52);
-    border-radius: syn.$radius-sm;
-    overflow:      hidden;
-    background:    syn.$color-neutral-800;
-    flex-shrink:   0;
-  }
-
-  &__item-img {
-    width:      100%;
-    height:     100%;
-    object-fit: cover;
-  }
-
-  &__item-placeholder { font-size: syn.$font-size-lg; color: syn.$color-neutral-500; }
-
-  &__item-meta {
-    @include syn.flex-column;
-    gap:            syn.$space-xxs;
-    justify-content: center;
-    overflow:       hidden;
-  }
-
-  &__item-title {
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-semibold;
-    color:         syn.$color-neutral-200;
-    line-height:   syn.$line-height-tight;
-    white-space:   nowrap;
-    overflow:      hidden;
-    text-overflow: ellipsis;
-
-    .media-explorer__item--active & { color: syn.$color-neutral-0; }
-  }
-
-  &__item-duration {
-    font-size:   syn.$font-size-xs;
-    color:       syn.$color-neutral-500;
-    font-weight: syn.$font-weight-medium;
-  }
-
-  &__item-category {
-    font-size:      syn.$font-size-xs;
-    color:          syn.$color-brand-400;
-    font-weight:    syn.$font-weight-medium;
-    text-transform: uppercase;
-    letter-spacing: syn.$letter-spacing-wide;
-  }
-
-  // ── Player ───────────────────────────────────────────────────────────────────
-
-  &__player {
-    @include syn.flex-column;
-    gap: syn.$space-lg;
-  }
-
-  &__video-wrap {
-    position:      relative;
-    width:         100%;
-    aspect-ratio:  16 / 9;
-    background:    syn.$color-neutral-900;
-    border-radius: syn.$radius-lg;
-    overflow:      hidden;
-  }
-
-  &__iframe {
-    position: absolute;
-    inset:    0;
-    width:    100%;
-    height:   100%;
-    border:   none;
-  }
-
-  &__poster {
-    position: absolute;
-    inset:    0;
-    cursor:   pointer;
-    @include syn.flex-center;
-  }
-
-  &__poster-img {
-    width:      100%;
-    height:     100%;
-    object-fit: cover;
-    display:    block;
-  }
-
-  &__play-btn {
-    position:         absolute;
-    @include syn.flex-center;
-    width:            syn.px-to-rem(64);
-    height:           syn.px-to-rem(64);
-    border-radius:    50%;
-    background:       rgb(79 110 247 / 0.9);
-    border:           none;
-    cursor:           pointer;
-    backdrop-filter:  blur(4px);
-    transition:       transform syn.$duration-fast syn.$easing-default,
-                      background syn.$duration-fast syn.$easing-smooth;
-
-    &:hover { background: syn.$color-brand-500; transform: scale(1.08); }
-  }
-
-  &__play-icon {
-    font-size:   syn.$font-size-xl;
-    color:       syn.$color-neutral-0;
-    margin-left: syn.px-to-rem(4);
-  }
-
-  // ── Video info ────────────────────────────────────────────────────────────────
-
-  &__info {
-    @include syn.flex-column;
     gap: syn.$space-sm;
+    width: 100%;
+    padding: syn.$space-sm;
+    background: none;
+    border: syn.px-to-rem(1) solid var(--me-item-border);
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: syn.$transition-colors;
+
+    &:hover:not(.media-explorer__item--active) { border-color: var(--syn-color-border-strong, #{syn.$color-neutral-300}); background: var(--me-item-hover-surface); }
+    &--active { border-color: var(--syn-color-state-brand-border, #{syn.$color-brand-500}); background: var(--me-item-active-surface); }
   }
 
-  &__info-title {
-    font-size:   syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-0;
-    margin:      0;
+  &__item-thumb { @include syn.flex-center; width: syn.px-to-rem(80); height: syn.px-to-rem(52); border-radius: syn.$radius-sm; overflow: hidden; background: var(--me-item-thumb); flex-shrink: 0; }
+  &__item-img { width: 100%; height: 100%; object-fit: cover; }
+  &__item-placeholder { font-size: syn.$font-size-lg; color: var(--me-item-muted); }
+  &__item-meta { @include syn.flex-column; gap: syn.$space-xxs; justify-content: center; overflow: hidden; }
+  &__item-title {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--me-item-title);
     line-height: syn.$line-height-tight;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  &__item-duration { font-size: syn.$font-size-xs; color: var(--me-item-muted); font-weight: syn.$font-weight-medium; }
+  &__item-category { font-size: syn.$font-size-xs; color: var(--me-item-category); font-weight: syn.$font-weight-medium; text-transform: uppercase; letter-spacing: syn.$letter-spacing-wide; }
 
-  &__info-description {
-    font-size:   syn.$font-size-base;
-    color:       syn.$color-neutral-400;
-    line-height: syn.$line-height-relaxed;
-    margin:      0;
+  &__player { @include syn.flex-column; gap: syn.$space-lg; }
+  &__video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--me-video-surface); border-radius: syn.$radius-lg; overflow: hidden; }
+  &__iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+  &__poster { position: absolute; inset: 0; cursor: pointer; @include syn.flex-center; }
+  &__poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  &__play-btn {
+    position: absolute;
+    @include syn.flex-center;
+    width: syn.px-to-rem(64);
+    height: syn.px-to-rem(64);
+    border-radius: 50%;
+    background: var(--me-play-surface);
+    border: none;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: transform syn.$duration-fast syn.$easing-default, background syn.$duration-fast syn.$easing-smooth;
+    &:hover { background: var(--syn-color-action-primary-hover, #{syn.$color-brand-500}); transform: scale(1.08); }
   }
+  &__play-icon { font-size: syn.$font-size-xl; color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0}); margin-left: syn.px-to-rem(4); }
 
-  &__tags {
-    display:   flex;
-    gap:       syn.$space-xs;
-    flex-wrap: wrap;
-  }
-
-  &__tag {
-    padding:       syn.$space-xxs syn.$space-sm;
-    border-radius: syn.$radius-sm;
-    font-size:     syn.$font-size-xs;
-    font-weight:   syn.$font-weight-medium;
-    background:    rgb(255 255 255 / 0.08);
-    color:         syn.$color-neutral-300;
-    border:        syn.px-to-rem(1) solid rgb(255 255 255 / 0.10);
-  }
-
-  // ── Light theme override ──────────────────────────────────────────────────────
+  &__info { @include syn.flex-column; gap: syn.$space-sm; }
+  &__info-title { font-size: syn.$font-size-xl; font-weight: syn.$font-weight-bold; color: var(--me-info-title); margin: 0; line-height: syn.$line-height-tight; }
+  &__info-description { font-size: syn.$font-size-base; color: var(--me-info-body); line-height: syn.$line-height-relaxed; margin: 0; }
+  &__tags { display: flex; gap: syn.$space-xs; flex-wrap: wrap; }
+  &__tag { padding: syn.$space-xxs syn.$space-sm; border-radius: syn.$radius-sm; font-size: syn.$font-size-xs; font-weight: syn.$font-weight-medium; background: var(--me-tag-surface); color: var(--me-tag-text); border: syn.px-to-rem(1) solid var(--me-tag-border); }
 
   &--light {
-    .media-explorer__title          { color: syn.$color-neutral-900; }
-
-    .media-explorer__filter {
-      border-color: syn.$color-neutral-300;
-      color:        syn.$color-neutral-600;
-
-      &--active {
-        background:   syn.$color-brand-500;
-        border-color: syn.$color-brand-500;
-        color:        syn.$color-neutral-0;
-      }
-    }
-
-    .media-explorer__item {
-      border-color: syn.$color-neutral-200;
-
-      &:hover:not(.media-explorer__item--active) {
-        background:   syn.$color-neutral-50;
-        border-color: syn.$color-neutral-300;
-      }
-
-      &--active {
-        border-color: syn.$color-brand-500;
-        background:   syn.$color-brand-100;
-      }
-    }
-
-    .media-explorer__item-title       { color: syn.$color-neutral-800; }
-    .media-explorer__item-placeholder { color: syn.$color-neutral-400; }
-    .media-explorer__item-thumb       { background: syn.$color-neutral-100; }
-    .media-explorer__video-wrap       { background: syn.$color-neutral-200; }
-    .media-explorer__info-title       { color: syn.$color-neutral-900; }
-    .media-explorer__info-description { color: syn.$color-neutral-600; }
-
-    .media-explorer__tag {
-      background:   syn.$color-neutral-100;
-      color:        syn.$color-neutral-700;
-      border-color: syn.$color-neutral-200;
-    }
-
-    .media-explorer__sidebar {
-      scrollbar-color: syn.$color-neutral-300 transparent;
-    }
+    --me-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+    --me-filter-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+    --me-filter-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+    --me-empty-text: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+    --me-item-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+    --me-item-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+    --me-item-active-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+    --me-item-thumb: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+    --me-item-title: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+    --me-item-muted: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --me-sidebar-scroll: var(--syn-color-border-default, #{syn.$color-neutral-300});
+    --me-video-surface: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+    --me-info-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+    --me-info-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+    --me-tag-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+    --me-tag-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+    --me-tag-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
   }
-
-  // ── Responsive ───────────────────────────────────────────────────────────────
 
   @media (max-width: 900px) {
     &__layout { grid-template-columns: 1fr; }
-
-    &__sidebar {
-      max-height:     syn.px-to-rem(200);
-      flex-direction: row;
-      overflow-x:     auto;
-      overflow-y:     hidden;
-    }
-
+    &__sidebar { max-height: syn.px-to-rem(200); flex-direction: row; overflow-x: auto; overflow-y: hidden; }
     &__item { min-width: syn.px-to-rem(220); }
   }
 }

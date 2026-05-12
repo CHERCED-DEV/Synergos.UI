@@ -5,13 +5,16 @@ import {
   input,
   signal,
 } from '@angular/core';
-import type { NewsletterFormElementConfig } from '@synergos/contracts';
+import type { ComponentTranslations, NewsletterFormElementConfig } from '@synergos/contracts';
 import {
   AlertComponent,
   CheckboxComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -19,12 +22,32 @@ import {
 type SubmissionState = 'idle' | 'submitting' | 'success' | 'error';
 type SubmitMethod = 'get' | 'post';
 
-function normalizeMethod(value: string): SubmitMethod {
+export function normalizeMethod(value: string): SubmitMethod {
   return value.trim().toLowerCase() === 'get' ? 'get' : 'post';
 }
 
-function isValidEmail(value: string): boolean {
+export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+export function sanitizeNewsletterFormConfig(
+  value: Partial<NewsletterFormElementConfig>,
+): Partial<NewsletterFormElementConfig> {
+  const method = coerceTrimmedStringInput(value.method);
+
+  return omitUndefinedProperties<NewsletterFormElementConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    intro: coerceTrimmedStringInput(value.intro),
+    placeholder: coerceTrimmedStringInput(value.placeholder),
+    submitLabel: coerceTrimmedStringInput(value.submitLabel),
+    consentText: coerceTrimmedStringInput(value.consentText),
+    successMessage: coerceTrimmedStringInput(value.successMessage),
+    errorMessage: coerceTrimmedStringInput(value.errorMessage),
+    actionUrl: coerceTrimmedStringInput(value.actionUrl),
+    method: method ? normalizeMethod(method) : undefined,
+    theme: coerceTrimmedStringInput(value.theme),
+    translations: coerceStringRecordInput(value.translations),
+  });
 }
 
 @Component({
@@ -46,7 +69,7 @@ export class NewsletterFormElementComponent {
   readonly #feedback = signal('');
 
   readonly config = input<Partial<NewsletterFormElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<NewsletterFormElementConfig>,
+    transform: createConfigInputTransform<NewsletterFormElementConfig>(sanitizeNewsletterFormConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly introInput = input<string | undefined>(undefined, { alias: 'intro' });
@@ -97,6 +120,7 @@ export class NewsletterFormElementComponent {
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
+  readonly translations = computed<ComponentTranslations>(() => this.config()?.translations ?? {});
 
   readonly email = this.#email.asReadonly();
   readonly consent = this.#consent.asReadonly();
@@ -109,6 +133,13 @@ export class NewsletterFormElementComponent {
   readonly feedbackTone = computed(() =>
     this.state() === 'success' ? 'brand' : 'critical',
   );
+  readonly feedbackTitle = computed(() =>
+    this.state() === 'success'
+      ? this.translations()['successTitle'] ?? "You're in!"
+      : this.translations()['errorTitle'] ?? 'Something went wrong',
+  );
+  readonly emailAriaLabel = computed(() => this.translations()['emailAriaLabel'] ?? 'Email address');
+  readonly noteText = computed(() => this.translations()['noteText'] ?? 'No spam · Unsubscribe anytime');
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(() => `newsletter-form--${this.theme()}`);
 

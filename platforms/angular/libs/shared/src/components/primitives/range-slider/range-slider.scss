@@ -1,15 +1,28 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Range Slider ─────────────────────────────────────────────────────────────
-
 .syn-range-slider {
+  --syn-range-slider-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-range-slider-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-range-slider-track-height: #{syn.px-to-rem(6)};
+  --syn-range-slider-track-fill: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-range-slider-track-background: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-range-slider-focus-ring-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-range-slider-thumb-size: #{syn.px-to-rem(18)};
+  --syn-range-slider-thumb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-range-slider-thumb-border: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-range-slider-thumb-shadow: var(--syn-shadow-card, #{syn.$shadow-sm});
+  --syn-range-slider-thumb-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --syn-range-slider-disabled-track: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-200});
+  --syn-range-slider-disabled-thumb-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-300});
+  --syn-range-slider-disabled-thumb-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
   display: grid;
-  gap:     syn.$space-xs;
+  gap: syn.$space-xs;
 }
 
 .syn-range-slider__label {
-  color:       syn.$color-neutral-700;
-  font-size:   syn.$font-size-sm;
+  color: var(--syn-range-slider-label-color);
+  font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
 }
 
@@ -18,61 +31,95 @@
 }
 
 .syn-range-slider__input {
-  width:         100%;
-  height:        syn.px-to-rem(6);
+  width: 100%;
+  height: var(--syn-range-slider-track-height);
   border-radius: syn.$radius-full;
   background: linear-gradient(
     90deg,
-    syn.$color-brand-500 0%,
-    syn.$color-brand-500 var(--syn-range-progress, 0%),
-    syn.$color-neutral-200 var(--syn-range-progress, 0%),
-    syn.$color-neutral-200 100%
+    var(--syn-range-slider-track-fill) 0%,
+    var(--syn-range-slider-track-fill) var(--syn-range-progress, 0%),
+    var(--syn-range-slider-track-background) var(--syn-range-progress, 0%),
+    var(--syn-range-slider-track-background) 100%
   );
   appearance: none;
-  cursor:     pointer;
-  outline:    0;
+  cursor: pointer;
+  outline: none;
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:focus-visible {
-    box-shadow: 0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
+    box-shadow: 0 0 0 syn.px-to-rem(3) var(--syn-range-slider-focus-ring-surface);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: linear-gradient(
+      90deg,
+      var(--syn-range-slider-disabled-track) 0%,
+      var(--syn-range-slider-disabled-track) 100%
+    );
+    opacity: 0.72;
   }
 }
-
-// ── Thumb: WebKit ─────────────────────────────────────────────────────────────
 
 .syn-range-slider__input::-webkit-slider-thumb {
-  width:        syn.px-to-rem(18);
-  height:       syn.px-to-rem(18);
-  border:       syn.px-to-rem(2) solid syn.$color-brand-500;
+  width: var(--syn-range-slider-thumb-size);
+  height: var(--syn-range-slider-thumb-size);
+  border: syn.px-to-rem(2) solid var(--syn-range-slider-thumb-border);
   border-radius: 50%;
-  background:   syn.$color-neutral-0;
-  box-shadow:   syn.$shadow-sm;
-  appearance:   none;
-  cursor:       pointer;
-  transition:   transform syn.$duration-fast syn.$easing-smooth,
-                box-shadow syn.$duration-fast syn.$easing-smooth;
-
-  &:hover {
-    transform:  scale(1.15);
-    box-shadow: syn.$shadow-md;
-  }
+  background: var(--syn-range-slider-thumb-surface);
+  box-shadow: var(--syn-range-slider-thumb-shadow);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 }
 
-// ── Thumb: Firefox ────────────────────────────────────────────────────────────
+.syn-range-slider__input:hover:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.08);
+  box-shadow: var(--syn-range-slider-thumb-shadow-hover);
+}
+
+.syn-range-slider__input:disabled::-webkit-slider-thumb {
+  border-color: var(--syn-range-slider-disabled-thumb-border);
+  background: var(--syn-range-slider-disabled-thumb-surface);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 
 .syn-range-slider__input::-moz-range-thumb {
-  width:        syn.px-to-rem(18);
-  height:       syn.px-to-rem(18);
-  border:       syn.px-to-rem(2) solid syn.$color-brand-500;
+  width: var(--syn-range-slider-thumb-size);
+  height: var(--syn-range-slider-thumb-size);
+  border: syn.px-to-rem(2) solid var(--syn-range-slider-thumb-border);
   border-radius: 50%;
-  background:   syn.$color-neutral-0;
-  box-shadow:   syn.$shadow-sm;
-  cursor:       pointer;
+  background: var(--syn-range-slider-thumb-surface);
+  box-shadow: var(--syn-range-slider-thumb-shadow);
+  cursor: pointer;
+  transition:
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 }
 
-// ── Value readout ─────────────────────────────────────────────────────────────
+.syn-range-slider__input:hover:not(:disabled)::-moz-range-thumb {
+  transform: scale(1.08);
+  box-shadow: var(--syn-range-slider-thumb-shadow-hover);
+}
+
+.syn-range-slider__input:disabled::-moz-range-thumb {
+  border-color: var(--syn-range-slider-disabled-thumb-border);
+  background: var(--syn-range-slider-disabled-thumb-surface);
+  box-shadow: none;
+  cursor: not-allowed;
+}
 
 .syn-range-slider__value {
-  color:       syn.$color-neutral-900;
-  font-size:   syn.$font-size-sm;
+  color: var(--syn-range-slider-value-color);
+  font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-semibold;
 }

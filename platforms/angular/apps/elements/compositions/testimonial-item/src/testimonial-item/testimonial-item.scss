@@ -1,99 +1,122 @@
 @use 'scss' as syn;
 
 :host {
+  --tmi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tmi-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tmi-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --tmi-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --tmi-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --tmi-name-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tmi-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tmi-decorative-quote: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
   display: block;
 }
 
-// ─── Testimonial Item ─────────────────────────────────────────────────────────
-// Premium editorial testimonial card. Quote mark accent adds visual depth.
-// Fluid quote size for comfortable reading at all viewport widths.
 .testimonial-item {
   @include syn.flex-column;
   @include syn.surface-panel(
     syn.$space-lg,
-    syn.$color-neutral-0,
-    syn.$color-neutral-200,
+    var(--tmi-surface),
+    var(--tmi-border),
     syn.px-to-rem(1),
     syn.$radius-xl,
-    syn.$shadow-xs
+    var(--tmi-shadow)
   );
+
   position: relative;
-  gap:      syn.$space-lg;
-  height:   100%;
-  transition: box-shadow syn.$duration-base syn.$easing-default,
-              transform  syn.$duration-base syn.$easing-default;
+  gap: syn.$space-lg;
+  height: 100%;
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
   &:hover {
-    box-shadow: syn.$shadow-md;
-    transform:  translateY(syn.px-to-rem(-2));
+    box-shadow: var(--tmi-shadow-hover);
+    transform: translateY(syn.px-to-rem(-2));
   }
 
-  &--dark {
-    background:   syn.$color-neutral-900;
-    border-color: syn.$color-neutral-700;
-
-    .testimonial-item__quote-copy,
-    .testimonial-item__name  { color: syn.$color-neutral-0;   }
-    .testimonial-item__role  { color: syn.$color-neutral-400; }
+  &--dark,
+  &.sg-testimonial-item--dark {
+    --tmi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-900});
+    --tmi-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --tmi-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --tmi-name-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --tmi-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --tmi-decorative-quote: var(--syn-color-overlay-medium, #{syn.$color-neutral-700});
   }
 
-  // Decorative large opening quote mark — editorial accent
+  &--silver-gold,
+  &--silverGold,
+  &.sg-testimonial-item--silver-gold,
+  &.sg-testimonial-item--silverGold {
+    --tmi-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+    --tmi-decorative-quote: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  }
+
   &__quote {
     position: relative;
-    margin:   0;
-    flex:     1 1 auto; // Pushes author to bottom
+    margin: 0;
+    flex: 1 1 auto;
 
-    // The " character sits in the top-right as a large watermark-like accent
     &::before {
-      content:        '\201C';  // Left double quotation mark "
-      position:       absolute;
-      top:            syn.px-to-rem(-8);
-      right:          0;
-      font-size:      syn.px-to-rem(64);
-      font-weight:    syn.$font-weight-bold;
-      line-height:    1;
-      color:          syn.$color-brand-100;
+      content: '\201C';
+      position: absolute;
+      inset-block-start: syn.px-to-rem(-8);
+      inset-inline-end: 0;
+      font-size: syn.px-to-rem(64);
+      font-weight: syn.$font-weight-bold;
+      line-height: 1;
+      color: var(--tmi-decorative-quote);
       pointer-events: none;
-      user-select:    none;
-
-      .sg-testimonial-item--dark & { color: syn.$color-neutral-700; }
+      user-select: none;
     }
   }
 
   &__quote-copy {
-    position:    relative;
-    z-index:     1; // Sits above the decorative quote mark
-    margin:      0;
-    color:       syn.$color-neutral-700;
-    font-size:   clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
-    font-style:  italic;
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: var(--tmi-quote-color);
+    font-size: clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
+    font-style: italic;
     line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
 
-    :first-child { margin-top:    0; }
-    :last-child  { margin-bottom: 0; }
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
   }
 
   &__author {
     @include syn.flex-start;
-    gap:        syn.$space-sm;
-    margin:     0;
-    margin-top: auto; // Sticks to bottom regardless of quote length
+
+    gap: syn.$space-sm;
+    margin: 0;
+    margin-top: auto;
   }
 
   &__meta {
     @include syn.flex-column;
+
     gap: syn.$space-xxs;
   }
 
   &__name {
-    color:       syn.$color-neutral-900;
-    font-size:   syn.$font-size-sm;
+    color: var(--tmi-name-color);
+    font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
     line-height: syn.$line-height-tight;
   }
 
   &__role {
-    color:     syn.$color-neutral-500;
+    color: var(--tmi-role-color);
     font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
   }
 }

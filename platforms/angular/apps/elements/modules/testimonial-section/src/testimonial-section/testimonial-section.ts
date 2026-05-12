@@ -6,7 +6,9 @@ import {
   GridColumnsComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -46,6 +48,28 @@ function normalizeTestimonialItem(value: unknown): TestimonialItem | null {
   };
 }
 
+function normalizeTestimonialItems(value: unknown): readonly TestimonialItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item) => normalizeTestimonialItem(item))
+    .filter((item): item is TestimonialItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function sanitizeTestimonialSectionConfig(
+  value: Partial<TestimonialSectionElementConfig>,
+): Partial<TestimonialSectionElementConfig> {
+  return omitUndefinedProperties<TestimonialSectionElementConfig>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    theme: coerceTrimmedStringInput(value.theme),
+    items: normalizeTestimonialItems(value.items) as Partial<TestimonialSectionElementConfig>['items'],
+  });
+}
+
 @Component({
   selector: 'sg-testimonial-section',
   imports: [AvatarComponent, GridColumnsComponent, HeadingComponent],
@@ -58,7 +82,7 @@ export class TestimonialSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<TestimonialSectionElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<TestimonialSectionElementConfig>,
+    transform: createConfigInputTransform<TestimonialSectionElementConfig>(sanitizeTestimonialSectionConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
@@ -84,18 +108,18 @@ export class TestimonialSectionComponent {
         .filter((item): item is TestimonialItem => item !== null);
     }
 
-    const configItems = this.config()?.items;
-    if (Array.isArray(configItems)) {
-      return (configItems as unknown[])
-        .map((item) => normalizeTestimonialItem(item))
-        .filter((item): item is TestimonialItem => item !== null);
+    const configItems = normalizeTestimonialItems(this.config()?.items);
+    if (configItems) {
+      return configItems;
     }
 
     return [];
   });
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hasItems = computed(() => this.parsedItems().length > 0);
-  readonly hostClasses = computed(() => `sg-testimonial-section--${this.theme()}`);
+  readonly hostClasses = computed(
+    () => `testimonial-section--${this.theme()} sg-testimonial-section--${this.theme()}`,
+  );
 
   constructor() {
     if (isDevMode()) {

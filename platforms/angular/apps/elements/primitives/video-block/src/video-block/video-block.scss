@@ -1,46 +1,43 @@
 @use 'scss' as syn;
 
 :host {
+  --vb-surface: var(--syn-color-surface-strong, #{syn.$color-neutral-900});
+  --vb-caption-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
 }
 
-// ─── Video Block ──────────────────────────────────────────────────────────────
-// Responsive video with optional caption. Aspect ratio variants via --ratio-*.
-// Default: natural height. Use --ratio-* to lock proportions.
 .video-block {
-  margin:  0;
+  margin: 0;
   padding: 0;
 
-  // Aspect ratio variants — consistent proportions in grids and layouts
-  &--ratio-16-9  .video-block__media { aspect-ratio: 16 / 9;  }
-  &--ratio-4-3   .video-block__media { aspect-ratio: 4 / 3;   }
-  &--ratio-1-1   .video-block__media { aspect-ratio: 1 / 1;   }
-  &--ratio-9-16  .video-block__media { aspect-ratio: 9 / 16;  }
-  &--ratio-21-9  .video-block__media { aspect-ratio: 21 / 9;  }
+  &--ratio-16-9 .video-block__media { aspect-ratio: 16 / 9; }
+  &--ratio-4-3 .video-block__media { aspect-ratio: 4 / 3; }
+  &--ratio-1-1 .video-block__media { aspect-ratio: 1 / 1; }
+  &--ratio-9-16 .video-block__media { aspect-ratio: 9 / 16; }
+  &--ratio-21-9 .video-block__media { aspect-ratio: 21 / 9; }
 
-  // Radius variants
   &--rounded .video-block__media { border-radius: syn.$radius-2xl; }
-  &--sharp   .video-block__media { border-radius: 0; }
+  &--sharp .video-block__media { border-radius: 0; }
 
   &__media {
-    display:       block;
-    width:         100%;
-    height:        auto;
-    object-fit:    cover;
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
     border-radius: syn.$radius-lg;
-    background:    syn.$color-neutral-900;
-    // Prevent layout shift before video metadata loads
-    min-height:    syn.px-to-rem(120);
+    background: var(--vb-surface);
+    min-height: syn.px-to-rem(120);
   }
 
   &__caption {
-    display:     flex;
+    display: flex;
     align-items: flex-start;
-    gap:         syn.$space-xs;
-    margin-top:  syn.$space-sm;
-    font-size:   syn.$font-size-sm;
-    color:       syn.$color-neutral-500;
+    gap: syn.$space-xs;
+    margin-top: syn.$space-sm;
+    font-size: syn.$font-size-sm;
+    color: var(--vb-caption-color);
     line-height: syn.$line-height-relaxed;
-    font-style:  italic;
+    font-style: italic;
   }
 }

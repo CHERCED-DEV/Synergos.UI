@@ -1,25 +1,38 @@
 <!-- Backdrop -->
-<div
+<button
+  type="button"
   class="cart-backdrop"
-  aria-hidden="true"
+  [attr.aria-label]="closeBackdropLabel()"
+  [attr.aria-hidden]="!isOpen()"
+  [tabIndex]="isOpen() ? 0 : -1"
   (click)="close()"
-></div>
+></button>
 
 <!-- Drawer -->
-<aside class="cart-drawer" [class]="hostClasses()" role="dialog" aria-modal="true" [attr.aria-label]="titleLabel()">
+<aside
+  class="cart-drawer"
+  [class]="hostClasses()"
+  role="dialog"
+  aria-modal="true"
+  [attr.aria-labelledby]="dialogTitleId"
+  [attr.aria-hidden]="!isOpen()"
+  (keydown.escape)="close()"
+>
 
   <!-- Header -->
   <div class="cart-drawer__header">
-    <h2 class="cart-drawer__title">
+    <h2 class="cart-drawer__title" [id]="dialogTitleId">
       {{ titleLabel() }}
       @if (count() > 0) {
-        <span class="cart-drawer__count">({{ count() }})</span>
+        <span class="cart-drawer__count" aria-hidden="true">({{ count() }})</span>
+        <span class="cart-drawer__sr-only">{{ itemsCountLabel() }}</span>
       }
     </h2>
     <syn-icon-button
       class="cart-drawer__close"
-      icon="×"
-      ariaLabel="Close cart"
+      icon="&times;"
+      variant="ghost"
+      [ariaLabel]="closeLabel()"
       (pressed)="close()"
     />
   </div>
@@ -35,7 +48,7 @@
     }
 
     @if (!isEmpty()) {
-      <ul class="cart-drawer__items" role="list">
+      <ul class="cart-drawer__items" role="list" [attr.aria-label]="cartItemsLabel()">
         @for (item of items(); track item.sku + (item.variantId ?? '')) {
           <li>
             <sg-cart-item
@@ -57,6 +70,7 @@
       @if (showCoupon()) {
         <div class="cart-drawer__coupon">
           <syn-input
+            [ariaLabel]="couponLabel()"
             [placeholder]="couponLabel()"
             [value]="couponCode()"
             (valueChange)="couponCode.set($event)"
@@ -71,7 +85,7 @@
       }
 
       <!-- Totals -->
-      <div class="cart-drawer__totals">
+      <div class="cart-drawer__totals" role="status" aria-live="polite" [attr.aria-label]="totalsLabel()">
         <div class="cart-drawer__total-row">
           <span>{{ subtotalLabel() }}</span>
           <span>{{ formatPrice(subtotal()) }}</span>

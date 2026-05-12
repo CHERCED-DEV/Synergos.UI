@@ -2,12 +2,25 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import type { FaqItemElementConfig } from '@synergos/contracts';
 import {
   AccordionComponent,
-  coerceConfigInput,
   coerceOptionalBooleanInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 type AccordionTone = 'neutral' | 'brand';
+
+function sanitizeFaqItemConfig(
+  value: Partial<FaqItemElementConfig>,
+): Partial<FaqItemElementConfig> {
+  return omitUndefinedProperties<FaqItemElementConfig>({
+    question: coerceTrimmedStringInput(value.question),
+    answer: coerceTrimmedStringInput(value.answer),
+    initiallyExpanded: coerceOptionalBooleanInput(value.initiallyExpanded),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-faq-item',
@@ -19,7 +32,7 @@ type AccordionTone = 'neutral' | 'brand';
 })
 export class FaqItemElementComponent {
   readonly config = input<Partial<FaqItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<FaqItemElementConfig>,
+    transform: createConfigInputTransform<FaqItemElementConfig>(sanitizeFaqItemConfig),
   });
   readonly questionInput = input<string | undefined>(undefined, { alias: 'question' });
   readonly answerInput = input<string | undefined>(undefined, { alias: 'answer' });
@@ -36,7 +49,7 @@ export class FaqItemElementComponent {
     resolveConfigValue(this.answerInput(), this.config()?.answer, ''),
   );
   readonly initiallyExpanded = computed(() =>
-    resolveConfigValue(this.initiallyExpandedInput(), undefined, false),
+    resolveConfigValue(this.initiallyExpandedInput(), this.config()?.initiallyExpanded, false),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
@@ -44,5 +57,5 @@ export class FaqItemElementComponent {
   readonly accordionTone = computed<AccordionTone>(() =>
     this.theme() === 'dark' ? 'brand' : 'neutral',
   );
-  readonly hostClasses = computed(() => `faq-item--${this.theme()}`);
+  readonly hostClasses = computed(() => `faq-item--${this.theme()} sg-faq-item--${this.theme()}`);
 }

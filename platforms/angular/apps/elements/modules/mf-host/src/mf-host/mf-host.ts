@@ -12,7 +12,24 @@ import {
   type MfHostElementConfig,
 } from '@synergos/contracts';
 import { CustomElementHostService, InitialDataService, ScriptService } from '@synergos/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeMfHostConfig(
+  value: Partial<MfHostElementConfig>,
+): Partial<MfHostElementConfig> {
+  return omitUndefinedProperties<MfHostElementConfig>({
+    exposedModule: coerceTrimmedStringInput(value.exposedModule),
+    endpoint: coerceTrimmedStringInput(value.endpoint),
+    remoteEntry: coerceTrimmedStringInput(value.remoteEntry),
+    params: coerceStringRecordInput(value.params),
+  });
+}
 
 @Component({
   selector: 'sg-mf-host',
@@ -28,7 +45,7 @@ export class MfHostElementComponent implements OnDestroy {
   readonly #scriptService = inject(ScriptService);
 
   readonly config = input<Partial<MfHostElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<MfHostElementConfig>,
+    transform: createConfigInputTransform<MfHostElementConfig>(sanitizeMfHostConfig),
   });
   readonly componentInput = input<string | undefined>(undefined, { alias: 'component' });
   readonly endpointInput = input<string | undefined>(undefined, { alias: 'endpoint' });

@@ -1,13 +1,15 @@
 <section class="feature-grid" [class]="hostClasses()">
   @if (headingText()) {
-    <syn-heading
-      class="feature-grid__heading"
-      [text]="headingText()"
-      [tone]="headingTone()"
-      level="h2"
-      size="lg"
-      align="center"
-    />
+    <header class="feature-grid__header">
+      <syn-heading
+        class="feature-grid__heading"
+        [text]="headingText()"
+        [tone]="headingTone()"
+        level="h2"
+        size="lg"
+        align="center"
+      />
+    </header>
   }
   <syn-grid-columns class="feature-grid__grid" [columns]="resolvedColumns()" [autoFit]="false" gap="lg">
     @for (item of parsedItems(); track item.heading + item.body) {
@@ -17,12 +19,14 @@
             <img [src]="item.icon" alt="" loading="lazy" />
           </span>
         }
-        @if (item.heading) {
-          <h3 class="feature-grid__item-heading">{{ item.heading }}</h3>
-        }
-        @if (item.body) {
-          <p class="feature-grid__item-body">{{ item.body }}</p>
-        }
+        <div class="feature-grid__item-copy">
+          @if (item.heading) {
+            <h3 class="feature-grid__item-heading">{{ item.heading }}</h3>
+          }
+          @if (item.body) {
+            <p class="feature-grid__item-body">{{ item.body }}</p>
+          }
+        </div>
       </article>
     }
   </syn-grid-columns>

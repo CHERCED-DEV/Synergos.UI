@@ -1,9 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input } from '@angular/core';
+import type { ComponentTranslations } from '@synergos/contracts';
 import {
   BadgeComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -17,6 +21,19 @@ import {
 import { parseMediaItems } from '../infrastructure/media-explorer.adapter';
 import type { MediaExplorerConfig } from '../infrastructure/media-explorer.config';
 
+function sanitizeMediaExplorerConfig(
+  value: Partial<MediaExplorerConfig>,
+): Partial<MediaExplorerConfig> {
+  return omitUndefinedProperties<Partial<MediaExplorerConfig>>({
+    title: coerceTrimmedStringInput(value.title),
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    elementId: coerceTrimmedStringInput(value.elementId),
+    defaultCategory: coerceTrimmedStringInput(value.defaultCategory),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
+
 @Component({
   selector: 'sg-media-explorer',
   imports: [BadgeComponent, HeadingComponent],
@@ -29,7 +46,7 @@ export class MediaExplorerComponent {
   readonly #state = new MediaState();
 
   readonly config = input<Partial<MediaExplorerConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<MediaExplorerConfig>,
+    transform: createConfigInputTransform<MediaExplorerConfig>(sanitizeMediaExplorerConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
@@ -59,11 +76,18 @@ export class MediaExplorerComponent {
   readonly isEmpty = this.#state.isEmpty;
   readonly categories = this.#state.availableCategories;
   readonly activeFilter = this.#state.activeFilter;
+  readonly translations = computed<ComponentTranslations>(() => this.config()?.translations ?? {});
 
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
     () => `sg-media-explorer--${this.variant()} sg-media-explorer--${this.theme()}`,
   );
+  readonly filtersAriaLabel = computed(() => this.translations()['filtersAriaLabel'] ?? 'Filter media by category');
+  readonly allCategoriesLabel = computed(() => this.translations()['allCategoriesLabel'] ?? 'All');
+  readonly emptyStateLabel = computed(() => this.translations()['emptyStateLabel'] ?? 'No videos available.');
+  readonly videoListLabel = computed(() => this.translations()['videoListLabel'] ?? 'Video list');
+  readonly videoPlayerLabel = computed(() => this.translations()['videoPlayerLabel'] ?? 'Video player');
+  readonly playVideoLabel = computed(() => this.translations()['playVideoLabel'] ?? 'Play');
 
   // eslint-disable-next-line no-unused-private-class-members
   readonly #loadEffect = effect(() => {
@@ -80,4 +104,5 @@ export class MediaExplorerComponent {
   play(): void { activatePlayer(this.#state); }
   filter(category: string): void { filterByCategory(this.#state, category); }
   clearFilter(): void { filterByCategory(this.#state, ''); }
+  playItemLabel(title: string): string { return `${this.playVideoLabel()} ${title}`; }
 }

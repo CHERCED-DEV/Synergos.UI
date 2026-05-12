@@ -1,76 +1,97 @@
 @use 'scss' as syn;
 
 :host {
+  --ti-gap: #{syn.$space-md};
+  --ti-content-padding: #{syn.$space-lg};
+  --ti-date-connector: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ti-content-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ti-content-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ti-content-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --ti-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
   display: block;
 }
 
-// ─── Timeline Item ────────────────────────────────────────────────────────────
-// Mobile: date stacks above content card. Connector line hidden.
-// From sm: sidebar date with vertical connector running to next item.
 .timeline-item {
-  // Mobile: single column stack
   @include syn.flex-column;
-  gap: syn.$space-md;
 
-  // Tablet+: sidebar with connector line
+  gap: var(--ti-gap);
+
   @include syn.respond-to(sm) {
-    display:               grid;
+    display: grid;
     grid-template-columns: auto 1fr;
   }
 
+  &--dark,
+  &.sg-timeline-item--dark {
+    --ti-date-connector: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --ti-content-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-900});
+    --ti-content-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --ti-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-timeline-item--silver-gold,
+  &.sg-timeline-item--silverGold {
+    --ti-date-connector: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  }
+
+  &--compact,
+  &.sg-timeline-item--compact {
+    --ti-gap: #{syn.$space-sm};
+    --ti-content-padding: #{syn.$space-md};
+  }
+
   &__date {
-    position:           relative;
+    position: relative;
     padding-inline-end: syn.$space-md;
 
     &::after {
-      content:           '';
-      position:          absolute;
+      content: '';
+      position: absolute;
       inset-block-start: syn.px-to-rem(48);
-      inset-inline-end:  syn.px-to-rem(3);
-      inline-size:       syn.px-to-rem(2);
-      block-size:        0; // Hidden on mobile
+      inset-inline-end: syn.px-to-rem(3);
+      inline-size: syn.px-to-rem(2);
+      block-size: 0;
 
       @include syn.respond-to(sm) {
-        block-size:  calc(100% - #{syn.px-to-rem(48)});
-        background:  syn.$color-neutral-200;
+        block-size: calc(100% - #{syn.px-to-rem(48)});
+        background: var(--ti-date-connector);
       }
     }
   }
 
   &__content {
     @include syn.surface-panel(
-      syn.$space-lg,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
+      var(--ti-content-padding),
+      var(--ti-content-surface),
+      var(--ti-content-border),
       syn.px-to-rem(1),
       syn.$radius-xl,
-      syn.$shadow-xs
+      var(--ti-content-shadow)
     );
     @include syn.flex-column;
+
     gap: syn.$space-sm;
   }
 
-  &__heading { display: block; }
+  &__heading {
+    display: block;
+  }
 
   &__body {
-    color:       syn.$color-neutral-600;
-    font-size:   syn.$font-size-base;
+    color: var(--ti-body-color);
+    font-size: syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
 
-    :first-child { margin-top:    0; }
-    :last-child  { margin-bottom: 0; }
-  }
-
-  &--dark {
-    .timeline-item__date::after { background: syn.$color-neutral-700; }
-
-    .timeline-item__content {
-      background:   syn.$color-neutral-900;
-      border-color: syn.$color-neutral-700;
+    :first-child {
+      margin-top: 0;
     }
 
-    .timeline-item__body { color: syn.$color-neutral-300; }
+    :last-child {
+      margin-bottom: 0;
+    }
   }
-
-  &--compact { gap: syn.$space-sm; }
 }

@@ -1,10 +1,25 @@
 import type { IframeEmbedElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, input, viewChild } from '@angular/core';
 import {
-  coerceConfigInput,
   coerceOptionalBooleanInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+
+function sanitizeIframeEmbedConfig(
+  value: Partial<IframeEmbedElementConfig>,
+): Partial<IframeEmbedElementConfig> {
+  return omitUndefinedProperties<IframeEmbedElementConfig>({
+    src: coerceTrimmedStringInput(value.src),
+    title: coerceTrimmedStringInput(value.title),
+    height: coerceTrimmedStringInput(value.height),
+    allowFullscreen: coerceOptionalBooleanInput(value.allowFullscreen),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-iframe-embed',
@@ -16,7 +31,7 @@ import {
 export class IframeEmbedElementComponent {
   readonly frameRef = viewChild<ElementRef<HTMLIFrameElement>>('frame');
   readonly config = input<Partial<IframeEmbedElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<IframeEmbedElementConfig>,
+    transform: createConfigInputTransform<IframeEmbedElementConfig>(sanitizeIframeEmbedConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });

@@ -4,82 +4,51 @@
   display: block;
 }
 
-// ─── Alert Bar ────────────────────────────────────────────────────────────────
-// Full-width notification banner. Sits above or within page sections.
-// Semantic tones: neutral (info), brand (highlight), success, warning, critical.
 .alert-bar {
-  display:     flex;
-  align-items: flex-start;
+  --ab-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ab-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap:         syn.$space-md;
-  padding:     syn.$space-sm syn.$space-lg;
-  border-radius: syn.$radius-md;
-  border:      syn.px-to-rem(1) solid transparent;
+  flex-wrap: wrap;
+  gap: syn.$space-md;
+  @include syn.surface-panel(syn.$space-sm syn.$space-lg, var(--ab-surface), var(--ab-border), syn.px-to-rem(1), syn.$radius-xl, var(--ab-shadow));
 
-  // Tones — semantically meaningful color per intent
-  &--neutral  { background: syn.$color-neutral-50;  border-color: syn.$color-neutral-200;  color: syn.$color-neutral-800;  }
-  &--brand    { background: syn.$color-brand-100;   border-color: syn.$color-brand-200;    color: syn.$color-brand-600;    }
-  &--success  { background: syn.$color-success-100; border-color: syn.$color-success-200;  color: syn.$color-success-600;  }
-  &--warning  { background: syn.$color-warning-100; border-color: syn.$color-warning-300;  color: syn.$color-warning-600;  }
-  &--critical { background: syn.$color-danger-100;  border-color: syn.$color-danger-200;   color: syn.$color-danger-600;   }
+  &--neutral {
+    --ab-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+    --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  }
 
-  // Full-width sticky variant (no radius, full bleed)
-  &--sticky {
-    border-radius: 0;
-    border-left:   0;
-    border-right:  0;
+  &--brand {
+    --ab-surface: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 76%, white);
+    --ab-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  }
+
+  &--critical {
+    --ab-surface: color-mix(in srgb, var(--syn-color-state-danger-surface, #{syn.$color-danger-100}) 82%, white);
+    --ab-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  }
+
+  &--dark {
+    --ab-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
   }
 
   &__main {
-    @include syn.flex-column;
-    gap: syn.$space-xxs;
-    flex: 1 1 auto;
+    flex: 1 1 min(100%, #{syn.px-to-rem(320)});
+    min-width: 0;
   }
 
-  &__title {
-    font-size:   syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    line-height: syn.$line-height-tight;
-  }
-
-  &__body {
-    font-size:   syn.$font-size-sm;
-    line-height: syn.$line-height-normal;
-    opacity:     0.9;
+  &__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
   }
 
   &__link {
-    align-self:      flex-start;
-    font-size:       syn.$font-size-sm;
-    font-weight:     syn.$font-weight-semibold;
-    color:           currentColor;
-    text-decoration: underline;
-    text-underline-offset: syn.px-to-rem(3);
-
-    &:hover { opacity: 0.75; }
-  }
-
-  &__dismiss {
-    @include syn.focus-visible;
-    flex-shrink: 0;
-    display:     inline-flex;
-    align-items: center;
-    justify-content: center;
-    width:       syn.px-to-rem(28);
-    height:      syn.px-to-rem(28);
-    border:      0;
-    border-radius: 50%;
-    padding:     0;
-    background:  transparent;
-    color:       currentColor;
-    opacity:     0.6;
-    cursor:      pointer;
-    transition:  opacity syn.$duration-fast syn.$easing-smooth,
-                 background syn.$duration-fast syn.$easing-smooth;
-
-    &:hover {
-      opacity:    1;
-      background: syn.$color-overlay-subtle;
-    }
+    text-decoration: none;
   }
 }

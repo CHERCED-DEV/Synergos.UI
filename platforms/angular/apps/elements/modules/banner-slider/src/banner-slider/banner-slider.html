@@ -25,7 +25,7 @@
         [startIndex]="currentIndex()"
         [loop]="loop()"
         [compact]="variant() === 'compact'"
-        ariaLabel="Banner slides"
+        [ariaLabel]="carouselAriaLabel()"
         (activeIndexChange)="setActiveIndex($event)"
       />
 

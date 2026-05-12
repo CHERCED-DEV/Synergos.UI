@@ -10,7 +10,14 @@ import {
 } from '@angular/core';
 import { LiveAnnouncerService } from '../../../services/live-announcer.service';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 import { VisuallyHiddenComponent } from '../../primitives/visually-hidden/visually-hidden';
 
 type SectionPadding = 'sm' | 'md' | 'lg';
@@ -26,6 +33,21 @@ export interface SectionConfig {
   readonly expandLabel?: string;
   readonly divider?: boolean;
   readonly padding?: SectionPadding;
+}
+
+function sanitizeSectionConfig(value: Partial<SectionConfig>): Partial<SectionConfig> {
+  return omitUndefinedProperties<SectionConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    subtitle: coerceTrimmedStringInput(value.subtitle),
+    eyebrow: coerceTrimmedStringInput(value.eyebrow),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    collapsible: coerceOptionalBooleanInput(value.collapsible),
+    defaultCollapsed: coerceOptionalBooleanInput(value.defaultCollapsed),
+    collapseLabel: coerceTrimmedStringInput(value.collapseLabel),
+    expandLabel: coerceTrimmedStringInput(value.expandLabel),
+    divider: coerceOptionalBooleanInput(value.divider),
+    padding: coerceStringEnumInput(value.padding, ['sm', 'md', 'lg'] as const),
+  });
 }
 
 let sectionId = 0;
@@ -100,7 +122,7 @@ export class SectionComponent implements OnInit {
   readonly #collapsed = signal(false);
 
   readonly config = input<Partial<SectionConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<SectionConfig>,
+    transform: createConfigInputTransform<SectionConfig>(sanitizeSectionConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });

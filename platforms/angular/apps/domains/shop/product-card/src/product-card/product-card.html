@@ -2,7 +2,13 @@
 
   <!-- Loading skeleton -->
   @if (loading()) {
-    <div class="product-card__skeleton" aria-busy="true" aria-label="Loading product…">
+    <div
+      class="product-card__skeleton"
+      aria-busy="true"
+      [attr.aria-label]="loadingProductLabel()"
+      role="status"
+      aria-live="polite"
+    >
       <div class="product-card__skeleton-image"></div>
       <div class="product-card__skeleton-content">
         <div class="product-card__skeleton-line product-card__skeleton-line--title"></div>
@@ -13,16 +19,35 @@
   }
 
   @if (!loading()) {
+    @let detailUrl = productUrl();
+
     <!-- Product image -->
     @if (hasImage()) {
       <div class="product-card__image">
-        <img
-          [src]="imageSrc()"
-          [alt]="imageAlt()"
-          loading="lazy"
-          decoding="async"
-          class="product-card__img"
-        />
+        @if (detailUrl) {
+          <a
+            class="product-card__image-link"
+            [href]="detailUrl"
+            [attr.aria-label]="viewDetailsAriaLabel()"
+            (click)="onProductLinkClick($event, 'image')"
+          >
+            <img
+              [src]="imageSrc()"
+              [alt]="imageAlt()"
+              loading="lazy"
+              decoding="async"
+              class="product-card__img"
+            />
+          </a>
+        } @else {
+          <img
+            [src]="imageSrc()"
+            [alt]="imageAlt()"
+            loading="lazy"
+            decoding="async"
+            class="product-card__img"
+          />
+        }
         @if (hasBadge()) {
           <div class="product-card__badge-overlay">
             <syn-badge [text]="badge()" tone="brand" size="sm" />
@@ -39,7 +64,20 @@
     <!-- Content -->
     <div class="product-card__content">
       @if (name()) {
-        <h3 class="product-card__name">{{ name() }}</h3>
+        <h3 class="product-card__name">
+          @if (detailUrl) {
+            <a
+              class="product-card__name-link"
+              [href]="detailUrl"
+              [attr.aria-label]="viewDetailsAriaLabel()"
+              (click)="onProductLinkClick($event, 'title')"
+            >
+              {{ name() }}
+            </a>
+          } @else {
+            {{ name() }}
+          }
+        </h3>
       }
 
       <!-- Price -->
@@ -63,12 +101,24 @@
       <div class="product-card__actions">
         <syn-button
           [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
+          [ariaLabel]="(inStock() ? addToCartLabel() : outOfStockLabel()) + (name() ? ' - ' + name() : '')"
           [disabled]="!inStock()"
-          variant="primary"
+          variant="solid"
           size="sm"
           class="product-card__add-btn"
-          (click)="addToCart()"
+          (pressed)="addToCart()"
         />
+
+        @if (detailUrl) {
+          <a
+            class="product-card__details-link"
+            [href]="detailUrl"
+            [attr.aria-label]="viewDetailsAriaLabel()"
+            (click)="onProductLinkClick($event, 'details-link')"
+          >
+            {{ viewDetailsLabel() }}
+          </a>
+        }
       </div>
     </div>
   }

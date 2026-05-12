@@ -1,6 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceOptionalNumberInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 type ProgressSize = 'sm' | 'md' | 'lg';
 type ProgressVariant = 'brand' | 'success' | 'warning' | 'critical';
@@ -14,6 +22,19 @@ export interface ProgressConfig {
   readonly ariaLabel?: string;
   readonly showLabel?: boolean;
   readonly indeterminate?: boolean;
+}
+
+function sanitizeProgressConfig(value: Partial<ProgressConfig>): Partial<ProgressConfig> {
+  return omitUndefinedProperties<ProgressConfig>({
+    value: coerceOptionalNumberInput(value.value),
+    max: coerceOptionalNumberInput(value.max),
+    size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg'] as const),
+    variant: coerceStringEnumInput(value.variant, ['brand', 'success', 'warning', 'critical'] as const),
+    label: coerceTrimmedStringInput(value.label),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    showLabel: coerceOptionalBooleanInput(value.showLabel),
+    indeterminate: coerceOptionalBooleanInput(value.indeterminate),
+  });
 }
 
 @Component({
@@ -47,7 +68,7 @@ export interface ProgressConfig {
 })
 export class ProgressComponent {
   readonly config = input<Partial<ProgressConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ProgressConfig>,
+    transform: createConfigInputTransform<ProgressConfig>(sanitizeProgressConfig),
   });
   readonly valueInput = input<number | undefined>(undefined, { alias: 'value' });
   readonly maxInput = input<number | undefined>(undefined, { alias: 'max' });

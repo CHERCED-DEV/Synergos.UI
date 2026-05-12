@@ -1,6 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { LogoItemElementConfig } from '@synergos/contracts';
-import { LinkComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  LinkComponent,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeLogoItemConfig(
+  value: Partial<LogoItemElementConfig>,
+): Partial<LogoItemElementConfig> {
+  return omitUndefinedProperties<LogoItemElementConfig>({
+    src: coerceTrimmedStringInput(value.src),
+    alt: coerceTrimmedStringInput(value.alt),
+    href: coerceTrimmedStringInput(value.href),
+    label: coerceTrimmedStringInput(value.label),
+    target: coerceTrimmedStringInput(value.target),
+  });
+}
 
 @Component({
   selector: 'sg-logo-item',
@@ -12,7 +30,7 @@ import { LinkComponent, coerceConfigInput, resolveConfigValue } from '@synergos/
 })
 export class LogoItemElementComponent {
   readonly config = input<Partial<LogoItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<LogoItemElementConfig>,
+    transform: createConfigInputTransform<LogoItemElementConfig>(sanitizeLogoItemConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly altInput = input<string | undefined>(undefined, { alias: 'alt' });

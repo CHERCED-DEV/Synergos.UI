@@ -3,11 +3,24 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import {
   BadgeComponent as SynBadgeComponent,
   type BadgeConfig,
-  coerceConfigInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 type BadgeTone = NonNullable<BadgeConfig['tone']>;
+
+function sanitizeBadgeElementConfig(
+  value: Partial<BadgeElementConfig>,
+): Partial<BadgeElementConfig> {
+  return omitUndefinedProperties<BadgeElementConfig>({
+    text: coerceTrimmedStringInput(value.text),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand', 'inverse'] as const),
+  });
+}
 
 @Component({
   selector: 'sg-badge',
@@ -19,7 +32,7 @@ type BadgeTone = NonNullable<BadgeConfig['tone']>;
 })
 export class BadgeElementComponent {
   readonly config = input<Partial<BadgeElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<BadgeElementConfig>,
+    transform: createConfigInputTransform<BadgeElementConfig>(sanitizeBadgeElementConfig),
   });
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
   readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });

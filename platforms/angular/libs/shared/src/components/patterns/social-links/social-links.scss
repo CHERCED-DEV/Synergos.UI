@@ -1,14 +1,24 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
 .syn-social-links {
+  --syn-social-links-title-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-social-links-link-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-social-links-link-surface-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-social-links-link-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-social-links-link-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --syn-social-links-link-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-social-links-link-text-hover: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-social-links-link-shadow-hover: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
   display: grid;
   gap: syn.$space-sm;
 }
 
 .syn-social-links__title {
-  color: syn.$color-neutral-700;
+  color: var(--syn-social-links-title-color);
   font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
 }
 
 .syn-social-links__list {
@@ -18,6 +28,36 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.syn-social-links__item {
+  display: inline-flex;
+}
+
+.syn-social-links__link {
+  --syn-link-border-width: #{syn.px-to-rem(1)};
+  --syn-link-border-color: var(--syn-social-links-link-border);
+  --syn-link-border-color-hover: var(--syn-social-links-link-border-hover);
+  --syn-link-border-radius: #{syn.$radius-lg};
+  --syn-link-padding-y: #{syn.$space-xs};
+  --syn-link-padding-x: #{syn.$space-sm};
+  --syn-link-surface: var(--syn-social-links-link-surface);
+  --syn-link-surface-hover: var(--syn-social-links-link-surface-hover);
+  --syn-link-color-neutral: var(--syn-social-links-link-text);
+  --syn-link-color-neutral-hover: var(--syn-social-links-link-text-hover);
+
+  display: inline-flex;
+  min-width: syn.px-to-rem(40);
+  min-height: syn.px-to-rem(40);
+  box-shadow: 0 0 0 0 transparent;
+  transition:
+    box-shadow syn.$duration-fast syn.$easing-smooth,
+    transform syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    box-shadow: var(--syn-social-links-link-shadow-hover);
+    transform: translateY(-#{syn.px-to-rem(1)});
+  }
 }
 
 .syn-social-links--stack .syn-social-links__list {

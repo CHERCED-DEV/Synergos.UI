@@ -1,18 +1,23 @@
-<div class="price-display" [class]="hostClasses()">
+<div
+  class="price-display"
+  [class]="hostClasses()"
+  role="group"
+  [attr.aria-label]="displayLabel()"
+>
   @if (hasOriginal() && basePrice()) {
-    <span class="price-display__original" aria-label="Original price">
+    <span class="price-display__original" [attr.aria-label]="originalLabel()">
       {{ formatPrice(basePrice()) }}
     </span>
   }
 
   @if (hasDiscount() && discountPercent()) {
-    <span class="price-display__discount" aria-label="Discount {{ discountPercent() }}%">
+    <span class="price-display__discount" [attr.aria-label]="discountAriaLabel()">
       -{{ discountPercent() }}%
     </span>
   }
 
   @if (currentPrice() != null) {
-    <span class="price-display__current" [attr.aria-label]="'Price: ' + formatPrice(currentPrice())">
+    <span class="price-display__current" [attr.aria-label]="currentPriceAriaLabel()">
       {{ formatPrice(currentPrice()) }}
     </span>
   }

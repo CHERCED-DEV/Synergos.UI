@@ -14,7 +14,25 @@ import {
   InitialDataService,
   ScriptService,
 } from '@synergos/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeExternalWidgetConfig(
+  value: Partial<ExternalWidgetElementConfig>,
+): Partial<ExternalWidgetElementConfig> {
+  return omitUndefinedProperties<ExternalWidgetElementConfig>({
+    src: coerceTrimmedStringInput(value.src),
+    type: coerceTrimmedStringInput(value.type),
+    title: coerceTrimmedStringInput(value.title),
+    endpoint: coerceTrimmedStringInput(value.endpoint),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-external-widget',
@@ -30,7 +48,7 @@ export class ExternalWidgetElementComponent implements OnDestroy {
   readonly #scriptService = inject(ScriptService);
 
   readonly config = input<Partial<ExternalWidgetElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ExternalWidgetElementConfig>,
+    transform: createConfigInputTransform<ExternalWidgetElementConfig>(sanitizeExternalWidgetConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly typeInput = input<string | undefined>(undefined, { alias: 'type' });

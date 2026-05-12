@@ -1,30 +1,36 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Data Table ───────────────────────────────────────────────────────────────
-
 .syn-data-table {
-  width:         100%;
-  overflow-x:    auto;
-  border-radius: syn.$radius-lg;
-  background:    syn.$color-neutral-0;
-}
+  --syn-data-table-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-data-table-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-data-table-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --syn-data-table-head-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-data-table-heading-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-data-table-cell-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-data-table-row-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --syn-data-table-row-striped: color-mix(in srgb, var(--syn-color-surface-secondary, #{syn.$color-neutral-50}) 88%, transparent);
+  --syn-data-table-row-hover: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 72%, var(--syn-color-surface-primary, #{syn.$color-neutral-0}));
+  --syn-data-table-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-400});
+  --syn-data-table-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-data-table-cell-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
 
-.syn-data-table--bordered {
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  width: 100%;
+  overflow-x: auto;
+  @include syn.surface-panel(0, var(--syn-data-table-surface), var(--syn-data-table-border), syn.px-to-rem(1), syn.$radius-xl, var(--syn-data-table-shadow));
 }
 
 .syn-data-table__table {
-  width:           100%;
+  width: 100%;
   border-collapse: collapse;
 }
 
 .syn-data-table__head {
-  background: syn.$color-neutral-50;
+  background: var(--syn-data-table-head-surface);
 }
 
 .syn-data-table__heading,
 .syn-data-table__cell {
-  padding:   syn.$space-sm syn.$space-md;
+  padding: syn.$space-sm syn.$space-md;
   font-size: syn.$font-size-sm;
 }
 
@@ -34,95 +40,112 @@
 }
 
 .syn-data-table__heading {
+  color: var(--syn-data-table-heading-color);
   font-weight: syn.$font-weight-semibold;
-  color:       syn.$color-neutral-600;
-  text-align:  left;
+  text-align: left;
   white-space: nowrap;
 }
 
+.syn-data-table__cell {
+  color: var(--syn-data-table-cell-color);
+}
+
 .syn-data-table__heading--center,
-.syn-data-table__cell--center { text-align: center; }
+.syn-data-table__cell--center {
+  text-align: center;
+}
 
 .syn-data-table__heading--right,
-.syn-data-table__cell--right  { text-align: right;  }
+.syn-data-table__cell--right {
+  text-align: right;
+}
 
 .syn-data-table__sort {
   @include syn.focus-visible;
-  display:     inline-flex;
+  display: inline-flex;
   align-items: center;
-  gap:         syn.$space-xs;
-  border:      0;
-  padding:     0;
-  background:  transparent;
-  color:       inherit;
-  font:        inherit;
-  cursor:      pointer;
-  transition:  color syn.$duration-fast syn.$easing-smooth;
+  gap: syn.$space-xs;
+  border: 0;
+  padding: syn.$space-1 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: color syn.$duration-fast syn.$easing-smooth;
 
-  &:hover { color: syn.$color-neutral-900; }
+  &:hover {
+    color: var(--syn-data-table-cell-color);
+  }
 }
 
 .syn-data-table__row {
-  border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
-  transition: background syn.$duration-fast syn.$easing-smooth;
+  border-top: syn.px-to-rem(1) solid var(--syn-data-table-row-border);
+  transition: background-color syn.$duration-fast syn.$easing-smooth;
 }
 
 .syn-data-table--striped .syn-data-table__row:nth-child(even) {
-  background: syn.$color-neutral-50;
+  background: var(--syn-data-table-row-striped);
 }
 
 .syn-data-table--hoverable .syn-data-table__row:hover {
-  background: syn.$color-brand-100;
+  background: var(--syn-data-table-row-hover);
 }
 
 .syn-data-table__row:focus-visible {
-  outline:        syn.px-to-rem(2) solid syn.$color-brand-400;
+  outline: syn.px-to-rem(2) solid var(--syn-data-table-focus-ring);
   outline-offset: -#{syn.px-to-rem(2)};
 }
 
 .syn-data-table__empty {
-  padding:    syn.$space-lg;
-  color:      syn.$color-neutral-500;
+  padding: syn.$space-xl syn.$space-lg;
+  color: var(--syn-data-table-empty-color);
   text-align: center;
 }
 
-// ── Responsive card-per-row stacking ─────────────────────────────────────────
-// Opt-in with --responsive modifier. Requires data-label on each <td>.
-// Below sm: hides table header, renders each row as a labeled card.
 @include syn.respond-below(sm) {
   .syn-data-table--responsive {
     overflow-x: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
 
     .syn-data-table__table,
     .syn-data-table__body,
     .syn-data-table__row,
-    .syn-data-table__cell { display: block; }
+    .syn-data-table__cell {
+      display: block;
+    }
 
-    .syn-data-table__head   { display: none; }
+    .syn-data-table__head {
+      display: none;
+    }
 
     .syn-data-table__row {
-      border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
-      border-radius: syn.$radius-lg;
-      overflow:      hidden;
       margin-bottom: syn.$space-sm;
+      overflow: hidden;
+      @include syn.surface-panel(0, var(--syn-data-table-surface), var(--syn-data-table-border), syn.px-to-rem(1), syn.$radius-xl, var(--syn-data-table-shadow));
     }
 
     .syn-data-table__cell {
-      display:               grid;
-      grid-template-columns: 1fr 1fr;
-      gap:                   syn.$space-xs;
-      padding:               syn.$space-xs syn.$space-sm;
-      border-top:            syn.px-to-rem(1) solid syn.$color-neutral-100;
-      font-size:             syn.$font-size-sm;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: syn.$space-xs;
+      padding: syn.$space-sm;
+      border-top: syn.px-to-rem(1) solid var(--syn-data-table-row-border);
+      font-size: syn.$font-size-sm;
 
-      &:first-child { border-top: 0; }
+      &:first-child {
+        border-top: 0;
+      }
 
       &::before {
-        content:     attr(data-label);
+        content: attr(data-label);
+        align-self: center;
+        color: var(--syn-data-table-cell-label-color);
+        font-size: syn.$font-size-xs;
         font-weight: syn.$font-weight-semibold;
-        color:       syn.$color-neutral-500;
-        font-size:   syn.$font-size-xs;
-        align-self:  center;
+        letter-spacing: syn.$letter-spacing-wide;
+        text-transform: uppercase;
       }
     }
   }

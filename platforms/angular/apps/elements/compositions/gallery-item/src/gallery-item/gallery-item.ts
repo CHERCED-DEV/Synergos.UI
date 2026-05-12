@@ -1,6 +1,22 @@
 import type { GalleryItemElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeGalleryItemConfig(
+  value: Partial<GalleryItemElementConfig>,
+): Partial<GalleryItemElementConfig> {
+  return omitUndefinedProperties<Partial<GalleryItemElementConfig>>({
+    src: coerceTrimmedStringInput(value.src),
+    alt: coerceTrimmedStringInput(value.alt),
+    caption: coerceTrimmedStringInput(value.caption),
+    aspectRatio: coerceTrimmedStringInput(value.aspectRatio),
+  });
+}
 
 @Component({
   selector: 'sg-gallery-item',
@@ -11,7 +27,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 })
 export class GalleryItemElementComponent {
   readonly config = input<Partial<GalleryItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<GalleryItemElementConfig>,
+    transform: createConfigInputTransform<Partial<GalleryItemElementConfig>>(sanitizeGalleryItemConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly altInput = input<string | undefined>(undefined, { alias: 'alt' });
@@ -27,7 +43,9 @@ export class GalleryItemElementComponent {
   readonly caption = computed(() =>
     resolveConfigValue(this.captionInput(), this.config()?.caption, ''),
   );
-  readonly aspectRatio = computed(() => this.aspectRatioInput()?.trim() || '4 / 3');
+  readonly aspectRatio = computed(() =>
+    resolveConfigValue(this.aspectRatioInput()?.trim(), this.config()?.aspectRatio, '4 / 3'),
+  );
   readonly hasCaption = computed(() => this.caption().trim().length > 0);
   readonly resolvedAlt = computed(() => this.alt().trim() || this.caption().trim() || 'Gallery item');
 }

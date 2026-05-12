@@ -3,13 +3,25 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import {
   GridColumnsComponent,
   type GridColumnsGap,
-  coerceConfigInput,
   coerceOptionalNumberInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 function resolveGridGap(value: string): GridColumnsGap {
   return value === 'sm' || value === 'lg' ? value : 'md';
+}
+
+function sanitizeGridConfig(value: Partial<GridElementConfig>): Partial<GridElementConfig> {
+  return omitUndefinedProperties<Partial<GridElementConfig>>({
+    columns: coerceOptionalNumberInput(value.columns),
+    gap: coerceTrimmedStringInput(value.gap),
+    minColumnWidth: coerceTrimmedStringInput(value.minColumnWidth),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
 }
 
 @Component({
@@ -22,7 +34,7 @@ function resolveGridGap(value: string): GridColumnsGap {
 })
 export class GridComponent {
   readonly config = input<Partial<GridElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<GridElementConfig>,
+    transform: createConfigInputTransform<Partial<GridElementConfig>>(sanitizeGridConfig),
   });
   readonly columnsInput = input<number | undefined, unknown>(undefined, {
     alias: 'columns',
@@ -33,9 +45,9 @@ export class GridComponent {
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly columns = computed(() => this.columnsInput() ?? 3);
-  readonly gap = computed(() => this.gapInput()?.trim() || 'md');
-  readonly minColumnWidth = computed(() => this.minColumnWidthInput()?.trim() || '');
+  readonly columns = computed(() => resolveConfigValue(this.columnsInput(), this.config()?.columns, 3));
+  readonly gap = computed(() => resolveConfigValue(this.gapInput()?.trim(), this.config()?.gap, 'md'));
+  readonly minColumnWidth = computed(() => resolveConfigValue(this.minColumnWidthInput()?.trim(), this.config()?.minColumnWidth, ''));
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );

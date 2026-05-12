@@ -1,40 +1,51 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Card ──────────────────────────────────────────────────────────────────────
-
 .syn-card {
+  --syn-card-background: var(--syn-color-surface-primary, var(--syn-surface, #{syn.$color-neutral-0}));
+  --syn-card-border: var(--syn-color-border-default, var(--syn-border-default, #{syn.$color-neutral-200}));
+  --syn-card-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-card-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-lg});
+  --syn-card-title-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-card-subtitle-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-500}));
+  --syn-card-body-color: var(--syn-color-text-muted, var(--syn-text-muted, #{syn.$color-neutral-600}));
+  --syn-card-accent-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-600}));
+
   display: grid;
   gap: syn.$space-sm;
   padding: syn.$space-md;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border: syn.px-to-rem(1) solid var(--syn-card-border);
   border-radius: syn.$radius-lg;
-  background: syn.$color-neutral-0;
-  box-shadow: syn.$shadow-xs;
-  transition: syn.$transition-colors, syn.$transition-transform;
+  background: var(--syn-card-background);
+  box-shadow: var(--syn-card-shadow);
+  transition:
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 }
 
-// Interactive card — elevates on hover
 .syn-card--interactive {
   cursor: pointer;
 
   @include syn.focus-visible;
 
-  &:hover {
-    border-color: syn.$color-brand-200;
-    box-shadow: syn.$shadow-sm;
-    transform: translateY(syn.px-to-rem(-2));
+  &:where(:hover, :focus-visible) {
+    border-color: var(--syn-color-border-accent, var(--syn-border-brand, #{syn.$color-brand-300}));
+    box-shadow:   var(--syn-card-shadow-hover);
+    transform:    translateY(syn.px-to-rem(-3));
   }
 
   &:active {
-    transform: translateY(0);
-    box-shadow: syn.$shadow-xs;
+    transform:  translateY(0);
+    box-shadow: var(--syn-card-shadow);
   }
 }
 
-// Dark surface variant
 .syn-card--dark {
-  background:   syn.$color-neutral-800;
-  border-color: syn.$color-neutral-700;
+  --syn-card-background: var(--syn-color-surface-inverse, #{syn.$color-neutral-800});
+  --syn-card-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+  --syn-card-title-color: var(--syn-color-text-inverse, #{syn.$color-neutral-50});
+  --syn-card-subtitle-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+  --syn-card-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
 }
 
 .syn-card__header {
@@ -45,23 +56,18 @@
 .syn-card__title {
   font-size:   syn.$font-size-lg;
   font-weight: syn.$font-weight-semibold;
-  color:       syn.$color-neutral-900;
+  color:       var(--syn-card-title-color);
   line-height: syn.$line-height-tight;
-
-  .syn-card--dark & { color: syn.$color-neutral-50; }
 }
 
 .syn-card__subtitle {
-  font-size: syn.$font-size-sm;
-  color:     syn.$color-neutral-500;
-
-  .syn-card--dark & { color: syn.$color-neutral-400; }
+  font-size:   syn.$font-size-sm;
+  color:       var(--syn-card-subtitle-color);
+  line-height: syn.$line-height-normal;
 }
 
 .syn-card__body {
   font-size:   syn.$font-size-sm;
-  color:       syn.$color-neutral-600;
+  color:       var(--syn-card-body-color);
   line-height: syn.$line-height-relaxed;
-
-  .syn-card--dark & { color: syn.$color-neutral-300; }
 }

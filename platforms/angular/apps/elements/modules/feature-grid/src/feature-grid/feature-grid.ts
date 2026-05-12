@@ -5,8 +5,10 @@ import {
   GridColumnsComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
   coerceOptionalNumberInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -25,7 +27,7 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeFeatureGridItem(value: unknown): FeatureGridItem | null {
+export function normalizeFeatureGridItem(value: unknown): FeatureGridItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -44,6 +46,30 @@ function normalizeFeatureGridItem(value: unknown): FeatureGridItem | null {
   };
 }
 
+export function normalizeFeatureGridItems(value: unknown): readonly FeatureGridItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item) => normalizeFeatureGridItem(item))
+    .filter((item): item is FeatureGridItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+export function sanitizeFeatureGridConfig(
+  value: Partial<FeatureGridElementConfig>,
+): Partial<FeatureGridElementConfig> {
+  return omitUndefinedProperties<Partial<FeatureGridElementConfig>>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    columns: coerceOptionalNumberInput(value.columns),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+    items: normalizeFeatureGridItems(value.items),
+  });
+}
+
 @Component({
   selector: 'sg-feature-grid',
   imports: [GridColumnsComponent, HeadingComponent],
@@ -56,7 +82,7 @@ export class FeatureGridComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<FeatureGridElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<FeatureGridElementConfig>,
+    transform: createConfigInputTransform<Partial<FeatureGridElementConfig>>(sanitizeFeatureGridConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly columnsInput = input<number | undefined, unknown>(undefined, {
@@ -71,7 +97,7 @@ export class FeatureGridComponent {
     resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly columns = computed(() =>
-    resolveConfigValue(this.columnsInput(), undefined, 3),
+    resolveConfigValue(this.columnsInput(), this.config()?.columns, 3),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
@@ -93,11 +119,9 @@ export class FeatureGridComponent {
         .filter((item): item is FeatureGridItem => item !== null);
     }
 
-    const configItems = this.config()?.items;
-    if (Array.isArray(configItems)) {
-      return (configItems as unknown[])
-        .map((item) => normalizeFeatureGridItem(item))
-        .filter((item): item is FeatureGridItem => item !== null);
+    const configItems = normalizeFeatureGridItems(this.config()?.items);
+    if (configItems) {
+      return configItems;
     }
 
     return [];

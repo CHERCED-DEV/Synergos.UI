@@ -3,9 +3,22 @@ import type { KeyValueElementConfig } from '@synergos/contracts';
 import {
   DescriptionListComponent,
   type DescriptionListItem,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+
+function sanitizeKeyValueConfig(
+  value: Partial<KeyValueElementConfig>,
+): Partial<KeyValueElementConfig> {
+  return omitUndefinedProperties<KeyValueElementConfig>({
+    label: coerceTrimmedStringInput(value.label),
+    value: coerceTrimmedStringInput(value.value),
+    helpText: coerceTrimmedStringInput(value.helpText),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-key-value',
@@ -17,7 +30,7 @@ import {
 })
 export class KeyValueElementComponent {
   readonly config = input<Partial<KeyValueElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<KeyValueElementConfig>,
+    transform: createConfigInputTransform<KeyValueElementConfig>(sanitizeKeyValueConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly valueInput = input<string | undefined>(undefined, { alias: 'value' });

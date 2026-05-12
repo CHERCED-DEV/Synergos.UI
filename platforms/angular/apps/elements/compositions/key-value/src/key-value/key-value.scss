@@ -1,116 +1,46 @@
 @use 'scss' as syn;
 
 :host {
+  --kv-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --kv-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --kv-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+
+  --syn-description-list-term-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-description-list-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-description-list-value-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-description-list-value-brand-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --syn-description-list-detail-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
 }
 
-// ─── Key Value ────────────────────────────────────────────────────────────────
-// Structured label/value pairs inside a surface panel.
-// Each row separates key (left, muted) from value (right, prominent).
-// Last row has no separator border.
 .key-value {
   @include syn.surface-panel(
     0,
-    syn.$color-neutral-0,
-    syn.$color-neutral-200,
+    var(--kv-surface),
+    var(--kv-border),
     syn.px-to-rem(1),
     syn.$radius-xl,
-    syn.$shadow-xs
+    var(--kv-shadow)
   );
-  overflow: hidden; // Keep child rows within rounded corners
+  overflow: hidden;
+  padding: syn.$space-md syn.$space-lg;
 
-  &--dark {
-    background:   syn.$color-neutral-800;
-    border-color: syn.$color-neutral-700;
-    color:        syn.$color-neutral-0;
+  &--dark,
+  &.sg-key-value--dark {
+    --kv-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --kv-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --syn-description-list-term-color: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --syn-description-list-value-color: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+    --syn-description-list-value-muted-color: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --syn-description-list-value-brand-color: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --syn-description-list-detail-color: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
   }
 
-  // ── Header (optional title + subtitle above rows) ──────────────────────────
-  &__header {
-    padding:       syn.$space-md syn.$space-lg;
-    border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-100;
-
-    .sg-key-value--dark & { border-bottom-color: syn.$color-neutral-700; }
-  }
-
-  &__title {
-    display:     block;
-    font-size:   syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-neutral-900;
-    line-height: syn.$line-height-tight;
-
-    .sg-key-value--dark & { color: syn.$color-neutral-0; }
-  }
-
-  &__subtitle {
-    margin-top: syn.$space-xxs;
-    font-size:  syn.$font-size-sm;
-    color:      syn.$color-neutral-500;
-
-    .sg-key-value--dark & { color: syn.$color-neutral-400; }
-  }
-
-  // ── Individual key/value rows ─────────────────────────────────────────────
-  &__row {
-    display:         flex;
-    justify-content: space-between;
-    align-items:     baseline;
-    gap:             syn.$space-md;
-    padding:         syn.$space-sm syn.$space-lg;
-    border-bottom:   syn.px-to-rem(1) solid syn.$color-border-subtle;
-
-    // No separator on last row
-    &:last-child { border-bottom: none; }
-
-    // Striped variant — alternate rows
-    .sg-key-value--striped &:nth-child(even) {
-      background: syn.$color-surface-subtle;
-    }
-
-    .sg-key-value--dark & {
-      border-bottom-color: syn.$color-neutral-700;
-    }
-
-    .sg-key-value--dark.sg-key-value--striped &:nth-child(even) {
-      background: syn.$color-neutral-700;
-    }
-  }
-
-  // Label / key — left side, muted
-  &__key {
-    font-size:   syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    color:       syn.$color-text-muted;
-    flex-shrink: 0;
-    min-width:   0; // Allow text truncation if necessary
-
-    .sg-key-value--dark & { color: syn.$color-neutral-400; }
-  }
-
-  // Value — right side, prominent
-  &__value {
-    font-size:   syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-text-primary;
-    text-align:  right;
-    @include syn.long-words; // Handle long unbreakable values gracefully
-
-    &--brand   { color: syn.$color-brand-600; }
-    &--success { color: syn.$color-success-600; }
-    &--warning { color: syn.$color-warning-600; }
-    &--danger  { color: syn.$color-danger-600; }
-
-    .sg-key-value--dark & { color: syn.$color-neutral-0; }
-  }
-
-  // ── Footer (optional actions below rows) ──────────────────────────────────
-  &__footer {
-    display:    flex;
-    gap:        syn.$space-sm;
-    padding:    syn.$space-md syn.$space-lg;
-    border-top: syn.px-to-rem(1) solid syn.$color-neutral-100;
-
-    .sg-key-value--dark & { border-top-color: syn.$color-neutral-700; }
+  &--silver-gold,
+  &--silverGold,
+  &.sg-key-value--silver-gold,
+  &.sg-key-value--silverGold {
+    --syn-description-list-value-brand-color: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
   }
 }

@@ -1,6 +1,11 @@
 import type { DividerElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
 
 const spacingValues: Record<string, string> = {
   none: '0',
@@ -19,6 +24,15 @@ function resolveSpaceToken(value: string): string {
   return spacingValues[value] ?? value;
 }
 
+function sanitizeDividerConfig(value: Partial<DividerElementConfig>): Partial<DividerElementConfig> {
+  return omitUndefinedProperties<Partial<DividerElementConfig>>({
+    orientation: coerceTrimmedStringInput(value.orientation),
+    inset: coerceTrimmedStringInput(value.inset),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
+
 @Component({
   selector: 'sg-divider',
   templateUrl: './divider.html',
@@ -28,15 +42,15 @@ function resolveSpaceToken(value: string): string {
 })
 export class DividerComponent {
   readonly config = input<Partial<DividerElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<DividerElementConfig>,
+    transform: createConfigInputTransform<Partial<DividerElementConfig>>(sanitizeDividerConfig),
   });
   readonly orientationInput = input<string | undefined>(undefined, { alias: 'orientation' });
   readonly insetInput = input<string | undefined>(undefined, { alias: 'inset' });
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly orientation = computed(() => this.orientationInput()?.trim() || 'horizontal');
-  readonly inset = computed(() => this.insetInput()?.trim() || 'none');
+  readonly orientation = computed(() => resolveConfigValue(this.orientationInput()?.trim(), this.config()?.orientation, 'horizontal'));
+  readonly inset = computed(() => resolveConfigValue(this.insetInput()?.trim(), this.config()?.inset, 'none'));
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );

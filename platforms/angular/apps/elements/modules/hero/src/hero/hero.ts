@@ -5,7 +5,10 @@ import {
   HeadingComponent,
   type HeadingLevel,
   type HeadingTone,
-  coerceConfigInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -14,6 +17,21 @@ const heroHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4', 'h5'
 
 function resolveHeroHeadingLevel(value: string): HeadingLevel {
   return heroHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h1';
+}
+
+function sanitizeHeroConfig(value: Partial<HeroElementConfig>): Partial<HeroElementConfig> {
+  return omitUndefinedProperties<HeroElementConfig>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    headingLevel: coerceStringEnumInput(value.headingLevel, heroHeadingLevels),
+    body: coerceTrimmedStringInput(value.body),
+    imageSrc: coerceTrimmedStringInput(value.imageSrc),
+    imageAlt: coerceTrimmedStringInput(value.imageAlt),
+    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    ctaUrl: coerceTrimmedStringInput(value.ctaUrl),
+    ctaTarget: coerceTrimmedStringInput(value.ctaTarget),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
 }
 
 @Component({
@@ -26,7 +44,7 @@ function resolveHeroHeadingLevel(value: string): HeadingLevel {
 })
 export class HeroComponent {
   readonly config = input<Partial<HeroElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<HeroElementConfig>,
+    transform: createConfigInputTransform<HeroElementConfig>(sanitizeHeroConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });

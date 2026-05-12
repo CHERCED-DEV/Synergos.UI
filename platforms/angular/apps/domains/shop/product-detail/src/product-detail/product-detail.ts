@@ -10,7 +10,12 @@ import {
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   SkeletonComponent,
   BadgeComponent,
@@ -19,6 +24,24 @@ import {
 import { PriceDisplayComponent } from '../../../price-display/src/price-display/price-display';
 import { QuantitySelectorComponent } from '../../../quantity-selector/src/quantity-selector/quantity-selector';
 import { VariantPickerComponent } from '../../../variant-picker/src/variant-picker/variant-picker';
+
+function sanitizeProductDetailConfig(
+  value: Partial<ProductDetailElementConfig>,
+): Partial<ProductDetailElementConfig> {
+  return omitUndefinedProperties<ProductDetailElementConfig>({
+    productSku: coerceTrimmedStringInput(value.productSku),
+    showVariantPicker: coerceOptionalBooleanInput(value.showVariantPicker),
+    showQuantitySelector: coerceOptionalBooleanInput(value.showQuantitySelector),
+    showRating: coerceOptionalBooleanInput(value.showRating),
+    showReviews: coerceOptionalBooleanInput(value.showReviews),
+    showRelated: coerceOptionalBooleanInput(value.showRelated),
+    layout: coerceStringEnumInput(value.layout, ['imageleft', 'imageright', 'imagetop'] as const)?.replace('imageleft', 'imageLeft').replace('imageright', 'imageRight').replace('imagetop', 'imageTop') as ProductDetailElementConfig['layout'] | undefined,
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    variantKey: coerceTrimmedStringInput(value.variantKey),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-product-detail',
@@ -31,10 +54,11 @@ import { VariantPickerComponent } from '../../../variant-picker/src/variant-pick
 })
 export class ProductDetailComponent {
   private readonly http = inject(HttpClient);
+  readonly quantityLabelId = `sg-product-detail-qty-label-${Math.random().toString(36).slice(2, 10)}`;
 
-  // ── Inputs ────────────────────────────────────────────────────────────────
+  // â”€â”€ Inputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly config = input<Partial<ProductDetailElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ProductDetailElementConfig>,
+    transform: createConfigInputTransform<ProductDetailElementConfig>(sanitizeProductDetailConfig),
   });
 
   readonly productSkuInput           = input<string | undefined>(undefined, { alias: 'productSku' });
@@ -44,7 +68,7 @@ export class ProductDetailComponent {
   readonly layoutInput               = input<string | undefined>(undefined, { alias: 'layout' });
   readonly themeInput                = input<string | undefined>(undefined, { alias: 'theme' });
 
-  // ── Resolved config ───────────────────────────────────────────────────────
+  // â”€â”€ Resolved config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly productSku = computed(() =>
     resolveConfigValue(this.productSkuInput(), this.config()?.productSku, ''),
   );
@@ -65,17 +89,17 @@ export class ProductDetailComponent {
   );
   readonly translations = computed(() => this.config()?.translations ?? {});
 
-  // ── API state ─────────────────────────────────────────────────────────────
+  // â”€â”€ API state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly product  = signal<Product | null>(null);
   readonly loading  = signal(false);
   readonly apiError = signal(false);
 
-  // ── Cart / selection state ────────────────────────────────────────────────
+  // â”€â”€ Cart / selection state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly quantity        = signal(1);
   readonly selectedVariant = signal<ProductVariant | null>(null);
   readonly activeImageIdx  = signal(0);
 
-  // ── Derived display ───────────────────────────────────────────────────────
+  // â”€â”€ Derived display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly images         = computed(() => this.product()?.images ?? []);
   readonly activeImage    = computed(() => this.images()[this.activeImageIdx()] ?? null);
   readonly variants       = computed(() => this.product()?.variants ?? []);
@@ -99,7 +123,7 @@ export class ProductDetailComponent {
     () => `sg-product-detail--${this.layout()} sg-product-detail--${this.theme()}`,
   );
 
-  // ── Translation helpers ───────────────────────────────────────────────────
+  // â”€â”€ Translation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   readonly t                = computed(() => this.translations());
   readonly addToCartLabel   = computed(() => this.t()['Shop.Product.AddToCart']       ?? 'Add to cart');
   readonly outOfStockLabel  = computed(() => this.t()['Shop.Product.OutOfStock']      ?? 'Out of stock');
@@ -109,8 +133,15 @@ export class ProductDetailComponent {
   readonly ratingLabel      = computed(() => this.t()['Shop.Product.Rating']          ?? 'Rating');
   readonly quantityLabel    = computed(() => this.t()['Shop.Product.Quantity']        ?? 'Quantity');
   readonly selectVariantLabel = computed(() => this.t()['Shop.Product.SelectVariant'] ?? 'Select variant');
+  readonly productImagesLabel = computed(() => this.t()['Shop.Product.Images'] ?? 'Product images');
+  readonly ratingOutOfLabel = computed(() => this.t()['Shop.Product.RatingOutOf'] ?? 'out of 5');
+  readonly stockRemainingLabel = computed(() => this.t()['Shop.Product.StockRemaining'] ?? 'left');
+  readonly loadingProductLabel = computed(() => this.t()['Shop.Product.Loading'] ?? 'Loading product...');
+  readonly loadingErrorLabel = computed(
+    () => this.t()['Shop.Product.LoadError'] ?? 'Error loading product. Please try again.',
+  );
 
-  // ── Fetch on SKU change ───────────────────────────────────────────────────
+  // â”€â”€ Fetch on SKU change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   constructor() {
     effect(() => {
       const sku = this.productSku();
@@ -131,7 +162,7 @@ export class ProductDetailComponent {
     });
   }
 
-  // ── Interactions ──────────────────────────────────────────────────────────
+  // â”€â”€ Interactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   onVariantSelected(variant: ProductVariant | null): void {
     this.selectedVariant.set(variant);
     if (variant?.image) {
@@ -160,7 +191,7 @@ export class ProductDetailComponent {
         detail: {
           productId:  p.id,
           productSku: variant?.sku ?? p.sku,
-          name:       variant ? `${p.name} — ${variant.name}` : p.name,
+          name:       variant ? `${p.name} - ${variant.name}` : p.name,
           price:      this.effectivePrice(),
           currency:   p.currency,
           quantity:   this.quantity(),
@@ -178,11 +209,26 @@ export class ProductDetailComponent {
     }).format(value);
   }
 
-  ratingStars(avg: number): readonly number[] {
+  ratingStars(): readonly number[] {
     return Array.from({ length: 5 }, (_, i) => i + 1);
   }
 
   isStarFilled(star: number, avg: number): boolean {
     return star <= Math.round(avg);
   }
+
+  ratingAriaLabel(avg: number): string {
+    return `${this.ratingLabel()} ${avg} ${this.ratingOutOfLabel()}`;
+  }
+
+  addToCartAriaLabel(): string {
+    const productName = this.product()?.name;
+    if (!productName) {
+      return this.addToCartLabel();
+    }
+
+    return `${this.addToCartLabel()} - ${productName}`;
+  }
 }
+
+

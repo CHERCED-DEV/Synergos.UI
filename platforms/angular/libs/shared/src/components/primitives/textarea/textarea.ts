@@ -7,7 +7,7 @@ let textareaId = 0;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="syn-textarea">
+    <div class="syn-textarea" [class.syn-textarea--error]="invalid()">
       @if (label()) {
         <label class="syn-textarea__label" [attr.for]="fieldId()">{{ label() }}</label>
       }
@@ -20,12 +20,17 @@ let textareaId = 0;
         [disabled]="disabled()"
         [required]="required()"
         [value]="value()"
+        [attr.aria-invalid]="invalid() || null"
         [attr.aria-label]="ariaLabel() || label() || placeholder() || 'Text area'"
-        [attr.aria-describedby]="describedBy() || null"
+        [attr.aria-describedby]="describedByIds() || null"
         (input)="onInput($event)"
         (blur)="blurred.emit()"
         (focus)="focused.emit()"
       ></textarea>
+
+      @if (hint()) {
+        <p class="syn-textarea__hint" [id]="hintId()">{{ hint() }}</p>
+      }
     </div>
   `,
   styleUrl: './textarea.scss',
@@ -33,12 +38,14 @@ let textareaId = 0;
 export class TextareaComponent {
   readonly id = input('');
   readonly label = input('');
+  readonly hint = input('');
   readonly ariaLabel = input('');
   readonly describedBy = input('');
   readonly placeholder = input('');
   readonly value = input('');
   readonly rows = input(4);
   readonly disabled = input(false);
+  readonly invalid = input(false);
   readonly required = input(false);
 
   readonly valueChange = output<string>();
@@ -46,6 +53,11 @@ export class TextareaComponent {
   readonly blurred = output<void>();
 
   readonly fieldId = computed(() => this.id() || `syn-textarea-${textareaId}`);
+  readonly hintId = computed(() => `${this.fieldId()}-hint`);
+  readonly describedByIds = computed(() => {
+    const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
+    return ids.join(' ');
+  });
 
   constructor() {
     textareaId += 1;

@@ -2,7 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { BadgeComponent } from '../badge/badge';
 import { classNames } from '../../../utils/class-names.util';
 import {
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
 } from '../../../utils/config-input.util';
@@ -27,6 +31,52 @@ export interface ListConfig {
   readonly interactive?: boolean;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function sanitizeListItem(value: unknown): ListItem | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const label = coerceTrimmedStringInput(value['label']);
+  if (!label) {
+    return undefined;
+  }
+
+  return omitUndefinedProperties<ListItem>({
+    id: coerceTrimmedStringInput(value['id']),
+    label,
+    supportingText: coerceTrimmedStringInput(value['supportingText']),
+    badge: coerceTrimmedStringInput(value['badge']),
+    disabled: coerceOptionalBooleanInput(value['disabled']),
+  }) as ListItem;
+}
+
+function sanitizeListItems(value: unknown): readonly ListItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((entry) => sanitizeListItem(entry))
+    .filter((entry): entry is ListItem => entry !== undefined);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function sanitizeListConfig(value: Partial<ListConfig>): Partial<ListConfig> {
+  return omitUndefinedProperties<ListConfig>({
+    items: sanitizeListItems(value.items),
+    ordered: coerceOptionalBooleanInput(value.ordered),
+    marker: coerceStringEnumInput(value.marker, ['disc', 'check', 'none'] as const),
+    density: coerceStringEnumInput(value.density, ['comfortable', 'compact'] as const),
+    divided: coerceOptionalBooleanInput(value.divided),
+    interactive: coerceOptionalBooleanInput(value.interactive),
+  });
+}
+
 @Component({
   selector: 'syn-list',
   standalone: true,
@@ -37,7 +87,15 @@ export interface ListConfig {
       <ol class="syn-list" [class]="listClass()">
         @for (item of items(); track trackBy(item, $index); let index = $index) {
           <li class="syn-list__item" [class]="itemClass(item)">
-            <div class="syn-list__row" (click)="select(item, index)">
+            <div
+              class="syn-list__row"
+              [attr.tabindex]="interactive() && !item.disabled ? 0 : null"
+              [attr.role]="interactive() ? 'button' : null"
+              [attr.aria-disabled]="item.disabled ? 'true' : null"
+              (click)="select(item)"
+              (keydown.enter)="select(item)"
+              (keydown.space)="onSpaceKeydown($event, item)"
+            >
               @if (marker() !== 'none') {
                 <span class="syn-list__marker" aria-hidden="true">{{ markerLabel(index) }}</span>
               }
@@ -61,7 +119,15 @@ export interface ListConfig {
       <ul class="syn-list" [class]="listClass()">
         @for (item of items(); track trackBy(item, $index); let index = $index) {
           <li class="syn-list__item" [class]="itemClass(item)">
-            <div class="syn-list__row" (click)="select(item, index)">
+            <div
+              class="syn-list__row"
+              [attr.tabindex]="interactive() && !item.disabled ? 0 : null"
+              [attr.role]="interactive() ? 'button' : null"
+              [attr.aria-disabled]="item.disabled ? 'true' : null"
+              (click)="select(item)"
+              (keydown.enter)="select(item)"
+              (keydown.space)="onSpaceKeydown($event, item)"
+            >
               @if (marker() !== 'none') {
                 <span class="syn-list__marker" aria-hidden="true">{{ markerLabel(index) }}</span>
               }
@@ -87,7 +153,7 @@ export interface ListConfig {
 })
 export class ListComponent {
   readonly config = input<Partial<ListConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ListConfig>,
+    transform: createConfigInputTransform<ListConfig>(sanitizeListConfig),
   });
   readonly itemsInput = input<readonly ListItem[] | undefined>(undefined, { alias: 'items' });
   readonly orderedInput = input<boolean | undefined>(undefined, { alias: 'ordered' });
@@ -136,10 +202,15 @@ export class ListComponent {
       return `${index + 1}.`;
     }
 
-    return this.marker() === 'check' ? 'OK' : '•';
+    return this.marker() === 'check' ? 'OK' : '\u2022';
   }
 
-  select(item: ListItem, _index: number): void {
+  onSpaceKeydown(event: Event, item: ListItem): void {
+    event.preventDefault();
+    this.select(item);
+  }
+
+  select(item: ListItem): void {
     if (!this.interactive() || item.disabled) {
       return;
     }
@@ -151,3 +222,4 @@ export class ListComponent {
     return item.id ?? `${item.label}-${index}`;
   }
 }
+

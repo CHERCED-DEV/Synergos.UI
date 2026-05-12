@@ -7,7 +7,7 @@ let radioId = 0;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <label class="syn-radio" [attr.for]="fieldId()">
+    <label class="syn-radio" [class.syn-radio--disabled]="disabled()" [attr.for]="fieldId()">
       <input
         class="syn-radio__native"
         [id]="fieldId()"

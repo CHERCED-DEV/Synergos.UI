@@ -1,4 +1,4 @@
-<div class="button-group" [class]="hostClasses()">
+<div class="button-group sg-button-group" [class]="hostClasses()">
   @defer (on idle) {
     @for (btn of parsedButtons(); track btn.label + btn.href) {
       @if (btn.href) {
@@ -18,12 +18,14 @@
           />
         </a>
       } @else {
-        <syn-button
-          [label]="btn.label"
-          [variant]="btn.variant"
-          [size]="btn.size"
-          [disabled]="btn.disabled"
-        />
+        <span class="button-group__button-shell">
+          <syn-button
+            [label]="btn.label"
+            [variant]="btn.variant"
+            [size]="btn.size"
+            [disabled]="btn.disabled"
+          />
+        </span>
       }
     }
   }

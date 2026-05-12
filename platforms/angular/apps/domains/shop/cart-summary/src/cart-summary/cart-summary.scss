@@ -1,257 +1,345 @@
 @use 'scss' as syn;
 
-// ── Host — full-screen overlay, invisible by default ─────────────────────────
 :host {
-  position:       fixed;
-  inset:          0;
-  z-index:        var(--sg-z-overlay, 900);
-  pointer-events: none;
-  font-family:    inherit;
+  --cs-backdrop-surface: var(--syn-color-overlay-strong, #{syn.$color-overlay-medium});
+  --cs-backdrop-blur: #{syn.px-to-rem(2)};
 
-  // When open attribute is set, become interactive
+  --cs-drawer-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cs-drawer-shadow: var(--syn-shadow-floating, #{syn.$shadow-xl});
+  --cs-divider: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+
+  --cs-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cs-text-primary: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cs-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --cs-text-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cs-icon: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --cs-icon-hover-surface: var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-100});
+  --cs-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-400});
+
+  --cs-input-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cs-input-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cs-input-border-focus: var(--syn-color-border-accent, #{syn.$color-brand-400});
+  --cs-input-placeholder: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --cs-input-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --cs-coupon-btn-surface: var(--syn-color-action-secondary-surface, #{syn.$color-neutral-50});
+  --cs-coupon-btn-surface-hover: var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-100});
+  --cs-coupon-btn-text: var(--syn-color-action-secondary-text, #{syn.$color-neutral-700});
+  --cs-coupon-btn-border: var(--syn-color-action-secondary-border, #{syn.$color-neutral-200});
+
+  --cs-total-grand: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cs-link: var(--syn-color-text-accent, #{syn.$color-brand-600});
+
+  --cs-cta-surface: var(--syn-color-action-primary, #{syn.$color-brand-600});
+  --cs-cta-surface-hover: var(--syn-color-action-primary-hover, #{syn.$color-brand-500});
+  --cs-cta-surface-active: var(--syn-color-action-primary-active, #{syn.$color-brand-600});
+  --cs-cta-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --cs-cta-shadow-hover: var(--syn-shadow-action-hover, #{syn.$shadow-brand-md});
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--sg-z-overlay, 900);
+  pointer-events: none;
+  font-family: inherit;
+
   &[open] {
     pointer-events: auto;
 
-    .cart-backdrop { opacity: 1; }
-    .cart-drawer   { transform: translateX(0); }
-  }
-}
+    .cart-backdrop {
+      opacity: 1;
+    }
 
-// ── Backdrop ──────────────────────────────────────────────────────────────────
-.cart-backdrop {
-  position:   absolute;
-  inset:      0;
-  background: rgba(syn.$color-neutral-900, 0.5);
-  backdrop-filter: blur(syn.px-to-rem(2));
-  opacity:    0;
-  transition: opacity syn.$duration-base syn.$easing-default;
-  cursor:     pointer;
-}
-
-// ── Drawer ────────────────────────────────────────────────────────────────────
-.cart-drawer {
-  position:       absolute;
-  top:            0;
-  right:          0;
-  bottom:         0;
-  width:          min(syn.px-to-rem(440), 100vw);
-  display:        flex;
-  flex-direction: column;
-  background:     syn.$color-neutral-0;
-  box-shadow:     syn.$shadow-xl;
-  transform:      translateX(100%);
-  transition:     transform syn.$duration-slow syn.$easing-out;
-  will-change:    transform;
-  overflow:       hidden;
-
-  &--dark {
-    background: syn.$color-neutral-900;
-
-    .cart-drawer__title, .cart-drawer__close {
-      color: syn.$color-neutral-50;
+    .cart-drawer {
+      transform: translateX(0);
     }
   }
+}
 
-  // ── Header ────────────────────────────────────────────────────────────
+.cart-backdrop {
+  @include syn.button-reset;
+
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--cs-backdrop-surface);
+  backdrop-filter: blur(var(--cs-backdrop-blur));
+  opacity: 0;
+  transition: opacity syn.$duration-base syn.$easing-default;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--cs-focus-ring);
+    outline-offset: syn.px-to-rem(-2);
+  }
+}
+
+.cart-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(syn.px-to-rem(440), 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--cs-drawer-surface);
+  box-shadow: var(--cs-drawer-shadow);
+  transform: translateX(100%);
+  transition: transform syn.$duration-slow syn.$easing-out;
+  will-change: transform;
+  overflow: hidden;
+
+  &--dark,
+  &.sg-cart-summary--dark {
+    --cs-drawer-surface: var(--syn-color-neutral-900, #{syn.$color-neutral-900});
+    --cs-divider: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --cs-title: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --cs-text-primary: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --cs-text-secondary: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --cs-text-muted: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+    --cs-icon: var(--syn-color-neutral-200, #{syn.$color-neutral-200});
+    --cs-icon-hover-surface: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+
+    --cs-input-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --cs-input-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --cs-input-border-focus: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --cs-input-placeholder: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+    --cs-coupon-btn-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --cs-coupon-btn-surface-hover: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --cs-coupon-btn-text: var(--syn-color-neutral-200, #{syn.$color-neutral-200});
+    --cs-coupon-btn-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-cart-summary--silver-gold,
+  &.sg-cart-summary--silverGold {
+    --cs-divider: var(--syn-color-border-default, #{syn.$color-neutral-200});
+    --cs-link: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+    --cs-cta-surface: var(--syn-color-action-emphasis, #{syn.$color-accent-500});
+    --cs-cta-surface-hover: var(--syn-color-text-accent, #{syn.$color-accent-600});
+    --cs-cta-surface-active: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+  }
+
   &__header {
-    display:         flex;
-    align-items:     center;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding:         syn.$space-lg syn.$space-xl;
-    border-bottom:   syn.px-to-rem(1) solid syn.$color-neutral-100;
-    flex-shrink:     0;
-
-    .cart-drawer--dark & { border-bottom-color: syn.$color-neutral-700; }
+    padding: syn.$space-lg syn.$space-xl;
+    border-bottom: syn.px-to-rem(1) solid var(--cs-divider);
+    flex-shrink: 0;
   }
 
   &__title {
-    margin:      0;
-    font-size:   syn.$font-size-lg;
+    margin: 0;
+    font-size: syn.$font-size-lg;
     font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-neutral-900;
-    display:     flex;
+    color: var(--cs-title);
+    display: flex;
     align-items: center;
-    gap:         syn.$space-xs;
+    gap: syn.$space-xs;
   }
 
   &__count {
-    font-size:   syn.$font-size-sm;
+    font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-regular;
-    color:       syn.$color-neutral-500;
+    color: var(--cs-text-muted);
+  }
+
+  &__sr-only {
+    @include syn.visually-hidden;
   }
 
   &__close {
-    display:         flex;
-    align-items:     center;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    width:           syn.px-to-rem(36);
-    height:          syn.px-to-rem(36);
-    border:          none;
-    background:      transparent;
-    color:           syn.$color-neutral-600;
-    cursor:          pointer;
-    border-radius:   syn.$radius-sm;
-    transition:      background syn.$duration-fast syn.$easing-default;
-    padding:         0;
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    border: none;
+    background: transparent;
+    color: var(--cs-icon);
+    cursor: pointer;
+    border-radius: syn.$radius-sm;
+    transition: background syn.$duration-fast syn.$easing-default, color syn.$duration-fast syn.$easing-default;
+    padding: 0;
 
-    &:hover  { background: syn.$color-neutral-100; color: syn.$color-neutral-900; }
+    &:hover {
+      background: var(--cs-icon-hover-surface);
+      color: var(--cs-text-primary);
+    }
+
     &:focus-visible {
-      outline: syn.px-to-rem(2) solid syn.$color-brand-400;
+      outline: syn.px-to-rem(2) solid var(--cs-focus-ring);
       outline-offset: syn.px-to-rem(2);
     }
   }
 
-  // ── Body (scrollable) ─────────────────────────────────────────────────
   &__body {
-    flex:        1 1 auto;
-    overflow-y:  auto;
-    padding:     syn.$space-lg syn.$space-xl;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: syn.$space-lg syn.$space-xl;
     overscroll-behavior: contain;
   }
 
   &__items {
     list-style: none;
-    margin:     0;
-    padding:    0;
+    margin: 0;
+    padding: 0;
   }
 
-  // ── Empty state ───────────────────────────────────────────────────────
   &__empty {
-    display:         flex;
-    flex-direction:  column;
-    align-items:     center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    gap:             syn.$space-md;
-    padding:         syn.px-to-rem(56) 0;
-    text-align:      center;
+    gap: syn.$space-md;
+    padding: syn.px-to-rem(56) 0;
+    text-align: center;
 
-    svg { color: syn.$color-neutral-300; }
+    svg {
+      color: var(--cs-text-muted);
+    }
 
     p {
-      margin:      0;
-      font-size:   syn.$font-size-base;
-      color:       syn.$color-neutral-500;
+      margin: 0;
+      font-size: syn.$font-size-base;
+      color: var(--cs-text-muted);
       font-weight: syn.$font-weight-medium;
     }
   }
 
   &__continue-link {
-    font-size:       syn.$font-size-sm;
-    color:           syn.$color-brand-600;
+    font-size: syn.$font-size-sm;
+    color: var(--cs-link);
     text-decoration: none;
-    font-weight:     syn.$font-weight-medium;
+    font-weight: syn.$font-weight-medium;
 
-    &:hover { text-decoration: underline; }
+    &:hover {
+      text-decoration: underline;
+    }
   }
 
-  // ── Footer ────────────────────────────────────────────────────────────
   &__footer {
     @include syn.flex-column;
-    gap:          syn.$space-md;
-    padding:      syn.$space-lg syn.$space-xl;
-    border-top:   syn.px-to-rem(1) solid syn.$color-neutral-100;
-    flex-shrink:  0;
-    background:   inherit;
-
-    .cart-drawer--dark & { border-top-color: syn.$color-neutral-700; }
+    gap: syn.$space-md;
+    padding: syn.$space-lg syn.$space-xl;
+    border-top: syn.px-to-rem(1) solid var(--cs-divider);
+    flex-shrink: 0;
+    background: inherit;
   }
 
-  // ── Coupon ────────────────────────────────────────────────────────────
   &__coupon {
-    display:   flex;
-    gap:       syn.$space-xs;
+    display: flex;
+    gap: syn.$space-xs;
   }
 
   &__coupon-input {
-    flex:          1 1 auto;
-    height:        syn.px-to-rem(40);
-    border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+    flex: 1 1 auto;
+    height: syn.px-to-rem(40);
+    border: syn.px-to-rem(1) solid var(--cs-input-border);
     border-radius: syn.$radius-md;
-    padding:       0 syn.$space-md;
-    font-size:     syn.$font-size-sm;
-    color:         syn.$color-neutral-900;
-    background:    syn.$color-neutral-0;
+    padding: 0 syn.$space-md;
+    font-size: syn.$font-size-sm;
+    color: var(--cs-text-primary);
+    background: var(--cs-input-surface);
 
     &:focus {
-      outline:       none;
-      border-color:  syn.$color-brand-400;
-      box-shadow:    0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-400, 0.2);
+      outline: none;
+      border-color: var(--cs-input-border-focus);
+      box-shadow: 0 0 0 syn.px-to-rem(3) var(--cs-input-focus-glow);
     }
 
-    &::placeholder { color: syn.$color-neutral-400; }
+    &::placeholder {
+      color: var(--cs-input-placeholder);
+    }
   }
 
   &__coupon-btn {
-    height:        syn.px-to-rem(40);
-    padding:       0 syn.$space-md;
-    border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+    height: syn.px-to-rem(40);
+    padding: 0 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--cs-coupon-btn-border);
     border-radius: syn.$radius-md;
-    background:    syn.$color-neutral-50;
-    color:         syn.$color-neutral-700;
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-medium;
-    cursor:        pointer;
-    white-space:   nowrap;
-    transition:    background syn.$duration-fast syn.$easing-default;
+    background: var(--cs-coupon-btn-surface);
+    color: var(--cs-coupon-btn-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background syn.$duration-fast syn.$easing-default;
 
-    &:hover { background: syn.$color-neutral-100; }
+    &:hover {
+      background: var(--cs-coupon-btn-surface-hover);
+    }
   }
 
-  // ── Totals ────────────────────────────────────────────────────────────
   &__totals {
     @include syn.flex-column;
     gap: syn.$space-xs;
   }
 
   &__total-row {
-    display:         flex;
+    display: flex;
     justify-content: space-between;
-    align-items:     center;
-    font-size:       syn.$font-size-sm;
-    color:           syn.$color-neutral-600;
+    align-items: center;
+    font-size: syn.$font-size-sm;
+    color: var(--cs-text-secondary);
 
     &--grand {
-      font-size:   syn.$font-size-base;
+      font-size: syn.$font-size-base;
       font-weight: syn.$font-weight-bold;
-      color:       syn.$color-neutral-900;
+      color: var(--cs-total-grand);
       padding-top: syn.$space-xs;
-      border-top:  syn.px-to-rem(1) solid syn.$color-neutral-100;
-      margin-top:  syn.$space-xs;
-
-      .cart-drawer--dark & {
-        color: syn.$color-neutral-50;
-        border-top-color: syn.$color-neutral-700;
-      }
+      border-top: syn.px-to-rem(1) solid var(--cs-divider);
+      margin-top: syn.$space-xs;
     }
-
-    .cart-drawer--dark & { color: syn.$color-neutral-400; }
   }
 
-  // ── Checkout CTA ─────────────────────────────────────────────────────
   &__checkout-btn {
-    display:         flex;
-    align-items:     center;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    height:          syn.px-to-rem(48);
-    background:      syn.$color-brand-600;
-    color:           syn.$color-neutral-0;
-    border-radius:   syn.$radius-md;
-    font-size:       syn.$font-size-base;
-    font-weight:     syn.$font-weight-semibold;
+    height: syn.px-to-rem(48);
+    background: var(--cs-cta-surface);
+    color: var(--cs-cta-text);
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
     text-decoration: none;
-    transition:      background syn.$duration-fast syn.$easing-default,
-                     transform  syn.$duration-fast syn.$easing-default;
+    transition:
+      background syn.$duration-fast syn.$easing-default,
+      transform syn.$duration-fast syn.$easing-default,
+      box-shadow syn.$duration-fast syn.$easing-default;
 
-    &:hover  { background: syn.$color-brand-500; box-shadow: syn.$shadow-brand-md; transform: translateY(syn.px-to-rem(-1)); }
-    &:active { background: syn.$color-brand-600; box-shadow: none; transform: translateY(0); }
+    &:hover {
+      background: var(--cs-cta-surface-hover);
+      box-shadow: var(--cs-cta-shadow-hover);
+      transform: translateY(syn.px-to-rem(-1));
+    }
+
+    &:active {
+      background: var(--cs-cta-surface-active);
+      box-shadow: none;
+      transform: translateY(0);
+    }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--cs-focus-ring);
+      outline-offset: syn.px-to-rem(2);
+    }
   }
 
   &__continue {
-    text-align:      center;
-    font-size:       syn.$font-size-sm;
-    color:           syn.$color-neutral-500;
+    text-align: center;
+    font-size: syn.$font-size-sm;
+    color: var(--cs-text-muted);
     text-decoration: none;
 
-    &:hover { color: syn.$color-brand-600; text-decoration: underline; }
+    &:hover {
+      color: var(--cs-link);
+      text-decoration: underline;
+    }
   }
 }

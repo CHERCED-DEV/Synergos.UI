@@ -1,33 +1,59 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Link ─────────────────────────────────────────────────────────────────────
-
 .syn-link {
-  display:                   inline-flex;
-  align-items:               center;
-  gap:                       syn.$space-xxs;
-  border:                    0;
-  padding:                   0;
-  background:                transparent;
-  font:                      inherit;
-  cursor:                    pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-xxs;
+  border: var(--syn-link-border-width, 0) solid var(--syn-link-border-color, transparent);
+  border-radius: var(--syn-link-border-radius, 0);
+  padding: var(--syn-link-padding-y, 0) var(--syn-link-padding-x, 0);
+  background: var(--syn-link-surface, transparent);
+  font: inherit;
+  cursor: pointer;
+  color: var(--syn-link-color, var(--syn-color-text-accent, #{syn.$color-brand-500}));
   text-decoration-thickness: syn.px-to-rem(1.5);
-  text-underline-offset:     syn.px-to-rem(3);
-  transition:                color syn.$duration-fast syn.$easing-smooth,
-                             opacity syn.$duration-fast syn.$easing-smooth;
+  text-underline-offset: syn.px-to-rem(3);
+  transition:
+    color syn.$duration-fast syn.$easing-smooth,
+    background syn.$duration-fast syn.$easing-smooth,
+    border-color syn.$duration-fast syn.$easing-smooth,
+    opacity syn.$duration-fast syn.$easing-smooth;
 
   @include syn.focus-visible;
+
+  &:hover {
+    color: var(--syn-link-color-hover, var(--syn-link-color, var(--syn-color-text-accent, #{syn.$color-brand-600})));
+    background: var(--syn-link-surface-hover, var(--syn-link-surface, transparent));
+    border-color: var(--syn-link-border-color-hover, var(--syn-link-border-color, transparent));
+  }
 }
 
-.syn-link--brand   { color: syn.$color-brand-500;   &:hover { color: syn.$color-brand-600;   } }
-.syn-link--neutral { color: syn.$color-neutral-800; &:hover { color: syn.$color-neutral-900; } }
-.syn-link--inverse { color: syn.$color-neutral-0;   &:hover { opacity: 0.8;                  } }
+.syn-link--brand {
+  --syn-link-color: var(--syn-link-color-brand, var(--syn-color-text-accent, #{syn.$color-brand-500}));
+  --syn-link-color-hover: var(--syn-link-color-brand-hover, var(--syn-color-action-primary-hover, #{syn.$color-brand-600}));
+}
 
-.syn-link--underline { text-decoration: underline; }
+.syn-link--neutral {
+  --syn-link-color: var(--syn-link-color-neutral, var(--syn-color-text-primary, #{syn.$color-neutral-800}));
+  --syn-link-color-hover: var(--syn-link-color-neutral-hover, var(--syn-color-text-primary, #{syn.$color-neutral-900}));
+}
+
+.syn-link--inverse {
+  --syn-link-color: var(--syn-link-color-inverse, var(--syn-color-text-inverse, #{syn.$color-neutral-0}));
+  --syn-link-color-hover: var(--syn-link-color-inverse-hover, var(--syn-color-text-inverse, #{syn.$color-neutral-0}));
+  --syn-link-surface: var(--syn-link-surface-inverse, transparent);
+  --syn-link-surface-hover: var(--syn-link-surface-inverse-hover, transparent);
+}
+
+.syn-link--underline {
+  text-decoration: underline;
+}
 
 .syn-link--disabled {
-  color:           syn.$color-neutral-400;
-  cursor:          not-allowed;
+  color: var(--syn-link-color-disabled, var(--syn-color-text-disabled, #{syn.$color-neutral-400}));
+  cursor: not-allowed;
   text-decoration: none;
-  pointer-events:  none;
+  pointer-events: none;
+  border-color: var(--syn-link-border-color-disabled, var(--syn-link-border-color, transparent));
+  background: var(--syn-link-surface-disabled, var(--syn-link-surface, transparent));
 }

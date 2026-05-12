@@ -1,82 +1,21 @@
 @use 'scss' as syn;
 
 :host {
+  --syn-social-links-title-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-social-links-link-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-social-links-link-surface-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-social-links-link-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-social-links-link-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --syn-social-links-link-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-social-links-link-text-hover: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
   display: block;
 }
 
-// ─── Social Share ─────────────────────────────────────────────────────────────
-// Inline row of social sharing icon-buttons.
-// --vertical: stack in a column (sidebar placement).
-// --labeled: show icon + text label for accessibility-first contexts.
 .social-share {
-  display:     flex;
-  flex-wrap:   wrap;
-  gap:         syn.$space-xs;
-  align-items: center;
+  display: block;
 
-  &--vertical {
-    flex-direction: column;
-    align-items:    flex-start;
-  }
-
-  &--centered { justify-content: center; }
-
-  // Individual share link
-  &__link {
-    @include syn.focus-visible;
-    display:         inline-flex;
-    align-items:     center;
-    gap:             syn.$space-xxs;
-    min-width:       syn.px-to-rem(36);
-    min-height:      syn.px-to-rem(36);
-    padding:         syn.$space-xs syn.$space-sm;
-    border:          syn.px-to-rem(1) solid syn.$color-neutral-200;
-    border-radius:   syn.$radius-md;
-    background:      syn.$color-neutral-0;
-    color:           syn.$color-neutral-600;
-    font-size:       syn.$font-size-sm;
-    font-weight:     syn.$font-weight-medium;
-    text-decoration: none;
-    white-space:     nowrap;
-    transition:      syn.$transition-colors;
-
-    &:hover {
-      border-color: syn.$color-neutral-300;
-      background:   syn.$color-neutral-50;
-      color:        syn.$color-neutral-900;
-    }
-
-    // Icon-only variant (no label text)
-    &--icon {
-      padding:       syn.$space-xs;
-      border-radius: syn.$radius-md;
-    }
-
-    // Platform-specific accent colors on hover
-    &--twitter:hover  { color: #1da1f2; border-color: #1da1f2; }
-    &--linkedin:hover { color: #0a66c2; border-color: #0a66c2; }
-    &--facebook:hover { color: #1877f2; border-color: #1877f2; }
-    &--whatsapp:hover { color: #25d366; border-color: #25d366; }
-    &--email:hover    { color: syn.$color-brand-500; border-color: syn.$color-brand-300; }
-    &--copy:hover     { color: syn.$color-neutral-900; border-color: syn.$color-neutral-400; }
-  }
-
-  &__label {
-    line-height: 1;
-  }
-
-  // Dark surface context
-  &--dark {
-    .social-share__link {
-      background:   transparent;
-      border-color: syn.$color-neutral-600;
-      color:        syn.$color-neutral-300;
-
-      &:hover {
-        border-color: syn.$color-neutral-400;
-        background:   syn.$color-neutral-700;
-        color:        syn.$color-neutral-0;
-      }
-    }
+  &--stack {
+    max-width: min(100%, #{syn.px-to-rem(320)});
   }
 }

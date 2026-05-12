@@ -1,7 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
-type ButtonVariant = 'solid' | 'outline' | 'ghost';
+type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'danger' | 'gradient';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonConfig {
@@ -11,6 +18,17 @@ export interface ButtonConfig {
   readonly size?: ButtonSize;
   readonly type?: 'button' | 'submit' | 'reset';
   readonly disabled?: boolean;
+}
+
+function sanitizeButtonConfig(value: Partial<ButtonConfig>): Partial<ButtonConfig> {
+  return omitUndefinedProperties<ButtonConfig>({
+    label: coerceTrimmedStringInput(value.label),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    variant: coerceStringEnumInput(value.variant, ['solid', 'outline', 'ghost', 'danger', 'gradient'] as const),
+    size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg'] as const),
+    type: coerceStringEnumInput(value.type, ['button', 'submit', 'reset'] as const),
+    disabled: coerceOptionalBooleanInput(value.disabled),
+  });
 }
 
 @Component({
@@ -23,6 +41,8 @@ export interface ButtonConfig {
       [class.syn-button--solid]="variant() === 'solid'"
       [class.syn-button--outline]="variant() === 'outline'"
       [class.syn-button--ghost]="variant() === 'ghost'"
+      [class.syn-button--danger]="variant() === 'danger'"
+      [class.syn-button--gradient]="variant() === 'gradient'"
       [class.syn-button--sm]="size() === 'sm'"
       [class.syn-button--md]="size() === 'md'"
       [class.syn-button--lg]="size() === 'lg'"
@@ -42,7 +62,7 @@ export interface ButtonConfig {
 })
 export class ButtonComponent {
   readonly config = input<Partial<ButtonConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ButtonConfig>,
+    transform: createConfigInputTransform<ButtonConfig>(sanitizeButtonConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });

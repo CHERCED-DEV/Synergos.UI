@@ -4,10 +4,31 @@ import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
+
+function sanitizeMediaTextConfig(
+  value: Partial<MediaTextElementConfig>,
+): Partial<MediaTextElementConfig> {
+  return omitUndefinedProperties<MediaTextElementConfig>({
+    imageSrc: coerceTrimmedStringInput(value.imageSrc),
+    imageAlt: coerceTrimmedStringInput(value.imageAlt),
+    headingText: coerceTrimmedStringInput(value.headingText),
+    body: coerceTrimmedStringInput(value.body),
+    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    ctaUrl: coerceTrimmedStringInput(value.ctaUrl),
+    ctaTarget: coerceTrimmedStringInput(value.ctaTarget),
+    mediaPosition: coerceTrimmedStringInput(value.mediaPosition)
+      ? (coerceTrimmedStringInput(value.mediaPosition) === 'right' ? 'right' : 'left')
+      : undefined,
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-media-text',
@@ -19,7 +40,7 @@ import {
 })
 export class MediaTextComponent {
   readonly config = input<Partial<MediaTextElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<MediaTextElementConfig>,
+    transform: createConfigInputTransform<MediaTextElementConfig>(sanitizeMediaTextConfig),
   });
   readonly imageSrcInput = input<string | undefined>(undefined, { alias: 'imageSrc' });
   readonly imageAltInput = input<string | undefined>(undefined, { alias: 'imageAlt' });
@@ -66,6 +87,8 @@ export class MediaTextComponent {
   readonly hasCta = computed(() => this.ctaLabel().trim().length > 0 && this.ctaUrl().trim().length > 0);
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
   readonly hostClasses = computed(
-    () => `sg-media-text--${this.mediaPosition()} sg-media-text--${this.variant()} sg-media-text--${this.theme()}`,
+    () =>
+      `media-text--${this.mediaPosition()} media-text--${this.variant()} media-text--${this.theme()} ` +
+      `sg-media-text--${this.mediaPosition()} sg-media-text--${this.variant()} sg-media-text--${this.theme()}`,
   );
 }

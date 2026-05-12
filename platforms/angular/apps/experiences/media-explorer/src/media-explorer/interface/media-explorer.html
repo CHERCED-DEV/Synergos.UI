@@ -3,7 +3,6 @@
   [class]="hostClasses()"
   [id]="elementId() || null"
 >
-  <!-- Header -->
   @if (title()) {
     <div class="media-explorer__header">
       <syn-heading
@@ -13,16 +12,15 @@
         [tone]="headingTone()"
       />
 
-      <!-- Category filters -->
       @if (categories().length > 0) {
-        <div class="media-explorer__filters" role="group" aria-label="Filter by category">
+        <div class="media-explorer__filters" role="group" [attr.aria-label]="filtersAriaLabel()">
           <button
             type="button"
             class="media-explorer__filter"
             [class.media-explorer__filter--active]="!activeFilter()"
             (click)="clearFilter()"
           >
-            Todos
+            {{ allCategoriesLabel() }}
           </button>
           @for (cat of categories(); track cat) {
             <button
@@ -40,15 +38,13 @@
   }
 
   @if (isEmpty()) {
-    <!-- Empty state -->
     <div class="media-explorer__empty">
-      <span class="media-explorer__empty-icon" aria-hidden="true">🎬</span>
-      <p class="media-explorer__empty-text">No hay videos disponibles.</p>
+      <span class="media-explorer__empty-icon" aria-hidden="true">&#127909;</span>
+      <p class="media-explorer__empty-text">{{ emptyStateLabel() }}</p>
     </div>
   } @else {
     <div class="media-explorer__layout">
-      <!-- Sidebar: video list -->
-      <nav class="media-explorer__sidebar" aria-label="Video list">
+      <nav class="media-explorer__sidebar" [attr.aria-label]="videoListLabel()">
         @for (item of items(); track item.id) {
           <button
             type="button"
@@ -66,7 +62,7 @@
                   loading="lazy"
                 />
               } @else {
-                <span class="media-explorer__item-placeholder" aria-hidden="true">▶</span>
+                <span class="media-explorer__item-placeholder" aria-hidden="true">&#9654;</span>
               }
             </div>
             <div class="media-explorer__item-meta">
@@ -82,10 +78,8 @@
         }
       </nav>
 
-      <!-- Main player panel -->
       @if (selectedItem(); as current) {
-        <section class="media-explorer__player" aria-live="polite" aria-label="Video player">
-          <!-- Video area -->
+        <section class="media-explorer__player" aria-live="polite" [attr.aria-label]="videoPlayerLabel()">
           <div class="media-explorer__video-wrap">
             @if (isPlayerActive() && current.videoUrl) {
               <iframe
@@ -110,17 +104,16 @@
                   <button
                     type="button"
                     class="media-explorer__play-btn"
-                    [attr.aria-label]="'Reproducir ' + current.title"
+                    [attr.aria-label]="playItemLabel(current.title)"
                     (click)="play()"
                   >
-                    <span class="media-explorer__play-icon" aria-hidden="true">▶</span>
+                    <span class="media-explorer__play-icon" aria-hidden="true">&#9654;</span>
                   </button>
                 }
               </div>
             }
           </div>
 
-          <!-- Video info -->
           <div class="media-explorer__info">
             <syn-heading
               [text]="current.title"

@@ -7,7 +7,7 @@ let inputId = 0;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="syn-input">
+    <div class="syn-input" [class.syn-input--error]="invalid()">
       @if (label()) {
         <label class="syn-input__label" [attr.for]="fieldId()">{{ label() }}</label>
       }
@@ -20,12 +20,17 @@ let inputId = 0;
         [placeholder]="placeholder()"
         [disabled]="disabled()"
         [required]="required()"
+        [attr.aria-invalid]="invalid() || null"
         [attr.aria-label]="ariaLabel() || label() || placeholder() || 'Input field'"
-        [attr.aria-describedby]="describedBy() || null"
+        [attr.aria-describedby]="describedByIds() || null"
         (input)="onInput($event)"
         (blur)="blurred.emit()"
         (focus)="focused.emit()"
       />
+
+      @if (hint()) {
+        <p class="syn-input__hint" [id]="hintId()">{{ hint() }}</p>
+      }
     </div>
   `,
   styleUrl: './input.scss',
@@ -33,12 +38,14 @@ let inputId = 0;
 export class InputComponent {
   readonly id = input('');
   readonly label = input('');
+  readonly hint = input('');
   readonly ariaLabel = input('');
   readonly describedBy = input('');
   readonly type = input<'text' | 'email' | 'password' | 'search'>('text');
   readonly placeholder = input('');
   readonly value = input('');
   readonly disabled = input(false);
+  readonly invalid = input(false);
   readonly required = input(false);
 
   readonly valueChange = output<string>();
@@ -46,6 +53,11 @@ export class InputComponent {
   readonly blurred = output<void>();
 
   readonly fieldId = computed(() => this.id() || `syn-input-${inputId}`);
+  readonly hintId = computed(() => `${this.fieldId()}-hint`);
+  readonly describedByIds = computed(() => {
+    const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
+    return ids.join(' ');
+  });
 
   constructor() {
     inputId += 1;

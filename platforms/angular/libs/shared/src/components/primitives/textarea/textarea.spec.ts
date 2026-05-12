@@ -27,4 +27,20 @@ describe(TextareaComponent.name, () => {
 
     expect(changed).toHaveBeenCalledWith('Design System');
   });
+
+  it('applies invalid state and renders hint content', () => {
+    const fixture = TestBed.createComponent(TextareaComponent);
+    fixture.componentRef.setInput('hint', 'Add details');
+    fixture.componentRef.setInput('invalid', true);
+    fixture.detectChanges();
+
+    const wrapper = fixture.nativeElement.querySelector('.syn-textarea') as HTMLDivElement;
+    const textarea = fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    const hint = fixture.nativeElement.querySelector('.syn-textarea__hint') as HTMLParagraphElement;
+
+    expect(wrapper.className).toContain('syn-textarea--error');
+    expect(textarea.getAttribute('aria-invalid')).toBe('true');
+    expect(textarea.getAttribute('aria-describedby')).toContain(hint.id);
+    expect(hint.textContent).toContain('Add details');
+  });
 });

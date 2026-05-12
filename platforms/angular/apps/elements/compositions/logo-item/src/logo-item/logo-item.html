@@ -9,7 +9,7 @@
   >
     <span class="logo-item__frame">
       @if (hasImage()) {
-        <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" />
+        <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" decoding="async" />
       }
 
       @if (label()) {
@@ -20,9 +20,13 @@
     </span>
   </syn-link>
 } @else {
-  <div class="logo-item__frame" [attr.aria-label]="resolvedAriaLabel()" role="img">
+  <div
+    class="logo-item__frame"
+    [attr.aria-label]="hasImage() ? null : resolvedAriaLabel()"
+    [attr.role]="hasImage() ? null : 'img'"
+  >
     @if (hasImage()) {
-      <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" />
+      <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" decoding="async" />
     }
 
     @if (label()) {

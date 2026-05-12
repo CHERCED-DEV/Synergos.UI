@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 export type IconTone = 'neutral' | 'brand' | 'inverse';
@@ -12,6 +19,17 @@ export interface IconConfig {
   readonly size?: IconSize;
   readonly tone?: IconTone;
   readonly decorative?: boolean;
+}
+
+function sanitizeIconConfig(value: Partial<IconConfig>): Partial<IconConfig> {
+  return omitUndefinedProperties<IconConfig>({
+    name: coerceTrimmedStringInput(value.name),
+    symbol: coerceTrimmedStringInput(value.symbol),
+    label: coerceTrimmedStringInput(value.label),
+    size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg'] as const),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand', 'inverse'] as const),
+    decorative: coerceOptionalBooleanInput(value.decorative),
+  });
 }
 
 @Component({
@@ -33,7 +51,7 @@ export interface IconConfig {
 })
 export class IconComponent {
   readonly config = input<Partial<IconConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<IconConfig>,
+    transform: createConfigInputTransform<IconConfig>(sanitizeIconConfig),
   });
   readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });
   readonly symbolInput = input<string | undefined>(undefined, { alias: 'symbol' });

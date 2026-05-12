@@ -1,12 +1,27 @@
 @use 'scss' as syn;
 
 :host {
+  --li-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --li-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --li-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --li-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --li-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-sm});
+  --li-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
   display: block;
 }
 
 .logo-item {
   &__link {
-    display:         inline-flex;
+    --syn-link-padding-y: 0;
+    --syn-link-padding-x: 0;
+    --syn-link-border-width: 0;
+    --syn-link-surface: transparent;
+    --syn-link-surface-hover: transparent;
+    --syn-link-color-neutral: inherit;
+    --syn-link-color-neutral-hover: inherit;
+
+    display: inline-flex;
     text-decoration: none;
   }
 
@@ -14,33 +29,38 @@
     @include syn.flex-column-center;
     @include syn.surface-panel(
       syn.$space-md,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
+      var(--li-surface),
+      var(--li-border),
       syn.px-to-rem(1),
       syn.$radius-lg,
-      syn.$shadow-xs
+      var(--li-shadow)
     );
-    gap:            syn.$space-sm;
+
+    gap: syn.$space-sm;
     min-inline-size: syn.px-to-rem(160);
-    text-align:     center;
-    transition:     syn.$transition-colors;
+    text-align: center;
+    transition:
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
     &:hover {
-      border-color: syn.$color-neutral-300;
-      box-shadow:   syn.$shadow-sm;
+      border-color: var(--li-border-hover);
+      box-shadow: var(--li-shadow-hover);
+      transform: translateY(syn.px-to-rem(-1));
     }
   }
 
   &__image {
-    display:        block;
+    display: block;
     max-inline-size: 100%;
     max-block-size: syn.px-to-rem(56);
-    object-fit:     contain;
+    object-fit: contain;
   }
 
   &__label {
-    color:       syn.$color-neutral-600;
-    font-size:   syn.$font-size-sm;
+    color: var(--li-label-color);
+    font-size: syn.$font-size-sm;
     line-height: syn.$line-height-normal;
   }
 }

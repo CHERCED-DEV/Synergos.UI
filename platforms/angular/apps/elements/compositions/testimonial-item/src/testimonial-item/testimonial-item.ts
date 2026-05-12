@@ -1,6 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { TestimonialItemElementConfig } from '@synergos/contracts';
-import { AvatarComponent, coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  AvatarComponent,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizeTestimonialItemConfig(
+  value: Partial<TestimonialItemElementConfig>,
+): Partial<TestimonialItemElementConfig> {
+  return omitUndefinedProperties<TestimonialItemElementConfig>({
+    quote: coerceTrimmedStringInput(value.quote),
+    name: coerceTrimmedStringInput(value.name),
+    role: coerceTrimmedStringInput(value.role),
+    avatarSrc: coerceTrimmedStringInput(value.avatarSrc),
+    avatarAlt: coerceTrimmedStringInput(value.avatarAlt),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-testimonial-item',
@@ -12,7 +31,7 @@ import { AvatarComponent, coerceConfigInput, resolveConfigValue } from '@synergo
 })
 export class TestimonialItemElementComponent {
   readonly config = input<Partial<TestimonialItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<TestimonialItemElementConfig>,
+    transform: createConfigInputTransform<TestimonialItemElementConfig>(sanitizeTestimonialItemConfig),
   });
   readonly quoteInput = input<string | undefined>(undefined, { alias: 'quote' });
   readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });
@@ -49,5 +68,7 @@ export class TestimonialItemElementComponent {
     const name = this.name().trim();
     return name ? `${name} avatar` : 'Testimonial avatar';
   });
-  readonly hostClasses = computed(() => `testimonial-item--${this.theme()}`);
+  readonly hostClasses = computed(
+    () => `testimonial-item--${this.theme()} sg-testimonial-item--${this.theme()}`,
+  );
 }

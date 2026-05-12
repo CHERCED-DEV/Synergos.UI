@@ -1,6 +1,10 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FeatureGridComponent } from './feature-grid';
+import {
+  FeatureGridComponent,
+  normalizeFeatureGridItems,
+  sanitizeFeatureGridConfig,
+} from './feature-grid';
 
 describe('FeatureGridComponent', () => {
   let fixture: ComponentFixture<FeatureGridComponent>;
@@ -36,5 +40,30 @@ describe('FeatureGridComponent', () => {
         icon: 'icon-speed',
       },
     ]);
+  });
+
+  it('should filter empty feature items and accept headingText aliases', () => {
+    expect(
+      normalizeFeatureGridItems([
+        { headingText: 'Fast', body: 'Loads quickly.' },
+        { heading: 'Stable', icon: 'icon-check' },
+        { body: '   ' },
+      ]),
+    ).toEqual([
+      { heading: 'Fast', body: 'Loads quickly.', icon: '' },
+      { heading: 'Stable', body: '', icon: 'icon-check' },
+    ]);
+  });
+
+  it('should sanitize numeric columns and normalized items from config', () => {
+    const config = sanitizeFeatureGridConfig({
+      headingText: '  Benefits  ',
+      columns: 4,
+      items: [{ headingText: 'Fast', body: 'Loads quickly.' }],
+    });
+
+    expect(config.headingText).toBe('Benefits');
+    expect(config.columns).toBe(4);
+    expect(config.items).toEqual([{ heading: 'Fast', body: 'Loads quickly.', icon: '' }]);
   });
 });

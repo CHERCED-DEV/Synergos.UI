@@ -4,27 +4,39 @@
   display: block;
 }
 
-// ─── Feature Item ─────────────────────────────────────────────────────────────
-// Centered by default (for feature grids). --left for inline/list contexts.
-// --card adds surface panel + hover lift. --accent uses violet icon.
 .feature-item {
-  @include syn.flex-column;
-  align-items: center;
-  text-align:  center;
-  gap:         syn.$space-sm;
-  padding:     syn.$space-lg;
+  --syn-feature-item-background: transparent;
+  --syn-feature-item-border: transparent;
+  --syn-feature-item-shadow: none;
+  --syn-feature-item-shadow-hover: none;
+  --syn-feature-item-icon-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-feature-item-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-feature-item-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
 
-  // Left-aligned variant: icon on top, content left-aligned — for listicle layouts
-  &--left {
+  @include syn.flex-column;
+
+  align-items: center;
+  gap: syn.$space-sm;
+  padding: syn.$space-lg;
+  text-align: center;
+  border: syn.px-to-rem(1) solid var(--syn-feature-item-border);
+  border-radius: syn.$radius-xl;
+  background: var(--syn-feature-item-background);
+  box-shadow: var(--syn-feature-item-shadow);
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+  &.sg-feature-item--left {
     align-items: flex-start;
-    text-align:  left;
+    text-align: left;
   }
 
-  // Inline icon-left variant: icon beside content horizontally — for compact lists
-  &--inline {
+  &.sg-feature-item--inline {
     flex-direction: row;
-    align-items:    flex-start;
-    text-align:     left;
+    align-items: flex-start;
+    text-align: left;
 
     .feature-item__icon {
       flex-shrink: 0;
@@ -32,62 +44,60 @@
 
     .feature-item__copy {
       @include syn.flex-column;
+
       gap: syn.$space-xxs;
     }
   }
 
-  // Surface card variant — elevated with hover lift
-  &--card {
-    background-color: syn.$color-neutral-0;
-    border:           syn.px-to-rem(1) solid syn.$color-neutral-200;
-    border-radius:    syn.$radius-xl;
-    box-shadow:       syn.$shadow-xs;
-    transition:       box-shadow syn.$duration-base syn.$easing-default,
-                      transform  syn.$duration-base syn.$easing-default;
+  &.sg-feature-item--card {
+    --syn-feature-item-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+    --syn-feature-item-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+    --syn-feature-item-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+    --syn-feature-item-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
 
     &:hover {
-      box-shadow: syn.$shadow-md;
-      transform:  translateY(syn.px-to-rem(-2));
+      box-shadow: var(--syn-feature-item-shadow-hover);
+      transform: translateY(syn.px-to-rem(-2));
     }
   }
 
-  &--dark {
-    .feature-item__heading { color: syn.$color-neutral-0;   }
-    .feature-item__body    { color: syn.$color-neutral-300; }
+  &.sg-feature-item--accent {
+    --syn-feature-item-icon-background: var(--syn-color-surface-accent, #{syn.$color-accent-100});
   }
 
-  // Icon container — brand tint default, accent violet variant
+  &.sg-feature-item--dark {
+    --syn-feature-item-heading-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --syn-feature-item-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
   &__icon {
     @include syn.flex-center;
-    flex-shrink:      0;
-    width:            syn.px-to-rem(52);
-    height:           syn.px-to-rem(52);
-    border-radius:    syn.$radius-md;
-    background-color: syn.$color-brand-100;
-    transition:       background-color syn.$duration-fast syn.$easing-smooth;
 
-    // Accent variant — violet icon background
-    .sg-feature-item--accent & {
-      background-color: syn.$color-accent-100;
-    }
+    flex-shrink: 0;
+    width: syn.px-to-rem(52);
+    height: syn.px-to-rem(52);
+    border-radius: syn.$radius-md;
+    background-color: var(--syn-feature-item-icon-background);
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
     img {
-      width:      syn.px-to-rem(28);
-      height:     syn.px-to-rem(28);
+      width: syn.px-to-rem(28);
+      height: syn.px-to-rem(28);
       object-fit: contain;
     }
   }
 
   &__heading {
     margin: 0;
+    color: var(--syn-feature-item-heading-color);
     @include syn.heading('xs');
-    color: syn.$color-neutral-900;
   }
 
   &__body {
-    margin:      0;
-    font-size:   syn.$font-size-sm;
+    margin: 0;
+    color: var(--syn-feature-item-body-color);
+    font-size: syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
+    text-wrap: pretty;
   }
 }

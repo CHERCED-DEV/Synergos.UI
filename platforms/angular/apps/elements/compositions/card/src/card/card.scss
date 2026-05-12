@@ -1,76 +1,74 @@
 @use 'scss' as syn;
 
 :host {
-  display:        flex;
+  display: flex;
   flex-direction: column;
-  font-family:    inherit;
-  height:         100%;
-  min-height:     0;            // allow shrinking inside flex parents
-  border-radius:  syn.$radius-xl; // match .card radius for overflow clipping
-  overflow:       hidden;       // clip content to radius
+  font-family: inherit;
+  height: 100%;
+  min-height: 0;
+  border-radius: syn.$radius-2xl;
+  overflow: hidden;
 }
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
-// Core content card. Supports image, text, CTA.
-// --featured: brand-tinted border + glow shadow for highlighted cards.
-// --accent: violet border + glow for premium/editorial cards.
-// --horizontal: image on left from sm breakpoint — landscape layout.
 .card {
+  --syn-element-card-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-element-card-border: var(--syn-color-border-subtle, #{syn.$color-neutral-200});
+  --syn-element-card-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-element-card-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-lg});
+  --syn-element-card-category: var(--syn-color-text-accent, #{syn.$color-brand-500});
+  --syn-element-card-subtitle: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-element-card-body: var(--syn-color-text-muted, #{syn.$color-neutral-600});
+  --syn-element-card-image-border: transparent;
+  --syn-element-card-divider: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+
   @include syn.flex-column;
-  @include syn.surface-panel(
-    0,
-    syn.$color-neutral-0,
-    transparent,
-    syn.px-to-rem(1),
-    syn.$radius-xl,
-    syn.$shadow-xs
-  );
-  overflow:   hidden;
-  height:     100%; // Fill parent for grid alignment
-  transition: box-shadow syn.$duration-base syn.$easing-default,
-              transform  syn.$duration-base syn.$easing-default,
-              border-color syn.$duration-base syn.$easing-default;
+  @include syn.surface-panel(0, transparent, transparent, syn.px-to-rem(1), syn.$radius-2xl, none);
+
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+  background: var(--syn-element-card-background);
+  border-color: var(--syn-element-card-border);
+  box-shadow: var(--syn-element-card-shadow);
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
   &:hover {
-    box-shadow: syn.$shadow-md;
-    transform:  translateY(syn.px-to-rem(-2));
+    box-shadow: var(--syn-element-card-shadow-hover);
+    transform: translateY(#{syn.px-to-rem(-3)});
   }
 
-  // Featured / promoted — brand border + glow
   &--featured {
-    border-color: syn.$color-brand-300;
-    box-shadow:   syn.$shadow-brand-sm;
-
-    &:hover {
-      box-shadow: syn.$shadow-brand-md;
-      transform:  translateY(syn.px-to-rem(-3));
-    }
+    --syn-element-card-border: var(--syn-color-border-accent, #{syn.$color-brand-300});
+    --syn-element-card-shadow: var(--syn-shadow-action, #{syn.$shadow-brand-sm});
+    --syn-element-card-shadow-hover: var(--syn-shadow-action-hover, #{syn.$shadow-brand-md});
   }
 
-  // Premium / editorial — violet border + glow
   &--accent {
-    border-color: syn.$color-accent-300;
-    box-shadow:   syn.$shadow-accent-sm;
-
-    &:hover {
-      box-shadow: syn.$shadow-accent-md;
-      transform:  translateY(syn.px-to-rem(-3));
-    }
+    --syn-element-card-border: var(--syn-color-border-accent, #{syn.$color-accent-300});
+    --syn-element-card-shadow: var(--syn-shadow-accent, #{syn.$shadow-accent-sm});
+    --syn-element-card-shadow-hover: var(--syn-shadow-accent, #{syn.$shadow-accent-md});
   }
 
   &--dark {
-    background:   syn.$color-neutral-900;
-    border-color: syn.$color-neutral-700;
+    --syn-element-card-background: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+    --syn-element-card-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-element-card-category: var(--syn-color-text-accent, #{syn.$color-brand-300});
+    --syn-element-card-subtitle: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --syn-element-card-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --syn-element-card-image-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-element-card-divider: color-mix(in srgb, var(--syn-color-border-default, #{syn.$color-neutral-700}) 76%, transparent);
   }
 
-  // Horizontal layout: stacked on mobile → image-left from sm breakpoint up
   &--horizontal {
     @include syn.respond-to(sm) {
       flex-direction: row;
 
       .card__image {
-        width:        syn.px-to-rem(200);
-        flex-shrink:  0;
+        width: syn.px-to-rem(220);
+        flex-shrink: 0;
         aspect-ratio: 1 / 1;
       }
 
@@ -81,84 +79,85 @@
   }
 
   &__image {
-    width:        100%;
+    width: 100%;
     aspect-ratio: 16 / 9;
-    overflow:     hidden;
+    overflow: hidden;
+    border-bottom: syn.px-to-rem(1) solid var(--syn-element-card-image-border);
 
     img {
-      width:      100%;
-      height:     100%;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
-      transition: transform syn.$duration-slow syn.$easing-default;
+      transition: transform var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-default;
     }
 
-    // Subtle zoom on image when card hovered
     .card:hover & img {
-      transform: scale(1.03);
+      transform: scale(1.04);
     }
   }
 
   &__content {
     @include syn.flex-column;
-    flex:       1 1 auto;
-    gap:        syn.$space-sm;
-    padding:    syn.$space-lg;
-    min-height: 0;        // prevent flex blowout
-    overflow:   hidden;   // clip overflow from children
 
-    // Extra top padding when card has no image
+    flex: 1 1 auto;
+    gap: syn.$space-md;
+    padding: clamp(#{syn.$space-lg}, 2.5vw, #{syn.$space-xl});
+    min-height: 0;
+    overflow: hidden;
+
     .card:not(:has(.card__image)) & {
       padding-top: syn.$space-xl;
     }
   }
 
-  // Optional category/topic label above title — eyebrow style
-  &__category {
-    font-size:      syn.$font-size-xs;
-    font-weight:    syn.$font-weight-semibold;
-    color:          syn.$color-brand-500;
-    text-transform: uppercase;
-    letter-spacing: syn.$letter-spacing-eyebrow;
+  &__copy {
+    display: grid;
+    gap: syn.$space-sm;
+    flex: 1 1 auto;
+  }
 
-    .sg-card--dark & { color: syn.$color-brand-300; }
+  &__badge {
+    justify-self: flex-start;
   }
 
   &__title {
-    display:            -webkit-box;
+    display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
-    overflow:           hidden;
-    text-overflow:      ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &__subtitle {
-    margin:    0;
+    margin: 0;
     font-size: syn.$font-size-sm;
-    color:     syn.$color-neutral-500;
-
-    .sg-card--dark & { color: syn.$color-neutral-400; }
+    color: var(--syn-element-card-subtitle);
+    line-height: syn.$line-height-normal;
   }
 
   &__body {
-    margin:      0;
-    flex:        1 1 auto;
-    font-size:   syn.$font-size-base;
-    color:       syn.$color-neutral-600;
+    margin: 0;
+    flex: 1 1 auto;
+    font-size: syn.$font-size-base;
+    color: var(--syn-element-card-body);
     line-height: syn.$line-height-relaxed;
-
-    // Clamp to 3 lines — overflow becomes "..."
-    display:            -webkit-box;
+    display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
-    overflow:           hidden;
-    text-overflow:      ellipsis;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-    .sg-card--dark & { color: syn.$color-neutral-300; }
+  &__actions {
+    display: flex;
+    align-items: center;
+    padding-top: syn.$space-sm;
+    border-top: syn.px-to-rem(1) solid var(--syn-element-card-divider);
   }
 
   &__cta-link {
     text-decoration: none;
-    align-self:      flex-start;
-    margin-top:      auto; // Sticks to bottom regardless of body length
+    align-self: flex-start;
+    margin-top: auto;
   }
 }

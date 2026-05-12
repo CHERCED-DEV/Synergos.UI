@@ -1,7 +1,7 @@
-@let item = itemInput();
+@let item = item();
 
 @if (item) {
-  <div class="cart-item" [class]="'cart-item--' + theme()">
+  <div class="cart-item" [class]="'cart-item--' + theme()" role="group" [attr.aria-label]="item.name">
     <!-- Thumbnail -->
     @if (hasImage()) {
       <div class="cart-item__thumb">
@@ -22,21 +22,25 @@
 
     <!-- Controls -->
     <div class="cart-item__controls">
+      <span class="cart-item__qty-label" [id]="quantityLabelId">{{ qtyLabel() }}</span>
       <sg-quantity-selector
         [min]="1"
         [max]="99"
         [value]="item.quantity"
         [theme]="theme()"
+        [ariaLabelledBy]="quantityLabelId"
         (quantityChange)="updateQty($event)"
       />
 
-      <p class="cart-item__subtotal">
+      <p class="cart-item__subtotal" aria-live="polite">
         {{ formatPrice(item.subtotal, item.currency) }}
       </p>
 
       <syn-icon-button
         class="cart-item__remove"
-        icon="×"
+        icon="&times;"
+        variant="danger"
+        size="sm"
         [ariaLabel]="removeLabel() + ' ' + item.name"
         (pressed)="remove()"
       />

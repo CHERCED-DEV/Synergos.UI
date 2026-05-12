@@ -1,26 +1,30 @@
-<div class="media-text" [class]="hostClasses()">
+<div class="media-text sg-media-text" [class]="hostClasses()">
   @if (imageSrc()) {
     <div class="media-text__media">
       <img class="media-text__img" [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
     </div>
   }
   <div class="media-text__content">
-    @if (headingText()) {
-      <syn-heading
-        class="media-text__heading"
-        [text]="headingText()"
-        [tone]="headingTone()"
-        level="h2"
-        size="md"
-      />
-    }
-    @if (body()) {
-      <p class="media-text__body">{{ body() }}</p>
-    }
+    <div class="media-text__copy">
+      @if (headingText()) {
+        <syn-heading
+          class="media-text__heading"
+          [text]="headingText()"
+          [tone]="headingTone()"
+          level="h2"
+          size="md"
+        />
+      }
+      @if (body()) {
+        <p class="media-text__body">{{ body() }}</p>
+      }
+    </div>
     @if (hasCta()) {
-      <a class="media-text__cta" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
-        <syn-button [label]="ctaLabel()" variant="solid" size="md" />
-      </a>
+      <div class="media-text__actions">
+        <a class="media-text__cta" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="ctaLabel()" variant="solid" size="md" />
+        </a>
+      </div>
     }
   </div>
 </div>

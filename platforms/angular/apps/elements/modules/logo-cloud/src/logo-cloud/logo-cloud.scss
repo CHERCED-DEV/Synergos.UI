@@ -1,51 +1,96 @@
 @use 'scss' as syn;
 
 :host {
+  --lc-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --lc-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --lc-frame-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --lc-frame-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --lc-frame-border-hover: var(--syn-color-border-accent, #{syn.$color-brand-300});
+  --lc-frame-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --lc-frame-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-sm});
+  --lc-image-filter: grayscale(0.4) opacity(0.75);
+  --lc-image-filter-hover: grayscale(0) opacity(1);
+  --lc-item-min-height: clamp(#{syn.px-to-rem(88)}, 10vw, #{syn.px-to-rem(124)});
+  --lc-header-max-width: #{syn.px-to-rem(720)};
+
   display: block;
 }
 
-// ─── Logo Cloud ───────────────────────────────────────────────────────────────
-// Responsive auto-fit grid of client/partner logos.
-// Mobile: 2 columns minimum → grows to 3-4-5-6 as space allows.
-// No media query breakpoints needed — CSS grid handles column count intrinsically.
 .logo-cloud {
   @include syn.flex-column;
+
   gap: syn.$space-xl;
+
+  &--dark,
+  &.sg-logo-cloud--dark {
+    --lc-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --lc-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --lc-frame-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --lc-frame-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --lc-frame-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-500});
+    --lc-image-filter: grayscale(0.4) opacity(0.6) brightness(1.15);
+    --lc-image-filter-hover: grayscale(0) opacity(1) brightness(1.15);
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-logo-cloud--silver-gold,
+  &.sg-logo-cloud--silverGold {
+    --lc-frame-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  }
+
+  &--compact,
+  &.sg-logo-cloud--compact {
+    --lc-item-min-height: #{syn.px-to-rem(88)};
+  }
 
   &__header {
     @include syn.flex-column;
-    gap:        syn.$space-sm;
+
+    align-items: center;
+    gap: syn.$space-sm;
     text-align: center;
   }
 
-  &__heading { display: block; }
-
-  &__body {
-    color:       syn.$color-neutral-500;
-    font-size:   syn.$font-size-sm;
-    line-height: syn.$line-height-relaxed;
-
-    :first-child { margin-top:    0; }
-    :last-child  { margin-bottom: 0; }
+  &__heading {
+    display: block;
+    max-width: var(--lc-header-max-width);
   }
 
-  // Auto-fit grid: each logo cell is at minimum 140px wide.
-  // On mobile (~375px) that gives ~2 columns. On desktop: 4-6 columns.
-  &__grid {
-    display:               grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(140)), 1fr));
-    gap:                   syn.$space-md;
+  &__body {
+    max-width: var(--lc-header-max-width);
+    color: var(--lc-body-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
 
-    @include syn.respond-to(md) {
-      gap: syn.$space-lg;
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
     }
   }
 
-  &__item  { display: flex; }
+  &__grid {
+    display: block;
+  }
+
+  &__item {
+    display: flex;
+  }
 
   &__link {
-    display:         flex;
-    inline-size:     100%;
+    --syn-link-padding-y: 0;
+    --syn-link-padding-x: 0;
+    --syn-link-border-width: 0;
+    --syn-link-surface: transparent;
+    --syn-link-surface-hover: transparent;
+    --syn-link-color-neutral: inherit;
+    --syn-link-color-neutral-hover: inherit;
+
+    display: flex;
+    inline-size: 100%;
     text-decoration: none;
   }
 
@@ -53,63 +98,46 @@
     @include syn.flex-column-center;
     @include syn.surface-panel(
       syn.$space-md,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
+      var(--lc-frame-surface),
+      var(--lc-frame-border),
       syn.px-to-rem(1),
-      syn.$radius-lg,
-      syn.$shadow-xs
+      syn.$radius-xl,
+      var(--lc-frame-shadow)
     );
-    gap:            syn.$space-sm;
-    inline-size:    100%;
-    // Fluid min-height: compact on mobile, more generous on desktop
-    min-block-size: clamp(#{syn.px-to-rem(80)}, 10vw, #{syn.px-to-rem(120)});
-    text-align:     center;
-    transition:     syn.$transition-colors,
-                    syn.$transition-transform;
+
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    min-block-size: var(--lc-item-min-height);
+    text-align: center;
+    transition:
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
     &:hover {
-      border-color: syn.$color-brand-200;
-      box-shadow:   syn.$shadow-sm;
-      transform:    translateY(syn.px-to-rem(-1));
+      border-color: var(--lc-frame-border-hover);
+      box-shadow: var(--lc-frame-shadow-hover);
+      transform: translateY(#{syn.px-to-rem(-1)});
     }
   }
 
   &__image {
-    display:        block;
+    display: block;
     max-inline-size: 80%;
     max-block-size: syn.px-to-rem(48);
-    object-fit:     contain;
-    // Desaturate logos by default — brand color on hover
-    filter:         grayscale(0.4) opacity(0.75);
-    transition:     filter syn.$duration-base syn.$easing-smooth;
+    object-fit: contain;
+    filter: var(--lc-image-filter);
+    transition: filter syn.$duration-base syn.$easing-smooth;
 
     .logo-cloud__frame:hover & {
-      filter: grayscale(0) opacity(1);
+      filter: var(--lc-image-filter-hover);
     }
   }
 
   &__label {
-    color:       syn.$color-neutral-500;
-    font-size:   syn.$font-size-xs;
+    color: var(--lc-label-color);
+    font-size: syn.$font-size-xs;
     font-weight: syn.$font-weight-medium;
     line-height: syn.$line-height-normal;
-  }
-
-  &--dark {
-    .logo-cloud__body,
-    .logo-cloud__label { color: syn.$color-neutral-400; }
-
-    .logo-cloud__frame {
-      background:   syn.$color-neutral-800;
-      border-color: syn.$color-neutral-700;
-    }
-
-    .logo-cloud__image {
-      filter: grayscale(0.4) opacity(0.6) brightness(1.2);
-
-      .logo-cloud__frame:hover & {
-        filter: grayscale(0) opacity(1) brightness(1.2);
-      }
-    }
   }
 }

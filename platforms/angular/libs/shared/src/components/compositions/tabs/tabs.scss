@@ -1,59 +1,85 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Tabs ──────────────────────────────────────────────────────────────────────
-
 .syn-tabs {
+  --syn-tabs-list-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-tabs-list-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-tabs-tab-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --syn-tabs-tab-color-hover: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-tabs-tab-color-active: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-tabs-tab-border-active: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  --syn-tabs-tab-surface-active: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-tabs-tab-padding-y: #{syn.$space-sm};
+  --syn-tabs-tab-padding-x: #{syn.$space-md};
+  --syn-tabs-panel-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-tabs-panel-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-tabs-panel-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-tabs-panel-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+
   display: grid;
   gap: syn.$space-md;
 }
 
 .syn-tabs__list {
-  display:           flex;
-  gap:               syn.$space-1;
-  border-bottom:     syn.px-to-rem(1) solid syn.$color-neutral-200;
-  // Horizontal scroll when tabs overflow on narrow viewports
-  overflow-x:        auto;
-  scroll-snap-type:  x mandatory;
-  scrollbar-width:   none;
+  display: flex;
+  gap: syn.$space-1;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: syn.$space-xxs;
+  border: syn.px-to-rem(1) solid var(--syn-tabs-list-border);
+  border-radius: syn.$radius-full;
+  background: var(--syn-tabs-list-surface);
 
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .syn-tabs__tab {
-  position:          relative;
-  padding:           syn.$space-xs syn.$space-md;
-  border:            0;
-  border-bottom:     syn.px-to-rem(2) solid transparent;
-  background:        transparent;
-  color:             syn.$color-neutral-500;
-  font-size:         syn.$font-size-sm;
-  font-weight:       syn.$font-weight-medium;
-  white-space:       nowrap;   // Prevent wrapping inside scroll container
-  flex-shrink:       0;
-  scroll-snap-align: start;
-  cursor:            pointer;
-  transition: color syn.$duration-fast syn.$easing-smooth,
-              border-color syn.$duration-fast syn.$easing-smooth;
-
   @include syn.focus-visible;
 
+  position: relative;
+  flex-shrink: 0;
+  padding: var(--syn-tabs-tab-padding-y) var(--syn-tabs-tab-padding-x);
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.$radius-full;
+  background: transparent;
+  color: var(--syn-tabs-tab-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition:
+    color syn.$duration-fast syn.$easing-smooth,
+    border-color syn.$duration-fast syn.$easing-smooth,
+    background-color syn.$duration-fast syn.$easing-smooth,
+    box-shadow syn.$duration-fast syn.$easing-smooth;
+
   &:hover:not([aria-selected='true']) {
-    color: syn.$color-neutral-800;
+    color: var(--syn-tabs-tab-color-hover);
+    background: var(--syn-color-surface-primary, #{syn.$color-surface});
   }
 
   &[aria-selected='true'] {
-    color:        syn.$color-brand-600;
-    border-bottom-color: syn.$color-brand-500;
-    font-weight:  syn.$font-weight-semibold;
+    color: var(--syn-tabs-tab-color-active);
+    border-color: var(--syn-tabs-tab-border-active);
+    background: var(--syn-tabs-tab-surface-active);
+    box-shadow: inset 0 0 0 syn.px-to-rem(1) var(--syn-tabs-tab-border-active);
+    font-weight: syn.$font-weight-semibold;
   }
 }
 
 .syn-tabs__panel {
-  padding:       syn.$space-md;
-  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
-  border-radius: syn.$radius-md;
-  color:         syn.$color-neutral-900;
-  font-size:     syn.$font-size-sm;
-
   @include syn.focus-visible;
+
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--syn-tabs-panel-border);
+  border-radius: syn.$radius-xl;
+  background: var(--syn-tabs-panel-surface);
+  color: var(--syn-tabs-panel-color);
+  box-shadow: var(--syn-tabs-panel-shadow);
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-relaxed;
+  text-wrap: pretty;
 }

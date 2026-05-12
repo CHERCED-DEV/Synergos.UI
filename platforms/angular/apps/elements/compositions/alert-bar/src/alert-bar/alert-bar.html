@@ -1,16 +1,21 @@
-<div class="alert-bar">
-  <syn-alert
-    [title]="title()"
-    [description]="description()"
-    [tone]="tone()"
-    [dismissible]="dismissible()"
-  />
+<div class="alert-bar sg-alert-bar" [class]="hostClasses()">
+  <div class="alert-bar__main">
+    <syn-alert
+      [title]="title()"
+      [description]="description()"
+      [tone]="tone()"
+      [dismissible]="dismissible()"
+    />
+  </div>
 
   @if (hasCta()) {
-    <syn-link
-      class="alert-bar__link"
-      [href]="ctaUrl()"
-      [label]="ctaLabel()"
-    />
+    <div class="alert-bar__actions">
+      <syn-link
+        class="alert-bar__link"
+        [href]="ctaUrl()"
+        [label]="ctaLabel()"
+        [ariaLabel]="ctaAriaLabel()"
+      />
+    </div>
   }
 </div>

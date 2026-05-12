@@ -1,15 +1,41 @@
 @use 'scss' as syn;
 
 :host {
+  --tss-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tss-card-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tss-card-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --tss-card-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --tss-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --tss-name-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tss-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tss-decorative-quote: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --tss-header-max-width: #{syn.px-to-rem(720)};
+
   display: block;
 }
 
-// ─── Testimonial Section ──────────────────────────────────────────────────────
-// Responsive grid of testimonial cards. Auto-fit: 1 col on mobile, 2-3 on desktop.
-// Cards stretch to equal height within each row — clean editorial rhythm.
 .testimonial-section {
-  &__heading {
-    display:       block;
+  &--dark,
+  &.sg-testimonial-section--dark {
+    --tss-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --tss-card-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --tss-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --tss-name-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --tss-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --tss-decorative-quote: var(--syn-color-overlay-medium, #{syn.$color-neutral-700});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-testimonial-section--silver-gold,
+  &.sg-testimonial-section--silverGold {
+    --tss-card-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+    --tss-decorative-quote: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  }
+
+  &__header {
+    display: grid;
+    justify-items: center;
     margin-bottom: syn.$space-xl;
 
     @include syn.respond-to(md) {
@@ -17,104 +43,98 @@
     }
   }
 
-  // Auto-fit: minimum card width 280px.
-  // Mobile: 1 col. Tablet+: 2-3 cols depending on available space.
+  &__heading {
+    display: block;
+    max-width: var(--tss-header-max-width);
+  }
+
   &__grid {
-    display:               grid;
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(280)), 1fr));
-    gap:                   syn.$space-lg;
-    align-items:           stretch; // Equal-height cards per row
+    gap: syn.$space-lg;
+    align-items: stretch;
   }
 
   &__card {
-    @include syn.surface-panel(
-      syn.$space-lg,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
-      syn.px-to-rem(1),
-      syn.$radius-xl,
-      syn.$shadow-xs
-    );
     @include syn.flex-column;
+
     position: relative;
-    margin:   0;
-    gap:      syn.$space-md;
-    height:   100%; // Fill grid cell for equal-height alignment
-    transition: box-shadow syn.$duration-base syn.$easing-default,
-                transform  syn.$duration-base syn.$easing-default;
+    gap: syn.$space-md;
+    height: 100%;
+    margin: 0;
+    padding: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
+    border: syn.px-to-rem(1) solid var(--tss-card-border);
+    border-radius: syn.$radius-2xl;
+    background: var(--tss-card-surface);
+    box-shadow: var(--tss-card-shadow);
+    transition:
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
     &:hover {
-      box-shadow: syn.$shadow-md;
-      transform:  translateY(syn.px-to-rem(-2));
+      box-shadow: var(--tss-card-shadow-hover);
+      transform: translateY(#{syn.px-to-rem(-2)});
     }
 
-    // Decorative opening quote mark — editorial premium accent
     &::before {
-      content:        '\201C';  // " Left double quotation mark
-      position:       absolute;
-      top:            syn.$space-sm;
-      right:          syn.$space-lg;
-      font-size:      syn.px-to-rem(72);
-      font-weight:    syn.$font-weight-bold;
-      line-height:    1;
-      color:          syn.$color-brand-100;
+      content: '\201C';
+      position: absolute;
+      inset-block-start: syn.$space-sm;
+      inset-inline-end: syn.$space-lg;
+      z-index: 0;
+      font-size: syn.px-to-rem(72);
+      font-weight: syn.$font-weight-bold;
+      line-height: 1;
+      color: var(--tss-decorative-quote);
       pointer-events: none;
-      user-select:    none;
-      z-index:        0;
-    }
-
-    .sg-testimonial-section--dark & {
-      background-color: syn.$color-neutral-800;
-      border-color:     syn.$color-neutral-700;
-
-      &::before { color: syn.$color-neutral-700; }
+      user-select: none;
     }
   }
 
-  // Text content sits above the decorative quote mark
   &__quote,
   &__author {
     position: relative;
-    z-index:  1;
+    z-index: 1;
   }
 
   &__quote {
-    margin:      0;
-    flex:        1 1 auto; // Pushes author to bottom — aligned across all cards
-    font-size:   clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
+    flex: 1 1 auto;
+    margin: 0;
+    color: var(--tss-quote-color);
+    font-size: clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
+    font-style: italic;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-700;
-    font-style:  italic;
-
-    .sg-testimonial-section--dark & { color: syn.$color-neutral-300; }
+    text-wrap: pretty;
   }
 
   &__author {
-    display:     flex;
+    display: flex;
     align-items: center;
-    gap:         syn.$space-sm;
-    margin-top:  auto; // Stick to bottom regardless of quote length
+    gap: syn.$space-sm;
+    margin-top: auto;
+    padding-top: syn.$space-sm;
+    border-top: syn.px-to-rem(1) solid color-mix(in srgb, var(--tss-card-border) 72%, transparent);
   }
 
   &__author-info {
     @include syn.flex-column;
+
     gap: syn.$space-1;
   }
 
   &__name {
-    font-size:   syn.$font-size-sm;
+    margin: 0;
+    color: var(--tss-name-color);
+    font-size: syn.$font-size-sm;
+    font-style: normal;
     font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-neutral-900;
     line-height: syn.$line-height-tight;
-
-    .sg-testimonial-section--dark & { color: syn.$color-neutral-0; }
   }
 
   &__role {
-    font-size:   syn.$font-size-xs;
-    color:       syn.$color-neutral-500;
+    color: var(--tss-role-color);
+    font-size: syn.$font-size-xs;
     line-height: syn.$line-height-normal;
-
-    .sg-testimonial-section--dark & { color: syn.$color-neutral-400; }
   }
 }

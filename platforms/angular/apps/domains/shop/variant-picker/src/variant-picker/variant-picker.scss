@@ -1,160 +1,187 @@
 @use 'scss' as syn;
 
-// ── Host ──────────────────────────────────────────────────────────────────────
 :host {
-  display:     block;
+  --vp-label: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --vp-select-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --vp-select-text: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --vp-select-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --vp-select-border-focus: var(--syn-color-border-accent, #{syn.$color-border-brand});
+  --vp-select-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --vp-option-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --vp-option-text: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --vp-option-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --vp-option-border-hover: var(--syn-color-border-accent, #{syn.$color-brand-400});
+  --vp-option-text-hover: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --vp-option-selected-border: var(--syn-color-border-accent, #{syn.$color-brand-500});
+  --vp-option-selected-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --vp-option-selected-text: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --vp-option-selected-shadow: var(--syn-color-border-accent, #{syn.$color-brand-400});
+  --vp-option-swatch-selected-inner: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --vp-option-swatch-selected-outer: var(--syn-color-border-accent, #{syn.$color-brand-500});
+  --vp-focus-ring: var(--syn-color-focus-ring, #{syn.$color-border-brand});
+
+  --vp-selected-label: var(--syn-color-text-muted, #{syn.$color-text-muted});
+
+  display: block;
   font-family: inherit;
 }
 
-// ── Root block ────────────────────────────────────────────────────────────────
 .variant-picker {
   @include syn.flex-column;
   gap: syn.$space-xs;
 
-  // ── Label ──────────────────────────────────────────────────────────────
-  &__label {
-    font-size:   syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-text-secondary;
+  &--dark,
+  &.sg-variant-picker--dark {
+    --vp-label: var(--syn-color-neutral-200, #{syn.$color-neutral-200});
+    --vp-select-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --vp-select-text: var(--syn-color-neutral-100, #{syn.$color-neutral-100});
+    --vp-select-border: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --vp-select-border-focus: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --vp-select-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-200});
+
+    --vp-option-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --vp-option-text: var(--syn-color-neutral-100, #{syn.$color-neutral-100});
+    --vp-option-border: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --vp-option-border-hover: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --vp-option-text-hover: var(--syn-color-brand-200, #{syn.$color-brand-300});
+    --vp-option-selected-border: var(--syn-color-brand-400, #{syn.$color-brand-400});
+    --vp-option-selected-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-200});
+    --vp-option-selected-text: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --vp-option-selected-shadow: var(--syn-color-brand-400, #{syn.$color-brand-400});
+    --vp-option-swatch-selected-inner: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --vp-option-swatch-selected-outer: var(--syn-color-brand-400, #{syn.$color-brand-400});
+
+    --vp-selected-label: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
   }
 
-  // ── Dropdown mode ──────────────────────────────────────────────────────
+  &--silver-gold,
+  &--silverGold,
+  &.sg-variant-picker--silver-gold,
+  &.sg-variant-picker--silverGold {
+    --vp-option-border-hover: var(--syn-color-border-strong, #{syn.$color-warning-500});
+    --vp-option-selected-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
+    --vp-option-selected-surface: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+    --vp-option-selected-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+    --vp-option-selected-shadow: var(--syn-color-state-warning-border, #{syn.$color-warning-500});
+    --vp-option-swatch-selected-outer: var(--syn-color-state-warning-border, #{syn.$color-warning-500});
+  }
+
+  &__label {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--vp-label);
+  }
+
   &__select {
-    height:        syn.px-to-rem(40);
-    padding:       0 syn.$space-md;
-    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    height: syn.px-to-rem(40);
+    padding: 0 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--vp-select-border);
     border-radius: syn.$radius-md;
-    background:    syn.$color-surface;
-    font-size:     syn.$font-size-sm;
-    color:         syn.$color-text-primary;
-    cursor:        pointer;
-    transition:    syn.$transition-colors;
+    background: var(--vp-select-surface);
+    font-size: syn.$font-size-sm;
+    color: var(--vp-select-text);
+    cursor: pointer;
+    transition: syn.$transition-colors;
 
     &:focus {
-      outline:      none;
-      border-color: syn.$color-border-brand;
-      box-shadow:   0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-300, 0.25);
+      outline: none;
+      border-color: var(--vp-select-border-focus);
+      box-shadow: 0 0 0 syn.px-to-rem(3) var(--vp-select-focus-glow);
     }
   }
 
-  // ── Button / swatch options (fieldset reset) ────────────────────────────
   &__options {
-    display:   flex;
+    display: flex;
     flex-wrap: wrap;
-    gap:       syn.$space-xs;
-    border:    none;
-    padding:   0;
-    margin:    0;
+    gap: syn.$space-xs;
+    border: none;
+    padding: 0;
+    margin: 0;
 
-    &--swatches { gap: syn.px-to-rem(6); }
+    &--swatches {
+      gap: syn.px-to-rem(6);
+    }
   }
 
   &__legend {
     position: absolute;
-    width: 1px; height: 1px;
-    padding: 0; margin: -1px;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
     overflow: hidden;
-    clip: rect(0,0,0,0);
+    clip: rect(0, 0, 0, 0);
     border: 0;
   }
 
-  // ── Single option ───────────────────────────────────────────────────────
   &__option {
-    position:      relative;
-    display:       inline-flex;
-    align-items:   center;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    padding:       syn.px-to-rem(6) syn.$space-md;
-    border:        syn.px-to-rem(1.5) solid syn.$color-border-default;
+    padding: syn.px-to-rem(6) syn.$space-md;
+    border: syn.px-to-rem(1.5) solid var(--vp-option-border);
     border-radius: syn.$radius-md;
-    background:    syn.$color-surface;
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-medium;
-    color:         syn.$color-text-primary;
-    cursor:        pointer;
-    transition:    syn.$transition-colors, box-shadow syn.$duration-fast syn.$easing-default;
-    white-space:   nowrap;
-    user-select:   none;
+    background: var(--vp-option-surface);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    color: var(--vp-option-text);
+    cursor: pointer;
+    transition: syn.$transition-colors, box-shadow syn.$duration-fast syn.$easing-default;
+    white-space: nowrap;
+    user-select: none;
 
     &:hover:not(:disabled) {
-      border-color: syn.$color-brand-400;
-      color:        syn.$color-brand-600;
+      border-color: var(--vp-option-border-hover);
+      color: var(--vp-option-text-hover);
     }
 
     &:focus-visible {
-      outline:        syn.px-to-rem(2) solid syn.$color-border-brand;
+      outline: syn.px-to-rem(2) solid var(--vp-focus-ring);
       outline-offset: syn.px-to-rem(2);
     }
 
-    // Selected state
     &--selected {
-      border-color: syn.$color-brand-500;
-      background:   syn.$color-brand-100;
-      color:        syn.$color-brand-600;
-      font-weight:  syn.$font-weight-semibold;
-      box-shadow:   0 0 0 syn.px-to-rem(1) syn.$color-brand-400;
+      border-color: var(--vp-option-selected-border);
+      background: var(--vp-option-selected-surface);
+      color: var(--vp-option-selected-text);
+      font-weight: syn.$font-weight-semibold;
+      box-shadow: 0 0 0 syn.px-to-rem(1) var(--vp-option-selected-shadow);
     }
 
-    // Out-of-stock state
     &--out-of-stock {
-      opacity:         0.45;
-      cursor:          not-allowed;
+      opacity: 0.45;
+      cursor: not-allowed;
       text-decoration: line-through;
-      pointer-events:  none;
+      pointer-events: none;
     }
 
-    // Swatch variant
     &--swatch {
-      width:         syn.px-to-rem(34);
-      height:        syn.px-to-rem(34);
-      padding:       0;
+      width: syn.px-to-rem(34);
+      height: syn.px-to-rem(34);
+      padding: 0;
       border-radius: syn.$radius-full;
-      overflow:      hidden;
+      overflow: hidden;
     }
 
     &--swatch#{&}--selected {
-      box-shadow: 0 0 0 syn.px-to-rem(2) syn.$color-surface,
-                  0 0 0 syn.px-to-rem(4) syn.$color-brand-500;
+      box-shadow:
+        0 0 0 syn.px-to-rem(2) var(--vp-option-swatch-selected-inner),
+        0 0 0 syn.px-to-rem(4) var(--vp-option-swatch-selected-outer);
     }
 
     &-img {
-      width:      100%;
-      height:     100%;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
     }
   }
 
-  // ── Selected-value label ─────────────────────────────────────────────────
   &__selected-label {
-    font-size:   syn.$font-size-xs;
-    color:       syn.$color-text-muted;
-    margin:      0;
+    font-size: syn.$font-size-xs;
+    color: var(--vp-selected-label);
+    margin: 0;
     font-weight: syn.$font-weight-medium;
-  }
-
-  // ── Dark theme ──────────────────────────────────────────────────────────
-  &--dark {
-    .variant-picker__label { color: syn.$color-neutral-200; }
-
-    .variant-picker__select {
-      background:   syn.$color-neutral-800;
-      color:        syn.$color-neutral-100;
-      border-color: syn.$color-neutral-600;
-    }
-
-    .variant-picker__option {
-      background:   syn.$color-neutral-800;
-      color:        syn.$color-neutral-100;
-      border-color: syn.$color-neutral-600;
-
-      &--selected {
-        border-color: syn.$color-brand-400;
-        background:   rgba(syn.$color-brand-100, 0.12);
-        color:        syn.$color-brand-300;
-        box-shadow:   0 0 0 syn.px-to-rem(1) syn.$color-brand-400;
-      }
-    }
-
-    .variant-picker__selected-label { color: syn.$color-neutral-500; }
   }
 }

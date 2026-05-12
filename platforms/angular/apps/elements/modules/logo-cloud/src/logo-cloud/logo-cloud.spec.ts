@@ -1,6 +1,11 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { LogoCloudElementComponent } from './logo-cloud';
+import {
+  LogoCloudElementComponent,
+  normalizeItems,
+  readPositiveInteger,
+  sanitizeLogoCloudConfig,
+} from './logo-cloud';
 
 describe('LogoCloudElementComponent', () => {
   let fixture: ComponentFixture<LogoCloudElementComponent>;
@@ -57,5 +62,32 @@ describe('LogoCloudElementComponent', () => {
 
     const items = fixture.nativeElement.querySelectorAll('.logo-cloud__item');
     expect(items.length).toBe(2);
+  });
+
+  it('should sanitize columns and filter malformed logo items', () => {
+    const config = sanitizeLogoCloudConfig({
+      headingText: '  Trusted by  ',
+      columns: 5,
+      items: [{ src: 'logo.svg', label: 'Acme' }, { label: 'Broken' }],
+    });
+
+    expect(config.headingText).toBe('Trusted by');
+    expect(config.columns).toBe(5);
+    expect(normalizeItems(config.items)).toEqual([
+      {
+        src: 'logo.svg',
+        alt: '',
+        label: 'Acme',
+        href: '',
+        target: '_self',
+      },
+    ]);
+  });
+
+  it('should normalize positive integer values from string and reject invalid ones', () => {
+    expect(readPositiveInteger('6')).toBe(6);
+    expect(readPositiveInteger(3.8)).toBe(3);
+    expect(readPositiveInteger('0')).toBeUndefined();
+    expect(readPositiveInteger('bad')).toBeUndefined();
   });
 });

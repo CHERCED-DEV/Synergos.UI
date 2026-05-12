@@ -1,57 +1,80 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Textarea ──────────────────────────────────────────────────────────────────
-
 .syn-textarea {
+  --syn-textarea-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --syn-textarea-hint-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --syn-textarea-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-textarea-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --syn-textarea-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-400});
+  --syn-textarea-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-textarea-placeholder-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+  --syn-textarea-disabled-background: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+  --syn-textarea-disabled-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+  --syn-textarea-disabled-text: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+  --syn-textarea-shadow: 0 0 0 0 transparent;
+
   display: grid;
   gap: syn.$space-xxs;
 }
 
 .syn-textarea__label {
-  font-size:   syn.$font-size-sm;
+  font-size: syn.$font-size-sm;
   font-weight: syn.$font-weight-medium;
-  color:       syn.$color-neutral-800;
+  color: var(--syn-textarea-label-color);
 }
 
 .syn-textarea__field {
   width: 100%;
   min-height: syn.px-to-rem(112);
-  padding: syn.$space-xs syn.$space-sm;
-  border: syn.px-to-rem(1) solid syn.$color-neutral-300;
+  padding: syn.$space-sm syn.$space-sm;
+  border: syn.px-to-rem(1) solid var(--syn-textarea-border);
   border-radius: syn.$radius-md;
-  background: syn.$color-neutral-0;
-  color: syn.$color-neutral-900;
+  background: var(--syn-textarea-background);
+  color: var(--syn-textarea-text-color);
   font-size: syn.$font-size-base;
+  line-height: syn.$line-height-normal;
   resize: vertical;
-  transition: syn.$transition-colors;
+  box-shadow: var(--syn-textarea-shadow);
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
-  @include syn.placeholder(syn.$color-neutral-400, syn.$font-size-base, syn.$font-weight-regular);
+  @include syn.placeholder(
+    var(--syn-textarea-placeholder-color),
+    syn.$font-size-base,
+    syn.$font-weight-regular
+  );
   @include syn.focus-visible;
 
   &:hover:not(:focus-visible):not(:disabled) {
-    border-color: syn.$color-neutral-400;
+    border-color: var(--syn-textarea-border-hover);
   }
 
   &:disabled {
-    background:   syn.$color-neutral-100;
-    border-color: syn.$color-neutral-200;
-    color:        syn.$color-neutral-400;
+    background: var(--syn-textarea-disabled-background);
+    border-color: var(--syn-textarea-disabled-border);
+    color: var(--syn-textarea-disabled-text);
     cursor: not-allowed;
   }
 }
 
-.syn-textarea--error .syn-textarea__field {
-  border-color: syn.$color-danger-400;
-  background:   syn.$color-danger-100;
+.syn-textarea--error {
+  --syn-textarea-border: var(--syn-color-state-danger-border, #{syn.$color-danger-400});
+  --syn-textarea-border-hover: var(--syn-color-action-danger, #{syn.$color-danger-500});
+  --syn-textarea-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-textarea-hint-color: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --syn-textarea-shadow: inset 0 0 0 1px var(--syn-color-state-danger-border, #{syn.$color-danger-400});
+}
 
+.syn-textarea--error .syn-textarea__field {
   @include syn.focus-visible-danger;
 }
 
 .syn-textarea__hint {
+  margin: 0;
   font-size: syn.$font-size-xs;
-  color:     syn.$color-neutral-500;
-}
-
-.syn-textarea--error .syn-textarea__hint {
-  color: syn.$color-danger-500;
+  line-height: syn.$line-height-normal;
+  color: var(--syn-textarea-hint-color);
 }

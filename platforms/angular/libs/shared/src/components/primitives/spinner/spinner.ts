@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 import { VisuallyHiddenComponent } from '../visually-hidden/visually-hidden';
 
 type SpinnerSize = 'sm' | 'md' | 'lg';
@@ -10,6 +16,14 @@ export interface SpinnerConfig {
   readonly label?: string;
   readonly size?: SpinnerSize;
   readonly tone?: SpinnerTone;
+}
+
+function sanitizeSpinnerConfig(value: Partial<SpinnerConfig>): Partial<SpinnerConfig> {
+  return omitUndefinedProperties<SpinnerConfig>({
+    label: coerceTrimmedStringInput(value.label),
+    size: coerceStringEnumInput(value.size, ['sm', 'md', 'lg'] as const),
+    tone: coerceStringEnumInput(value.tone, ['brand', 'neutral', 'inverse'] as const),
+  });
 }
 
 @Component({
@@ -30,7 +44,7 @@ export interface SpinnerConfig {
 })
 export class SpinnerComponent {
   readonly config = input<Partial<SpinnerConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<SpinnerConfig>,
+    transform: createConfigInputTransform<SpinnerConfig>(sanitizeSpinnerConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly sizeInput = input<SpinnerSize | undefined>(undefined, { alias: 'size' });

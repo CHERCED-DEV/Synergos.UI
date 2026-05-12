@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
 import {
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceOptionalNumberInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
 } from '../../../utils/config-input.util';
@@ -41,6 +46,60 @@ export interface PricingCardConfig {
   readonly featured?: boolean;
   readonly statusLabel?: string;
   readonly statusTone?: StatusTagTone;
+}
+
+function sanitizeHighlights(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const highlights = value
+    .map((entry) => coerceTrimmedStringInput(entry))
+    .filter((entry): entry is string => entry !== undefined);
+
+  return highlights.length > 0 ? highlights : undefined;
+}
+
+function sanitizePricingCardAmount(value: unknown): number | string | null | undefined {
+  if (value === null) {
+    return null;
+  }
+
+  const numericValue = coerceOptionalNumberInput(value);
+  if (numericValue !== undefined) {
+    return numericValue;
+  }
+
+  return coerceTrimmedStringInput(value);
+}
+
+function sanitizePricingCardConfig(
+  value: Partial<PricingCardConfig>,
+): Partial<PricingCardConfig> {
+  return omitUndefinedProperties<PricingCardConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    description: coerceTrimmedStringInput(value.description),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    amount: sanitizePricingCardAmount(value.amount),
+    amountPrefix: coerceTrimmedStringInput(value.amountPrefix),
+    amountSuffix: coerceTrimmedStringInput(value.amountSuffix),
+    currency: coerceTrimmedStringInput(value.currency),
+    priceDescription: coerceTrimmedStringInput(value.priceDescription),
+    unavailableMessage: coerceTrimmedStringInput(value.unavailableMessage),
+    badgeText: coerceTrimmedStringInput(value.badgeText),
+    iconSymbol: coerceTrimmedStringInput(value.iconSymbol),
+    highlights: sanitizeHighlights(value.highlights),
+    actionLabel: coerceTrimmedStringInput(value.actionLabel),
+    actionVariant: coerceStringEnumInput(value.actionVariant, ['solid', 'outline', 'ghost'] as const),
+    disabled: coerceOptionalBooleanInput(value.disabled),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand'] as const),
+    featured: coerceOptionalBooleanInput(value.featured),
+    statusLabel: coerceTrimmedStringInput(value.statusLabel),
+    statusTone: coerceStringEnumInput(
+      value.statusTone,
+      ['neutral', 'success', 'warning', 'critical', 'pending', 'inactive', 'blocked'] as const,
+    ),
+  });
 }
 
 @Component({
@@ -138,7 +197,7 @@ export interface PricingCardConfig {
 })
 export class PricingCardComponent {
   readonly config = input<Partial<PricingCardConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<PricingCardConfig>,
+    transform: createConfigInputTransform<PricingCardConfig>(sanitizePricingCardConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly descriptionInput = input<string | undefined>(undefined, { alias: 'description' });

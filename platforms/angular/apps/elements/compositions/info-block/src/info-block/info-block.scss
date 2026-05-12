@@ -4,62 +4,62 @@
   display: block;
 }
 
-// ─── Info Block ───────────────────────────────────────────────────────────────
-// Flexible content block: title + body + optional CTA.
-// Default: no surface (inline in page). --card: elevated panel variant.
-// --featured: brand left-border accent — draws attention without full card chrome.
 .info-block {
-  @include syn.flex-column;
-  gap:     syn.$space-sm;
-  padding: syn.$space-lg;
+  --syn-info-block-background: transparent;
+  --syn-info-block-border: transparent;
+  --syn-info-block-shadow: none;
+  --syn-info-block-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-info-block-eyebrow-color: var(--syn-color-text-accent, #{syn.$color-brand-500});
+  --syn-info-block-emphasis: var(--syn-color-border-accent, #{syn.$color-brand-400});
 
-  // Surface card variant
-  &--card {
-    @include syn.surface-panel(
-      syn.$space-lg,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
-      syn.px-to-rem(1),
-      syn.$radius-xl,
-      syn.$shadow-xs
-    );
-    transition: box-shadow syn.$duration-base syn.$easing-default,
-                transform  syn.$duration-base syn.$easing-default;
+  @include syn.flex-column;
+
+  gap: syn.$space-sm;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--syn-info-block-border);
+  border-radius: syn.$radius-xl;
+  background: var(--syn-info-block-background);
+  box-shadow: var(--syn-info-block-shadow);
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+  &.sg-info-block--card {
+    --syn-info-block-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+    --syn-info-block-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+    --syn-info-block-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
 
     &:hover {
-      box-shadow: syn.$shadow-md;
-      transform:  translateY(syn.px-to-rem(-2));
+      box-shadow: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+      transform: translateY(syn.px-to-rem(-2));
     }
   }
 
-  // Featured: left border accent — editorial callout style
-  &--featured {
-    border-left:    syn.px-to-rem(3) solid syn.$color-brand-400;
-    padding-left:   syn.$space-lg;
-    border-radius:  0 syn.$radius-lg syn.$radius-lg 0;
-
-    .sg-info-block--card & {
-      border-radius: 0 syn.$radius-xl syn.$radius-xl 0;
-    }
-  }
-
-  // Accent: violet left border
-  &--accent {
-    border-left:  syn.px-to-rem(3) solid syn.$color-accent-400;
+  &.sg-info-block--featured,
+  &.sg-info-block--accent {
+    border-left-width: syn.px-to-rem(3);
+    border-left-color: var(--syn-info-block-emphasis);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
     padding-left: syn.$space-lg;
-    border-radius: 0 syn.$radius-lg syn.$radius-lg 0;
   }
 
-  &--dark .info-block__body { color: syn.$color-neutral-300; }
+  &.sg-info-block--accent {
+    --syn-info-block-emphasis: var(--syn-color-action-emphasis, #{syn.$color-accent-400});
+  }
+
+  &.sg-info-block--dark {
+    --syn-info-block-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --syn-info-block-eyebrow-color: var(--syn-color-text-accent, #{syn.$color-brand-300});
+  }
 
   &__eyebrow {
-    font-size:      syn.$font-size-xs;
-    font-weight:    syn.$font-weight-semibold;
-    color:          syn.$color-brand-500;
-    text-transform: uppercase;
+    color: var(--syn-info-block-eyebrow-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
     letter-spacing: syn.$letter-spacing-eyebrow;
-
-    .sg-info-block--dark & { color: syn.$color-brand-300; }
+    text-transform: uppercase;
   }
 
   &__title {
@@ -67,15 +67,16 @@
   }
 
   &__body {
-    margin:      0;
-    font-size:   syn.$font-size-base;
+    margin: 0;
+    color: var(--syn-info-block-body-color);
+    font-size: syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
+    text-wrap: pretty;
   }
 
   &__cta {
+    align-self: flex-start;
+    margin-top: auto;
     text-decoration: none;
-    align-self:      flex-start;
-    margin-top:      auto;
   }
 }

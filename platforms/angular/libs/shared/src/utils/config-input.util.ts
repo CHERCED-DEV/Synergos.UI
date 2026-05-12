@@ -2,6 +2,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+export function omitUndefinedProperties<T extends object>(value: Partial<T>): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
+  ) as Partial<T>;
+}
+
+function sanitizeRecord<T extends object>(value: Record<string, unknown>): Partial<T> {
+  return omitUndefinedProperties(value as Partial<T>);
+}
+
 export function coerceConfigInput<T extends object>(value: unknown): Partial<T> | undefined {
   if (typeof value === 'string') {
     const trimmedValue = value.trim();
@@ -16,7 +26,22 @@ export function coerceConfigInput<T extends object>(value: unknown): Partial<T> 
     }
   }
 
-  return isRecord(value) ? (value as Partial<T>) : undefined;
+  return isRecord(value) ? sanitizeRecord<T>(value) : undefined;
+}
+
+export type ConfigInputSanitizer<T extends object> = (value: Partial<T>) => Partial<T> | undefined;
+
+export function createConfigInputTransform<T extends object>(
+  sanitizer?: ConfigInputSanitizer<T>,
+): (value: unknown) => Partial<T> | undefined {
+  return (value: unknown): Partial<T> | undefined => {
+    const coercedValue = coerceConfigInput<T>(value);
+    if (!coercedValue) {
+      return undefined;
+    }
+
+    return sanitizer ? sanitizer(coercedValue) : coercedValue;
+  };
 }
 
 export function resolveConfigValue<T>(
@@ -60,6 +85,39 @@ export function coerceOptionalBooleanInput(value: unknown): boolean | undefined 
   }
 
   return undefined;
+}
+
+export function coerceTrimmedStringInput(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+export function coerceStringEnumInput<T extends string>(
+  value: unknown,
+  allowedValues: readonly T[],
+): T | undefined {
+  const normalizedValue = coerceTrimmedStringInput(value)?.toLowerCase();
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  return allowedValues.find((allowedValue) => allowedValue === normalizedValue) as T | undefined;
+}
+
+export function coerceStringRecordInput(value: unknown): Record<string, string> | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value).filter(
+    ([key, entryValue]) => typeof key === 'string' && typeof entryValue === 'string',
+  ) as Array<[string, string]>;
+
+  return entries.length > 0 ? Object.fromEntries(entries) as Record<string, string> : undefined;
 }
 
 export function resolveHeadingTone(theme: string | null | undefined): 'neutral' | 'inverse' {

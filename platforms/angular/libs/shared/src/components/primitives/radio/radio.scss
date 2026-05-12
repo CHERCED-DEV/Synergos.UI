@@ -1,62 +1,113 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Radio ────────────────────────────────────────────────────────────────────
-
 .syn-radio {
-  display:     inline-flex;
+  --syn-radio-gap: #{syn.$space-xs};
+  --syn-radio-size: #{syn.px-to-rem(18)};
+  --syn-radio-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-radio-border: var(--syn-color-border-strong, #{syn.$color-neutral-400});
+  --syn-radio-border-hover: var(--syn-color-border-accent, #{syn.$color-brand-300});
+  --syn-radio-dot-color: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-radio-checked-border: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-radio-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --syn-radio-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-radio-label-disabled: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --syn-radio-disabled-surface: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+  --syn-radio-disabled-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-300});
+
+  display: inline-flex;
   align-items: center;
-  gap:         syn.$space-xs;
-  cursor:      pointer;
+  gap: var(--syn-radio-gap);
+  cursor: pointer;
   user-select: none;
 }
 
 .syn-radio__native {
   position: absolute;
-  opacity:  0;
-  width:    0;
-  height:   0;
+  width: syn.px-to-rem(1);
+  height: syn.px-to-rem(1);
+  margin: syn.px-to-rem(-1);
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .syn-radio__dot {
-  width:        syn.px-to-rem(18);
-  height:       syn.px-to-rem(18);
-  flex-shrink:  0;
-  border:       syn.px-to-rem(1.5) solid syn.$color-neutral-400;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--syn-radio-size);
+  height: var(--syn-radio-size);
+  border: syn.px-to-rem(1.5) solid var(--syn-radio-border);
   border-radius: 50%;
-  background:   syn.$color-neutral-0;
-  transition:   border-color syn.$duration-fast syn.$easing-smooth,
-                box-shadow   syn.$duration-fast syn.$easing-smooth;
+  background: var(--syn-radio-surface);
+  transition:
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 }
 
-// ── States ───────────────────────────────────────────────────────────────────
+.syn-radio__dot::after {
+  content: '';
+  width: syn.px-to-rem(8);
+  height: syn.px-to-rem(8);
+  border-radius: 50%;
+  background: var(--syn-radio-dot-color);
+  opacity: 0;
+  transform: scale(0.35);
+  transition:
+    opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+}
 
-.syn-radio:hover .syn-radio__dot {
-  border-color: syn.$color-brand-400;
+.syn-radio:not(.syn-radio--disabled):hover .syn-radio__dot {
+  border-color: var(--syn-radio-border-hover);
 }
 
 .syn-radio__native:checked + .syn-radio__dot {
-  border-width: syn.px-to-rem(5);
-  border-color: syn.$color-brand-500;
+  border-color: var(--syn-radio-checked-border);
+}
+
+.syn-radio__native:checked + .syn-radio__dot::after {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .syn-radio__native:focus-visible + .syn-radio__dot {
-  outline:        syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline: syn.px-to-rem(2) solid var(--syn-radio-focus-ring);
   outline-offset: syn.px-to-rem(2);
 }
 
 .syn-radio__native:disabled + .syn-radio__dot {
-  border-color: syn.$color-neutral-300;
-  background:   syn.$color-neutral-100;
+  border-color: var(--syn-radio-disabled-border);
+  background: var(--syn-radio-disabled-surface);
 }
 
-.syn-radio__native:disabled ~ .syn-radio__label {
-  color:  syn.$color-neutral-400;
+.syn-radio__native:disabled + .syn-radio__dot::after {
+  background: var(--syn-radio-label-disabled);
+}
+
+.syn-radio--disabled {
   cursor: not-allowed;
 }
 
-// ── Label ────────────────────────────────────────────────────────────────────
-
 .syn-radio__label {
+  color: var(--syn-radio-label-color);
   font-size: syn.$font-size-sm;
-  color:     syn.$color-neutral-900;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-radio__native:disabled ~ .syn-radio__label,
+.syn-radio--disabled .syn-radio__label {
+  color: var(--syn-radio-label-disabled);
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-radio__dot::after {
+    transition: none;
+  }
 }

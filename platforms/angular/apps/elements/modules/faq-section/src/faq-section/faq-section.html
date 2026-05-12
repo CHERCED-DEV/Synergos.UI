@@ -1,23 +1,27 @@
 <section class="faq-section" [class]="hostClasses()">
   @if (headingText()) {
-    <syn-heading
-      class="faq-section__heading"
-      [text]="headingText()"
-      [tone]="headingTone()"
-      level="h2"
-      size="lg"
-      align="center"
-    />
+    <header class="faq-section__header">
+      <syn-heading
+        class="faq-section__heading"
+        [text]="headingText()"
+        [tone]="headingTone()"
+        level="h2"
+        size="lg"
+        align="center"
+      />
+    </header>
   }
-  <div class="faq-section__list">
+  <ul class="faq-section__list">
     @for (item of parsedItems(); track item.question) {
-      <syn-accordion
-        class="faq-section__item"
-        [title]="item.question"
-        [initiallyExpanded]="item.initiallyExpanded"
-      >
-        <p class="faq-section__answer">{{ item.answer }}</p>
-      </syn-accordion>
+      <li class="faq-section__item">
+        <syn-accordion
+          [title]="item.question"
+          [initiallyExpanded]="item.initiallyExpanded"
+          [tone]="accordionTone()"
+        >
+          <p class="faq-section__answer">{{ item.answer }}</p>
+        </syn-accordion>
+      </li>
     }
-  </div>
+  </ul>
 </section>

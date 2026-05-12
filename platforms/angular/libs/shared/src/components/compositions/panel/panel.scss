@@ -1,15 +1,20 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Panel ────────────────────────────────────────────────────────────────────
-// Semantic surface for alerts, callouts, and highlight blocks.
-
 .syn-panel {
-  display: flex;
-  align-items: flex-start;
+  --syn-panel-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-panel-border: transparent;
+  --syn-panel-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --syn-panel-hover-surface: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+
+  display:         flex;
+  align-items:     flex-start;
   justify-content: space-between;
-  gap: syn.$space-md;
-  border: syn.px-to-rem(1) solid transparent;
-  border-radius: syn.$radius-lg;
+  gap:             syn.$space-md;
+  border:          syn.px-to-rem(1) solid var(--syn-panel-border);
+  border-radius:   syn.$radius-lg;
+  background:      var(--syn-panel-background);
+  color:           var(--syn-panel-text);
+  box-shadow:      var(--syn-shadow-panel, #{syn.$shadow-sm});
 }
 
 .syn-panel--padding-sm { padding: syn.$space-sm; }
@@ -17,37 +22,36 @@
 .syn-panel--padding-lg { padding: syn.$space-lg; }
 
 .syn-panel--bordered {
-  border-color: syn.$color-neutral-200;
+  --syn-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
 }
 
-// Tones — now semantically correct
 .syn-panel--neutral {
-  background: syn.$color-neutral-50;
-  color:      syn.$color-neutral-800;
+  --syn-panel-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-panel-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
 }
 
 .syn-panel--brand {
-  background:   syn.$color-brand-100;
-  border-color: syn.$color-brand-200;
-  color:        syn.$color-brand-600;
+  --syn-panel-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-panel-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  --syn-panel-text: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
 }
 
 .syn-panel--success {
-  background:   syn.$color-success-100;
-  border-color: syn.$color-success-200;
-  color:        syn.$color-success-600;
+  --syn-panel-background: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --syn-panel-border: var(--syn-color-state-success-border, #{syn.$color-success-200});
+  --syn-panel-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
 }
 
 .syn-panel--warning {
-  background:   syn.$color-warning-100;
-  border-color: syn.$color-warning-300;
-  color:        syn.$color-warning-600;
+  --syn-panel-background: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  --syn-panel-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
+  --syn-panel-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
 }
 
 .syn-panel--critical {
-  background:   syn.$color-danger-100;
-  border-color: syn.$color-danger-200;
-  color:        syn.$color-danger-600;
+  --syn-panel-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-panel-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  --syn-panel-text: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
 }
 
 .syn-panel__main {
@@ -73,11 +77,8 @@
 
 .syn-panel__description {
   font-size:   syn.$font-size-sm;
-  // Inherit the tone color but soften it slightly via opacity.
-  // 0.85 is intentional — it softens description relative to title
-  // without losing semantic color inheritance from the panel tone.
   color:       inherit;
-  opacity:     0.85;
+  opacity:     0.82;
   line-height: syn.$line-height-normal;
 }
 
@@ -88,8 +89,9 @@
 
 .syn-panel__dismiss {
   @include syn.focus-visible;
-  flex: 0 0 auto;
   @include syn.flex-center;
+
+  flex:          0 0 auto;
   width:         syn.px-to-rem(28);
   height:        syn.px-to-rem(28);
   border:        0;
@@ -98,13 +100,14 @@
   background:    transparent;
   color:         currentColor;
   font-size:     syn.$font-size-base;
-  opacity:       0.6;
+  opacity:       0.62;
   cursor:        pointer;
-  transition:    opacity syn.$duration-fast syn.$easing-smooth,
-                 background syn.$duration-fast syn.$easing-smooth;
+  transition:
+    opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:hover {
     opacity:    1;
-    background: syn.$color-overlay-subtle;
+    background: var(--syn-panel-hover-surface);
   }
 }

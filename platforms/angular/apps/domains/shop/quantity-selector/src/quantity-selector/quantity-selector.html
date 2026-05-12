@@ -1,12 +1,15 @@
 <fieldset class="qty" [class]="hostClasses()">
-  <legend class="qty__legend">Quantity</legend>
+  <legend class="qty__legend">{{ quantityLabel() }}</legend>
 
-  <syn-icon-button
-    icon="−"
-    ariaLabel="Decrease quantity"
+  <button
+    class="qty__btn"
+    type="button"
+    [attr.aria-label]="decrementLabel()"
     [disabled]="!canDecrement()"
-    (pressed)="decrement()"
-  />
+    (click)="decrement()"
+  >
+    &#8722;
+  </button>
 
   <input
     class="qty__input"
@@ -15,15 +18,20 @@
     [max]="max()"
     [step]="step()"
     [value]="quantity()"
-    aria-label="Quantity"
-    (change)="onInput($event)"
+    [attr.aria-label]="ariaLabelledBy() ? null : quantityLabel()"
+    [attr.aria-labelledby]="ariaLabelledBy()"
+    inputmode="numeric"
+    (input)="onInput($event)"
     (blur)="onInput($event)"
   />
 
-  <syn-icon-button
-    icon="+"
-    ariaLabel="Increase quantity"
+  <button
+    class="qty__btn"
+    type="button"
+    [attr.aria-label]="incrementLabel()"
     [disabled]="!canIncrement()"
-    (pressed)="increment()"
-  />
+    (click)="increment()"
+  >
+    +
+  </button>
 </fieldset>

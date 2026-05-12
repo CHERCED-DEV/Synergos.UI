@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import type { ButtonContainerElementConfig } from '@synergos/contracts';
 import {
   ButtonComponent,
-  coerceConfigInput,
   coerceOptionalBooleanInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
@@ -18,6 +20,19 @@ function resolveButtonSize(value: string): ButtonSize {
   return value === 'sm' || value === 'lg' ? value : 'md';
 }
 
+function sanitizeButtonContainerConfig(
+  value: Partial<ButtonContainerElementConfig>,
+): Partial<ButtonContainerElementConfig> {
+  return omitUndefinedProperties<Partial<ButtonContainerElementConfig>>({
+    label: coerceTrimmedStringInput(value.label),
+    href: coerceTrimmedStringInput(value.href),
+    target: coerceTrimmedStringInput(value.target),
+    variant: coerceTrimmedStringInput(value.variant),
+    size: coerceTrimmedStringInput(value.size),
+    disabled: coerceOptionalBooleanInput(value.disabled),
+  });
+}
+
 @Component({
   selector: 'sg-button-container',
   imports: [ButtonComponent],
@@ -28,7 +43,7 @@ function resolveButtonSize(value: string): ButtonSize {
 })
 export class ButtonContainerComponent {
   readonly config = input<Partial<ButtonContainerElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ButtonContainerElementConfig>,
+    transform: createConfigInputTransform<Partial<ButtonContainerElementConfig>>(sanitizeButtonContainerConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
@@ -43,21 +58,15 @@ export class ButtonContainerComponent {
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
-  readonly variant = computed(() =>
-    resolveConfigValue(this.variantInput(), undefined, 'solid'),
-  );
-  readonly size = computed(() =>
-    resolveConfigValue(this.sizeInput(), undefined, 'md'),
-  );
+  readonly variant = computed(() => resolveConfigValue(this.variantInput(), this.config()?.variant, 'solid'));
+  readonly size = computed(() => resolveConfigValue(this.sizeInput(), this.config()?.size, 'md'));
   readonly href = computed(() =>
     resolveConfigValue(this.hrefInput(), this.config()?.href, ''),
   );
   readonly target = computed(() =>
     resolveConfigValue(this.targetInput(), this.config()?.target, '_self'),
   );
-  readonly disabled = computed(() =>
-    resolveConfigValue(this.disabledInput(), undefined, false),
-  );
+  readonly disabled = computed(() => resolveConfigValue(this.disabledInput(), this.config()?.disabled, false));
 
   readonly isLink = computed(() => this.href().trim().length > 0);
   readonly resolvedVariant = computed<ButtonVariant>(() =>

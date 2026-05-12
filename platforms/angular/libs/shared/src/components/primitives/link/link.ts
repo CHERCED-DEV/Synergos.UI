@@ -1,7 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FocusVisibleDirective } from '../../../directives/focus-visible.directive';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 type LinkTone = 'brand' | 'neutral' | 'inverse';
 
@@ -14,6 +21,19 @@ export interface LinkConfig {
   readonly target?: string;
   readonly rel?: string;
   readonly disabled?: boolean;
+}
+
+function sanitizeLinkConfig(value: Partial<LinkConfig>): Partial<LinkConfig> {
+  return omitUndefinedProperties<LinkConfig>({
+    href: coerceTrimmedStringInput(value.href),
+    label: coerceTrimmedStringInput(value.label),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    tone: coerceStringEnumInput(value.tone, ['brand', 'neutral', 'inverse'] as const),
+    underline: coerceOptionalBooleanInput(value.underline),
+    target: coerceTrimmedStringInput(value.target),
+    rel: coerceTrimmedStringInput(value.rel),
+    disabled: coerceOptionalBooleanInput(value.disabled),
+  });
 }
 
 @Component({
@@ -63,7 +83,7 @@ export interface LinkConfig {
 })
 export class LinkComponent {
   readonly config = input<Partial<LinkConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<LinkConfig>,
+    transform: createConfigInputTransform<LinkConfig>(sanitizeLinkConfig),
   });
   readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });

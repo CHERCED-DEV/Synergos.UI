@@ -7,6 +7,13 @@ export interface TabItem {
   readonly disabled?: boolean;
 }
 
+let tabsInstanceSequence = 0;
+
+function nextTabsInstanceId(): string {
+  tabsInstanceSequence += 1;
+  return `syn-tabs-${tabsInstanceSequence}`;
+}
+
 @Component({
   selector: 'syn-tabs',
   standalone: true,
@@ -52,6 +59,7 @@ export class TabsComponent {
   readonly activeId = input('');
   readonly ariaLabel = input('Tabs');
 
+  readonly #instanceId = nextTabsInstanceId();
   readonly #selectedId = signal('');
 
   readonly activeTabId = computed(() => {
@@ -129,10 +137,10 @@ export class TabsComponent {
   }
 
   tabButtonId(id: string): string {
-    return `syn-tab-${id}`;
+    return `${this.#instanceId}-tab-${id}`;
   }
 
   tabPanelId(id: string): string {
-    return `syn-tab-panel-${id}`;
+    return `${this.#instanceId}-panel-${id}`;
   }
 }

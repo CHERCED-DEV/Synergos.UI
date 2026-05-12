@@ -1,7 +1,5 @@
 <div class="variant-picker" [class]="hostClasses()">
-
   @if (displayAs() === 'dropdown') {
-    <span class="variant-picker__label">{{ selectLabel() }}</span>
     <syn-select
       [label]="selectLabel()"
       [options]="selectOptions()"
@@ -23,12 +21,18 @@
           type="button"
           [disabled]="!v.inStock"
           [attr.aria-pressed]="isSelected(v)"
-          [attr.aria-label]="v.name + (!v.inStock ? ' — ' + outOfStockLabel() : '')"
+          [attr.aria-label]="v.name + (!v.inStock ? ' - ' + outOfStockLabel() : '')"
           [attr.title]="v.name"
           (click)="selectVariant(v)"
         >
           @if (displayAs() === 'swatches' && v.image) {
-            <img class="variant-picker__option-img" [src]="v.image" [alt]="v.name" />
+            <img
+              class="variant-picker__option-img"
+              [src]="v.image"
+              [alt]="v.name"
+              loading="lazy"
+              decoding="async"
+            />
           } @else {
             {{ v.value }}
           }

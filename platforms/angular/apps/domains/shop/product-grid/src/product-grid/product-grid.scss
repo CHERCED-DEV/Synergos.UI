@@ -1,354 +1,524 @@
 @use 'scss' as syn;
 
-// ── Host ──────────────────────────────────────────────────────────────────────
 :host {
-  display:     block;
-  width:       100%;
+  --pg-heading: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --pg-filter-label: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+
+  --pg-input-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --pg-input-text: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --pg-input-placeholder: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --pg-input-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --pg-input-border-focus: var(--syn-color-border-accent, #{syn.$color-border-brand});
+  --pg-input-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --pg-skeleton-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --pg-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-surface-muted});
+  --pg-error: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+  --pg-empty: var(--syn-color-text-muted, #{syn.$color-text-muted});
+
+  --pg-card-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --pg-card-border: var(--syn-color-border-subtle, #{syn.$color-border-subtle});
+  --pg-card-border-hover: var(--syn-color-border-default, #{syn.$color-border-default});
+  --pg-card-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --pg-card-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --pg-card-media-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+
+  --pg-card-category: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --pg-card-name: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --pg-card-price: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --pg-card-original: var(--syn-color-text-disabled, #{syn.$color-text-disabled});
+  --pg-card-discount-surface: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --pg-card-discount-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
+  --pg-card-rating: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --pg-card-stars: var(--syn-color-warning-500, #{syn.$color-warning-500});
+  --pg-card-review-count: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --pg-pagination-status-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --pg-pagination-status-border: var(--syn-color-border-subtle, #{syn.$color-border-subtle});
+  --pg-pagination-status-text: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+
+  --pg-cta-surface: var(--syn-color-action-primary, #{syn.$color-brand-600});
+  --pg-cta-surface-hover: var(--syn-color-action-primary-hover, #{syn.$color-brand-500});
+  --pg-cta-surface-active: var(--syn-color-action-primary-active, #{syn.$color-brand-600});
+  --pg-cta-text: var(--syn-color-action-primary-text, #{syn.$color-text-inverse});
+  --pg-cta-disabled-surface: var(--syn-color-action-disabled-surface, #{syn.$color-surface-muted});
+  --pg-cta-disabled-text: var(--syn-color-action-disabled-text, #{syn.$color-text-disabled});
+  --pg-focus-ring: var(--syn-color-focus-ring, #{syn.$color-border-brand});
+
+  display: block;
+  width: 100%;
   font-family: inherit;
 }
 
-// ── Root block ────────────────────────────────────────────────────────────────
 .product-grid {
   width: 100%;
 
-  // ── Heading ───────────────────────────────────────────────────────────────
-  &__heading {
-    font-size:      syn.$font-size-2xl;
-    font-weight:    syn.$font-weight-bold;
-    letter-spacing: syn.$letter-spacing-tight;
-    color:          syn.$color-text-primary;
-    margin:         0 0 syn.$space-lg;
-    line-height:    syn.$line-height-tight;
+  &--dark,
+  &.sg-product-grid--dark {
+    --pg-heading: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --pg-filter-label: var(--syn-color-neutral-300, #{syn.$color-neutral-300});
+    --pg-input-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --pg-input-text: var(--syn-color-neutral-100, #{syn.$color-neutral-100});
+    --pg-input-placeholder: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+    --pg-input-border: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --pg-input-border-focus: var(--syn-color-brand-300, #{syn.$color-brand-300});
+    --pg-input-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-200});
+
+    --pg-skeleton-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --pg-skeleton-highlight: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --pg-card-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --pg-card-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --pg-card-border-hover: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --pg-card-media-surface: var(--syn-color-neutral-900, #{syn.$color-neutral-900});
+    --pg-card-category: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+    --pg-card-name: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --pg-card-price: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --pg-card-original: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --pg-card-rating: var(--syn-color-neutral-300, #{syn.$color-neutral-300});
+    --pg-card-review-count: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+    --pg-pagination-status-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --pg-pagination-status-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --pg-pagination-status-text: var(--syn-color-neutral-300, #{syn.$color-neutral-300});
   }
 
-  // ── Filters bar ───────────────────────────────────────────────────────────
+  &--silver-gold,
+  &--silverGold,
+  &.sg-product-grid--silver-gold,
+  &.sg-product-grid--silverGold {
+    --pg-card-discount-surface: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+    --pg-card-discount-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+    --pg-card-border-hover: var(--syn-color-border-strong, #{syn.$color-warning-500});
+  }
+
+  &__heading {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+    color: var(--pg-heading);
+    margin: 0 0 syn.$space-lg;
+    line-height: syn.$line-height-tight;
+  }
+
   &__filters {
-    display:       flex;
-    align-items:   center;
-    gap:           syn.$space-sm;
-    flex-wrap:     wrap;
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    flex-wrap: wrap;
     margin-bottom: syn.$space-lg;
   }
 
   &__search {
-    flex:          1 1 syn.px-to-rem(200);
-    min-width:     syn.px-to-rem(160);
-    height:        syn.px-to-rem(40);
-    padding:       0 syn.$space-md;
-    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    flex: 1 1 syn.px-to-rem(200);
+    min-width: syn.px-to-rem(160);
+    height: syn.px-to-rem(40);
+    padding: 0 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--pg-input-border);
     border-radius: syn.$radius-md;
-    font-size:     syn.$font-size-sm;
-    color:         syn.$color-text-primary;
-    background:    syn.$color-surface;
-    transition:    syn.$transition-colors;
+    font-size: syn.$font-size-sm;
+    color: var(--pg-input-text);
+    background: var(--pg-input-surface);
+    transition: syn.$transition-colors;
 
-    &::placeholder { color: syn.$color-text-muted; }
+    &::placeholder {
+      color: var(--pg-input-placeholder);
+    }
 
     &:focus {
-      outline:      none;
-      border-color: syn.$color-border-brand;
-      box-shadow:   0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-300, 0.3);
+      outline: none;
+      border-color: var(--pg-input-border-focus);
+      box-shadow: 0 0 0 syn.px-to-rem(3) var(--pg-input-focus-glow);
     }
   }
 
   &__sort-label {
-    font-size:   syn.$font-size-sm;
-    color:       syn.$color-text-secondary;
+    font-size: syn.$font-size-sm;
+    color: var(--pg-filter-label);
     white-space: nowrap;
     font-weight: syn.$font-weight-medium;
   }
 
   &__sort {
-    height:        syn.px-to-rem(40);
-    padding:       0 syn.$space-md;
-    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    height: syn.px-to-rem(40);
+    padding: 0 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--pg-input-border);
     border-radius: syn.$radius-md;
-    font-size:     syn.$font-size-sm;
-    color:         syn.$color-text-primary;
-    background:    syn.$color-surface;
-    cursor:        pointer;
-    transition:    syn.$transition-colors;
+    font-size: syn.$font-size-sm;
+    color: var(--pg-input-text);
+    background: var(--pg-input-surface);
+    cursor: pointer;
+    transition: syn.$transition-colors;
 
     &:focus {
-      outline:      none;
-      border-color: syn.$color-border-brand;
-      box-shadow:   0 0 0 syn.px-to-rem(3) rgba(syn.$color-brand-300, 0.3);
+      outline: none;
+      border-color: var(--pg-input-border-focus);
+      box-shadow: 0 0 0 syn.px-to-rem(3) var(--pg-input-focus-glow);
     }
   }
 
   &__clear {
-    height:        syn.px-to-rem(40);
-    padding:       0 syn.$space-md;
-    border:        syn.px-to-rem(1) solid syn.$color-border-default;
+    height: syn.px-to-rem(40);
+    padding: 0 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--pg-input-border);
     border-radius: syn.$radius-md;
-    background:    syn.$color-surface;
-    font-size:     syn.$font-size-sm;
-    color:         syn.$color-text-secondary;
-    cursor:        pointer;
-    transition:    syn.$transition-colors;
-    white-space:   nowrap;
+    background: var(--pg-input-surface);
+    font-size: syn.$font-size-sm;
+    color: var(--pg-filter-label);
+    cursor: pointer;
+    transition: syn.$transition-colors;
+    white-space: nowrap;
 
-    &:hover { background: syn.$color-surface-subtle; color: syn.$color-text-primary; }
-  }
-
-  // ── Skeleton loading ──────────────────────────────────────────────────────
-  &__loading {
-    display:               grid;
-    grid-template-columns: repeat(var(--sg-pg-cols, 3), 1fr);
-    gap:                   syn.$space-lg;
-  }
-
-  &__skeleton {
-    background:    syn.$color-surface-subtle;
-    border-radius: syn.$radius-lg;
-    height:        syn.px-to-rem(340);
-    position:      relative;
-    overflow:      hidden;
-
-    &::after {
-      content:         '';
-      position:        absolute;
-      inset:           0;
-      background:      linear-gradient(90deg,
-                         transparent 0%,
-                         syn.$color-surface-muted 50%,
-                         transparent 100%
-                       );
-      background-size: 200% 100%;
-      animation:       pg-shimmer syn.$duration-shimmer syn.$easing-smooth infinite;
+    &:hover {
+      background: var(--syn-color-action-ghost-surface-hover, #{syn.$color-surface-subtle});
+      color: var(--pg-input-text);
     }
   }
 
-  @keyframes pg-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+  &__loading {
+    display: grid;
+    grid-template-columns: repeat(var(--sg-pg-cols, 3), 1fr);
+    gap: syn.$space-lg;
   }
 
-  // ── Error / empty states ──────────────────────────────────────────────────
+  &__skeleton {
+    background: var(--pg-skeleton-surface);
+    border-radius: syn.$radius-lg;
+    height: syn.px-to-rem(340);
+    position: relative;
+    overflow: hidden;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--pg-skeleton-highlight) 50%,
+        transparent 100%
+      );
+      background-size: 200% 100%;
+      animation: pg-shimmer syn.$duration-shimmer syn.$easing-smooth infinite;
+    }
+  }
+
   &__error {
-    color:     syn.$color-danger-600;
+    color: var(--pg-error);
     font-size: syn.$font-size-sm;
-    padding:   syn.$space-lg 0;
+    padding: syn.$space-lg 0;
   }
 
   &__empty {
-    color:      syn.$color-text-muted;
-    font-size:  syn.$font-size-base;
+    color: var(--pg-empty);
+    font-size: syn.$font-size-base;
     text-align: center;
-    padding:    syn.px-to-rem(64) 0;
+    padding: syn.px-to-rem(64) 0;
   }
 
-  // ── Grid ──────────────────────────────────────────────────────────────────
   &__list {
-    display:    grid;
-    gap:        syn.$space-lg;
+    display: grid;
+    gap: syn.$space-lg;
     list-style: none;
-    margin:     0;
-    padding:    0;
+    margin: 0;
+    padding: 0;
   }
 
-  &--cols-2 {
+  &--cols-2,
+  &.sg-product-grid--cols-2 {
     --sg-pg-cols: 2;
-    .product-grid__list { grid-template-columns: repeat(2, 1fr); }
+
+    .product-grid__list {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
-  &--cols-3 {
+  &--cols-3,
+  &.sg-product-grid--cols-3 {
     --sg-pg-cols: 3;
-    .product-grid__list { grid-template-columns: repeat(3, 1fr); }
+
+    .product-grid__list {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
-  &--cols-4 {
+  &--cols-4,
+  &.sg-product-grid--cols-4 {
     --sg-pg-cols: 4;
-    .product-grid__list { grid-template-columns: repeat(4, 1fr); }
+
+    .product-grid__list {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
 
   @media (max-width: syn.px-to-rem(1024)) {
-    &--cols-4 .product-grid__list { grid-template-columns: repeat(3, 1fr); }
+    &--cols-4 .product-grid__list,
+    &.sg-product-grid--cols-4 .product-grid__list {
+      grid-template-columns: repeat(3, 1fr);
+    }
   }
 
   @media (max-width: syn.px-to-rem(768)) {
     &--cols-3 .product-grid__list,
-    &--cols-4 .product-grid__list { grid-template-columns: repeat(2, 1fr); }
+    &--cols-4 .product-grid__list,
+    &.sg-product-grid--cols-3 .product-grid__list,
+    &.sg-product-grid--cols-4 .product-grid__list {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 
   @media (max-width: syn.px-to-rem(480)) {
     &--cols-2 .product-grid__list,
     &--cols-3 .product-grid__list,
-    &--cols-4 .product-grid__list { grid-template-columns: 1fr; }
+    &--cols-4 .product-grid__list,
+    &.sg-product-grid--cols-2 .product-grid__list,
+    &.sg-product-grid--cols-3 .product-grid__list,
+    &.sg-product-grid--cols-4 .product-grid__list {
+      grid-template-columns: 1fr;
+    }
   }
 
-  // ── Product card ──────────────────────────────────────────────────────────
   &__card {
-    background:     syn.$color-surface;
-    border:         syn.px-to-rem(1) solid syn.$color-border-subtle;
-    border-radius:  syn.$radius-lg;
-    overflow:       hidden;
-    display:        flex;
+    background: var(--pg-card-surface);
+    border: syn.px-to-rem(1) solid var(--pg-card-border);
+    border-radius: syn.$radius-lg;
+    overflow: hidden;
+    display: flex;
     flex-direction: column;
-    box-shadow:     syn.$shadow-xs;
-    transition:     box-shadow syn.$duration-base syn.$easing-default,
-                    border-color syn.$duration-base syn.$easing-default;
-    position:       relative;
-    cursor:         pointer;
+    box-shadow: var(--pg-card-shadow);
+    transition:
+      box-shadow syn.$duration-base syn.$easing-default,
+      border-color syn.$duration-base syn.$easing-default;
+    position: relative;
+    cursor: default;
 
     &:hover {
-      box-shadow:   syn.$shadow-md;
-      border-color: syn.$color-border-default;
+      box-shadow: var(--pg-card-shadow-hover);
+      border-color: var(--pg-card-border-hover);
     }
   }
 
   &__card-figure {
-    margin:       0;
+    margin: 0;
     aspect-ratio: 4 / 3;
-    overflow:     hidden;
-    background:   syn.$color-surface-subtle;
-    flex-shrink:  0;
+    overflow: hidden;
+    background: var(--pg-card-media-surface);
+    flex-shrink: 0;
+  }
+
+  &__card-media-link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--pg-focus-ring);
+      outline-offset: syn.px-to-rem(2);
+      border-radius: syn.$radius-md;
+    }
   }
 
   &__card-img {
-    width:      100%;
-    height:     100%;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     transition: transform syn.$duration-slow syn.$easing-default;
 
-    .product-grid__card:hover & { transform: scale(1.04); }
+    .product-grid__card:hover & {
+      transform: scale(1.04);
+    }
   }
 
   &__card-badge {
-    position:       absolute;
-    top:            syn.$space-sm;
-    left:           syn.$space-sm;
-    background:     syn.$color-accent-500;
-    color:          syn.$color-text-inverse;
-    font-size:      syn.$font-size-xs;
-    font-weight:    syn.$font-weight-semibold;
-    padding:        syn.px-to-rem(3) syn.$space-xs;
-    border-radius:  syn.$radius-full;
+    position: absolute;
+    top: syn.$space-sm;
+    left: syn.$space-sm;
+    background: var(--syn-color-state-brand-text, #{syn.$color-accent-500});
+    color: var(--syn-color-text-inverse, #{syn.$color-text-inverse});
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    padding: syn.px-to-rem(3) syn.$space-xs;
+    border-radius: syn.$radius-full;
     text-transform: uppercase;
     letter-spacing: syn.$letter-spacing-wide;
-    line-height:    1.4;
+    line-height: 1.4;
     pointer-events: none;
   }
 
   &__card-body {
-    display:        flex;
+    display: flex;
     flex-direction: column;
-    gap:            syn.$space-xs;
-    padding:        syn.$space-md;
-    flex:           1;
+    gap: syn.$space-xs;
+    padding: syn.$space-md;
+    flex: 1;
   }
 
   &__card-category {
-    font-size:      syn.$font-size-xs;
-    color:          syn.$color-text-muted;
+    font-size: syn.$font-size-xs;
+    color: var(--pg-card-category);
     text-transform: uppercase;
     letter-spacing: syn.$letter-spacing-eyebrow;
-    font-weight:    syn.$font-weight-semibold;
-    margin:         0;
+    font-weight: syn.$font-weight-semibold;
+    margin: 0;
   }
 
   &__card-name {
-    font-size:   syn.$font-size-base;
+    font-size: syn.$font-size-base;
     font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-text-primary;
+    color: var(--pg-card-name);
     line-height: syn.$line-height-tight;
-    margin:      0;
+    margin: 0;
+  }
+
+  &__card-name-link {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: syn.px-to-rem(2);
+    }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--pg-focus-ring);
+      outline-offset: syn.px-to-rem(2);
+      border-radius: syn.$radius-sm;
+    }
   }
 
   &__card-pricing {
-    display:     flex;
+    display: flex;
     align-items: baseline;
-    gap:         syn.$space-xs;
-    flex-wrap:   wrap;
-    margin-top:  syn.$space-xxs;
+    gap: syn.$space-xs;
+    flex-wrap: wrap;
+    margin-top: syn.$space-xxs;
   }
 
   &__card-original {
-    font-size:       syn.$font-size-sm;
-    color:           syn.$color-text-disabled;
+    font-size: syn.$font-size-sm;
+    color: var(--pg-card-original);
     text-decoration: line-through;
   }
 
   &__card-price {
-    font-size:      syn.$font-size-lg;
-    font-weight:    syn.$font-weight-bold;
-    color:          syn.$color-text-primary;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    color: var(--pg-card-price);
     letter-spacing: syn.$letter-spacing-display;
   }
 
   &__card-discount {
-    font-size:     syn.$font-size-xs;
-    font-weight:   syn.$font-weight-semibold;
-    color:         syn.$color-success-600;
-    background:    syn.$color-success-100;
-    padding:       syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--pg-card-discount-text);
+    background: var(--pg-card-discount-surface);
+    padding: syn.px-to-rem(2) syn.$space-xs;
     border-radius: syn.$radius-sm;
-    white-space:   nowrap;
+    white-space: nowrap;
   }
 
   &__card-rating {
-    display:     flex;
+    display: flex;
     align-items: center;
-    gap:         syn.px-to-rem(4);
-    font-size:   syn.$font-size-xs;
-    color:       syn.$color-text-secondary;
+    gap: syn.px-to-rem(4);
+    font-size: syn.$font-size-xs;
+    color: var(--pg-card-rating);
   }
 
-  &__card-stars        { color: syn.$color-warning-500; }
-  &__card-review-count { color: syn.$color-text-muted; }
+  &__card-stars {
+    color: var(--pg-card-stars);
+  }
+
+  &__card-review-count {
+    color: var(--pg-card-review-count);
+  }
 
   &__card-cta {
-    margin-top:    auto;
-    padding:       syn.px-to-rem(10) syn.$space-md;
-    background:    syn.$color-brand-600;
-    color:         syn.$color-text-inverse;
-    border:        none;
+    margin-top: auto;
+    padding: syn.px-to-rem(10) syn.$space-md;
+    background: var(--pg-cta-surface);
+    color: var(--pg-cta-text);
+    border: none;
     border-radius: syn.$radius-md;
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-semibold;
-    cursor:        pointer;
-    transition:    syn.$transition-colors, box-shadow syn.$duration-fast syn.$easing-default;
-    width:         100%;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: syn.$transition-colors, box-shadow syn.$duration-fast syn.$easing-default;
+    width: 100%;
 
     &:hover:not(:disabled) {
-      background: syn.$color-brand-500;
-      box-shadow: syn.$shadow-brand-sm;
+      background: var(--pg-cta-surface-hover);
+      box-shadow: var(--syn-shadow-action, #{syn.$shadow-brand-sm});
     }
 
     &:active:not(:disabled) {
-      background: syn.$color-brand-600;
+      background: var(--pg-cta-surface-active);
       box-shadow: none;
     }
 
     &:disabled {
-      background: syn.$color-surface-muted;
-      color:      syn.$color-text-disabled;
-      cursor:     not-allowed;
+      background: var(--pg-cta-disabled-surface);
+      color: var(--pg-cta-disabled-text);
+      cursor: not-allowed;
     }
 
     &:focus-visible {
-      outline:        syn.px-to-rem(2) solid syn.$color-border-brand;
+      outline: syn.px-to-rem(2) solid var(--pg-focus-ring);
       outline-offset: syn.px-to-rem(2);
     }
   }
 
-  // ── Dark theme ────────────────────────────────────────────────────────────
-  &--dark {
-    .product-grid__heading     { color: syn.$color-neutral-50; }
-    .product-grid__card        { background: syn.$color-neutral-800; border-color: syn.$color-neutral-700; }
-    .product-grid__card:hover  { border-color: syn.$color-neutral-600; }
-    .product-grid__card-figure { background: syn.$color-neutral-900; }
-    .product-grid__card-name   { color: syn.$color-neutral-50; }
-    .product-grid__card-price  { color: syn.$color-neutral-50; }
-    .product-grid__card-category { color: syn.$color-neutral-500; }
-    .product-grid__skeleton    { background: syn.$color-neutral-700; }
+  &__card-details-link {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+    text-decoration: none;
+    margin-top: syn.$space-xs;
+    align-self: flex-start;
 
-    .product-grid__search,
-    .product-grid__sort,
-    .product-grid__clear {
-      background:   syn.$color-neutral-800;
-      color:        syn.$color-neutral-100;
-      border-color: syn.$color-neutral-600;
+    &:hover {
+      text-decoration: underline;
+      text-underline-offset: syn.px-to-rem(2);
     }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--pg-focus-ring);
+      outline-offset: syn.px-to-rem(2);
+      border-radius: syn.$radius-sm;
+    }
+  }
+
+  &__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    margin-top: syn.$space-lg;
+  }
+
+  &__pagination-status {
+    margin: 0;
+    padding: syn.px-to-rem(8) syn.$space-md;
+    border-radius: syn.$radius-md;
+    border: syn.px-to-rem(1) solid var(--pg-pagination-status-border);
+    background: var(--pg-pagination-status-surface);
+    color: var(--pg-pagination-status-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    white-space: nowrap;
+  }
+
+  @media (max-width: syn.px-to-rem(640)) {
+    &__pagination {
+      justify-content: center;
+    }
+  }
+}
+
+@keyframes pg-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
   }
 }

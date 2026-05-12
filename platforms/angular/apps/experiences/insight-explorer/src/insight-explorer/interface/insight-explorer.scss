@@ -1,7 +1,21 @@
 @use 'scss' as syn;
 
 :host {
-  display:     block;
+  --ie-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ie-card-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ie-card-border-hover: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --ie-card-surface-hover: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --ie-card-title: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --ie-card-title-active: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --ie-panel-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ie-panel-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ie-panel-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ie-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ie-metric-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ie-metric-label: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ie-feature: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+
+  display: block;
   font-family: syn.$font-family-sans;
 }
 
@@ -9,233 +23,148 @@
   @include syn.flex-column;
   gap: syn.$space-xl;
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-
   &__header { text-align: center; }
-
   &__title {
-    font-size:   syn.$font-size-2xl;
+    font-size: syn.$font-size-2xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-900;
-    margin:      0;
+    color: var(--ie-title);
+    margin: 0;
     line-height: syn.$line-height-tight;
   }
 
-  // ── Layout ───────────────────────────────────────────────────────────────────
-
   &__layout {
-    display:               grid;
+    display: grid;
     grid-template-columns: syn.px-to-rem(220) 1fr;
-    gap:                   syn.$space-lg;
-    align-items:           start;
+    gap: syn.$space-lg;
+    align-items: start;
   }
 
-  // ── Sidebar ──────────────────────────────────────────────────────────────────
-
-  &__sidebar {
-    @include syn.flex-column;
-    gap: syn.$space-xs;
-  }
+  &__sidebar { @include syn.flex-column; gap: syn.$space-xs; }
 
   &__card {
     @include syn.flex-start;
-    gap:           syn.$space-sm;
-    width:         100%;
-    padding:       syn.$space-sm syn.$space-md;
-    background:    none;
-    border:        syn.px-to-rem(1.5) solid syn.$color-neutral-200;
-    border-radius: syn.$radius-md;
-    cursor:        pointer;
-    text-align:    left;
-    font-family:   inherit;
-    transition:    syn.$transition-colors;
+    gap: syn.$space-sm;
+    width: 100%;
+    padding: syn.$space-sm syn.$space-md;
+    background: none;
+    border: syn.px-to-rem(1.5) solid var(--ie-card-border);
+    border-radius: syn.$radius-lg;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: syn.$transition-colors;
 
     &:hover:not(.insight-explorer__card--active) {
-      border-color: syn.$color-brand-300;
-      background:   syn.$color-brand-100;
+      border-color: var(--ie-card-border-hover);
+      background: var(--ie-card-surface-hover);
     }
 
     &--active {
-      border-color: syn.$color-brand-500;
-      background:   syn.$color-brand-100;
+      border-color: var(--syn-color-state-brand-border, #{syn.$color-brand-500});
+      background: var(--ie-card-surface-hover);
     }
   }
 
-  &__card-icon {
-    font-size:  syn.$font-size-xl;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
+  &__card-icon { font-size: syn.$font-size-xl; line-height: 1; flex-shrink: 0; }
   &__card-title {
-    font-size:   syn.$font-size-sm;
+    font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-neutral-700;
+    color: var(--ie-card-title);
     line-height: syn.$line-height-tight;
-    transition:  syn.$transition-colors;
 
-    .insight-explorer__card--active & { color: syn.$color-brand-600; }
+    .insight-explorer__card--active & { color: var(--ie-card-title-active); }
   }
-
-  // ── Detail panel ─────────────────────────────────────────────────────────────
 
   &__panel {
     @include syn.flex-column;
-    gap:           syn.$space-lg;
-    padding:       syn.$space-xl;
-    background:    syn.$color-neutral-50;
-    border:        syn.px-to-rem(1) solid syn.$color-neutral-100;
-    border-radius: syn.$radius-lg;
-    min-height:    syn.px-to-rem(360);
+    gap: syn.$space-lg;
+    padding: syn.$space-xl;
+    background: var(--ie-panel-surface);
+    border: syn.px-to-rem(1) solid var(--ie-panel-border);
+    border-radius: syn.$radius-xl;
+    min-height: syn.px-to-rem(360);
   }
 
-  &__panel-header {
-    @include syn.flex-start;
-    gap: syn.$space-md;
-  }
-
-  &__panel-icon {
-    font-size:  syn.px-to-rem(40);
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
+  &__panel-header { @include syn.flex-start; gap: syn.$space-md; }
+  &__panel-icon { font-size: syn.px-to-rem(40); line-height: 1; flex-shrink: 0; }
   &__panel-title {
-    font-size:   syn.$font-size-xl;
+    font-size: syn.$font-size-xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-900;
-    margin:      0;
+    color: var(--ie-panel-title);
+    margin: 0;
     line-height: syn.$line-height-tight;
   }
-
   &__panel-description {
-    font-size:   syn.$font-size-base;
-    color:       syn.$color-neutral-600;
+    font-size: syn.$font-size-base;
+    color: var(--ie-panel-body);
     line-height: syn.$line-height-relaxed;
-    margin:      0;
+    margin: 0;
   }
-
-  // ── Metrics ──────────────────────────────────────────────────────────────────
 
   &__metrics {
-    display:       flex;
-    gap:           syn.$space-lg;
-    padding:       syn.$space-md 0;
-    border-top:    syn.px-to-rem(1) solid syn.$color-neutral-200;
-    border-bottom: syn.px-to-rem(1) solid syn.$color-neutral-200;
+    display: flex;
+    gap: syn.$space-lg;
+    padding: syn.$space-md 0;
+    border-top: syn.px-to-rem(1) solid var(--ie-metric-border);
+    border-bottom: syn.px-to-rem(1) solid var(--ie-metric-border);
   }
-
-  &__metric {
-    @include syn.flex-column;
-    gap: syn.$space-xxs;
-  }
-
+  &__metric { @include syn.flex-column; gap: syn.$space-xxs; }
   &__metric-value {
-    font-size:   syn.$font-size-2xl;
+    font-size: syn.$font-size-2xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-brand-500;
+    color: var(--syn-color-action-primary, #{syn.$color-brand-500});
     line-height: 1;
   }
-
   &__metric-label {
-    font-size:      syn.$font-size-xs;
-    font-weight:    syn.$font-weight-medium;
-    color:          syn.$color-neutral-500;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    color: var(--ie-metric-label);
     text-transform: uppercase;
     letter-spacing: syn.$letter-spacing-wide;
   }
 
-  // ── Features ─────────────────────────────────────────────────────────────────
-
-  &__features {
-    @include syn.flex-column;
-    gap:        syn.$space-xs;
-    list-style: none;
-    margin:     0;
-    padding:    0;
-  }
-
+  &__features { @include syn.flex-column; gap: syn.$space-xs; list-style: none; margin: 0; padding: 0; }
   &__feature {
     @include syn.flex-start;
-    gap:         syn.$space-sm;
-    font-size:   syn.$font-size-sm;
-    color:       syn.$color-neutral-700;
+    gap: syn.$space-sm;
+    font-size: syn.$font-size-sm;
+    color: var(--ie-feature);
     line-height: syn.$line-height-normal;
   }
-
   &__feature-bullet {
-    color:       syn.$color-brand-500;
+    color: var(--syn-color-action-primary, #{syn.$color-brand-500});
     font-weight: syn.$font-weight-bold;
     flex-shrink: 0;
   }
-
-  // ── CTA ──────────────────────────────────────────────────────────────────────
-
-  &__cta {
-    margin-top:  auto;
-    padding-top: syn.$space-sm;
-  }
-
+  &__cta { margin-top: auto; padding-top: syn.$space-sm; }
   &__cta-link {
-    display:     inline-flex;
+    display: inline-flex;
     align-items: center;
-    gap:         syn.$space-xs;
-    font-size:   syn.$font-size-sm;
+    gap: syn.$space-xs;
+    font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
-    color:       syn.$color-brand-500;
+    color: var(--syn-color-action-primary, #{syn.$color-brand-500});
     text-decoration: none;
-    transition:  color syn.$duration-fast syn.$easing-smooth;
-
-    &:hover { color: syn.$color-brand-600; }
+    transition: color syn.$duration-fast syn.$easing-smooth;
   }
-
-  // ── Dark theme ───────────────────────────────────────────────────────────────
 
   &--dark {
-    .insight-explorer__title { color: syn.$color-neutral-0; }
-
-    .insight-explorer__card {
-      border-color: rgb(255 255 255 / 0.12);
-
-      &:hover:not(.insight-explorer__card--active) {
-        background:   rgb(79 110 247 / 0.10);
-        border-color: syn.$color-brand-400;
-      }
-
-      &--active {
-        background:   rgb(79 110 247 / 0.15);
-        border-color: syn.$color-brand-400;
-      }
-    }
-
-    .insight-explorer__card-title { color: syn.$color-neutral-300; }
-
-    .insight-explorer__panel {
-      background:   rgb(255 255 255 / 0.04);
-      border-color: rgb(255 255 255 / 0.08);
-    }
-
-    .insight-explorer__panel-title       { color: syn.$color-neutral-0;   }
-    .insight-explorer__panel-description { color: syn.$color-neutral-300; }
-
-    .insight-explorer__metrics { border-color: rgb(255 255 255 / 0.10); }
-    .insight-explorer__metric-label { color: syn.$color-neutral-500; }
-    .insight-explorer__feature { color: syn.$color-neutral-300; }
+    --ie-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --ie-card-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 72%, transparent);
+    --ie-card-surface-hover: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 18%, transparent);
+    --ie-card-title: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --ie-panel-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 90%, transparent);
+    --ie-panel-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 60%, transparent);
+    --ie-panel-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --ie-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --ie-metric-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 70%, transparent);
+    --ie-metric-label: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+    --ie-feature: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
   }
 
-  // ── Responsive ───────────────────────────────────────────────────────────────
-
   @media (max-width: 768px) {
-    &__layout  { grid-template-columns: 1fr; }
-
-    &__sidebar {
-      flex-direction: row;
-      flex-wrap:      wrap;
-    }
-
-    &__card {
-      flex:      1;
-      min-width: syn.px-to-rem(140);
-    }
+    &__layout { grid-template-columns: 1fr; }
+    &__sidebar { flex-direction: row; flex-wrap: wrap; }
+    &__card { flex: 1; min-width: syn.px-to-rem(140); }
   }
 }

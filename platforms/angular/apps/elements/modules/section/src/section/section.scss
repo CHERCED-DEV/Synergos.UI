@@ -5,46 +5,82 @@
   font-family: inherit;
 }
 
-// ─── Section ──────────────────────────────────────────────────────────────────
-// Vertical rhythm scales progressively with viewport width.
-// Horizontal containment uses layout tokens for consistent max-widths.
-// Mobile-first: minimal padding grows as screen expands.
 .section {
-  // Mobile: 32px top/bottom
+  --syn-module-section-background: transparent;
+  --syn-module-section-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-module-section-border: transparent;
+  --syn-module-section-shadow: none;
+  --syn-module-section-divider: var(--syn-gradient-divider, transparent);
+
+  position: relative;
+  color: var(--syn-module-section-color);
+  background: var(--syn-module-section-background);
+  border: syn.px-to-rem(1) solid var(--syn-module-section-border);
+  border-radius: syn.$radius-2xl;
+  box-shadow: var(--syn-module-section-shadow);
+  overflow: clip;
+
   padding-block: syn.$section-pad-y-sm;
-  // Mobile: horizontal padding prevents edge-to-edge content
   padding-inline: syn.$container-pad-x-sm;
 
   @include syn.respond-to(md) {
-    padding-block:  syn.$section-pad-y-md;   // 48px
-    padding-inline: syn.$container-pad-x-md; // 24px
+    padding-block: syn.$section-pad-y-md;
+    padding-inline: syn.$container-pad-x-md;
   }
 
   @include syn.respond-to(lg) {
-    padding-block:  syn.$section-pad-y-lg;   // 64px
-    padding-inline: syn.$container-pad-x-lg; // 32px
+    padding-block: syn.$section-pad-y-lg;
+    padding-inline: syn.$container-pad-x-lg;
   }
 
   @include syn.respond-to(xl) {
-    padding-block: syn.$section-pad-y-xl;    // 80px
+    padding-block: syn.$section-pad-y-xl;
   }
 
-  // --contained: max-width constrained, horizontally centered.
-  // Padding-inline is already handled above; remove double padding on wide screens.
-  &--contained {
-    max-width:     syn.$max-width-content;
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: syn.px-to-rem(2);
+    background: var(--syn-module-section-divider);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &.sg-section--contained {
+    max-width: syn.$max-width-content;
     margin-inline: auto;
   }
 
-  // --fluid: full-width, no max-width constraint.
-  // Horizontal padding still applies from the mobile-first rules above.
-  &--fluid {
+  &.sg-section--fluid {
     max-width: none;
   }
 
-  &--dark {
-    background-color: syn.$color-neutral-900;
-    color:            syn.$color-neutral-0;
+  &.sg-section--card,
+  &.sg-section--panel,
+  &.sg-section--elevated {
+    --syn-module-section-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+    --syn-module-section-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+    --syn-module-section-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+    --syn-module-section-divider: var(--syn-gradient-divider, transparent);
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  &.sg-section--dark {
+    --syn-module-section-background: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --syn-module-section-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --syn-module-section-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-module-section-shadow: var(--syn-shadow-panel, #{syn.$shadow-md});
+  }
+
+  &.sg-section--silver-gold,
+  &.sg-section--silverGold {
+    --syn-module-section-divider: var(--syn-gradient-divider, transparent);
   }
 
   &__header {
@@ -60,7 +96,7 @@
   }
 
   &__body {
-    display:   flex;
+    display: flex;
     flex-wrap: wrap;
   }
 }

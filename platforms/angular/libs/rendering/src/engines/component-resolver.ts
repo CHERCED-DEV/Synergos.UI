@@ -1,4 +1,9 @@
 import { inject, Injectable } from '@angular/core';
+import type {
+  ComponentResolutionFailure,
+  ComponentResolutionResult,
+  ResolutionErrorCode,
+} from '@synergos/contracts';
 import { LoggerService } from '@synergos/core';
 import { ElementRegistry } from './element-registry';
 
@@ -8,11 +13,60 @@ export class ComponentResolver {
   readonly #logger = inject(LoggerService);
 
   resolve(contentTypeAlias: string): string | null {
-    const registration = this.#registry.resolve(contentTypeAlias);
-    if (!registration) {
-      this.#logger.warn(`[ComponentResolver] No element registered for: ${contentTypeAlias}`);
+    const result = this.resolveDefinition(contentTypeAlias);
+    if (!result.ok) {
+      this.#logger.warn(`[ComponentResolver] ${result.error.message}`);
       return null;
     }
-    return registration.tag;
+
+    return result.definition.tag;
+  }
+
+  resolveDefinition(contentTypeAlias: string): ComponentResolutionResult {
+    const selector = contentTypeAlias.trim();
+    if (!selector) {
+      return this.#failure(
+        'invalid_selector',
+        contentTypeAlias,
+        'Component selector is empty.',
+      );
+    }
+
+    const lookup = this.#registry.lookup(selector);
+    if (!lookup.definition) {
+      return this.#failure(
+        'selector_not_found',
+        selector,
+        `No component is registered for selector "${selector}".`,
+        {
+          attemptedKeys: lookup.attemptedKeys,
+          registeredCount: this.#registry.entries().length,
+        },
+      );
+    }
+
+    return {
+      ok: true,
+      selector,
+      definition: lookup.definition,
+    };
+  }
+
+  #failure(
+    code: ResolutionErrorCode,
+    selector: string,
+    message: string,
+    details?: Record<string, unknown>,
+  ): ComponentResolutionFailure {
+    return {
+      ok: false,
+      selector,
+      error: {
+        code,
+        selector,
+        message,
+        details,
+      },
+    };
   }
 }

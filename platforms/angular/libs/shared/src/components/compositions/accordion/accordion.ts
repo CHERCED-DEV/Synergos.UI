@@ -8,7 +8,14 @@ import {
   signal,
 } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 export interface AccordionConfig {
   readonly id?: string;
@@ -18,6 +25,18 @@ export interface AccordionConfig {
   readonly disabled?: boolean;
   readonly initiallyExpanded?: boolean;
   readonly tone?: 'neutral' | 'brand';
+}
+
+function sanitizeAccordionConfig(value: Partial<AccordionConfig>): Partial<AccordionConfig> {
+  return omitUndefinedProperties<AccordionConfig>({
+    id: coerceTrimmedStringInput(value.id),
+    title: coerceTrimmedStringInput(value.title),
+    description: coerceTrimmedStringInput(value.description),
+    collapsible: coerceOptionalBooleanInput(value.collapsible),
+    disabled: coerceOptionalBooleanInput(value.disabled),
+    initiallyExpanded: coerceOptionalBooleanInput(value.initiallyExpanded),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand'] as const),
+  });
 }
 
 let accordionId = 0;
@@ -78,7 +97,7 @@ let accordionId = 0;
 })
 export class AccordionComponent implements OnInit {
   readonly config = input<Partial<AccordionConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<AccordionConfig>,
+    transform: createConfigInputTransform<AccordionConfig>(sanitizeAccordionConfig),
   });
   readonly idInput = input<string | undefined>(undefined, { alias: 'id' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });

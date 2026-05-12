@@ -1,6 +1,11 @@
 import type { ColumnElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
 
 const spacingValues: Record<string, string> = {
   none: '0',
@@ -18,6 +23,18 @@ function resolveSpaceToken(value: string): string {
   return spacingValues[value] ?? value;
 }
 
+function sanitizeColumnConfig(value: Partial<ColumnElementConfig>): Partial<ColumnElementConfig> {
+  return omitUndefinedProperties<Partial<ColumnElementConfig>>({
+    width: coerceTrimmedStringInput(value.width),
+    minWidth: coerceTrimmedStringInput(value.minWidth),
+    alignment: coerceTrimmedStringInput(value.alignment),
+    padding: coerceTrimmedStringInput(value.padding),
+    gap: coerceTrimmedStringInput(value.gap),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
+
 @Component({
   selector: 'sg-column',
   templateUrl: './column.html',
@@ -27,7 +44,7 @@ function resolveSpaceToken(value: string): string {
 })
 export class ColumnComponent {
   readonly config = input<Partial<ColumnElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ColumnElementConfig>,
+    transform: createConfigInputTransform<Partial<ColumnElementConfig>>(sanitizeColumnConfig),
   });
   readonly widthInput = input<string | undefined>(undefined, { alias: 'width' });
   readonly minWidthInput = input<string | undefined>(undefined, { alias: 'minWidth' });
@@ -37,11 +54,11 @@ export class ColumnComponent {
   readonly variantInput = input<string | undefined>(undefined, { alias: 'variant' });
   readonly themeInput = input<string | undefined>(undefined, { alias: 'theme' });
 
-  readonly width = computed(() => this.widthInput()?.trim() || '');
-  readonly minWidth = computed(() => this.minWidthInput()?.trim() || '');
-  readonly alignment = computed(() => this.alignmentInput()?.trim() || 'stretch');
-  readonly padding = computed(() => this.paddingInput()?.trim() || 'md');
-  readonly gap = computed(() => this.gapInput()?.trim() || 'md');
+  readonly width = computed(() => resolveConfigValue(this.widthInput()?.trim(), this.config()?.width, ''));
+  readonly minWidth = computed(() => resolveConfigValue(this.minWidthInput()?.trim(), this.config()?.minWidth, ''));
+  readonly alignment = computed(() => resolveConfigValue(this.alignmentInput()?.trim(), this.config()?.alignment, 'stretch'));
+  readonly padding = computed(() => resolveConfigValue(this.paddingInput()?.trim(), this.config()?.padding, 'md'));
+  readonly gap = computed(() => resolveConfigValue(this.gapInput()?.trim(), this.config()?.gap, 'md'));
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );

@@ -1,6 +1,28 @@
 import type { PriceDisplayElementConfig } from '@synergos/contracts';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
+import {
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '@synergos/shared';
+
+function sanitizePriceDisplayConfig(
+  value: Partial<PriceDisplayElementConfig>,
+): Partial<PriceDisplayElementConfig> {
+  return omitUndefinedProperties<PriceDisplayElementConfig>({
+    showOriginalPrice: coerceOptionalBooleanInput(value.showOriginalPrice),
+    showDiscount: coerceOptionalBooleanInput(value.showDiscount),
+    priceSize: coerceStringEnumInput(value.priceSize, ['sm', 'md', 'lg'] as const),
+    currency: coerceTrimmedStringInput(value.currency),
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-price-display',
@@ -11,7 +33,7 @@ import { coerceConfigInput, resolveConfigValue } from '@synergos/shared';
 })
 export class PriceDisplayComponent {
   readonly config = input<Partial<PriceDisplayElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<PriceDisplayElementConfig>,
+    transform: createConfigInputTransform<PriceDisplayElementConfig>(sanitizePriceDisplayConfig),
   });
 
   // Direct attribute inputs (allow usage without config JSON)
@@ -38,6 +60,7 @@ export class PriceDisplayComponent {
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
   );
+  readonly translations = computed(() => this.config()?.translations ?? {});
 
   // Price values come from inputs OR from the parent's data binding
   readonly currentPrice    = computed(() => this.priceInput() ?? this.price());
@@ -47,6 +70,18 @@ export class PriceDisplayComponent {
   readonly hasDiscount     = computed(() => (this.discountPercent() ?? 0) > 0 && this.showDiscount());
   readonly hasOriginal     = computed(() => !!this.basePrice() && this.showOriginalPrice());
   readonly hostClasses     = computed(() => `sg-price-display--${this.priceSize()} sg-price-display--${this.theme()}`);
+  readonly displayLabel = computed(
+    () => this.translations()['Shop.Price.Display'] ?? 'Product price',
+  );
+  readonly originalLabel = computed(
+    () => this.translations()['Shop.Price.Original'] ?? 'Original price',
+  );
+  readonly discountLabel = computed(
+    () => this.translations()['Shop.Price.Discount'] ?? 'Discount',
+  );
+  readonly currentLabel = computed(
+    () => this.translations()['Shop.Price.Current'] ?? 'Price',
+  );
 
   formatPrice(value: number | undefined): string {
     if (value == null) return '';
@@ -55,5 +90,18 @@ export class PriceDisplayComponent {
       currency: this.currency(),
       maximumFractionDigits: 0,
     }).format(value);
+  }
+
+  discountAriaLabel(): string {
+    const discount = this.discountPercent();
+    if (discount == null) {
+      return this.discountLabel();
+    }
+
+    return `${this.discountLabel()} ${discount}%`;
+  }
+
+  currentPriceAriaLabel(): string {
+    return `${this.currentLabel()}: ${this.formatPrice(this.currentPrice())}`;
   }
 }

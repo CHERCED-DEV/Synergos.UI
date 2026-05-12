@@ -5,7 +5,10 @@ import {
   type HeadingAlign,
   type HeadingLevel,
   type HeadingTone,
-  coerceConfigInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -14,6 +17,19 @@ const textBlockHeadingLevels: readonly HeadingLevel[] = ['h1', 'h2', 'h3', 'h4',
 
 function resolveTextBlockHeadingLevel(value: string): HeadingLevel {
   return textBlockHeadingLevels.includes(value as HeadingLevel) ? (value as HeadingLevel) : 'h2';
+}
+
+function sanitizeTextBlockConfig(
+  value: Partial<TextBlockElementConfig>,
+): Partial<TextBlockElementConfig> {
+  return omitUndefinedProperties<Partial<TextBlockElementConfig>>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    headingLevel: coerceStringEnumInput(value.headingLevel, textBlockHeadingLevels),
+    body: coerceTrimmedStringInput(value.body),
+    alignment: coerceTrimmedStringInput(value.alignment),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
 }
 
 @Component({
@@ -26,7 +42,7 @@ function resolveTextBlockHeadingLevel(value: string): HeadingLevel {
 })
 export class TextBlockComponent {
   readonly config = input<Partial<TextBlockElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<TextBlockElementConfig>,
+    transform: createConfigInputTransform<Partial<TextBlockElementConfig>>(sanitizeTextBlockConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly headingLevelInput = input<string | undefined>(undefined, { alias: 'headingLevel' });
@@ -41,12 +57,8 @@ export class TextBlockComponent {
   readonly headingLevel = computed(() =>
     resolveConfigValue(this.headingLevelInput(), this.config()?.headingLevel, 'h2'),
   );
-  readonly body = computed(() =>
-    resolveConfigValue(this.bodyInput(), undefined, ''),
-  );
-  readonly alignment = computed(() =>
-    resolveConfigValue(this.alignmentInput(), undefined, 'left'),
-  );
+  readonly body = computed(() => resolveConfigValue(this.bodyInput(), this.config()?.body, ''));
+  readonly alignment = computed(() => resolveConfigValue(this.alignmentInput(), this.config()?.alignment, 'left'));
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
   );

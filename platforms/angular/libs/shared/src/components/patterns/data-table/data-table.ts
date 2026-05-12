@@ -67,7 +67,11 @@ export interface DataTableColumn<TData extends DataTableRow = Record<string, unk
               (keydown.space)="selectRow(row)"
             >
               @for (column of columns(); track column.key) {
-                <td class="syn-data-table__cell" [class]="cellClass(column)">
+                <td
+                  class="syn-data-table__cell"
+                  [class]="cellClass(column)"
+                  [attr.data-label]="column.label"
+                >
                   {{ resolveCellValue(row, column) }}
                 </td>
               }

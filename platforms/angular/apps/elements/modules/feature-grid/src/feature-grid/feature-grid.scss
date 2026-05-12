@@ -4,22 +4,46 @@
   display: block;
 }
 
-// ─── Feature Grid ─────────────────────────────────────────────────────────────
-// Responsive auto-fit grid: items fill available space, minimum 260px wide.
-// 1 column on very small screens → 2 columns on tablet → 3+ on desktop.
-// No media query breakpoints needed — CSS grid handles it intrinsically.
 .feature-grid {
-  &__heading {
-    display:       block;
-    margin-bottom: syn.$space-xl;
+  --syn-feature-grid-item-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-feature-grid-item-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-feature-grid-item-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-feature-grid-item-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --syn-feature-grid-icon-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-feature-grid-item-heading: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-feature-grid-item-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-feature-grid-header-max-width: #{syn.px-to-rem(760)};
+
+  &.sg-feature-grid--dark {
+    --syn-feature-grid-item-background: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --syn-feature-grid-item-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-feature-grid-item-heading: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --syn-feature-grid-item-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
   }
 
-  // Auto-fit grid: items are at least 260px wide. The browser decides the
-  // column count — no brittle breakpoint logic needed.
+  &.sg-feature-grid--accent {
+    --syn-feature-grid-icon-background: var(--syn-color-surface-accent, #{syn.$color-accent-100});
+  }
+
+  &__header {
+    display: grid;
+    justify-items: center;
+    margin-bottom: syn.$space-xl;
+
+    @include syn.respond-to(md) {
+      margin-bottom: syn.$space-12;
+    }
+  }
+
+  &__heading {
+    display: block;
+    max-width: var(--syn-feature-grid-header-max-width);
+  }
+
   &__grid {
-    display:               grid;
+    display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(260)), 1fr));
-    gap:                   syn.$space-lg;
+    gap: syn.$space-lg;
 
     @include syn.respond-to(md) {
       gap: syn.$space-xl;
@@ -28,71 +52,68 @@
 
   &__item {
     @include syn.flex-column;
-    @include syn.surface-panel(
-      syn.$space-lg,
-      syn.$color-neutral-0,
-      syn.$color-neutral-200,
-      syn.px-to-rem(1),
-      syn.$radius-xl,
-      syn.$shadow-xs
-    );
-    align-items: center;
-    text-align:  center;
-    gap:         syn.$space-sm;
-    height:      100%;
-    transition:  box-shadow syn.$duration-base syn.$easing-default,
-                 transform  syn.$duration-base syn.$easing-default;
+
+    align-items: flex-start;
+    gap: syn.$space-md;
+    height: 100%;
+    padding: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
+    text-align: left;
+    border: syn.px-to-rem(1) solid var(--syn-feature-grid-item-border);
+    border-radius: syn.$radius-2xl;
+    background: var(--syn-feature-grid-item-background);
+    box-shadow: var(--syn-feature-grid-item-shadow);
+    transition:
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
     &:hover {
-      box-shadow: syn.$shadow-md;
-      transform:  translateY(syn.px-to-rem(-2));
-    }
-
-    .sg-feature-grid--dark & {
-      background-color: syn.$color-neutral-800;
-      border-color:     syn.$color-neutral-700;
+      box-shadow: var(--syn-feature-grid-item-shadow-hover);
+      transform: translateY(#{syn.px-to-rem(-2)});
     }
   }
 
-  // Icon container scales slightly on mobile to preserve visual weight
   &__icon {
     @include syn.flex-center;
-    width:            syn.px-to-rem(44);
-    height:           syn.px-to-rem(44);
-    border-radius:    syn.$radius-md;
-    background-color: syn.$color-brand-100;
+
+    width: syn.px-to-rem(52);
+    height: syn.px-to-rem(52);
+    border-radius: syn.$radius-lg;
+    background-color: var(--syn-feature-grid-icon-background);
+    box-shadow: inset 0 0 0 syn.px-to-rem(1) color-mix(in srgb, var(--syn-feature-grid-item-border) 60%, transparent);
 
     @include syn.respond-to(md) {
-      width:  syn.px-to-rem(52);
-      height: syn.px-to-rem(52);
+      width: syn.px-to-rem(56);
+      height: syn.px-to-rem(56);
     }
 
     img {
-      width:      syn.px-to-rem(24);
-      height:     syn.px-to-rem(24);
+      width: syn.px-to-rem(24);
+      height: syn.px-to-rem(24);
       object-fit: contain;
 
       @include syn.respond-to(md) {
-        width:  syn.px-to-rem(28);
+        width: syn.px-to-rem(28);
         height: syn.px-to-rem(28);
       }
     }
   }
 
+  &__item-copy {
+    display: grid;
+    gap: syn.$space-xs;
+  }
+
   &__item-heading {
     margin: 0;
+    color: var(--syn-feature-grid-item-heading);
     @include syn.heading('xs');
-    color: syn.$color-neutral-900;
-
-    .sg-feature-grid--dark & { color: syn.$color-neutral-0; }
   }
 
   &__item-body {
-    margin:      0;
-    font-size:   syn.$font-size-sm;
+    margin: 0;
+    color: var(--syn-feature-grid-item-body);
+    font-size: syn.$font-size-sm;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
-
-    .sg-feature-grid--dark & { color: syn.$color-neutral-300; }
+    text-wrap: pretty;
   }
 }

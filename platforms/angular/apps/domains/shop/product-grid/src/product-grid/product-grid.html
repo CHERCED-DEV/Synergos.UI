@@ -1,17 +1,22 @@
-<section class="product-grid" [class]="gridClass()">
+<section
+  class="product-grid"
+  [class]="gridClass()"
+  [attr.aria-labelledby]="hasHeading() ? headingId : null"
+  [attr.aria-label]="!hasHeading() ? productsRegionLabel() : null"
+>
 
   @if (hasHeading()) {
-    <h2 class="product-grid__heading">{{ headingText() }}</h2>
+    <h2 class="product-grid__heading" [id]="headingId">{{ headingText() }}</h2>
   }
 
   @if (showFilters()) {
-    <div class="product-grid__filters">
+    <div class="product-grid__filters" role="search" [attr.aria-label]="searchProductsLabel()">
       <input
         class="product-grid__search"
         type="search"
         [value]="searchQuery()"
-        placeholder="Buscar..."
-        aria-label="Search products"
+        [placeholder]="searchPlaceholder()"
+        [attr.aria-label]="searchProductsLabel()"
         (input)="onSearch($event)"
       />
 
@@ -34,7 +39,12 @@
   }
 
   @if (loading()) {
-    <output class="product-grid__loading" aria-live="polite" aria-label="Loading products">
+    <output
+      class="product-grid__loading"
+      aria-live="polite"
+      role="status"
+      [attr.aria-label]="loadingProductsLabel()"
+    >
       @for (i of [1,2,3,4,5,6]; track i) {
         <syn-skeleton shape="block" size="lg" />
       }
@@ -42,7 +52,7 @@
   }
 
   @if (apiError()) {
-    <p class="product-grid__error" role="alert">Error loading products. Please try again.</p>
+    <p class="product-grid__error" role="alert">{{ loadingErrorLabel() }}</p>
   }
 
   @if (!loading() && !apiError()) {
@@ -56,16 +66,35 @@
       <ul class="product-grid__list">
         @for (product of products(); track trackById($index, product)) {
           <li class="product-grid__card">
+            @let productUrl = resolveProductUrl(product);
 
             @if (product.images && product.images[0]) {
-              <figure class="product-grid__card-figure">
-                <img
-                  class="product-grid__card-img"
-                  [src]="product.images[0].src"
-                  [alt]="product.images[0].alt"
-                  loading="lazy"
-                />
-              </figure>
+              @if (productUrl) {
+                <a
+                  class="product-grid__card-media-link"
+                  [href]="productUrl"
+                  [attr.aria-label]="viewDetailsAriaLabel(product)"
+                  (click)="onProductLinkClick($event, product, productUrl, 'image')"
+                >
+                  <figure class="product-grid__card-figure">
+                    <img
+                      class="product-grid__card-img"
+                      [src]="product.images[0].src"
+                      [alt]="product.images[0].alt"
+                      loading="lazy"
+                    />
+                  </figure>
+                </a>
+              } @else {
+                <figure class="product-grid__card-figure">
+                  <img
+                    class="product-grid__card-img"
+                    [src]="product.images[0].src"
+                    [alt]="product.images[0].alt"
+                    loading="lazy"
+                  />
+                </figure>
+              }
             }
 
             @if (product.badge) {
@@ -73,7 +102,20 @@
             }
 
             <div class="product-grid__card-body">
-              <h3 class="product-grid__card-name">{{ product.name }}</h3>
+              <h3 class="product-grid__card-name">
+                @if (productUrl) {
+                  <a
+                    class="product-grid__card-name-link"
+                    [href]="productUrl"
+                    [attr.aria-label]="viewDetailsAriaLabel(product)"
+                    (click)="onProductLinkClick($event, product, productUrl, 'title')"
+                  >
+                    {{ product.name }}
+                  </a>
+                } @else {
+                  {{ product.name }}
+                }
+              </h3>
               <p class="product-grid__card-category">{{ product.category.name }}</p>
 
               <div class="product-grid__card-pricing">
@@ -92,8 +134,8 @@
 
               @if (product.rating) {
                 <div class="product-grid__card-rating"
-                     [attr.aria-label]="'Rating ' + product.rating.average + ' out of 5'">
-                  <span class="product-grid__card-stars" aria-hidden="true">★</span>
+                     [attr.aria-label]="ratingAriaLabel(product)">
+                  <span class="product-grid__card-stars" aria-hidden="true">&#9733;</span>
                   <span>{{ product.rating.average }}</span>
                   <span class="product-grid__card-review-count">({{ product.rating.count }})</span>
                 </div>
@@ -103,13 +145,47 @@
                 variant="solid"
                 size="sm"
                 [label]="product.inStock ? addToCartLabel() : outOfStockLabel()"
+                [ariaLabel]="addToCartAriaLabel(product)"
                 [disabled]="!product.inStock"
                 (pressed)="addToCart(product)"
               />
+
+              @if (productUrl) {
+                <a
+                  class="product-grid__card-details-link"
+                  [href]="productUrl"
+                  [attr.aria-label]="viewDetailsAriaLabel(product)"
+                  (click)="onProductLinkClick($event, product, productUrl, 'details-link')"
+                >
+                  {{ viewDetailsLabel() }}
+                </a>
+              }
             </div>
           </li>
         }
       </ul>
+
+      @if (totalPages() > 1) {
+        <nav class="product-grid__pagination" [attr.aria-label]="paginationLabel()">
+          <syn-button
+            variant="outline"
+            size="sm"
+            [label]="previousPageLabel()"
+            [ariaLabel]="previousPageLabel()"
+            [disabled]="!canGoPrevious()"
+            (pressed)="previousPage()"
+          />
+          <p class="product-grid__pagination-status" aria-live="polite">{{ pageStatusLabel() }}</p>
+          <syn-button
+            variant="outline"
+            size="sm"
+            [label]="nextPageLabel()"
+            [ariaLabel]="nextPageLabel()"
+            [disabled]="!canGoNext()"
+            (pressed)="nextPage()"
+          />
+        </nav>
+      }
     }
   }
 </section>

@@ -1,14 +1,19 @@
-<figure class="gallery-item">
+<figure class="gallery-item sg-gallery-item">
   @if (src()) {
-    <img
-      class="gallery-item__media"
-      [src]="src()"
-      [alt]="resolvedAlt()"
-      [style.aspect-ratio]="aspectRatio()"
-      loading="lazy"
-    />
+    <div class="gallery-item__media-frame">
+      <img
+        class="gallery-item__media"
+        [src]="src()"
+        [alt]="resolvedAlt()"
+        [style.aspect-ratio]="aspectRatio()"
+        loading="lazy"
+        decoding="async"
+      />
+    </div>
   } @else {
-    <div class="gallery-item__placeholder" [style.aspect-ratio]="aspectRatio()" aria-hidden="true"></div>
+    <div class="gallery-item__media-frame">
+      <div class="gallery-item__placeholder" [style.aspect-ratio]="aspectRatio()" aria-hidden="true"></div>
+    </div>
   }
 
   @if (hasCaption()) {

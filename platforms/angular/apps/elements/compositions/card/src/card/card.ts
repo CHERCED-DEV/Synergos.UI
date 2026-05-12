@@ -5,10 +5,28 @@ import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
+
+function sanitizeCardConfig(value: Partial<CardElementConfig>): Partial<CardElementConfig> {
+  return omitUndefinedProperties<CardElementConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    subtitle: coerceTrimmedStringInput(value.subtitle),
+    body: coerceTrimmedStringInput(value.body),
+    imageSrc: coerceTrimmedStringInput(value.imageSrc),
+    imageAlt: coerceTrimmedStringInput(value.imageAlt),
+    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    ctaUrl: coerceTrimmedStringInput(value.ctaUrl),
+    badgeText: coerceTrimmedStringInput(value.badgeText),
+    badgeType: coerceTrimmedStringInput(value.badgeType),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-card',
@@ -20,7 +38,7 @@ import {
 })
 export class CardComponent {
   readonly config = input<Partial<CardElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<CardElementConfig>,
+    transform: createConfigInputTransform<CardElementConfig>(sanitizeCardConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });

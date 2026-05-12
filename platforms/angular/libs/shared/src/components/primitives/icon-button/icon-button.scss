@@ -1,81 +1,146 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Icon Button ──────────────────────────────────────────────────────────────
-
 .syn-icon-button {
+  --syn-icon-button-size: #{syn.px-to-rem(36)};
+  --syn-icon-button-icon-size: #{syn.$font-size-lg};
+  --syn-icon-button-radius: #{syn.$radius-full};
+  --syn-icon-button-border-width: #{syn.px-to-rem(1)};
+
+  --syn-icon-button-background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-icon-button-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-border-color: var(--syn-color-action-primary-border, transparent);
+  --syn-icon-button-shadow: var(--syn-shadow-action, #{syn.$shadow-brand-sm});
+
+  --syn-icon-button-hover-background: var(--syn-color-action-primary-hover, #{syn.$color-brand-600});
+  --syn-icon-button-hover-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-hover-border-color: var(--syn-color-action-primary-border, transparent);
+  --syn-icon-button-hover-shadow: var(--syn-shadow-action-hover, #{syn.$shadow-brand-md});
+
+  --syn-icon-button-active-background: var(--syn-color-action-primary-active, #{syn.$color-brand-600});
+  --syn-icon-button-active-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-active-border-color: var(--syn-color-action-primary-border, transparent);
+
+  --syn-icon-button-disabled-background: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+  --syn-icon-button-disabled-color: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+  --syn-icon-button-disabled-border-color: var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+  --syn-icon-button-disabled-opacity: 1;
+
   @include syn.button-reset;
   @include syn.flex-center;
-  width:         syn.px-to-rem(36);
-  height:        syn.px-to-rem(36);
-  border:        syn.px-to-rem(1) solid transparent;
-  border-radius: 50%;
-  font-size:     syn.$font-size-lg;
-  cursor:        pointer;
-  transition:    syn.$transition-colors;
+  @include syn.focus-visible(var(--syn-color-focus-ring, #{syn.$color-brand-300}));
 
-  @include syn.focus-visible;
+  width: var(--syn-icon-button-size);
+  height: var(--syn-icon-button-size);
+  border: var(--syn-icon-button-border-width) solid var(--syn-icon-button-border-color);
+  border-radius: var(--syn-icon-button-radius);
+  background: var(--syn-icon-button-background);
+  color: var(--syn-icon-button-color);
+  box-shadow: var(--syn-icon-button-shadow);
+  font-size: var(--syn-icon-button-icon-size);
+  cursor: pointer;
+  transform: translateY(0);
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  &:hover:not(:disabled) {
+    background: var(--syn-icon-button-hover-background);
+    color: var(--syn-icon-button-hover-color);
+    border-color: var(--syn-icon-button-hover-border-color);
+    box-shadow: var(--syn-icon-button-hover-shadow);
+    transform: translateY(syn.px-to-rem(-1));
+  }
+
+  &:active:not(:disabled) {
+    background: var(--syn-icon-button-active-background);
+    color: var(--syn-icon-button-active-color);
+    border-color: var(--syn-icon-button-active-border-color);
+    box-shadow: var(--syn-icon-button-shadow);
+    transform: translateY(0);
+  }
 
   &:disabled {
-    opacity: 0.5;
+    background: var(--syn-icon-button-disabled-background);
+    color: var(--syn-icon-button-disabled-color);
+    border-color: var(--syn-icon-button-disabled-border-color);
+    box-shadow: none;
+    opacity: var(--syn-icon-button-disabled-opacity);
     cursor: not-allowed;
   }
 }
 
+.syn-icon-button__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 .syn-icon-button--sm {
-  width:     syn.px-to-rem(28);
-  height:    syn.px-to-rem(28);
-  font-size: syn.$font-size-base;
+  --syn-icon-button-size: #{syn.px-to-rem(28)};
+  --syn-icon-button-icon-size: #{syn.$font-size-base};
 }
 
 .syn-icon-button--lg {
-  width:     syn.px-to-rem(44);
-  height:    syn.px-to-rem(44);
-  font-size: syn.$font-size-xl;
+  --syn-icon-button-size: #{syn.px-to-rem(44)};
+  --syn-icon-button-icon-size: #{syn.$font-size-xl};
 }
 
-// Filled — primary icon action
 .syn-icon-button--filled {
-  background: syn.$color-brand-500;
-  color:      syn.$color-neutral-0;
-
-  &:hover:not(:disabled) {
-    background: syn.$color-brand-600;
-  }
+  --syn-icon-button-background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-icon-button-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-border-color: var(--syn-color-action-primary-border, transparent);
+  --syn-icon-button-shadow: var(--syn-shadow-action, #{syn.$shadow-brand-sm});
+  --syn-icon-button-hover-background: var(--syn-color-action-primary-hover, #{syn.$color-brand-600});
+  --syn-icon-button-hover-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-hover-border-color: var(--syn-color-action-primary-border, transparent);
+  --syn-icon-button-hover-shadow: var(--syn-shadow-action-hover, #{syn.$shadow-brand-md});
+  --syn-icon-button-active-background: var(--syn-color-action-primary-active, #{syn.$color-brand-600});
+  --syn-icon-button-active-color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-icon-button-active-border-color: var(--syn-color-action-primary-border, transparent);
 }
 
-// Outline — secondary icon action
 .syn-icon-button--outline {
-  background:   syn.$color-neutral-0;
-  border-color: syn.$color-neutral-200;
-  color:        syn.$color-neutral-700;
-
-  &:hover:not(:disabled) {
-    border-color: syn.$color-brand-300;
-    background:   syn.$color-brand-100;
-    color:        syn.$color-brand-600;
-  }
+  --syn-icon-button-background: var(--syn-color-action-secondary-surface, #{syn.$color-neutral-0});
+  --syn-icon-button-color: var(--syn-color-action-secondary-text, #{syn.$color-neutral-700});
+  --syn-icon-button-border-color: var(--syn-color-action-secondary-border, #{syn.$color-neutral-200});
+  --syn-icon-button-shadow: none;
+  --syn-icon-button-hover-background: var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-50});
+  --syn-icon-button-hover-color: var(--syn-color-action-secondary-text-hover, #{syn.$color-brand-600});
+  --syn-icon-button-hover-border-color: var(--syn-color-action-secondary-border-hover, #{syn.$color-brand-300});
+  --syn-icon-button-hover-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-icon-button-active-background: var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-50});
+  --syn-icon-button-active-color: var(--syn-color-action-secondary-text-hover, #{syn.$color-brand-600});
+  --syn-icon-button-active-border-color: var(--syn-color-action-secondary-border-hover, #{syn.$color-brand-300});
 }
 
-// Ghost — low-emphasis icon action
 .syn-icon-button--ghost {
-  background: transparent;
-  color:      syn.$color-neutral-600;
-
-  &:hover:not(:disabled) {
-    background: syn.$color-neutral-100;
-    color:      syn.$color-neutral-900;
-  }
+  --syn-icon-button-background: var(--syn-color-action-ghost-surface, transparent);
+  --syn-icon-button-color: var(--syn-color-action-ghost-text, #{syn.$color-neutral-600});
+  --syn-icon-button-border-color: transparent;
+  --syn-icon-button-shadow: none;
+  --syn-icon-button-hover-background: var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-100});
+  --syn-icon-button-hover-color: var(--syn-color-action-ghost-text-hover, #{syn.$color-neutral-900});
+  --syn-icon-button-hover-border-color: transparent;
+  --syn-icon-button-hover-shadow: none;
+  --syn-icon-button-active-background: var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-100});
+  --syn-icon-button-active-color: var(--syn-color-action-ghost-text-hover, #{syn.$color-neutral-900});
+  --syn-icon-button-active-border-color: transparent;
 }
 
-// Danger — destructive icon action
 .syn-icon-button--danger {
-  background:   transparent;
-  border-color: transparent;
-  color:        syn.$color-neutral-600;
-
-  &:hover:not(:disabled) {
-    background:   syn.$color-danger-100;
-    border-color: syn.$color-danger-200;
-    color:        syn.$color-danger-600;
-  }
+  --syn-icon-button-background: transparent;
+  --syn-icon-button-color: var(--syn-color-action-danger, #{syn.$color-danger-500});
+  --syn-icon-button-border-color: transparent;
+  --syn-icon-button-shadow: none;
+  --syn-icon-button-hover-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-icon-button-hover-color: var(--syn-color-action-danger, #{syn.$color-danger-500});
+  --syn-icon-button-hover-border-color: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  --syn-icon-button-hover-shadow: none;
+  --syn-icon-button-active-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-icon-button-active-color: var(--syn-color-action-danger, #{syn.$color-danger-600});
+  --syn-icon-button-active-border-color: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
 }

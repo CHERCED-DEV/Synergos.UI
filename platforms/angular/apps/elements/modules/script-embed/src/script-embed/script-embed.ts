@@ -2,8 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import type { ScriptEmbedElementConfig } from '@synergos/contracts';
 import { ScriptService } from '@synergos/core';
 import {
-  coerceConfigInput,
   coerceOptionalBooleanInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
@@ -31,6 +34,16 @@ function resolveScriptMimeType(value: string): string {
   return trimmedValue;
 }
 
+function sanitizeScriptEmbedConfig(
+  value: Partial<ScriptEmbedElementConfig>,
+): Partial<ScriptEmbedElementConfig> {
+  return omitUndefinedProperties<ScriptEmbedElementConfig>({
+    scriptType: coerceTrimmedStringInput(value.scriptType),
+    content: coerceTrimmedStringInput(value.content),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
+
 @Component({
   selector: 'sg-script-embed',
   templateUrl: './script-embed.html',
@@ -43,7 +56,7 @@ export class ScriptEmbedElementComponent {
   readonly #loaded = signal(false);
 
   readonly config = input<Partial<ScriptEmbedElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ScriptEmbedElementConfig>,
+    transform: createConfigInputTransform<ScriptEmbedElementConfig>(sanitizeScriptEmbedConfig),
   });
   readonly scriptTypeInput = input<string | undefined>(undefined, { alias: 'scriptType' });
   readonly contentInput = input<string | undefined>(undefined, { alias: 'content' });

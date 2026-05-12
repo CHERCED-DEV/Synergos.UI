@@ -1,14 +1,21 @@
 @use 'scss' as syn;
 
 :host {
+  --fi-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+
   display: block;
 }
 
 .faq-item {
   display: block;
 
+  &--dark,
+  &.sg-faq-item--dark {
+    --fi-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
   &__answer {
-    color: syn.$color-neutral-700;
+    color: var(--fi-answer-color);
     font-size: syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
 
@@ -21,9 +28,4 @@
     }
   }
 
-  &--dark {
-    .faq-item__answer {
-      color: syn.$color-neutral-300;
-    }
-  }
 }

@@ -1,13 +1,23 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Section ──────────────────────────────────────────────────────────────────
-// Layout container for a distinct content area within a page or panel.
-
 .syn-section {
+  --syn-section-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-section-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --syn-section-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+  --syn-section-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-section-subtitle-color: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-section-eyebrow-color: var(--syn-color-text-accent, #{syn.$color-brand-500});
+  --syn-section-toggle-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-section-toggle-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-section-toggle-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
   display: grid;
   gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--syn-section-border);
   border-radius: syn.$radius-xl;
-  background: syn.$color-neutral-0;
+  background: var(--syn-section-background);
+  box-shadow: var(--syn-section-shadow);
 }
 
 .syn-section--padding-sm { padding: syn.$space-sm; }
@@ -15,10 +25,10 @@
 .syn-section--padding-lg { padding: syn.$space-lg; }
 
 .syn-section__header {
-  display: flex;
-  align-items: flex-start;
+  display:         flex;
+  align-items:     flex-start;
   justify-content: space-between;
-  gap: syn.$space-md;
+  gap:             syn.$space-md;
 }
 
 .syn-section__heading {
@@ -31,21 +41,23 @@
   font-weight:    syn.$font-weight-semibold;
   letter-spacing: syn.$letter-spacing-eyebrow;
   text-transform: uppercase;
-  color:          syn.$color-brand-500;
+  color:          var(--syn-section-eyebrow-color);
 }
 
 .syn-section__title {
   font-size:   syn.$font-size-2xl;
   font-weight: syn.$font-weight-semibold;
-  color:       syn.$color-neutral-900;
+  color:       var(--syn-section-title-color);
   line-height: syn.$line-height-tight;
+  text-wrap:   balance;
 }
 
 .syn-section__subtitle {
-  max-width:   syn.$max-width-article; // 680px — optimal prose line length
+  max-width:   syn.$max-width-article;
   font-size:   syn.$font-size-base;
-  color:       syn.$color-neutral-500;
+  color:       var(--syn-section-subtitle-color);
   line-height: syn.$line-height-relaxed;
+  text-wrap:   pretty;
 }
 
 .syn-section__actions {
@@ -58,25 +70,29 @@
 .syn-section__toggle {
   @include syn.focus-visible;
   @include syn.flex-center;
+
   width:         syn.px-to-rem(32);
   height:        syn.px-to-rem(32);
-  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border:        syn.px-to-rem(1) solid var(--syn-section-toggle-border);
   border-radius: 50%;
-  background:    syn.$color-neutral-0;
-  color:         syn.$color-neutral-600;
+  background:    var(--syn-section-toggle-background);
+  color:         var(--syn-section-toggle-color);
   cursor:        pointer;
-  transition:    syn.$transition-colors;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:hover {
-    background:   syn.$color-neutral-100;
-    border-color: syn.$color-neutral-300;
-    color:        syn.$color-neutral-900;
+    background:   var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+    border-color: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+    color:        var(--syn-color-text-primary, #{syn.$color-neutral-900});
   }
 }
 
 .syn-section__divider {
   height:     syn.px-to-rem(1);
-  background: syn.$color-neutral-100;
+  background: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
 }
 
 .syn-section__body,

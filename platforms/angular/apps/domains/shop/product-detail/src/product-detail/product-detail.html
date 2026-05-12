@@ -1,7 +1,7 @@
 <article class="product-detail" [class]="hostClasses()" [attr.aria-busy]="loading()">
 
   @if (loading()) {
-    <output class="product-detail__skeleton" aria-live="polite" aria-label="Loading product...">
+    <output class="product-detail__skeleton" aria-live="polite" [attr.aria-label]="loadingProductLabel()">
       <syn-skeleton shape="block" size="lg" />
       <div class="product-detail__skeleton-body">
         <syn-skeleton shape="line" size="lg" width="75%" />
@@ -12,7 +12,7 @@
   }
 
   @if (apiError()) {
-    <p class="product-detail__error" role="alert">Error loading product. Please try again.</p>
+    <p class="product-detail__error" role="alert">{{ loadingErrorLabel() }}</p>
   }
 
   @if (!loading() && !apiError() && product()) {
@@ -24,22 +24,26 @@
             class="product-detail__main-img"
             [src]="activeImage()!.src"
             [alt]="activeImage()!.alt"
+            loading="eager"
+            decoding="async"
           />
         </figure>
       }
 
       @if (images().length > 1) {
-        <div class="product-detail__thumbnails" role="list" aria-label="Product images">
+        <div class="product-detail__thumbnails" role="list" [attr.aria-label]="productImagesLabel()">
           @for (img of images(); track img.src; let i = $index) {
             <button
               class="product-detail__thumb"
               [class.product-detail__thumb--active]="activeImageIdx() === i"
               type="button"
+              role="listitem"
               [attr.aria-label]="img.alt"
               [attr.aria-pressed]="activeImageIdx() === i"
+              [attr.aria-current]="activeImageIdx() === i ? 'true' : null"
               (click)="selectImage(i)"
             >
-              <img [src]="img.src" [alt]="img.alt" />
+              <img [src]="img.src" [alt]="img.alt" loading="lazy" decoding="async" />
             </button>
           }
         </div>
@@ -58,10 +62,10 @@
       <!-- Rating -->
       @if (hasRating()) {
         <div class="product-detail__rating"
-             [attr.aria-label]="ratingLabel() + ' ' + product()!.rating!.average + '/5'">
+             [attr.aria-label]="ratingAriaLabel(product()!.rating!.average)">
           <div class="product-detail__stars" aria-hidden="true">
-            @for (star of ratingStars(product()!.rating!.average); track star) {
-              <span [class.product-detail__star--filled]="isStarFilled(star, product()!.rating!.average)">★</span>
+            @for (star of ratingStars(); track star) {
+              <span [class.product-detail__star--filled]="isStarFilled(star, product()!.rating!.average)">&#9733;</span>
             }
           </div>
           <span class="product-detail__rating-avg">{{ product()!.rating!.average }}</span>
@@ -85,9 +89,10 @@
       <p class="product-detail__stock"
          [class.product-detail__stock--in]="inStock()"
          [class.product-detail__stock--out]="!inStock()"
-         [class.product-detail__stock--low]="lowStock()">
+         [class.product-detail__stock--low]="lowStock()"
+         aria-live="polite">
         @if (!inStock()) { {{ outOfStockLabel() }} }
-        @else if (lowStock()) { {{ lowStockLabel() }} — {{ stockQty() }} {{ t()['Shop.Product.Quantity'] || 'left' }} }
+        @else if (lowStock()) { {{ lowStockLabel() }} - {{ stockQty() }} {{ stockRemainingLabel() }} }
         @else { {{ inStockLabel() }} }
       </p>
 
@@ -116,13 +121,14 @@
       <!-- Quantity selector -->
       @if (showQuantitySelector()) {
         <div class="product-detail__qty">
-          <label class="product-detail__qty-label">{{ quantityLabel() }}</label>
+          <p class="product-detail__qty-label" [id]="quantityLabelId">{{ quantityLabel() }}</p>
           <sg-quantity-selector
             [min]="1"
             [max]="stockQty() ?? 99"
             [step]="1"
             [value]="quantity()"
             [theme]="theme()"
+            [ariaLabelledBy]="quantityLabelId"
             (quantityChange)="onQuantityChange($event)"
           />
         </div>
@@ -133,6 +139,7 @@
         variant="solid"
         size="lg"
         [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
+        [ariaLabel]="addToCartAriaLabel()"
         [disabled]="!inStock()"
         (pressed)="addToCart()"
       />

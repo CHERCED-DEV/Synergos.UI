@@ -1,81 +1,114 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Button ────────────────────────────────────────────────────────────────────
-
 .syn-button {
   @include syn.button-base;
-}
 
-// Solid — primary action. Brand fill, high contrast.
-.syn-button--solid {
-  @include syn.button-variant(
-    syn.$color-brand-500,
-    syn.$color-neutral-0,
-    transparent,
-    syn.$color-brand-600,
-    syn.$color-neutral-0,
-    transparent,
-    syn.$color-brand-600,
-    syn.$color-neutral-0,
-    transparent,
-    syn.$shadow-brand-sm,
-    syn.$shadow-brand-md
-  );
-}
+  position:       relative;
+  isolation:      isolate;
+  letter-spacing: 0.01em;
+  transform:      translateY(0);
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
-// Outline — secondary action. Subtle border, brand on hover.
-.syn-button--outline {
-  @include syn.button-variant(
-    syn.$color-neutral-0,
-    syn.$color-neutral-800,
-    syn.$color-neutral-300,
-    syn.$color-neutral-0,
-    syn.$color-brand-600,
-    syn.$color-brand-300
-  );
-}
-
-// Ghost — tertiary action. No border, subtle hover background.
-.syn-button--ghost {
-  @include syn.button-variant(
-    transparent,
-    syn.$color-neutral-700,
-    transparent,
-    syn.$color-neutral-100,
-    syn.$color-neutral-900,
-    transparent
-  );
-}
-
-// Danger — destructive action.
-.syn-button--danger {
-  @include syn.button-variant(
-    syn.$color-danger-500,
-    syn.$color-neutral-0,
-    transparent,
-    syn.$color-danger-600,
-    syn.$color-neutral-0,
-    transparent
-  );
-}
-
-// Gradient — hero CTA. Cool brand-to-accent gradient, elevated shadow.
-.syn-button--gradient {
-  background:  linear-gradient(135deg, syn.$color-brand-500, syn.$color-accent-500);
-  color:       syn.$color-neutral-0;
-  border:      0;
-  box-shadow:  syn.$shadow-brand-sm;
-  transition:  background   syn.$duration-fast syn.$easing-smooth,
-               box-shadow   syn.$duration-fast syn.$easing-smooth,
-               transform    syn.$duration-fast syn.$easing-smooth;
-
-  &:hover:not(:disabled) {
-    background: linear-gradient(135deg, syn.$color-brand-600, syn.$color-accent-600);
-    box-shadow: syn.$shadow-brand-md;
-    transform:  translateY(syn.px-to-rem(-1));
+  &:where(:hover, :focus-visible):not(:disabled) {
+    transform: translateY(syn.px-to-rem(-1));
   }
 
-  &:active:not(:disabled) { transform: translateY(0); }
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity:      1;
+    background:   var(--syn-color-action-disabled-surface, #{syn.$color-neutral-100});
+    color:        var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+    border-color: var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+    box-shadow:   none;
+  }
+}
+
+.syn-button--solid {
+  @include syn.button-variant(
+    var(--syn-color-action-primary, #{syn.$color-brand-500}),
+    var(--syn-color-action-primary-text, #{syn.$color-neutral-0}),
+    var(--syn-color-action-primary-border, transparent),
+    var(--syn-color-action-primary-hover, #{syn.$color-brand-600}),
+    var(--syn-color-action-primary-text, #{syn.$color-neutral-0}),
+    var(--syn-color-action-primary-border, transparent),
+    var(--syn-color-action-primary-active, #{syn.$color-brand-600}),
+    var(--syn-color-action-primary-text, #{syn.$color-neutral-0}),
+    var(--syn-color-action-primary-border, transparent),
+    var(--syn-shadow-action, #{syn.$shadow-brand-sm}),
+    var(--syn-shadow-action-hover, #{syn.$shadow-brand-md})
+  );
+}
+
+.syn-button--outline {
+  @include syn.button-variant(
+    var(--syn-color-action-secondary-surface, #{syn.$color-neutral-0}),
+    var(--syn-color-action-secondary-text, #{syn.$color-neutral-800}),
+    var(--syn-color-action-secondary-border, #{syn.$color-neutral-300}),
+    var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-50}),
+    var(--syn-color-action-secondary-text-hover, #{syn.$color-brand-600}),
+    var(--syn-color-action-secondary-border-hover, #{syn.$color-brand-300}),
+    var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-50}),
+    var(--syn-color-action-secondary-text-hover, #{syn.$color-brand-600}),
+    var(--syn-color-action-secondary-border-hover, #{syn.$color-brand-300}),
+    none,
+    var(--syn-shadow-card, #{syn.$shadow-xs})
+  );
+}
+
+.syn-button--ghost {
+  @include syn.button-variant(
+    var(--syn-color-action-ghost-surface, transparent),
+    var(--syn-color-action-ghost-text, #{syn.$color-neutral-700}),
+    transparent,
+    var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-100}),
+    var(--syn-color-action-ghost-text-hover, #{syn.$color-neutral-900}),
+    transparent,
+    var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-100}),
+    var(--syn-color-action-ghost-text-hover, #{syn.$color-neutral-900}),
+    transparent
+  );
+}
+
+.syn-button--danger {
+  @include syn.button-variant(
+    var(--syn-color-action-danger, #{syn.$color-danger-500}),
+    var(--syn-color-action-danger-text, #{syn.$color-neutral-0}),
+    transparent,
+    var(--syn-color-action-danger-hover, #{syn.$color-danger-600}),
+    var(--syn-color-action-danger-text, #{syn.$color-neutral-0}),
+    transparent,
+    var(--syn-color-action-danger-hover, #{syn.$color-danger-600}),
+    var(--syn-color-action-danger-text, #{syn.$color-neutral-0}),
+    transparent
+  );
+}
+
+.syn-button--gradient {
+  background:  var(
+    --syn-gradient-action-emphasis,
+    linear-gradient(135deg, #{syn.$color-brand-500}, #{syn.$color-accent-500})
+  );
+  color:       var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  border:      0;
+  box-shadow:  var(--syn-shadow-emphasis, #{syn.$shadow-brand-md});
+  transition:
+    background-position var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+  background-size: 140% 140%;
+
+  &:hover:not(:disabled) {
+    background-position: 100% 100%;
+    box-shadow:          var(--syn-shadow-accent, #{syn.$shadow-accent-md});
+  }
 }
 
 .syn-button--sm { @include syn.button-size(sm); }

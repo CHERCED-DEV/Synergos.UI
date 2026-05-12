@@ -7,7 +7,7 @@ let checkboxId = 0;
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <label class="syn-checkbox" [attr.for]="fieldId()">
+    <label class="syn-checkbox" [class.syn-checkbox--disabled]="disabled()" [attr.for]="fieldId()">
       <input
         class="syn-checkbox__native"
         [id]="fieldId()"

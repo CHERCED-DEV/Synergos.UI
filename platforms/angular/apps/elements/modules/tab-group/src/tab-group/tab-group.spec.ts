@@ -1,6 +1,10 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TabGroupElementComponent } from './tab-group';
+import {
+  TabGroupElementComponent,
+  normalizeTabs,
+  sanitizeTabGroupConfig,
+} from './tab-group';
 
 describe('TabGroupElementComponent', () => {
   let fixture: ComponentFixture<TabGroupElementComponent>;
@@ -40,5 +44,27 @@ describe('TabGroupElementComponent', () => {
     await fixture.whenStable();
 
     expect(component.parsedTabs()).toEqual([{ id: 'a', label: 'A', content: 'One', disabled: false }]);
+  });
+
+  it('should filter malformed tabs and keep disabled state', () => {
+    expect(
+      normalizeTabs([
+        { id: 'profile', label: 'Profile', content: 'Body', disabled: true },
+        { id: '', label: 'Broken' },
+        { label: 'Missing id' },
+      ]),
+    ).toEqual([{ id: 'profile', label: 'Profile', content: 'Body', disabled: true }]);
+  });
+
+  it('should sanitize title and activeId from config', () => {
+    const config = sanitizeTabGroupConfig({
+      title: '  Account  ',
+      activeId: ' profile ',
+      tabs: [{ id: 'profile', label: 'Profile', content: 'Body' }],
+    });
+
+    expect(config.title).toBe('Account');
+    expect(config.activeId).toBe('profile');
+    expect(config.tabs).toHaveLength(1);
   });
 });

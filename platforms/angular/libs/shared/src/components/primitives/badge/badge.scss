@@ -1,32 +1,50 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Badge ─────────────────────────────────────────────────────────────────────
-
 .syn-badge {
-  @include syn.badge(syn.$color-neutral-100, syn.$color-neutral-700);
+  --syn-badge-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --syn-badge-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-badge-border: var(--syn-color-border-subtle, transparent);
+  --syn-badge-shadow: inset 0 0 0 1px var(--syn-badge-border);
+
+  @include syn.badge(
+    var(--syn-badge-background),
+    var(--syn-badge-color),
+    $shadow: var(--syn-badge-shadow)
+  );
 }
 
 .syn-badge--neutral {
-  background: syn.$color-neutral-100;
-  color:      syn.$color-neutral-700;
+  --syn-badge-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --syn-badge-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-badge-border: var(--syn-color-border-subtle, transparent);
 }
 
 .syn-badge--brand {
-  @include syn.badge(syn.$color-brand-100, syn.$color-brand-600);
+  --syn-badge-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-badge-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-badge-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
 }
 
 .syn-badge--inverse {
-  @include syn.badge(syn.$color-neutral-800, syn.$color-neutral-0);
+  --syn-badge-background: var(--syn-color-surface-strong, #{syn.$color-neutral-800});
+  --syn-badge-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --syn-badge-border: transparent;
 }
 
 .syn-badge--danger {
-  @include syn.badge(syn.$color-danger-100, syn.$color-danger-600);
+  --syn-badge-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-badge-color: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+  --syn-badge-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
 }
 
 .syn-badge--success {
-  @include syn.badge(syn.$color-success-100, syn.$color-success-600);
+  --syn-badge-background: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --syn-badge-color: var(--syn-color-state-success-text, #{syn.$color-success-600});
+  --syn-badge-border: var(--syn-color-state-success-border, #{syn.$color-success-200});
 }
 
 .syn-badge--warning {
-  @include syn.badge(syn.$color-warning-100, syn.$color-warning-600);
+  --syn-badge-background: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  --syn-badge-color: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+  --syn-badge-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
 }

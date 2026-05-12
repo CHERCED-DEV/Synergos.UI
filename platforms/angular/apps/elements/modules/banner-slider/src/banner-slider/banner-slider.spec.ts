@@ -1,6 +1,11 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BannerSliderElementComponent } from './banner-slider';
+import {
+  BannerSliderElementComponent,
+  normalizeSlide,
+  normalizeSlides,
+  sanitizeBannerSliderConfig,
+} from './banner-slider';
 
 describe('BannerSliderElementComponent', () => {
   let fixture: ComponentFixture<BannerSliderElementComponent>;
@@ -71,5 +76,51 @@ describe('BannerSliderElementComponent', () => {
 
     const cta = fixture.nativeElement.querySelector('.banner-slider__cta-link') as HTMLAnchorElement | null;
     expect(cta?.getAttribute('href')).toBe('https://example.com');
+  });
+
+  it('should normalize legacy slide fields and filter empty entries', () => {
+    expect(
+      normalizeSlides([
+        { src: 'one.jpg', label: 'One', ctaUrl: '/one' },
+        { imageSrc: 'two.jpg', title: 'Two', imageAlt: 'Two alt' },
+        { body: '   ' },
+      ]),
+    ).toEqual([
+      {
+        id: 'slide-1',
+        label: 'One',
+        body: '',
+        src: 'one.jpg',
+        alt: '',
+        ctaLabel: '',
+        ctaUrl: '/one',
+        ctaTarget: '_self',
+      },
+      {
+        id: 'slide-2',
+        label: 'Two',
+        body: '',
+        src: 'two.jpg',
+        alt: 'Two alt',
+        ctaLabel: '',
+        ctaUrl: '',
+        ctaTarget: '_self',
+      },
+    ]);
+    expect(normalizeSlide({ body: '  ' }, 0)).toBeNull();
+  });
+
+  it('should sanitize config booleans and slide payloads', () => {
+    const config = sanitizeBannerSliderConfig({
+      headingText: '  Featured  ',
+      autoplay: true,
+      loop: false,
+      slides: [{ imageSrc: 'one.jpg', title: 'One' }],
+    });
+
+    expect(config.headingText).toBe('Featured');
+    expect(config.autoplay).toBe(true);
+    expect(config.loop).toBe(false);
+    expect(config.slides).toHaveLength(1);
   });
 });

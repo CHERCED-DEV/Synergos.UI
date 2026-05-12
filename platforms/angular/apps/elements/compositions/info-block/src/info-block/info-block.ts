@@ -4,10 +4,25 @@ import {
   ButtonComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
+
+function sanitizeInfoBlockConfig(
+  value: Partial<InfoBlockElementConfig>,
+): Partial<InfoBlockElementConfig> {
+  return omitUndefinedProperties<InfoBlockElementConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    body: coerceTrimmedStringInput(value.body),
+    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    ctaUrl: coerceTrimmedStringInput(value.ctaUrl),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-info-block',
@@ -19,7 +34,7 @@ import {
 })
 export class InfoBlockComponent {
   readonly config = input<Partial<InfoBlockElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<InfoBlockElementConfig>,
+    transform: createConfigInputTransform<InfoBlockElementConfig>(sanitizeInfoBlockConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });

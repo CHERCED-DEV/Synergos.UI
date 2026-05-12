@@ -16,8 +16,11 @@ import {
   type CarouselItem,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
   coerceOptionalBooleanInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -41,7 +44,7 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
+export function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -68,6 +71,39 @@ function normalizeSlide(value: unknown, index: number): BannerSlideItem | null {
   };
 }
 
+export function normalizeSlides(value: unknown): readonly BannerSlideItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item, index) => normalizeSlide(item, index))
+    .filter((item): item is BannerSlideItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function readLegacySlides(value: Partial<BannerSliderElementConfig>): unknown {
+  return isRecord(value) ? (value as Record<string, unknown>)['items'] : undefined;
+}
+
+export function sanitizeBannerSliderConfig(
+  value: Partial<BannerSliderElementConfig>,
+): Partial<BannerSliderElementConfig> {
+  const slides = normalizeSlides(value.slides) ?? normalizeSlides(readLegacySlides(value));
+
+  return omitUndefinedProperties<Partial<BannerSliderElementConfig>>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    body: coerceTrimmedStringInput(value.body),
+    autoplay: coerceOptionalBooleanInput(value.autoplay),
+    loop: coerceOptionalBooleanInput(value.loop),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+    slides,
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
+
 @Component({
   selector: 'sg-banner-slider',
   imports: [ButtonComponent, CarouselComponent, HeadingComponent],
@@ -81,7 +117,7 @@ export class BannerSliderElementComponent {
   readonly #activeIndex = signal(0);
 
   readonly config = input<Partial<BannerSliderElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<BannerSliderElementConfig>,
+    transform: createConfigInputTransform<Partial<BannerSliderElementConfig>>(sanitizeBannerSliderConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly bodyInput = input<string | undefined>(undefined, { alias: 'body' });
@@ -104,10 +140,10 @@ export class BannerSliderElementComponent {
     resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
   readonly autoplay = computed(() =>
-    resolveConfigValue(this.autoplayInput(), undefined, false),
+    resolveConfigValue(this.autoplayInput(), this.config()?.autoplay, false),
   );
   readonly loop = computed(() =>
-    resolveConfigValue(this.loopInput(), undefined, true),
+    resolveConfigValue(this.loopInput(), this.config()?.loop, true),
   );
   readonly variant = computed(() =>
     resolveConfigValue(this.variantInput(), this.config()?.variant, 'default'),
@@ -127,11 +163,9 @@ export class BannerSliderElementComponent {
         .filter((item): item is BannerSlideItem => item !== null);
     }
 
-    const configSlides = this.config()?.slides;
-    if (Array.isArray(configSlides)) {
-      return (configSlides as unknown[])
-        .map((item, index) => normalizeSlide(item, index))
-        .filter((item): item is BannerSlideItem => item !== null);
+    const configSlides = normalizeSlides(this.config()?.slides);
+    if (configSlides) {
+      return configSlides;
     }
 
     return [];
@@ -156,6 +190,8 @@ export class BannerSliderElementComponent {
   );
   readonly hasSlides = computed(() => this.parsedItems().length > 0);
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
+  readonly translations = computed(() => this.config()?.translations ?? {});
+  readonly carouselAriaLabel = computed(() => this.translations()['carouselAriaLabel'] ?? 'Banner slides');
   readonly hostClasses = computed(
     () => `banner-slider--${this.variant()} banner-slider--${this.theme()}`,
   );

@@ -5,7 +5,9 @@ import {
   HeadingComponent,
   TabsComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -25,7 +27,7 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeTab(value: unknown): TabGroupTabItem | null {
+export function normalizeTab(value: unknown): TabGroupTabItem | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -45,6 +47,29 @@ function normalizeTab(value: unknown): TabGroupTabItem | null {
   };
 }
 
+export function normalizeTabs(value: unknown): readonly TabGroupTabItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((tab) => normalizeTab(tab))
+    .filter((tab): tab is TabGroupTabItem => tab !== null);
+}
+
+export function sanitizeTabGroupConfig(
+  value: Partial<TabGroupElementConfig>,
+): Partial<TabGroupElementConfig> {
+  return omitUndefinedProperties<Partial<TabGroupElementConfig>>({
+    title: coerceTrimmedStringInput(value.title),
+    activeId: coerceTrimmedStringInput(value.activeId),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+    tabs: normalizeTabs(value.tabs),
+  });
+}
+
 @Component({
   selector: 'sg-tab-group',
   imports: [HeadingComponent, TabsComponent],
@@ -57,7 +82,7 @@ export class TabGroupElementComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<TabGroupElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<TabGroupElementConfig>,
+    transform: createConfigInputTransform<Partial<TabGroupElementConfig>>(sanitizeTabGroupConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly tabsInput = input<string | undefined>(undefined, { alias: 'tabs' });
@@ -70,7 +95,7 @@ export class TabGroupElementComponent {
     resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
   readonly activeId = computed(() =>
-    resolveConfigValue(this.activeIdInput(), undefined, ''),
+    resolveConfigValue(this.activeIdInput(), this.config()?.activeId, ''),
   );
   readonly ariaLabel = computed(() =>
     resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, 'Tabs'),
@@ -84,17 +109,19 @@ export class TabGroupElementComponent {
   readonly parsedTabs = computed<readonly TabGroupTabItem[]>(() => {
     if (this.tabsInput() !== undefined) {
       const parsedValue = this.#initialData.parseValue<unknown>(this.tabsInput());
-      if (!Array.isArray(parsedValue)) {
-        return [];
-      }
+      return normalizeTabs(parsedValue);
+    }
 
-      return parsedValue
-        .map((tab) => normalizeTab(tab))
-        .filter((tab): tab is TabGroupTabItem => tab !== null);
+    if (this.config()) {
+      return normalizeTabs(this.config()?.tabs);
     }
 
     return [];
   });
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
-  readonly hostClasses = computed(() => `tab-group--${this.variant()} tab-group--${this.theme()}`);
+  readonly hostClasses = computed(
+    () =>
+      `tab-group--${this.variant()} tab-group--${this.theme()} ` +
+      `sg-tab-group--${this.variant()} sg-tab-group--${this.theme()}`,
+  );
 }

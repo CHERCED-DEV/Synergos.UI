@@ -1,4 +1,4 @@
-<section class="tab-group" [class]="hostClasses()">
+<section class="tab-group" [class]="hostClasses()" [attr.aria-label]="title() ? null : ariaLabel()">
   @if (title()) {
     <syn-heading
       class="tab-group__title"
@@ -9,6 +9,7 @@
   }
 
   <syn-tabs
+    class="tab-group__tabs"
     [tabs]="parsedTabs()"
     [activeId]="activeId()"
     [ariaLabel]="ariaLabel()"

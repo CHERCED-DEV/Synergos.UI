@@ -1,7 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
 import {
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
 } from '../../../utils/config-input.util';
@@ -33,6 +37,65 @@ export interface OverviewCardConfig {
   readonly detailsLayout?: DescriptionListLayout;
   readonly statusLabel?: string;
   readonly statusTone?: StatusTagTone;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function sanitizeDescriptionListItem(value: unknown): DescriptionListItem | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const term = coerceTrimmedStringInput(value['term']);
+  const description = coerceTrimmedStringInput(value['description']);
+  if (!term || !description) {
+    return undefined;
+  }
+
+  return omitUndefinedProperties<DescriptionListItem>({
+    id: coerceTrimmedStringInput(value['id']),
+    term,
+    description,
+    detail: coerceTrimmedStringInput(value['detail']),
+    emphasis: coerceStringEnumInput(value['emphasis'], ['default', 'muted', 'brand'] as const),
+  }) as DescriptionListItem;
+}
+
+function sanitizeDescriptionListItems(value: unknown): readonly DescriptionListItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((entry) => sanitizeDescriptionListItem(entry))
+    .filter((entry): entry is DescriptionListItem => entry !== undefined);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function sanitizeOverviewCardConfig(
+  value: Partial<OverviewCardConfig>,
+): Partial<OverviewCardConfig> {
+  return omitUndefinedProperties<OverviewCardConfig>({
+    title: coerceTrimmedStringInput(value.title),
+    subtitle: coerceTrimmedStringInput(value.subtitle),
+    eyebrow: coerceTrimmedStringInput(value.eyebrow),
+    description: coerceTrimmedStringInput(value.description),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand'] as const),
+    layout: coerceStringEnumInput(value.layout, ['stacked', 'split'] as const),
+    bordered: coerceOptionalBooleanInput(value.bordered),
+    elevated: coerceOptionalBooleanInput(value.elevated),
+    details: sanitizeDescriptionListItems(value.details),
+    detailsLayout: coerceStringEnumInput(value.detailsLayout, ['stacked', 'inline'] as const),
+    statusLabel: coerceTrimmedStringInput(value.statusLabel),
+    statusTone: coerceStringEnumInput(
+      value.statusTone,
+      ['neutral', 'success', 'warning', 'critical', 'pending', 'inactive', 'blocked'] as const,
+    ),
+  });
 }
 
 @Component({
@@ -91,7 +154,7 @@ export interface OverviewCardConfig {
 })
 export class OverviewCardComponent {
   readonly config = input<Partial<OverviewCardConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<OverviewCardConfig>,
+    transform: createConfigInputTransform<OverviewCardConfig>(sanitizeOverviewCardConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });

@@ -1,6 +1,11 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SocialShareElementComponent } from './social-share';
+import {
+  SocialShareElementComponent,
+  createDefaultLinks,
+  normalizeLinks,
+  sanitizeSocialShareConfig,
+} from './social-share';
 
 describe('SocialShareElementComponent', () => {
   let fixture: ComponentFixture<SocialShareElementComponent>;
@@ -45,5 +50,41 @@ describe('SocialShareElementComponent', () => {
         rel: 'noopener noreferrer',
       },
     ]);
+  });
+
+  it('should filter malformed links and normalize layout from config', () => {
+    const config = sanitizeSocialShareConfig({
+      title: '  Share  ',
+      layout: 'stack',
+      links: [
+        { label: 'LinkedIn', href: 'https://linkedin.com', iconSymbol: 'linkedin' },
+        { label: '', href: 'https://invalid.test' },
+        { label: 'Broken' },
+      ],
+    });
+
+    expect(config.title).toBe('Share');
+    expect(config.layout).toBe('stack');
+    expect(normalizeLinks(config.links)).toEqual([
+      {
+        label: 'LinkedIn',
+        href: 'https://linkedin.com',
+        iconSymbol: 'linkedin',
+        target: '_blank',
+        rel: 'noopener noreferrer',
+      },
+    ]);
+  });
+
+  it('should generate deterministic default links with email staying in same tab', () => {
+    const links = createDefaultLinks('https://example.com/post', 'New article');
+
+    expect(links).toHaveLength(4);
+    expect(links[3]).toEqual(
+      expect.objectContaining({
+        label: 'Email',
+        target: '_self',
+      }),
+    );
   });
 });

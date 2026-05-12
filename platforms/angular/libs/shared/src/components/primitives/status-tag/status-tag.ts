@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 export type StatusTagStyle = 'outline' | 'filled';
 export type StatusTagTone =
@@ -18,6 +24,17 @@ export interface StatusTagConfig {
   readonly style?: StatusTagStyle;
 }
 
+function sanitizeStatusTagConfig(value: Partial<StatusTagConfig>): Partial<StatusTagConfig> {
+  return omitUndefinedProperties<StatusTagConfig>({
+    label: coerceTrimmedStringInput(value.label),
+    tone: coerceStringEnumInput(
+      value.tone,
+      ['neutral', 'success', 'warning', 'critical', 'pending', 'inactive', 'blocked'] as const,
+    ),
+    style: coerceStringEnumInput(value.style, ['outline', 'filled'] as const),
+  });
+}
+
 @Component({
   selector: 'syn-status-tag',
   standalone: true,
@@ -31,7 +48,7 @@ export interface StatusTagConfig {
 })
 export class StatusTagComponent {
   readonly config = input<Partial<StatusTagConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<StatusTagConfig>,
+    transform: createConfigInputTransform<StatusTagConfig>(sanitizeStatusTagConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly toneInput = input<StatusTagTone | undefined>(undefined, { alias: 'tone' });

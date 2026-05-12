@@ -1,107 +1,166 @@
 @use 'scss' as syn;
 
 :host {
-  display:     block;
+  display: block;
   font-family: inherit;
 }
 
 .banner {
-  @include syn.surface-panel(
-    syn.$space-md syn.$space-lg,
-    syn.$color-brand-100,
-    syn.$color-brand-200,
-    syn.px-to-rem(1),
-    syn.$radius-xl,
-    syn.$shadow-xs
+  --syn-banner-background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--syn-color-surface-accent, #{syn.$color-brand-100}) 72%, white) 0%,
+    var(--syn-color-surface-primary, #{syn.$color-neutral-0}) 100%
   );
-  display:     flex;
-  flex-wrap:   wrap;
-  gap:         syn.$space-md;
-  align-items: flex-start;
+  --syn-banner-border: var(--syn-color-border-accent, #{syn.$color-brand-200});
+  --syn-banner-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+  --syn-banner-eyebrow: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --syn-banner-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-banner-image-border: var(--syn-color-border-inverse, transparent);
+  --syn-banner-copy-max: #{syn.px-to-rem(44)};
+
+  @include syn.surface-panel(
+    syn.$space-lg,
+    transparent,
+    transparent,
+    syn.px-to-rem(1),
+    syn.$radius-2xl,
+    none
+  );
+
+  display: flex;
+  position: relative;
+  flex-wrap: wrap;
+  gap: syn.$space-lg;
+  align-items: stretch;
+  background: var(--syn-banner-background);
+  border-color: var(--syn-banner-border);
+  box-shadow: var(--syn-banner-shadow);
+  overflow: hidden;
+  isolation: isolate;
 
   @include syn.respond-to(md) {
-    padding:     syn.$space-lg syn.$space-xl;
-    flex-wrap:   nowrap;
+    padding: syn.$space-xl;
+    flex-wrap: nowrap;
     align-items: center;
-    gap:         syn.$space-lg;
+    gap: syn.$space-xl;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: syn.px-to-rem(4);
+    background: var(--syn-gradient-divider, var(--sg-brand-divider-gradient));
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: auto -8% -28% auto;
+    width: clamp(#{syn.px-to-rem(180)}, 24vw, #{syn.px-to-rem(280)});
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 48%, transparent) 0%, transparent 72%);
+    opacity: 0.75;
+    pointer-events: none;
   }
 
   &--dark {
-    background-color: syn.$color-neutral-800;
-    border-color:     syn.$color-neutral-700;
-    color:            syn.$color-neutral-0;
+    --syn-banner-background: linear-gradient(
+      135deg,
+      var(--syn-color-surface-secondary, #{syn.$color-neutral-800}) 0%,
+      var(--syn-color-surface-primary, #{syn.$color-neutral-700}) 100%
+    );
+    --syn-banner-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --syn-banner-eyebrow: var(--syn-color-text-accent, #{syn.$color-brand-300});
+    --syn-banner-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --syn-banner-image-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
   }
 
-  // When an image is present, switch to a grid with columns.
-  // On mobile: stack image above content+actions.
-  // On desktop: image | content | actions in a row.
   &--with-image {
-    display:               grid;
+    display: grid;
     grid-template-columns: auto 1fr;
-    align-items:           flex-start;
+    align-items: stretch;
 
     @include syn.respond-to(md) {
-      grid-template-columns: auto 1fr auto;
-      align-items:           center;
+      grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+      align-items: center;
     }
   }
 
+  &__media {
+    display: flex;
+    align-items: center;
+  }
+
   &__image {
-    // Slightly smaller on mobile, full size on desktop
-    width:         syn.px-to-rem(60);
-    height:        syn.px-to-rem(60);
-    object-fit:    cover;
-    border-radius: syn.$radius-md;
-    flex-shrink:   0;
+    width: syn.px-to-rem(68);
+    height: syn.px-to-rem(68);
+    object-fit: cover;
+    border: syn.px-to-rem(1) solid var(--syn-banner-image-border);
+    border-radius: syn.$radius-xl;
+    box-shadow: var(--syn-shadow-card, #{syn.$shadow-sm});
+    flex-shrink: 0;
 
     @include syn.respond-to(md) {
-      width:  syn.px-to-rem(80);
-      height: syn.px-to-rem(80);
+      width: syn.px-to-rem(92);
+      height: syn.px-to-rem(92);
     }
   }
 
   &__content {
     @include syn.flex-column;
+
+    position: relative;
+    z-index: 1;
+    gap: syn.$space-sm;
+    min-width: 0;
+  }
+
+  &__copy {
+    display: grid;
     gap: syn.$space-xs;
+    max-width: 68ch;
   }
 
   &__eyebrow {
-    display:        block;
-    font-size:      syn.$font-size-xs;
-    font-weight:    syn.$font-weight-semibold;
-    color:          syn.$color-brand-600;
+    display: block;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--syn-banner-eyebrow);
     text-transform: uppercase;
     letter-spacing: syn.$letter-spacing-eyebrow;
-
-    .sg-banner--dark & { color: syn.$color-brand-300; }
   }
 
-  &__title { display: block; }
+  &__title {
+    display: block;
+  }
 
   &__body {
-    margin:    0;
+    margin: 0;
     font-size: syn.$font-size-base;
-    color:     syn.$color-neutral-600;
-
-    .sg-banner--dark & { color: syn.$color-neutral-300; }
+    color: var(--syn-banner-body);
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
   }
 
   &__actions {
-    display:     flex;
+    display: flex;
     align-items: center;
-    gap:         syn.$space-sm;
-    flex-wrap:   wrap;
-    // Actions take full width on mobile so CTAs are accessible on small screens.
-    width:       100%;
+    align-content: center;
+    gap: syn.$space-sm;
+    flex-wrap: wrap;
+    width: 100%;
 
     @include syn.respond-to(md) {
-      width:       auto;
+      width: auto;
       flex-shrink: 0;
+      justify-content: flex-end;
     }
   }
 
   &__cta-link {
     text-decoration: none;
-    flex-shrink:     0;
+    flex-shrink: 0;
   }
 }

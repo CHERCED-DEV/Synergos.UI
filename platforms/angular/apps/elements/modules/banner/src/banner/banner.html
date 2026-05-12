@@ -1,25 +1,31 @@
-<div class="banner" [class]="hostClasses()">
+<div class="banner sg-banner" [class]="hostClasses()">
   @if (hasImage()) {
-    <img class="banner__image" [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
+    <div class="banner__media">
+      <img class="banner__image" [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
+    </div>
   }
 
   <div class="banner__content">
-    @if (eyebrow()) {
-      <span class="banner__eyebrow">{{ eyebrow() }}</span>
-    }
+    @if (eyebrow() || title() || body()) {
+      <div class="banner__copy">
+        @if (eyebrow()) {
+          <span class="banner__eyebrow">{{ eyebrow() }}</span>
+        }
 
-    @if (title()) {
-      <syn-heading
-        class="banner__title"
-        [text]="title()"
-        [tone]="headingTone()"
-        level="h3"
-        size="sm"
-      />
-    }
+        @if (title()) {
+          <syn-heading
+            class="banner__title"
+            [text]="title()"
+            [tone]="headingTone()"
+            level="h3"
+            size="sm"
+          />
+        }
 
-    @if (body()) {
-      <p class="banner__body">{{ body() }}</p>
+        @if (body()) {
+          <p class="banner__body">{{ body() }}</p>
+        }
+      </div>
     }
   </div>
 

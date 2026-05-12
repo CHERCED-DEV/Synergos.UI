@@ -10,7 +10,13 @@ import {
 } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import {
-  coerceConfigInput,
+  coerceOptionalBooleanInput,
+  coerceOptionalNumberInput,
+  coerceStringEnumInput,
+  coerceStringRecordInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   SkeletonComponent,
   EmptyStateComponent,
@@ -18,6 +24,36 @@ import {
   ButtonComponent,
   SelectComponent,
 } from '@synergos/shared';
+
+function sanitizePositiveInteger(value: unknown): number | undefined {
+  const coercedValue = coerceOptionalNumberInput(value);
+  if (coercedValue === undefined || coercedValue < 1) {
+    return undefined;
+  }
+
+  return Math.trunc(coercedValue);
+}
+
+function sanitizeProductGridConfig(
+  value: Partial<ProductGridElementConfig>,
+): Partial<ProductGridElementConfig> {
+  return omitUndefinedProperties<ProductGridElementConfig>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    categoryAlias: coerceTrimmedStringInput(value.categoryAlias),
+    categoryFilter: coerceTrimmedStringInput(value.categoryFilter),
+    productUrlTemplate: coerceTrimmedStringInput(value.productUrlTemplate),
+    maxItems: sanitizePositiveInteger(value.maxItems),
+    columns: coerceStringEnumInput(String(value.columns ?? ''), ['2', '3', '4'] as const) ? Number(value.columns) as 2 | 3 | 4 : undefined,
+    showFilters: coerceOptionalBooleanInput(value.showFilters),
+    sortOrder: coerceStringEnumInput(value.sortOrder, ['relevance', 'newest', 'price-asc', 'price-desc'] as const),
+    sortBy: coerceStringEnumInput(value.sortBy, ['name', 'relevance', 'newest', 'price-asc', 'price-desc'] as const),
+    layout: coerceStringEnumInput(value.layout, ['grid', 'list'] as const),
+    theme: coerceTrimmedStringInput(value.theme),
+    variant: coerceTrimmedStringInput(value.variant),
+    variantKey: coerceTrimmedStringInput(value.variantKey),
+    translations: coerceStringRecordInput(value.translations),
+  });
+}
 
 @Component({
   selector: 'sg-product-grid',
@@ -29,17 +65,35 @@ import {
 })
 export class ProductGridComponent {
   private readonly http = inject(HttpClient);
+  readonly headingId = `sg-product-grid-heading-${Math.random().toString(36).slice(2, 10)}`;
+
+  private normalizeSort(value: string | undefined): string {
+    switch ((value ?? '').trim().toLowerCase()) {
+      case 'newest':
+      case 'price-asc':
+      case 'price-desc':
+      case 'relevance':
+        return (value ?? '').trim().toLowerCase();
+      case 'name':
+      default:
+        return 'relevance';
+    }
+  }
 
   // ── Inputs ────────────────────────────────────────────────────────────────
   readonly config = input<Partial<ProductGridElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<ProductGridElementConfig>,
+    transform: createConfigInputTransform<ProductGridElementConfig>(sanitizeProductGridConfig),
   });
 
   readonly headingTextInput    = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly categoryAliasInput  = input<string | undefined>(undefined, { alias: 'categoryAlias' });
+  readonly categoryFilterInput = input<string | undefined>(undefined, { alias: 'categoryFilter' });
+  readonly productUrlTemplateInput = input<string | undefined>(undefined, { alias: 'productUrlTemplate' });
   readonly maxItemsInput       = input<number | undefined>(undefined, { alias: 'maxItems' });
   readonly columnsInput        = input<number | undefined>(undefined, { alias: 'columns' });
   readonly showFiltersInput    = input<boolean | undefined>(undefined, { alias: 'showFilters' });
+  readonly sortOrderInput      = input<string | undefined>(undefined, { alias: 'sortOrder' });
+  readonly sortByInput         = input<string | undefined>(undefined, { alias: 'sortBy' });
   readonly themeInput          = input<string | undefined>(undefined, { alias: 'theme' });
 
   // ── Config resolution ─────────────────────────────────────────────────────
@@ -47,7 +101,10 @@ export class ProductGridComponent {
     resolveConfigValue(this.headingTextInput(), this.config()?.headingText, ''),
   );
   readonly categoryAlias = computed(() =>
-    resolveConfigValue(this.categoryAliasInput(), this.config()?.categoryAlias, ''),
+    resolveConfigValue(this.categoryAliasInput() ?? this.categoryFilterInput(), this.config()?.categoryAlias ?? this.config()?.categoryFilter, ''),
+  );
+  readonly productUrlTemplate = computed(() =>
+    resolveConfigValue(this.productUrlTemplateInput(), this.config()?.productUrlTemplate, ''),
   );
   readonly maxItems = computed(() =>
     resolveConfigValue(this.maxItemsInput(), this.config()?.maxItems, 12),
@@ -65,7 +122,7 @@ export class ProductGridComponent {
 
   // ── Filter state (local) ──────────────────────────────────────────────────
   readonly searchQuery  = signal('');
-  readonly activeSort   = signal<string>(this.config()?.sortOrder ?? 'relevance');
+  readonly activeSort   = signal<string>(this.normalizeSort(this.config()?.sortOrder ?? this.config()?.sortBy));
   readonly currentPage  = signal(1);
 
   // ── API state ─────────────────────────────────────────────────────────────
@@ -87,6 +144,22 @@ export class ProductGridComponent {
   readonly t            = computed(() => this.translations());
   readonly noResultsLabel = computed(() => this.t()['Shop.Filter.NoResults'] ?? 'No products found.');
   readonly sortByLabel    = computed(() => this.t()['Shop.Filter.SortBy']    ?? 'Sort by');
+  readonly searchProductsLabel = computed(() => this.t()['Shop.Filter.Search'] ?? 'Search products');
+  readonly searchPlaceholder = computed(
+    () => this.t()['Shop.Filter.SearchPlaceholder'] ?? 'Search products...',
+  );
+  readonly productsRegionLabel = computed(
+    () => this.t()['Shop.Filter.ResultsRegion'] ?? 'Product results',
+  );
+  readonly loadingProductsLabel = computed(
+    () => this.t()['Shop.Filter.Loading'] ?? 'Loading products',
+  );
+  readonly loadingErrorLabel = computed(
+    () => this.t()['Shop.Filter.Error'] ?? 'Error loading products. Please try again.',
+  );
+  readonly ratingOutOfLabel = computed(
+    () => this.t()['Shop.Product.RatingOutOf'] ?? 'out of 5',
+  );
   readonly sortOptions = computed(() => [
     { value: 'relevance',   label: this.t()['Shop.Filter.Relevance'] ?? 'Relevance' },
     { value: 'newest',      label: this.t()['Shop.Filter.Newest']    ?? 'Newest' },
@@ -96,7 +169,20 @@ export class ProductGridComponent {
   readonly filterClearLabel    = computed(() => this.t()['Shop.Filter.Clear']        || 'Clear filters');
   readonly addToCartLabel      = computed(() => this.t()['Shop.Product.AddToCart']   || 'Add to cart');
   readonly outOfStockLabel     = computed(() => this.t()['Shop.Product.OutOfStock']  || 'Out of stock');
+  readonly viewDetailsLabel    = computed(() => this.t()['Shop.Product.ViewDetails'] || 'View details');
   readonly tryDifferentLabel   = computed(() => this.t()['Shop.Filter.TryDifferent'] || 'Try a different search term.');
+  readonly paginationLabel     = computed(() => this.t()['Shop.Filter.Pagination']   ?? 'Pagination');
+  readonly previousPageLabel   = computed(() => this.t()['Shop.Filter.Previous']     ?? 'Previous');
+  readonly nextPageLabel       = computed(() => this.t()['Shop.Filter.Next']         ?? 'Next');
+  readonly pageLabel           = computed(() => this.t()['Shop.Filter.Page']         ?? 'Page');
+  readonly pageStatusLabel     = computed(() =>
+    (this.t()['Shop.Filter.PageStatus'] ?? '{page} {current} of {total}')
+      .replace('{page}', this.pageLabel())
+      .replace('{current}', String(this.currentPage()))
+      .replace('{total}', String(this.totalPages())),
+  );
+  readonly canGoPrevious       = computed(() => this.currentPage() > 1);
+  readonly canGoNext           = computed(() => this.currentPage() < this.totalPages());
 
   // ── Fetch products when filters change ────────────────────────────────────
   constructor() {
@@ -153,6 +239,22 @@ export class ProductGridComponent {
     this.currentPage.set(1);
   }
 
+  previousPage(): void {
+    if (!this.canGoPrevious()) {
+      return;
+    }
+
+    this.currentPage.update((page) => Math.max(1, page - 1));
+  }
+
+  nextPage(): void {
+    if (!this.canGoNext()) {
+      return;
+    }
+
+    this.currentPage.update((page) => Math.min(this.totalPages(), page + 1));
+  }
+
   addToCart(product: Product): void {
     if (!product.inStock) return;
     window.dispatchEvent(
@@ -171,6 +273,30 @@ export class ProductGridComponent {
     );
   }
 
+  onProductLinkClick(
+    event: MouseEvent,
+    product: Product,
+    productUrl: string,
+    source: 'image' | 'title' | 'details-link',
+  ): void {
+    const allowDefaultNavigation = this.dispatchProductSelected(product, productUrl, source);
+    if (!allowDefaultNavigation) {
+      event.preventDefault();
+    }
+  }
+
+  resolveProductUrl(product: Product): string | null {
+    const template = this.productUrlTemplate().trim();
+    if (!template) {
+      return null;
+    }
+
+    return template
+      .replaceAll('{id}', encodeURIComponent(product.id))
+      .replaceAll('{sku}', encodeURIComponent(product.sku))
+      .replaceAll('{slug}', encodeURIComponent(product.slug));
+  }
+
   formatPrice(value: number, currency: string): string {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency', currency, maximumFractionDigits: 0,
@@ -178,4 +304,45 @@ export class ProductGridComponent {
   }
 
   trackById(_: number, p: Product): string { return p.id; }
+
+  ratingAriaLabel(product: Product): string {
+    if (!product.rating) {
+      return '';
+    }
+
+    return `Rating ${product.rating.average} ${this.ratingOutOfLabel()}`;
+  }
+
+  addToCartAriaLabel(product: Product): string {
+    if (!product.inStock) {
+      return `${this.outOfStockLabel()} - ${product.name}`;
+    }
+
+    return `${this.addToCartLabel()} - ${product.name}`;
+  }
+
+  viewDetailsAriaLabel(product: Product): string {
+    return `${this.viewDetailsLabel()} - ${product.name}`;
+  }
+
+  private dispatchProductSelected(
+    product: Product,
+    productUrl: string | null,
+    source: 'image' | 'title' | 'details-link',
+  ): boolean {
+    return window.dispatchEvent(
+      new CustomEvent('sg:product:selected', {
+        bubbles: true,
+        composed: true,
+        cancelable: true,
+        detail: {
+          productId: product.id,
+          productSku: product.sku,
+          productSlug: product.slug,
+          productUrl,
+          source,
+        },
+      }),
+    );
+  }
 }

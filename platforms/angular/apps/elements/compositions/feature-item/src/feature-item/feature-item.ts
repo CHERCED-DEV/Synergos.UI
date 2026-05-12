@@ -1,6 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import type { FeatureItemElementConfig } from '@synergos/contracts';
-import { HeadingComponent, coerceConfigInput, resolveConfigValue, resolveHeadingTone } from '@synergos/shared';
+import {
+  HeadingComponent,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+  resolveHeadingTone,
+} from '@synergos/shared';
+
+function sanitizeFeatureItemConfig(
+  value: Partial<FeatureItemElementConfig>,
+): Partial<FeatureItemElementConfig> {
+  return omitUndefinedProperties<FeatureItemElementConfig>({
+    icon: coerceTrimmedStringInput(value.icon),
+    headingText: coerceTrimmedStringInput(value.headingText),
+    body: coerceTrimmedStringInput(value.body),
+    variant: coerceTrimmedStringInput(value.variant),
+    theme: coerceTrimmedStringInput(value.theme),
+  });
+}
 
 @Component({
   selector: 'sg-feature-item',
@@ -12,7 +31,7 @@ import { HeadingComponent, coerceConfigInput, resolveConfigValue, resolveHeading
 })
 export class FeatureItemComponent {
   readonly config = input<Partial<FeatureItemElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<FeatureItemElementConfig>,
+    transform: createConfigInputTransform<FeatureItemElementConfig>(sanitizeFeatureItemConfig),
   });
   readonly iconInput = input<string | undefined>(undefined, { alias: 'icon' });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });

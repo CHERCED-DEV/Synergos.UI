@@ -5,7 +5,9 @@ import {
   AccordionComponent,
   HeadingComponent,
   type HeadingTone,
-  coerceConfigInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
   resolveConfigValue,
   resolveHeadingTone,
 } from '@synergos/shared';
@@ -15,6 +17,8 @@ interface FaqItem {
   readonly initiallyExpanded: boolean;
   readonly question: string;
 }
+
+type AccordionTone = 'neutral' | 'brand';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -43,6 +47,28 @@ function normalizeFaqItem(value: unknown): FaqItem | null {
   };
 }
 
+function normalizeFaqItems(value: unknown): readonly FaqItem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value
+    .map((item) => normalizeFaqItem(item))
+    .filter((item): item is FaqItem => item !== null);
+
+  return items.length > 0 ? items : undefined;
+}
+
+function sanitizeFaqSectionConfig(
+  value: Partial<FaqSectionElementConfig>,
+): Partial<FaqSectionElementConfig> {
+  return omitUndefinedProperties<FaqSectionElementConfig>({
+    headingText: coerceTrimmedStringInput(value.headingText),
+    theme: coerceTrimmedStringInput(value.theme),
+    items: normalizeFaqItems(value.items) as Partial<FaqSectionElementConfig>['items'],
+  });
+}
+
 @Component({
   selector: 'sg-faq-section',
   imports: [AccordionComponent, HeadingComponent],
@@ -55,7 +81,7 @@ export class FaqSectionComponent {
   readonly #initialData = inject(InitialDataService);
 
   readonly config = input<Partial<FaqSectionElementConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<FaqSectionElementConfig>,
+    transform: createConfigInputTransform<FaqSectionElementConfig>(sanitizeFaqSectionConfig),
   });
   readonly headingTextInput = input<string | undefined>(undefined, { alias: 'headingText' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
@@ -81,18 +107,21 @@ export class FaqSectionComponent {
         .filter((item): item is FaqItem => item !== null);
     }
 
-    const configItems = this.config()?.items;
-    if (Array.isArray(configItems)) {
-      return (configItems as unknown[])
-        .map((item) => normalizeFaqItem(item))
-        .filter((item): item is FaqItem => item !== null);
+    const configItems = normalizeFaqItems(this.config()?.items);
+    if (configItems) {
+      return configItems;
     }
 
     return [];
   });
   readonly headingTone = computed<HeadingTone>(() => resolveHeadingTone(this.theme()));
+  readonly accordionTone = computed<AccordionTone>(() =>
+    this.theme() === 'dark' ? 'brand' : 'neutral',
+  );
   readonly hasItems = computed(() => this.parsedItems().length > 0);
-  readonly hostClasses = computed(() => `sg-faq-section--${this.theme()}`);
+  readonly hostClasses = computed(
+    () => `faq-section--${this.theme()} sg-faq-section--${this.theme()}`,
+  );
 
   constructor() {
     if (isDevMode()) {

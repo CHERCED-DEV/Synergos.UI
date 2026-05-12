@@ -1,52 +1,66 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Toggle ────────────────────────────────────────────────────────────────────
-// Travel = track-width - (2 × padding) - thumb-width
+// Travel = track-width - (2 * padding) - thumb-width
 
-// Default size
-$_track-w:  48;
-$_track-h:  26;
-$_thumb-w:  20;
-$_pad:       3;
-$_travel:   $_track-w - (2 * $_pad) - $_thumb-w; // = 22
+$_track-w: 48;
+$_track-h: 26;
+$_thumb-w: 20;
+$_pad: 3;
+$_travel: $_track-w - (2 * $_pad) - $_thumb-w;
 
-// Small size
 $_track-w-sm: 38;
 $_track-h-sm: 22;
 $_thumb-w-sm: 16;
-$_travel-sm:  $_track-w-sm - (2 * $_pad) - $_thumb-w-sm; // = 16
+$_travel-sm: $_track-w-sm - (2 * $_pad) - $_thumb-w-sm;
 
 .syn-toggle {
-  display:         inline-flex;
-  align-items:     center;
+  --syn-toggle-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-toggle-description-color: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --syn-toggle-track-bg: var(--syn-color-action-disabled-border, #{syn.$color-neutral-300});
+  --syn-toggle-track-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --syn-toggle-track-hover-bg: var(--syn-color-border-strong, #{syn.$color-neutral-400});
+  --syn-toggle-track-hover-border: var(--syn-color-border-strong, #{syn.$color-neutral-400});
+  --syn-toggle-track-checked-bg: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-toggle-track-checked-border: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-toggle-track-checked-hover-bg: var(--syn-color-action-primary-hover, #{syn.$color-brand-600});
+  --syn-toggle-track-checked-hover-border: var(--syn-color-action-primary-hover, #{syn.$color-brand-600});
+  --syn-toggle-thumb-bg: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-toggle-thumb-shadow: var(--syn-shadow-card, #{syn.$shadow-sm});
+  --syn-toggle-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --syn-toggle-disabled-label-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --syn-toggle-disabled-track-bg: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-200});
+  --syn-toggle-disabled-track-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-200});
+
+  display: inline-flex;
+  align-items: center;
   justify-content: space-between;
-  gap:             syn.$space-md;
-  width:           100%;
-  cursor:          pointer;
+  gap: syn.$space-md;
+  width: 100%;
+  cursor: pointer;
 }
 
 .syn-toggle__copy {
   display: grid;
-  gap:     syn.$space-1;
+  gap: syn.$space-1;
 }
 
 .syn-toggle__label {
-  color:       syn.$color-neutral-900;
-  font-size:   syn.$font-size-base;
+  color: var(--syn-toggle-label-color);
+  font-size: syn.$font-size-base;
   font-weight: syn.$font-weight-medium;
   line-height: syn.$line-height-tight;
 }
 
 .syn-toggle__description {
-  color:       syn.$color-neutral-500;
-  font-size:   syn.$font-size-sm;
+  color: var(--syn-toggle-description-color);
+  font-size: syn.$font-size-sm;
   line-height: syn.$line-height-normal;
 }
 
 .syn-toggle__control {
   position: relative;
-  display:  inline-flex;
-  flex:     0 0 auto;
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .syn-toggle__native {
@@ -54,44 +68,48 @@ $_travel-sm:  $_track-w-sm - (2 * $_pad) - $_thumb-w-sm; // = 16
 }
 
 .syn-toggle__native:focus-visible + .syn-toggle__track {
-  outline:        syn.px-to-rem(2) solid syn.$color-brand-300;
+  outline: syn.px-to-rem(2) solid var(--syn-toggle-focus-ring);
   outline-offset: syn.px-to-rem(2);
 }
 
 .syn-toggle__track {
-  display:       inline-flex;
-  align-items:   center;
-  width:         syn.px-to-rem($_track-w);
-  height:        syn.px-to-rem($_track-h);
-  padding:       syn.px-to-rem($_pad);
+  display: inline-flex;
+  align-items: center;
+  width: syn.px-to-rem($_track-w);
+  height: syn.px-to-rem($_track-h);
+  padding: syn.px-to-rem($_pad);
+  border: syn.px-to-rem(1) solid var(--syn-toggle-track-border);
   border-radius: syn.$radius-full;
-  background:    syn.$color-neutral-300;
-  transition:    background syn.$duration-fast syn.$easing-smooth;
+  background: var(--syn-toggle-track-bg);
+  transition:
+    background-color syn.$duration-fast syn.$easing-smooth,
+    border-color syn.$duration-fast syn.$easing-smooth;
 }
 
 .syn-toggle--sm .syn-toggle__track {
-  width:  syn.px-to-rem($_track-w-sm);
+  width: syn.px-to-rem($_track-w-sm);
   height: syn.px-to-rem($_track-h-sm);
 }
 
 .syn-toggle__thumb {
-  display:       block;
-  width:         syn.px-to-rem($_thumb-w);
-  height:        syn.px-to-rem($_thumb-w);
+  display: block;
+  width: syn.px-to-rem($_thumb-w);
+  height: syn.px-to-rem($_thumb-w);
   border-radius: 50%;
-  background:    syn.$color-neutral-0;
-  box-shadow:    syn.$shadow-sm;
-  transform:     translateX(0);
-  transition:    transform syn.$duration-fast syn.$easing-default;
+  background: var(--syn-toggle-thumb-bg);
+  box-shadow: var(--syn-toggle-thumb-shadow);
+  transform: translateX(0);
+  transition: transform syn.$duration-fast syn.$easing-default;
 }
 
 .syn-toggle--sm .syn-toggle__thumb {
-  width:  syn.px-to-rem($_thumb-w-sm);
+  width: syn.px-to-rem($_thumb-w-sm);
   height: syn.px-to-rem($_thumb-w-sm);
 }
 
 .syn-toggle__native:checked + .syn-toggle__track {
-  background: syn.$color-brand-500;
+  background: var(--syn-toggle-track-checked-bg);
+  border-color: var(--syn-toggle-track-checked-border);
 }
 
 .syn-toggle__native:checked + .syn-toggle__track .syn-toggle__thumb {
@@ -102,17 +120,28 @@ $_travel-sm:  $_track-w-sm - (2 * $_pad) - $_thumb-w-sm; // = 16
   transform: translateX(syn.px-to-rem($_travel-sm));
 }
 
+.syn-toggle__native:not(:disabled) + .syn-toggle__track:hover {
+  background: var(--syn-toggle-track-hover-bg);
+  border-color: var(--syn-toggle-track-hover-border);
+}
+
+.syn-toggle__native:checked:not(:disabled) + .syn-toggle__track:hover {
+  background: var(--syn-toggle-track-checked-hover-bg);
+  border-color: var(--syn-toggle-track-checked-hover-border);
+}
+
 .syn-toggle--disabled {
   cursor: not-allowed;
 }
 
 .syn-toggle--disabled .syn-toggle__label,
 .syn-toggle--disabled .syn-toggle__description {
-  color: syn.$color-neutral-400;
+  color: var(--syn-toggle-disabled-label-color);
 }
 
 .syn-toggle--disabled .syn-toggle__track {
-  background: syn.$color-neutral-200;
+  background: var(--syn-toggle-disabled-track-bg);
+  border-color: var(--syn-toggle-disabled-track-border);
 }
 
 @media (prefers-reduced-motion: reduce) {

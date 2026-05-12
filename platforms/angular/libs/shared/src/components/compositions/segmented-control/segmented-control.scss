@@ -1,61 +1,85 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Segmented Control ────────────────────────────────────────────────────────
-
 .syn-segmented-control {
-  display:               grid;
+  --syn-segmented-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-segmented-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-segmented-option-surface: transparent;
+  --syn-segmented-option-color: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --syn-segmented-option-hover-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-option-hover-border: var(--syn-color-border-strong, #{syn.$color-border-strong});
+  --syn-segmented-option-hover-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-segmented-option-active-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-option-active-border: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --syn-segmented-option-active-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-segmented-option-active-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-segmented-disabled-color: var(--syn-color-text-disabled, #{syn.$color-text-disabled});
+
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items:           center;
-  gap:                   syn.$space-sm;
+  align-items: center;
+  gap: syn.$space-sm;
 }
 
 .syn-segmented-control__list {
-  display:    flex;
-  gap:        syn.$space-xs;
-  overflow:   hidden;
+  display: flex;
+  gap: syn.$space-xs;
+  overflow: hidden;
+  padding: syn.$space-xxs;
+  border: syn.px-to-rem(1) solid var(--syn-segmented-border);
+  border-radius: syn.$radius-full;
+  background: var(--syn-segmented-surface);
+  box-shadow: inset 0 0 0 syn.px-to-rem(1) rgb(255 255 255 / 0.14);
 }
 
 .syn-segmented-control__option,
 .syn-segmented-control__nav {
   @include syn.focus-visible;
-  display:       inline-flex;
-  align-items:   center;
-  gap:           syn.$space-xs;
-  border:        syn.px-to-rem(1) solid syn.$color-neutral-200;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-xs;
+  min-height: syn.px-to-rem(40);
+  border: syn.px-to-rem(1) solid transparent;
   border-radius: syn.$radius-full;
-  padding:       syn.$space-xs syn.$space-md;
-  background:    syn.$color-neutral-0;
-  color:         syn.$color-neutral-700;
-  font-size:     syn.$font-size-sm;
-  font-weight:   syn.$font-weight-medium;
-  white-space:   nowrap;
-  cursor:        pointer;
-  transition:    syn.$transition-colors;
+  padding: syn.$space-xs syn.$space-md;
+  background: var(--syn-segmented-option-surface);
+  color: var(--syn-segmented-option-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:hover:not(:disabled):not(.syn-segmented-control__option--active) {
-    border-color: syn.$color-neutral-300;
-    background:   syn.$color-neutral-50;
-    color:        syn.$color-neutral-900;
+    border-color: var(--syn-segmented-option-hover-border);
+    background: var(--syn-segmented-option-hover-surface);
+    color: var(--syn-segmented-option-hover-color);
   }
 }
 
 .syn-segmented-control__option--active {
-  border-color: syn.$color-brand-300;
-  background:   syn.$color-brand-100;
-  color:        syn.$color-brand-600;
-  font-weight:  syn.$font-weight-semibold;
+  border-color: var(--syn-segmented-option-active-border);
+  background: var(--syn-segmented-option-active-surface);
+  color: var(--syn-segmented-option-active-color);
+  box-shadow: var(--syn-segmented-option-active-shadow);
+  font-weight: syn.$font-weight-semibold;
 }
 
 .syn-segmented-control__option:disabled,
 .syn-segmented-control__nav:disabled {
-  color:          syn.$color-neutral-400;
-  cursor:         not-allowed;
+  color: var(--syn-segmented-disabled-color);
+  cursor: not-allowed;
   pointer-events: none;
 }
 
-// ── Compact ───────────────────────────────────────────────────────────────────
-
 .syn-segmented-control--compact .syn-segmented-control__option,
 .syn-segmented-control--compact .syn-segmented-control__nav {
+  min-height: syn.px-to-rem(34);
   padding: syn.$space-xxs syn.$space-sm;
 }

@@ -1,18 +1,32 @@
 @use 'scss' as syn;
 
 :host {
+  --fs-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fs-list-gap: #{syn.$space-sm};
+  --fs-header-max-width: #{syn.px-to-rem(720)};
+
   display: block;
 }
 
-// ─── FAQ Section ──────────────────────────────────────────────────────────────
-// Max-width uses layout token $max-width-reading (800px) — optimal reading width.
-// Vertical padding removed: parent section governs rhythm, not this component.
 .faq-section {
-  max-width:     syn.$max-width-reading;
+  max-width: syn.$max-width-reading;
   margin-inline: auto;
 
-  &__heading {
-    display:       block;
+  &--dark,
+  &.sg-faq-section--dark {
+    --fs-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-faq-section--silver-gold,
+  &.sg-faq-section--silverGold {
+    --fs-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  }
+
+  &__header {
+    display: grid;
+    justify-items: center;
     margin-bottom: syn.$space-xl;
 
     @include syn.respond-to(md) {
@@ -20,24 +34,29 @@
     }
   }
 
+  &__heading {
+    display: block;
+    max-width: var(--fs-header-max-width);
+  }
+
   &__list {
     @include syn.flex-column;
-    gap: syn.$space-xs;
+
+    gap: var(--fs-list-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   &__item {
     display: block;
   }
 
-  // Use base font-size in answers (not sm) — reading comfort inside accordion
   &__answer {
-    margin:      0;
-    font-size:   syn.$font-size-base;
+    margin: 0;
+    color: var(--fs-answer-color);
+    font-size: syn.$font-size-base;
     line-height: syn.$line-height-relaxed;
-    color:       syn.$color-neutral-600;
-
-    .sg-faq-section--dark & {
-      color: syn.$color-neutral-300;
-    }
+    text-wrap: pretty;
   }
 }

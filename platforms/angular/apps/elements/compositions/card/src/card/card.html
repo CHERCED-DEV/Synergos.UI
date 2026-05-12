@@ -1,39 +1,39 @@
-<article class="card" [class]="hostClasses()">
+<article class="card sg-card" [class]="hostClasses()">
   @if (hasImage()) {
     <div class="card__image">
       <img [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
     </div>
   }
   <div class="card__content">
-    @defer (on idle) {
+    <div class="card__copy">
       @if (hasBadge()) {
-        <syn-badge [text]="badgeText()" [tone]="badgeTone()" />
+        <syn-badge class="card__badge" [text]="badgeText()" [tone]="badgeTone()" />
       }
-    }
 
-    @if (title()) {
-      <syn-heading
-        class="card__title"
-        [text]="title()"
-        [tone]="headingTone()"
-        level="h3"
-        size="sm"
-      />
-    }
-    @if (subtitle()) {
-      <p class="card__subtitle">{{ subtitle() }}</p>
-    }
+      @if (title()) {
+        <syn-heading
+          class="card__title"
+          [text]="title()"
+          [tone]="headingTone()"
+          level="h3"
+          size="sm"
+        />
+      }
+      @if (subtitle()) {
+        <p class="card__subtitle">{{ subtitle() }}</p>
+      }
 
-    @if (body()) {
-      <p class="card__body">{{ body() }}</p>
-    }
+      @if (body()) {
+        <p class="card__body">{{ body() }}</p>
+      }
+    </div>
 
-    @defer (on idle) {
-      @if (hasCta()) {
+    @if (hasCta()) {
+      <div class="card__actions">
         <a class="card__cta-link" [href]="ctaUrl()" rel="noopener noreferrer">
           <syn-button [label]="ctaLabel()" variant="ghost" size="sm" />
         </a>
-      }
+      </div>
     }
   </div>
 </article>

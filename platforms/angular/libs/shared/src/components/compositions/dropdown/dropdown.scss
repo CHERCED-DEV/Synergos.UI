@@ -1,8 +1,21 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Dropdown ─────────────────────────────────────────────────────────────────
-
 .syn-dropdown {
+  --syn-dropdown-trigger-background: var(--syn-color-action-secondary-surface, var(--syn-color-surface-primary, #{syn.$color-surface}));
+  --syn-dropdown-trigger-color: var(--syn-color-action-secondary-text, var(--syn-color-text-primary, #{syn.$color-text-primary}));
+  --syn-dropdown-trigger-border: var(--syn-color-action-secondary-border, var(--syn-color-border-default, #{syn.$color-border-default}));
+  --syn-dropdown-trigger-hover-background: var(--syn-color-action-secondary-surface-hover, var(--syn-color-surface-secondary, #{syn.$color-surface-subtle}));
+  --syn-dropdown-trigger-hover-color: var(--syn-color-action-secondary-text-hover, var(--syn-color-text-accent, #{syn.$color-text-brand}));
+  --syn-dropdown-trigger-hover-border: var(--syn-color-action-secondary-border-hover, var(--syn-color-border-strong, #{syn.$color-border-strong}));
+  --syn-dropdown-menu-background: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-dropdown-menu-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-dropdown-menu-shadow: var(--syn-shadow-floating, #{syn.$shadow-xl});
+  --syn-dropdown-item-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-dropdown-item-hover-background: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-dropdown-item-selected-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-dropdown-item-selected-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-dropdown-separator: var(--syn-color-border-subtle, #{syn.$color-border-subtle});
+
   position: relative;
   display: inline-block;
 }
@@ -10,29 +23,68 @@
 .syn-dropdown__trigger {
   @include syn.button-base;
   @include syn.button-variant(
-    syn.$color-neutral-0,
-    syn.$color-neutral-800,
-    syn.$color-neutral-200,
-    syn.$color-neutral-0,
-    syn.$color-brand-600,
-    syn.$color-brand-300
+    var(--syn-dropdown-trigger-background),
+    var(--syn-dropdown-trigger-color),
+    var(--syn-dropdown-trigger-border),
+    var(--syn-dropdown-trigger-hover-background),
+    var(--syn-dropdown-trigger-hover-color),
+    var(--syn-dropdown-trigger-hover-border)
   );
+
+  min-width: syn.px-to-rem(144);
+  justify-content: space-between;
+  gap: syn.$space-sm;
+  box-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  backdrop-filter: blur(var(--syn-backdrop-blur-subtle, #{syn.px-to-rem(10)}));
+
+  &::after {
+    content: '';
+    width: syn.px-to-rem(8);
+    height: syn.px-to-rem(8);
+    border-right: syn.px-to-rem(1.5) solid currentColor;
+    border-bottom: syn.px-to-rem(1.5) solid currentColor;
+    transform: translateY(syn.px-to-rem(-1)) rotate(45deg);
+    opacity: 0.72;
+    transition:
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+  }
+
+  &[aria-expanded='true']::after {
+    transform: translateY(syn.px-to-rem(2)) rotate(-135deg);
+    opacity: 1;
+  }
 }
 
 .syn-dropdown__menu {
-  @include syn.dropdown-panel(syn.px-to-rem(200), syn.$space-xxs);
-  border-radius: syn.$radius-lg;
-  padding: syn.$space-xxs;
+  @include syn.dropdown-panel(syn.px-to-rem(220), syn.$space-xs);
+
+  border-color: var(--syn-dropdown-menu-border);
+  border-radius: syn.$radius-xl;
+  background: var(--syn-dropdown-menu-background);
+  box-shadow: var(--syn-dropdown-menu-shadow);
+  padding: syn.$space-xs;
+  display: grid;
+  gap: syn.$space-xxs;
 }
 
 .syn-dropdown__item {
-  @include syn.dropdown-item;
-  border-radius: syn.$radius-md;
+  @include syn.dropdown-item(
+    $padding-y: syn.$space-sm,
+    $padding-x: syn.$space-sm,
+    $radius: syn.$radius-lg,
+    $color: var(--syn-dropdown-item-color),
+    $hover-background: var(--syn-dropdown-item-hover-background),
+    $selected-background: var(--syn-dropdown-item-selected-background),
+    $selected-color: var(--syn-dropdown-item-selected-color)
+  );
+
+  min-height: syn.px-to-rem(40);
   font-size: syn.$font-size-sm;
 }
 
 .syn-dropdown__separator {
-  height:     syn.px-to-rem(1);
-  margin:     syn.$space-xxs 0;
-  background: syn.$color-neutral-100;
+  height: syn.px-to-rem(1);
+  margin: syn.$space-xxs 0;
+  background: var(--syn-dropdown-separator);
 }

@@ -1,35 +1,38 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
-// ─── Overview Card ────────────────────────────────────────────────────────────
-
 .syn-overview-card {
-  display:       grid;
-  gap:           syn.$space-lg;
-  padding:       syn.$space-lg;
-  border-radius: syn.$radius-xl;
-  background:    syn.$color-neutral-0;
+  --syn-overview-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-overview-card-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-overview-card-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+  --syn-overview-card-description: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-overview-card-aside-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-overview-card-brand-surface: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 70%, var(--syn-color-surface-primary, #{syn.$color-neutral-0}));
+
+  display: grid;
+  gap: syn.$space-lg;
+  padding: clamp(syn.$space-lg, 2.5vw, syn.$space-xl);
+  border-radius: syn.$radius-2xl;
+  background: var(--syn-overview-card-surface);
 }
 
 .syn-overview-card--bordered {
-  border: syn.px-to-rem(1) solid syn.$color-neutral-200;
+  border: syn.px-to-rem(1) solid var(--syn-overview-card-border);
 }
 
 .syn-overview-card--elevated {
-  box-shadow: syn.$shadow-sm;
+  box-shadow: var(--syn-overview-card-shadow);
 }
 
 .syn-overview-card--brand {
-  background: syn.$color-brand-100;
+  background: var(--syn-overview-card-brand-surface);
 }
 
 .syn-overview-card--split {
-  // Mobile: single column
   grid-template-columns: 1fr;
-  align-items:           start;
+  align-items: start;
 
-  // From md: main content + constrained aside
   @include syn.respond-to(md) {
-    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), syn.px-to-rem(280));
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(240), syn.px-to-rem(300));
   }
 }
 
@@ -42,20 +45,25 @@
 .syn-overview-card__body,
 .syn-overview-card__aside {
   display: grid;
-  gap:     syn.$space-md;
+  gap: syn.$space-md;
 }
 
 .syn-overview-card__description {
-  margin:      0;
-  color:       syn.$color-neutral-600;
-  font-size:   syn.$font-size-base;
+  margin: 0;
+  max-width: 68ch;
+  color: var(--syn-overview-card-description);
+  font-size: syn.$font-size-base;
   line-height: syn.$line-height-relaxed;
 }
 
 .syn-overview-card__aside {
-  padding:       syn.$space-md;
-  border-radius: syn.$radius-lg;
-  background:    syn.$color-neutral-50;
+  align-content: start;
+  padding: syn.$space-md;
+  border-radius: syn.$radius-xl;
+  background: var(--syn-overview-card-aside-surface);
+  box-shadow: inset 0 0 0 syn.px-to-rem(1) var(--syn-color-border-subtle, #{syn.$color-neutral-100});
 }
 
-.syn-overview-card__footer:empty { display: none; }
+.syn-overview-card__footer:empty {
+  display: none;
+}

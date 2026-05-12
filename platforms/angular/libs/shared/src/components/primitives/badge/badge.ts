@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { coerceConfigInput, resolveConfigValue } from '../../../utils/config-input.util';
+import {
+  coerceStringEnumInput,
+  coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
+  resolveConfigValue,
+} from '../../../utils/config-input.util';
 
 type BadgeTone = 'neutral' | 'brand' | 'inverse';
 
@@ -7,6 +13,14 @@ export interface BadgeConfig {
   readonly text?: string;
   readonly ariaLabel?: string;
   readonly tone?: BadgeTone;
+}
+
+function sanitizeBadgeConfig(value: Partial<BadgeConfig>): Partial<BadgeConfig> {
+  return omitUndefinedProperties<BadgeConfig>({
+    text: coerceTrimmedStringInput(value.text),
+    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
+    tone: coerceStringEnumInput(value.tone, ['neutral', 'brand', 'inverse'] as const),
+  });
 }
 
 @Component({
@@ -29,7 +43,7 @@ export interface BadgeConfig {
 })
 export class BadgeComponent {
   readonly config = input<Partial<BadgeConfig> | undefined, unknown>(undefined, {
-    transform: coerceConfigInput<BadgeConfig>,
+    transform: createConfigInputTransform<BadgeConfig>(sanitizeBadgeConfig),
   });
   readonly textInput = input<string | undefined>(undefined, { alias: 'text' });
   readonly ariaLabelInput = input<string | undefined>(undefined, { alias: 'ariaLabel' });

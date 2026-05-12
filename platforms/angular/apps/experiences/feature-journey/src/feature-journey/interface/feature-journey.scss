@@ -1,7 +1,23 @@
 @use 'scss' as syn;
 
 :host {
-  display:     block;
+  --fj-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --fj-step-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --fj-step-border-hover: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  --fj-step-surface-active: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --fj-step-number-surface: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --fj-step-number-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-step-label: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-step-label-active: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --fj-panel-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --fj-panel-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --fj-panel-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --fj-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-prev-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --fj-prev-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --fj-counter: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+
+  display: block;
   font-family: syn.$font-family-sans;
 }
 
@@ -9,24 +25,20 @@
   @include syn.flex-column;
   gap: syn.$space-xl;
 
-  // ── Header ──────────────────────────────────────────────────────────────────
-
   &__header { text-align: center; }
 
   &__title {
-    font-size:   syn.$font-size-2xl;
+    font-size: syn.$font-size-2xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-900;
-    margin:      0;
+    color: var(--fj-title);
+    margin: 0;
     line-height: syn.$line-height-tight;
   }
 
-  // ── Step navigation ──────────────────────────────────────────────────────────
-
   &__nav {
-    display:        flex;
-    gap:            syn.$space-xs;
-    overflow-x:     auto;
+    display: flex;
+    gap: syn.$space-xs;
+    overflow-x: auto;
     padding-bottom: syn.$space-xs;
     scrollbar-width: none;
 
@@ -35,87 +47,90 @@
 
   &__step {
     @include syn.flex-column-center;
-    gap:           syn.$space-xxs;
-    padding:       syn.$space-sm syn.$space-md;
-    background:    none;
-    border:        syn.px-to-rem(1.5) solid syn.$color-neutral-200;
-    border-radius: syn.$radius-md;
-    cursor:        pointer;
-    flex:          1;
-    min-width:     syn.px-to-rem(120);
-    text-align:    center;
-    transition:    syn.$transition-colors;
+    gap: syn.$space-xxs;
+    padding: syn.$space-sm syn.$space-md;
+    background: none;
+    border: syn.px-to-rem(1.5) solid var(--fj-step-border);
+    border-radius: syn.$radius-lg;
+    cursor: pointer;
+    flex: 1;
+    min-width: syn.px-to-rem(120);
+    text-align: center;
+    transition: syn.$transition-colors;
 
-    &:hover:not(:disabled)  { border-color: syn.$color-brand-400; }
-    &--active    { border-color: syn.$color-brand-500; background: syn.$color-brand-100; }
-    &--completed { border-color: syn.$color-brand-300; background: syn.$color-brand-100; }
+    &:hover:not(:disabled) { border-color: var(--fj-step-border-hover); }
+    &--active,
+    &--completed {
+      background: var(--fj-step-surface-active);
+    }
   }
 
   &__step-number {
-    display:         flex;
-    align-items:     center;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    width:           syn.px-to-rem(28);
-    height:          syn.px-to-rem(28);
-    border-radius:   50%;
-    background:      syn.$color-neutral-200;
-    font-size:       syn.$font-size-sm;
-    font-weight:     syn.$font-weight-semibold;
-    color:           syn.$color-neutral-600;
-    flex-shrink:     0;
-    transition:      syn.$transition-colors;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: 50%;
+    background: var(--fj-step-number-surface);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--fj-step-number-text);
+    flex-shrink: 0;
+    transition: syn.$transition-colors;
 
-    .feature-journey__step--active &    { background: syn.$color-brand-500;   color: syn.$color-neutral-0; }
-    .feature-journey__step--completed & { background: syn.$color-brand-300;   color: syn.$color-neutral-0; }
+    .feature-journey__step--active &,
+    .feature-journey__step--completed & {
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
   }
 
   &__step-label {
-    font-size:   syn.$font-size-xs;
+    font-size: syn.$font-size-xs;
     font-weight: syn.$font-weight-medium;
     line-height: syn.$line-height-tight;
-    color:       syn.$color-neutral-600;
-    transition:  syn.$transition-colors;
+    color: var(--fj-step-label);
+    transition: syn.$transition-colors;
 
-    .feature-journey__step--active &    { color: syn.$color-brand-600; font-weight: syn.$font-weight-semibold; }
-    .feature-journey__step--completed & { color: syn.$color-brand-500; }
+    .feature-journey__step--active &,
+    .feature-journey__step--completed & {
+      color: var(--fj-step-label-active);
+    }
   }
 
-  // ── Content panel ────────────────────────────────────────────────────────────
-
   &__panel {
-    display:       grid;
+    display: grid;
     grid-template-columns: auto 1fr;
-    gap:           syn.$space-lg;
-    padding:       syn.$space-xl;
-    background:    syn.$color-neutral-50;
-    border:        syn.px-to-rem(1) solid syn.$color-neutral-100;
-    border-radius: syn.$radius-lg;
-    min-height:    syn.px-to-rem(180);
-    align-items:   start;
+    gap: syn.$space-lg;
+    padding: syn.$space-xl;
+    background: var(--fj-panel-surface);
+    border: syn.px-to-rem(1) solid var(--fj-panel-border);
+    border-radius: syn.$radius-xl;
+    min-height: syn.px-to-rem(180);
+    align-items: start;
   }
 
   &__panel-icon {
-    font-size:   syn.px-to-rem(48);
+    font-size: syn.px-to-rem(48);
     line-height: 1;
     user-select: none;
   }
 
   &__panel-title {
-    font-size:   syn.$font-size-xl;
+    font-size: syn.$font-size-xl;
     font-weight: syn.$font-weight-bold;
-    color:       syn.$color-neutral-900;
-    margin:      0 0 syn.$space-sm;
+    color: var(--fj-panel-title);
+    margin: 0 0 syn.$space-sm;
     line-height: syn.$line-height-tight;
   }
 
   &__panel-description {
-    font-size:   syn.$font-size-base;
-    color:       syn.$color-neutral-600;
+    font-size: syn.$font-size-base;
+    color: var(--fj-panel-body);
     line-height: syn.$line-height-relaxed;
-    margin:      0;
+    margin: 0;
   }
-
-  // ── Controls ─────────────────────────────────────────────────────────────────
 
   &__controls {
     @include syn.flex-between;
@@ -123,86 +138,56 @@
   }
 
   &__btn {
-    padding:       syn.$space-sm syn.$space-lg;
+    padding: syn.$space-sm syn.$space-lg;
     border-radius: syn.$radius-md;
-    font-size:     syn.$font-size-sm;
-    font-weight:   syn.$font-weight-semibold;
-    font-family:   inherit;
-    cursor:        pointer;
-    transition:    syn.$transition-colors;
-    white-space:   nowrap;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: syn.$transition-colors;
+    white-space: nowrap;
 
     &--prev {
-      background:   none;
-      border:       syn.px-to-rem(1.5) solid syn.$color-neutral-300;
-      color:        syn.$color-neutral-700;
-
-      &:hover:not(:disabled) { border-color: syn.$color-neutral-500; color: syn.$color-neutral-900; }
+      background: none;
+      border: syn.px-to-rem(1.5) solid var(--fj-prev-border);
+      color: var(--fj-prev-text);
     }
 
     &--next {
-      background:   syn.$color-brand-500;
-      border:       syn.px-to-rem(1.5) solid syn.$color-brand-500;
-      color:        syn.$color-neutral-0;
-
-      &:hover:not(:disabled) { background: syn.$color-brand-600; border-color: syn.$color-brand-600; }
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      border: syn.px-to-rem(1.5) solid var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
     }
 
     &:disabled { opacity: 0.35; cursor: not-allowed; }
   }
 
   &__counter {
-    font-size:   syn.$font-size-sm;
-    color:       syn.$color-neutral-400;
+    font-size: syn.$font-size-sm;
+    color: var(--fj-counter);
     font-weight: syn.$font-weight-medium;
     flex-shrink: 0;
   }
 
-  // ── Dark theme ───────────────────────────────────────────────────────────────
-
   &--dark {
-    .feature-journey__title { color: syn.$color-neutral-0; }
-
-    .feature-journey__step {
-      border-color: rgb(255 255 255 / 0.15);
-
-      &--active    { background: rgb(79 110 247 / 0.15); border-color: syn.$color-brand-400; }
-      &--completed { background: rgb(79 110 247 / 0.10); border-color: syn.$color-brand-300; }
-    }
-
-    .feature-journey__step-label  { color: syn.$color-neutral-300; }
-
-    .feature-journey__step-number {
-      background: rgb(255 255 255 / 0.10);
-      color:      syn.$color-neutral-200;
-    }
-
-    .feature-journey__panel {
-      background:   rgb(255 255 255 / 0.05);
-      border-color: rgb(255 255 255 / 0.10);
-    }
-
-    .feature-journey__panel-title       { color: syn.$color-neutral-0;   }
-    .feature-journey__panel-description { color: syn.$color-neutral-300; }
-
-    .feature-journey__btn--prev {
-      border-color: rgb(255 255 255 / 0.25);
-      color:        syn.$color-neutral-200;
-
-      &:hover:not(:disabled) {
-        border-color: rgb(255 255 255 / 0.50);
-        color:        syn.$color-neutral-0;
-      }
-    }
-
-    .feature-journey__counter { color: syn.$color-neutral-500; }
+    --fj-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --fj-step-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 70%, transparent);
+    --fj-step-surface-active: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 22%, transparent);
+    --fj-step-number-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 72%, white);
+    --fj-step-number-text: var(--syn-color-text-inverse, #{syn.$color-neutral-200});
+    --fj-step-label: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --fj-panel-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 88%, transparent);
+    --fj-panel-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 72%, transparent);
+    --fj-panel-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --fj-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --fj-prev-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 82%, transparent);
+    --fj-prev-text: var(--syn-color-text-inverse, #{syn.$color-neutral-200});
+    --fj-counter: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   }
 
-  // ── Responsive ───────────────────────────────────────────────────────────────
-
   @media (max-width: 640px) {
-    &__panel               { grid-template-columns: 1fr; }
-    &__panel-icon          { font-size: syn.px-to-rem(36); }
-    &__step-label          { display: none; }
+    &__panel { grid-template-columns: 1fr; }
+    &__panel-icon { font-size: syn.px-to-rem(36); }
+    &__step-label { display: none; }
   }
 }

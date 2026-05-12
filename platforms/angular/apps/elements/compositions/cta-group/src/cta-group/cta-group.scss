@@ -7,12 +7,14 @@
 .cta-group {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: syn.$space-sm;
 
   &--center { justify-content: center; }
   &--right { justify-content: flex-end; }
 
   &__link {
+    display: inline-flex;
     text-decoration: none;
   }
 }

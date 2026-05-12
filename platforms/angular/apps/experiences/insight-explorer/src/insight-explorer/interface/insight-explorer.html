@@ -16,8 +16,7 @@
   }
 
   <div class="insight-explorer__layout">
-    <!-- Sidebar: item selector using syn-card -->
-    <nav class="insight-explorer__sidebar" aria-label="Insight categories">
+    <nav class="insight-explorer__sidebar" [attr.aria-label]="categoriesAriaLabel()">
       @for (item of items(); track item.id) {
         <syn-card
           [interactive]="true"
@@ -32,8 +31,7 @@
       }
     </nav>
 
-    <!-- Detail panel -->
-    <section class="insight-explorer__panel" aria-live="polite" aria-label="Insight details">
+    <section class="insight-explorer__panel" aria-live="polite" [attr.aria-label]="detailsAriaLabel()">
       <div class="insight-explorer__panel-header">
         <span class="insight-explorer__panel-icon" aria-hidden="true">
           {{ selectedItem().icon }}
@@ -48,8 +46,7 @@
 
       <p class="insight-explorer__panel-description">{{ selectedItem().description }}</p>
 
-      <!-- Metrics row -->
-      <div class="insight-explorer__metrics" aria-label="Key metrics">
+      <div class="insight-explorer__metrics" [attr.aria-label]="metricsAriaLabel()">
         @for (metric of selectedItem().metrics; track metric.label) {
           <div class="insight-explorer__metric">
             <span class="insight-explorer__metric-value">{{ metric.value }}</span>
@@ -58,22 +55,20 @@
         }
       </div>
 
-      <!-- Feature list -->
       <ul class="insight-explorer__features">
         @for (feature of selectedItem().features; track feature) {
           <li class="insight-explorer__feature">
-            <span class="insight-explorer__feature-bullet" aria-hidden="true">✓</span>
+            <span class="insight-explorer__feature-bullet" aria-hidden="true">&#10003;</span>
             {{ feature }}
           </li>
         }
       </ul>
 
-      <!-- CTA -->
       @if (selectedItem().ctaLabel && selectedItem().ctaUrl) {
         <div class="insight-explorer__cta">
           <syn-link
             [href]="selectedItem().ctaUrl"
-            [label]="selectedItem().ctaLabel + ' →'"
+            [label]="ctaLabel(selectedItem().ctaLabel)"
             tone="brand"
           />
         </div>
