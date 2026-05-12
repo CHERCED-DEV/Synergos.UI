@@ -11,6 +11,40 @@ const BLOCK_MAPPER_TS = resolve(ROOT, 'vitals/core/src/mappers/block.mapper.ts')
 const MODELS_DIR = resolve(ROOT, 'vitals/core/src/models');
 const MODELS_INDEX_TS = resolve(ROOT, 'vitals/core/src/models/index.ts');
 
+/**
+ * Known compatibility aliases intentionally left in block.mapper.ts because
+ * CMS payloads or historical datasets may still emit them, but they should
+ * not appear as canonical registry entries.
+ */
+const KNOWN_COMPAT_MAPPER_ALIASES = new Set([
+  'elementIntAngularHost',
+  'elementIntMfHost',
+  'elementIntMacroHost',
+  'layoutPreset1Col',
+  'layoutPreset2ColEqual',
+  'layoutPreset3ColEqual',
+  'layoutPreset4ColEqual',
+  'layoutPresetMainSidebar',
+  'elementCorpContactInfo',
+  'elementCorpMapEmbed',
+  'elementCorpMissionBlock',
+  'elementCorpAlertBox',
+  'elementTextCodeBlock',
+  'elementTextAttributedQuote',
+  'elementActionButtonContainer',
+  'elementCompBlogHighlight',
+  'elementCompArticleList',
+  'elementFormEmbed',
+  'elementCompFormBlock',
+]);
+
+/**
+ * Deprecated wrapper-host names that remain documented in contracts/models for
+ * migration support, but are intentionally not represented as canonical
+ * registry entries.
+ */
+const KNOWN_DEPRECATED_INPUT_NAMES = new Set(['angular-host', 'mf-host', 'macro-host']);
+
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
@@ -179,7 +213,7 @@ for (const entry of registryEntries) {
 }
 
 for (const [alias, mapperEntry] of mapperEntries.entries()) {
-  if (!registryByAlias.has(alias)) {
+  if (!registryByAlias.has(alias) && !KNOWN_COMPAT_MAPPER_ALIASES.has(alias)) {
     pushIssue(warnings.orphanMappers, {
       alias,
       tag: mapperEntry.tag,
@@ -188,7 +222,7 @@ for (const [alias, mapperEntry] of mapperEntries.entries()) {
 }
 
 for (const modelSlug of modelSlugs) {
-  if (!registryTagSlugs.has(modelSlug)) {
+  if (!registryTagSlugs.has(modelSlug) && !KNOWN_DEPRECATED_INPUT_NAMES.has(modelSlug)) {
     pushIssue(warnings.orphanModels, {
       modelSlug,
     });
@@ -196,7 +230,7 @@ for (const modelSlug of modelSlugs) {
 }
 
 for (const inputName of inputNames) {
-  if (!registryNames.has(inputName)) {
+  if (!registryNames.has(inputName) && !KNOWN_DEPRECATED_INPUT_NAMES.has(inputName)) {
     pushIssue(warnings.orphanInputEntries, {
       name: inputName,
     });
