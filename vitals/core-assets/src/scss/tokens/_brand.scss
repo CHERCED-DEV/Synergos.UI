@@ -1,0 +1,445 @@
+@use '../elevation' as elevation;
+
+/* Runtime theme contract.
+   CMS can override these custom properties at :root or any themed container.
+   Components consume semantic --syn-* tokens; legacy CMS hooks on --sg-* remain supported. */
+
+$light-theme-selectors: ':root',
+  ':root[data-theme="light"]',
+  ':root[theme="light"]',
+  '[data-theme="light"]',
+  '[theme="light"]',
+  '.theme-light';
+
+$dark-theme-selectors: ':root[data-theme="dark"]',
+  ':root[theme="dark"]',
+  '[data-theme="dark"]',
+  '[theme="dark"]',
+  '.theme-dark';
+
+$silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
+  ':root[theme="silver-gold"]',
+  ':root[data-theme="silverGold"]',
+  ':root[theme="silverGold"]',
+  '[data-theme="silver-gold"]',
+  '[theme="silver-gold"]',
+  '[data-theme="silverGold"]',
+  '[theme="silverGold"]',
+  '.theme-silver-gold',
+  '.theme-silverGold';
+
+@mixin semantic-aliases {
+  --sg-z-overlay: #{elevation.$z-overlay};
+
+  --syn-surface: var(--syn-color-surface-primary);
+  --syn-surface-subtle: var(--syn-color-surface-secondary);
+  --syn-surface-muted: var(--syn-color-surface-tertiary);
+  --syn-surface-inverse: var(--syn-color-surface-inverse);
+
+  --syn-text-primary: var(--syn-color-text-primary);
+  --syn-text-secondary: var(--syn-color-text-secondary);
+  --syn-text-muted: var(--syn-color-text-muted);
+  --syn-text-disabled: var(--syn-color-text-disabled);
+  --syn-text-inverse: var(--syn-color-text-inverse);
+  --syn-text-brand: var(--syn-color-text-accent);
+
+  --syn-border-subtle: var(--syn-color-border-subtle);
+  --syn-border-default: var(--syn-color-border-default);
+  --syn-border-strong: var(--syn-color-border-strong);
+  --syn-border-brand: var(--syn-color-border-accent);
+
+  --syn-gradient-divider: var(--sg-brand-divider-gradient);
+  --syn-gradient-action-emphasis: linear-gradient(
+    135deg,
+    var(--syn-color-action-primary) 0%,
+    var(--syn-color-action-emphasis, var(--syn-color-text-accent)) 100%
+  );
+
+  --syn-surface-glass-background: var(--sg-brand-surface-glass-bg);
+  --syn-surface-glass-blur: var(--sg-brand-surface-backdrop-blur);
+  --syn-shadow-emphasis: var(--sg-brand-cta-glow);
+}
+
+#{$light-theme-selectors} {
+  color-scheme: light;
+
+  --sg-color-action-primary: var(--syn-color-brand-500);
+  --sg-color-action-primary-hover: var(--syn-color-brand-600);
+  --sg-color-action-primary-text: var(--syn-color-neutral-0);
+  --sg-color-surface-elevated: var(--syn-color-neutral-50);
+  --sg-color-text-secondary: var(--syn-color-neutral-600);
+  --sg-color-border-subtle: var(--syn-color-neutral-200);
+  --sg-color-info: #0f6cbd;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #eef3ff 0%, #ffffff 56%, #e2e9ff 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(15 23 42 / 0.12) 0%,
+    rgb(15 23 42 / 0.58) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(79 110 247 / 0.32),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(79 110 247 / 0.24);
+  --sg-brand-surface-glass-bg: rgb(255 255 255 / 0.7);
+  --sg-brand-surface-backdrop-blur: 18px;
+  --sg-brand-cta-glow: 0 14px 32px -18px rgb(79 110 247 / 0.58);
+
+  --sg-brand-logo-filter: none;
+  --sg-brand-particle-enabled: false;
+  --sg-brand-heading-weight: 620;
+  --sg-brand-heading-letter-spacing: -0.02em;
+
+  --syn-gradient-hero: var(--sg-brand-gradient-hero);
+  --syn-gradient-hero-dark: linear-gradient(135deg, #060d18 0%, #172338 52%, #4f6ef7 100%);
+  --syn-gradient-hero-silver-gold: linear-gradient(135deg, #f7f1e6 0%, #fffaf2 52%, #ece0ca 100%);
+
+  --syn-color-surface-canvas: var(--syn-color-neutral-0);
+  --syn-color-surface-primary: var(--syn-color-neutral-0);
+  --syn-color-surface-secondary: var(--syn-color-neutral-50);
+  --syn-color-surface-tertiary: var(--syn-color-neutral-100);
+  --syn-color-surface-elevated: var(--sg-color-surface-elevated);
+  --syn-color-surface-inverse: var(--syn-color-neutral-900);
+  --syn-color-surface-accent: var(--syn-color-brand-100);
+  --syn-color-surface-accent-soft: rgb(79 110 247 / 0.08);
+  --syn-color-surface-overlay: rgb(255 255 255 / 0.88);
+  --syn-color-surface-strong: var(--syn-color-neutral-800);
+
+  --syn-color-text-primary: var(--syn-color-neutral-900);
+  --syn-color-text-secondary: var(--sg-color-text-secondary);
+  --syn-color-text-muted: var(--syn-color-neutral-500);
+  --syn-color-text-disabled: var(--syn-color-neutral-400);
+  --syn-color-text-inverse: var(--syn-color-neutral-0);
+  --syn-color-text-accent: var(--syn-color-brand-600);
+  --syn-color-text-on-accent: var(--sg-color-action-primary-text);
+
+  --syn-color-border-subtle: var(--syn-color-neutral-100);
+  --syn-color-border-default: var(--sg-color-border-subtle);
+  --syn-color-border-strong: var(--syn-color-neutral-300);
+  --syn-color-border-accent: var(--syn-color-brand-300);
+  --syn-color-border-inverse: rgb(255 255 255 / 0.18);
+
+  --syn-color-overlay-subtle: rgb(15 23 42 / 0.06);
+  --syn-color-overlay-medium: rgb(15 23 42 / 0.14);
+  --syn-color-overlay-strong: rgb(15 23 42 / 0.22);
+
+  --syn-color-action-primary: var(--sg-color-action-primary);
+  --syn-color-action-primary-hover: var(--sg-color-action-primary-hover);
+  --syn-color-action-primary-active: var(--syn-color-brand-600);
+  --syn-color-action-primary-text: var(--sg-color-action-primary-text);
+  --syn-color-action-primary-border: transparent;
+  --syn-color-action-emphasis: var(--syn-color-accent-500);
+
+  --syn-color-action-secondary-surface: var(--syn-color-surface-primary);
+  --syn-color-action-secondary-surface-hover: var(--syn-color-surface-secondary);
+  --syn-color-action-secondary-text: var(--syn-color-text-primary);
+  --syn-color-action-secondary-text-hover: var(--syn-color-action-primary);
+  --syn-color-action-secondary-border: var(--syn-color-border-default);
+  --syn-color-action-secondary-border-hover: var(--syn-color-border-accent);
+
+  --syn-color-action-ghost-surface: transparent;
+  --syn-color-action-ghost-surface-hover: var(--syn-color-overlay-subtle);
+  --syn-color-action-ghost-text: var(--syn-color-text-secondary);
+  --syn-color-action-ghost-text-hover: var(--syn-color-text-primary);
+
+  --syn-color-action-danger: var(--syn-color-danger-500);
+  --syn-color-action-danger-hover: var(--syn-color-danger-600);
+  --syn-color-action-danger-text: var(--syn-color-neutral-0);
+
+  --syn-color-action-disabled-surface: var(--syn-color-neutral-100);
+  --syn-color-action-disabled-border: var(--syn-color-neutral-200);
+  --syn-color-action-disabled-text: var(--syn-color-neutral-400);
+
+  --syn-color-focus-ring: var(--syn-color-brand-300);
+  --syn-color-focus-ring-danger: var(--syn-color-danger-300);
+
+  --syn-color-state-brand-surface: rgb(79 110 247 / 0.12);
+  --syn-color-state-brand-border: rgb(79 110 247 / 0.28);
+  --syn-color-state-brand-text: var(--syn-color-brand-600);
+
+  --syn-color-state-info-surface: rgb(15 108 189 / 0.1);
+  --syn-color-state-info-border: rgb(15 108 189 / 0.22);
+  --syn-color-state-info-text: #0b4f8a;
+
+  --syn-color-state-success-surface: rgb(22 163 74 / 0.1);
+  --syn-color-state-success-border: rgb(22 163 74 / 0.22);
+  --syn-color-state-success-text: #166534;
+
+  --syn-color-state-warning-surface: rgb(217 119 6 / 0.12);
+  --syn-color-state-warning-border: rgb(217 119 6 / 0.24);
+  --syn-color-state-warning-text: #9a5a04;
+
+  --syn-color-state-danger-surface: rgb(220 38 38 / 0.1);
+  --syn-color-state-danger-border: rgb(220 38 38 / 0.22);
+  --syn-color-state-danger-text: #b42318;
+
+  --syn-shadow-card: #{elevation.$shadow-xs};
+  --syn-shadow-card-hover: #{elevation.$shadow-lg};
+  --syn-shadow-panel: #{elevation.$shadow-sm};
+  --syn-shadow-floating: #{elevation.$shadow-xl};
+  --syn-shadow-action: #{elevation.$shadow-brand-sm};
+  --syn-shadow-action-hover: #{elevation.$shadow-brand-md};
+  --syn-shadow-accent: #{elevation.$shadow-accent-md};
+
+  @include semantic-aliases;
+}
+
+#{$dark-theme-selectors} {
+  color-scheme: dark;
+
+  --sg-color-action-primary: var(--syn-color-brand-400);
+  --sg-color-action-primary-hover: var(--syn-color-brand-300);
+  --sg-color-action-primary-text: var(--syn-color-neutral-900);
+  --sg-color-surface-elevated: #101a2a;
+  --sg-color-text-secondary: var(--syn-color-neutral-300);
+  --sg-color-border-subtle: var(--syn-color-neutral-700);
+  --sg-color-info: #38bdf8;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #060d18 0%, #172338 52%, #4f6ef7 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(2 6 23 / 0.08) 0%,
+    rgb(2 6 23 / 0.68) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(165 180 252 / 0.28),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(79 110 247 / 0.32);
+  --sg-brand-surface-glass-bg: rgb(15 23 42 / 0.54);
+  --sg-brand-surface-backdrop-blur: 22px;
+  --sg-brand-cta-glow: 0 18px 40px -18px rgb(79 110 247 / 0.44);
+
+  --sg-brand-logo-filter: brightness(0) invert(1);
+  --sg-brand-particle-enabled: true;
+  --sg-brand-heading-weight: 620;
+  --sg-brand-heading-letter-spacing: -0.02em;
+
+  --syn-gradient-hero: var(--sg-brand-gradient-hero);
+  --syn-gradient-hero-dark: var(--sg-brand-gradient-hero);
+  --syn-gradient-hero-silver-gold: linear-gradient(135deg, #1b222d 0%, #3d4754 56%, #a98b54 100%);
+
+  --syn-color-surface-canvas: #020817;
+  --syn-color-surface-primary: var(--syn-color-neutral-800);
+  --syn-color-surface-secondary: #132033;
+  --syn-color-surface-tertiary: var(--syn-color-neutral-700);
+  --syn-color-surface-elevated: var(--sg-color-surface-elevated);
+  --syn-color-surface-inverse: var(--syn-color-neutral-0);
+  --syn-color-surface-accent: rgb(79 110 247 / 0.16);
+  --syn-color-surface-accent-soft: rgb(79 110 247 / 0.12);
+  --syn-color-surface-overlay: rgb(15 23 42 / 0.84);
+  --syn-color-surface-strong: var(--syn-color-neutral-0);
+
+  --syn-color-text-primary: var(--syn-color-neutral-0);
+  --syn-color-text-secondary: var(--sg-color-text-secondary);
+  --syn-color-text-muted: var(--syn-color-neutral-400);
+  --syn-color-text-disabled: var(--syn-color-neutral-500);
+  --syn-color-text-inverse: var(--syn-color-neutral-900);
+  --syn-color-text-accent: var(--syn-color-brand-300);
+  --syn-color-text-on-accent: var(--syn-color-neutral-900);
+
+  --syn-color-border-subtle: rgb(148 163 184 / 0.12);
+  --syn-color-border-default: var(--sg-color-border-subtle);
+  --syn-color-border-strong: var(--syn-color-neutral-600);
+  --syn-color-border-accent: rgb(165 180 252 / 0.5);
+  --syn-color-border-inverse: rgb(255 255 255 / 0.16);
+
+  --syn-color-overlay-subtle: rgb(248 250 252 / 0.08);
+  --syn-color-overlay-medium: rgb(248 250 252 / 0.14);
+  --syn-color-overlay-strong: rgb(248 250 252 / 0.22);
+
+  --syn-color-action-primary: var(--sg-color-action-primary);
+  --syn-color-action-primary-hover: var(--sg-color-action-primary-hover);
+  --syn-color-action-primary-active: var(--syn-color-brand-500);
+  --syn-color-action-primary-text: var(--sg-color-action-primary-text);
+  --syn-color-action-primary-border: transparent;
+  --syn-color-action-emphasis: var(--syn-color-accent-400);
+
+  --syn-color-action-secondary-surface: rgb(248 250 252 / 0.04);
+  --syn-color-action-secondary-surface-hover: rgb(248 250 252 / 0.08);
+  --syn-color-action-secondary-text: var(--syn-color-neutral-0);
+  --syn-color-action-secondary-text-hover: var(--syn-color-brand-200);
+  --syn-color-action-secondary-border: rgb(148 163 184 / 0.26);
+  --syn-color-action-secondary-border-hover: rgb(165 180 252 / 0.5);
+
+  --syn-color-action-ghost-surface: transparent;
+  --syn-color-action-ghost-surface-hover: var(--syn-color-overlay-subtle);
+  --syn-color-action-ghost-text: var(--syn-color-neutral-300);
+  --syn-color-action-ghost-text-hover: var(--syn-color-neutral-0);
+
+  --syn-color-action-danger: var(--syn-color-danger-400);
+  --syn-color-action-danger-hover: var(--syn-color-danger-300);
+  --syn-color-action-danger-text: var(--syn-color-neutral-900);
+
+  --syn-color-action-disabled-surface: rgb(148 163 184 / 0.08);
+  --syn-color-action-disabled-border: rgb(148 163 184 / 0.16);
+  --syn-color-action-disabled-text: var(--syn-color-neutral-500);
+
+  --syn-color-focus-ring: rgb(165 180 252 / 0.88);
+  --syn-color-focus-ring-danger: rgb(253 164 175 / 0.88);
+
+  --syn-color-state-brand-surface: rgb(79 110 247 / 0.18);
+  --syn-color-state-brand-border: rgb(165 180 252 / 0.34);
+  --syn-color-state-brand-text: var(--syn-color-brand-200);
+
+  --syn-color-state-info-surface: rgb(56 189 248 / 0.16);
+  --syn-color-state-info-border: rgb(56 189 248 / 0.28);
+  --syn-color-state-info-text: #bae6fd;
+
+  --syn-color-state-success-surface: rgb(34 197 94 / 0.16);
+  --syn-color-state-success-border: rgb(74 222 128 / 0.28);
+  --syn-color-state-success-text: #bbf7d0;
+
+  --syn-color-state-warning-surface: rgb(245 158 11 / 0.16);
+  --syn-color-state-warning-border: rgb(252 211 77 / 0.3);
+  --syn-color-state-warning-text: #fde68a;
+
+  --syn-color-state-danger-surface: rgb(239 68 68 / 0.16);
+  --syn-color-state-danger-border: rgb(251 113 133 / 0.32);
+  --syn-color-state-danger-text: #fecdd3;
+
+  --syn-shadow-card: 0 10px 28px -18px rgb(2 6 23 / 0.78);
+  --syn-shadow-card-hover: 0 24px 56px -28px rgb(2 6 23 / 0.86);
+  --syn-shadow-panel: 0 8px 24px -18px rgb(2 6 23 / 0.74);
+  --syn-shadow-floating: 0 28px 72px -36px rgb(2 6 23 / 0.92);
+  --syn-shadow-action: 0 10px 22px -16px rgb(79 110 247 / 0.44);
+  --syn-shadow-action-hover: 0 18px 34px -18px rgb(79 110 247 / 0.54);
+  --syn-shadow-accent: 0 18px 36px -22px rgb(139 92 246 / 0.42);
+
+  @include semantic-aliases;
+}
+
+#{$silver-gold-theme-selectors} {
+  color-scheme: light;
+
+  --sg-color-action-primary: #2a3240;
+  --sg-color-action-primary-hover: #1c2230;
+  --sg-color-action-primary-text: #fffaf2;
+  --sg-color-surface-elevated: #fff8ec;
+  --sg-color-text-secondary: #4f5864;
+  --sg-color-border-subtle: #d9d0c0;
+  --sg-color-info: #2f6f93;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #f7f1e6 0%, #fffaf2 52%, #ece0ca 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(20 26 34 / 0.1) 0%,
+    rgb(20 26 34 / 0.56) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(181 150 89 / 0.44),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(181 150 89 / 0.24);
+  --sg-brand-surface-glass-bg: rgb(255 250 242 / 0.66);
+  --sg-brand-surface-backdrop-blur: 18px;
+  --sg-brand-cta-glow: 0 16px 32px -18px rgb(181 150 89 / 0.48);
+
+  --sg-brand-logo-filter: none;
+  --sg-brand-particle-enabled: false;
+  --sg-brand-heading-weight: 630;
+  --sg-brand-heading-letter-spacing: -0.025em;
+
+  --syn-gradient-hero: var(--sg-brand-gradient-hero);
+  --syn-gradient-hero-dark: linear-gradient(135deg, #141b25 0%, #2b3340 52%, #a98b54 100%);
+  --syn-gradient-hero-silver-gold: var(--sg-brand-gradient-hero);
+
+  --syn-color-surface-canvas: #f5f1e8;
+  --syn-color-surface-primary: #fffbf4;
+  --syn-color-surface-secondary: #f2ebdf;
+  --syn-color-surface-tertiary: #e9dec9;
+  --syn-color-surface-elevated: var(--sg-color-surface-elevated);
+  --syn-color-surface-inverse: #1f2631;
+  --syn-color-surface-accent: #f3ead8;
+  --syn-color-surface-accent-soft: rgb(181 150 89 / 0.12);
+  --syn-color-surface-overlay: rgb(255 251 244 / 0.86);
+  --syn-color-surface-strong: #2a3240;
+
+  --syn-color-text-primary: #202734;
+  --syn-color-text-secondary: var(--sg-color-text-secondary);
+  --syn-color-text-muted: #6b6a63;
+  --syn-color-text-disabled: #9a9487;
+  --syn-color-text-inverse: #fcf7ee;
+  --syn-color-text-accent: #8f7035;
+  --syn-color-text-on-accent: var(--sg-color-action-primary-text);
+
+  --syn-color-border-subtle: #eee5d6;
+  --syn-color-border-default: var(--sg-color-border-subtle);
+  --syn-color-border-strong: #c4b28a;
+  --syn-color-border-accent: #b59659;
+  --syn-color-border-inverse: rgb(255 255 255 / 0.16);
+
+  --syn-color-overlay-subtle: rgb(32 39 52 / 0.06);
+  --syn-color-overlay-medium: rgb(32 39 52 / 0.14);
+  --syn-color-overlay-strong: rgb(32 39 52 / 0.24);
+
+  --syn-color-action-primary: var(--sg-color-action-primary);
+  --syn-color-action-primary-hover: var(--sg-color-action-primary-hover);
+  --syn-color-action-primary-active: #3a4456;
+  --syn-color-action-primary-text: var(--sg-color-action-primary-text);
+  --syn-color-action-primary-border: transparent;
+  --syn-color-action-emphasis: #b59659;
+
+  --syn-color-action-secondary-surface: var(--syn-color-surface-primary);
+  --syn-color-action-secondary-surface-hover: var(--syn-color-surface-secondary);
+  --syn-color-action-secondary-text: var(--syn-color-text-primary);
+  --syn-color-action-secondary-text-hover: var(--syn-color-text-accent);
+  --syn-color-action-secondary-border: var(--syn-color-border-default);
+  --syn-color-action-secondary-border-hover: var(--syn-color-border-accent);
+
+  --syn-color-action-ghost-surface: transparent;
+  --syn-color-action-ghost-surface-hover: var(--syn-color-overlay-subtle);
+  --syn-color-action-ghost-text: var(--syn-color-text-secondary);
+  --syn-color-action-ghost-text-hover: var(--syn-color-text-primary);
+
+  --syn-color-action-danger: var(--syn-color-danger-500);
+  --syn-color-action-danger-hover: var(--syn-color-danger-600);
+  --syn-color-action-danger-text: var(--syn-color-neutral-0);
+
+  --syn-color-action-disabled-surface: #eee5d6;
+  --syn-color-action-disabled-border: #e0d5c1;
+  --syn-color-action-disabled-text: #a59a87;
+
+  --syn-color-focus-ring: rgb(181 150 89 / 0.76);
+  --syn-color-focus-ring-danger: rgb(239 68 68 / 0.52);
+
+  --syn-color-state-brand-surface: rgb(181 150 89 / 0.12);
+  --syn-color-state-brand-border: rgb(181 150 89 / 0.28);
+  --syn-color-state-brand-text: #8f7035;
+
+  --syn-color-state-info-surface: rgb(47 111 147 / 0.1);
+  --syn-color-state-info-border: rgb(47 111 147 / 0.2);
+  --syn-color-state-info-text: #1e536f;
+
+  --syn-color-state-success-surface: rgb(22 163 74 / 0.1);
+  --syn-color-state-success-border: rgb(22 163 74 / 0.2);
+  --syn-color-state-success-text: #166534;
+
+  --syn-color-state-warning-surface: rgb(217 119 6 / 0.12);
+  --syn-color-state-warning-border: rgb(217 119 6 / 0.22);
+  --syn-color-state-warning-text: #9a5a04;
+
+  --syn-color-state-danger-surface: rgb(220 38 38 / 0.1);
+  --syn-color-state-danger-border: rgb(220 38 38 / 0.22);
+  --syn-color-state-danger-text: #b42318;
+
+  --syn-shadow-card: 0 10px 28px -20px rgb(71 54 26 / 0.24);
+  --syn-shadow-card-hover: 0 24px 54px -32px rgb(71 54 26 / 0.28);
+  --syn-shadow-panel: 0 12px 30px -24px rgb(71 54 26 / 0.22);
+  --syn-shadow-floating: 0 28px 72px -38px rgb(50 40 22 / 0.32);
+  --syn-shadow-action: 0 12px 26px -18px rgb(181 150 89 / 0.34);
+  --syn-shadow-action-hover: 0 18px 36px -20px rgb(181 150 89 / 0.44);
+  --syn-shadow-accent: 0 18px 34px -22px rgb(181 150 89 / 0.34);
+
+  @include semantic-aliases;
+}

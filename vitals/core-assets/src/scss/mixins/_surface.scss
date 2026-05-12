@@ -1,4 +1,5 @@
 @use '../tokens/colors' as colors;
+@use '../tokens/semantic' as semantic;
 @use '../tokens/elevation' as elevation;
 @use '../tokens/spacing' as spacing;
 @use '../tokens/typography' as typography;
@@ -8,11 +9,11 @@
 
 @mixin surface-panel(
   $padding: spacing.$space-xs,
-  $background: colors.$color-neutral-0,
-  $border-color: colors.$color-neutral-200,
+  $background: var(--syn-color-surface-primary, #{semantic.$color-surface}),
+  $border-color: var(--syn-color-border-default, #{semantic.$color-border-default}),
   $border-width: rem.px-to-rem(1),
   $radius: rem.px-to-rem(12),
-  $shadow: elevation.$shadow-md
+  $shadow: var(--syn-shadow-panel, #{elevation.$shadow-md})
 ) {
   padding: $padding;
   border: $border-width solid $border-color;
@@ -23,15 +24,16 @@
 
 @mixin floating-panel(
   $padding: spacing.$space-xs,
-  $background: colors.$color-neutral-0,
-  $border-color: colors.$color-neutral-200,
+  $background: var(--syn-color-surface-primary, #{semantic.$color-surface}),
+  $border-color: var(--syn-color-border-default, #{semantic.$color-border-default}),
   $radius: rem.px-to-rem(12),
-  $shadow: elevation.$shadow-md,
+  $shadow: var(--syn-shadow-floating, #{elevation.$shadow-lg}),
   $z-index: elevation.$z-dropdown
 ) {
   position: absolute;
   z-index: $z-index;
   @include surface-panel($padding, $background, $border-color, rem.px-to-rem(1), $radius, $shadow);
+  backdrop-filter: blur(var(--syn-backdrop-blur-subtle, #{rem.px-to-rem(14)}));
 }
 
 @mixin dropdown-panel(
@@ -63,10 +65,10 @@
   $padding-y: spacing.$space-xs,
   $padding-x: spacing.$space-sm,
   $radius: rem.px-to-rem(8),
-  $color: colors.$color-neutral-900,
-  $hover-background: colors.$color-neutral-100,
-  $selected-background: colors.$color-brand-100,
-  $selected-color: colors.$color-brand-600
+  $color: var(--syn-color-text-primary, #{semantic.$color-text-primary}),
+  $hover-background: var(--syn-color-surface-secondary, #{semantic.$color-surface-subtle}),
+  $selected-background: var(--syn-color-state-brand-surface, #{colors.$color-brand-100}),
+  $selected-color: var(--syn-color-state-brand-text, #{colors.$color-brand-600})
 ) {
   display: flex;
   align-items: center;
@@ -81,18 +83,24 @@
   font-size: typography.$font-size-sm;
   line-height: typography.$line-height-normal;
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 
   @include focus.focus-visible;
 
   &:where(:hover, :focus-visible):not(:disabled) {
     background: $hover-background;
+    transform: translateX(rem.px-to-rem(1));
   }
 
   &[aria-selected='true'],
   &.is-selected {
     background: $selected-background;
     color: $selected-color;
+    box-shadow: inset 0 0 0 rem.px-to-rem(1) var(--syn-color-state-brand-border, #{colors.$color-brand-200});
     font-weight: typography.$font-weight-semibold;
   }
 }
@@ -100,14 +108,15 @@
 @mixin popover-panel(
   $padding: spacing.$space-sm,
   $max-width: rem.px-to-rem(320),
-  $background: colors.$color-neutral-0,
-  $border-color: colors.$color-neutral-200,
+  $background: var(--syn-color-surface-primary, #{semantic.$color-surface}),
+  $border-color: var(--syn-color-border-default, #{semantic.$color-border-default}),
   $radius: rem.px-to-rem(14),
-  $shadow: elevation.$shadow-lg
+  $shadow: var(--syn-shadow-popover, #{elevation.$shadow-lg})
 ) {
   max-width: $max-width;
-  color: colors.$color-neutral-800;
+  color: var(--syn-color-text-primary, #{semantic.$color-text-primary});
   font-size: typography.$font-size-sm;
   line-height: typography.$line-height-normal;
   @include floating-panel($padding, $background, $border-color, $radius, $shadow, elevation.$z-tooltip);
 }
+

@@ -15,13 +15,16 @@
 }
 
 html {
-  color-scheme:     light;
   scroll-behavior:  smooth;
   text-size-adjust: 100%;
+  background:       var(--syn-color-surface-canvas, var(--syn-surface, #ffffff));
+  color:            var(--syn-color-text-primary, var(--syn-text-primary, #0f172a));
 }
 
 body {
   min-height: 100vh;
+  background: var(--syn-color-surface-canvas, var(--syn-surface, #ffffff));
+  color:      var(--syn-color-text-primary, var(--syn-text-primary, #0f172a));
 }
 
 img,
@@ -52,4 +55,9 @@ a {
 
 ul, ol {
   list-style: none;
+}
+
+::selection {
+  background: var(--syn-color-state-brand-surface, rgb(79 110 247 / 0.16));
+  color:      var(--syn-color-text-primary, var(--syn-text-primary, #0f172a));
 }

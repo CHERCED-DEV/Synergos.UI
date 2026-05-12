@@ -8,7 +8,7 @@
 // All interactive components MUST include this mixin.
 
 @mixin focus-visible(
-  $ring-color:  $color-brand-300,
+  $ring-color:  var(--syn-color-focus-ring, #{$color-brand-300}),
   $ring-width:  px-to-rem(2),
   $ring-offset: px-to-rem(2)
 ) {
@@ -28,5 +28,9 @@
   $ring-width:  px-to-rem(2),
   $ring-offset: px-to-rem(2)
 ) {
-  @include focus-visible($color-danger-300, $ring-width, $ring-offset);
+  @include focus-visible(
+    var(--syn-color-focus-ring-danger, #{$color-danger-300}),
+    $ring-width,
+    $ring-offset
+  );
 }

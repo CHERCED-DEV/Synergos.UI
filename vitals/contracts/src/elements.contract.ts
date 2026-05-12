@@ -330,20 +330,27 @@ export interface NotificationStackElementData extends BaseElementData {
 
 import registry from './element-registry.json';
 
-export { registry as ELEMENT_REGISTRY };
+export type ElementAlias = `${'element' | 'experience'}${string}`;
+export type ElementTag = `synergos-${string}`;
+export type ElementRegistryTier = 'module' | 'composition' | 'primitive' | 'experience';
 
 export interface ElementRegistryEntry {
   name: string;
-  alias: string;
-  tag: string;
-  tier: 'module' | 'composition' | 'primitive' | 'experience';
+  alias: ElementAlias;
+  tag: ElementTag;
+  tier: ElementRegistryTier;
 }
 
 // ── Element Type Alias Registry (derived from element-registry.json) ────────
 
-export const ELEMENT_ALIASES = Object.fromEntries(
-  registry.map((entry) => [entry.alias, entry.tag]),
-) as Record<string, string>;
+const typedRegistry = registry as readonly ElementRegistryEntry[];
 
-export type ElementAlias = string;
-export type ElementTag = string;
+export const ELEMENT_REGISTRY: readonly ElementRegistryEntry[] = typedRegistry;
+
+export const ELEMENT_ALIASES = Object.freeze(
+  Object.fromEntries(typedRegistry.map((entry) => [entry.alias, entry.tag])),
+) as Readonly<Record<string, ElementTag>>;
+
+export function resolveElementTag(alias: string): ElementTag | null {
+  return ELEMENT_ALIASES[alias] ?? null;
+}
