@@ -25,3 +25,12 @@ $shadow-brand-lg: 0 px-to-rem(4) px-to-rem(16) 0 rgb(79 110 247 / 0.32);
 // Use: accent buttons, premium badges, highlighted CTAs.
 $shadow-accent-sm: 0 px-to-rem(1) px-to-rem(4)  0 rgb(139 92 246 / 0.20);
 $shadow-accent-md: 0 px-to-rem(2) px-to-rem(10) 0 rgb(139 92 246 / 0.28);
+
+// ── Composed aliases per use-case (espejo del CMS) ─────────────────────────────
+// Referenciar estos por rol en vez del nivel crudo, para coherencia entre cards.
+$shadow-card:         $shadow-xs;
+$shadow-card-hover:   $shadow-lg;
+$shadow-panel:        $shadow-sm;
+$shadow-floating:     $shadow-xl;
+$shadow-action:       $shadow-brand-sm;
+$shadow-action-hover: $shadow-brand-md;

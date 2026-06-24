@@ -3,9 +3,9 @@
 $space-0: 0;
 $space-1: px-to-rem(4);
 $space-2: px-to-rem(8);
-$space-3: px-to-rem(12);
+$space-3: px-to-rem(16); // snapped 12->16 (grilla de 8)
 $space-4: px-to-rem(16);
-$space-5: px-to-rem(20);
+$space-5: px-to-rem(24); // snapped 20->24 (grilla de 8)
 $space-6: px-to-rem(24);
 $space-8: px-to-rem(32);
 $space-10: px-to-rem(40);
@@ -16,7 +16,9 @@ $space-24: px-to-rem(96);
 
 $space-xxs: $space-1;
 $space-xs: $space-2;
-$space-sm: $space-3;
+$space-sm: $space-4; // 16 on-grid (antes $space-3=12)
 $space-md: $space-4;
 $space-lg: $space-6;
 $space-xl: $space-8;
+$space-2xl: $space-12;
+$space-3xl: $space-16;

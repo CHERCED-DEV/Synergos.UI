@@ -38,3 +38,9 @@ $section-pad-y-sm:  $space-xl;    // 32px — mobile sections
 $section-pad-y-md:  $space-12;    // 48px — tablet sections
 $section-pad-y-lg:  $space-16;    // 64px — desktop sections
 $section-pad-y-xl:  $space-20;    // 80px — wide desktop sections
+
+// ── Canonical rhythm (espejo del CMS: --syn-gutter / --syn-section-gap) ─────────
+$gutter:         $space-4;     // 16px — gutter lateral base
+$gutter-lg:      $space-6;     // 24px — gutter lateral >=768
+$section-gap:    $space-16;    // 64px — aire entre secciones
+$section-gap-lg: $space-24;    // 96px — aire entre secciones >=768
