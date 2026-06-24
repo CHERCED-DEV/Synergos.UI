@@ -56,6 +56,10 @@ async function resolveRuntimeDir() {
 
 const RUNTIME_FILES = [
   'ng-core.js',
+  'ng-rxjs-interop.js',
+  'ng-primitives-di.js',
+  'ng-primitives-signals.js',
+  'ng-primitives-event-dispatch.js',
   'ng-compiler.js',
   'ng-common.js',
   'ng-common-http.js',
@@ -120,6 +124,10 @@ async function main() {
   const importMap = {
     imports: {
       '@angular/core':             `${base}/ng-core.js`,
+      '@angular/core/rxjs-interop': `${base}/ng-rxjs-interop.js`,
+      '@angular/core/primitives/di': `${base}/ng-primitives-di.js`,
+      '@angular/core/primitives/signals': `${base}/ng-primitives-signals.js`,
+      '@angular/core/primitives/event-dispatch': `${base}/ng-primitives-event-dispatch.js`,
       '@angular/compiler':          `${base}/ng-compiler.js`,
       '@angular/common':           `${base}/ng-common.js`,
       '@angular/common/http':      `${base}/ng-common-http.js`,

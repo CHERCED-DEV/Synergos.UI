@@ -139,6 +139,10 @@ function buildImportMap(base, integrity = {}) {
   return {
     imports: {
       '@angular/core':             `${b}/ng-core.js`,
+      '@angular/core/rxjs-interop': `${b}/ng-rxjs-interop.js`,
+      '@angular/core/primitives/di': `${b}/ng-primitives-di.js`,
+      '@angular/core/primitives/signals': `${b}/ng-primitives-signals.js`,
+      '@angular/core/primitives/event-dispatch': `${b}/ng-primitives-event-dispatch.js`,
       '@angular/compiler':         `${b}/ng-compiler.js`,
       '@angular/common':           `${b}/ng-common.js`,
       '@angular/common/http':      `${b}/ng-common-http.js`,
@@ -187,6 +191,10 @@ async function main() {
   // so the browser loads the JIT compiler before partial declarations run.
 
   await buildModule('@angular/core',             ['@angular/core'],             ['@angular/compiler'],                                                      'ng-core.js',             dir);
+  await buildModule('@angular/core/rxjs-interop', ['@angular/core/rxjs-interop'], ['@angular/core', 'rxjs', 'rxjs/operators'],                                'ng-rxjs-interop.js',     dir);
+  await buildModule('@angular/core/primitives/di', ['@angular/core/primitives/di'], ['@angular/core'],                                                        'ng-primitives-di.js',    dir);
+  await buildModule('@angular/core/primitives/signals', ['@angular/core/primitives/signals'], ['@angular/core'],                                              'ng-primitives-signals.js', dir);
+  await buildModule('@angular/core/primitives/event-dispatch', ['@angular/core/primitives/event-dispatch'], ['@angular/core'],                                'ng-primitives-event-dispatch.js', dir);
   await buildModule('@angular/compiler',          ['@angular/compiler'],          ['@angular/core'],                                                          'ng-compiler.js',         dir);
   await buildModule('@angular/common',           ['@angular/common'],           ['@angular/core', '@angular/compiler'],                                      'ng-common.js',           dir, { needsCompiler: true });
   await buildModule('@angular/common/http',      ['@angular/common/http'],      ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-common-http.js',      dir, { needsCompiler: true });
@@ -206,7 +214,8 @@ async function main() {
   if (!isDryRun) {
     // Compute SRI integrity hashes for all built runtime files
     const runtimeFiles = [
-      'ng-core.js', 'ng-compiler.js', 'ng-common.js', 'ng-common-http.js',
+      'ng-core.js', 'ng-rxjs-interop.js', 'ng-primitives-di.js', 'ng-primitives-signals.js',
+      'ng-primitives-event-dispatch.js', 'ng-compiler.js', 'ng-common.js', 'ng-common-http.js',
       'ng-elements.js', 'ng-forms.js', 'ng-platform-browser.js', 'ng-router.js',
       'rxjs.js', 'sg-core.js', 'sg-shared.js',
     ];
