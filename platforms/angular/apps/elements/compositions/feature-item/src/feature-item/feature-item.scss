@@ -20,7 +20,8 @@
   padding: syn.$space-lg;
   text-align: center;
   border: syn.px-to-rem(1) solid var(--syn-feature-item-border);
-  border-radius: syn.$radius-xl;
+  // Radio unificado al rol de card (lg = 14); aplica a la variante --card.
+  border-radius: var(--syn-card-radius, #{syn.$radius-lg});
   background: var(--syn-feature-item-background);
   box-shadow: var(--syn-feature-item-shadow);
   transition:

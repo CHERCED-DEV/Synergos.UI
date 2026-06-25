@@ -29,6 +29,14 @@ $color-border-default: $color-neutral-200;  // Standard card and input borders
 $color-border-strong:  $color-neutral-300;  // Emphasized borders, hover states
 $color-border-brand:   $color-brand-300;    // Focus rings, active selections
 
+// ── State: Info ────────────────────────────────────────────────────────────────
+// Informational signal (neutral). Mirrors the CMS --syn-color-info* tokens.
+// Pattern parallels success/warning/danger state aliases.
+$color-info:         $color-info-600;   // Primary info color: icons, links, accents
+$color-info-surface: $color-info-100;   // Tinted background: info banners, callouts
+$color-info-border:  $color-info-200;   // Border on info surfaces
+$color-info-text:    $color-info-600;   // Text/icon on light info surfaces
+
 // ── Overlay ──────────────────────────────────────────────────────────────────
 // Semi-transparent values that can't be expressed as solid tokens.
 // Used for hover states on colored surfaces, inverse spinners, backdrops.

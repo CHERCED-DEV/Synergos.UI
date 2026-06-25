@@ -59,7 +59,8 @@
     padding: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
     text-align: left;
     border: syn.px-to-rem(1) solid var(--syn-feature-grid-item-border);
-    border-radius: syn.$radius-2xl;
+    // Radio unificado al rol de card (lg = 14), igual que card y feature-item.
+    border-radius: var(--syn-card-radius, #{syn.$radius-lg});
     background: var(--syn-feature-grid-item-background);
     box-shadow: var(--syn-feature-grid-item-shadow);
     transition:

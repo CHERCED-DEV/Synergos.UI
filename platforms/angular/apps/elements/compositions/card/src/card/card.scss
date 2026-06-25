@@ -6,7 +6,7 @@
   font-family: inherit;
   height: 100%;
   min-height: 0;
-  border-radius: syn.$radius-2xl;
+  border-radius: var(--syn-card-radius, #{syn.$radius-lg});
   overflow: hidden;
 }
 
@@ -22,7 +22,8 @@
   --syn-element-card-divider: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
 
   @include syn.flex-column;
-  @include syn.surface-panel(0, transparent, transparent, syn.px-to-rem(1), syn.$radius-2xl, none);
+  // Radio unificado al rol de card (lg = 14) para igualar el SSR .syn-card.
+  @include syn.surface-panel(0, transparent, transparent, syn.px-to-rem(1), var(--syn-card-radius, #{syn.$radius-lg}), none);
 
   position: relative;
   overflow: hidden;
@@ -60,6 +61,17 @@
     --syn-element-card-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
     --syn-element-card-image-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
     --syn-element-card-divider: color-mix(in srgb, var(--syn-color-border-default, #{syn.$color-neutral-700}) 76%, transparent);
+
+    // Sobre canvas oscuro el border puede perder arista: hairline interior además del border.
+    box-shadow:
+      inset 0 0 0 syn.px-to-rem(1) rgb(255 255 255 / 0.04),
+      var(--syn-element-card-shadow);
+
+    &:hover {
+      box-shadow:
+        inset 0 0 0 syn.px-to-rem(1) rgb(255 255 255 / 0.04),
+        var(--syn-element-card-shadow-hover);
+    }
   }
 
   &--horizontal {

@@ -2,6 +2,7 @@
 @use '../tokens/semantic' as semantic;
 @use '../tokens/elevation' as elevation;
 @use '../tokens/spacing' as spacing;
+@use '../tokens/radius' as radius;
 @use '../tokens/typography' as typography;
 @use '../functions/px-to-rem' as rem;
 @use 'custom-scrollbar';
@@ -12,7 +13,7 @@
   $background: var(--syn-color-surface-primary, #{semantic.$color-surface}),
   $border-color: var(--syn-color-border-default, #{semantic.$color-border-default}),
   $border-width: rem.px-to-rem(1),
-  $radius: rem.px-to-rem(12),
+  $radius: radius.$radius-lg,
   $shadow: var(--syn-shadow-panel, #{elevation.$shadow-md})
 ) {
   padding: $padding;
@@ -26,7 +27,7 @@
   $padding: spacing.$space-xs,
   $background: var(--syn-color-surface-primary, #{semantic.$color-surface}),
   $border-color: var(--syn-color-border-default, #{semantic.$color-border-default}),
-  $radius: rem.px-to-rem(12),
+  $radius: radius.$radius-lg,
   $shadow: var(--syn-shadow-floating, #{elevation.$shadow-lg}),
   $z-index: elevation.$z-dropdown
 ) {
@@ -64,7 +65,7 @@
 @mixin dropdown-item(
   $padding-y: spacing.$space-xs,
   $padding-x: spacing.$space-sm,
-  $radius: rem.px-to-rem(8),
+  $radius: radius.$radius-md,
   $color: var(--syn-color-text-primary, #{semantic.$color-text-primary}),
   $hover-background: var(--syn-color-surface-secondary, #{semantic.$color-surface-subtle}),
   $selected-background: var(--syn-color-state-brand-surface, #{colors.$color-brand-100}),
