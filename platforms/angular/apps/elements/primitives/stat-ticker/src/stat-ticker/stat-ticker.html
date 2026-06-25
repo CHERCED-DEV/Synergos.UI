@@ -1,3 +1,14 @@
-<div class="syn-stat-ticker__placeholder" [attr.data-statValue]="statValue() ?? null" [attr.data-statLabel]="statLabel() ?? null" [attr.data-statPrefix]="statPrefix() ?? null" [attr.data-statSuffix]="statSuffix() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="stat-ticker">
-  <span class="syn-stat-ticker__name">synergos-stat-ticker</span>
+<div class="syn-stat" role="group" [attr.aria-label]="statLabel() || null">
+  <p class="syn-stat__value">
+    @if (statPrefix(); as prefix) {
+      <span class="syn-stat__affix syn-stat__affix--prefix">{{ prefix }}</span>
+    }
+    <span class="syn-stat__number">{{ display() }}</span>
+    @if (statSuffix(); as suffix) {
+      <span class="syn-stat__affix syn-stat__affix--suffix">{{ suffix }}</span>
+    }
+  </p>
+  @if (statLabel(); as label) {
+    <p class="syn-stat__label">{{ label }}</p>
+  }
 </div>
