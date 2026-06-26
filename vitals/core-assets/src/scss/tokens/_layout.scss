@@ -44,3 +44,16 @@ $gutter:         $space-4;     // 16px — gutter lateral base
 $gutter-lg:      $space-6;     // 24px — gutter lateral >=768
 $section-gap:    $space-16;    // 64px — aire entre secciones
 $section-gap-lg: $space-24;    // 96px — aire entre secciones >=768
+
+// ── Control heights — alturas canónicas de controles interactivos ──────────────
+// On-grid 8pt (espejo CMS --syn-control-h-*). Botones, CTAs, submits, inputs.
+$control-h-sm: $space-8;      // 32px
+$control-h-md: $space-10;     // 40px
+$control-h-lg: $space-12;     // 48px
+
+// ── Avatar sizes — tamaños canónicos de avatar (espejo CMS --syn-size-avatar-*) ─
+$size-avatar-sm:  $space-8;     // 32px
+$size-avatar-md:  $space-12;    // 48px
+$size-avatar-lg:  px-to-rem(56); // 56px
+$size-avatar-xl:  $space-16;    // 64px
+$size-avatar-2xl: $space-24;    // 96px

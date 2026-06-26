@@ -11,12 +11,12 @@
 
   &.sg-divider--horizontal {
     width: 100%;
-    height: 1px;
+    height: syn.px-to-rem(1);
   }
 
   &.sg-divider--vertical {
-    width: 1px;
-    min-height: 2rem;
+    width: syn.px-to-rem(1);
+    min-height: syn.$space-8;
   }
 
   &.sg-divider--dark {

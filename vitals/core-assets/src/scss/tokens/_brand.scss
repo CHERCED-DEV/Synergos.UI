@@ -111,7 +111,10 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
 
   --syn-color-text-primary: var(--syn-color-neutral-900);
   --syn-color-text-secondary: var(--sg-color-text-secondary);
-  --syn-color-text-muted: var(--syn-color-neutral-500);
+  /* C-1 — text-muted alineado al CMS: neutral-600 (~7:1) en vez de
+     neutral-500 (~4.83:1 borderline). WCAG 2.1 AA exige 4.5:1 mínimo
+     sobre paneles off-white. Espejo de syn-tokens.css (Ola 191). */
+  --syn-color-text-muted: var(--syn-color-neutral-600);
   --syn-color-text-disabled: var(--syn-color-neutral-400);
   --syn-color-text-inverse: var(--syn-color-neutral-0);
   --syn-color-text-accent: var(--syn-color-brand-600);

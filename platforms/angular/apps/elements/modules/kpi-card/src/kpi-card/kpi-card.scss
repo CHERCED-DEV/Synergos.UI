@@ -17,5 +17,5 @@
 
 .syn-kpi-card__name {
   font-weight: 500;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--syn-letter-spacing-wide, #{syn.$letter-spacing-wide});
 }

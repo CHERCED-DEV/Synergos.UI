@@ -2,6 +2,9 @@
 @use '../tokens/radius' as *;
 @use '../tokens/motion' as *;
 @use '../tokens/semantic' as *;
+@use '../tokens/spacing' as *;
+@use '../tokens/typography' as *;
+@use '../tokens/layout' as *;
 
 :root {
   // ── Neutral ────────────────────────────────────────────────────────────────
@@ -85,10 +88,128 @@
   --syn-radius-2xl:  #{$radius-2xl};
   --syn-radius-full: #{$radius-full};
 
+  // ── Info (sky/cyan — informativo neutro) ─────────────────────────────────────
+  // C-3 — rampa info faltante en el emisor UI; espejo del CMS syn-tokens.css.
+  --syn-color-info-100: #{$color-info-100};
+  --syn-color-info-200: #{$color-info-200};
+  --syn-color-info-300: #{$color-info-300};
+  --syn-color-info-400: #{$color-info-400};
+  --syn-color-info-500: #{$color-info-500};
+  --syn-color-info-600: #{$color-info-600};
+
+  // ── Color channels (RGB tripletes) ───────────────────────────────────────────
+  // C-3 — para componer glows/gradientes theme-aware vía rgb(var(--syn-channel-*) / 0.x).
+  // Espejan brand-500 (#4f6ef7), accent-500 (#8b5cf6), neutral-900 (#0f172a).
+  --syn-channel-brand:  79 110 247;
+  --syn-channel-accent: 139 92 246;
+  --syn-channel-ink:    15 23 42;
+
+  // ── Spacing: escala 8pt completa ──────────────────────────────────────────────
+  // C-3 — el emisor UI sólo tenía radii/motion; faltaba toda la escala space.
+  --syn-space-0:  #{$space-0};
+  --syn-space-1:  #{$space-1};   // 4px
+  --syn-space-2:  #{$space-2};   // 8px
+  --syn-space-3:  #{$space-3};   // 16px (snapped)
+  --syn-space-4:  #{$space-4};   // 16px
+  --syn-space-5:  #{$space-5};   // 24px (snapped)
+  --syn-space-6:  #{$space-6};   // 24px
+  --syn-space-8:  #{$space-8};   // 32px
+  --syn-space-10: #{$space-10};  // 40px
+  --syn-space-12: #{$space-12};  // 48px
+  --syn-space-16: #{$space-16};  // 64px
+  --syn-space-20: #{$space-20};  // 80px
+  --syn-space-24: #{$space-24};  // 96px
+
+  --syn-space-xxs: var(--syn-space-1);
+  --syn-space-xs:  var(--syn-space-2);
+  --syn-space-sm:  var(--syn-space-4);   // 16px on-grid
+  --syn-space-md:  var(--syn-space-4);
+  --syn-space-lg:  var(--syn-space-6);
+  --syn-space-xl:  var(--syn-space-8);
+  --syn-space-2xl: var(--syn-space-12);
+  --syn-space-3xl: var(--syn-space-16);
+
+  // ── Layout rhythm: gutter + section gap ───────────────────────────────────────
+  // C-3 — fuente del margen lateral y del aire entre secciones (espejo CMS).
+  --syn-gutter:         var(--syn-space-4);    // 16px
+  --syn-gutter-lg:      var(--syn-space-6);    // 24px
+  --syn-section-gap:    var(--syn-space-16);   // 64px
+  --syn-section-gap-lg: var(--syn-space-24);   // 96px
+
+  // ── Control heights + avatar sizes (on-grid 8pt) ──────────────────────────────
+  // C-3 — alturas canónicas de controles + tamaños de avatar (espejo CMS).
+  --syn-control-h-sm: #{$control-h-sm};   // 32px
+  --syn-control-h-md: #{$control-h-md};   // 40px
+  --syn-control-h-lg: #{$control-h-lg};   // 48px
+
+  --syn-size-avatar-sm:  #{$size-avatar-sm};   // 32px
+  --syn-size-avatar-md:  #{$size-avatar-md};   // 48px
+  --syn-size-avatar-lg:  #{$size-avatar-lg};   // 56px
+  --syn-size-avatar-xl:  #{$size-avatar-xl};   // 64px
+  --syn-size-avatar-2xl: #{$size-avatar-2xl};  // 96px
+
+  // ── Typography families ───────────────────────────────────────────────────────
+  // C-3 — familias tipográficas faltantes en el emisor (espejo CMS).
+  --syn-font-family-sans:    #{$font-family-sans};
+  --syn-font-family-mono:    #{$font-family-mono};
+  --syn-font-family-body:    var(--syn-font-family-sans);
+  --syn-font-family-heading: var(--syn-font-family-sans);
+
   // ── Motion ─────────────────────────────────────────────────────────────────
   --syn-duration-fast:    #{$duration-fast};
   --syn-duration-base:    #{$duration-base};
   --syn-duration-slow:    #{$duration-slow};
+  --syn-duration-xslow:   #{$duration-xslow};  // C-3 — parallax/transforms lentos
   --syn-duration-loop:    #{$duration-loop};
   --syn-duration-shimmer: #{$duration-shimmer};
+
+  // ── Gradient: hero (theme-aware vía channels) ─────────────────────────────────
+  // C-3 — hero siempre oscuro por diseño: superficie dark neutral + glow brand.
+  --syn-gradient-hero: linear-gradient(135deg,
+                         var(--syn-color-neutral-900) 0%,
+                         var(--syn-color-neutral-800) 50%,
+                         rgb(var(--syn-channel-brand) / 0.30) 100%);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// data-profile — carácter editorial por siteRoot (espejo CMS, P1-3).
+// institutional = defaults (sin override). Ortogonal a data-theme.
+// ─────────────────────────────────────────────────────────────────────────────
+[data-profile="editorial"] {
+  --syn-line-height-relaxed: 1.8;
+  --syn-section-gap:    var(--syn-space-20);   // 80
+  --syn-section-gap-lg: var(--syn-space-24);   // 96 — +1 paso
+  --syn-card-radius:    var(--syn-radius-md);
+}
+
+[data-profile="commercial"] {
+  --syn-section-gap:    var(--syn-space-12);   // 48
+  --syn-section-gap-lg: var(--syn-space-16);   // 64 — +1 paso
+  --syn-card-shadow:    var(--syn-shadow-card-hover);
+}
+
+[data-profile="premium"] {
+  --syn-section-gap:    var(--syn-space-24);   // 96
+  --syn-section-gap-lg: var(--syn-space-24);   // 96 — CAP de escala
+  --syn-card-radius:    var(--syn-radius-2xl);
+}
+
+[data-profile="minimal"] {
+  --syn-card-radius: var(--syn-radius-sm);
+  --syn-card-shadow: none;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// prefers-color-scheme dark fallback (cuando no hay theme set) — espejo CMS.
+// ─────────────────────────────────────────────────────────────────────────────
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --syn-color-surface-canvas: #020817;
+    --syn-color-surface-primary: var(--syn-color-neutral-800);
+    --syn-color-text-primary: var(--syn-color-neutral-0);
+    --syn-color-text-secondary: var(--syn-color-neutral-300);
+    --syn-color-text-muted: var(--syn-color-neutral-400);
+    --syn-color-border-default: var(--syn-color-neutral-700);
+  }
 }
