@@ -10,8 +10,15 @@
 // Cap-230 Olas 225-226 / ADR 0084.
 //
 // Uso:
-//   node tools/sync-tokens.mjs                       # uses default paths
+//   node tools/sync-tokens.mjs                       # escribe el bridge
+//   node tools/sync-tokens.mjs --check               # gate G-1: NO escribe,
+//                                                     # compara y exit 1 si difiere
 //   SYNERGOS_CMS_PATH=/path/to/cms node tools/sync-tokens.mjs
+//
+// Gate G-1 (anti-drift, Ola 2 del roadmap maestro): con --check regenera
+// el bridge a un buffer en memoria y lo COMPARA contra el archivo
+// commiteado. Si difieren, imprime un diff y termina con exit 1 SIN
+// escribir — atrapa un _tokens-bridge.scss stale en CI / pre-commit.
 //
 // Defaults (sibling dirs convention):
 //   CMS:  ../../../Synergos.CMS/Synergos.CMS.Web/wwwroot/css/syn-tokens.css
@@ -21,6 +28,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const checkMode = process.argv.includes('--check');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -142,11 +151,80 @@ const trailer = `
 `;
 
 const output = header + sections + trailer;
-writeFileSync(uiOutputPath, output, 'utf8');
-
 const tokenCount = (output.match(/--syn-/g) || []).length;
+
+// La línea `// Generated: <timestamp>` es volátil por diseño: cambia en
+// cada corrida. Para que la comparación G-1 sea estable la normalizamos
+// (la quitamos) en ambos lados — el resto del archivo es 100% derivado
+// del source, así que cualquier diff real = bridge stale.
+function normalize(s) {
+  return s
+    .replace(/^\/\/ Generated:.*$/m, '// Generated: <normalized>')
+    .replace(/\r\n/g, '\n');
+}
+
+if (checkMode) {
+  // ── Gate G-1: comparar sin escribir ──
+  if (!existsSync(uiOutputPath)) {
+    console.error('[sync-tokens:check] FAIL — bridge no existe en disco:');
+    console.error(`[sync-tokens:check]   ${uiOutputPath}`);
+    console.error('[sync-tokens:check] Corré `npm run sync:tokens` para generarlo.');
+    process.exit(1);
+  }
+  const committed = readFileSync(uiOutputPath, 'utf8');
+  if (normalize(committed) === normalize(output)) {
+    console.log('[sync-tokens:check] OK — bridge en sync con syn-tokens.css (G-1).');
+    console.log(`[sync-tokens:check]   source: ${cmsTokensPath}`);
+    console.log(`[sync-tokens:check]   target: ${uiOutputPath}`);
+    console.log(`[sync-tokens:check]   tokens: ${tokenCount}`);
+    process.exit(0);
+  }
+
+  // Diff por líneas (LCS simple) para señalar exactamente qué difiere.
+  const a = normalize(committed).split('\n');
+  const b = normalize(output).split('\n');
+  console.error('[sync-tokens:check] FAIL — _tokens-bridge.scss STALE (G-1).');
+  console.error('[sync-tokens:check] El bridge commiteado NO coincide con lo que');
+  console.error('[sync-tokens:check] sync-tokens.mjs regenera desde syn-tokens.css.');
+  console.error(`[sync-tokens:check]   source: ${cmsTokensPath}`);
+  console.error(`[sync-tokens:check]   target: ${uiOutputPath}`);
+  console.error('');
+  console.error('--- committed (_tokens-bridge.scss)');
+  console.error('+++ regenerated (from syn-tokens.css)');
+  printDiff(a, b);
+  console.error('');
+  console.error('[sync-tokens:check] Fix: corré `npm run sync:tokens` y commiteá el bridge.');
+  process.exit(1);
+}
+
+// ── Modo normal: escribir ──
+writeFileSync(uiOutputPath, output, 'utf8');
 console.log(`[sync-tokens] OK`);
 console.log(`[sync-tokens]   source: ${cmsTokensPath}`);
 console.log(`[sync-tokens]   target: ${uiOutputPath}`);
 console.log(`[sync-tokens]   blocks: ${blocks.length} (${blocks.map(b => b.selector).join(', ')})`);
 console.log(`[sync-tokens]   tokens: ${tokenCount} (incluye references via var())`);
+
+// ── Diff helper (Myers-lite por LCS sobre líneas) ──
+function printDiff(a, b) {
+  const n = a.length, m = b.length;
+  // LCS DP (suficiente para archivos de ~cientos de líneas).
+  const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  let i = 0, j = 0, shown = 0;
+  const MAX = 60; // cap de líneas de diff impresas
+  while (i < n && j < m && shown < MAX) {
+    if (a[i] === b[j]) { i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { console.error(`- ${a[i++]}`); shown++; }
+    else { console.error(`+ ${b[j++]}`); shown++; }
+  }
+  while (i < n && shown < MAX) { console.error(`- ${a[i++]}`); shown++; }
+  while (j < m && shown < MAX) { console.error(`+ ${b[j++]}`); shown++; }
+  if ((i < n || j < m)) console.error(`  … diff truncado (${MAX} líneas máx)`);
+}

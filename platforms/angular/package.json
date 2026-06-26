@@ -19,6 +19,7 @@
     "graph": "cross-env NX_WORKSPACE_ROOT_PATH= NX_DAEMON=false npx nx graph",
     "nx": "nx",
     "sync:tokens": "node tools/sync-tokens.mjs",
+    "sync:tokens:check": "node tools/sync-tokens.mjs --check",
     "postinstall": "patch-package"
   },
   "dependencies": {

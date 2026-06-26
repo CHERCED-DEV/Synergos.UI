@@ -1,0 +1,68 @@
+name: Design gates UI (token bridge parity)
+
+# Gate G-1 (UI side) — Ola 2 del roadmap maestro
+# (refactor-docs/architecture/14-roadmap-maestro.md, repo CMS).
+#
+# Corre `sync:tokens:check` en cada PR/push que toque el bridge generado,
+# el script generador, o los estilos shared. BLOQUEA el merge si el
+# bridge `_tokens-bridge.scss` quedó STALE respecto a la fuente
+# `syn-tokens.css` (que vive en el repo SIBLING Synergos.CMS).
+#
+# NOTA RUNNER (G-4): hoy NO hay runner CI conectado. Este workflow queda
+# LISTO para cuando se conecte el remote del UI + el runner, y además
+# requiere checkout del repo CMS (cross-repo) para tener la fuente de
+# tokens. Hasta entonces el gate corre como pre-commit / a mano:
+#   cd platforms/angular && npm run sync:tokens:check
+#
+# CROSS-REPO: el job hace checkout de ESTE repo (UI) + del CMS sibling y
+# apunta `SYNERGOS_CMS_PATH` al CMS para que el check compare contra la
+# fuente real. Ajustar `repository:` + token cuando exista el remote CMS.
+
+on:
+  pull_request:
+    paths:
+      - 'platforms/angular/libs/shared/src/styles/_tokens-bridge.scss'
+      - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'platforms/angular/libs/shared/src/styles/**'
+      - '.github/workflows/design-gates-ui.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'platforms/angular/libs/shared/src/styles/_tokens-bridge.scss'
+      - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'platforms/angular/libs/shared/src/styles/**'
+      - '.github/workflows/design-gates-ui.yml'
+
+jobs:
+  tokens-bridge-parity:
+    name: G-1 sync:tokens:check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout UI (este repo)
+        uses: actions/checkout@v4
+        with:
+          path: Synergos.UI
+
+      # El check necesita la FUENTE de tokens, que vive en el CMS sibling.
+      # Ajustar repository: + token cuando exista el remote del CMS.
+      - name: Checkout CMS (sibling — fuente de tokens)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Synergos.CMS
+          path: Synergos.CMS
+          token: ${{ secrets.CMS_REPO_READ_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Token bridge parity (G-1)
+        # SYNERGOS_CMS_PATH apunta al CMS checkouteado para que el check
+        # use la fuente real en vez de la convención de sibling dirs.
+        run: |
+          SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS" \
+            node Synergos.UI/platforms/angular/tools/sync-tokens.mjs --check
