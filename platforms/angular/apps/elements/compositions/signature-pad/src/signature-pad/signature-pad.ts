@@ -98,7 +98,7 @@ function sanitizeSignaturePadConfig(
   host: { class: 'sg-signature-pad' },
 })
 export class SignaturePadElementComponent {
-  readonly #canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
+  readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('canvas');
 
   readonly config = input<SignaturePadRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<SignaturePadRuntimeConfig>(sanitizeSignaturePadConfig),
@@ -186,7 +186,7 @@ export class SignaturePadElementComponent {
     // Resize/reset the backing canvas whenever the configured size changes,
     // then repaint the existing strokes onto the fresh surface.
     effect(() => {
-      const canvas = this.#canvasRef()?.nativeElement;
+      const canvas = this.canvasRef()?.nativeElement;
       if (!canvas) {
         return;
       }
@@ -214,7 +214,7 @@ export class SignaturePadElementComponent {
       return;
     }
 
-    const canvas = this.#canvasRef()?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     if (!canvas) {
       return;
     }
@@ -247,7 +247,7 @@ export class SignaturePadElementComponent {
       return;
     }
 
-    const canvas = this.#canvasRef()?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     if (canvas) {
       try {
         canvas.releasePointerCapture(event.pointerId);
@@ -298,7 +298,7 @@ export class SignaturePadElementComponent {
       return '';
     }
 
-    const canvas = this.#canvasRef()?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     if (!canvas || typeof canvas.toDataURL !== 'function') {
       return '';
     }
@@ -313,7 +313,7 @@ export class SignaturePadElementComponent {
   }
 
   #toPoint(event: PointerEvent): Point {
-    const canvas = this.#canvasRef()?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     if (!canvas || typeof canvas.getBoundingClientRect !== 'function') {
       return { x: event.offsetX, y: event.offsetY };
     }
@@ -328,7 +328,7 @@ export class SignaturePadElementComponent {
   }
 
   #repaint(): void {
-    const canvas = this.#canvasRef()?.nativeElement;
+    const canvas = this.canvasRef()?.nativeElement;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) {
       return;
