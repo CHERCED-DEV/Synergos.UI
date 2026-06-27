@@ -50,7 +50,12 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: syn.px-to-rem(4);
-    background: var(--syn-gradient-divider, var(--sg-brand-divider-gradient));
+    // Canonical divider gradient; fall back to the brand channel (the legacy
+    // --sg-brand-divider-gradient namespace is dead).
+    background: var(
+      --syn-gradient-divider,
+      linear-gradient(180deg, var(--syn-color-action-emphasis, #{syn.$color-brand-500}), var(--syn-color-text-accent, #{syn.$color-brand-600}))
+    );
   }
 
   &::after {
@@ -65,7 +70,10 @@
     pointer-events: none;
   }
 
-  &--dark {
+  // Host applies `sg-banner--<theme>` (not `banner--<theme>`); also honor the
+  // canonical [data-theme] attribute set by the CMS host.
+  &.sg-banner--dark,
+  :host([data-theme='dark']) & {
     --syn-banner-background: linear-gradient(
       135deg,
       var(--syn-color-surface-secondary, #{syn.$color-neutral-800}) 0%,
@@ -77,7 +85,7 @@
     --syn-banner-image-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
   }
 
-  &--with-image {
+  &.sg-banner--with-image {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: stretch;

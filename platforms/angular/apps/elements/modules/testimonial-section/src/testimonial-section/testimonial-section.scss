@@ -15,8 +15,10 @@
 }
 
 .testimonial-section {
+  // Theme override: legacy host classes + canonical [data-theme] attribute.
   &--dark,
-  &.sg-testimonial-section--dark {
+  &.sg-testimonial-section--dark,
+  :host([data-theme='dark']) & {
     --tss-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
     --tss-card-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
     --tss-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
@@ -28,7 +30,8 @@
   &--silver-gold,
   &--silverGold,
   &.sg-testimonial-section--silver-gold,
-  &.sg-testimonial-section--silverGold {
+  &.sg-testimonial-section--silverGold,
+  :host([data-theme='silver-gold']) & {
     --tss-card-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
     --tss-decorative-quote: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
   }
@@ -36,11 +39,7 @@
   &__header {
     display: grid;
     justify-items: center;
-    margin-bottom: syn.$space-xl;
-
-    @include syn.respond-to(md) {
-      margin-bottom: syn.$space-12;
-    }
+    margin-bottom: clamp(#{syn.$space-xl}, 5vw, #{syn.$space-12});
   }
 
   &__heading {

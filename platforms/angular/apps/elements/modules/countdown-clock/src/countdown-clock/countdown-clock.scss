@@ -6,11 +6,23 @@
   --cc-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --cc-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --cc-started-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cc-invalid-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cc-invalid-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
   --cc-ring-size: #{syn.px-to-rem(112)};
   --cc-ring-stroke: #{syn.px-to-rem(6)};
 
   display: block;
   max-width: 100%;
+}
+
+.countdown-clock__invalid {
+  margin: 0;
+  padding: syn.$space-md syn.$space-lg;
+  border: syn.px-to-rem(1) dashed var(--cc-invalid-border);
+  border-radius: syn.$radius-lg;
+  color: var(--cc-invalid-color);
+  font-size: syn.$font-size-sm;
+  text-align: center;
 }
 
 .countdown-clock {

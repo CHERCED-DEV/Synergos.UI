@@ -2,7 +2,9 @@
   @if (hasTitle()) {
     <header class="data-grid__header">
       <syn-heading [text]="title()" level="h2" size="lg" class="data-grid__heading" />
-      <p class="data-grid__count" aria-live="polite">{{ resultLabel() }}</p>
+      @if (!loading()) {
+        <p class="data-grid__count" aria-live="polite">{{ resultLabel() }}</p>
+      }
     </header>
   }
 
@@ -23,11 +25,34 @@
     }
 
     <div class="data-grid__results">
-      @if (!hasTitle()) {
+      @if (!hasTitle() && !loading()) {
         <p class="data-grid__count data-grid__count--inline" aria-live="polite">{{ resultLabel() }}</p>
       }
 
-      @if (visibleCards().length > 0) {
+      @if (loading()) {
+        <ul class="data-grid__list data-grid__list--loading" role="list" aria-hidden="true">
+          @for (placeholder of skeletonRows; track placeholder) {
+            <li class="data-grid__item">
+              <article class="property-card property-card--skeleton">
+                <div class="property-card__media-frame">
+                  <span class="property-card__skeleton property-card__skeleton--media"></span>
+                </div>
+                <div class="property-card__body">
+                  <span class="property-card__skeleton property-card__skeleton--title"></span>
+                  <div class="property-card__specs">
+                    <span class="property-card__skeleton property-card__skeleton--spec"></span>
+                    <span class="property-card__skeleton property-card__skeleton--spec"></span>
+                    <span class="property-card__skeleton property-card__skeleton--spec"></span>
+                    <span class="property-card__skeleton property-card__skeleton--spec"></span>
+                  </div>
+                  <span class="property-card__skeleton property-card__skeleton--cta"></span>
+                </div>
+              </article>
+            </li>
+          }
+        </ul>
+        <p class="data-grid__sr" role="status">Cargando propiedades…</p>
+      } @else if (visibleCards().length > 0) {
         <ul class="data-grid__list" role="list">
           @for (card of visibleCards(); track card.id) {
             <li class="data-grid__item">

@@ -36,7 +36,10 @@
     padding: syn.$space-12 syn.$space-xl;
   }
 
-  &--dark {
+  // Theme override: the host applies `sg-hero--<theme>` (not `hero--<theme>`);
+  // also honor the canonical [data-theme] attribute set by the CMS host.
+  &.sg-hero--dark,
+  :host([data-theme='dark']) & {
     --syn-hero-background: var(--syn-gradient-hero-dark, var(--syn-gradient-hero, var(--syn-hero-gradient-fallback)));
     --syn-hero-border: var(--syn-color-border-inverse, transparent);
     --syn-hero-content-background: color-mix(in srgb, var(--syn-color-surface-overlay, #{syn.$color-neutral-800}) 84%, transparent);
@@ -44,11 +47,13 @@
     --syn-hero-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
   }
 
-  &--silver-gold {
+  &.sg-hero--silver-gold,
+  :host([data-theme='silver-gold']) & {
     --syn-hero-background: var(--syn-gradient-hero-silver-gold, var(--syn-gradient-hero, var(--syn-hero-gradient-fallback)));
   }
 
-  &--overlay::before {
+  // Host applies `sg-hero--<variant>`, so target the real class name.
+  &.sg-hero--overlay::before {
     content: '';
     position: absolute;
     inset: 0;

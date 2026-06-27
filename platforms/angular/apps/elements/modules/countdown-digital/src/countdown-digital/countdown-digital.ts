@@ -59,6 +59,7 @@ interface CountdownUnit {
 export interface CountdownDigitalRuntimeConfig {
   readonly targetDate?: string;
   readonly startedLabel?: string;
+  readonly invalidLabel?: string;
   readonly showLabels?: boolean;
   readonly style?: CountdownStyle;
   readonly labels?: Partial<CountdownLabels>;
@@ -105,6 +106,7 @@ function sanitizeCountdownDigitalConfig(
   return omitUndefinedProperties<CountdownDigitalRuntimeConfig>({
     targetDate: coerceTrimmedStringInput(value.targetDate),
     startedLabel: coerceTrimmedStringInput(value.startedLabel),
+    invalidLabel: coerceTrimmedStringInput(value.invalidLabel),
     showLabels: coerceOptionalBooleanInput(value.showLabels),
     style: normalizeStyle(value.style),
     labels: normalizeLabels(value.labels),
@@ -149,6 +151,7 @@ export class CountdownDigitalElementComponent {
     transform: normalizeStyle,
   });
   readonly startedLabelInput = input<string | undefined>(undefined, { alias: 'startedLabel' });
+  readonly invalidLabelInput = input<string | undefined>(undefined, { alias: 'invalidLabel' });
   readonly integration = input<string | undefined>(undefined);
 
   /** Reactive "now", refreshed by the per-second tick. */
@@ -184,6 +187,11 @@ export class CountdownDigitalElementComponent {
 
   readonly startedLabel = computed(() =>
     resolveConfigValue(this.startedLabelInput(), this.config()?.startedLabel, 'El evento ha comenzado'),
+  );
+
+  /** Shown when no valid target date is configured. */
+  readonly invalidLabel = computed(() =>
+    resolveConfigValue(this.invalidLabelInput(), this.config()?.invalidLabel, 'Fecha del evento no disponible'),
   );
 
   readonly remainingMs = computed<number | null>(() => {

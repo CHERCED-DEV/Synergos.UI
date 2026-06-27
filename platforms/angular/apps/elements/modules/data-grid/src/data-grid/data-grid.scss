@@ -16,6 +16,8 @@
   --dg-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --dg-badge-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
   --dg-badge-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --dg-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --dg-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
 
   display: block;
 }
@@ -108,6 +110,10 @@
     color: var(--dg-empty-color);
     font-size: syn.$font-size-sm;
     text-align: center;
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
@@ -224,6 +230,63 @@
     margin-top: auto;
     padding-top: syn.$space-2;
   }
+
+  // ─── Loading skeleton ──────────────────────────────────────────────────────
+  &--skeleton {
+    pointer-events: none;
+
+    &:hover {
+      transform: none;
+      box-shadow: var(--dg-shadow);
+      border-color: var(--dg-border);
+    }
+  }
+
+  &__skeleton {
+    display: block;
+    border-radius: syn.$radius-md;
+    background:
+      linear-gradient(
+        90deg,
+        var(--dg-skeleton-base) 0%,
+        var(--dg-skeleton-highlight) 50%,
+        var(--dg-skeleton-base) 100%
+      );
+    background-size: 200% 100%;
+    animation: data-grid-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
+
+    &--media {
+      inline-size: 100%;
+      block-size: 100%;
+      border-radius: 0;
+    }
+
+    &--title {
+      inline-size: 80%;
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--spec {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(28);
+    }
+
+    &--cta {
+      inline-size: syn.px-to-rem(96);
+      block-size: syn.px-to-rem(16);
+      margin-block-start: auto;
+    }
+  }
+}
+
+@keyframes data-grid-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -238,5 +301,9 @@
 
   .property-card:hover .property-card__media {
     transform: none;
+  }
+
+  .property-card__skeleton {
+    animation: none;
   }
 }

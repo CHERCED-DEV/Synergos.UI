@@ -22,8 +22,10 @@
 
   gap: var(--tg-gap);
 
+  // Theme override: legacy host classes + canonical [data-theme] attribute.
   &--dark,
-  &.sg-tab-group--dark {
+  &.sg-tab-group--dark,
+  :host([data-theme='dark']) & {
     --syn-tabs-list-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
     --syn-tabs-tab-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
     --syn-tabs-tab-color-hover: var(--syn-color-text-primary, #{syn.$color-neutral-100});
@@ -37,7 +39,8 @@
   &--silver-gold,
   &--silverGold,
   &.sg-tab-group--silver-gold,
-  &.sg-tab-group--silverGold {
+  &.sg-tab-group--silverGold,
+  :host([data-theme='silver-gold']) & {
     --syn-tabs-tab-border-active: var(--syn-color-border-strong, #{syn.$color-neutral-400});
   }
 

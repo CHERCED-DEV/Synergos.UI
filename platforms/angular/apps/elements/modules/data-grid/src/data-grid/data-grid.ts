@@ -14,6 +14,7 @@ import {
   type FilterPanelState,
   HeadingComponent,
   LinkComponent,
+  coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -37,6 +38,7 @@ export interface DataGridRuntimeConfig {
   readonly title?: string;
   readonly emptyLabel?: string;
   readonly ctaLabel?: string;
+  readonly loading?: boolean;
   readonly columns?: readonly DataGridColumnConfig[];
   readonly rows?: readonly DataGridRecord[];
   readonly filters?: readonly DataGridFilterConfig[];
@@ -302,6 +304,7 @@ function sanitizeDataGridConfig(value: Partial<DataGridRuntimeConfig>): DataGrid
     title: coerceTrimmedStringInput(value.title),
     emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
     ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
+    loading: coerceOptionalBooleanInput(value.loading),
     columns: value.columns,
     rows: value.rows,
     filters: value.filters,
@@ -327,6 +330,10 @@ export class DataGridElementComponent {
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
   readonly ctaLabelInput = input<string | undefined>(undefined, { alias: 'ctaLabel' });
+  readonly loadingInput = input<boolean | undefined, unknown>(undefined, {
+    alias: 'loading',
+    transform: coerceOptionalBooleanInput,
+  });
   readonly columnsInput = input<string | undefined>(undefined, { alias: 'columns' });
   readonly rowsInput = input<string | undefined>(undefined, { alias: 'rows' });
   readonly filtersInput = input<string | undefined>(undefined, { alias: 'filters' });
@@ -339,6 +346,12 @@ export class DataGridElementComponent {
   readonly ctaLabel = computed(() =>
     resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, 'Ver detalle'),
   );
+  readonly loading = computed(() =>
+    resolveConfigValue(this.loadingInput(), this.config()?.loading, false),
+  );
+
+  /** Placeholder rows for the loading skeleton; mirrors a typical page size. */
+  readonly skeletonRows = [0, 1, 2, 3, 4, 5];
 
   readonly columns = computed<readonly DataGridColumn[]>(() =>
     normalizeColumns(this.resolveSource(this.columnsInput(), this.config()?.columns)),

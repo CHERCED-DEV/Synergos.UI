@@ -14,7 +14,9 @@
   --syn-feature-grid-item-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --syn-feature-grid-header-max-width: #{syn.px-to-rem(760)};
 
-  &.sg-feature-grid--dark {
+  // Theme override: legacy host class + canonical [data-theme] attribute.
+  &.sg-feature-grid--dark,
+  :host([data-theme='dark']) & {
     --syn-feature-grid-item-background: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
     --syn-feature-grid-item-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
     --syn-feature-grid-item-heading: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
@@ -28,11 +30,8 @@
   &__header {
     display: grid;
     justify-items: center;
-    margin-bottom: syn.$space-xl;
-
-    @include syn.respond-to(md) {
-      margin-bottom: syn.$space-12;
-    }
+    // Fluid rhythm avoids the breakpoint jump (CLS) at the md boundary.
+    margin-bottom: clamp(#{syn.$space-xl}, 5vw, #{syn.$space-12});
   }
 
   &__heading {
@@ -43,11 +42,7 @@
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, syn.px-to-rem(260)), 1fr));
-    gap: syn.$space-lg;
-
-    @include syn.respond-to(md) {
-      gap: syn.$space-xl;
-    }
+    gap: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
   }
 
   &__item {

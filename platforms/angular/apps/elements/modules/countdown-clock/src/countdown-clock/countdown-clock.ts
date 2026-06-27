@@ -59,6 +59,7 @@ interface CountdownSegment {
 export interface CountdownClockRuntimeConfig {
   readonly targetDate?: string;
   readonly startedLabel?: string;
+  readonly invalidLabel?: string;
   readonly labels?: Partial<CountdownLabels>;
 }
 
@@ -102,6 +103,7 @@ function sanitizeCountdownClockConfig(
   return omitUndefinedProperties<CountdownClockRuntimeConfig>({
     targetDate: coerceTrimmedStringInput(value.targetDate),
     startedLabel: coerceTrimmedStringInput(value.startedLabel),
+    invalidLabel: coerceTrimmedStringInput(value.invalidLabel),
     labels: normalizeLabels(value.labels),
   });
 }
@@ -136,6 +138,7 @@ export class CountdownClockElementComponent {
   readonly endDateTimeInput = input<string | undefined>(undefined, { alias: 'endDateTime' });
   readonly labelFormatInput = input<string | undefined>(undefined, { alias: 'labelFormat' });
   readonly startedLabelInput = input<string | undefined>(undefined, { alias: 'startedLabel' });
+  readonly invalidLabelInput = input<string | undefined>(undefined, { alias: 'invalidLabel' });
   readonly integration = input<string | undefined>(undefined);
 
   /** Reactive "now", refreshed by the per-second tick. */
@@ -167,6 +170,11 @@ export class CountdownClockElementComponent {
       this.config()?.startedLabel,
       'El evento ha comenzado',
     ),
+  );
+
+  /** Shown when no valid target date is configured. */
+  readonly invalidLabel = computed(() =>
+    resolveConfigValue(this.invalidLabelInput(), this.config()?.invalidLabel, 'Fecha del evento no disponible'),
   );
 
   /** Remaining ms, clamped to >= 0. null when there is no valid target. */

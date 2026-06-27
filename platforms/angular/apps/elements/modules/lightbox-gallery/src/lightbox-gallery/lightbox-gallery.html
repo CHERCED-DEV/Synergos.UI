@@ -1,4 +1,13 @@
-@if (hasImages()) {
+@if (!hasImages()) {
+  <p class="lightbox-gallery__empty" role="status">
+    <svg class="lightbox-gallery__empty-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" />
+      <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
+      <path d="m4 17 4.5-4.5L12 16l3.5-3.5L20 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span class="lightbox-gallery__empty-text">{{ emptyLabel() }}</span>
+  </p>
+} @else {
   <ul
     class="lightbox-gallery__grid"
     role="list"

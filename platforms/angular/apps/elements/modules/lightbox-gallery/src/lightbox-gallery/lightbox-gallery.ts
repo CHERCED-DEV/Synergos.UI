@@ -34,6 +34,7 @@ export interface LightboxGalleryRuntimeConfig {
   readonly images?: readonly LightboxImageConfig[];
   readonly columns?: number;
   readonly closeLabel?: string;
+  readonly emptyLabel?: string;
 }
 
 export interface LightboxImageConfig {
@@ -114,6 +115,7 @@ function sanitizeLightboxGalleryConfig(
     images: value.images,
     columns: clampColumns(coerceOptionalNumberInput(value.columns)),
     closeLabel: coerceTrimmedStringInput(value.closeLabel),
+    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
   });
 }
 
@@ -138,6 +140,7 @@ export class LightboxGalleryElementComponent {
   readonly imagesJsonInput = input<string | undefined>(undefined, { alias: 'imagesJson' });
   readonly columnsInput = input<string | undefined>(undefined, { alias: 'columns' });
   readonly closeLabelInput = input<string | undefined>(undefined, { alias: 'closeLabel' });
+  readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
   readonly integration = input<string | undefined>(undefined);
 
   /** Fired (and mirrored as a native CustomEvent) whenever the open image changes. */
@@ -154,6 +157,10 @@ export class LightboxGalleryElementComponent {
 
   readonly closeLabel = computed(() =>
     resolveConfigValue(this.closeLabelInput(), this.config()?.closeLabel, 'Cerrar galería'),
+  );
+
+  readonly emptyLabel = computed(() =>
+    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No hay imágenes para mostrar.'),
   );
 
   readonly hasImages = computed(() => this.images().length > 0);

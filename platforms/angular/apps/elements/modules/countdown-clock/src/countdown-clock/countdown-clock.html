@@ -25,4 +25,6 @@
       <p class="countdown-clock__sr" aria-live="polite">{{ ariaSummary() }}</p>
     }
   </div>
+} @else {
+  <p class="countdown-clock__invalid" role="status">{{ invalidLabel() }}</p>
 }

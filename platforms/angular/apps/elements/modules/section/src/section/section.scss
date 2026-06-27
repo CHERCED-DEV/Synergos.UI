@@ -71,7 +71,9 @@
     }
   }
 
-  &.sg-section--dark {
+  // Theme override: legacy host class + canonical [data-theme] attribute.
+  &.sg-section--dark,
+  :host([data-theme='dark']) & {
     --syn-module-section-background: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
     --syn-module-section-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
     --syn-module-section-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
@@ -79,7 +81,8 @@
   }
 
   &.sg-section--silver-gold,
-  &.sg-section--silverGold {
+  &.sg-section--silverGold,
+  :host([data-theme='silver-gold']) & {
     --syn-module-section-divider: var(--syn-gradient-divider, transparent);
   }
 

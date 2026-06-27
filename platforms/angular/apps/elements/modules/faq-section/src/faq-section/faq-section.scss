@@ -12,26 +12,25 @@
   max-width: syn.$max-width-reading;
   margin-inline: auto;
 
+  // Theme override: legacy host classes + canonical [data-theme] attribute.
   &--dark,
-  &.sg-faq-section--dark {
+  &.sg-faq-section--dark,
+  :host([data-theme='dark']) & {
     --fs-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
   }
 
   &--silver-gold,
   &--silverGold,
   &.sg-faq-section--silver-gold,
-  &.sg-faq-section--silverGold {
+  &.sg-faq-section--silverGold,
+  :host([data-theme='silver-gold']) & {
     --fs-answer-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
   }
 
   &__header {
     display: grid;
     justify-items: center;
-    margin-bottom: syn.$space-xl;
-
-    @include syn.respond-to(md) {
-      margin-bottom: syn.$space-12;
-    }
+    margin-bottom: clamp(#{syn.$space-xl}, 5vw, #{syn.$space-12});
   }
 
   &__heading {

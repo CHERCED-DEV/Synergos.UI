@@ -19,10 +19,13 @@
 .logo-cloud {
   @include syn.flex-column;
 
-  gap: syn.$space-xl;
+  // Fluid stack rhythm avoids the fixed-gap CLS between header and grid.
+  gap: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
 
+  // Theme override: legacy host classes + canonical [data-theme] attribute.
   &--dark,
-  &.sg-logo-cloud--dark {
+  &.sg-logo-cloud--dark,
+  :host([data-theme='dark']) & {
     --lc-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
     --lc-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
     --lc-frame-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
@@ -35,7 +38,8 @@
   &--silver-gold,
   &--silverGold,
   &.sg-logo-cloud--silver-gold,
-  &.sg-logo-cloud--silverGold {
+  &.sg-logo-cloud--silverGold,
+  :host([data-theme='silver-gold']) & {
     --lc-frame-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
   }
 
@@ -127,7 +131,7 @@
     max-block-size: syn.px-to-rem(48);
     object-fit: contain;
     filter: var(--lc-image-filter);
-    transition: filter syn.$duration-base syn.$easing-smooth;
+    transition: filter var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
 
     .logo-cloud__frame:hover & {
       filter: var(--lc-image-filter-hover);
