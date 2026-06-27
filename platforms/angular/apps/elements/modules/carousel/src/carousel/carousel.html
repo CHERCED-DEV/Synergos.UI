@@ -1,3 +1,17 @@
-<div class="syn-carousel__placeholder" [attr.data-slidesJson]="slidesJson() ?? null" [attr.data-autoplayInterval]="autoplayInterval() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="carousel">
-  <span class="syn-carousel__name">synergos-carousel</span>
-</div>
+<section class="carousel" [attr.aria-label]="title() || 'Galería'">
+  @if (hasTitle()) {
+    <header class="carousel__header">
+      <syn-heading [text]="title()" level="h2" size="md" class="carousel__heading" />
+    </header>
+  }
+
+  <syn-carousel
+    class="carousel__viewport"
+    [items]="slides()"
+    [loop]="loop()"
+    [compact]="compact()"
+    [startIndex]="activeIndex()"
+    [ariaLabel]="title() || 'Galería de la propiedad'"
+    (activeIndexChange)="onActiveIndexChange($event)"
+  />
+</section>

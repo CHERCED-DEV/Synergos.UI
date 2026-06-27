@@ -1,3 +1,66 @@
-<div class="syn-search-box__placeholder" [attr.data-searchPlaceholder]="searchPlaceholder() ?? null" [attr.data-searchEndpoint]="searchEndpoint() ?? null" [attr.data-searchParamName]="searchParamName() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="search-box">
-  <span class="syn-search-box__name">synergos-search-box</span>
-</div>
+<form class="search-box" role="search" (submit)="onSubmit($event)">
+  @if (label()) {
+    <label class="search-box__label" [attr.for]="fieldId">{{ label() }}</label>
+  }
+
+  <div class="search-box__control">
+    <span class="search-box__leading" aria-hidden="true">
+      <syn-icon symbol="🔍" [decorative]="true" size="sm" />
+    </span>
+
+    <input
+      class="search-box__input"
+      [id]="fieldId"
+      type="search"
+      autocomplete="off"
+      spellcheck="false"
+      [value]="query()"
+      [placeholder]="placeholder()"
+      [attr.aria-label]="label() || placeholder()"
+      role="combobox"
+      aria-haspopup="listbox"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="showSuggestions()"
+      [attr.aria-controls]="showSuggestions() ? listboxId : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+    />
+
+    @if (hasQuery()) {
+      <button
+        type="button"
+        class="search-box__clear"
+        aria-label="Limpiar búsqueda"
+        (click)="clear()"
+      >
+        <syn-icon symbol="✕" [decorative]="true" size="sm" />
+      </button>
+    }
+
+    <button type="submit" class="search-box__submit" aria-label="Buscar">
+      <syn-icon symbol="→" [decorative]="true" size="sm" />
+    </button>
+  </div>
+
+  @if (showSuggestions()) {
+    <ul class="search-box__suggestions" role="listbox" [id]="listboxId">
+      @for (suggestion of filteredSuggestions(); track suggestion.id; let index = $index) {
+        <li
+          class="search-box__suggestion"
+          [class.search-box__suggestion--active]="activeSuggestion() === index"
+          role="option"
+          [id]="listboxId + '-option-' + index"
+          [attr.aria-selected]="activeSuggestion() === index"
+          (mousedown)="selectSuggestion(suggestion)"
+          (mouseenter)="activeSuggestion.set(index)"
+        >
+          <syn-icon class="search-box__suggestion-icon" symbol="🔍" [decorative]="true" size="sm" />
+          <span class="search-box__suggestion-label">{{ suggestion.label }}</span>
+        </li>
+      }
+    </ul>
+  }
+</form>

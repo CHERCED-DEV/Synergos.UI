@@ -1,21 +1,193 @@
 @use 'scss' as syn;
 
 :host {
+  --sb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sb-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sb-border-focus: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --sb-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --sb-shadow-focus: var(--syn-shadow-floating, #{syn.$shadow-md});
+  --sb-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sb-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sb-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --sb-submit-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sb-submit-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sb-suggestion-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sb-suggestion-active: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --sb-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-search-box__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.search-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    color: var(--sb-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__control {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-1 syn.$space-1 syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sb-border);
+    border-radius: syn.$radius-full;
+    background: var(--sb-surface);
+    box-shadow: var(--sb-shadow);
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &:focus-within {
+      border-color: var(--sb-border-focus);
+      box-shadow: var(--sb-shadow-focus);
+    }
+  }
+
+  &__leading {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    color: var(--sb-muted);
+  }
+
+  &__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: syn.$space-2 0;
+    border: 0;
+    background: transparent;
+    color: var(--sb-text);
+    font: inherit;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-normal;
+
+    &::placeholder {
+      color: var(--sb-muted);
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    // Hide the native search clear affordance — we render our own.
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      appearance: none;
+    }
+  }
+
+  &__clear,
+  &__submit {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    border: 0;
+    border-radius: syn.$radius-full;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible(var(--sb-focus-ring));
+  }
+
+  &__clear {
+    color: var(--sb-muted);
+    background: transparent;
+
+    &:hover {
+      color: var(--sb-text);
+      background: var(--sb-suggestion-hover);
+    }
+  }
+
+  &__submit {
+    color: var(--sb-submit-text);
+    background: var(--sb-submit-surface);
+
+    &:hover {
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+
+  &__suggestions {
+    position: absolute;
+    top: calc(100% + #{syn.$space-1});
+    right: 0;
+    left: 0;
+    z-index: 20;
+    margin: 0;
+    padding: syn.$space-1;
+    list-style: none;
+
+    @include syn.surface-panel(
+      0,
+      var(--sb-surface),
+      var(--sb-border),
+      syn.px-to-rem(1),
+      syn.$radius-lg,
+      var(--sb-shadow-focus)
+    );
+
+    max-height: syn.px-to-rem(320);
+    overflow-y: auto;
+  }
+
+  &__suggestion {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    color: var(--sb-text);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    cursor: pointer;
+
+    &:hover,
+    &--active {
+      background: var(--sb-suggestion-active);
+    }
+  }
+
+  &__suggestion-icon {
+    flex: 0 0 auto;
+    color: var(--sb-muted);
+  }
+
+  &__suggestion-label {
+    flex: 1 1 auto;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }
 
-.syn-search-box__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .search-box__control,
+  .search-box__clear,
+  .search-box__submit {
+    transition: none;
+  }
+
+  .search-box__submit:hover,
+  .search-box__submit:active {
+    transform: none;
+  }
 }

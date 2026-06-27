@@ -1,21 +1,28 @@
 @use 'scss' as syn;
 
 :host {
+  --carousel-stage-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --carousel-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-carousel__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: block;
   }
-}
 
-.syn-carousel__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  &__heading {
+    display: block;
+    color: var(--carousel-heading-color);
+  }
+
+  &__viewport {
+    display: block;
+  }
 }

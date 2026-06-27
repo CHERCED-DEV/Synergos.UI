@@ -1,3 +1,154 @@
-<div class="syn-form-stepper__placeholder" [attr.data-stepsJson]="stepsJson() ?? null" [attr.data-submitEndpoint]="submitEndpoint() ?? null" [attr.data-allowSkip]="allowSkip() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="form-stepper">
-  <span class="syn-form-stepper__name">synergos-form-stepper</span>
-</div>
+@if (hasSteps()) {
+  <div class="form-stepper">
+    <ol class="form-stepper__indicator" role="list">
+      @for (item of indicators(); track item.index) {
+        <li
+          class="form-stepper__indicator-item"
+          [class.form-stepper__indicator-item--active]="item.active"
+          [class.form-stepper__indicator-item--completed]="item.completed"
+          [attr.aria-current]="item.active ? 'step' : null"
+        >
+          <span class="form-stepper__indicator-marker" aria-hidden="true">
+            @if (item.completed && !item.active) {
+              <svg viewBox="0 0 16 16" class="form-stepper__check" focusable="false">
+                <path d="M3 8.5l3.2 3.2L13 5" />
+              </svg>
+            } @else {
+              {{ item.index + 1 }}
+            }
+          </span>
+          <span class="form-stepper__indicator-label">{{ item.title }}</span>
+        </li>
+      }
+    </ol>
+
+    @if (completed()) {
+      <div class="form-stepper__done" role="status">
+        <p class="form-stepper__done-text">¡Gracias! Tu información fue enviada.</p>
+      </div>
+    } @else if (currentStep(); as step) {
+      <form class="form-stepper__panel" (submit)="$event.preventDefault()" novalidate>
+        <h3 class="form-stepper__step-title" tabindex="-1">{{ step.title }}</h3>
+        @if (step.description) {
+          <p class="form-stepper__step-description">{{ step.description }}</p>
+        }
+
+        <div class="form-stepper__fields">
+          @for (field of step.fields; track field.name) {
+            <div
+              class="form-stepper__field"
+              [class.form-stepper__field--checkbox]="field.type === 'checkbox'"
+            >
+              @switch (field.type) {
+                @case ('checkbox') {
+                  <label class="form-stepper__checkbox-label">
+                    <input
+                      class="form-stepper__checkbox"
+                      type="checkbox"
+                      [name]="field.name"
+                      [checked]="isChecked(field.name)"
+                      [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
+                      [attr.aria-required]="field.required ? 'true' : null"
+                      (change)="onCheckboxChange(field.name, $event)"
+                    />
+                    <span class="form-stepper__label-text">
+                      {{ field.label }}
+                      @if (field.required) {
+                        <span class="form-stepper__required" aria-hidden="true">*</span>
+                      }
+                    </span>
+                  </label>
+                }
+                @case ('textarea') {
+                  <label class="form-stepper__label" [attr.for]="'fs-' + field.name">
+                    {{ field.label }}
+                    @if (field.required) {
+                      <span class="form-stepper__required" aria-hidden="true">*</span>
+                    }
+                  </label>
+                  <textarea
+                    class="form-stepper__control"
+                    [id]="'fs-' + field.name"
+                    [name]="field.name"
+                    [placeholder]="field.placeholder"
+                    [value]="textValue(field.name)"
+                    [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
+                    [attr.aria-required]="field.required ? 'true' : null"
+                    rows="3"
+                    (input)="onTextInput(field.name, $event)"
+                  ></textarea>
+                }
+                @case ('select') {
+                  <label class="form-stepper__label" [attr.for]="'fs-' + field.name">
+                    {{ field.label }}
+                    @if (field.required) {
+                      <span class="form-stepper__required" aria-hidden="true">*</span>
+                    }
+                  </label>
+                  <select
+                    class="form-stepper__control"
+                    [id]="'fs-' + field.name"
+                    [name]="field.name"
+                    [value]="textValue(field.name)"
+                    [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
+                    [attr.aria-required]="field.required ? 'true' : null"
+                    (change)="onTextInput(field.name, $event)"
+                  >
+                    <option value="" disabled selected>
+                      {{ field.placeholder || 'Selecciona una opción' }}
+                    </option>
+                    @for (option of field.options; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                }
+                @default {
+                  <label class="form-stepper__label" [attr.for]="'fs-' + field.name">
+                    {{ field.label }}
+                    @if (field.required) {
+                      <span class="form-stepper__required" aria-hidden="true">*</span>
+                    }
+                  </label>
+                  <input
+                    class="form-stepper__control"
+                    [id]="'fs-' + field.name"
+                    [type]="field.type"
+                    [name]="field.name"
+                    [placeholder]="field.placeholder"
+                    [value]="textValue(field.name)"
+                    [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
+                    [attr.aria-required]="field.required ? 'true' : null"
+                    (input)="onTextInput(field.name, $event)"
+                  />
+                }
+              }
+              @if (hasError(field.name)) {
+                <span class="form-stepper__error" role="alert">Este campo es obligatorio.</span>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="form-stepper__actions">
+          <button
+            type="button"
+            class="form-stepper__btn form-stepper__btn--ghost"
+            [disabled]="isFirst()"
+            (click)="back()"
+          >
+            Atrás
+          </button>
+          @if (isLast()) {
+            <button type="button" class="form-stepper__btn form-stepper__btn--primary" (click)="submit()">
+              Enviar
+            </button>
+          } @else {
+            <button type="button" class="form-stepper__btn form-stepper__btn--primary" (click)="next()">
+              Siguiente
+            </button>
+          }
+        </div>
+      </form>
+    }
+  </div>
+}

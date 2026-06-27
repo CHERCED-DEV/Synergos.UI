@@ -1,3 +1,88 @@
-<div class="syn-data-grid__placeholder" [attr.data-dataSource]="dataSource() ?? null" [attr.data-columnsJson]="columnsJson() ?? null" [attr.data-pageSize]="pageSize() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="data-grid">
-  <span class="syn-data-grid__name">synergos-data-grid</span>
-</div>
+<section class="data-grid" [attr.aria-label]="title() || 'Listado de propiedades'">
+  @if (hasTitle()) {
+    <header class="data-grid__header">
+      <syn-heading [text]="title()" level="h2" size="lg" class="data-grid__heading" />
+      <p class="data-grid__count" aria-live="polite">{{ resultLabel() }}</p>
+    </header>
+  }
+
+  <div class="data-grid__layout" [class.data-grid__layout--no-aside]="!hasFilters() && !hasSort()">
+    @if (hasFilters() || hasSort()) {
+      <aside class="data-grid__aside">
+        <syn-filter-panel
+          title="Filtros"
+          [ariaLabel]="'Filtrar ' + (title() || 'propiedades')"
+          commitMode="immediate"
+          [sections]="filterSections()"
+          [sortOptions]="panelSortOptions()"
+          sortLabel="Ordenar por"
+          (stateChange)="onFilterStateChange($event)"
+          (applied)="onFilterStateChange($event)"
+        />
+      </aside>
+    }
+
+    <div class="data-grid__results">
+      @if (!hasTitle()) {
+        <p class="data-grid__count data-grid__count--inline" aria-live="polite">{{ resultLabel() }}</p>
+      }
+
+      @if (visibleCards().length > 0) {
+        <ul class="data-grid__list" role="list">
+          @for (card of visibleCards(); track card.id) {
+            <li class="data-grid__item">
+              <article class="property-card">
+                <div class="property-card__media-frame">
+                  @if (card.imageSrc) {
+                    <img
+                      class="property-card__media"
+                      [src]="card.imageSrc"
+                      [alt]="card.imageAlt"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  } @else {
+                    <div class="property-card__placeholder" aria-hidden="true"></div>
+                  }
+
+                  @if (card.badge) {
+                    <span class="property-card__badge">{{ card.badge }}</span>
+                  }
+                </div>
+
+                <div class="property-card__body">
+                  <h3 class="property-card__title">{{ card.title }}</h3>
+
+                  @if (card.specs.length > 0) {
+                    <dl class="property-card__specs">
+                      @for (spec of card.specs; track spec.key) {
+                        <div class="property-card__spec">
+                          <dt class="property-card__spec-label">{{ spec.label }}</dt>
+                          <dd class="property-card__spec-value">{{ spec.value }}</dd>
+                        </div>
+                      }
+                    </dl>
+                  }
+
+                  @if (card.ctaHref) {
+                    <div class="property-card__actions">
+                      <syn-link
+                        [href]="card.ctaHref"
+                        [label]="ctaLabel()"
+                        tone="brand"
+                        [underline]="false"
+                        [ariaLabel]="ctaLabel() + ': ' + card.title"
+                      />
+                    </div>
+                  }
+                </div>
+              </article>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="data-grid__empty" role="status">{{ emptyLabel() }}</p>
+      }
+    </div>
+  </div>
+</section>

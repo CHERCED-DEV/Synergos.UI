@@ -1,21 +1,106 @@
 @use 'scss' as syn;
 
 :host {
+  --cd-cell-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --cd-cell-border: var(--syn-color-border-strong, #{syn.$color-neutral-700});
+  --cd-digit-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --cd-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cd-separator-color: var(--syn-color-text-accent, #{syn.$color-brand-500});
+  --cd-started-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-countdown-digital__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.countdown-digital {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__units {
+    display: flex;
+    flex-wrap: wrap;
+    gap: clamp(#{syn.$space-sm}, 3vw, #{syn.$space-lg});
+    align-items: flex-start;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-inline-size: clamp(#{syn.px-to-rem(56)}, 12vw, #{syn.px-to-rem(96)});
+    padding: clamp(#{syn.$space-sm}, 2vw, #{syn.$space-lg}) syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--cd-cell-border);
+    border-radius: syn.$radius-xl;
+    background: var(--cd-cell-surface);
+    overflow: hidden;
+  }
+
+  &__digits {
+    color: var(--cd-digit-color);
+    font-size: clamp(#{syn.$font-size-3xl}, 8vw, #{syn.$font-size-5xl});
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: syn.$letter-spacing-display;
+  }
+
+  &__label {
+    color: var(--cd-label-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    text-transform: uppercase;
+  }
+
+  &__started {
+    margin: 0;
+    color: var(--cd-started-color);
+    font-size: clamp(#{syn.$font-size-xl}, 3vw, #{syn.$font-size-3xl});
+    font-weight: syn.$font-weight-bold;
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-countdown-digital__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// Flip animation: the digit span is a fresh DOM node each time its text
+// changes (keyed by value in the template), so it animates in on swap.
+:host(.sg-countdown-digital--flip) .countdown-digital__digits {
+  animation: cd-flip-in var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+  transform-origin: center top;
+  backface-visibility: hidden;
+}
+
+@keyframes cd-flip-in {
+  from {
+    transform: rotateX(-90deg);
+    opacity: 0;
+  }
+
+  to {
+    transform: rotateX(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host(.sg-countdown-digital--flip) .countdown-digital__digits {
+    animation: none;
+  }
 }

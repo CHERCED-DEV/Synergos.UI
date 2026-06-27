@@ -1,3 +1,23 @@
-<div class="syn-countdown-digital__placeholder" [attr.data-endDateTime]="endDateTime() ?? null" [attr.data-showLabels]="showLabels() ?? null" [attr.data-style]="style() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="countdown-digital">
-  <span class="syn-countdown-digital__name">synergos-countdown-digital</span>
-</div>
+@if (hasTarget()) {
+  <div class="countdown-digital" role="timer" [attr.aria-label]="ariaSummary()">
+    @if (hasStarted()) {
+      <p class="countdown-digital__started" aria-live="polite">{{ startedLabel() }}</p>
+    } @else {
+      <ol class="countdown-digital__units" aria-hidden="true">
+        @for (unit of units(); track unit.key) {
+          <li class="countdown-digital__unit">
+            <span class="countdown-digital__cell">
+              @for (cell of [unit.display]; track cell) {
+                <span class="countdown-digital__digits">{{ cell }}</span>
+              }
+            </span>
+            @if (showLabels()) {
+              <span class="countdown-digital__label">{{ unit.label }}</span>
+            }
+          </li>
+        }
+      </ol>
+      <p class="countdown-digital__sr" aria-live="polite">{{ ariaSummary() }}</p>
+    }
+  </div>
+}

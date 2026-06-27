@@ -1,3 +1,28 @@
-<div class="syn-countdown-clock__placeholder" [attr.data-endDateTime]="endDateTime() ?? null" [attr.data-labelFormat]="labelFormat() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="countdown-clock">
-  <span class="syn-countdown-clock__name">synergos-countdown-clock</span>
-</div>
+@if (hasTarget()) {
+  <div class="countdown-clock" role="timer" [attr.aria-label]="ariaSummary()">
+    @if (hasStarted()) {
+      <p class="countdown-clock__started" aria-live="polite">{{ startedLabel() }}</p>
+    } @else {
+      <ul class="countdown-clock__rings" aria-hidden="true">
+        @for (segment of segments(); track segment.key) {
+          <li class="countdown-clock__ring countdown-clock__ring--{{ segment.key }}">
+            <svg class="countdown-clock__svg" viewBox="0 0 100 100" focusable="false">
+              <circle class="countdown-clock__track" cx="50" cy="50" r="42" />
+              <circle
+                class="countdown-clock__progress"
+                cx="50"
+                cy="50"
+                r="42"
+                [style.stroke-dasharray]="ringCircumference"
+                [style.stroke-dashoffset]="ringOffset(segment.fraction)"
+              />
+            </svg>
+            <span class="countdown-clock__value">{{ segment.display }}</span>
+            <span class="countdown-clock__label">{{ segment.label }}</span>
+          </li>
+        }
+      </ul>
+      <p class="countdown-clock__sr" aria-live="polite">{{ ariaSummary() }}</p>
+    }
+  </div>
+}

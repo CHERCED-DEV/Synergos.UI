@@ -11,6 +11,22 @@
   </head>
   <body>
     <h1>synergos-form-stepper · standalone preview</h1>
-    <synergos-form-stepper></synergos-form-stepper>
+    <synergos-form-stepper
+      stepsJson='[
+        {"title":"Tus datos","description":"Cuéntanos quién asiste.","fields":[
+          {"name":"name","label":"Nombre completo","type":"text","required":true,"placeholder":"Ada Lovelace"},
+          {"name":"email","label":"Correo","type":"email","required":true,"placeholder":"ada@correo.com"}
+        ]},
+        {"title":"Preferencias","fields":[
+          {"name":"track","label":"Pista de interés","type":"select","required":true,"options":[
+            {"value":"design","label":"Diseño"},{"value":"eng","label":"Ingeniería"}
+          ]},
+          {"name":"notes","label":"Comentarios","type":"textarea","placeholder":"Opcional"}
+        ]},
+        {"title":"Confirmar","fields":[
+          {"name":"terms","label":"Acepto los términos","type":"checkbox","required":true}
+        ]}
+      ]'
+    ></synergos-form-stepper>
   </body>
 </html>

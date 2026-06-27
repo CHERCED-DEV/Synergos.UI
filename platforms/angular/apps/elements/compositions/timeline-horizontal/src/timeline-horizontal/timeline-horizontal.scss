@@ -1,21 +1,136 @@
 @use 'scss' as syn;
 
 :host {
+  --th-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --th-surface-alt: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --th-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --th-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --th-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --th-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --th-accent-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --th-label-width: #{syn.px-to-rem(120)};
+  --th-col-width: #{syn.px-to-rem(180)};
+  --th-axis-height: #{syn.px-to-rem(40)};
+  --th-row-height: #{syn.px-to-rem(88)};
+
   display: block;
   max-width: 100%;
+  color: var(--th-text);
 }
 
-// SCAFFOLD - no publicar
-.syn-timeline-horizontal__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.timeline-horizontal {
+  border: syn.px-to-rem(1) solid var(--th-border);
+  border-radius: syn.$radius-xl;
+  background: var(--th-surface);
+  overflow: hidden;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+
+    @include syn.custom-scrollbar;
+    @include syn.focus-visible;
+
+    &--snap {
+      scroll-snap-type: x proximity;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    min-inline-size: max-content;
+    gap: syn.px-to-rem(1);
+    background: var(--th-border);
+  }
+
+  &__corner {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 3;
+    background: var(--th-surface-alt);
+  }
+
+  &__hour {
+    display: flex;
+    align-items: center;
+    padding-inline: syn.$space-md;
+    background: var(--th-surface-alt);
+    color: var(--th-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: syn.$letter-spacing-wide;
+
+    .timeline-horizontal__scroll--snap & {
+      scroll-snap-align: start;
+    }
+  }
+
+  &__track-label {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    padding: syn.$space-md;
+    background: var(--th-surface-alt);
+    color: var(--th-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin: syn.$space-2;
+    padding: syn.$space-sm syn.$space-md;
+    border-inline-start: syn.px-to-rem(3) solid var(--th-accent);
+    border-radius: syn.$radius-md;
+    background: var(--th-accent-surface);
+    transition:
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    &:hover {
+      transform: translateY(#{syn.px-to-rem(-2)});
+      box-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+    }
+  }
+
+  &__item-time {
+    color: var(--th-accent);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__item-title {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-wrap: pretty;
+  }
+
+  &__item-desc {
+    margin: 0;
+    color: var(--th-muted);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
   }
 }
 
-.syn-timeline-horizontal__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .timeline-horizontal__item {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
 }

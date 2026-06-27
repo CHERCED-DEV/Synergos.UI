@@ -1,21 +1,242 @@
 @use 'scss' as syn;
 
 :host {
+  --dg-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --dg-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --dg-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --dg-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --dg-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --dg-media-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --dg-placeholder-start: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --dg-placeholder-end: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --dg-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --dg-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dg-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --dg-count-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --dg-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dg-badge-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --dg-badge-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-data-grid__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.data-grid {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-lg;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-2 syn.$space-md;
+  }
+
+  &__heading {
+    display: block;
+    color: var(--dg-title-color);
+  }
+
+  &__count {
+    margin: 0;
+    color: var(--dg-count-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+
+    &--inline {
+      margin-bottom: syn.$space-md;
+    }
+  }
+
+  &__layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-lg;
+
+    @include syn.respond-to(lg) {
+      grid-template-columns: minmax(#{syn.px-to-rem(240)}, #{syn.px-to-rem(300)}) minmax(0, 1fr);
+      gap: syn.$space-xl;
+    }
+
+    &--no-aside {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__aside {
+    display: block;
+
+    @include syn.respond-to(lg) {
+      position: sticky;
+      top: syn.$space-md;
+      align-self: start;
+    }
+  }
+
+  &__results {
+    min-width: 0;
+  }
+
+  &__list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-md;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @include syn.respond-to(sm) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @include syn.respond-to(xl) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  &__item {
+    display: block;
+    min-width: 0;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-xl;
+    border: syn.px-to-rem(1) dashed var(--dg-border);
+    border-radius: syn.$radius-lg;
+    color: var(--dg-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-data-grid__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.property-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: syn.px-to-rem(1) solid var(--dg-border);
+  border-radius: syn.$radius-xl;
+  background: var(--dg-surface);
+  box-shadow: var(--dg-shadow);
+  transition:
+    box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+    transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+    border-color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+
+  &:hover {
+    border-color: var(--dg-border-subtle);
+    box-shadow: var(--dg-shadow-hover);
+    transform: translateY(#{syn.px-to-rem(-3)});
+  }
+
+  &__media-frame {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--dg-media-surface);
+  }
+
+  &__media {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-default;
+
+    .property-card:hover & {
+      transform: scale(1.04);
+    }
+  }
+
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--dg-placeholder-start), var(--dg-placeholder-end));
+  }
+
+  &__badge {
+    position: absolute;
+    top: syn.$space-2;
+    left: syn.$space-2;
+    padding: syn.$space-1 syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--dg-badge-surface);
+    color: var(--dg-badge-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--dg-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-wrap: balance;
+  }
+
+  &__specs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: syn.$space-2 syn.$space-3;
+    margin: 0;
+  }
+
+  &__spec {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    min-width: 0;
+  }
+
+  &__spec-label {
+    margin: 0;
+    color: var(--dg-label-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__spec-value {
+    margin: 0;
+    overflow: hidden;
+    color: var(--dg-value-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__actions {
+    margin-top: auto;
+    padding-top: syn.$space-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .property-card,
+  .property-card__media {
+    transition: none;
+  }
+
+  .property-card:hover {
+    transform: none;
+  }
+
+  .property-card:hover .property-card__media {
+    transform: none;
+  }
 }

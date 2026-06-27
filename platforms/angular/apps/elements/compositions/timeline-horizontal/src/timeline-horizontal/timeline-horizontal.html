@@ -1,3 +1,55 @@
-<div class="syn-timeline-horizontal__placeholder" [attr.data-eventsJson]="eventsJson() ?? null" [attr.data-snapEnabled]="snapEnabled() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="timeline-horizontal">
-  <span class="syn-timeline-horizontal__name">synergos-timeline-horizontal</span>
-</div>
+@if (hasItems()) {
+  <div class="timeline-horizontal" role="group" aria-label="Agenda del evento">
+    <div
+      class="timeline-horizontal__scroll"
+      [class.timeline-horizontal__scroll--snap]="snap()"
+      tabindex="0"
+    >
+      <div
+        class="timeline-horizontal__grid"
+        [style.grid-template-columns]="gridColumns()"
+        [style.grid-template-rows]="gridRows()"
+      >
+        <!-- Corner cell -->
+        <div class="timeline-horizontal__corner" style="grid-row: 1; grid-column: 1" aria-hidden="true"></div>
+
+        <!-- Hour axis -->
+        @for (hour of hours(); track hour.column) {
+          <div
+            class="timeline-horizontal__hour"
+            [style.grid-row]="1"
+            [style.grid-column]="hour.column"
+          >
+            {{ hour.label }}
+          </div>
+        }
+
+        <!-- Track labels -->
+        @for (track of tracks(); track track.row) {
+          <div
+            class="timeline-horizontal__track-label"
+            [style.grid-row]="track.row"
+            [style.grid-column]="1"
+          >
+            {{ track.label }}
+          </div>
+        }
+
+        <!-- Items -->
+        @for (item of placedItems(); track item.title + item.time + item.track) {
+          <article
+            class="timeline-horizontal__item"
+            [style.grid-row]="item.row"
+            [style.grid-column]="item.column"
+          >
+            <span class="timeline-horizontal__item-time">{{ item.time }}</span>
+            <h4 class="timeline-horizontal__item-title">{{ item.title }}</h4>
+            @if (item.description) {
+              <p class="timeline-horizontal__item-desc">{{ item.description }}</p>
+            }
+          </article>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -1,21 +1,114 @@
 @use 'scss' as syn;
 
 :host {
+  --cc-ring-track: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cc-ring-progress: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cc-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cc-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cc-started-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cc-ring-size: #{syn.px-to-rem(112)};
+  --cc-ring-stroke: #{syn.px-to-rem(6)};
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-countdown-clock__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.countdown-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__rings {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: clamp(#{syn.$space-md}, 4vw, #{syn.$space-xl});
+    align-items: start;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @include syn.respond-below(sm) {
+      grid-template-columns: repeat(2, auto);
+      gap: syn.$space-lg;
+    }
+  }
+
+  &__ring {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: var(--cc-ring-size);
+    block-size: var(--cc-ring-size);
+  }
+
+  &__svg {
+    position: absolute;
+    inset: 0;
+    inline-size: 100%;
+    block-size: 100%;
+    transform: rotate(-90deg);
+  }
+
+  &__track {
+    fill: none;
+    stroke: var(--cc-ring-track);
+    stroke-width: var(--cc-ring-stroke);
+  }
+
+  &__progress {
+    fill: none;
+    stroke: var(--cc-ring-progress);
+    stroke-width: var(--cc-ring-stroke);
+    stroke-linecap: round;
+    transition:
+      stroke-dashoffset var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+  }
+
+  &__value {
+    position: relative;
+    z-index: 1;
+    color: var(--cc-value-color);
+    font-size: clamp(#{syn.$font-size-2xl}, 4vw, #{syn.$font-size-4xl});
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: syn.$letter-spacing-display;
+  }
+
+  &__label {
+    position: absolute;
+    inset-block-end: #{syn.px-to-rem(-22)};
+    z-index: 1;
+    color: var(--cc-label-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    text-transform: uppercase;
+  }
+
+  &__started {
+    margin: 0;
+    color: var(--cc-started-color);
+    font-size: clamp(#{syn.$font-size-xl}, 3vw, #{syn.$font-size-3xl});
+    font-weight: syn.$font-weight-bold;
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  // Bottom labels need breathing room below the rings.
+  &__rings + .countdown-clock__sr {
+    margin-block-start: syn.$space-md;
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-countdown-clock__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .countdown-clock__progress {
+    transition: none;
+  }
 }
