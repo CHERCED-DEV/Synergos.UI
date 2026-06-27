@@ -1,0 +1,153 @@
+<section class="pax-selector" [attr.aria-label]="'Selector de ocupación'">
+  <header class="pax-selector__header">
+    <p class="pax-selector__summary" aria-live="polite">{{ summary() }}</p>
+  </header>
+
+  <ol class="pax-selector__rooms" role="list">
+    @for (room of rooms(); track trackRoom($index); let roomIndex = $index) {
+      <li class="pax-selector__room">
+        <div class="pax-selector__room-header">
+          <h3 class="pax-selector__room-title">Habitación {{ roomIndex + 1 }}</h3>
+          @if (canRemoveRoom()) {
+            <button
+              type="button"
+              class="pax-selector__room-remove"
+              [attr.aria-label]="'Quitar habitación ' + (roomIndex + 1)"
+              (click)="removeRoom(roomIndex)"
+            >
+              <syn-icon symbol="✕" [decorative]="true" size="sm" />
+              <span class="pax-selector__room-remove-label">Quitar</span>
+            </button>
+          }
+        </div>
+
+        <!-- Adults stepper -->
+        <div class="pax-selector__row">
+          <div class="pax-selector__row-meta">
+            <span class="pax-selector__row-label">Adultos</span>
+            <span class="pax-selector__row-hint">12 años o más</span>
+          </div>
+          <div
+            class="pax-selector__stepper"
+            role="group"
+            [attr.aria-label]="'Adultos en habitación ' + (roomIndex + 1)"
+          >
+            <button
+              type="button"
+              class="pax-selector__step"
+              [disabled]="!canRemoveAdult(room)"
+              [attr.aria-label]="'Quitar un adulto de la habitación ' + (roomIndex + 1)"
+              (click)="removeAdult(roomIndex)"
+            >
+              <syn-icon symbol="−" [decorative]="true" size="sm" />
+            </button>
+            <output
+              class="pax-selector__count"
+              aria-live="polite"
+              [attr.aria-label]="room.adults + ' adultos en la habitación ' + (roomIndex + 1)"
+            >{{ room.adults }}</output>
+            <button
+              type="button"
+              class="pax-selector__step"
+              [disabled]="!canAddAdult(room)"
+              [attr.aria-label]="'Agregar un adulto a la habitación ' + (roomIndex + 1)"
+              (click)="addAdult(roomIndex)"
+            >
+              <syn-icon symbol="+" [decorative]="true" size="sm" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Children stepper -->
+        <div class="pax-selector__row">
+          <div class="pax-selector__row-meta">
+            <span class="pax-selector__row-label">Niños</span>
+            <span class="pax-selector__row-hint">0 a {{ maxChildAge() }} años</span>
+          </div>
+          <div
+            class="pax-selector__stepper"
+            role="group"
+            [attr.aria-label]="'Niños en habitación ' + (roomIndex + 1)"
+          >
+            <button
+              type="button"
+              class="pax-selector__step"
+              [disabled]="!canRemoveChild(room)"
+              [attr.aria-label]="'Quitar un niño de la habitación ' + (roomIndex + 1)"
+              (click)="removeChild(roomIndex, room.childAges.length - 1)"
+            >
+              <syn-icon symbol="−" [decorative]="true" size="sm" />
+            </button>
+            <output
+              class="pax-selector__count"
+              aria-live="polite"
+              [attr.aria-label]="room.childAges.length + ' niños en la habitación ' + (roomIndex + 1)"
+            >{{ room.childAges.length }}</output>
+            <button
+              type="button"
+              class="pax-selector__step"
+              [disabled]="!canAddChild(room)"
+              [attr.aria-label]="'Agregar un niño a la habitación ' + (roomIndex + 1)"
+              (click)="addChild(roomIndex)"
+            >
+              <syn-icon symbol="+" [decorative]="true" size="sm" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Per-child age selectors -->
+        @if (room.childAges.length > 0) {
+          <fieldset class="pax-selector__ages">
+            <legend class="pax-selector__ages-legend">Edad de cada niño</legend>
+            <ul class="pax-selector__ages-list" role="list">
+              @for (age of room.childAges; track trackChild($index); let childIndex = $index) {
+                <li class="pax-selector__age">
+                  <label
+                    class="pax-selector__age-label"
+                    [attr.for]="fieldId + '-r' + roomIndex + '-c' + childIndex"
+                  >
+                    Niño {{ childIndex + 1 }}
+                  </label>
+                  <select
+                    class="pax-selector__age-select"
+                    [id]="fieldId + '-r' + roomIndex + '-c' + childIndex"
+                    [value]="age"
+                    [attr.aria-label]="'Edad del niño ' + (childIndex + 1) + ' en la habitación ' + (roomIndex + 1)"
+                    (change)="setChildAge(roomIndex, childIndex, $event)"
+                  >
+                    @for (option of childAgeOptions(); track option) {
+                      <option [value]="option" [selected]="option === age">
+                        {{ option }} {{ option === 1 ? 'año' : 'años' }}
+                      </option>
+                    }
+                  </select>
+                  <button
+                    type="button"
+                    class="pax-selector__age-remove"
+                    [attr.aria-label]="'Quitar al niño ' + (childIndex + 1) + ' de la habitación ' + (roomIndex + 1)"
+                    (click)="removeChild(roomIndex, childIndex)"
+                  >
+                    <syn-icon symbol="✕" [decorative]="true" size="sm" />
+                  </button>
+                </li>
+              }
+            </ul>
+          </fieldset>
+        }
+      </li>
+    }
+  </ol>
+
+  <div class="pax-selector__footer">
+    <button
+      type="button"
+      class="pax-selector__add-room"
+      [disabled]="!canAddRoom()"
+      aria-label="Agregar otra habitación"
+      (click)="addRoom()"
+    >
+      <syn-icon symbol="+" [decorative]="true" size="sm" />
+      <span class="pax-selector__add-room-label">Agregar habitación</span>
+    </button>
+  </div>
+</section>
