@@ -1,21 +1,125 @@
 @use 'scss' as syn;
 
 :host {
+  --fab-surface: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --fab-surface-hover: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --fab-on-surface: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --fab-shadow: var(--syn-shadow-lg, #{syn.$shadow-lg});
+  --fab-tooltip-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --fab-tooltip-color: var(--syn-color-text-on-inverse, #{syn.$color-neutral-0});
+  --fab-edge: #{syn.$space-5};
+
+  position: fixed;
+  z-index: syn.$z-sticky;
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-fab__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+:host([data-position='bottom-right']) {
+  inset-block-end: var(--fab-edge);
+  inset-inline-end: var(--fab-edge);
+}
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+:host([data-position='bottom-left']) {
+  inset-block-end: var(--fab-edge);
+  inset-inline-start: var(--fab-edge);
+}
+
+:host([data-position='top-right']) {
+  inset-block-start: var(--fab-edge);
+  inset-inline-end: var(--fab-edge);
+}
+
+:host([data-position='top-left']) {
+  inset-block-start: var(--fab-edge);
+  inset-inline-start: var(--fab-edge);
+}
+
+.fab {
+  position: relative;
+  display: inline-flex;
+
+  &__trigger {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(56);
+    block-size: syn.px-to-rem(56);
+    padding: 0;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-full;
+    background: var(--fab-surface);
+    color: var(--fab-on-surface);
+    box-shadow: var(--fab-shadow);
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--fab-surface-hover);
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(24);
+    block-size: syn.px-to-rem(24);
+  }
+
+  &__tooltip {
+    position: absolute;
+    inset-block-end: 50%;
+    inset-inline-end: calc(100% + #{syn.$space-2});
+    z-index: syn.$z-tooltip;
+    max-inline-size: syn.px-to-rem(220);
+    padding: syn.$space-1 syn.$space-2;
+    border-radius: syn.$radius-sm;
+    background: var(--fab-tooltip-surface);
+    color: var(--fab-tooltip-color);
+    box-shadow: var(--syn-shadow-md, #{syn.$shadow-md});
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(50%) translateX(#{syn.px-to-rem(4)});
+    transition:
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    &--visible {
+      opacity: 1;
+      transform: translateY(50%) translateX(0);
+    }
   }
 }
 
-.syn-fab__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// Tooltip flips to the right edge of the trigger for left-anchored FABs.
+:host([data-position$='-left']) .fab__tooltip {
+  inset-inline-end: auto;
+  inset-inline-start: calc(100% + #{syn.$space-2});
+  transform: translateY(50%) translateX(#{syn.px-to-rem(-4)});
+
+  &.fab__tooltip--visible {
+    transform: translateY(50%) translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab__trigger,
+  .fab__tooltip {
+    transition: none;
+  }
+
+  .fab__trigger:hover {
+    transform: none;
+  }
 }

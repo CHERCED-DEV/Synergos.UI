@@ -1,3 +1,48 @@
-<div class="syn-code-block__placeholder" [attr.data-code]="code() ?? null" [attr.data-language]="language() ?? null" [attr.data-showLineNumbers]="showLineNumbers() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="code-block">
-  <span class="syn-code-block__name">synergos-code-block</span>
-</div>
+<figure class="code-block">
+  @if (hasHeader()) {
+    <figcaption class="code-block__header">
+      <div class="code-block__meta">
+        @if (filename()) {
+          <span class="code-block__filename">{{ filename() }}</span>
+        }
+        @if (language()) {
+          <span class="code-block__language">{{ language() }}</span>
+        }
+      </div>
+
+      @if (hasCode()) {
+        <button
+          type="button"
+          class="code-block__copy"
+          [class.code-block__copy--done]="copied()"
+          [attr.aria-label]="copyButtonLabel()"
+          [attr.aria-live]="'polite'"
+          (click)="copy()"
+        >
+          <svg class="code-block__copy-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            @if (copied()) {
+              <path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            } @else {
+              <path d="M9 9V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-4M5 9h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            }
+          </svg>
+          <span class="code-block__copy-label">{{ copyButtonLabel() }}</span>
+        </button>
+      }
+    </figcaption>
+  }
+
+  @if (hasCode()) {
+    <pre
+      class="code-block__pre"
+      [class.code-block__pre--numbered]="showLineNumbers()"
+      [attr.data-language]="language() || null"
+      tabindex="0"
+      role="group"
+      [attr.aria-label]="filename() || language() || 'Bloque de código'"
+    ><code class="code-block__code">@for (line of lines(); track line.number) {<span class="code-block__line">@if (showLineNumbers()) {<span class="code-block__gutter" aria-hidden="true">{{ line.number }}</span>}<span class="code-block__line-text">{{ line.text }}</span>
+</span>}</code></pre>
+  } @else {
+    <p class="code-block__empty" role="status">No hay código para mostrar.</p>
+  }
+</figure>

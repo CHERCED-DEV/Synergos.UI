@@ -1,3 +1,68 @@
-<div class="syn-pagination__placeholder" [attr.data-totalItems]="totalItems() ?? null" [attr.data-itemsPerPage]="itemsPerPage() ?? null" [attr.data-currentPage]="currentPage() ?? null" [attr.data-urlTemplate]="urlTemplate() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="pagination">
-  <span class="syn-pagination__name">synergos-pagination</span>
-</div>
+@if (hasPages()) {
+  <nav class="pagination" [attr.aria-label]="label()">
+    <ul class="pagination__list">
+      <li class="pagination__item">
+        <a
+          class="pagination__control pagination__control--prev"
+          [class.pagination__control--disabled]="isFirst()"
+          [attr.href]="!isFirst() && previousHref() ? previousHref() : null"
+          [attr.role]="previousHref() ? null : 'button'"
+          [attr.aria-disabled]="isFirst() ? 'true' : null"
+          [attr.tabindex]="isFirst() ? -1 : 0"
+          [attr.aria-label]="previousLabel()"
+          (click)="onPreviousActivate($event)"
+        >
+          <svg class="pagination__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="pagination__control-label">{{ previousLabel() }}</span>
+        </a>
+      </li>
+
+      @for (item of items(); track item.id) {
+        @if (item.kind === 'ellipsis') {
+          <li class="pagination__item" aria-hidden="true">
+            <span class="pagination__ellipsis">…</span>
+          </li>
+        } @else {
+          <li class="pagination__item">
+            <a
+              class="pagination__page"
+              [class.pagination__page--current]="item.isCurrent"
+              [attr.href]="item.href ? item.href : null"
+              [attr.role]="item.href ? null : 'button'"
+              [attr.aria-current]="item.isCurrent ? 'page' : null"
+              [attr.aria-label]="'Página ' + item.page"
+              [attr.tabindex]="0"
+              (click)="onPageActivate($event, item.page)"
+            >
+              {{ item.page }}
+            </a>
+          </li>
+        }
+      }
+
+      <li class="pagination__item">
+        <a
+          class="pagination__control pagination__control--next"
+          [class.pagination__control--disabled]="isLast()"
+          [attr.href]="!isLast() && nextHref() ? nextHref() : null"
+          [attr.role]="nextHref() ? null : 'button'"
+          [attr.aria-disabled]="isLast() ? 'true' : null"
+          [attr.tabindex]="isLast() ? -1 : 0"
+          [attr.aria-label]="nextLabel()"
+          (click)="onNextActivate($event)"
+        >
+          <span class="pagination__control-label">{{ nextLabel() }}</span>
+          <svg class="pagination__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      </li>
+    </ul>
+
+    <p class="pagination__status" role="status" aria-live="polite">
+      Página {{ currentPage() }} de {{ totalPages() }}
+    </p>
+  </nav>
+}

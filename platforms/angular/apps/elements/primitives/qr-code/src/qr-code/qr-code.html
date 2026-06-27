@@ -1,3 +1,41 @@
-<div class="syn-qr-code__placeholder" [attr.data-data]="data() ?? null" [attr.data-size]="size() ?? null" [attr.data-ecLevel]="ecLevel() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="qr-code">
-  <span class="syn-qr-code__name">synergos-qr-code</span>
-</div>
+<figure class="qr-code">
+  @if (matrix(); as qr) {
+    <div
+      class="qr-code__frame"
+      [style.inline-size.px]="size()"
+      [style.block-size.px]="size()"
+    >
+      <svg
+        class="qr-code__svg"
+        [attr.viewBox]="'0 0 ' + viewBoxSize() + ' ' + viewBoxSize()"
+        [attr.width]="size()"
+        [attr.height]="size()"
+        role="img"
+        [attr.aria-label]="label()"
+        shape-rendering="crispEdges"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect
+          class="qr-code__quiet"
+          x="0"
+          y="0"
+          [attr.width]="viewBoxSize()"
+          [attr.height]="viewBoxSize()"
+        />
+        @for (rect of rects(); track rect.key) {
+          <rect class="qr-code__module" [attr.x]="rect.x" [attr.y]="rect.y" width="1" height="1" />
+        }
+      </svg>
+    </div>
+
+    @if (hasCaption()) {
+      <figcaption class="qr-code__caption">{{ caption() }}</figcaption>
+    }
+  } @else if (hasError()) {
+    <p class="qr-code__message qr-code__message--error" role="alert">
+      El contenido es demasiado largo para generar un código QR.
+    </p>
+  } @else {
+    <p class="qr-code__message" role="status">No hay contenido para el código QR.</p>
+  }
+</figure>

@@ -1,21 +1,124 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  // Per-tone surface / text / border, themable via CMS --syn-* runtime vars
+  // with static design-token fallbacks. Defaults to the neutral tone.
+  --tag-surface: var(--syn-color-surface-muted, #{syn.$color-neutral-100});
+  --tag-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --tag-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tag-icon: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tag-remove-hover: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+  --tag-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: inline-flex;
   max-width: 100%;
+  vertical-align: middle;
 }
 
-// SCAFFOLD - no publicar
-.syn-tag__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  max-width: 100%;
+  min-width: 0;
+  padding: syn.$space-1 syn.$space-2;
+  border: syn.px-to-rem(1) solid var(--tag-border);
+  border-radius: syn.$radius-full;
+  background: var(--tag-surface);
+  color: var(--tag-text);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-medium;
+  line-height: syn.$line-height-snug;
+  letter-spacing: syn.$letter-spacing-wide;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &--removable {
+    padding-inline-end: syn.$space-1;
+  }
+
+  &__icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    color: var(--tag-icon);
+    font-size: syn.$font-size-sm;
+    line-height: 1;
+  }
+
+  &__label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__remove {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(16);
+    height: syn.px-to-rem(16);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible(var(--tag-focus-ring));
+
+    &:hover {
+      background: var(--tag-remove-hover);
+    }
+  }
+
+  &__remove-icon {
+    display: block;
+    width: syn.px-to-rem(12);
+    height: syn.px-to-rem(12);
+  }
+
+  // ─── Tones ──────────────────────────────────────────────────────────────────
+  &--brand {
+    --tag-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+    --tag-text: var(--syn-color-text-brand, #{syn.$color-brand-600});
+    --tag-border: var(--syn-color-border-brand, #{syn.$color-brand-300});
+    --tag-icon: var(--syn-color-text-brand, #{syn.$color-brand-600});
+  }
+
+  &--success {
+    --tag-surface: var(--syn-color-success-surface, #{syn.$color-success-100});
+    --tag-text: var(--syn-color-success-text, #{syn.$color-success-600});
+    --tag-border: var(--syn-color-success-border, #{syn.$color-success-200});
+    --tag-icon: var(--syn-color-success, #{syn.$color-success-600});
+  }
+
+  &--warning {
+    --tag-surface: var(--syn-color-warning-surface, #{syn.$color-warning-100});
+    --tag-text: var(--syn-color-warning-text, #{syn.$color-warning-600});
+    --tag-border: var(--syn-color-warning-border, #{syn.$color-warning-200});
+    --tag-icon: var(--syn-color-warning, #{syn.$color-warning-600});
+  }
+
+  &--danger {
+    --tag-surface: var(--syn-color-danger-surface, #{syn.$color-danger-100});
+    --tag-text: var(--syn-color-danger-text, #{syn.$color-danger-600});
+    --tag-border: var(--syn-color-danger-border, #{syn.$color-danger-200});
+    --tag-icon: var(--syn-color-danger, #{syn.$color-danger-600});
+  }
+
+  &--info {
+    --tag-surface: var(--syn-color-info-surface, #{syn.$color-info-100});
+    --tag-text: var(--syn-color-info-text, #{syn.$color-info-600});
+    --tag-border: var(--syn-color-info-border, #{syn.$color-info-200});
+    --tag-icon: var(--syn-color-info, #{syn.$color-info-600});
   }
 }
 
-.syn-tag__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .tag__remove {
+    transition: none;
+  }
 }

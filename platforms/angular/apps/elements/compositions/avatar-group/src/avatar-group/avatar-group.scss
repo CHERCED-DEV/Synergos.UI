@@ -1,21 +1,136 @@
 @use 'scss' as syn;
 
 :host {
+  --ag-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ag-ring: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ag-fallback-bg: var(--syn-color-surface-muted, #{syn.$color-neutral-100});
+  --ag-fallback-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ag-overflow-bg: var(--syn-color-brand-100, #{syn.$color-brand-100});
+  --ag-overflow-text: var(--syn-color-text-brand, #{syn.$color-brand-600});
+  --ag-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --ag-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  // Per-size geometry (face diameter + how much each face overlaps the prior).
+  --ag-size: #{syn.px-to-rem(40)};
+  --ag-overlap: #{syn.px-to-rem(12)};
+  --ag-ring-width: #{syn.px-to-rem(2)};
+  --ag-font-size: #{syn.$font-size-sm};
+
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-avatar-group__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.avatar-group {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &--sm {
+    --ag-size: #{syn.px-to-rem(28)};
+    --ag-overlap: #{syn.px-to-rem(8)};
+    --ag-font-size: #{syn.$font-size-xs};
+  }
+
+  &--md {
+    --ag-size: #{syn.px-to-rem(40)};
+    --ag-overlap: #{syn.px-to-rem(12)};
+    --ag-font-size: #{syn.$font-size-sm};
+  }
+
+  &--lg {
+    --ag-size: #{syn.px-to-rem(56)};
+    --ag-overlap: #{syn.px-to-rem(16)};
+    --ag-font-size: #{syn.$font-size-base};
+  }
+
+  &__item {
+    display: block;
+    margin-inline-start: calc(-1 * var(--ag-overlap));
+
+    &:first-child {
+      margin-inline-start: 0;
+    }
+  }
+
+  &__avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--ag-size);
+    block-size: var(--ag-size);
+    padding: 0;
+    overflow: hidden;
+    border: var(--ag-ring-width) solid var(--ag-ring);
+    border-radius: syn.$radius-full;
+    background: var(--ag-surface);
+    box-shadow: var(--ag-shadow);
+    color: var(--ag-fallback-text);
+    font-size: var(--ag-font-size);
+    font-weight: syn.$font-weight-semibold;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      z-index 0s;
+
+    @include syn.focus-visible;
+
+    &:hover,
+    &:focus-visible {
+      z-index: 1;
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+  }
+
+  button.avatar-group__avatar {
+    appearance: none;
+  }
+
+  &__image {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  &__initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 100%;
+    block-size: 100%;
+    background: var(--ag-fallback-bg);
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__overflow {
+    background: var(--ag-overflow-bg);
+    color: var(--ag-overflow-text);
+    cursor: default;
+
+    &[href] {
+      cursor: pointer;
+    }
   }
 }
 
-.syn-avatar-group__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.avatar-group__empty {
+  margin: 0;
+  color: var(--ag-empty-color);
+  font-size: syn.$font-size-sm;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-group__avatar {
+    transition: none;
+  }
+
+  .avatar-group__avatar:hover,
+  .avatar-group__avatar:focus-visible {
+    transform: none;
+  }
 }

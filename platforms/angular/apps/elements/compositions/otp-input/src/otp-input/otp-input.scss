@@ -1,21 +1,78 @@
 @use 'scss' as syn;
 
 :host {
+  --otp-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --otp-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --otp-cell-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --otp-cell-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --otp-cell-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --otp-cell-border-filled: var(--syn-color-border-brand, #{syn.$color-brand-500});
+  --otp-cell-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --otp-disabled-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --otp-disabled-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-otp-input__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.otp {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-sm;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    color: var(--otp-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__cells {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+  }
+
+  &__cell {
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(56);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--otp-cell-border);
+    border-radius: syn.$radius-md;
+    background: var(--otp-cell-surface);
+    color: var(--otp-cell-color);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    caret-color: var(--otp-cell-border-filled);
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &--filled {
+      border-color: var(--otp-cell-border-filled);
+    }
+
+    &:disabled {
+      background: var(--otp-disabled-surface);
+      color: var(--otp-disabled-color);
+      cursor: not-allowed;
+    }
+  }
+
+  &__status {
+    color: var(--otp-status-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
   }
 }
 
-.syn-otp-input__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .otp__cell {
+    transition: none;
+  }
 }

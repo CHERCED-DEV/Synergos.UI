@@ -1,3 +1,71 @@
-<div class="syn-range-slider__placeholder" [attr.data-label]="label() ?? null" [attr.data-minValue]="minValue() ?? null" [attr.data-maxValue]="maxValue() ?? null" [attr.data-step]="step() ?? null" [attr.data-initialValue]="initialValue() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="range-slider">
-  <span class="syn-range-slider__name">synergos-range-slider</span>
+@let lo = low();
+@let hi = high();
+@let dual = isRange();
+
+<div class="range-slider">
+  @if (label()) {
+    <div class="range-slider__header">
+      <span class="range-slider__label" id="range-slider-label">{{ label() }}</span>
+      <output class="range-slider__value" aria-live="polite">{{ displayValue() }}</output>
+    </div>
+  }
+
+  <div
+    class="range-slider__track-wrap"
+    [class.range-slider__track-wrap--single]="!dual"
+  >
+    <div class="range-slider__rail" aria-hidden="true"></div>
+    <div
+      class="range-slider__fill"
+      aria-hidden="true"
+      [style.inset-inline-start.%]="fillStart()"
+      [style.inline-size.%]="fillEnd() - fillStart()"
+    ></div>
+
+    @if (dual) {
+      <input
+        type="range"
+        class="range-slider__input range-slider__input--low"
+        [min]="min()"
+        [max]="max()"
+        [step]="step()"
+        [value]="lo"
+        [attr.aria-label]="(label() || 'Rango') + ' — mínimo'"
+        [attr.aria-valuetext]="formatValue(lo)"
+        (input)="onThumbInput('low', $any($event.target).value)"
+        (keydown)="onThumbKeydown($event, 'low')"
+      />
+    }
+
+    <input
+      type="range"
+      class="range-slider__input range-slider__input--high"
+      [min]="min()"
+      [max]="max()"
+      [step]="step()"
+      [value]="hi"
+      [attr.aria-label]="(label() || 'Rango') + (dual ? ' — máximo' : '')"
+      [attr.aria-valuetext]="formatValue(hi)"
+      (input)="onThumbInput('high', $any($event.target).value)"
+      (keydown)="onThumbKeydown($event, 'high')"
+    />
+
+    @if (dual) {
+      <span
+        class="range-slider__thumb range-slider__thumb--low"
+        aria-hidden="true"
+        [style.inset-inline-start.%]="lowPercent()"
+      ></span>
+    }
+    <span
+      class="range-slider__thumb range-slider__thumb--high"
+      aria-hidden="true"
+      [style.inset-inline-start.%]="highPercent()"
+    ></span>
+  </div>
+
+  <div class="range-slider__bounds" aria-hidden="true">
+    <span class="range-slider__bound">{{ formatValue(min()) }}</span>
+    <span class="range-slider__bound">{{ formatValue(max()) }}</span>
+  </div>
 </div>

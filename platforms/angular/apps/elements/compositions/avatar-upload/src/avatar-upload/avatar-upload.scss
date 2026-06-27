@@ -1,21 +1,284 @@
 @use 'scss' as syn;
 
 :host {
+  --au-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --au-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --au-surface-tertiary: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --au-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --au-border-subtle: var(--syn-color-border-subtle, #{syn.$color-border-subtle});
+  --au-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --au-title-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --au-muted-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --au-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --au-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --au-accent-soft: var(--syn-color-surface-brand-soft, #{syn.$color-brand-100});
+  --au-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --au-success-color: var(--syn-color-text-success, #{syn.$color-success-600});
+  --au-danger-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+  --au-danger-border: var(--syn-color-border-danger, #{syn.$color-danger-300});
+
+  // The fallbacks above reference design tokens that resolve at compile time.
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-avatar-upload__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.avatar-upload {
+  display: block;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-lg;
+
+    @include syn.respond-to(sm) {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+  }
+
+  // ─── Preview ─────────────────────────────────────────────────────────────────
+  &__preview {
+    position: relative;
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    inline-size: syn.px-to-rem(112);
+    block-size: syn.px-to-rem(112);
+    overflow: hidden;
+    border: syn.px-to-rem(1) solid var(--au-border);
+    border-radius: syn.$radius-full;
+    background: var(--au-surface-muted);
+    box-shadow: var(--au-shadow);
+
+    &--empty {
+      color: var(--au-muted-color);
+    }
+
+    &--uploading {
+      opacity: 0.85;
+    }
+  }
+
+  &__image {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  &__placeholder-icon {
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+  }
+
+  &__spinner {
+    position: absolute;
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
+    border: syn.px-to-rem(3) solid var(--au-on-accent);
+    border-block-start-color: var(--au-accent);
+    border-radius: syn.$radius-full;
+    animation: avatar-upload-spin var(--syn-duration-loop, #{syn.$duration-loop}) linear infinite;
+  }
+
+  // ─── Body ────────────────────────────────────────────────────────────────────
+  &__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    min-width: 0;
+    inline-size: 100%;
+  }
+
+  // ─── Dropzone ────────────────────────────────────────────────────────────────
+  &__dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-lg syn.$space-md;
+    border: syn.px-to-rem(2) dashed var(--au-border);
+    border-radius: syn.$radius-xl;
+    background: var(--au-surface);
+    color: var(--au-muted-color);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      border-color: var(--au-accent);
+      color: var(--au-accent-strong);
+    }
+
+    &--dragging {
+      border-color: var(--au-accent);
+      background: var(--au-accent-soft);
+      color: var(--au-accent-strong);
+    }
+
+    &--error {
+      border-color: var(--au-danger-border);
+    }
+
+    &[aria-disabled='true'] {
+      cursor: progress;
+      opacity: 0.7;
+    }
+  }
+
+  &__dropzone-icon {
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
+    color: var(--au-accent);
+  }
+
+  &__label {
+    margin: 0;
+    color: var(--au-title-color);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__constraint {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__input {
+    @include syn.visually-hidden;
+  }
+
+  // ─── Progress ────────────────────────────────────────────────────────────────
+  &__progress {
+    inline-size: 100%;
+    block-size: syn.px-to-rem(6);
+    overflow: hidden;
+    border-radius: syn.$radius-full;
+    background: var(--au-surface-tertiary);
+  }
+
+  &__progress-bar {
+    display: block;
+    block-size: 100%;
+    border-radius: syn.$radius-full;
+    background: var(--au-accent);
+    transition: width var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+  }
+
+  // ─── Status ──────────────────────────────────────────────────────────────────
+  &__status {
+    margin: 0;
+    min-block-size: syn.px-to-rem(20);
+    color: var(--au-muted-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+
+    &:empty {
+      display: none;
+    }
+
+    &--success {
+      color: var(--au-success-color);
+      font-weight: syn.$font-weight-medium;
+    }
+
+    &--error {
+      color: var(--au-danger-color);
+      font-weight: syn.$font-weight-medium;
+    }
+  }
+
+  // ─── Actions ─────────────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: syn.px-to-rem(40);
+    padding: syn.$space-2 syn.$space-md;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    font-family: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    &--primary {
+      background: var(--au-accent);
+      color: var(--au-on-accent);
+
+      &:not(:disabled):hover {
+        background: var(--au-accent-strong);
+        transform: translateY(#{syn.px-to-rem(-1)});
+      }
+    }
+
+    &--ghost {
+      border-color: var(--au-border);
+      background: var(--au-surface);
+      color: var(--au-title-color);
+
+      &:not(:disabled):hover {
+        border-color: var(--au-border-subtle);
+        background: var(--au-surface-muted);
+      }
+    }
   }
 }
 
-.syn-avatar-upload__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes avatar-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-upload__dropzone,
+  .avatar-upload__progress-bar,
+  .avatar-upload__button {
+    transition: none;
+  }
+
+  .avatar-upload__button--primary:not(:disabled):hover {
+    transform: none;
+  }
+
+  .avatar-upload__spinner {
+    animation: none;
+  }
 }

@@ -1,21 +1,160 @@
 @use 'scss' as syn;
 
 :host {
+  --rs-rail: var(--syn-color-border-default, #{syn.$color-border-default});
+  --rs-fill: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --rs-thumb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --rs-thumb-border: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --rs-thumb-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --rs-label-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --rs-value-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --rs-bound-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+
+  --rs-rail-height: #{syn.px-to-rem(4)};
+  --rs-thumb-size: #{syn.px-to-rem(20)};
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-range-slider__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.range-slider {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-sm;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__label {
+    color: var(--rs-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__value {
+    color: var(--rs-value-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__track-wrap {
+    position: relative;
+    block-size: var(--rs-thumb-size);
+    // Keep the thumb fully inside the box at both extremes.
+    margin-inline: calc(var(--rs-thumb-size) / 2);
+  }
+
+  &__rail {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: calc(var(--rs-thumb-size) / -2);
+    block-size: var(--rs-rail-height);
+    border-radius: syn.$radius-full;
+    background: var(--rs-rail);
+    transform: translateY(-50%);
+  }
+
+  &__fill {
+    position: absolute;
+    inset-block-start: 50%;
+    block-size: var(--rs-rail-height);
+    border-radius: syn.$radius-full;
+    background: var(--rs-fill);
+    transform: translateY(-50%);
+  }
+
+  // Native range inputs stacked transparently — they own slider role,
+  // aria-valuenow and keyboard. The visual thumb mirrors their position.
+  &__input {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline: calc(var(--rs-thumb-size) / -2);
+    inline-size: calc(100% + var(--rs-thumb-size));
+    block-size: var(--rs-thumb-size);
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    transform: translateY(-50%);
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: none;
+
+    &::-webkit-slider-thumb {
+      inline-size: var(--rs-thumb-size);
+      block-size: var(--rs-thumb-size);
+      border-radius: syn.$radius-full;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    &::-moz-range-thumb {
+      inline-size: var(--rs-thumb-size);
+      block-size: var(--rs-thumb-size);
+      border: 0;
+      border-radius: syn.$radius-full;
+      background: transparent;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    &::-webkit-slider-runnable-track {
+      background: transparent;
+    }
+
+    &::-moz-range-track {
+      background: transparent;
+    }
+
+    // Drive the visual thumb's focus ring from the real (focusable) input.
+    &:focus-visible {
+      outline: none;
+
+      + .range-slider__thumb,
+      ~ .range-slider__thumb--high {
+        box-shadow: 0 0 0 #{syn.px-to-rem(3)} var(--rs-thumb-ring);
+      }
+    }
+  }
+
+  &__thumb {
+    position: absolute;
+    inset-block-start: 50%;
+    inline-size: var(--rs-thumb-size);
+    block-size: var(--rs-thumb-size);
+    border: #{syn.px-to-rem(2)} solid var(--rs-thumb-border);
+    border-radius: syn.$radius-full;
+    background: var(--rs-thumb-surface);
+    box-shadow: var(--syn-shadow-sm, #{syn.$shadow-sm});
+    transform: translate(-50%, -50%);
+    transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+    pointer-events: none;
+  }
+
+  &__bounds {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-inline: calc(var(--rs-thumb-size) / -2);
+  }
+
+  &__bound {
+    color: var(--rs-bound-color);
+    font-size: syn.$font-size-xs;
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.syn-range-slider__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .range-slider__thumb {
+    transition: none;
+  }
 }

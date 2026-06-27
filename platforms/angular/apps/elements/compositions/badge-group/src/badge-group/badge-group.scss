@@ -1,21 +1,201 @@
 @use 'scss' as syn;
 
 :host {
+  --bg-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --bg-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  // Per-tone surface/text/border. Each badge picks one ramp via data-tone.
+  --bg-neutral-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --bg-neutral-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --bg-neutral-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+
+  --bg-brand-surface: var(--syn-color-brand-surface, #{syn.$color-brand-100});
+  --bg-brand-text: var(--syn-color-brand-strong, #{syn.$color-brand-600});
+  --bg-brand-border: var(--syn-color-brand-border, #{syn.$color-brand-200});
+
+  --bg-success-surface: var(--syn-color-success-surface, #{syn.$color-success-100});
+  --bg-success-text: var(--syn-color-success-strong, #{syn.$color-success-600});
+  --bg-success-border: var(--syn-color-success-border, #{syn.$color-success-200});
+
+  --bg-warning-surface: var(--syn-color-warning-surface, #{syn.$color-warning-100});
+  --bg-warning-text: var(--syn-color-warning-strong, #{syn.$color-warning-600});
+  --bg-warning-border: var(--syn-color-warning-border, #{syn.$color-warning-200});
+
+  --bg-danger-surface: var(--syn-color-danger-surface, #{syn.$color-danger-100});
+  --bg-danger-text: var(--syn-color-danger-strong, #{syn.$color-danger-600});
+  --bg-danger-border: var(--syn-color-danger-border, #{syn.$color-danger-200});
+
+  --bg-info-surface: var(--syn-color-info-surface, #{syn.$color-info-100});
+  --bg-info-text: var(--syn-color-info-strong, #{syn.$color-info-600});
+  --bg-info-border: var(--syn-color-info-border, #{syn.$color-info-200});
+
+  // Selected (pressed) state.
+  --bg-selected-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --bg-selected-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --bg-selected-count: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-badge-group__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.badge-group {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    color: var(--bg-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: contents;
+  }
+
+  &--inline &__list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  &--stack &__list {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  &__empty {
+    margin: 0;
+    color: var(--bg-empty-color);
+    font-size: syn.$font-size-sm;
   }
 }
 
-.syn-badge-group__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.badge {
+  @include syn.badge(var(--bg-neutral-surface), var(--bg-neutral-text));
+
+  max-width: 100%;
+  border: syn.px-to-rem(1) solid var(--bg-neutral-border);
+  text-decoration: none;
+
+  &__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: syn.px-to-rem(18);
+    padding-inline: syn.$space-1;
+    border-radius: syn.$radius-full;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    line-height: 1;
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
+  }
+
+  // ─── Tones ──────────────────────────────────────────────────────────────────
+  &[data-tone='brand'] {
+    color: var(--bg-brand-text);
+    background: var(--bg-brand-surface);
+    border-color: var(--bg-brand-border);
+  }
+
+  &[data-tone='success'] {
+    color: var(--bg-success-text);
+    background: var(--bg-success-surface);
+    border-color: var(--bg-success-border);
+  }
+
+  &[data-tone='warning'] {
+    color: var(--bg-warning-text);
+    background: var(--bg-warning-surface);
+    border-color: var(--bg-warning-border);
+  }
+
+  &[data-tone='danger'] {
+    color: var(--bg-danger-text);
+    background: var(--bg-danger-surface);
+    border-color: var(--bg-danger-border);
+  }
+
+  &[data-tone='info'] {
+    color: var(--bg-info-text);
+    background: var(--bg-info-surface);
+    border-color: var(--bg-info-border);
+  }
+
+  // ─── Interactive variants ─────────────────────────────────────────────────────
+  &--link,
+  &[data-tone] {
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+  }
+
+  &--link,
+  &button {
+    cursor: pointer;
+  }
+}
+
+button.badge {
+  cursor: pointer;
+  font-family: inherit;
+
+  @include syn.focus-visible;
+
+  &:hover {
+    transform: translateY(#{syn.px-to-rem(-1)});
+  }
+
+  &.badge--selected {
+    color: var(--bg-selected-text);
+    background: var(--bg-selected-surface);
+    border-color: var(--bg-selected-surface);
+
+    .badge__count {
+      background: color-mix(in srgb, var(--bg-selected-text) 22%, transparent);
+      color: var(--bg-selected-count);
+    }
+  }
+}
+
+a.badge {
+  @include syn.focus-visible;
+
+  &:hover {
+    transform: translateY(#{syn.px-to-rem(-1)});
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge,
+  button.badge,
+  a.badge {
+    transition: none;
+  }
+
+  button.badge:hover,
+  a.badge:hover {
+    transform: none;
+  }
 }

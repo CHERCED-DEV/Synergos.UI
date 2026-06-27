@@ -1,3 +1,134 @@
-<div class="syn-avatar-upload__placeholder" [attr.data-label]="label() ?? null" [attr.data-uploadEndpoint]="uploadEndpoint() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="avatar-upload">
-  <span class="syn-avatar-upload__name">synergos-avatar-upload</span>
-</div>
+<section class="avatar-upload" [attr.aria-label]="label()">
+  <div class="avatar-upload__layout">
+    <!-- Preview -->
+    <div
+      class="avatar-upload__preview"
+      [class.avatar-upload__preview--empty]="!hasPreview()"
+      [class.avatar-upload__preview--uploading]="isUploading()"
+    >
+      @if (hasPreview()) {
+        <img
+          class="avatar-upload__image"
+          [src]="previewUrl()"
+          [alt]="previewAlt()"
+          decoding="async"
+        />
+      } @else {
+        <svg
+          class="avatar-upload__placeholder-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      }
+
+      @if (isUploading()) {
+        <span class="avatar-upload__spinner" aria-hidden="true"></span>
+      }
+    </div>
+
+    <!-- Dropzone + controls -->
+    <div class="avatar-upload__body">
+      <div
+        class="avatar-upload__dropzone"
+        [class.avatar-upload__dropzone--dragging]="isDragging()"
+        [class.avatar-upload__dropzone--error]="isError()"
+        role="button"
+        tabindex="0"
+        [attr.aria-label]="label() + '. ' + hint()"
+        [attr.aria-disabled]="isUploading() ? 'true' : null"
+        (click)="fileInput.click()"
+        (keydown)="onDropzoneKeydown($event, fileInput)"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <svg
+          class="avatar-upload__dropzone-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M12 16V4m0 0L8 8m4-4 4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <p class="avatar-upload__label">{{ label() }}</p>
+        <p class="avatar-upload__hint">{{ hint() }}</p>
+        <p class="avatar-upload__constraint">Máximo {{ maxSizeLabel() }}</p>
+
+        <input
+          #fileInput
+          class="avatar-upload__input"
+          type="file"
+          [attr.accept]="accept()"
+          [attr.name]="fieldName()"
+          [disabled]="isUploading()"
+          (change)="onFileChange($event)"
+        />
+      </div>
+
+      <!-- Progress -->
+      @if (isUploading()) {
+        <div
+          class="avatar-upload__progress"
+          role="progressbar"
+          aria-label="Progreso de carga"
+          [attr.aria-valuenow]="progress()"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <span class="avatar-upload__progress-bar" [style.width.%]="progress()"></span>
+        </div>
+      }
+
+      <!-- Status message -->
+      <p
+        class="avatar-upload__status"
+        [class.avatar-upload__status--error]="isError()"
+        [class.avatar-upload__status--success]="isSuccess()"
+        role="status"
+        aria-live="polite"
+      >
+        {{ statusMessage() }}
+      </p>
+
+      <!-- Actions -->
+      <div class="avatar-upload__actions">
+        <button
+          type="button"
+          class="avatar-upload__button avatar-upload__button--primary"
+          [disabled]="!canUpload()"
+          (click)="upload()"
+        >
+          {{ hasEndpoint() ? 'Subir imagen' : 'Confirmar imagen' }}
+        </button>
+
+        @if (removable() && (hasPreview() || isError())) {
+          <button
+            type="button"
+            class="avatar-upload__button avatar-upload__button--ghost"
+            [disabled]="isUploading()"
+            (click)="remove()"
+          >
+            Quitar
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+</section>

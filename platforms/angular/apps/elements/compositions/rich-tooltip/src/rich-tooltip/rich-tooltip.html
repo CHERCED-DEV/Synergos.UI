@@ -1,3 +1,67 @@
-<div class="syn-rich-tooltip__placeholder" [attr.data-triggerText]="triggerText() ?? null" [attr.data-tooltipContent]="tooltipContent() ?? null" [attr.data-placement]="placement() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="rich-tooltip">
-  <span class="syn-rich-tooltip__name">synergos-rich-tooltip</span>
+<div
+  class="rich-tooltip"
+  [class.rich-tooltip--open]="open()"
+  [attr.data-placement]="placement()"
+  (mouseenter)="show()"
+  (mouseleave)="scheduleHide()"
+  (focusin)="show()"
+  (focusout)="scheduleHide()"
+  (keydown)="onKeydown($event)"
+>
+  <button
+    type="button"
+    class="rich-tooltip__trigger"
+    [attr.aria-label]="triggerText() ? null : triggerLabel()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-describedby]="hasContent() ? panelId : null"
+    (click)="toggle()"
+  >
+    @if (triggerText()) {
+      <span class="rich-tooltip__trigger-text">{{ triggerText() }}</span>
+    } @else {
+      <svg
+        class="rich-tooltip__trigger-icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+        <path d="M12 11v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <circle cx="12" cy="7.5" r="1.25" fill="currentColor" />
+      </svg>
+    }
+  </button>
+
+  @if (hasContent()) {
+    <div
+      class="rich-tooltip__panel"
+      [id]="panelId"
+      role="tooltip"
+      [attr.aria-hidden]="!open()"
+    >
+      <span class="rich-tooltip__arrow" aria-hidden="true"></span>
+
+      @if (hasTitle()) {
+        <p class="rich-tooltip__title">{{ title() }}</p>
+      }
+
+      @if (hasBody()) {
+        <p class="rich-tooltip__body">{{ body() }}</p>
+      }
+
+      @if (hasAction()) {
+        <a class="rich-tooltip__action" [attr.href]="actionHref()">
+          <span class="rich-tooltip__action-label">{{ actionLabel() }}</span>
+          <svg
+            class="rich-tooltip__action-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      }
+    </div>
+  }
 </div>

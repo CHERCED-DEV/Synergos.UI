@@ -1,3 +1,59 @@
-<div class="syn-signature-pad__placeholder" [attr.data-label]="label() ?? null" [attr.data-width]="width() ?? null" [attr.data-height]="height() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="signature-pad">
-  <span class="syn-signature-pad__name">synergos-signature-pad</span>
-</div>
+<section class="signature-pad" [class.signature-pad--disabled]="disabled()" [attr.aria-label]="label()">
+  <div class="signature-pad__header">
+    <span class="signature-pad__label" [id]="'signature-pad-label'">{{ label() }}</span>
+    @if (hint()) {
+      <span class="signature-pad__hint" [id]="'signature-pad-hint'">{{ hint() }}</span>
+    }
+  </div>
+
+  <div
+    class="signature-pad__surface"
+    [style.aspectRatio]="width() + ' / ' + height()"
+    [style.maxWidth.px]="width()"
+  >
+    <canvas
+      #canvas
+      class="signature-pad__canvas"
+      role="img"
+      tabindex="0"
+      aria-describedby="signature-pad-hint"
+      [attr.aria-label]="label()"
+      [attr.aria-disabled]="disabled() ? 'true' : null"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+      (pointerleave)="onPointerUp($event)"
+    ></canvas>
+
+    @if (empty()) {
+      <span class="signature-pad__placeholder-line" aria-hidden="true"></span>
+      <span class="signature-pad__placeholder-mark" aria-hidden="true">&#215;</span>
+    }
+  </div>
+
+  @if (showActions()) {
+    <div class="signature-pad__actions">
+      <button
+        type="button"
+        class="signature-pad__action signature-pad__action--ghost"
+        [disabled]="disabled() || empty()"
+        (click)="clear()"
+      >
+        {{ clearLabel() }}
+      </button>
+      <button
+        type="button"
+        class="signature-pad__action signature-pad__action--primary"
+        [disabled]="disabled() || empty()"
+        (click)="export()"
+      >
+        {{ exportLabel() }}
+      </button>
+    </div>
+  }
+
+  <p class="signature-pad__sr" role="status" aria-live="polite">
+    {{ empty() ? 'Recuadro de firma vacío.' : 'Firma capturada.' }}
+  </p>
+</section>

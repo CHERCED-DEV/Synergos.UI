@@ -1,21 +1,86 @@
 @use 'scss' as syn;
 
 :host {
+  --sep-line-color: var(--syn-color-border-default, #{syn.$color-border-default});
+  --sep-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sep-thickness: #{syn.px-to-rem(1)};
+  --sep-gap: #{syn.$space-md};
+  --sep-block: #{syn.$space-md};
+  --sep-vertical-size: #{syn.$space-md};
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-separator__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
-
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
-  }
+:host([data-orientation='vertical']) {
+  display: inline-flex;
+  block-size: 100%;
+  vertical-align: middle;
 }
 
-.syn-separator__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.separator {
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+
+  &__line {
+    display: block;
+    flex: 1 1 auto;
+    block-size: var(--sep-thickness);
+    background: var(--sep-line-color);
+  }
+
+  // Plain horizontal rule: vertical breathing room above/below.
+  &:not(.separator--labelled):not(.separator--vertical) {
+    margin-block: var(--sep-block);
+  }
+
+  // Vertical rule between inline items.
+  &--vertical {
+    display: inline-flex;
+    block-size: 100%;
+    min-block-size: var(--sep-vertical-size);
+    inline-size: auto;
+    margin-inline: var(--sep-block);
+
+    .separator__line {
+      flex: 1 1 auto;
+      inline-size: var(--sep-thickness);
+      block-size: 100%;
+      min-block-size: var(--sep-vertical-size);
+    }
+  }
+
+  // Labelled horizontal rule: line — text — line.
+  &--labelled {
+    gap: var(--sep-gap);
+    margin-block: var(--sep-block);
+  }
+
+  &__label {
+    flex: 0 0 auto;
+    color: var(--sep-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    line-height: syn.$line-height-snug;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  // Label anchored to the start: collapse the leading line.
+  &--align-start {
+    .separator__line:first-child {
+      flex: 0 0 auto;
+      inline-size: var(--sep-gap);
+    }
+  }
+
+  // Label anchored to the end: collapse the trailing line.
+  &--align-end {
+    .separator__line:last-child {
+      flex: 0 0 auto;
+      inline-size: var(--sep-gap);
+    }
+  }
 }

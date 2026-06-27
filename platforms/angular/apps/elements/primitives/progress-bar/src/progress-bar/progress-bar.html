@@ -1,3 +1,30 @@
-<div class="syn-progress-bar__placeholder" [attr.data-valueNow]="valueNow() ?? null" [attr.data-valueMax]="valueMax() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="progress-bar">
-  <span class="syn-progress-bar__name">synergos-progress-bar</span>
+<div class="progress">
+  @if (label() || (showValue() && !indeterminate())) {
+    <div class="progress__caption">
+      @if (label()) {
+        <span class="progress__label">{{ label() }}</span>
+      }
+      @if (showValue() && !indeterminate()) {
+        <span class="progress__value">{{ valueText() }}</span>
+      }
+    </div>
+  }
+
+  <div
+    class="progress__track"
+    role="progressbar"
+    [class.progress__track--indeterminate]="indeterminate()"
+    [attr.aria-label]="accessibleLabel()"
+    [attr.aria-valuemin]="indeterminate() ? null : 0"
+    [attr.aria-valuemax]="indeterminate() ? null : max()"
+    [attr.aria-valuenow]="ariaValueNow()"
+    [attr.aria-valuetext]="indeterminate() ? null : valueText()"
+    [attr.aria-busy]="indeterminate() ? 'true' : null"
+  >
+    <div
+      class="progress__fill"
+      [class.progress__fill--indeterminate]="indeterminate()"
+      [style.inline-size]="fillWidth()"
+    ></div>
+  </div>
 </div>

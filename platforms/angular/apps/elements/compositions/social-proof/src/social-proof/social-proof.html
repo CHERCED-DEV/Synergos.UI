@@ -1,3 +1,36 @@
-<div class="syn-social-proof__placeholder" [attr.data-template]="template() ?? null" [attr.data-dataSource]="dataSource() ?? null" [attr.data-rotationInterval]="rotationInterval() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="social-proof">
-  <span class="syn-social-proof__name">synergos-social-proof</span>
-</div>
+@if (hasAvatars() || hasCount()) {
+  <div class="social-proof" role="group" [attr.aria-label]="ariaSummary()">
+    @if (hasAvatars()) {
+      <ul class="social-proof__avatars" aria-hidden="true">
+        @for (person of visibleAvatars(); track $index) {
+          <li class="social-proof__avatar">
+            <syn-avatar
+              size="md"
+              [name]="person.name"
+              [src]="person.image"
+              [alt]="person.alt"
+            />
+          </li>
+        }
+        @if (overflowCount() > 0) {
+          <li class="social-proof__avatar social-proof__avatar--overflow">
+            <span class="social-proof__overflow">{{ overflowLabel() }}</span>
+          </li>
+        }
+      </ul>
+    }
+
+    <p class="social-proof__text">
+      @if (hasCount()) {
+        @if (prefix()) {
+          <span class="social-proof__prefix">{{ prefix() }}</span>
+        }
+        <span class="social-proof__count" aria-hidden="true">{{ formattedCount() }}</span>
+        @if (suffix()) {
+          <span class="social-proof__suffix">{{ suffix() }}</span>
+        }
+      }
+      <span class="social-proof__label">{{ label() }}</span>
+    </p>
+  </div>
+}

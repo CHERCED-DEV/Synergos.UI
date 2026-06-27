@@ -1,21 +1,112 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
-  max-width: 100%;
-}
+  --st-surface: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --st-surface-hover: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --st-on-surface: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --st-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
 
-// SCAFFOLD - no publicar
-.syn-scroll-top__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+  position: fixed;
+  inset-block-end: syn.$space-lg;
+  inset-inline-end: syn.$space-lg;
+  z-index: syn.$z-sticky;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  // Hidden until scrolled past the threshold. The host toggles --visible.
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(#{syn.px-to-rem(12)});
+  transition:
+    opacity var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out,
+    transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out,
+    visibility var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+  pointer-events: none;
+
+  &.sg-scroll-top--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  &[data-position='bottom-left'] {
+    inset-inline-end: auto;
+    inset-inline-start: syn.$space-lg;
+  }
+
+  &[data-position='bottom-center'] {
+    inset-inline-end: 50%;
+    transform: translate(50%, #{syn.px-to-rem(12)});
+
+    &.sg-scroll-top--visible {
+      transform: translate(50%, 0);
+    }
   }
 }
 
-.syn-scroll-top__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.scroll-top {
+  &__button {
+    display: inline-grid;
+    grid-auto-flow: column;
+    align-items: center;
+    gap: syn.$space-2;
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+    padding: 0;
+    border: none;
+    border-radius: syn.$radius-full;
+    background: var(--st-surface);
+    color: var(--st-on-surface);
+    box-shadow: var(--st-shadow);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--st-surface-hover);
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(22);
+    block-size: syn.px-to-rem(22);
+    justify-self: center;
+  }
+
+  // Visible label kept for AT/screen readers; collapsed to a round button.
+  &__label {
+    position: absolute;
+    inline-size: syn.px-to-rem(1);
+    block-size: syn.px-to-rem(1);
+    margin: #{syn.px-to-rem(-1)};
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host,
+  :host[data-position='bottom-center'],
+  .scroll-top__button {
+    transition: none;
+  }
+
+  :host {
+    transform: none;
+  }
+
+  :host[data-position='bottom-center'],
+  :host[data-position='bottom-center'].sg-scroll-top--visible {
+    transform: translateX(50%);
+  }
+
+  .scroll-top__button:hover {
+    transform: none;
+  }
 }

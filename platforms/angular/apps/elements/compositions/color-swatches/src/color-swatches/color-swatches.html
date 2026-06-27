@@ -1,3 +1,72 @@
-<div class="syn-color-swatches__placeholder" [attr.data-swatchesJson]="swatchesJson() ?? null" [attr.data-shape]="shape() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="color-swatches">
-  <span class="syn-color-swatches__name">synergos-color-swatches</span>
+<div class="color-swatches">
+  @if (hasHeading()) {
+    <h2 class="color-swatches__heading" id="color-swatches-heading">{{ heading() }}</h2>
+  }
+
+  @if (hasSwatches()) {
+    <div
+      class="color-swatches__group"
+      role="radiogroup"
+      [attr.aria-labelledby]="hasHeading() ? 'color-swatches-heading' : null"
+      [attr.aria-label]="hasHeading() ? null : 'Paleta de colores'"
+      [style.--color-swatches-columns]="columns()"
+    >
+      @for (swatch of swatches(); track swatch.value) {
+        <button
+          type="button"
+          class="color-swatches__swatch"
+          [class.color-swatches__swatch--square]="shape() === 'square'"
+          [class.color-swatches__swatch--circle]="shape() === 'circle'"
+          [class.color-swatches__swatch--pill]="shape() === 'pill'"
+          [class.color-swatches__swatch--selected]="isSelected(swatch)"
+          [class.color-swatches__swatch--disabled]="swatch.disabled"
+          role="radio"
+          [attr.aria-checked]="isSelected(swatch)"
+          [attr.aria-label]="swatch.label"
+          [attr.aria-disabled]="swatch.disabled ? true : null"
+          [attr.data-swatch-value]="swatch.value"
+          [attr.tabindex]="swatch.value === focusedValue() ? 0 : -1"
+          [disabled]="swatch.disabled"
+          (click)="selectSwatch(swatch)"
+          (keydown)="onSwatchKeydown($event, swatch)"
+        >
+          <span
+            class="color-swatches__chip"
+            [style.background]="swatch.color"
+            aria-hidden="true"
+          ></span>
+          @if (isSelected(swatch)) {
+            <svg
+              class="color-swatches__check"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="m5 13 4 4L19 7"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          }
+          @if (shape() === 'pill') {
+            <span class="color-swatches__label">{{ swatch.label }}</span>
+          }
+        </button>
+      }
+    </div>
+
+    <p class="color-swatches__selection" role="status" aria-live="polite">
+      @if (selectedSwatch(); as picked) {
+        Color seleccionado: {{ picked.label }}
+      } @else {
+        Ningún color seleccionado.
+      }
+    </p>
+  } @else {
+    <p class="color-swatches__empty" role="status">No hay colores para mostrar.</p>
+  }
 </div>

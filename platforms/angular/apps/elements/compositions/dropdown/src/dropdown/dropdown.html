@@ -1,3 +1,95 @@
-<div class="syn-dropdown__placeholder" [attr.data-triggerLabel]="triggerLabel() ?? null" [attr.data-optionsJson]="optionsJson() ?? null" [attr.data-selectedValue]="selectedValue() ?? null" [attr.data-searchable]="searchable() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="dropdown">
-  <span class="syn-dropdown__name">synergos-dropdown</span>
+<div class="dropdown" [class.dropdown--open]="open()">
+  <button
+    type="button"
+    class="dropdown__trigger"
+    [id]="triggerId"
+    [attr.aria-haspopup]="'menu'"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="open() ? menuId : null"
+    [disabled]="!hasItems()"
+    (click)="toggle()"
+    (keydown)="onTriggerKeydown($event)"
+  >
+    <span class="dropdown__trigger-text">{{ triggerText() }}</span>
+    <svg class="dropdown__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div class="dropdown__panel">
+      @if (searchable()) {
+        <div class="dropdown__search">
+          <input
+            type="text"
+            class="dropdown__search-input"
+            [value]="query()"
+            [attr.aria-label]="'Filtrar opciones'"
+            placeholder="Buscar…"
+            (input)="onSearchInput($event)"
+            (keydown.escape)="close(true)"
+            (keydown.arrowdown)="$event.preventDefault(); focusFirst()"
+          />
+        </div>
+      }
+
+      <ul
+        class="dropdown__menu"
+        role="menu"
+        [id]="menuId"
+        [attr.aria-labelledby]="triggerId"
+      >
+        @for (item of visibleItems(); track item.value) {
+          <li class="dropdown__item-wrap" role="none">
+            @if (item.href) {
+              <a
+                class="dropdown__item"
+                role="menuitem"
+                [href]="item.href"
+                [class.dropdown__item--selected]="isSelected(item)"
+                [class.dropdown__item--disabled]="item.disabled"
+                [attr.data-value]="item.value"
+                [attr.tabindex]="isActive(item) ? 0 : -1"
+                [attr.aria-disabled]="item.disabled ? 'true' : null"
+                [attr.aria-current]="isSelected(item) ? 'true' : null"
+                (click)="item.disabled ? $event.preventDefault() : selectItem(item)"
+                (keydown)="onItemKeydown($event, item)"
+              >
+                <span class="dropdown__item-label">{{ item.label }}</span>
+                @if (isSelected(item)) {
+                  <svg class="dropdown__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                }
+              </a>
+            } @else {
+              <button
+                type="button"
+                class="dropdown__item"
+                role="menuitemradio"
+                [class.dropdown__item--selected]="isSelected(item)"
+                [class.dropdown__item--disabled]="item.disabled"
+                [attr.data-value]="item.value"
+                [attr.tabindex]="isActive(item) ? 0 : -1"
+                [attr.aria-checked]="isSelected(item)"
+                [attr.aria-disabled]="item.disabled ? 'true' : null"
+                [disabled]="item.disabled"
+                (click)="selectItem(item)"
+                (keydown)="onItemKeydown($event, item)"
+              >
+                <span class="dropdown__item-label">{{ item.label }}</span>
+                @if (isSelected(item)) {
+                  <svg class="dropdown__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                }
+              </button>
+            }
+          </li>
+        } @empty {
+          <li class="dropdown__empty" role="none">Sin resultados</li>
+        }
+      </ul>
+    </div>
+  }
 </div>

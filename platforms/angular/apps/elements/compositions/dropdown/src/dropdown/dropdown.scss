@@ -1,21 +1,207 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --dd-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --dd-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --dd-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --dd-shadow: var(--syn-shadow-floating, #{syn.$shadow-floating});
+  --dd-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --dd-text-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dd-text-disabled: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --dd-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --dd-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --dd-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-dropdown__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  max-width: 100%;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    min-width: syn.px-to-rem(180);
+    padding-block: syn.$space-2;
+    padding-inline: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--dd-border);
+    border-radius: syn.$radius-md;
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover:not(:disabled) {
+      border-color: var(--dd-accent);
+    }
+
+    &:disabled {
+      color: var(--dd-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  &__trigger-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__chevron {
+    flex: none;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    color: var(--dd-text-muted);
+    transition: transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+  }
+
+  &--open &__chevron {
+    transform: rotate(180deg);
+  }
+
+  &__panel {
+    position: absolute;
+    inset-block-start: calc(100% + #{syn.$space-1});
+    inset-inline-start: 0;
+    z-index: syn.$z-dropdown;
+    min-inline-size: 100%;
+    max-inline-size: syn.px-to-rem(320);
+    padding: syn.$space-1;
+    border: syn.px-to-rem(1) solid var(--dd-border);
+    border-radius: syn.$radius-lg;
+    background: var(--dd-surface);
+    box-shadow: var(--dd-shadow);
+    animation: dropdown-enter var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+  }
+
+  &__search {
+    padding: syn.$space-1;
+  }
+
+  &__search-input {
+    inline-size: 100%;
+    padding-block: syn.$space-2;
+    padding-inline: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--dd-border);
+    border-radius: syn.$radius-md;
+    background: var(--dd-surface);
+    color: var(--dd-text);
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible;
+
+    &::placeholder {
+      color: var(--dd-text-muted);
+    }
+  }
+
+  &__menu {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-block-size: syn.px-to-rem(320);
+    overflow-y: auto;
+  }
+
+  &__item-wrap {
+    display: block;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    padding-block: syn.$space-2;
+    padding-inline: syn.$space-sm;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--dd-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-regular;
+    line-height: syn.$line-height-snug;
+    text-align: start;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover:not(.dropdown__item--disabled) {
+      background: var(--dd-hover-surface);
+    }
+
+    &--selected {
+      color: var(--dd-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &--disabled {
+      color: var(--dd-text-disabled);
+      cursor: not-allowed;
+    }
+  }
+
+  &__item-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__check {
+    flex: none;
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    color: var(--dd-accent);
+  }
+
+  &__empty {
+    padding-block: syn.$space-sm;
+    padding-inline: syn.$space-sm;
+    color: var(--dd-text-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-dropdown__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(#{syn.px-to-rem(-4)});
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdown__trigger,
+  .dropdown__chevron,
+  .dropdown__item {
+    transition: none;
+  }
+
+  .dropdown__panel {
+    animation: none;
+  }
 }

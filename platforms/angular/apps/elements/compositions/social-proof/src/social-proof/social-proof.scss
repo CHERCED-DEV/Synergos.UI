@@ -1,21 +1,94 @@
 @use 'scss' as syn;
 
 :host {
+  --sp-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sp-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sp-count-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --sp-ring-color: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sp-overflow-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sp-overflow-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --sp-overflow-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-social-proof__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.social-proof {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__avatars {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__avatar {
+    display: flex;
+
+    &:not(:first-child) {
+      margin-inline-start: syn.px-to-rem(-12);
+    }
+
+    // Ring so overlapping avatars stay visually separated.
+    syn-avatar,
+    .social-proof__overflow {
+      box-shadow: 0 0 0 syn.px-to-rem(2) var(--sp-ring-color);
+      border-radius: syn.$radius-full;
+    }
+  }
+
+  &__overflow {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    background: var(--sp-overflow-surface);
+    border: syn.px-to-rem(1) solid var(--sp-overflow-border);
+    color: var(--sp-overflow-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: syn.$space-xs;
+    margin: 0;
+    color: var(--sp-text-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__prefix,
+  &__suffix {
+    color: var(--sp-text-color);
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__count {
+    color: var(--sp-count-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__label {
+    color: var(--sp-label-color);
+    font-weight: syn.$font-weight-medium;
   }
 }
 
-.syn-social-proof__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  // Count-up animation is suppressed in TS; nothing else to disable here,
+  // but keep the rule explicit for the design-system contract.
+  .social-proof__count {
+    transition: none;
+  }
 }

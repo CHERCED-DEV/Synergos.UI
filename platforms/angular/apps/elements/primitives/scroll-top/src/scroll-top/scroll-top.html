@@ -1,3 +1,22 @@
-<div class="syn-scroll-top__placeholder" [attr.data-scrollThreshold]="scrollThreshold() ?? null" [attr.data-position]="position() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="scroll-top">
-  <span class="syn-scroll-top__name">synergos-scroll-top</span>
-</div>
+<button
+  type="button"
+  class="scroll-top__button"
+  [attr.aria-label]="label()"
+  [attr.title]="label()"
+  [attr.aria-hidden]="visible() ? null : 'true'"
+  [attr.tabindex]="visible() ? 0 : -1"
+  (click)="scrollToTop()"
+  (keydown)="onKeydown($event)"
+>
+  <svg class="scroll-top__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      d="M12 19V5M5 12l7-7 7 7"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+  <span class="scroll-top__label">{{ label() }}</span>
+</button>

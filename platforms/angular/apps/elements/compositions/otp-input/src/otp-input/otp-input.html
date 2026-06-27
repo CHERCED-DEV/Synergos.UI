@@ -1,3 +1,37 @@
-<div class="syn-otp-input__placeholder" [attr.data-label]="label() ?? null" [attr.data-length]="length() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="otp-input">
-  <span class="syn-otp-input__name">synergos-otp-input</span>
+<div class="otp">
+  <span class="otp__label" id="otp-label">{{ label() }}</span>
+
+  <div
+    class="otp__cells"
+    role="group"
+    aria-labelledby="otp-label"
+    [attr.aria-disabled]="disabled() ? 'true' : null"
+  >
+    @for (cell of cells(); track trackCell($index, cell)) {
+      <input
+        class="otp__cell"
+        [class.otp__cell--filled]="cell.value.length > 0"
+        [type]="inputType()"
+        [attr.inputmode]="inputMode()"
+        autocomplete="one-time-code"
+        maxlength="1"
+        [attr.data-otp-cell]="cell.index"
+        [attr.tabindex]="cell.index === activeIndex() ? 0 : -1"
+        [attr.aria-label]="cell.label"
+        [value]="cell.value"
+        [disabled]="disabled()"
+        (input)="onInput($event, cell.index)"
+        (keydown)="onKeydown($event, cell.index)"
+        (paste)="onPaste($event, cell.index)"
+      />
+    }
+  </div>
+
+  <span class="otp__status" role="status" aria-live="polite">
+    @if (isComplete()) {
+      Código completo.
+    } @else {
+      {{ value().length }} de {{ length() }} dígitos.
+    }
+  </span>
 </div>

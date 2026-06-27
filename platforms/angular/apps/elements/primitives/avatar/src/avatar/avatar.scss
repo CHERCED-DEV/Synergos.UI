@@ -1,21 +1,142 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
-  max-width: 100%;
+  --avatar-size: #{syn.px-to-rem(40)};
+  --avatar-radius: #{syn.$radius-full};
+  --avatar-font-size: #{syn.$font-size-sm};
+  --avatar-status-size: #{syn.px-to-rem(10)};
+  --avatar-status-ring: #{syn.px-to-rem(2)};
+
+  --avatar-surface: var(--syn-color-surface-muted, #{syn.$color-surface-muted});
+  --avatar-text: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --avatar-ring: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --avatar-status-online: var(--syn-color-status-online, #{syn.$color-success-500});
+  --avatar-status-away: var(--syn-color-status-away, #{syn.$color-warning-500});
+  --avatar-status-busy: var(--syn-color-status-busy, #{syn.$color-danger-500});
+  --avatar-status-offline: var(--syn-color-status-offline, #{syn.$color-neutral-400});
+
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 0;
 }
 
-// SCAFFOLD - no publicar
-.syn-avatar__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+// Size scale — sizes set the box + the intrinsic font/status scale.
+:host([data-size='xs']) {
+  --avatar-size: #{syn.px-to-rem(24)};
+  --avatar-font-size: #{syn.$font-size-xs};
+  --avatar-status-size: #{syn.px-to-rem(7)};
+}
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+:host([data-size='sm']) {
+  --avatar-size: #{syn.px-to-rem(32)};
+  --avatar-font-size: #{syn.$font-size-xs};
+  --avatar-status-size: #{syn.px-to-rem(8)};
+}
+
+:host([data-size='md']) {
+  --avatar-size: #{syn.px-to-rem(40)};
+  --avatar-font-size: #{syn.$font-size-sm};
+}
+
+:host([data-size='lg']) {
+  --avatar-size: #{syn.px-to-rem(56)};
+  --avatar-font-size: #{syn.$font-size-base};
+  --avatar-status-size: #{syn.px-to-rem(12)};
+}
+
+:host([data-size='xl']) {
+  --avatar-size: #{syn.px-to-rem(80)};
+  --avatar-font-size: #{syn.$font-size-xl};
+  --avatar-status-size: #{syn.px-to-rem(16)};
+  --avatar-status-ring: #{syn.px-to-rem(3)};
+}
+
+// Shape variants.
+:host([data-shape='circle']) {
+  --avatar-radius: #{syn.$radius-full};
+}
+
+:host([data-shape='rounded']) {
+  --avatar-radius: #{syn.$radius-md};
+}
+
+:host([data-shape='square']) {
+  --avatar-radius: #{syn.$radius-sm};
+}
+
+.avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--avatar-size);
+  block-size: var(--avatar-size);
+  border-radius: var(--avatar-radius);
+  background: var(--avatar-surface);
+  color: var(--avatar-text);
+  user-select: none;
+
+  &__image {
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__initials {
+    font-family: syn.$font-family-sans;
+    font-size: var(--avatar-font-size);
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-tight;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  &__placeholder-icon {
+    inline-size: 70%;
+    block-size: 70%;
+    color: var(--avatar-text);
+  }
+
+  &__status {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-end: 0;
+    inline-size: var(--avatar-status-size);
+    block-size: var(--avatar-status-size);
+    border-radius: syn.$radius-full;
+    box-shadow: 0 0 0 var(--avatar-status-ring) var(--avatar-ring);
+    background: var(--avatar-status-offline);
+
+    &--online {
+      background: var(--avatar-status-online);
+    }
+
+    &--away {
+      background: var(--avatar-status-away);
+    }
+
+    &--busy {
+      background: var(--avatar-status-busy);
+    }
+
+    &--offline {
+      background: var(--avatar-status-offline);
+    }
   }
 }
 
-.syn-avatar__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// Square / rounded shapes pull the dot in slightly so it reads as anchored.
+:host([data-shape='rounded']) .avatar__status,
+:host([data-shape='square']) .avatar__status {
+  inset-block-end: calc(var(--avatar-status-size) * -0.25);
+  inset-inline-end: calc(var(--avatar-status-size) * -0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar,
+  .avatar__image {
+    transition: none;
+  }
 }

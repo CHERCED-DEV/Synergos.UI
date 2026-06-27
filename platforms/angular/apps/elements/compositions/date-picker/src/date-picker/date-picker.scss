@@ -1,21 +1,255 @@
 @use 'scss' as syn;
 
 :host {
+  --dp-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --dp-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --dp-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --dp-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --dp-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --dp-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --dp-weekday-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dp-day-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --dp-day-outside-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --dp-day-disabled-color: var(--syn-color-text-disabled, #{syn.$color-neutral-300});
+  --dp-day-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --dp-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --dp-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --dp-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --dp-range-surface: var(--syn-color-surface-accent, #{syn.$color-brand-100});
+  --dp-today-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --dp-summary-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-date-picker__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.date-picker {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--dp-border);
+  border-radius: syn.$radius-xl;
+  background: var(--dp-surface);
+  box-shadow: var(--dp-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    margin: 0;
+    color: var(--dp-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--dp-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-align: center;
+    text-transform: capitalize;
+  }
+
+  &__nav {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--dp-border);
+    border-radius: syn.$radius-md;
+    background: var(--dp-surface);
+    color: var(--dp-day-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--dp-day-hover-surface);
+      border-color: var(--dp-border-subtle);
+    }
+  }
+
+  &__nav-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__grid {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__weekdays,
+  &__week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: syn.$space-1;
+  }
+
+  &__weekday {
+    padding-block: syn.$space-1;
+    color: var(--dp-weekday-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  &__cell {
+    position: relative;
+    display: block;
+    min-width: 0;
+
+    // Continuous track behind days inside the selected range.
+    &--in-range::before {
+      content: '';
+      position: absolute;
+      inset-block: syn.px-to-rem(2);
+      inset-inline: 0;
+      background: var(--dp-range-surface);
+      pointer-events: none;
+    }
+  }
+
+  &__day {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    padding: syn.$space-1;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--dp-day-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover:not(:disabled) {
+      background: var(--dp-day-hover-surface);
+    }
+
+    &--outside {
+      color: var(--dp-day-outside-color);
+    }
+
+    &--today {
+      border-color: var(--dp-today-ring);
+      color: var(--dp-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &--in-range {
+      border-radius: 0;
+      background: var(--dp-range-surface);
+      color: var(--dp-accent-strong);
+    }
+
+    &--selected,
+    &--selected:hover {
+      background: var(--dp-accent);
+      border-color: var(--dp-accent);
+      color: var(--dp-on-accent);
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &--selected.date-picker__day--today {
+      color: var(--dp-on-accent);
+    }
+
+    // Range endpoints keep the rounded edge facing outward.
+    &--start {
+      border-start-end-radius: 0;
+      border-end-end-radius: 0;
+    }
+
+    &--end {
+      border-start-start-radius: 0;
+      border-end-start-radius: 0;
+    }
+
+    &:disabled {
+      color: var(--dp-day-disabled-color);
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+  }
+
+  &__day-number {
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    min-height: syn.px-to-rem(24);
+  }
+
+  &__summary {
+    margin: 0;
+    color: var(--dp-summary-color);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__clear {
+    padding: syn.$space-1 syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--dp-border);
+    border-radius: syn.$radius-md;
+    background: var(--dp-surface);
+    color: var(--dp-accent-strong);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--dp-day-hover-surface);
+      border-color: var(--dp-border-subtle);
+    }
   }
 }
 
-.syn-date-picker__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .date-picker__nav,
+  .date-picker__day,
+  .date-picker__clear {
+    transition: none;
+  }
+
+  .date-picker__day--selected {
+    transform: none;
+  }
 }

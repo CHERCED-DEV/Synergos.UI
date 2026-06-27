@@ -1,21 +1,141 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --tt-bubble-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --tt-bubble-color: var(--syn-color-text-on-inverse, #{syn.$color-neutral-0});
+  --tt-bubble-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --tt-trigger-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tt-trigger-decoration: var(--syn-color-border-brand, #{syn.$color-brand-300});
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-tooltip__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.tooltip {
+  position: relative;
+  display: inline-flex;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__trigger {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tt-trigger-color);
+    font: inherit;
+    font-weight: syn.$font-weight-medium;
+    text-decoration: underline dotted var(--tt-trigger-decoration);
+    text-underline-offset: syn.px-to-rem(3);
+    cursor: help;
+
+    @include syn.focus-visible;
+  }
+
+  &__bubble {
+    position: absolute;
+    z-index: syn.$z-tooltip;
+    inline-size: max-content;
+    max-inline-size: syn.px-to-rem(240);
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--tt-bubble-surface);
+    box-shadow: var(--tt-bubble-shadow);
+    color: var(--tt-bubble-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    text-align: start;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      visibility var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+  }
+
+  &__arrow {
+    position: absolute;
+    inline-size: syn.$space-2;
+    block-size: syn.$space-2;
+    background: var(--tt-bubble-surface);
+    transform: rotate(45deg);
+  }
+
+  // ─── Anchoring per side ──────────────────────────────────────────────────
+  &--top &__bubble {
+    inset-block-end: calc(100% + #{syn.$space-2});
+    inset-inline-start: 50%;
+    transform: translate(-50%, #{syn.px-to-rem(4)});
+  }
+
+  &--top &__arrow {
+    inset-block-start: 100%;
+    inset-inline-start: 50%;
+    margin-block-start: calc(-1 * #{syn.$space-1});
+    margin-inline-start: calc(-1 * #{syn.$space-1});
+  }
+
+  &--bottom &__bubble {
+    inset-block-start: calc(100% + #{syn.$space-2});
+    inset-inline-start: 50%;
+    transform: translate(-50%, #{syn.px-to-rem(-4)});
+  }
+
+  &--bottom &__arrow {
+    inset-block-end: 100%;
+    inset-inline-start: 50%;
+    margin-block-end: calc(-1 * #{syn.$space-1});
+    margin-inline-start: calc(-1 * #{syn.$space-1});
+  }
+
+  &--left &__bubble {
+    inset-inline-end: calc(100% + #{syn.$space-2});
+    inset-block-start: 50%;
+    transform: translate(#{syn.px-to-rem(4)}, -50%);
+  }
+
+  &--left &__arrow {
+    inset-inline-start: 100%;
+    inset-block-start: 50%;
+    margin-inline-start: calc(-1 * #{syn.$space-1});
+    margin-block-start: calc(-1 * #{syn.$space-1});
+  }
+
+  &--right &__bubble {
+    inset-inline-start: calc(100% + #{syn.$space-2});
+    inset-block-start: 50%;
+    transform: translate(#{syn.px-to-rem(-4)}, -50%);
+  }
+
+  &--right &__arrow {
+    inset-inline-end: 100%;
+    inset-block-start: 50%;
+    margin-inline-end: calc(-1 * #{syn.$space-1});
+    margin-block-start: calc(-1 * #{syn.$space-1});
+  }
+
+  // ─── Open state ──────────────────────────────────────────────────────────
+  &--open &__bubble {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+
+  &--left.tooltip--open &__bubble,
+  &--right.tooltip--open &__bubble {
+    transform: translate(0, -50%);
   }
 }
 
-.syn-tooltip__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .tooltip__bubble {
+    transition:
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      visibility var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+    transform: none;
+  }
+
+  .tooltip--open .tooltip__bubble {
+    transform: none;
+  }
 }

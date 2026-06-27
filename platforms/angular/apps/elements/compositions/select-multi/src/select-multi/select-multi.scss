@@ -1,21 +1,279 @@
 @use 'scss' as syn;
 
 :host {
+  --sm-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sm-popup-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sm-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --sm-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-200});
+  --sm-shadow: var(--syn-shadow-floating, #{syn.$shadow-floating});
+  --sm-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sm-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --sm-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sm-placeholder-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --sm-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sm-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --sm-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --sm-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sm-chip-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sm-chip-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --sm-active-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-select-multi__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.select-multi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    display: block;
+    color: var(--sm-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  // ─── Chips ──────────────────────────────────────────────────────────────────
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    padding: syn.$space-1 syn.$space-1 syn.$space-1 syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--sm-chip-surface);
+    color: var(--sm-chip-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: 1;
+  }
+
+  &__chip-label {
+    max-width: syn.px-to-rem(220);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__chip-remove {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    padding: 0;
+    border: none;
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: var(--sm-muted-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--sm-accent);
+      color: var(--sm-on-accent);
+    }
+  }
+
+  &__chip-icon {
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+  }
+
+  &__chip-clear {
+    display: inline-flex;
+  }
+
+  &__clear {
+    padding: syn.$space-1 syn.$space-2;
+    border: none;
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: var(--sm-accent-strong);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--sm-hover-surface);
+    }
+  }
+
+  // ─── Search field ──────────────────────────────────────────────────────────
+  &__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__input {
+    flex: 1 1 auto;
+    inline-size: 100%;
+    min-width: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sm-border);
+    border-radius: syn.$radius-md;
+    background: var(--sm-surface);
+    color: var(--sm-text-color);
+    font-family: inherit;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-normal;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &::placeholder {
+      color: var(--sm-placeholder-color);
+    }
+
+    &:hover {
+      border-color: var(--sm-accent);
+    }
+  }
+
+  &__hint {
+    flex: 0 0 auto;
+    color: var(--sm-muted-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    white-space: nowrap;
+  }
+
+  // ─── Popup / listbox ───────────────────────────────────────────────────────
+  &__popup {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: calc(100% + #{syn.$space-1});
+    z-index: var(--syn-z-index-dropdown, #{syn.$z-dropdown});
+    overflow: hidden;
+    border: syn.px-to-rem(1) solid var(--sm-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--sm-popup-surface);
+    box-shadow: var(--sm-shadow);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(#{syn.px-to-rem(-4)});
+    transition:
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-out,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-out,
+      visibility var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-out;
+
+    &--open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+  }
+
+  &__listbox {
+    display: flex;
+    flex-direction: column;
+    max-block-size: syn.px-to-rem(280);
+    margin: 0;
+    padding: syn.$space-1;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-2;
+    border-radius: syn.$radius-sm;
+    color: var(--sm-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &--active {
+      background: var(--sm-active-surface);
+    }
+
+    &--selected {
+      color: var(--sm-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &--disabled {
+      color: var(--sm-muted-color);
+      cursor: not-allowed;
+
+      &.select-multi__option--active {
+        background: transparent;
+      }
+    }
+  }
+
+  &__checkbox {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    border: syn.px-to-rem(1) solid var(--sm-border);
+    border-radius: syn.$radius-sm;
+    background: var(--sm-surface);
+
+    .select-multi__option--selected & {
+      border-color: var(--sm-accent);
+      background: var(--sm-accent);
+      color: var(--sm-on-accent);
+    }
+  }
+
+  &__check {
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+  }
+
+  &__option-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__empty {
+    padding: syn.$space-3 syn.$space-2;
+    color: var(--sm-muted-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-select-multi__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .select-multi__input,
+  .select-multi__chip-remove,
+  .select-multi__clear,
+  .select-multi__option,
+  .select-multi__popup {
+    transition: none;
+  }
 }

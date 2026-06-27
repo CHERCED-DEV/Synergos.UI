@@ -1,21 +1,156 @@
 @use 'scss' as syn;
 
 :host {
+  --code-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --code-surface-header: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+  --code-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+  --code-text: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --code-text-muted: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+  --code-gutter: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+  --code-accent: var(--syn-color-brand-300, #{syn.$color-brand-300});
+  --code-copy-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+  --code-copy-surface-hover: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+  --code-done: var(--syn-color-success-400, #{syn.$color-success-400});
+  --code-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-code-block__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.code-block {
+  margin: 0;
+  overflow: hidden;
+  border: syn.px-to-rem(1) solid var(--code-border);
+  border-radius: syn.$radius-lg;
+  background: var(--code-surface);
+  box-shadow: var(--code-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    padding: syn.$space-xs syn.$space-sm;
+    border-block-end: syn.px-to-rem(1) solid var(--code-border);
+    background: var(--code-surface-header);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-sm;
+    min-width: 0;
+  }
+
+  &__filename {
+    overflow: hidden;
+    color: var(--code-text);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__language {
+    flex: none;
+    color: var(--code-accent);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__copy {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-xxs syn.$space-xs;
+    border: syn.px-to-rem(1) solid var(--code-border);
+    border-radius: syn.$radius-md;
+    background: var(--code-copy-surface);
+    color: var(--code-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--code-copy-surface-hover);
+    }
+
+    &--done {
+      color: var(--code-done);
+      border-color: var(--code-done);
+    }
+  }
+
+  &__copy-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  &__pre {
+    margin: 0;
+    overflow-x: auto;
+    padding: syn.$space-sm 0;
+    color: var(--code-text);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+    -webkit-overflow-scrolling: touch;
+
+    @include syn.focus-visible;
+  }
+
+  &__code {
+    display: block;
+    min-width: max-content;
+    font: inherit;
+  }
+
+  &__line {
+    display: flex;
+    align-items: flex-start;
+    padding-inline: syn.$space-sm;
+  }
+
+  &__gutter {
+    flex: none;
+    inline-size: syn.px-to-rem(40);
+    padding-inline-end: syn.$space-sm;
+    color: var(--code-gutter);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    user-select: none;
+  }
+
+  &__pre--numbered &__line {
+    padding-inline-start: syn.$space-xs;
+  }
+
+  &__line-text {
+    flex: 1 1 auto;
+    white-space: pre;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg syn.$space-sm;
+    color: var(--code-text-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-code-block__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .code-block__copy {
+    transition: none;
+  }
 }

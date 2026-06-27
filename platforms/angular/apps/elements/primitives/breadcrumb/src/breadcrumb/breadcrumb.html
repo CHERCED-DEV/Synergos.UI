@@ -1,3 +1,23 @@
-<div class="syn-breadcrumb__placeholder" [attr.data-itemsJson]="itemsJson() ?? null" [attr.data-includeStructuredData]="includeStructuredData() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="breadcrumb">
-  <span class="syn-breadcrumb__name">synergos-breadcrumb</span>
-</div>
+@if (hasItems()) {
+  <nav class="breadcrumb" [attr.aria-label]="label()">
+    <ol class="breadcrumb__list">
+      @for (item of items(); track item.id) {
+        <li class="breadcrumb__item">
+          @if (item.href) {
+            <a class="breadcrumb__link" [href]="item.href">{{ item.label }}</a>
+          } @else {
+            <span class="breadcrumb__current" aria-current="page">{{ item.label }}</span>
+          }
+
+          @if (!item.isCurrent) {
+            <span class="breadcrumb__separator" aria-hidden="true">{{ separator() }}</span>
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+
+  @if (structuredData()) {
+    <script type="application/ld+json" [textContent]="structuredData()"></script>
+  }
+}

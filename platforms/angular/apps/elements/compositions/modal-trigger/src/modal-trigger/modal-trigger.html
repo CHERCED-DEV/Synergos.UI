@@ -1,3 +1,67 @@
-<div class="syn-modal-trigger__placeholder" [attr.data-triggerLabel]="triggerLabel() ?? null" [attr.data-modalTitle]="modalTitle() ?? null" [attr.data-modalContent]="modalContent() ?? null" [attr.data-modalSize]="modalSize() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="modal-trigger">
-  <span class="syn-modal-trigger__name">synergos-modal-trigger</span>
-</div>
+<button
+  type="button"
+  class="modal-trigger__button"
+  [attr.aria-haspopup]="'dialog'"
+  [attr.aria-expanded]="isOpen()"
+  (click)="open()"
+>
+  {{ triggerLabel() }}
+</button>
+
+@if (isOpen()) {
+  <div
+    class="modal-trigger__overlay"
+    (click)="onBackdropPointer($event)"
+    (keydown)="onDialogKeydown($event)"
+  >
+    <div
+      class="modal-trigger__dialog"
+      [class.modal-trigger__dialog--sm]="modalSize() === 'sm'"
+      [class.modal-trigger__dialog--md]="modalSize() === 'md'"
+      [class.modal-trigger__dialog--lg]="modalSize() === 'lg'"
+      [class.modal-trigger__dialog--full]="modalSize() === 'full'"
+      data-modal-dialog
+      role="dialog"
+      aria-modal="true"
+      tabindex="-1"
+      [attr.aria-labelledby]="hasTitle() ? titleId : null"
+      [attr.aria-label]="hasTitle() ? null : triggerLabel()"
+      [attr.aria-describedby]="hasContent() ? contentId : null"
+    >
+      <div class="modal-trigger__header">
+        @if (hasTitle()) {
+          <h2 class="modal-trigger__title" [id]="titleId">{{ modalTitle() }}</h2>
+        }
+        @if (dismissible()) {
+          <button
+            type="button"
+            class="modal-trigger__close"
+            [attr.aria-label]="closeLabel()"
+            (click)="close()"
+          >
+            <svg
+              class="modal-trigger__close-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        }
+      </div>
+
+      @if (hasContent()) {
+        <div class="modal-trigger__body" [id]="contentId">
+          <p class="modal-trigger__text">{{ modalContent() }}</p>
+        </div>
+      }
+    </div>
+  </div>
+}

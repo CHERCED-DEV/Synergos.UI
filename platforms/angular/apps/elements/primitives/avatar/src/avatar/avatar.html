@@ -1,3 +1,42 @@
-<div class="syn-avatar__placeholder" [attr.data-avatarImage]="avatarImage() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="avatar">
-  <span class="syn-avatar__name">synergos-avatar</span>
-</div>
+<span
+  class="avatar"
+  role="img"
+  [attr.aria-label]="fullLabel()"
+>
+  @if (showImage()) {
+    <img
+      class="avatar__image"
+      [src]="src()"
+      [attr.alt]="baseLabel()"
+      decoding="async"
+      loading="lazy"
+      (error)="onImageError()"
+    />
+  } @else if (initials()) {
+    <span class="avatar__initials" aria-hidden="true">{{ initials() }}</span>
+  } @else {
+    <svg
+      class="avatar__placeholder-icon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M12 12.5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 1.75c-3.6 0-6.5 1.95-6.5 4.35V20h13v-1.4c0-2.4-2.9-4.35-6.5-4.35Z"
+        fill="currentColor"
+      />
+    </svg>
+  }
+
+  @if (hasStatus()) {
+    <span
+      class="avatar__status"
+      [class.avatar__status--online]="status() === 'online'"
+      [class.avatar__status--away]="status() === 'away'"
+      [class.avatar__status--busy]="status() === 'busy'"
+      [class.avatar__status--offline]="status() === 'offline'"
+      [attr.title]="statusLabel()"
+      aria-hidden="true"
+    ></span>
+  }
+</span>

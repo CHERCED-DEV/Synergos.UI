@@ -1,3 +1,46 @@
-<div class="syn-popover__placeholder" [attr.data-triggerLabel]="triggerLabel() ?? null" [attr.data-popoverContent]="popoverContent() ?? null" [attr.data-placement]="placement() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="popover">
-  <span class="syn-popover__name">synergos-popover</span>
+<div class="popover" [class]="'popover--' + placement()">
+  <button
+    type="button"
+    class="popover__trigger"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="panelId"
+    aria-haspopup="dialog"
+    (click)="toggleOpen()"
+  >
+    {{ triggerLabel() }}
+  </button>
+
+  @if (open()) {
+    <div
+      class="popover__panel"
+      [id]="panelId"
+      role="dialog"
+      aria-modal="false"
+      [attr.aria-label]="panelAriaLabel()"
+      [attr.aria-labelledby]="panelAriaLabelledby()"
+      (keydown)="onPanelKeydown($event)"
+    >
+      <span class="popover__arrow" aria-hidden="true"></span>
+
+      <div class="popover__head">
+        @if (hasHeading()) {
+          <h2 class="popover__heading" [id]="headingId">{{ heading() }}</h2>
+        }
+        <button
+          type="button"
+          class="popover__close"
+          [attr.aria-label]="closeLabel()"
+          (click)="close()"
+        >
+          <svg class="popover__close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+
+      @if (hasContent()) {
+        <p class="popover__content">{{ popoverContent() }}</p>
+      }
+    </div>
+  }
 </div>

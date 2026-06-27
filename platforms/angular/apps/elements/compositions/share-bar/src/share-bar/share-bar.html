@@ -1,3 +1,81 @@
-<div class="syn-share-bar__placeholder" [attr.data-platforms]="platforms() ?? null" [attr.data-shareLink]="shareLink() ?? null" [attr.data-shareTitle]="shareTitle() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="share-bar">
-  <span class="syn-share-bar__name">synergos-share-bar</span>
+<div class="share-bar" role="group" [attr.aria-label]="'Compartir'">
+  <span class="share-bar__label" id="share-bar-label">Compartir</span>
+
+  @if (hasPlatforms()) {
+    <ul class="share-bar__list" aria-labelledby="share-bar-label">
+      @for (platform of platforms(); track platform.id) {
+        <li class="share-bar__item">
+          <button
+            type="button"
+            [class]="'share-bar__action share-bar__action--' + platform.id"
+            [attr.aria-label]="platform.label"
+            [attr.title]="platform.label"
+            (click)="onShare(platform)"
+          >
+            <svg
+              class="share-bar__icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path [attr.d]="platform.icon" fill="currentColor" />
+            </svg>
+          </button>
+        </li>
+      }
+
+      <li class="share-bar__item">
+        <button
+          type="button"
+          class="share-bar__action share-bar__action--copy"
+          [class.share-bar__action--copied]="copyState() === 'copied'"
+          [class.share-bar__action--failed]="copyState() === 'failed'"
+          [attr.aria-label]="
+            copyState() === 'copied'
+              ? 'Enlace copiado'
+              : copyState() === 'failed'
+                ? 'No se pudo copiar el enlace'
+                : 'Copiar enlace'
+          "
+          [attr.title]="'Copiar enlace'"
+          (click)="onCopyLink()"
+        >
+          <svg
+            class="share-bar__icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            @if (copyState() === 'copied') {
+              <path
+                d="m20 6-11 11-5-5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            } @else {
+              <path
+                d="M9 9h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Zm-2-2V5a2 2 0 0 1 2-2h9"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            }
+          </svg>
+        </button>
+      </li>
+    </ul>
+  }
+
+  <span class="share-bar__status" role="status" aria-live="polite">
+    @if (copyState() === 'copied') {
+      Enlace copiado
+    } @else if (copyState() === 'failed') {
+      No se pudo copiar
+    }
+  </span>
 </div>

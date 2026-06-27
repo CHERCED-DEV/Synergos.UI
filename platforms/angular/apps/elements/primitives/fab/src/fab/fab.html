@@ -1,3 +1,62 @@
-<div class="syn-fab__placeholder" [attr.data-iconKey]="iconKey() ?? null" [attr.data-actionLink]="actionLink() ?? null" [attr.data-position]="position() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="fab">
-  <span class="syn-fab__name">synergos-fab</span>
+@let tooltipId = 'syn-fab-tip';
+
+<div class="fab" (mouseenter)="openTooltip()" (mouseleave)="closeTooltip()">
+  @if (isLink()) {
+    <a
+      class="fab__trigger"
+      [href]="actionLink()"
+      [attr.target]="target() || null"
+      [attr.rel]="rel()"
+      [attr.aria-label]="label()"
+      [attr.aria-describedby]="hasTooltip() ? tooltipId : null"
+      (focus)="openTooltip()"
+      (blur)="closeTooltip()"
+      (keydown)="onKeydown($event)"
+    >
+      <svg class="fab__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          [attr.d]="iconPath()"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+  } @else {
+    <button
+      type="button"
+      class="fab__trigger"
+      [attr.aria-label]="label()"
+      [attr.aria-describedby]="hasTooltip() ? tooltipId : null"
+      (click)="activate()"
+      (focus)="openTooltip()"
+      (blur)="closeTooltip()"
+      (keydown)="onKeydown($event)"
+    >
+      <svg class="fab__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          [attr.d]="iconPath()"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  }
+
+  @if (hasTooltip()) {
+    <span
+      [id]="tooltipId"
+      class="fab__tooltip"
+      role="tooltip"
+      [class.fab__tooltip--visible]="tooltipOpen()"
+      [attr.aria-hidden]="tooltipOpen() ? null : 'true'"
+    >
+      {{ tooltip() }}
+    </span>
+  }
 </div>

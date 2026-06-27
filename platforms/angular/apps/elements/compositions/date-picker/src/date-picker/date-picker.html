@@ -1,3 +1,85 @@
-<div class="syn-date-picker__placeholder" [attr.data-label]="label() ?? null" [attr.data-initialDate]="initialDate() ?? null" [attr.data-minDate]="minDate() ?? null" [attr.data-maxDate]="maxDate() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="date-picker">
-  <span class="syn-date-picker__name">synergos-date-picker</span>
+<div class="date-picker" [class.date-picker--range]="isRange()">
+  @if (label()) {
+    <p class="date-picker__label" id="date-picker-label">{{ label() }}</p>
+  }
+
+  <div class="date-picker__header">
+    <button
+      type="button"
+      class="date-picker__nav"
+      (click)="previousMonth()"
+      [attr.aria-label]="'Mes anterior'"
+    >
+      <svg class="date-picker__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+
+    <h2 class="date-picker__title" aria-live="polite">{{ monthLabel() }}</h2>
+
+    <button
+      type="button"
+      class="date-picker__nav"
+      (click)="nextMonth()"
+      [attr.aria-label]="'Mes siguiente'"
+    >
+      <svg class="date-picker__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+  </div>
+
+  <div
+    class="date-picker__grid"
+    role="grid"
+    [attr.aria-label]="(label() ? label() + ' — ' : '') + monthLabel()"
+    [attr.aria-labelledby]="label() ? 'date-picker-label' : null"
+  >
+    <div class="date-picker__weekdays" role="row">
+      @for (weekday of weekdayLabels(); track $index) {
+        <span class="date-picker__weekday" role="columnheader" [attr.aria-label]="weekday">{{ weekday }}</span>
+      }
+    </div>
+
+    @for (week of weeks(); track $index) {
+      <div class="date-picker__week" role="row">
+        @for (day of week; track day.iso) {
+          <div
+            class="date-picker__cell"
+            role="gridcell"
+            [class.date-picker__cell--in-range]="isInRange(day)"
+            [attr.aria-selected]="isSelected(day)"
+          >
+            <button
+              type="button"
+              class="date-picker__day"
+              [class.date-picker__day--outside]="!day.inMonth"
+              [class.date-picker__day--today]="day.isToday"
+              [class.date-picker__day--selected]="isSelected(day)"
+              [class.date-picker__day--start]="isRangeStart(day)"
+              [class.date-picker__day--end]="isRangeEnd(day)"
+              [class.date-picker__day--in-range]="isInRange(day)"
+              [attr.data-iso]="day.iso"
+              [disabled]="day.disabled"
+              [attr.aria-disabled]="day.disabled ? 'true' : null"
+              [attr.tabindex]="day.iso === focusedDate() ? 0 : -1"
+              [attr.aria-label]="day.label"
+              [attr.aria-current]="day.isToday ? 'date' : null"
+              (click)="selectDay(day)"
+              (keydown)="onDayKeydown($event, day)"
+            >
+              <span class="date-picker__day-number">{{ day.dayOfMonth }}</span>
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="date-picker__footer">
+    <p class="date-picker__summary" role="status" aria-live="polite">{{ summary() }}</p>
+    @if (selectedDate()) {
+      <button type="button" class="date-picker__clear" (click)="clear()">Limpiar</button>
+    }
+  </div>
 </div>

@@ -1,3 +1,98 @@
-<div class="syn-select-multi__placeholder" [attr.data-label]="label() ?? null" [attr.data-optionsJson]="optionsJson() ?? null" [attr.data-maxSelections]="maxSelections() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="select-multi">
-  <span class="syn-select-multi__name">synergos-select-multi</span>
+<div class="select-multi">
+  @if (hasLabel()) {
+    <span id="select-multi-label" class="select-multi__label">{{ label() }}</span>
+  }
+
+  @if (hasSelection()) {
+    <ul class="select-multi__chips" role="list" aria-label="Selección actual">
+      @for (option of selectedOptions(); track option.value) {
+        <li class="select-multi__chip">
+          <span class="select-multi__chip-label">{{ option.label }}</span>
+          <button
+            type="button"
+            class="select-multi__chip-remove"
+            (click)="removeOption(option)"
+            [attr.aria-label]="'Quitar ' + option.label"
+          >
+            <svg class="select-multi__chip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </li>
+      }
+      <li class="select-multi__chip-clear">
+        <button type="button" class="select-multi__clear" (click)="clearSelection()">
+          Limpiar
+        </button>
+      </li>
+    </ul>
+  }
+
+  <div class="select-multi__field">
+    <input
+      #search
+      type="text"
+      class="select-multi__input"
+      role="combobox"
+      autocomplete="off"
+      aria-autocomplete="list"
+      aria-controls="select-multi-listbox"
+      [attr.aria-expanded]="open()"
+      [attr.aria-activedescendant]="open() && activeValue() ? optionId({ value: activeValue()!, label: '', disabled: false }) : null"
+      [attr.aria-labelledby]="hasLabel() ? 'select-multi-label' : null"
+      [attr.aria-label]="hasLabel() ? null : 'Buscar opciones'"
+      [placeholder]="placeholder()"
+      [value]="query()"
+      (input)="onQueryInput(search.value)"
+      (focus)="openListbox()"
+      (keydown)="onKeydown($event)"
+    />
+
+    @if (capacityHint()) {
+      <span class="select-multi__hint" aria-live="polite">{{ capacityHint() }}</span>
+    }
+  </div>
+
+  <div class="select-multi__popup" [class.select-multi__popup--open]="open()">
+    <ul
+      id="select-multi-listbox"
+      class="select-multi__listbox"
+      role="listbox"
+      aria-multiselectable="true"
+      [attr.aria-labelledby]="hasLabel() ? 'select-multi-label' : null"
+      [attr.aria-label]="hasLabel() ? null : 'Opciones'"
+    >
+      @for (option of filteredOptions(); track option.value) {
+        <li
+          class="select-multi__option"
+          [class.select-multi__option--selected]="isSelected(option)"
+          [class.select-multi__option--active]="option.value === activeValue()"
+          [class.select-multi__option--disabled]="!isPickable(option)"
+          [id]="optionId(option)"
+          role="option"
+          [attr.aria-selected]="isSelected(option)"
+          [attr.aria-disabled]="!isPickable(option) ? 'true' : null"
+          (click)="toggleOption(option)"
+          (mouseenter)="activeValue.set(option.value)"
+        >
+          <span class="select-multi__checkbox" aria-hidden="true">
+            @if (isSelected(option)) {
+              <svg class="select-multi__check" viewBox="0 0 24 24" focusable="false">
+                <path d="m5 12 5 5 9-11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            }
+          </span>
+          <span class="select-multi__option-label">{{ option.label }}</span>
+        </li>
+      } @empty {
+        <li class="select-multi__empty" role="presentation">{{ emptyLabel() }}</li>
+      }
+    </ul>
+  </div>
+
+  <span class="select-multi__sr" role="status" aria-live="polite">
+    @if (hasSelection()) {
+      {{ selectedOptions().length }} opción(es) seleccionada(s).
+    }
+  </span>
 </div>

@@ -1,21 +1,160 @@
 @use 'scss' as syn;
 
 :host {
+  --cs-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cs-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cs-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --cs-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cs-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cs-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cs-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --cs-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cs-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cs-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-color-swatches__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.color-swatches {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__heading {
+    margin: 0;
+    color: var(--cs-heading-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__group {
+    --color-swatches-columns: 6;
+
+    display: grid;
+    grid-template-columns: repeat(var(--color-swatches-columns), minmax(0, 1fr));
+    gap: syn.$space-sm;
+  }
+
+  &__swatch {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    padding: syn.$space-1;
+    border: syn.px-to-rem(2) solid transparent;
+    background: transparent;
+    color: var(--cs-on-accent);
+    cursor: pointer;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover:not(.color-swatches__swatch--disabled) {
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &--square {
+      aspect-ratio: 1;
+      border-radius: syn.$radius-md;
+    }
+
+    &--circle {
+      aspect-ratio: 1;
+      border-radius: syn.$radius-full;
+    }
+
+    &--pill {
+      grid-template-columns: auto 1fr;
+      gap: syn.$space-xs;
+      justify-items: start;
+      padding-inline: syn.$space-sm;
+      padding-block: syn.$space-xs;
+      border-color: var(--cs-border);
+      border-radius: syn.$radius-full;
+    }
+
+    &--selected {
+      border-color: var(--cs-accent);
+      box-shadow: 0 0 0 syn.px-to-rem(2) var(--cs-surface),
+        0 0 0 syn.px-to-rem(4) var(--cs-accent);
+    }
+
+    &--pill.color-swatches__swatch--selected {
+      box-shadow: none;
+      border-color: var(--cs-accent);
+      background: var(--cs-hover-surface);
+    }
+
+    &--disabled {
+      cursor: not-allowed;
+      opacity: 0.4;
+    }
+  }
+
+  &__chip {
+    inline-size: 100%;
+    block-size: 100%;
+    min-inline-size: syn.px-to-rem(24);
+    min-block-size: syn.px-to-rem(24);
+    border: syn.px-to-rem(1) solid var(--cs-border-subtle);
+
+    .color-swatches__swatch--square & {
+      border-radius: syn.$radius-sm;
+    }
+
+    .color-swatches__swatch--circle & {
+      border-radius: syn.$radius-full;
+    }
+
+    .color-swatches__swatch--pill & {
+      inline-size: syn.px-to-rem(24);
+      block-size: syn.px-to-rem(24);
+      border-radius: syn.$radius-full;
+    }
+  }
+
+  &__check {
+    position: absolute;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    color: var(--cs-on-accent);
+    filter: drop-shadow(0 syn.px-to-rem(1) syn.px-to-rem(2) rgb(0 0 0 / 45%));
+    pointer-events: none;
+
+    .color-swatches__swatch--pill & {
+      position: static;
+      color: var(--cs-accent-strong);
+      filter: none;
+    }
+  }
+
+  &__label {
+    color: var(--cs-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__selection,
+  &__empty {
+    margin: 0;
+    color: var(--cs-status-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
   }
 }
 
-.syn-color-swatches__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .color-swatches__swatch {
+    transition: none;
+  }
+
+  .color-swatches__swatch:hover:not(.color-swatches__swatch--disabled) {
+    transform: none;
+  }
 }

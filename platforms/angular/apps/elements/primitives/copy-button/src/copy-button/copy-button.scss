@@ -1,21 +1,107 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --cb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cb-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cb-border-hover: var(--syn-color-border-subtle, #{syn.$color-neutral-300});
+  --cb-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cb-text-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cb-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --cb-success-surface: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --cb-success-border: var(--syn-color-state-success-border, #{syn.$color-success-300});
+  --cb-success-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
+  --cb-error-surface: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --cb-error-border: var(--syn-color-state-danger-border, #{syn.$color-danger-300});
+  --cb-error-text: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-copy-button__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.copy-button {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--cb-border);
+    border-radius: syn.$radius-md;
+    background: var(--cb-surface);
+    color: var(--cb-text);
+    font-family: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover:not(:disabled) {
+      background: var(--cb-hover-surface);
+      border-color: var(--cb-border-hover);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(#{syn.px-to-rem(1)});
+    }
+
+    &:disabled {
+      color: var(--cb-text-muted);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    &--copied,
+    &--copied:hover:not(:disabled) {
+      border-color: var(--cb-success-border);
+      background: var(--cb-success-surface);
+      color: var(--cb-success-text);
+    }
+
+    &--error,
+    &--error:hover:not(:disabled) {
+      border-color: var(--cb-error-border);
+      background: var(--cb-error-surface);
+      color: var(--cb-error-text);
+    }
+  }
+
+  &__icon {
+    display: inline-grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+
+  &__svg {
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  &__label {
+    display: inline-block;
+  }
+
+  &__live {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-copy-button__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .copy-button__trigger {
+    transition: none;
+  }
+
+  .copy-button__trigger:active:not(:disabled) {
+    transform: none;
+  }
 }

@@ -1,3 +1,51 @@
-<div class="syn-accordion__placeholder" [attr.data-itemsJson]="itemsJson() ?? null" [attr.data-allowMultiple]="allowMultiple() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="accordion">
-  <span class="syn-accordion__name">synergos-accordion</span>
-</div>
+@if (hasItems()) {
+  <div class="accordion" role="presentation">
+    @for (item of items(); track item.id) {
+      <div
+        class="accordion__item"
+        [class.accordion__item--expanded]="isExpanded(item)"
+      >
+        <div class="accordion__heading" role="heading" [attr.aria-level]="headingLevel()">
+          <button
+            type="button"
+            class="accordion__trigger"
+            [id]="headerId(item)"
+            [attr.data-id]="item.id"
+            [attr.aria-expanded]="isExpanded(item)"
+            [attr.aria-controls]="panelId(item)"
+            [attr.tabindex]="item.id === focusedId() ? 0 : -1"
+            (click)="toggle(item)"
+            (keydown)="onHeaderKeydown($event, item)"
+          >
+            <span class="accordion__title">{{ item.title }}</span>
+            <svg
+              class="accordion__icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                d="m6 9 6 6 6-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          class="accordion__panel"
+          role="region"
+          [id]="panelId(item)"
+          [attr.aria-labelledby]="headerId(item)"
+          [hidden]="!isExpanded(item)"
+        >
+          <div class="accordion__body">{{ item.body }}</div>
+        </div>
+      </div>
+    }
+  </div>
+}

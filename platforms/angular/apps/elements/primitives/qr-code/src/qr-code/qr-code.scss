@@ -1,21 +1,75 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --qr-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --qr-module: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --qr-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --qr-caption-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --qr-message-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --qr-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-qr-code__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.qr-code {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-sm;
+  max-width: 100%;
+  margin: 0;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__frame {
+    display: flex;
+    max-width: 100%;
+    padding: syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--qr-border);
+    border-radius: syn.$radius-md;
+    background: var(--qr-surface);
+  }
+
+  &__svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  &__quiet {
+    fill: var(--qr-surface);
+  }
+
+  &__module {
+    fill: var(--qr-module);
+  }
+
+  &__caption {
+    max-width: syn.px-to-rem(280);
+    color: var(--qr-caption-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  &__message {
+    margin: 0;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) dashed var(--qr-border);
+    border-radius: syn.$radius-md;
+    color: var(--qr-message-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+
+    &--error {
+      color: var(--qr-error-color);
+    }
   }
 }
 
-.syn-qr-code__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .qr-code,
+  .qr-code__svg {
+    transition: none;
+  }
 }

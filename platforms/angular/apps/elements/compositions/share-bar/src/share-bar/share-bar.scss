@@ -1,21 +1,103 @@
 @use 'scss' as syn;
 
 :host {
+  --share-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --share-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --share-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --share-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --share-action-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --share-action-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --share-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --share-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --share-success: var(--syn-color-text-success, #{syn.$color-success-600});
+  --share-error: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-share-bar__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.share-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-sm;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    color: var(--share-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: block;
+  }
+
+  &__action {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--share-border);
+    border-radius: syn.$radius-md;
+    background: var(--share-surface);
+    color: var(--share-action-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--share-action-surface);
+      border-color: var(--share-border-subtle);
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &--copy.share-bar__action--copied {
+      border-color: var(--share-success);
+      color: var(--share-success);
+    }
+
+    &--copy.share-bar__action--failed {
+      border-color: var(--share-error);
+      color: var(--share-error);
+    }
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__status {
+    min-block-size: syn.px-to-rem(20);
+    color: var(--share-label-color);
+    font-size: syn.$font-size-sm;
   }
 }
 
-.syn-share-bar__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .share-bar__action {
+    transition: none;
+
+    &:hover {
+      transform: none;
+    }
+  }
 }

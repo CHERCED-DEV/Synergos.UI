@@ -1,3 +1,21 @@
-<div class="syn-skeleton__placeholder" [attr.data-shape]="shape() ?? null" [attr.data-count]="count() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="skeleton">
-  <span class="syn-skeleton__name">synergos-skeleton</span>
-</div>
+@if (isText()) {
+  <div class="skeleton__lines" aria-hidden="true">
+    @for (line of lines(); track line.index) {
+      <span
+        class="skeleton__bar skeleton__bar--text"
+        [class.skeleton__bar--short]="line.short"
+      ></span>
+    }
+  </div>
+} @else {
+  <div class="skeleton__blocks" aria-hidden="true">
+    @for (block of blocks(); track block) {
+      <span
+        class="skeleton__bar skeleton__bar--block"
+        [class.skeleton__bar--circle]="isCircle()"
+      ></span>
+    }
+  </div>
+}
+
+<span class="skeleton__sr">{{ label() }}</span>

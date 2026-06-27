@@ -1,3 +1,63 @@
-<div class="syn-badge-group__placeholder" [attr.data-badgesJson]="badgesJson() ?? null" [attr.data-layout]="layout() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="badge-group">
-  <span class="syn-badge-group__name">synergos-badge-group</span>
+<div
+  class="badge-group"
+  [class.badge-group--inline]="layout() === 'inline'"
+  [class.badge-group--stack]="layout() === 'stack'"
+  [attr.data-size]="size()"
+>
+  @if (hasLabel()) {
+    <span class="badge-group__label" [id]="'badge-group-label'">{{ label() }}</span>
+  }
+
+  @if (hasBadges()) {
+    <ul
+      class="badge-group__list"
+      [attr.role]="selectable() ? 'group' : 'list'"
+      [attr.aria-label]="hasLabel() ? null : 'Grupo de etiquetas'"
+      [attr.aria-labelledby]="hasLabel() ? 'badge-group-label' : null"
+    >
+      @for (badge of badges(); track badge.id) {
+        <li class="badge-group__item">
+          @if (selectable()) {
+            <button
+              type="button"
+              class="badge"
+              [class.badge--selected]="isSelected(badge.id)"
+              [attr.data-tone]="badge.tone"
+              [attr.aria-pressed]="isSelected(badge.id)"
+              (click)="toggle(badge)"
+              (keydown)="onKeydown($event, badge)"
+            >
+              <span class="badge__label">{{ badge.label }}</span>
+              @if (badge.countLabel) {
+                <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>
+                <span class="badge__sr">({{ badge.count }})</span>
+              }
+            </button>
+          } @else if (badge.href) {
+            <a
+              class="badge badge--link"
+              [href]="badge.href"
+              [attr.data-tone]="badge.tone"
+            >
+              <span class="badge__label">{{ badge.label }}</span>
+              @if (badge.countLabel) {
+                <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>
+                <span class="badge__sr">({{ badge.count }})</span>
+              }
+            </a>
+          } @else {
+            <span class="badge" [attr.data-tone]="badge.tone">
+              <span class="badge__label">{{ badge.label }}</span>
+              @if (badge.countLabel) {
+                <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>
+                <span class="badge__sr">({{ badge.count }})</span>
+              }
+            </span>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="badge-group__empty" role="status">{{ emptyLabel() }}</p>
+  }
 </div>

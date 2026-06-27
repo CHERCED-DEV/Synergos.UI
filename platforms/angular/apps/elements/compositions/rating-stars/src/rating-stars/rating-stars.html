@@ -1,3 +1,55 @@
-<div class="syn-rating-stars__placeholder" [attr.data-valueNow]="valueNow() ?? null" [attr.data-maxStars]="maxStars() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="rating-stars">
-  <span class="syn-rating-stars__name">synergos-rating-stars</span>
-</div>
+@if (readonly()) {
+  <div class="rating" role="img" [attr.aria-label]="ariaLabel()">
+    <span class="rating__stars" aria-hidden="true">
+      @for (star of stars(); track star.position) {
+        <span
+          class="rating__star"
+          [class.rating__star--full]="star.fill >= 1"
+          [class.rating__star--half]="star.fill === 0.5"
+        >
+          <svg class="rating__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2Z" />
+          </svg>
+        </span>
+      }
+    </span>
+    @if (showValue()) {
+      <span class="rating__value" aria-hidden="true">{{ formattedValue() }}</span>
+    }
+  </div>
+} @else {
+  <div
+    class="rating rating--interactive"
+    role="radiogroup"
+    [attr.aria-label]="label() || 'Calificación'"
+    (mouseleave)="clearPreview()"
+  >
+    <span class="rating__stars">
+      @for (star of stars(); track star.position) {
+        <button
+          type="button"
+          class="rating__star rating__star--button"
+          [class.rating__star--full]="star.fill >= 1"
+          role="radio"
+          [attr.data-position]="star.position"
+          [attr.aria-checked]="isChecked(star.position)"
+          [attr.aria-label]="star.position + ' de ' + max() + ' estrellas'"
+          [attr.tabindex]="isFocusTarget(star.position) ? 0 : -1"
+          (click)="pick(star.position)"
+          (mouseenter)="preview(star.position)"
+          (focus)="preview(star.position)"
+          (blur)="clearPreview()"
+          (keydown)="onStarKeydown($event, star.position)"
+        >
+          <svg class="rating__icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2Z" />
+          </svg>
+        </button>
+      }
+    </span>
+    @if (showValue()) {
+      <span class="rating__value" aria-hidden="true">{{ formattedValue() }}</span>
+    }
+    <output class="rating__sr-status" aria-live="polite">{{ ariaLabel() }}</output>
+  </div>
+}

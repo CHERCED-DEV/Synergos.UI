@@ -1,21 +1,172 @@
 @use 'scss' as syn;
 
 :host {
+  --modal-trigger-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --modal-trigger-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --modal-trigger-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --modal-trigger-text-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --modal-trigger-close-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --modal-trigger-close-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --modal-trigger-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --modal-trigger-accent-strong: var(--syn-color-action-emphasis-hover, #{syn.$color-brand-600});
+  --modal-trigger-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --modal-trigger-shadow: var(--syn-shadow-floating, #{syn.$shadow-floating});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-modal-trigger__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.modal-trigger__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-xs;
+  padding-block: syn.$space-sm;
+  padding-inline: syn.$space-lg;
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.$radius-md;
+  background: var(--modal-trigger-accent);
+  color: var(--modal-trigger-on-accent);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-snug;
+  cursor: pointer;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  @include syn.focus-visible;
+
+  &:hover {
+    background: var(--modal-trigger-accent-strong);
+  }
+
+  &:active {
+    transform: translateY(#{syn.px-to-rem(1)});
   }
 }
 
-.syn-modal-trigger__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.modal-trigger__overlay {
+  @include syn.overlay-active;
+
+  z-index: syn.$z-modal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: syn.$space-lg;
+  overflow-y: auto;
+  user-select: auto;
+}
+
+.modal-trigger__dialog {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  inline-size: 100%;
+  max-block-size: calc(100vh - #{syn.$space-2xl});
+  padding: syn.$space-xl;
+  overflow-y: auto;
+  border: syn.px-to-rem(1) solid var(--modal-trigger-border);
+  border-radius: syn.$radius-lg;
+  background: var(--modal-trigger-surface);
+  box-shadow: var(--modal-trigger-shadow);
+  animation: modal-trigger-enter var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+
+  @include syn.focus-visible;
+
+  &--sm {
+    max-inline-size: syn.px-to-rem(400);
+  }
+
+  &--md {
+    max-inline-size: syn.px-to-rem(560);
+  }
+
+  &--lg {
+    max-inline-size: syn.px-to-rem(800);
+  }
+
+  &--full {
+    max-inline-size: syn.px-to-rem(1120);
+  }
+}
+
+.modal-trigger__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: syn.$space-md;
+}
+
+.modal-trigger__title {
+  margin: 0;
+  color: var(--modal-trigger-title-color);
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-snug;
+}
+
+.modal-trigger__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: syn.px-to-rem(32);
+  block-size: syn.px-to-rem(32);
+  margin-inline-start: auto;
+  padding: 0;
+  border: 0;
+  border-radius: syn.$radius-md;
+  background: transparent;
+  color: var(--modal-trigger-close-color);
+  cursor: pointer;
+  transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  @include syn.focus-visible;
+
+  &:hover {
+    background: var(--modal-trigger-close-hover-surface);
+  }
+}
+
+.modal-trigger__close-icon {
+  inline-size: syn.px-to-rem(20);
+  block-size: syn.px-to-rem(20);
+}
+
+.modal-trigger__body {
+  color: var(--modal-trigger-text-color);
+}
+
+.modal-trigger__text {
+  margin: 0;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+  white-space: pre-line;
+}
+
+@keyframes modal-trigger-enter {
+  from {
+    opacity: 0;
+    transform: translateY(#{syn.px-to-rem(8)});
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-trigger__button,
+  .modal-trigger__close {
+    transition: none;
+  }
+
+  .modal-trigger__button:active {
+    transform: none;
+  }
+
+  .modal-trigger__dialog {
+    animation: none;
+  }
 }

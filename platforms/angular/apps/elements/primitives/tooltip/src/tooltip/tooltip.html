@@ -1,3 +1,30 @@
-<div class="syn-tooltip__placeholder" [attr.data-triggerText]="triggerText() ?? null" [attr.data-tooltipText]="tooltipText() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="tooltip">
-  <span class="syn-tooltip__name">synergos-tooltip</span>
-</div>
+@if (hasContent()) {
+  <span
+    class="tooltip"
+    [class]="'tooltip--' + position()"
+    [class.tooltip--open]="open()"
+    (pointerenter)="show()"
+    (pointerleave)="hide()"
+    (keydown)="onKeydown($event)"
+  >
+    <button
+      type="button"
+      class="tooltip__trigger"
+      [attr.aria-describedby]="open() ? bubbleId : null"
+      (focus)="show()"
+      (blur)="hide()"
+    >
+      {{ triggerText() }}
+    </button>
+
+    <span
+      class="tooltip__bubble"
+      [id]="bubbleId"
+      role="tooltip"
+      [attr.aria-hidden]="open() ? null : 'true'"
+    >
+      {{ tooltipText() }}
+      <span class="tooltip__arrow" aria-hidden="true"></span>
+    </span>
+  </span>
+}

@@ -1,3 +1,71 @@
-<div class="syn-color-picker__placeholder" [attr.data-label]="label() ?? null" [attr.data-initialColor]="initialColor() ?? null" [attr.data-paletteJson]="paletteJson() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="color-picker">
-  <span class="syn-color-picker__name">synergos-color-picker</span>
+<div class="color-picker">
+  <div class="color-picker__head">
+    <span class="color-picker__label" [id]="'cp-label'">{{ label() }}</span>
+
+    <div class="color-picker__current">
+      <span
+        class="color-picker__swatch color-picker__swatch--preview"
+        [style.background-color]="selected()"
+        [attr.aria-hidden]="true"
+      ></span>
+      <span class="color-picker__value" aria-live="polite">{{ selectedLabel() }}</span>
+    </div>
+  </div>
+
+  <div class="color-picker__field">
+    <label class="color-picker__field-label" [attr.for]="'cp-hex'">Hex</label>
+    <span class="color-picker__hash" aria-hidden="true">#</span>
+    <input
+      class="color-picker__input"
+      [class.color-picker__input--invalid]="!isDraftValid()"
+      id="cp-hex"
+      type="text"
+      inputmode="text"
+      autocomplete="off"
+      spellcheck="false"
+      maxlength="7"
+      [value]="draft()"
+      [attr.aria-invalid]="!isDraftValid()"
+      [attr.aria-describedby]="!isDraftValid() ? 'cp-hex-error' : null"
+      (input)="onDraftInput($any($event.target).value)"
+      (keydown)="onDraftKeydown($event)"
+      (blur)="commitDraft()"
+    />
+    @if (!isDraftValid()) {
+      <span class="color-picker__error" id="cp-hex-error" role="alert">
+        Ingresá un color hex válido (#rgb o #rrggbb).
+      </span>
+    }
+  </div>
+
+  @if (palette().length > 0) {
+    <div
+      class="color-picker__palette"
+      role="radiogroup"
+      [attr.aria-labelledby]="'cp-label'"
+    >
+      @for (swatch of palette(); track swatch.hex) {
+        <button
+          type="button"
+          class="color-picker__swatch color-picker__swatch--option"
+          [class.color-picker__swatch--selected]="isSelected(swatch.hex)"
+          [class.color-picker__swatch--on-light]="isSelected(swatch.hex) && selectedIsLight()"
+          [style.background-color]="swatch.hex"
+          role="radio"
+          [attr.data-hex]="swatch.hex"
+          [attr.aria-checked]="isSelected(swatch.hex)"
+          [attr.aria-label]="swatch.label"
+          [attr.tabindex]="swatch.hex === focusedHex() ? 0 : -1"
+          (click)="selectSwatch(swatch.hex)"
+          (keydown)="onSwatchKeydown($event, swatch.hex)"
+        >
+          @if (isSelected(swatch.hex)) {
+            <svg class="color-picker__check" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          }
+        </button>
+      }
+    </div>
+  }
 </div>

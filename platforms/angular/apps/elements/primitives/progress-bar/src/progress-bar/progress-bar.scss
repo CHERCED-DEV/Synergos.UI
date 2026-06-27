@@ -1,21 +1,111 @@
 @use 'scss' as syn;
 
 :host {
+  --pb-track: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  --pb-track-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --pb-fill: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --pb-label-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --pb-value-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --pb-height: #{syn.px-to-rem(10)};
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-progress-bar__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+:host([data-size='sm']) {
+  --pb-height: #{syn.px-to-rem(6)};
+}
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+:host([data-size='lg']) {
+  --pb-height: #{syn.px-to-rem(16)};
+}
+
+:host([data-tone='success']) {
+  --pb-fill: var(--syn-color-text-success, #{syn.$color-success-600});
+}
+
+:host([data-tone='warning']) {
+  --pb-fill: var(--syn-color-text-warning, #{syn.$color-warning-600});
+}
+
+:host([data-tone='danger']) {
+  --pb-fill: var(--syn-color-text-danger, #{syn.$color-danger-600});
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  inline-size: 100%;
+
+  &__caption {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__label {
+    color: var(--pb-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__value {
+    color: var(--pb-value-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__track {
+    position: relative;
+    block-size: var(--pb-height);
+    inline-size: 100%;
+    overflow: hidden;
+    border: syn.px-to-rem(1) solid var(--pb-track-border);
+    border-radius: syn.$radius-full;
+    background: var(--pb-track);
+  }
+
+  &__fill {
+    block-size: 100%;
+    inline-size: 0;
+    border-radius: inherit;
+    background: var(--pb-fill);
+    transition: inline-size var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+
+    &--indeterminate {
+      position: absolute;
+      inset-block: 0;
+      inline-size: 40%;
+      transition: none;
+      animation: progress-indeterminate var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-smooth infinite;
+      animation-duration: 1200ms;
+    }
   }
 }
 
-.syn-progress-bar__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress__fill {
+    transition: none;
+  }
+
+  .progress__fill--indeterminate {
+    animation: none;
+    inline-size: 100%;
+    transform: none;
+    opacity: 0.6;
+  }
 }

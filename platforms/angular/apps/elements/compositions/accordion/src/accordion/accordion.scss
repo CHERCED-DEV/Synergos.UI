@@ -1,21 +1,107 @@
 @use 'scss' as syn;
 
 :host {
+  --acc-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --acc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --acc-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --acc-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --acc-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --acc-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --acc-icon-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --acc-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --acc-accent: var(--syn-color-text-accent, #{syn.$color-brand-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-accordion__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.accordion {
+  display: flex;
+  flex-direction: column;
+  border: syn.px-to-rem(1) solid var(--acc-border);
+  border-radius: syn.$radius-xl;
+  background: var(--acc-surface);
+  box-shadow: var(--acc-shadow);
+  overflow: hidden;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__item {
+    & + & {
+      border-block-start: syn.px-to-rem(1) solid var(--acc-border-subtle);
+    }
+  }
+
+  &__heading {
+    margin: 0;
+  }
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    margin: 0;
+    padding: syn.$space-md;
+    border: 0;
+    background: transparent;
+    color: var(--acc-title-color);
+    font-family: inherit;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-align: start;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--acc-hover-surface);
+    }
+
+    &[aria-expanded='true'] {
+      color: var(--acc-accent);
+    }
+  }
+
+  &__title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    color: var(--acc-icon-color);
+    transition: transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
+
+    .accordion__trigger[aria-expanded='true'] & {
+      transform: rotate(180deg);
+      color: var(--acc-accent);
+    }
+  }
+
+  &__panel {
+    color: var(--acc-body-color);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &__body {
+    padding-block: 0 syn.$space-md;
+    padding-inline: syn.$space-md;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+    white-space: pre-line;
   }
 }
 
-.syn-accordion__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .accordion__trigger,
+  .accordion__icon {
+    transition: none;
+  }
 }

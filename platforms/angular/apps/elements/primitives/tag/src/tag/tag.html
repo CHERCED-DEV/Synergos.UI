@@ -1,3 +1,42 @@
-<div class="syn-tag__placeholder" [attr.data-tagLabel]="tagLabel() ?? null" [attr.data-tagColor]="tagColor() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="tag">
-  <span class="syn-tag__name">synergos-tag</span>
-</div>
+@if (isVisible()) {
+  <span
+    class="tag"
+    [class.tag--neutral]="color() === 'neutral'"
+    [class.tag--brand]="color() === 'brand'"
+    [class.tag--success]="color() === 'success'"
+    [class.tag--warning]="color() === 'warning'"
+    [class.tag--danger]="color() === 'danger'"
+    [class.tag--info]="color() === 'info'"
+    [class.tag--removable]="removable()"
+    [attr.data-color]="color()"
+    [attr.role]="removable() ? 'group' : 'status'"
+    [attr.aria-label]="removable() ? ariaLabel() : null"
+  >
+    @if (hasIcon()) {
+      <span class="tag__icon" aria-hidden="true">{{ icon() }}</span>
+    }
+
+    @if (hasLabel()) {
+      <span class="tag__label">{{ label() }}</span>
+    }
+
+    @if (removable()) {
+      <button
+        type="button"
+        class="tag__remove"
+        [attr.aria-label]="removeButtonLabel()"
+        (click)="remove()"
+      >
+        <svg class="tag__remove-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6 18 18M18 6 6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    }
+  </span>
+}

@@ -1,3 +1,50 @@
-<div class="syn-icon-label__placeholder" [attr.data-iconKey]="iconKey() ?? null" [attr.data-labelText]="labelText() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="icon-label">
-  <span class="syn-icon-label__name">synergos-icon-label</span>
-</div>
+@if (!isEmpty()) {
+  @switch (mode()) {
+    @case ('link') {
+      <a
+        [class]="rootClass()"
+        [href]="href()"
+        [attr.target]="target() || null"
+        [attr.rel]="linkRel()"
+        [attr.aria-label]="accessibleLabel() || null"
+      >
+        <ng-container [ngTemplateOutlet]="content" />
+      </a>
+    }
+    @case ('action') {
+      <button
+        type="button"
+        [class]="rootClass()"
+        [attr.aria-label]="accessibleLabel() || null"
+        (click)="activate()"
+      >
+        <ng-container [ngTemplateOutlet]="content" />
+      </button>
+    }
+    @default {
+      <span
+        [class]="rootClass()"
+        [attr.role]="ariaLabel() ? 'img' : null"
+        [attr.aria-label]="ariaLabel() || null"
+      >
+        <ng-container [ngTemplateOutlet]="content" />
+      </span>
+    }
+  }
+}
+
+<ng-template #content>
+  @if (hasIcon()) {
+    <syn-icon
+      class="icon-label__icon"
+      [name]="iconName()"
+      [symbol]="iconSymbol()"
+      [size]="size()"
+      [tone]="tone()"
+      [decorative]="true"
+    />
+  }
+  @if (hasLabel()) {
+    <span class="icon-label__text">{{ labelText() }}</span>
+  }
+</ng-template>

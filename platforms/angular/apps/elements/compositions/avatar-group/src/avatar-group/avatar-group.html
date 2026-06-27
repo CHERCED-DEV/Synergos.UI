@@ -1,3 +1,53 @@
-<div class="syn-avatar-group__placeholder" [attr.data-avatarsJson]="avatarsJson() ?? null" [attr.data-maxVisible]="maxVisible() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="avatar-group">
-  <span class="syn-avatar-group__name">synergos-avatar-group</span>
-</div>
+@if (isEmpty()) {
+  <p class="avatar-group__empty">No hay integrantes para mostrar.</p>
+} @else {
+  <ul
+    class="avatar-group"
+    [class.avatar-group--sm]="size() === 'sm'"
+    [class.avatar-group--md]="size() === 'md'"
+    [class.avatar-group--lg]="size() === 'lg'"
+    role="list"
+    [attr.aria-label]="groupAriaLabel()"
+  >
+    @for (avatar of visibleAvatars(); track avatar.id; let i = $index) {
+      <li class="avatar-group__item" role="listitem">
+        <button
+          type="button"
+          class="avatar-group__avatar"
+          [attr.data-avatar-id]="avatar.id"
+          [attr.tabindex]="isFocusable(avatar, i) ? 0 : -1"
+          [attr.aria-label]="avatar.alt"
+          (click)="selectAvatar(avatar, i)"
+          (keydown)="onAvatarKeydown($event, avatar, i)"
+        >
+          @if (avatar.src) {
+            <img class="avatar-group__image" [src]="avatar.src" [alt]="avatar.alt" />
+          } @else {
+            <span class="avatar-group__initials" aria-hidden="true">{{ avatar.initials }}</span>
+          }
+        </button>
+      </li>
+    }
+
+    @if (hasOverflow()) {
+      <li class="avatar-group__item avatar-group__item--overflow" role="listitem">
+        @if (overflowHref()) {
+          <a
+            class="avatar-group__avatar avatar-group__overflow"
+            [href]="overflowHref()"
+            [attr.aria-label]="'Ver los ' + overflowCount() + ' integrantes restantes'"
+          >
+            <span aria-hidden="true">{{ overflowLabel() }}</span>
+          </a>
+        } @else {
+          <span
+            class="avatar-group__avatar avatar-group__overflow"
+            [attr.aria-label]="overflowCount() + ' integrantes más'"
+          >
+            <span aria-hidden="true">{{ overflowLabel() }}</span>
+          </span>
+        }
+      </li>
+    }
+  </ul>
+}

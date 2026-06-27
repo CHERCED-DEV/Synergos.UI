@@ -1,21 +1,163 @@
 @use 'scss' as syn;
 
 :host {
+  --ac-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ac-surface-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --ac-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ac-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ac-shadow: var(--syn-shadow-floating, #{syn.$shadow-lg});
+  --ac-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --ac-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ac-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ac-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --ac-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --ac-active-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --ac-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-autocomplete__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.autocomplete {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__label {
+    color: var(--ac-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__field {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  &__icon {
+    position: absolute;
+    inset-inline-start: syn.$space-3;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    color: var(--ac-muted-color);
+    pointer-events: none;
+  }
+
+  &__input {
+    inline-size: 100%;
+    padding-block: syn.$space-3;
+    padding-inline: syn.px-to-rem(44) syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text-color);
+    font-family: syn.$font-family-sans;
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-normal;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &::placeholder {
+      color: var(--ac-muted-color);
+    }
+
+    &:hover {
+      border-color: var(--ac-border-subtle);
+    }
+  }
+
+  &__spinner {
+    position: absolute;
+    inset-inline-end: syn.$space-3;
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    border: syn.px-to-rem(2) solid var(--ac-border);
+    border-block-start-color: var(--ac-accent);
+    border-radius: syn.$radius-full;
+    animation: ac-spin var(--syn-duration-loop, #{syn.$duration-loop}) linear infinite;
+  }
+
+  &__listbox {
+    position: absolute;
+    inset-block-start: calc(100% + #{syn.$space-1});
+    inset-inline: 0;
+    z-index: syn.$z-dropdown;
+    max-block-size: syn.px-to-rem(280);
+    margin: 0;
+    padding: syn.$space-1;
+    overflow-y: auto;
+    list-style: none;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+
+    @include syn.custom-scrollbar;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    padding-block: syn.$space-2;
+    padding-inline: syn.$space-3;
+    border-radius: syn.$radius-sm;
+    color: var(--ac-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &--active {
+      background: var(--ac-active-surface);
+    }
+  }
+
+  &__option-label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__empty {
+    padding-block: syn.$space-2;
+    padding-inline: syn.$space-3;
+    color: var(--ac-muted-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+
+    &--error {
+      color: var(--ac-error-color);
+    }
+  }
+
+  &__sr-status {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-autocomplete__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes ac-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .autocomplete__input,
+  .autocomplete__option {
+    transition: none;
+  }
+
+  .autocomplete__spinner {
+    animation: none;
+  }
 }

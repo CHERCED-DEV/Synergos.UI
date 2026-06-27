@@ -1,21 +1,101 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --il-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --il-text-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --il-text-accent: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --il-text-inverse: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --il-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
+  display: inline-flex;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-icon-label__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-2;
+  min-width: 0;
+  color: var(--il-text-color);
+  font-family: var(--syn-font-family-base, inherit);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  line-height: syn.$line-height-snug;
+  text-decoration: none;
+  vertical-align: middle;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  // Gap scale (multiples of the 8pt grid).
+  &--gap-sm {
+    gap: syn.$space-1;
+  }
+
+  &--gap-md {
+    gap: syn.$space-2;
+  }
+
+  &--gap-lg {
+    gap: syn.$space-sm;
+  }
+
+  // Trailing icon: flip the visual order, label first.
+  &--trailing {
+    flex-direction: row-reverse;
+  }
+
+  // Tone drives the label color; the glyph color is owned by <syn-icon>.
+  &--neutral {
+    color: var(--il-text-color);
+  }
+
+  &--brand {
+    color: var(--il-text-accent);
+  }
+
+  &--inverse {
+    color: var(--il-text-inverse);
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+  }
+
+  &__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-.syn-icon-label__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// Interactive variants (link / button) share the affordance treatment.
+.icon-label--interactive {
+  padding: syn.$space-1 syn.$space-2;
+  margin: calc(-1 * #{syn.$space-1}) calc(-1 * #{syn.$space-2});
+  border: 0;
+  border-radius: syn.$radius-md;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  @include syn.focus-visible;
+
+  &:hover {
+    background: var(--il-hover-surface);
+  }
+}
+
+button.icon-label--interactive {
+  appearance: none;
+  text-align: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-label--interactive {
+    transition: none;
+  }
 }

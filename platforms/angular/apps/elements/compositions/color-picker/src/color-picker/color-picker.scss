@@ -1,21 +1,182 @@
 @use 'scss' as syn;
 
 :host {
+  --cp-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cp-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cp-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --cp-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --cp-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cp-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cp-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cp-input-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cp-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cp-accent-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --cp-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+  --cp-on-dark: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --cp-on-light: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-color-picker__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--cp-border);
+  border-radius: syn.$radius-xl;
+  background: var(--cp-surface);
+  box-shadow: var(--cp-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__label {
+    color: var(--cp-label-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__current {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+  }
+
+  &__value {
+    color: var(--cp-value-color);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-sm;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__field {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: syn.$space-xs;
+  }
+
+  &__field-label {
+    color: var(--cp-muted-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__hash {
+    color: var(--cp-muted-color);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__input {
+    inline-size: 100%;
+    min-width: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--cp-border);
+    border-radius: syn.$radius-md;
+    background: var(--cp-input-surface);
+    color: var(--cp-value-color);
+    font-family: syn.$font-family-mono;
+    font-size: syn.$font-size-sm;
+    letter-spacing: syn.$letter-spacing-wide;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      border-color: var(--cp-border-subtle);
+    }
+
+    &--invalid {
+      border-color: var(--cp-error-color);
+    }
+  }
+
+  &__error {
+    grid-column: 1 / -1;
+    color: var(--cp-error-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(40)}, 1fr));
+    gap: syn.$space-2;
+  }
+
+  &__swatch {
+    display: block;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    border-radius: syn.$radius-md;
+    box-shadow: inset 0 0 0 syn.px-to-rem(1) rgb(15 23 42 / 0.12);
+
+    &--preview {
+      inline-size: syn.px-to-rem(24);
+      block-size: syn.px-to-rem(24);
+      aspect-ratio: auto;
+      flex: none;
+    }
+
+    &--option {
+      position: relative;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: syn.px-to-rem(2) solid transparent;
+      cursor: pointer;
+      transition:
+        transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+        border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+        box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+      @include syn.focus-visible;
+
+      &:hover {
+        transform: translateY(#{syn.px-to-rem(-2)});
+      }
+    }
+
+    &--selected {
+      border-color: var(--cp-accent-ring);
+      box-shadow:
+        inset 0 0 0 syn.px-to-rem(1) rgb(15 23 42 / 0.12),
+        0 0 0 syn.px-to-rem(1) var(--cp-accent);
+      color: var(--cp-on-dark);
+    }
+
+    &--on-light {
+      color: var(--cp-on-light);
+    }
+  }
+
+  &__check {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
   }
 }
 
-.syn-color-picker__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .color-picker__input,
+  .color-picker__swatch--option {
+    transition: none;
+  }
+
+  .color-picker__swatch--option:hover {
+    transform: none;
+  }
 }

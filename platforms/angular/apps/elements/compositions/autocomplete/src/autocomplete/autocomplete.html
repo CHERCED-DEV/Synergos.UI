@@ -1,3 +1,75 @@
-<div class="syn-autocomplete__placeholder" [attr.data-label]="label() ?? null" [attr.data-placeholder]="placeholder() ?? null" [attr.data-suggestionsEndpoint]="suggestionsEndpoint() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="autocomplete">
-  <span class="syn-autocomplete__name">synergos-autocomplete</span>
+<div class="autocomplete">
+  @if (label()) {
+    <label class="autocomplete__label" [attr.for]="inputId">{{ label() }}</label>
+  }
+
+  <div class="autocomplete__field">
+    <svg class="autocomplete__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" />
+      <path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </svg>
+
+    <input
+      class="autocomplete__input"
+      type="text"
+      role="combobox"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      [id]="inputId"
+      [attr.placeholder]="placeholder()"
+      [value]="query()"
+      [attr.aria-expanded]="expanded()"
+      [attr.aria-controls]="listboxId"
+      [attr.aria-activedescendant]="activeOptionId()"
+      aria-autocomplete="list"
+      aria-haspopup="listbox"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (keydown)="onKeydown($event)"
+    />
+
+    @if (loading()) {
+      <span class="autocomplete__spinner" role="status" aria-hidden="true"></span>
+    }
+  </div>
+
+  <ul
+    class="autocomplete__listbox"
+    role="listbox"
+    [id]="listboxId"
+    [attr.aria-label]="label() || placeholder()"
+    [hidden]="!expanded()"
+  >
+    @for (suggestion of suggestions(); track $index; let i = $index) {
+      <li
+        class="autocomplete__option"
+        role="option"
+        [id]="optionId(i)"
+        [class.autocomplete__option--active]="isActive(i)"
+        [attr.aria-selected]="isActive(i)"
+        (mousedown)="$event.preventDefault(); selectByIndex(i)"
+        (mouseenter)="activeIndex.set(i)"
+      >
+        <span class="autocomplete__option-label">{{ suggestion.label }}</span>
+      </li>
+    }
+
+    @if (showEmpty()) {
+      <li class="autocomplete__empty" role="status" aria-live="polite">{{ emptyLabel() }}</li>
+    }
+
+    @if (fetchFailed()) {
+      <li class="autocomplete__empty autocomplete__empty--error" role="status" aria-live="assertive">
+        No se pudieron cargar las sugerencias.
+      </li>
+    }
+  </ul>
+
+  <span class="autocomplete__sr-status" role="status" aria-live="polite">
+    @if (expanded() && hasSuggestions()) {
+      {{ suggestions().length }} sugerencia(s) disponibles.
+    }
+  </span>
 </div>

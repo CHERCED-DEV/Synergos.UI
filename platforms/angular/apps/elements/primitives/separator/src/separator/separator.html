@@ -1,3 +1,22 @@
-<div class="syn-separator__placeholder" [attr.data-style]="style() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="separator">
-  <span class="syn-separator__name">synergos-separator</span>
-</div>
+@if (hasLabel()) {
+  <div
+    class="separator separator--labelled"
+    [class.separator--align-start]="labelAlign() === 'start'"
+    [class.separator--align-end]="labelAlign() === 'end'"
+    [attr.role]="role()"
+    [attr.aria-orientation]="ariaOrientation()"
+  >
+    <span class="separator__line" aria-hidden="true"></span>
+    <span class="separator__label">{{ label() }}</span>
+    <span class="separator__line" aria-hidden="true"></span>
+  </div>
+} @else {
+  <div
+    class="separator"
+    [class.separator--vertical]="orientation() === 'vertical'"
+    [attr.role]="role()"
+    [attr.aria-orientation]="ariaOrientation()"
+  >
+    <span class="separator__line" aria-hidden="true"></span>
+  </div>
+}

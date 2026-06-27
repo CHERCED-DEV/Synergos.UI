@@ -1,21 +1,213 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --rt-trigger-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --rt-trigger-hover: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --rt-trigger-underline: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --rt-panel-surface: var(--syn-surface-inverse, #{syn.$color-surface-inverse});
+  --rt-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+  --rt-panel-shadow: var(--syn-shadow-lg, #{syn.$shadow-lg});
+  --rt-title-color: var(--syn-text-inverse, #{syn.$color-text-inverse});
+  --rt-body-color: var(--syn-color-neutral-300, #{syn.$color-neutral-300});
+  --rt-action-color: var(--syn-color-brand-300, #{syn.$color-brand-300});
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-rich-tooltip__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.rich-tooltip {
+  position: relative;
+  display: inline-flex;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--rt-trigger-color);
+    font: inherit;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      color: var(--rt-trigger-hover);
+    }
+  }
+
+  &__trigger-text {
+    text-decoration: underline;
+    text-decoration-color: var(--rt-trigger-underline);
+    text-underline-offset: syn.px-to-rem(3);
+    text-decoration-thickness: syn.px-to-rem(1);
+  }
+
+  &__trigger-icon {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+
+  &__panel {
+    position: absolute;
+    z-index: syn.$z-tooltip;
+    inline-size: max-content;
+    max-inline-size: syn.px-to-rem(280);
+    padding: syn.$space-sm syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--rt-panel-border);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-panel-surface);
+    box-shadow: var(--rt-panel-shadow);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(#{syn.px-to-rem(4)});
+    transition:
+      opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      visibility 0s linear var(--syn-duration-fast, #{syn.$duration-fast});
+
+    .rich-tooltip--open & {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+      transition:
+        opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+        transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+        visibility 0s;
+    }
+  }
+
+  &__arrow {
+    position: absolute;
+    inline-size: syn.px-to-rem(10);
+    block-size: syn.px-to-rem(10);
+    background: var(--rt-panel-surface);
+    border: syn.px-to-rem(1) solid var(--rt-panel-border);
+    transform: rotate(45deg);
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--rt-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__body {
+    margin: syn.$space-1 0 0;
+    color: var(--rt-body-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+  }
+
+  &__title + &__body {
+    margin-top: syn.$space-1;
+  }
+
+  &__action {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    margin-top: syn.$space-sm;
+    color: var(--rt-action-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-decoration: none;
+    border-radius: syn.$radius-sm;
+    transition: gap var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      gap: syn.$space-2;
+      text-decoration: underline;
+    }
+  }
+
+  &__action-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  // Placement — panel position + arrow anchoring.
+  &[data-placement='top'] &__panel {
+    inset-block-end: calc(100% + #{syn.$space-2});
+    inset-inline-start: 50%;
+    transform: translate(-50%, #{syn.px-to-rem(4)});
+  }
+  &[data-placement='top'].rich-tooltip--open &__panel {
+    transform: translate(-50%, 0);
+  }
+  &[data-placement='top'] &__arrow {
+    inset-block-end: syn.px-to-rem(-6);
+    inset-inline-start: 50%;
+    margin-inline-start: syn.px-to-rem(-5);
+    border-block-start: 0;
+    border-inline-start: 0;
+  }
+
+  &[data-placement='bottom'] &__panel {
+    inset-block-start: calc(100% + #{syn.$space-2});
+    inset-inline-start: 50%;
+    transform: translate(-50%, #{syn.px-to-rem(-4)});
+  }
+  &[data-placement='bottom'].rich-tooltip--open &__panel {
+    transform: translate(-50%, 0);
+  }
+  &[data-placement='bottom'] &__arrow {
+    inset-block-start: syn.px-to-rem(-6);
+    inset-inline-start: 50%;
+    margin-inline-start: syn.px-to-rem(-5);
+    border-block-end: 0;
+    border-inline-end: 0;
+  }
+
+  &[data-placement='left'] &__panel {
+    inset-inline-end: calc(100% + #{syn.$space-2});
+    inset-block-start: 50%;
+    transform: translate(#{syn.px-to-rem(4)}, -50%);
+  }
+  &[data-placement='left'].rich-tooltip--open &__panel {
+    transform: translate(0, -50%);
+  }
+  &[data-placement='left'] &__arrow {
+    inset-inline-end: syn.px-to-rem(-6);
+    inset-block-start: 50%;
+    margin-block-start: syn.px-to-rem(-5);
+    border-block-start: 0;
+    border-inline-start: 0;
+  }
+
+  &[data-placement='right'] &__panel {
+    inset-inline-start: calc(100% + #{syn.$space-2});
+    inset-block-start: 50%;
+    transform: translate(#{syn.px-to-rem(-4)}, -50%);
+  }
+  &[data-placement='right'].rich-tooltip--open &__panel {
+    transform: translate(0, -50%);
+  }
+  &[data-placement='right'] &__arrow {
+    inset-inline-start: syn.px-to-rem(-6);
+    inset-block-start: 50%;
+    margin-block-start: syn.px-to-rem(-5);
+    border-block-end: 0;
+    border-inline-end: 0;
   }
 }
 
-.syn-rich-tooltip__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .rich-tooltip__trigger,
+  .rich-tooltip__action,
+  .rich-tooltip__panel {
+    transition: none;
+  }
 }

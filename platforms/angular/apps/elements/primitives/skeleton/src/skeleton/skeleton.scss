@@ -1,21 +1,91 @@
 @use 'scss' as syn;
 
 :host {
+  --sk-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sk-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --sk-radius: var(--syn-radius-md, #{syn.$radius-md});
+  --sk-gap: #{syn.$space-3};
+
   display: block;
-  max-width: 100%;
+  inline-size: 100%;
+  max-inline-size: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-skeleton__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.skeleton {
+  &__lines,
+  &__blocks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sk-gap);
+  }
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__bar {
+    display: block;
+    inline-size: var(--sk-width, 100%);
+    border-radius: var(--sk-radius);
+    background:
+      linear-gradient(
+        90deg,
+        var(--sk-base) 0%,
+        var(--sk-highlight) 50%,
+        var(--sk-base) 100%
+      );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer
+      var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth
+      infinite;
+
+    &--text {
+      block-size: var(--sk-height, #{syn.px-to-rem(14)});
+    }
+
+    &--short {
+      inline-size: var(--sk-width, 62%);
+    }
+
+    &--block {
+      block-size: var(--sk-height, #{syn.px-to-rem(120)});
+    }
+
+    &--circle {
+      inline-size: var(--sk-width, #{syn.px-to-rem(48)});
+      block-size: var(--sk-height, #{syn.px-to-rem(48)});
+      aspect-ratio: 1 / 1;
+      border-radius: var(--sk-radius, #{syn.$radius-full});
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-skeleton__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// Avatar/circle: force the round token regardless of the --sk-radius override.
+:host([data-shape='avatar']),
+:host([data-shape='circle']) {
+  --sk-radius: var(--syn-radius-full, #{syn.$radius-full});
+}
+
+// Static (animated="false") and reduced-motion: hold a steady tint, no shimmer.
+:host(.sg-skeleton--static) .skeleton__bar {
+  animation: none;
+  background: var(--sk-base);
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__bar {
+    animation: none;
+    background: var(--sk-base);
+  }
 }

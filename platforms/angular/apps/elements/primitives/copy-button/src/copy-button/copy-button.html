@@ -1,3 +1,32 @@
-<div class="syn-copy-button__placeholder" [attr.data-copyText]="copyText() ?? null" [attr.data-buttonLabel]="buttonLabel() ?? null" [attr.data-feedbackLabel]="feedbackLabel() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="copy-button">
-  <span class="syn-copy-button__name">synergos-copy-button</span>
+<div class="copy-button">
+  <button
+    type="button"
+    class="copy-button__trigger"
+    [class.copy-button__trigger--copied]="isCopied()"
+    [class.copy-button__trigger--error]="isError()"
+    [disabled]="disabled()"
+    [attr.aria-disabled]="disabled() ? 'true' : null"
+    [attr.aria-label]="currentLabel()"
+    (click)="copy()"
+  >
+    <span class="copy-button__icon" aria-hidden="true">
+      @if (isCopied()) {
+        <svg class="copy-button__svg" viewBox="0 0 24 24" focusable="false">
+          <path d="m5 13 4 4L19 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      } @else if (isError()) {
+        <svg class="copy-button__svg" viewBox="0 0 24 24" focusable="false">
+          <path d="M18 6 6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      } @else {
+        <svg class="copy-button__svg" viewBox="0 0 24 24" focusable="false">
+          <rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+          <path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      }
+    </span>
+    <span class="copy-button__label">{{ currentLabel() }}</span>
+  </button>
+
+  <span class="copy-button__live" role="status" aria-live="polite">{{ liveMessage() }}</span>
 </div>
