@@ -1,3 +1,71 @@
-<div class="syn-calendar__placeholder" [attr.data-eventsEndpoint]="eventsEndpoint() ?? null" [attr.data-initialMonth]="initialMonth() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="calendar">
-  <span class="syn-calendar__name">synergos-calendar</span>
+<div class="calendar">
+  <div class="calendar__header">
+    <button
+      type="button"
+      class="calendar__nav"
+      (click)="previousMonth()"
+      [attr.aria-label]="'Mes anterior'"
+    >
+      <svg class="calendar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+
+    <h2 class="calendar__title" aria-live="polite">{{ monthLabel() }}</h2>
+
+    <button
+      type="button"
+      class="calendar__nav"
+      (click)="nextMonth()"
+      [attr.aria-label]="'Mes siguiente'"
+    >
+      <svg class="calendar__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
+  </div>
+
+  @if (loading()) {
+    <p class="calendar__status" role="status">Cargando eventos…</p>
+  } @else if (fetchFailed()) {
+    <p class="calendar__status calendar__status--error" role="status">
+      No se pudieron cargar los eventos.
+    </p>
+  }
+
+  <div class="calendar__grid" role="grid" [attr.aria-label]="'Calendario — ' + monthLabel()">
+    <div class="calendar__weekdays" role="row">
+      @for (weekday of weekdayLabels(); track $index) {
+        <span class="calendar__weekday" role="columnheader" [attr.aria-label]="weekday">{{ weekday }}</span>
+      }
+    </div>
+
+    @for (week of weeks(); track $index) {
+      <div class="calendar__week" role="row">
+        @for (day of week; track day.iso) {
+          <div class="calendar__cell" role="gridcell" [attr.aria-selected]="isSelected(day)">
+            <button
+              type="button"
+              class="calendar__day"
+              [class.calendar__day--outside]="!day.inMonth"
+              [class.calendar__day--today]="day.isToday"
+              [class.calendar__day--selected]="isSelected(day)"
+              [class.calendar__day--has-events]="day.events.length > 0"
+              [attr.data-iso]="day.iso"
+              [attr.tabindex]="day.iso === focusedDate() ? 0 : -1"
+              [attr.aria-label]="day.label + (day.events.length > 0 ? ' — ' + day.events.length + ' evento(s)' : '')"
+              [attr.aria-current]="day.isToday ? 'date' : null"
+              (click)="selectDay(day)"
+              (keydown)="onDayKeydown($event, day)"
+            >
+              <span class="calendar__day-number">{{ day.dayOfMonth }}</span>
+              @if (day.events.length > 0) {
+                <span class="calendar__day-marker" aria-hidden="true"></span>
+              }
+            </button>
+          </div>
+        }
+      </div>
+    }
+  </div>
 </div>

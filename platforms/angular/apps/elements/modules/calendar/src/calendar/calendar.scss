@@ -1,21 +1,199 @@
 @use 'scss' as syn;
 
 :host {
+  --cal-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cal-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cal-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --cal-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --cal-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cal-weekday-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cal-day-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cal-day-outside-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --cal-day-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --cal-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cal-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cal-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --cal-today-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --cal-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cal-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-calendar__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--cal-border);
+  border-radius: syn.$radius-xl;
+  background: var(--cal-surface);
+  box-shadow: var(--cal-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--cal-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-align: center;
+    text-transform: capitalize;
+  }
+
+  &__nav {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--cal-border);
+    border-radius: syn.$radius-md;
+    background: var(--cal-surface);
+    color: var(--cal-day-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--cal-day-hover-surface);
+      border-color: var(--cal-border-subtle);
+    }
+  }
+
+  &__nav-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__status {
+    margin: 0;
+    color: var(--cal-status-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+
+    &--error {
+      color: var(--cal-error-color);
+    }
+  }
+
+  &__grid {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__weekdays,
+  &__week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: syn.$space-1;
+  }
+
+  &__weekday {
+    padding-block: syn.$space-1;
+    color: var(--cal-weekday-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+  &__cell {
+    display: block;
+    min-width: 0;
+  }
+
+  &__day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    aspect-ratio: 1;
+    padding: syn.$space-1;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--cal-day-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--cal-day-hover-surface);
+    }
+
+    &--outside {
+      color: var(--cal-day-outside-color);
+    }
+
+    &--today {
+      border-color: var(--cal-today-ring);
+      color: var(--cal-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &--selected,
+    &--selected:hover {
+      background: var(--cal-accent);
+      border-color: var(--cal-accent);
+      color: var(--cal-on-accent);
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &--selected.calendar__day--today {
+      color: var(--cal-on-accent);
+    }
+  }
+
+  &__day-number {
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+  }
+
+  &__day-marker {
+    position: absolute;
+    inset-block-end: syn.px-to-rem(5);
+    inset-inline-start: 50%;
+    inline-size: syn.px-to-rem(5);
+    block-size: syn.px-to-rem(5);
+    border-radius: syn.$radius-full;
+    background: var(--cal-accent);
+    transform: translateX(-50%);
+
+    .calendar__day--selected & {
+      background: var(--cal-on-accent);
+    }
   }
 }
 
-.syn-calendar__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .calendar__nav,
+  .calendar__day {
+    transition: none;
+  }
+
+  .calendar__day--selected {
+    transform: none;
+  }
 }

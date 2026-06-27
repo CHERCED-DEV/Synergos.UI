@@ -1,21 +1,208 @@
 @use 'scss' as syn;
 
 :host {
+  --lg-thumb-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --lg-thumb-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --lg-thumb-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --lg-thumb-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --lg-overlay: var(--syn-color-overlay-scrim, #{rgba(syn.$color-neutral-900, 0.88)});
+  --lg-on-overlay: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --lg-control-surface: #{rgba(syn.$color-neutral-0, 0.12)};
+  --lg-control-surface-hover: #{rgba(syn.$color-neutral-0, 0.24)};
+  --lg-caption-color: #{rgba(syn.$color-neutral-0, 0.85)};
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-lightbox-gallery__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.lightbox-gallery {
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(140)}, 1fr));
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+    @include syn.respond-to(sm) {
+      grid-template-columns: repeat(var(--lg-columns, 3), minmax(0, 1fr));
+      gap: syn.$space-3;
+    }
+  }
+
+  &__item {
+    display: block;
+    min-width: 0;
+  }
+
+  &__thumb {
+    display: block;
+    inline-size: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--lg-thumb-border);
+    border-radius: syn.$radius-lg;
+    background: var(--lg-thumb-surface);
+    box-shadow: var(--lg-thumb-shadow);
+    cursor: pointer;
+    transition:
+      box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      box-shadow: var(--lg-thumb-shadow-hover);
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+  }
+
+  &__thumb-img {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    transition: transform var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-default;
+
+    .lightbox-gallery__thumb:hover & {
+      transform: scale(1.05);
+    }
   }
 }
 
-.syn-lightbox-gallery__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: syn.$z-modal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: syn.$space-md;
+  background: var(--lg-overlay);
+  animation: lightbox-fade var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-out;
+
+  &__dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    max-inline-size: syn.px-to-rem(1100);
+    max-block-size: 100%;
+    outline: none;
+  }
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    color: var(--lg-on-overlay);
+  }
+
+  &__counter {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__close,
+  &__nav {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(44);
+    block-size: syn.px-to-rem(44);
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: var(--lg-control-surface);
+    color: var(--lg-on-overlay);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--syn-color-focus-ring, #{syn.$color-neutral-0}));
+
+    &:hover {
+      background: var(--lg-control-surface-hover);
+    }
+  }
+
+  &__stage {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-sm;
+    min-block-size: 0;
+  }
+
+  &__nav {
+    flex: 0 0 auto;
+  }
+
+  &__figure {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    min-inline-size: 0;
+    margin: 0;
+  }
+
+  &__image {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: 75vh;
+    object-fit: contain;
+    border-radius: syn.$radius-md;
+    box-shadow: var(--syn-shadow-floating, #{syn.$shadow-2xl});
+  }
+
+  &__caption {
+    max-inline-size: syn.px-to-rem(680);
+    color: var(--lg-caption-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(22);
+    block-size: syn.px-to-rem(22);
+  }
+}
+
+@keyframes lightbox-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-gallery__thumb,
+  .lightbox-gallery__thumb-img,
+  .lightbox__close,
+  .lightbox__nav {
+    transition: none;
+  }
+
+  .lightbox-gallery__thumb:hover {
+    transform: none;
+  }
+
+  .lightbox-gallery__thumb:hover .lightbox-gallery__thumb-img {
+    transform: none;
+  }
+
+  .lightbox {
+    animation: none;
+  }
 }

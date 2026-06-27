@@ -1,3 +1,92 @@
-<div class="syn-lightbox-gallery__placeholder" [attr.data-imagesJson]="imagesJson() ?? null" [attr.data-columns]="columns() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="lightbox-gallery">
-  <span class="syn-lightbox-gallery__name">synergos-lightbox-gallery</span>
-</div>
+@if (hasImages()) {
+  <ul
+    class="lightbox-gallery__grid"
+    role="list"
+    [style.--lg-columns]="columns()"
+    aria-label="Galería de imágenes"
+  >
+    @for (image of images(); track $index) {
+      <li class="lightbox-gallery__item">
+        <button
+          type="button"
+          class="lightbox-gallery__thumb"
+          (click)="open($index)"
+          [attr.aria-label]="'Ampliar imagen ' + ($index + 1) + (image.caption ? ': ' + image.caption : '')"
+        >
+          <img
+            class="lightbox-gallery__thumb-img"
+            [src]="image.thumb"
+            [alt]="image.alt"
+            loading="lazy"
+            decoding="async"
+          />
+        </button>
+      </li>
+    }
+  </ul>
+
+  @if (activeImage(); as active) {
+    <div
+      class="lightbox"
+      (click)="onBackdropClick($event)"
+      (keydown)="onDialogKeydown($event)"
+    >
+      <div
+        class="lightbox__dialog"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="active.caption || active.alt || 'Imagen ampliada'"
+        tabindex="-1"
+      >
+        <header class="lightbox__bar">
+          <span class="lightbox__counter" aria-live="polite">{{ counterLabel() }}</span>
+          <button
+            type="button"
+            class="lightbox__close"
+            (click)="close()"
+            [attr.aria-label]="closeLabel()"
+          >
+            <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="lightbox__stage">
+          @if (images().length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--prev"
+              (click)="previous()"
+              aria-label="Imagen anterior"
+            >
+              <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          }
+
+          <figure class="lightbox__figure">
+            <img class="lightbox__image" [src]="active.src" [alt]="active.alt" decoding="async" />
+            @if (active.caption) {
+              <figcaption class="lightbox__caption">{{ active.caption }}</figcaption>
+            }
+          </figure>
+
+          @if (images().length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--next"
+              (click)="next()"
+              aria-label="Imagen siguiente"
+            >
+              <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+}
