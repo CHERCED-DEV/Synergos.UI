@@ -1,3 +1,72 @@
-<div class="syn-toast-center__placeholder" [attr.data-position]="position() ?? null" [attr.data-maxVisible]="maxVisible() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="toast-center">
-  <span class="syn-toast-center__name">synergos-toast-center</span>
-</div>
+@if (hasToasts()) {
+  <div
+    class="toast-center"
+    [attr.data-position]="position()"
+    [attr.data-stack]="stackVertical()"
+    role="region"
+    aria-label="Notificaciones"
+    (pointerenter)="onPointerEnter()"
+    (pointerleave)="onPointerLeave()"
+  >
+    <ol class="toast-center__list">
+      @for (toast of visibleToasts(); track trackById($index, toast)) {
+        <li
+          class="toast-center__item"
+          [class.toast-center__item--info]="toast.severity === 'info'"
+          [class.toast-center__item--success]="toast.severity === 'success'"
+          [class.toast-center__item--warning]="toast.severity === 'warning'"
+          [class.toast-center__item--danger]="toast.severity === 'danger'"
+          [attr.data-severity]="toast.severity"
+          [attr.role]="ariaLive(toast) === 'assertive' ? 'alert' : 'status'"
+          [attr.aria-live]="ariaLive(toast)"
+          tabindex="0"
+          (keydown)="onToastKeydown($event, toast)"
+        >
+          <span class="toast-center__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path
+                [attr.d]="iconPath(toast.severity)"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+
+          <div class="toast-center__body">
+            @if (toast.title) {
+              <p class="toast-center__title">{{ toast.title }}</p>
+            }
+            @if (toast.message) {
+              <p class="toast-center__message">{{ toast.message }}</p>
+            }
+            @if (toast.actionLabel && toast.actionHref) {
+              <a class="toast-center__action" [attr.href]="toast.actionHref">{{ toast.actionLabel }}</a>
+            }
+          </div>
+
+          @if (toast.dismissible) {
+            <button
+              type="button"
+              class="toast-center__dismiss"
+              [attr.aria-label]="'Cerrar notificación' + (toast.title ? ': ' + toast.title : '')"
+              (click)="onDismissClick(toast)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          }
+        </li>
+      }
+    </ol>
+
+    @if (hasOverflow()) {
+      <p class="toast-center__overflow" role="status" aria-live="polite">
+        +{{ overflowCount() }} en cola
+      </p>
+    }
+  </div>
+}

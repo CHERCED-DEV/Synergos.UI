@@ -1,3 +1,80 @@
-<div class="syn-poll__placeholder" [attr.data-question]="question() ?? null" [attr.data-optionsJson]="optionsJson() ?? null" [attr.data-voteEndpoint]="voteEndpoint() ?? null" [attr.data-resultsEndpoint]="resultsEndpoint() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="poll">
-  <span class="syn-poll__name">synergos-poll</span>
+<div class="poll">
+  @if (question()) {
+    <h2 class="poll__question" id="poll-question">{{ question() }}</h2>
+  }
+
+  @if (!hasOptions()) {
+    <p class="poll__empty" role="status">No hay opciones para mostrar.</p>
+  } @else if (!hasVoted()) {
+    <ul
+      class="poll__options"
+      role="radiogroup"
+      [attr.aria-labelledby]="question() ? 'poll-question' : null"
+      [attr.aria-label]="question() ? null : 'Opciones de la encuesta'"
+    >
+      @for (option of options(); track option.id; let i = $index) {
+        <li class="poll__item">
+          <button
+            type="button"
+            class="poll__choice"
+            [class.poll__choice--selected]="isSelected(option)"
+            role="radio"
+            [attr.aria-checked]="isSelected(option)"
+            [attr.data-option-id]="option.id"
+            [attr.tabindex]="focusIndex(option)"
+            [disabled]="submitting()"
+            (click)="vote(option)"
+            (focus)="select(option)"
+            (keydown)="onOptionKeydown($event, option, i)"
+          >
+            <span class="poll__choice-marker" aria-hidden="true"></span>
+            <span class="poll__choice-label">{{ option.label }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  } @else {
+    <ol class="poll__results" aria-label="Resultados de la encuesta">
+      @for (result of results(); track result.id) {
+        <li
+          class="poll__result"
+          [class.poll__result--voted]="isVoted(result)"
+          [attr.aria-current]="isVoted(result) ? 'true' : null"
+        >
+          <div class="poll__result-head">
+            <span class="poll__result-label">
+              {{ result.label }}
+              @if (isVoted(result)) {
+                <span class="poll__result-you">· Tu voto</span>
+              }
+            </span>
+            <span class="poll__result-percent">{{ result.percent }}%</span>
+          </div>
+          <div
+            class="poll__bar"
+            role="progressbar"
+            [attr.aria-valuenow]="result.percent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="result.label + ': ' + result.percent + '%'"
+          >
+            <span class="poll__bar-fill" [style.width.%]="result.percent"></span>
+          </div>
+        </li>
+      }
+    </ol>
+  }
+
+  @if (hasOptions()) {
+    <p class="poll__footer">
+      <span class="poll__total" role="status" aria-live="polite">{{ totalVotesLabel() }}</span>
+      @if (submitting()) {
+        <span class="poll__status">Registrando voto…</span>
+      } @else if (submitFailed()) {
+        <span class="poll__status poll__status--error" role="status">
+          Tu voto se contó localmente; no se pudo sincronizar.
+        </span>
+      }
+    </p>
+  }
 </div>

@@ -1,21 +1,233 @@
 @use 'scss' as syn;
 
 :host {
+  --tc-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tc-shadow: var(--syn-shadow-lg, #{syn.$shadow-lg});
+  --tc-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tc-message-color: var(--syn-color-text-muted, #{syn.$color-neutral-600});
+  --tc-dismiss-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tc-dismiss-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tc-action-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tc-overflow-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  --tc-info-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tc-success-accent: var(--syn-color-text-success, #{syn.$color-success-600});
+  --tc-warning-accent: var(--syn-color-text-warning, #{syn.$color-warning-600});
+  --tc-danger-accent: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-toast-center__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.toast-center {
+  position: fixed;
+  z-index: syn.$z-toast;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-sm;
+  inline-size: min(#{syn.px-to-rem(380)}, calc(100vw - #{syn.$space-xl}));
+  max-block-size: calc(100vh - #{syn.$space-xl});
+  padding: 0;
+  pointer-events: none;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  // ─── Placement ───────────────────────────────────────────────
+  &[data-position^='top'] {
+    inset-block-start: syn.$space-lg;
+  }
+
+  &[data-position^='bottom'] {
+    inset-block-end: syn.$space-lg;
+  }
+
+  &[data-position$='start'] {
+    inset-inline-start: syn.$space-lg;
+    align-items: flex-start;
+  }
+
+  &[data-position$='end'] {
+    inset-inline-end: syn.$space-lg;
+    align-items: flex-end;
+  }
+
+  &[data-position$='center'] {
+    inset-inline-start: 50%;
+    align-items: center;
+    transform: translateX(-50%);
+  }
+
+  // Newest toast sits closest to the edge it animates from.
+  &[data-stack='bottom'] .toast-center__list {
+    flex-direction: column-reverse;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-y: auto;
+  }
+
+  &__item {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--tc-border);
+    border-inline-start-width: syn.px-to-rem(4);
+    border-radius: syn.$radius-lg;
+    background: var(--tc-surface);
+    box-shadow: var(--tc-shadow);
+    pointer-events: auto;
+    animation: toast-center-enter var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+
+    @include syn.focus-visible;
+
+    &--info {
+      border-inline-start-color: var(--tc-info-accent);
+    }
+
+    &--success {
+      border-inline-start-color: var(--tc-success-accent);
+    }
+
+    &--warning {
+      border-inline-start-color: var(--tc-warning-accent);
+    }
+
+    &--danger {
+      border-inline-start-color: var(--tc-danger-accent);
+    }
+  }
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    margin-block-start: syn.px-to-rem(1);
+
+    svg {
+      inline-size: 100%;
+      block-size: 100%;
+    }
+
+    .toast-center__item--info & {
+      color: var(--tc-info-accent);
+    }
+
+    .toast-center__item--success & {
+      color: var(--tc-success-accent);
+    }
+
+    .toast-center__item--warning & {
+      color: var(--tc-warning-accent);
+    }
+
+    .toast-center__item--danger & {
+      color: var(--tc-danger-accent);
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--tc-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__message {
+    margin: 0;
+    color: var(--tc-message-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    overflow-wrap: anywhere;
+  }
+
+  &__action {
+    align-self: flex-start;
+    margin-block-start: syn.$space-xxs;
+    color: var(--tc-action-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    text-decoration: none;
+    border-radius: syn.$radius-sm;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__dismiss {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
+    margin: syn.px-to-rem(-4) syn.px-to-rem(-4) 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--tc-dismiss-color);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--tc-dismiss-hover-surface);
+    }
+
+    svg {
+      inline-size: syn.px-to-rem(16);
+      block-size: syn.px-to-rem(16);
+    }
+  }
+
+  &__overflow {
+    margin: 0;
+    padding-inline: syn.$space-sm;
+    color: var(--tc-overflow-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    pointer-events: auto;
   }
 }
 
-.syn-toast-center__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes toast-center-enter {
+  from {
+    opacity: 0;
+    transform: translateY(#{syn.px-to-rem(8)});
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-center__item {
+    animation: none;
+  }
+
+  .toast-center__dismiss {
+    transition: none;
+  }
 }

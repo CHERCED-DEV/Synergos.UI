@@ -1,3 +1,76 @@
-<div class="syn-stepper__placeholder" [attr.data-stepsJson]="stepsJson() ?? null" [attr.data-currentStep]="currentStep() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="stepper">
-  <span class="syn-stepper__name">synergos-stepper</span>
-</div>
+@if (hasSteps()) {
+  <nav
+    class="stepper"
+    [attr.aria-label]="'Progreso — ' + progressLabel()"
+    [attr.aria-orientation]="orientation()"
+  >
+    <p class="stepper__status" role="status" aria-live="polite">{{ progressLabel() }}</p>
+
+    <ol class="stepper__list">
+      @for (step of resolvedSteps(); track step.id) {
+        <li
+          class="stepper__item"
+          [class.stepper__item--done]="step.status === 'done'"
+          [class.stepper__item--active]="step.status === 'active'"
+          [class.stepper__item--pending]="step.status === 'pending'"
+          [attr.aria-current]="step.status === 'active' ? 'step' : null"
+        >
+          @if (!step.first) {
+            <span
+              class="stepper__connector stepper__connector--leading"
+              [class.stepper__connector--filled]="step.status === 'done' || step.status === 'active'"
+              aria-hidden="true"
+            ></span>
+          }
+
+          <button
+            type="button"
+            class="stepper__trigger"
+            [attr.data-step-index]="step.index"
+            [attr.tabindex]="step.index === focusedIndex() ? 0 : -1"
+            [attr.aria-disabled]="isReachable(step) ? null : 'true'"
+            [disabled]="!isReachable(step)"
+            [attr.aria-label]="
+              'Paso ' + step.displayNumber + ' de ' + stepCount() + ': ' + step.title +
+              (step.status === 'done' ? ' (completado)' : step.status === 'active' ? ' (actual)' : ' (pendiente)')
+            "
+            (click)="goToStep(step)"
+            (keydown)="onStepKeydown($event, step)"
+          >
+            <span class="stepper__marker" aria-hidden="true">
+              @if (step.status === 'done') {
+                <svg class="stepper__check" viewBox="0 0 24 24" focusable="false">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              } @else {
+                <span class="stepper__number">{{ step.displayNumber }}</span>
+              }
+            </span>
+
+            <span class="stepper__body">
+              <span class="stepper__title">{{ step.title }}</span>
+              @if (step.description) {
+                <span class="stepper__description">{{ step.description }}</span>
+              }
+            </span>
+          </button>
+
+          @if (!step.last) {
+            <span
+              class="stepper__connector stepper__connector--trailing"
+              [class.stepper__connector--filled]="step.status === 'done'"
+              aria-hidden="true"
+            ></span>
+          }
+        </li>
+      }
+    </ol>
+  </nav>
+}

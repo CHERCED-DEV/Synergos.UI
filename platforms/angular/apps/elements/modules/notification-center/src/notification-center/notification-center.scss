@@ -1,21 +1,232 @@
 @use 'scss' as syn;
 
 :host {
+  --notif-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --notif-surface-unread: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --notif-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --notif-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --notif-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --notif-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --notif-text-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --notif-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --notif-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --notif-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --notif-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --notif-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --notif-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --notif-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-notification-center__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.notif {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-sm;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--notif-border);
+  border-radius: syn.$radius-xl;
+  background: var(--notif-surface);
+  box-shadow: var(--notif-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    margin: 0;
+    color: var(--notif-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__badge {
+    display: inline-grid;
+    place-items: center;
+    min-inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    padding-inline: syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--notif-accent);
+    color: var(--notif-on-accent);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  &__mark-all {
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--notif-accent-strong);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--notif-hover-surface);
+    }
+  }
+
+  &__status {
+    margin: 0;
+    color: var(--notif-status-color);
+    font-size: syn.$font-size-sm;
+
+    &--error {
+      color: var(--notif-error-color);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding-block: syn.$space-lg;
+    color: var(--notif-muted-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: syn.$space-sm;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-lg;
+    background: transparent;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &:hover {
+      background: var(--notif-hover-surface);
+    }
+
+    &--unread {
+      background: var(--notif-surface-unread);
+      border-color: var(--notif-border-subtle);
+    }
+  }
+
+  &__dot {
+    flex: none;
+    inline-size: syn.px-to-rem(8);
+    block-size: syn.px-to-rem(8);
+    margin-block-start: syn.px-to-rem(6);
+    border-radius: syn.$radius-full;
+    background: var(--notif-accent);
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__item-title {
+    margin: 0;
+    color: var(--notif-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__item-link {
+    color: var(--notif-accent-strong);
+    text-decoration: none;
+    border-radius: syn.$radius-sm;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__item-text {
+    margin: 0;
+    color: var(--notif-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__item-time {
+    margin: 0;
+    color: var(--notif-muted-color);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__action {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(32);
+    block-size: syn.px-to-rem(32);
+    padding: 0;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--notif-muted-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--notif-surface);
+      color: var(--notif-accent-strong);
+    }
+
+    &[aria-pressed='true'] {
+      color: var(--notif-accent);
+    }
+
+    &--dismiss:hover {
+      color: var(--notif-error-color);
+    }
+  }
+
+  &__action-icon {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
   }
 }
 
-.syn-notification-center__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .notif__mark-all,
+  .notif__item,
+  .notif__action {
+    transition: none;
+  }
 }

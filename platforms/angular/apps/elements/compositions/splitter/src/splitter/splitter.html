@@ -1,3 +1,56 @@
-<div class="syn-splitter__placeholder" [attr.data-leftContent]="leftContent() ?? null" [attr.data-rightContent]="rightContent() ?? null" [attr.data-orientation]="orientation() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="splitter">
-  <span class="syn-splitter__name">synergos-splitter</span>
+<div
+  class="splitter"
+  [class.splitter--vertical]="orientation() === 'vertical'"
+  [class.splitter--dragging]="isDragging()"
+>
+  <div
+    class="splitter__panes"
+    [style.--syn-splitter-split.%]="split()"
+    [style.--syn-splitter-trailing.%]="trailingSplit()"
+  >
+    <section
+      class="splitter__pane splitter__pane--leading"
+      role="group"
+      [attr.aria-label]="leftLabel()"
+    >
+      @if (leftContent()) {
+        <div class="splitter__body">{{ leftContent() }}</div>
+      }
+      <div class="splitter__slot">
+        <slot name="leading"></slot>
+      </div>
+    </section>
+
+    <div
+      class="splitter__separator"
+      role="separator"
+      tabindex="0"
+      [attr.aria-orientation]="orientation()"
+      [attr.aria-valuenow]="split()"
+      [attr.aria-valuemin]="minSplit()"
+      [attr.aria-valuemax]="maxSplit()"
+      [attr.aria-label]="'Redimensionar ' + leftLabel() + ' y ' + rightLabel()"
+      (keydown)="onSeparatorKeydown($event)"
+      (pointerdown)="onSeparatorPointerDown($event)"
+      (pointermove)="onSeparatorPointerMove($event)"
+      (pointerup)="onSeparatorPointerUp($event)"
+      (pointercancel)="onSeparatorPointerUp($event)"
+      (dblclick)="reset()"
+    >
+      <span class="splitter__grip" aria-hidden="true"></span>
+    </div>
+
+    <section
+      class="splitter__pane splitter__pane--trailing"
+      role="group"
+      [attr.aria-label]="rightLabel()"
+    >
+      @if (rightContent()) {
+        <div class="splitter__body">{{ rightContent() }}</div>
+      }
+      <div class="splitter__slot">
+        <slot name="trailing"></slot>
+      </div>
+    </section>
+  </div>
 </div>

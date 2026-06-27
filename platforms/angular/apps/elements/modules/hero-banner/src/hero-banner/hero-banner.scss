@@ -1,21 +1,185 @@
 @use 'scss' as syn;
 
 :host {
+  --hero-min-block: #{syn.px-to-rem(420)};
+  --hero-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --hero-eyebrow-color: var(--syn-color-text-brand, #{syn.$color-brand-600});
+  --hero-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --hero-subtitle-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --hero-scrim: transparent;
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-hero-banner__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+// Dark tone (text reads on a darkened image / inverse surface).
+:host([data-tone='dark']) {
+  --hero-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --hero-eyebrow-color: var(--syn-color-brand-300, #{syn.$color-brand-300});
+  --hero-title-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+  --hero-subtitle-color: var(--syn-color-overlay-inverse, #{rgb(255 255 255 / 0.82)});
+}
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+// Scrim only when an image backs the content (legibility layer).
+:host([data-has-media][data-tone='dark']) {
+  --hero-scrim: linear-gradient(
+    to top,
+    #{rgb(0 0 0 / 0.72)} 0%,
+    #{rgb(0 0 0 / 0.42)} 45%,
+    #{rgb(0 0 0 / 0.18)} 100%
+  );
+}
+
+:host([data-has-media][data-tone='light']) {
+  --hero-scrim: linear-gradient(
+    to top,
+    #{rgb(255 255 255 / 0.92)} 0%,
+    #{rgb(255 255 255 / 0.68)} 50%,
+    #{rgb(255 255 255 / 0.4)} 100%
+  );
+}
+
+:host([data-height='sm']) {
+  --hero-min-block: #{syn.px-to-rem(320)};
+}
+
+:host([data-height='lg']) {
+  --hero-min-block: #{syn.px-to-rem(560)};
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-block-size: var(--hero-min-block);
+  overflow: hidden;
+  border-radius: syn.$radius-xl;
+  background: var(--hero-surface);
+  isolation: isolate;
+
+  :host([data-align='center']) & {
+    align-items: center;
+  }
+
+  &__media-frame {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  &__media {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+    object-position: center;
+
+    &--placeholder {
+      display: block;
+      background: var(--hero-surface);
+    }
+  }
+
+  &__scrim {
+    position: absolute;
+    inset: 0;
+    background: var(--hero-scrim);
+  }
+
+  &__inner {
+    position: relative;
+    z-index: 1;
+    inline-size: 100%;
+    padding: syn.$space-xl syn.$space-lg;
+
+    @include syn.respond-to(md) {
+      padding: syn.$space-2xl syn.$space-xl;
+    }
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    max-inline-size: #{syn.px-to-rem(640)};
+
+    :host([data-align='center']) & {
+      align-items: center;
+      margin-inline: auto;
+      text-align: center;
+    }
+  }
+
+  &__eyebrow {
+    margin: 0;
+    color: var(--hero-eyebrow-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--hero-title-color);
+    font-size: syn.$font-size-3xl;
+    font-weight: syn.$font-weight-bold;
+    line-height: syn.$line-height-tight;
+    letter-spacing: syn.$letter-spacing-tight;
+    text-wrap: balance;
+
+    @include syn.respond-to(md) {
+      font-size: syn.$font-size-5xl;
+    }
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: var(--hero-subtitle-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-regular;
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
+  }
+
+  &__actions {
+    margin-block-start: syn.$space-sm;
+  }
+
+  // The CTA is a shared syn-link rendered as a prominent hero pill.
+  &__cta {
+    display: inline-flex;
+
+    ::ng-deep .syn-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-block-size: #{syn.px-to-rem(48)};
+      padding-inline: syn.$space-lg;
+      padding-block: syn.$space-3;
+      border-radius: syn.$radius-full;
+      background: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+      color: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+      font-size: syn.$font-size-base;
+      font-weight: syn.$font-weight-semibold;
+      text-decoration: none;
+      transition:
+        background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+        transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+      &:hover {
+        background: var(--syn-color-text-accent, #{syn.$color-brand-600});
+        transform: translateY(#{syn.px-to-rem(-2)});
+      }
+    }
   }
 }
 
-.syn-hero-banner__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .hero__cta ::ng-deep .syn-link {
+    transition: none;
+  }
+
+  .hero__cta ::ng-deep .syn-link:hover {
+    transform: none;
+  }
 }

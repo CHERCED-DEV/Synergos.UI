@@ -1,3 +1,82 @@
-<div class="syn-quote-animated__placeholder" [attr.data-quote]="quote() ?? null" [attr.data-attribution]="attribution() ?? null" [attr.data-animationMode]="animationMode() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="quote-animated">
-  <span class="syn-quote-animated__name">synergos-quote-animated</span>
-</div>
+@if (hasQuotes()) {
+  <figure
+    class="quote"
+    [class.quote--rotating]="canRotate()"
+    (mouseenter)="pause()"
+    (mouseleave)="resume()"
+    (focusin)="pause()"
+    (focusout)="resume()"
+  >
+    <svg class="quote__mark" viewBox="0 0 32 24" aria-hidden="true" focusable="false">
+      <path
+        d="M13 4C7 6 4 11 4 18v2h8v-8H8c0-3 2-5 5-6zm15 0c-6 2-9 7-9 14v2h8v-8h-4c0-3 2-5 5-6z"
+        fill="currentColor"
+      />
+    </svg>
+
+    @if (activeQuote(); as current) {
+      <blockquote class="quote__body" [attr.cite]="current.cite || null">
+        @for (active of [activeIndex()]; track active) {
+          <p class="quote__text" aria-live="polite">{{ current.quote }}</p>
+        }
+      </blockquote>
+
+      @if (current.attribution || current.role) {
+        <figcaption class="quote__caption">
+          @if (current.attribution) {
+            <span class="quote__author">{{ current.attribution }}</span>
+          }
+          @if (current.role) {
+            <span class="quote__role">{{ current.role }}</span>
+          }
+        </figcaption>
+      }
+    }
+
+    @if (canRotate()) {
+      <div
+        class="quote__controls"
+        role="tablist"
+        aria-label="Citas destacadas"
+        (keydown)="onKeydown($event)"
+      >
+        <button
+          type="button"
+          class="quote__nav quote__nav--prev"
+          (click)="previous()"
+          aria-label="Cita anterior"
+        >
+          <svg class="quote__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        <div class="quote__dots">
+          @for (item of quotes(); track item.id; let i = $index) {
+            <button
+              type="button"
+              class="quote__dot"
+              [class.quote__dot--active]="isActive(i)"
+              role="tab"
+              [attr.aria-selected]="isActive(i)"
+              [attr.tabindex]="isActive(i) ? 0 : -1"
+              [attr.aria-label]="'Cita ' + (i + 1) + ' de ' + quotes().length"
+              (click)="goTo(i)"
+            ></button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="quote__nav quote__nav--next"
+          (click)="next()"
+          aria-label="Cita siguiente"
+        >
+          <svg class="quote__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    }
+  </figure>
+}

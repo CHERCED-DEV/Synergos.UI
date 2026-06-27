@@ -1,3 +1,73 @@
-<div class="syn-map-pin__placeholder" [attr.data-centerLat]="centerLat() ?? null" [attr.data-centerLng]="centerLng() ?? null" [attr.data-zoomLevel]="zoomLevel() ?? null" [attr.data-pinsJson]="pinsJson() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="map-pin">
-  <span class="syn-map-pin__name">synergos-map-pin</span>
-</div>
+<section class="map-pin" role="region" [attr.aria-label]="'Mapa de ubicación'">
+  <div class="map-pin__surface">
+    <iframe
+      class="map-pin__frame"
+      [src]="embedUrl()"
+      [title]="frameTitle()"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+  </div>
+
+  @if (hasPins()) {
+    <ul
+      class="map-pin__list"
+      role="list"
+      [attr.aria-label]="'Ubicaciones señaladas en el mapa'"
+    >
+      @for (pin of pins(); track $index) {
+        <li class="map-pin__item">
+          <button
+            type="button"
+            class="map-pin__pin"
+            [class.map-pin__pin--active]="isActive($index)"
+            [attr.data-pin-index]="$index"
+            [attr.tabindex]="$index === focusedIndex() ? 0 : -1"
+            [attr.aria-pressed]="isActive($index)"
+            [attr.aria-label]="pin.label + (pin.description ? ' — ' + pin.description : '')"
+            (click)="selectPin($index)"
+            (keydown)="onPinKeydown($event, $index)"
+          >
+            <svg class="map-pin__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              />
+              <circle cx="12" cy="9" r="2.5" fill="currentColor" />
+            </svg>
+            <span class="map-pin__text">
+              <span class="map-pin__label">{{ pin.label }}</span>
+              @if (pin.description) {
+                <span class="map-pin__description">{{ pin.description }}</span>
+              }
+            </span>
+          </button>
+
+          @if (pin.href) {
+            <a
+              class="map-pin__link"
+              [href]="pin.href"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.aria-label]="'Más información sobre ' + pin.label"
+            >
+              Ver más
+            </a>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  <a
+    class="map-pin__view-all"
+    [href]="viewUrl()"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    Ver mapa completo
+  </a>
+</section>

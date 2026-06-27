@@ -1,3 +1,120 @@
-<div class="syn-comments-widget__placeholder" [attr.data-provider]="provider() ?? null" [attr.data-threadId]="threadId() ?? null" [attr.data-configNote]="configNote() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="comments-widget">
-  <span class="syn-comments-widget__name">synergos-comments-widget</span>
-</div>
+<section class="comments" [attr.aria-label]="title()">
+  <header class="comments__header">
+    <h2 class="comments__title">{{ title() }}</h2>
+    <span class="comments__count" aria-live="polite">{{ countLabel() }}</span>
+  </header>
+
+  @if (loading()) {
+    <p class="comments__status" role="status">Cargando comentarios…</p>
+  } @else if (fetchFailed()) {
+    <p class="comments__status comments__status--error" role="status">
+      No se pudieron cargar los comentarios.
+    </p>
+  }
+
+  @if (hasComments()) {
+    <ol class="comments__list" role="list">
+      @for (node of flatNodes(); track node.comment.id) {
+        <li
+          class="comments__item"
+          [class.comments__item--reply]="node.depth > 0"
+          [style.--comments-depth]="node.depth"
+          role="listitem"
+          [attr.aria-level]="node.depth + 1"
+        >
+          <article class="comments__card">
+            <div class="comments__meta">
+              <span class="comments__author">{{ node.comment.author }}</span>
+              @if (formattedDate(node.comment)) {
+                <time class="comments__date" [attr.datetime]="node.comment.createdAt">
+                  {{ formattedDate(node.comment) }}
+                </time>
+              }
+            </div>
+            <p class="comments__body">{{ node.comment.body }}</p>
+
+            @if (node.depth + 1 < 4) {
+              <div class="comments__actions">
+                <button
+                  type="button"
+                  class="comments__reply-btn"
+                  [attr.aria-expanded]="isReplyingTo(node.comment)"
+                  (click)="isReplyingTo(node.comment) ? cancelReply() : startReply(node.comment)"
+                >
+                  {{ isReplyingTo(node.comment) ? 'Cancelar' : replyLabel() }}
+                </button>
+              </div>
+            }
+
+            @if (isReplyingTo(node.comment)) {
+              <form class="comments__form comments__form--inline" (submit)="$event.preventDefault(); submit()">
+                <label class="comments__field">
+                  <span class="comments__label">Nombre</span>
+                  <input
+                    type="text"
+                    class="comments__input"
+                    [value]="draftAuthor()"
+                    (input)="onAuthorInput($event)"
+                    autocomplete="name"
+                  />
+                </label>
+                <label class="comments__field">
+                  <span class="comments__label">{{ 'Respuesta a ' + node.comment.author }}</span>
+                  <textarea
+                    class="comments__textarea"
+                    rows="3"
+                    [value]="draftBody()"
+                    [attr.placeholder]="placeholder()"
+                    (input)="onBodyInput($event)"
+                    required
+                  ></textarea>
+                </label>
+                <div class="comments__form-actions">
+                  <button type="button" class="comments__btn comments__btn--ghost" (click)="cancelReply()">
+                    Cancelar
+                  </button>
+                  <button type="submit" class="comments__btn" [disabled]="!canSubmit()">
+                    {{ submitLabel() }}
+                  </button>
+                </div>
+              </form>
+            }
+          </article>
+        </li>
+      }
+    </ol>
+  } @else if (!loading()) {
+    <p class="comments__empty">{{ emptyLabel() }}</p>
+  }
+
+  @if (replyingTo() === null) {
+    <form class="comments__form" (submit)="$event.preventDefault(); submit()">
+      <label class="comments__field">
+        <span class="comments__label">Nombre</span>
+        <input
+          type="text"
+          class="comments__input"
+          [value]="draftAuthor()"
+          (input)="onAuthorInput($event)"
+          autocomplete="name"
+        />
+      </label>
+      <label class="comments__field">
+        <span class="comments__label">Comentario</span>
+        <textarea
+          class="comments__textarea"
+          rows="4"
+          [value]="draftBody()"
+          [attr.placeholder]="placeholder()"
+          (input)="onBodyInput($event)"
+          required
+        ></textarea>
+      </label>
+      <div class="comments__form-actions">
+        <button type="submit" class="comments__btn" [disabled]="!canSubmit()">
+          {{ submitLabel() }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

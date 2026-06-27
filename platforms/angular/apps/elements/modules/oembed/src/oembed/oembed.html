@@ -1,3 +1,46 @@
-<div class="syn-oembed__placeholder" [attr.data-embedUrl]="embedUrl() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="oembed">
-  <span class="syn-oembed__name">synergos-oembed</span>
-</div>
+@if (!hasUrl()) {
+  <p class="oembed__status" role="status">No hay un recurso para mostrar.</p>
+} @else if (isEmbeddable()) {
+  <div
+    class="oembed__frame"
+    [style.aspect-ratio]="resolved().aspectRatio"
+    role="region"
+    [attr.aria-label]="resolved().title"
+  >
+    <iframe
+      class="oembed__iframe"
+      [src]="resolved().embedSrc"
+      [title]="resolved().title"
+      [attr.data-provider]="resolved().provider"
+      loading="lazy"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+    ></iframe>
+  </div>
+} @else {
+  <a
+    class="oembed__fallback"
+    [href]="embedUrl()"
+    target="_blank"
+    rel="noopener noreferrer"
+    [attr.aria-label]="resolved().title + ' — abrir en una nueva pestaña'"
+  >
+    <span class="oembed__fallback-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" focusable="false">
+        <path
+          d="M14 5h5v5M19 5l-9 9M11 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </span>
+    <span class="oembed__fallback-body">
+      <span class="oembed__fallback-title">{{ resolved().title }}</span>
+      <span class="oembed__fallback-url">{{ embedUrl() }}</span>
+    </span>
+  </a>
+}

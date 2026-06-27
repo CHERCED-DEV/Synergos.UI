@@ -1,3 +1,78 @@
-<div class="syn-chart-bar__placeholder" [attr.data-chartTitle]="chartTitle() ?? null" [attr.data-dataJson]="dataJson() ?? null" [attr.data-orientation]="orientation() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="chart-bar">
-  <span class="syn-chart-bar__name">synergos-chart-bar</span>
-</div>
+<section
+  class="chart-bar"
+  [class.chart-bar--horizontal]="orientation() === 'horizontal'"
+  [class.chart-bar--vertical]="orientation() === 'vertical'"
+  [attr.aria-label]="chartSummary()"
+>
+  @if (hasTitle()) {
+    <header class="chart-bar__header">
+      <h2 class="chart-bar__title">{{ title() }}</h2>
+    </header>
+  }
+
+  @if (hasBars()) {
+    <!-- Visual figure: decorative for AT; the data table below is the SR source. -->
+    <figure class="chart-bar__figure" aria-hidden="true">
+      <div class="chart-bar__plot">
+        @if (hasValueAxisLabel()) {
+          <p class="chart-bar__axis-label chart-bar__axis-label--value">{{ valueAxisLabel() }}</p>
+        }
+
+        <ul class="chart-bar__track" role="presentation">
+          @for (bar of bars(); track bar.id; let i = $index) {
+            <li
+              class="chart-bar__item"
+              [class.chart-bar__item--active]="isActive(i)"
+              (mouseenter)="setActive(i)"
+              (mouseleave)="setActive(null)"
+              (focusin)="setActive(i)"
+              (focusout)="setActive(null)"
+            >
+              <div class="chart-bar__bar-frame">
+                <div
+                  class="chart-bar__bar"
+                  tabindex="0"
+                  [style.--chart-bar-percent.%]="bar.percent"
+                  [style.--chart-bar-color]="bar.color || null"
+                  [attr.title]="bar.label + ': ' + bar.displayValue"
+                >
+                  @if (showValues()) {
+                    <span class="chart-bar__value">{{ bar.displayValue }}</span>
+                  }
+                </div>
+              </div>
+              <span class="chart-bar__category">{{ bar.label }}</span>
+            </li>
+          }
+        </ul>
+
+        @if (hasCategoryAxisLabel()) {
+          <p class="chart-bar__axis-label chart-bar__axis-label--category">
+            {{ categoryAxisLabel() }}
+          </p>
+        }
+      </div>
+    </figure>
+
+    <!-- Screen-reader equivalent: the same data as an accessible table. -->
+    <table class="chart-bar__sr-table">
+      <caption>{{ chartSummary() }}</caption>
+      <thead>
+        <tr>
+          <th scope="col">{{ categoryAxisLabel() || 'Categoría' }}</th>
+          <th scope="col">{{ valueAxisLabel() || 'Valor' }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (bar of bars(); track bar.id) {
+          <tr>
+            <th scope="row">{{ bar.label }}</th>
+            <td>{{ bar.displayValue }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="chart-bar__empty" role="status">{{ emptyLabel() }}</p>
+  }
+</section>

@@ -1,3 +1,61 @@
-<div class="syn-kpi-card__placeholder" [attr.data-kpiLabel]="kpiLabel() ?? null" [attr.data-kpiValue]="kpiValue() ?? null" [attr.data-kpiTrend]="kpiTrend() ?? null" [attr.data-kpiDelta]="kpiDelta() ?? null" [attr.data-kpiPeriod]="kpiPeriod() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="kpi-card">
-  <span class="syn-kpi-card__name">synergos-kpi-card</span>
-</div>
+<article
+  class="kpi-card"
+  [class.kpi-card--up]="trend() === 'up'"
+  [class.kpi-card--down]="trend() === 'down'"
+  [class.kpi-card--flat]="trend() === 'flat'"
+  role="group"
+  [attr.aria-label]="label() || 'Indicador'"
+>
+  @if (label()) {
+    <p class="kpi-card__label">{{ label() }}</p>
+  }
+
+  <p class="kpi-card__value">
+    @if (hasValue()) {
+      {{ value() }}
+    } @else {
+      <span class="kpi-card__value-empty" aria-hidden="true">—</span>
+      <span class="kpi-card__sr">Sin dato</span>
+    }
+  </p>
+
+  @if (hasDelta() || hasSparkline()) {
+    <div class="kpi-card__footer">
+      @if (hasDelta()) {
+        <span class="kpi-card__delta" [attr.data-trend]="trend()">
+          <span class="kpi-card__delta-arrow" aria-hidden="true">
+            @switch (trend()) {
+              @case ('up') { ↑ }
+              @case ('down') { ↓ }
+              @default { → }
+            }
+          </span>
+          <span class="kpi-card__delta-value">{{ deltaLabel() }}</span>
+          @if (hasPeriod()) {
+            <span class="kpi-card__period">{{ period() }}</span>
+          }
+        </span>
+        <span class="kpi-card__sr">{{ trendDescription() }}</span>
+      }
+
+      @if (hasSparkline(); as spark) {
+        <svg
+          class="kpi-card__spark"
+          [attr.viewBox]="'0 0 ' + sparkline()!.width + ' ' + sparkline()!.height"
+          preserveAspectRatio="none"
+          role="img"
+          [attr.aria-label]="'Tendencia ' + (label() || 'del indicador')"
+        >
+          <polygon class="kpi-card__spark-area" [attr.points]="sparkline()!.area" />
+          <polyline class="kpi-card__spark-line" [attr.points]="sparkline()!.points" />
+          <circle
+            class="kpi-card__spark-dot"
+            [attr.cx]="sparkline()!.last.x"
+            [attr.cy]="sparkline()!.last.y"
+            r="2"
+          />
+        </svg>
+      }
+    </div>
+  }
+</article>

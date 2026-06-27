@@ -1,3 +1,115 @@
-<div class="syn-audio-player__placeholder" [attr.data-audioFile]="audioFile() ?? null" [attr.data-trackTitle]="trackTitle() ?? null" [attr.data-artistName]="artistName() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="audio-player">
-  <span class="syn-audio-player__name">synergos-audio-player</span>
-</div>
+<section class="audio-player" role="region" [attr.aria-label]="mediaLabel()">
+  @if (hasSource()) {
+    <audio
+      #audio
+      class="audio-player__media"
+      [src]="audioFile()"
+      [attr.preload]="preload()"
+      [autoplay]="autoplay()"
+      [loop]="loop()"
+      [attr.aria-label]="mediaLabel()"
+      (loadedmetadata)="onLoadedMetadata()"
+      (timeupdate)="onTimeUpdate()"
+      (volumechange)="onVolumeChange()"
+      (play)="onPlay()"
+      (pause)="onPause()"
+      (ended)="onEnded()"
+    ></audio>
+
+    @if (hasTitle() || hasArtist()) {
+      <header class="audio-player__meta">
+        @if (hasTitle()) {
+          <p class="audio-player__title">{{ trackTitle() }}</p>
+        }
+        @if (hasArtist()) {
+          <p class="audio-player__artist">{{ artistName() }}</p>
+        }
+      </header>
+    }
+
+    <div class="audio-player__transport">
+      <button
+        type="button"
+        class="audio-player__play"
+        [attr.aria-label]="playLabel()"
+        [attr.aria-pressed]="isPlaying()"
+        (click)="togglePlay()"
+      >
+        @if (isPlaying()) {
+          <svg class="audio-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" />
+          </svg>
+        } @else {
+          <svg class="audio-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 5v14l11-7z" fill="currentColor" />
+          </svg>
+        }
+      </button>
+
+      <div class="audio-player__timeline">
+        <span class="audio-player__time audio-player__time--current">{{ currentTimeLabel() }}</span>
+
+        <input
+          type="range"
+          class="audio-player__seek"
+          min="0"
+          max="100"
+          step="0.1"
+          [value]="progressPercent()"
+          [style.--audio-progress.%]="progressPercent()"
+          [attr.aria-label]="'Posición de reproducción'"
+          [attr.aria-valuemin]="0"
+          [attr.aria-valuemax]="100"
+          [attr.aria-valuenow]="progressPercent() | number: '1.0-0'"
+          [attr.aria-valuetext]="currentTimeLabel() + ' de ' + durationLabel()"
+          (input)="onSeekInput($event)"
+          (change)="onSeekCommit($event)"
+          (keydown)="onSeekKeydown($event)"
+        />
+
+        <span class="audio-player__time audio-player__time--total">{{ durationLabel() }}</span>
+      </div>
+
+      <div class="audio-player__volume">
+        <button
+          type="button"
+          class="audio-player__mute"
+          [attr.aria-label]="muteLabel()"
+          [attr.aria-pressed]="isMuted()"
+          (click)="toggleMute()"
+        >
+          @if (isMuted()) {
+            <svg class="audio-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+              <path d="m16 9 5 5M21 9l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          } @else {
+            <svg class="audio-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+              <path d="M16 8a5 5 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          }
+        </button>
+
+        <input
+          type="range"
+          class="audio-player__volume-slider"
+          min="0"
+          max="100"
+          step="1"
+          [value]="volumePercent()"
+          [style.--audio-volume.%]="volumePercent()"
+          [attr.aria-label]="'Volumen'"
+          [attr.aria-valuemin]="0"
+          [attr.aria-valuemax]="100"
+          [attr.aria-valuenow]="volumePercent()"
+          [attr.aria-valuetext]="volumePercent() + '%'"
+          (input)="onVolumeInput($event)"
+          (keydown)="onVolumeKeydown($event)"
+        />
+      </div>
+    </div>
+  } @else {
+    <p class="audio-player__empty" role="status">No hay audio disponible.</p>
+  }
+</section>

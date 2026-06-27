@@ -1,21 +1,228 @@
 @use 'scss' as syn;
 
 :host {
+  --step-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --step-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --step-desc-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --step-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  --step-marker-pending-bg: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --step-marker-pending-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --step-marker-pending-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  --step-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --step-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --step-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --step-active-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+
+  --step-done-bg: var(--syn-color-feedback-success, #{syn.$color-success-500});
+  --step-done-color: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+
+  --step-connector: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --step-connector-filled: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-stepper__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__status {
+    @include syn.visually-hidden;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: syn.$space-0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+  }
+
+  &__connector {
+    position: absolute;
+    inset-block-start: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(2);
+    background: var(--step-connector);
+    transition: background-color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
+
+    &--leading {
+      inset-inline-end: 50%;
+      inline-size: 50%;
+    }
+
+    &--trailing {
+      inset-inline-start: 50%;
+      inline-size: 50%;
+    }
+
+    &--filled {
+      background: var(--step-connector-filled);
+    }
+  }
+
+  &__trigger {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    inline-size: 100%;
+    padding: syn.$space-xs syn.$space-sm;
+    border: none;
+    border-radius: syn.$radius-lg;
+    background: transparent;
+    color: inherit;
+    text-align: center;
+    cursor: pointer;
+    transition: opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:disabled,
+    &[aria-disabled='true'] {
+      cursor: not-allowed;
+    }
+  }
+
+  &__marker {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    border: syn.px-to-rem(2) solid var(--step-marker-pending-border);
+    border-radius: syn.$radius-full;
+    background: var(--step-marker-pending-bg);
+    color: var(--step-marker-pending-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    transition:
+      background-color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      border-color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+  }
+
+  &__number {
+    line-height: 1;
+  }
+
+  &__check {
+    inline-size: syn.px-to-rem(22);
+    block-size: syn.px-to-rem(22);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    min-width: 0;
+  }
+
+  &__title {
+    color: var(--step-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__description {
+    color: var(--step-desc-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
+  }
+
+  // --- State: done -------------------------------------------------------
+  &__item--done {
+    .stepper__marker {
+      border-color: var(--step-done-bg);
+      background: var(--step-done-bg);
+      color: var(--step-done-color);
+    }
+  }
+
+  // --- State: active -----------------------------------------------------
+  &__item--active {
+    .stepper__marker {
+      border-color: var(--step-accent);
+      background: var(--step-accent);
+      color: var(--step-on-accent);
+      box-shadow: 0 0 0 syn.px-to-rem(4) var(--step-active-ring);
+    }
+
+    .stepper__title {
+      color: var(--step-accent-strong);
+    }
+  }
+
+  // --- State: pending ----------------------------------------------------
+  &__item--pending {
+    .stepper__title {
+      color: var(--step-desc-color);
+    }
   }
 }
 
-.syn-stepper__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// --- Vertical orientation -------------------------------------------------
+:host([data-orientation='vertical']) {
+  .stepper__list {
+    flex-direction: column;
+    align-items: stretch;
+    gap: syn.$space-md;
+  }
+
+  .stepper__item {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: syn.$space-md;
+  }
+
+  .stepper__trigger {
+    flex-direction: row;
+    align-items: flex-start;
+    inline-size: auto;
+    text-align: start;
+  }
+
+  .stepper__connector {
+    inset-block-start: auto;
+    inset-inline-start: syn.px-to-rem(19);
+    inline-size: syn.px-to-rem(2);
+    block-size: 50%;
+
+    &--leading {
+      inset-block-start: 0;
+      inset-inline-end: auto;
+    }
+
+    &--trailing {
+      inset-block-start: 50%;
+      inset-inline-end: auto;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepper__connector,
+  .stepper__trigger,
+  .stepper__marker {
+    transition: none;
+  }
 }

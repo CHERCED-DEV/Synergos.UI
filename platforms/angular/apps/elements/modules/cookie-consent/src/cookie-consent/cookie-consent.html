@@ -1,3 +1,77 @@
-<div class="syn-cookie-consent__placeholder" [attr.data-bannerText]="bannerText() ?? null" [attr.data-acceptLabel]="acceptLabel() ?? null" [attr.data-rejectLabel]="rejectLabel() ?? null" [attr.data-settingsLabel]="settingsLabel() ?? null" [attr.data-policyLink]="policyLink() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="cookie-consent">
-  <span class="syn-cookie-consent__name">synergos-cookie-consent</span>
-</div>
+@if (visible()) {
+  <section
+    class="cookie-consent"
+    role="dialog"
+    aria-modal="false"
+    aria-labelledby="cookie-consent-title"
+    aria-describedby="cookie-consent-desc"
+  >
+    <div class="cookie-consent__panel">
+      <div class="cookie-consent__intro">
+        <h2 id="cookie-consent-title" class="cookie-consent__title">{{ title() }}</h2>
+        <p id="cookie-consent-desc" class="cookie-consent__text">
+          {{ bannerText() }}
+          @if (hasPolicyLink()) {
+            <a class="cookie-consent__policy" [href]="policyLink()" target="_blank" rel="noopener noreferrer">
+              {{ policyLabel() }}
+            </a>
+          }
+        </p>
+      </div>
+
+      @if (settingsOpen()) {
+        <fieldset class="cookie-consent__categories">
+          <legend class="cookie-consent__legend">{{ settingsLabel() }}</legend>
+          @for (category of categoryStates(); track category.id) {
+            <label class="cookie-consent__category" [class.cookie-consent__category--locked]="category.essential">
+              <input
+                type="checkbox"
+                class="cookie-consent__checkbox"
+                [checked]="isGranted(category)"
+                [disabled]="category.essential"
+                [attr.aria-describedby]="'cookie-cat-desc-' + category.id"
+                (change)="onCheckboxChange(category, $event)"
+              />
+              <span class="cookie-consent__category-body">
+                <span class="cookie-consent__category-label">
+                  {{ category.label }}
+                  @if (category.essential) {
+                    <span class="cookie-consent__badge" aria-label="Siempre activas">Siempre activas</span>
+                  }
+                </span>
+                @if (category.description) {
+                  <span [id]="'cookie-cat-desc-' + category.id" class="cookie-consent__category-desc">
+                    {{ category.description }}
+                  </span>
+                }
+              </span>
+            </label>
+          }
+        </fieldset>
+      }
+
+      <div class="cookie-consent__actions" role="group" aria-label="Opciones de consentimiento">
+        @if (settingsOpen()) {
+          <button type="button" class="cookie-consent__btn cookie-consent__btn--primary" (click)="savePreferences()">
+            {{ saveLabel() }}
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="cookie-consent__btn cookie-consent__btn--ghost"
+            [attr.aria-expanded]="settingsOpen()"
+            (click)="toggleSettings()"
+          >
+            {{ settingsLabel() }}
+          </button>
+        }
+        <button type="button" class="cookie-consent__btn cookie-consent__btn--ghost" (click)="rejectAll()">
+          {{ rejectLabel() }}
+        </button>
+        <button type="button" class="cookie-consent__btn cookie-consent__btn--primary" (click)="acceptAll()">
+          {{ acceptLabel() }}
+        </button>
+      </div>
+    </div>
+  </section>
+}

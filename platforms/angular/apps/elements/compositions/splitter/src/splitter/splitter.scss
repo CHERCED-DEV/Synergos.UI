@@ -1,21 +1,132 @@
 @use 'scss' as syn;
 
 :host {
+  --sp-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sp-pane-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sp-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sp-body-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --sp-handle: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sp-handle-hover: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --sp-grip: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sp-grip-on-hover: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sp-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+
+  // Live split, written by the template; defaults keep SSR/markup sane.
+  --syn-splitter-split: 50;
+  --syn-splitter-trailing: 50;
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-splitter__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.splitter {
+  border: syn.px-to-rem(1) solid var(--sp-border);
+  border-radius: syn.$radius-xl;
+  background: var(--sp-surface);
+  box-shadow: var(--sp-shadow);
+  overflow: hidden;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__panes {
+    display: grid;
+    grid-template-columns:
+      minmax(0, calc(var(--syn-splitter-split) * 1%))
+      auto
+      minmax(0, calc(var(--syn-splitter-trailing) * 1%));
+    align-items: stretch;
+    min-block-size: syn.px-to-rem(220);
+  }
+
+  &__pane {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding: syn.$space-md;
+    background: var(--sp-pane-surface);
+    overflow: auto;
+  }
+
+  &__body {
+    color: var(--sp-body-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  &__slot {
+    min-block-size: 0;
+  }
+
+  &__separator {
+    position: relative;
+    display: grid;
+    place-items: center;
+    inline-size: syn.$space-sm;
+    background: var(--sp-handle);
+    cursor: col-resize;
+    touch-action: none;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--sp-handle-hover);
+    }
+  }
+
+  &__grip {
+    inline-size: syn.px-to-rem(2);
+    block-size: syn.px-to-rem(28);
+    border-radius: syn.$radius-full;
+    background: var(--sp-grip);
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    .splitter__separator:hover & {
+      background: var(--sp-grip-on-hover);
+    }
+  }
+
+  &--dragging {
+    user-select: none;
+
+    .splitter__separator {
+      background: var(--sp-handle-hover);
+    }
+
+    .splitter__grip {
+      background: var(--sp-grip-on-hover);
+    }
+  }
+
+  // Stacked (vertical) layout: split runs top→bottom.
+  &--vertical {
+    .splitter__panes {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows:
+        minmax(0, calc(var(--syn-splitter-split) * 1%))
+        auto
+        minmax(0, calc(var(--syn-splitter-trailing) * 1%));
+      min-block-size: syn.px-to-rem(360);
+    }
+
+    .splitter__separator {
+      inline-size: auto;
+      block-size: syn.$space-sm;
+      cursor: row-resize;
+    }
+
+    .splitter__grip {
+      inline-size: syn.px-to-rem(28);
+      block-size: syn.px-to-rem(2);
+    }
   }
 }
 
-.syn-splitter__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .splitter__separator,
+  .splitter__grip {
+    transition: none;
+  }
 }

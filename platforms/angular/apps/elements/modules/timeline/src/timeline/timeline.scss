@@ -1,21 +1,117 @@
 @use 'scss' as syn;
 
 :host {
+  --tl-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tl-date-color: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tl-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tl-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --tl-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tl-line: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tl-marker: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tl-marker-ring: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tl-empty-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-timeline__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-lg;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__title {
+    margin: 0;
+    color: var(--tl-title-color);
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-wrap: balance;
   }
-}
 
-.syn-timeline__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-lg;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    position: relative;
+    padding-inline-start: syn.$space-xl;
+
+    // Continuous connector running through the markers.
+    &::before {
+      content: '';
+      position: absolute;
+      inset-block: 0;
+      inset-inline-start: syn.px-to-rem(7);
+      inline-size: syn.px-to-rem(2);
+      background: var(--tl-line);
+    }
+
+    // Trim the connector at the ends so it starts/stops at the markers.
+    &:first-child::before {
+      inset-block-start: syn.px-to-rem(8);
+    }
+
+    &:last-child::before {
+      inset-block-end: auto;
+      block-size: syn.px-to-rem(8);
+    }
+  }
+
+  &__marker {
+    position: absolute;
+    inset-block-start: syn.px-to-rem(2);
+    inset-inline-start: 0;
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    border: syn.px-to-rem(3) solid var(--tl-marker-ring);
+    border-radius: syn.$radius-full;
+    background: var(--tl-marker);
+    box-shadow: 0 0 0 syn.px-to-rem(1) var(--tl-line);
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__date {
+    color: var(--tl-date-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__heading {
+    margin: 0;
+    color: var(--tl-heading-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-wrap: balance;
+  }
+
+  &__body {
+    margin: 0;
+    color: var(--tl-body-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-xl;
+    border: syn.px-to-rem(1) dashed var(--tl-empty-border);
+    border-radius: syn.$radius-lg;
+    color: var(--tl-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
 }

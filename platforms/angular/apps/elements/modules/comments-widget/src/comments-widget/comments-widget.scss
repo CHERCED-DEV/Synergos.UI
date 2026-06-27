@@ -1,21 +1,266 @@
 @use 'scss' as syn;
 
 :host {
+  --cw-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cw-surface-subtle: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --cw-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cw-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --cw-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --cw-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cw-author-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cw-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --cw-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cw-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cw-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cw-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --cw-thread-rail: var(--syn-color-border-brand, #{syn.$color-brand-200});
+  --cw-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-comments-widget__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--cw-border);
+  border-radius: syn.$radius-xl;
+  background: var(--cw-surface);
+  box-shadow: var(--cw-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--cw-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__count {
+    color: var(--cw-muted-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__status {
+    margin: 0;
+    color: var(--cw-muted-color);
+    font-size: syn.$font-size-sm;
+
+    &--error {
+      color: var(--cw-error-color);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) dashed var(--cw-border);
+    border-radius: syn.$radius-lg;
+    background: var(--cw-surface-subtle);
+    color: var(--cw-muted-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    --comments-depth: 0;
+
+    margin-inline-start: calc(var(--comments-depth) * #{syn.$space-lg});
+
+    &--reply {
+      padding-inline-start: syn.$space-md;
+      border-inline-start: syn.px-to-rem(2) solid var(--cw-thread-rail);
+    }
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-sm syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--cw-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--cw-surface-subtle);
+  }
+
+  &__meta {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-sm;
+  }
+
+  &__author {
+    color: var(--cw-author-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__date {
+    color: var(--cw-muted-color);
+    font-size: syn.$font-size-xs;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__body {
+    margin: 0;
+    color: var(--cw-body-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-normal;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  &__actions {
+    display: flex;
+    gap: syn.$space-sm;
+  }
+
+  &__reply-btn {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--cw-accent-strong);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      color: var(--cw-accent);
+      text-decoration: underline;
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+
+    &--inline {
+      margin-block-start: syn.$space-sm;
+      padding: syn.$space-sm;
+      border-radius: syn.$radius-md;
+      background: var(--cw-surface);
+    }
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+  }
+
+  &__label {
+    color: var(--cw-muted-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__input,
+  &__textarea {
+    inline-size: 100%;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--cw-border);
+    border-radius: syn.$radius-md;
+    background: var(--cw-surface);
+    color: var(--cw-body-color);
+    font-family: inherit;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    transition:
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      border-color: var(--cw-border-subtle);
+    }
+  }
+
+  &__textarea {
+    resize: vertical;
+    min-block-size: syn.px-to-rem(72);
+  }
+
+  &__form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: syn.$space-sm;
+  }
+
+  &__btn {
+    padding: syn.$space-sm syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--cw-accent);
+    border-radius: syn.$radius-md;
+    background: var(--cw-accent);
+    color: var(--cw-on-accent);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &:hover:not(:disabled) {
+      background: var(--cw-accent-strong);
+      border-color: var(--cw-accent-strong);
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    &--ghost {
+      border-color: var(--cw-border);
+      background: transparent;
+      color: var(--cw-author-color);
+
+      &:hover:not(:disabled) {
+        background: var(--cw-surface-subtle);
+        border-color: var(--cw-border-subtle);
+        color: var(--cw-author-color);
+      }
+    }
   }
 }
 
-.syn-comments-widget__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .comments__reply-btn,
+  .comments__input,
+  .comments__textarea,
+  .comments__btn {
+    transition: none;
+  }
+
+  .comments__btn:hover:not(:disabled) {
+    transform: none;
+  }
 }

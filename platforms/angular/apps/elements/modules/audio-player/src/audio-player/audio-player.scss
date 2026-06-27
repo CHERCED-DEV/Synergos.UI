@@ -1,21 +1,262 @@
 @use 'scss' as syn;
 
 :host {
+  --ap-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ap-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ap-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ap-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --ap-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ap-artist-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ap-time-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ap-control-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --ap-control-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --ap-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --ap-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --ap-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --ap-track: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --ap-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-audio-player__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.audio-player {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--ap-border);
+  border-radius: syn.$radius-xl;
+  background: var(--ap-surface);
+  box-shadow: var(--ap-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__media {
+    display: none;
+  }
+
+  &__meta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    overflow: hidden;
+    color: var(--ap-title-color);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__artist {
+    margin: 0;
+    color: var(--ap-artist-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__transport {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__play,
+  &__mute {
+    display: grid;
+    flex: none;
+    place-items: center;
+    padding: 0;
+    border: syn.px-to-rem(1) solid transparent;
+    background: transparent;
+    color: var(--ap-control-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--ap-control-hover-surface);
+      border-color: var(--ap-border-subtle);
+    }
+  }
+
+  &__play {
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+    border-radius: syn.$radius-full;
+    color: var(--ap-on-accent);
+    background: var(--ap-accent);
+    border-color: var(--ap-accent);
+
+    &:hover {
+      background: var(--ap-accent-strong);
+      border-color: var(--ap-accent-strong);
+      color: var(--ap-on-accent);
+    }
+  }
+
+  &__mute {
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    border-radius: syn.$radius-md;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(22);
+    block-size: syn.px-to-rem(22);
+  }
+
+  &__timeline {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: syn.$space-sm;
+    min-width: 0;
+  }
+
+  &__time {
+    flex: none;
+    color: var(--ap-time-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__volume {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: syn.$space-xs;
+  }
+
+  &__volume-slider {
+    inline-size: syn.px-to-rem(80);
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) dashed var(--ap-border);
+    border-radius: syn.$radius-lg;
+    color: var(--ap-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-audio-player__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+// ─── Range sliders (seek + volume) ────────────────────────────────────────────
+.audio-player__seek,
+.audio-player__volume-slider {
+  --audio-fill: 0%;
+
+  flex: 1 1 auto;
+  min-width: 0;
+  block-size: syn.px-to-rem(20);
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+
+  @include syn.focus-visible;
+
+  // WebKit track
+  &::-webkit-slider-runnable-track {
+    block-size: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: linear-gradient(
+      to right,
+      var(--ap-accent) var(--audio-fill),
+      var(--ap-track) var(--audio-fill)
+    );
+  }
+
+  // Firefox track + progress
+  &::-moz-range-track {
+    block-size: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: var(--ap-track);
+  }
+
+  &::-moz-range-progress {
+    block-size: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: var(--ap-accent);
+  }
+
+  // WebKit thumb
+  &::-webkit-slider-thumb {
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+    margin-block-start: syn.px-to-rem(-5);
+    border: syn.px-to-rem(2) solid var(--ap-on-accent);
+    border-radius: syn.$radius-full;
+    background: var(--ap-accent);
+    box-shadow: var(--syn-shadow-xs, #{syn.$shadow-xs});
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+  }
+
+  // Firefox thumb
+  &::-moz-range-thumb {
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+    border: syn.px-to-rem(2) solid var(--ap-on-accent);
+    border-radius: syn.$radius-full;
+    background: var(--ap-accent);
+    box-shadow: var(--syn-shadow-xs, #{syn.$shadow-xs});
+    cursor: pointer;
+    transition: transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+  }
+
+  &:hover::-webkit-slider-thumb,
+  &:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+  }
+
+  &:hover::-moz-range-thumb,
+  &:active::-moz-range-thumb {
+    transform: scale(1.15);
+  }
+}
+
+.audio-player__seek {
+  --audio-fill: var(--audio-progress, 0%);
+}
+
+.audio-player__volume-slider {
+  --audio-fill: var(--audio-volume, 0%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-player__play,
+  .audio-player__mute {
+    transition: none;
+  }
+
+  .audio-player__seek,
+  .audio-player__volume-slider {
+    &::-webkit-slider-thumb,
+    &::-moz-range-thumb {
+      transition: none;
+    }
+
+    &:hover::-webkit-slider-thumb,
+    &:active::-webkit-slider-thumb,
+    &:hover::-moz-range-thumb,
+    &:active::-moz-range-thumb {
+      transform: none;
+    }
+  }
 }

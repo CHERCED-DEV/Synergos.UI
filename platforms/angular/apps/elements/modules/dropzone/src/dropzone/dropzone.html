@@ -1,3 +1,124 @@
-<div class="syn-dropzone__placeholder" [attr.data-label]="label() ?? null" [attr.data-acceptedTypes]="acceptedTypes() ?? null" [attr.data-uploadEndpoint]="uploadEndpoint() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="dropzone">
-  <span class="syn-dropzone__name">synergos-dropzone</span>
-</div>
+<section class="dropzone" aria-label="Zona de carga de archivos">
+  <input
+    #fileInput
+    class="dropzone__input"
+    type="file"
+    [accept]="acceptAttr()"
+    [multiple]="multiple()"
+    (change)="onFileInputChange($event)"
+    tabindex="-1"
+    aria-hidden="true"
+  />
+
+  <div
+    class="dropzone__surface"
+    [class.dropzone__surface--active]="dragActive()"
+    role="button"
+    tabindex="0"
+    [attr.aria-label]="label() + '. ' + buttonLabel()"
+    (click)="openPicker(fileInput)"
+    (keydown)="onZoneKeydown($event, fileInput)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    <svg
+      class="dropzone__icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" />
+    </svg>
+
+    <p class="dropzone__label">{{ label() }}</p>
+    <span class="dropzone__button" aria-hidden="true">{{ buttonLabel() }}</span>
+
+    @if (hint()) {
+      <p class="dropzone__hint">{{ hint() }}</p>
+    }
+  </div>
+
+  @if (hasFiles()) {
+    <ul class="dropzone__list" role="list">
+      @for (file of files(); track file.id) {
+        <li
+          class="dropzone__file"
+          [class.dropzone__file--error]="file.status === 'error'"
+          [class.dropzone__file--uploaded]="file.status === 'uploaded'"
+        >
+          <div class="dropzone__file-head">
+            <span class="dropzone__file-name" [title]="file.name">{{ file.name }}</span>
+            <span class="dropzone__file-size">{{ file.sizeLabel }}</span>
+            <button
+              class="dropzone__remove"
+              type="button"
+              [attr.aria-label]="'Quitar ' + file.name"
+              (click)="removeFile(file.id)"
+            >
+              <svg
+                class="dropzone__remove-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
+
+          @if (file.status === 'uploading' || file.status === 'uploaded') {
+            <div
+              class="dropzone__progress"
+              role="progressbar"
+              [attr.aria-valuenow]="file.progress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-label]="'Progreso de ' + file.name"
+            >
+              <span class="dropzone__progress-bar" [style.inline-size.%]="file.progress"></span>
+            </div>
+          }
+
+          @if (file.status === 'error' && file.error) {
+            <p class="dropzone__file-error" role="alert">{{ file.error }}</p>
+          }
+        </li>
+      }
+    </ul>
+
+    <div class="dropzone__actions">
+      @if (canUpload()) {
+        <button
+          class="dropzone__action dropzone__action--primary"
+          type="button"
+          [disabled]="isUploading()"
+          (click)="uploadAll()"
+        >
+          Subir archivos
+        </button>
+      }
+      <button
+        class="dropzone__action"
+        type="button"
+        [disabled]="isUploading()"
+        (click)="clearAll()"
+      >
+        Limpiar
+      </button>
+    </div>
+  }
+
+  <p class="dropzone__sr" role="status" aria-live="polite">{{ statusMessage() }}</p>
+</section>

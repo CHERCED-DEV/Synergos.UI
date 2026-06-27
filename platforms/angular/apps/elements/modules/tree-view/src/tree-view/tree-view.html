@@ -1,3 +1,53 @@
-<div class="syn-tree-view__placeholder" [attr.data-treeJson]="treeJson() ?? null" [attr.data-expandAll]="expandAll() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="tree-view">
-  <span class="syn-tree-view__name">synergos-tree-view</span>
+<div class="tree-view">
+  @if (hasNodes()) {
+    <ul class="tree-view__tree" role="tree" [attr.aria-label]="label()">
+      @for (node of visibleNodes(); track node.id) {
+        <li
+          class="tree-view__item"
+          role="treeitem"
+          [attr.aria-level]="node.level"
+          [attr.aria-posinset]="node.posInSet"
+          [attr.aria-setsize]="node.setSize"
+          [attr.aria-expanded]="node.hasChildren ? isExpanded(node) : null"
+          [attr.aria-selected]="isSelected(node)"
+        >
+          <div
+            class="tree-view__row"
+            [class.tree-view__row--branch]="node.hasChildren"
+            [class.tree-view__row--selected]="isSelected(node)"
+            [style.--tv-level]="node.level"
+            [attr.data-node-id]="node.id"
+            [attr.tabindex]="node.id === focusedId() ? 0 : -1"
+            (click)="select(node)"
+            (keydown)="onNodeKeydown($event, node)"
+          >
+            @if (node.hasChildren) {
+              <button
+                type="button"
+                class="tree-view__toggle"
+                [class.tree-view__toggle--open]="isExpanded(node)"
+                tabindex="-1"
+                [attr.aria-label]="(isExpanded(node) ? 'Contraer ' : 'Expandir ') + node.label"
+                (click)="toggle(node); $event.stopPropagation()"
+              >
+                <svg class="tree-view__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            } @else {
+              <span class="tree-view__toggle tree-view__toggle--leaf" aria-hidden="true"></span>
+            }
+
+            @if (node.icon) {
+              <span class="tree-view__icon" aria-hidden="true">{{ node.icon }}</span>
+            }
+
+            <span class="tree-view__label">{{ node.label }}</span>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="tree-view__empty" role="status">{{ emptyLabel() }}</p>
+  }
 </div>

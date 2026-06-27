@@ -1,21 +1,174 @@
 @use 'scss' as syn;
 
 :host {
+  --map-surface: var(--syn-color-surface, #{syn.$color-neutral-0});
+  --map-surface-muted: var(--syn-color-surface-muted, #{syn.$color-neutral-100});
+  --map-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --map-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --map-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --map-label-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --map-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --map-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --map-accent-strong: var(--syn-color-text-brand, #{syn.$color-brand-600});
+  --map-on-accent: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-map-pin__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.map-pin {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--map-border);
+  border-radius: syn.$radius-xl;
+  background: var(--map-surface);
+  box-shadow: var(--map-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__surface {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    border: syn.px-to-rem(1) solid var(--map-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--map-surface-muted);
+  }
+
+  &__frame {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    border: 0;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__pin {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: syn.$space-2;
+    min-width: 0;
+    padding: syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--map-border);
+    border-radius: syn.$radius-md;
+    background: var(--map-surface);
+    color: var(--map-label-color);
+    text-align: start;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--map-surface-muted);
+      border-color: var(--map-border-subtle);
+    }
+
+    &--active,
+    &--active:hover {
+      border-color: var(--map-accent);
+      background: var(--map-accent);
+      color: var(--map-on-accent);
+    }
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    color: var(--map-accent);
+
+    .map-pin__pin--active & {
+      color: var(--map-on-accent);
+    }
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    min-width: 0;
+  }
+
+  &__label {
+    overflow: hidden;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__description {
+    color: var(--map-muted-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-snug;
+
+    .map-pin__pin--active & {
+      color: var(--map-on-accent);
+    }
+  }
+
+  &__link {
+    flex: 0 0 auto;
+    padding-block: syn.$space-1;
+    padding-inline: syn.$space-2;
+    border-radius: syn.$radius-sm;
+    color: var(--map-accent-strong);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__view-all {
+    align-self: flex-start;
+    color: var(--map-muted-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      color: var(--map-accent-strong);
+      text-decoration: underline;
+    }
   }
 }
 
-.syn-map-pin__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .map-pin__pin,
+  .map-pin__link,
+  .map-pin__view-all {
+    transition: none;
+  }
 }

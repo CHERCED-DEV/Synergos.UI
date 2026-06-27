@@ -1,3 +1,35 @@
-<div class="syn-timeline__placeholder" [attr.data-eventsJson]="eventsJson() ?? null" [attr.data-orientation]="orientation() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="timeline">
-  <span class="syn-timeline__name">synergos-timeline</span>
-</div>
+<section class="timeline" [attr.aria-label]="title() || 'Línea de tiempo'">
+  @if (hasTitle()) {
+    <h2 class="timeline__title">{{ title() }}</h2>
+  }
+
+  @if (hasItems()) {
+    <ol class="timeline__list" role="list">
+      @for (item of items(); track item.id) {
+        <li class="timeline__item">
+          <span class="timeline__marker" aria-hidden="true"></span>
+
+          <article class="timeline__content">
+            @if (item.dateLabel) {
+              @if (item.dateTime) {
+                <time class="timeline__date" [attr.datetime]="item.dateTime">{{ item.dateLabel }}</time>
+              } @else {
+                <span class="timeline__date">{{ item.dateLabel }}</span>
+              }
+            }
+
+            @if (item.title) {
+              <h3 class="timeline__heading">{{ item.title }}</h3>
+            }
+
+            @if (item.body) {
+              <p class="timeline__body">{{ item.body }}</p>
+            }
+          </article>
+        </li>
+      }
+    </ol>
+  } @else {
+    <p class="timeline__empty" role="status">{{ emptyLabel() }}</p>
+  }
+</section>

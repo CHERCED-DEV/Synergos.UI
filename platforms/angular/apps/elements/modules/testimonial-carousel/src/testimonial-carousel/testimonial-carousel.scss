@@ -1,21 +1,253 @@
 @use 'scss' as syn;
 
 :host {
+  --tc-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tc-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --tc-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --tc-quote-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tc-author-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --tc-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tc-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tc-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tc-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tc-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --tc-nav-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tc-nav-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --tc-nav-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tc-dot-color: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --tc-avatar-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tc-star-empty: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --tc-star-filled: var(--syn-color-warning-500, #{syn.$color-warning-500});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-testimonial-carousel__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--tc-border);
+  border-radius: syn.$radius-xl;
+  background: var(--tc-surface);
+  box-shadow: var(--tc-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__viewport {
+    position: relative;
+    display: grid;
+    border-radius: syn.$radius-lg;
+
+    @include syn.focus-visible;
+  }
+
+  &__slide {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    align-items: center;
+    margin: 0;
+    padding: syn.$space-sm;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(#{syn.px-to-rem(8)});
+    transition:
+      opacity var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      visibility var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
+
+    &--active {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+  }
+
+  &__rating {
+    display: inline-flex;
+    gap: syn.px-to-rem(2);
+    font-size: syn.$font-size-base;
+    line-height: 1;
+  }
+
+  &__star {
+    color: var(--tc-star-empty);
+
+    &--filled {
+      color: var(--tc-star-filled);
+    }
+  }
+
+  &__quote {
+    max-width: syn.px-to-rem(640);
+    margin: 0;
+  }
+
+  &__quote-text {
+    margin: 0;
+    color: var(--tc-quote-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-relaxed;
+    text-wrap: balance;
+
+    &::before {
+      content: '\201C';
+    }
+
+    &::after {
+      content: '\201D';
+    }
+  }
+
+  &__author {
+    display: flex;
+    gap: syn.$space-3;
+    align-items: center;
+  }
+
+  &__avatar {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+    border-radius: syn.$radius-full;
+    background: var(--tc-avatar-surface);
+    color: var(--tc-accent-strong);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__avatar-img {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+  }
+
+  &__avatar-initials {
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__author-meta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    text-align: start;
+  }
+
+  &__author-name {
+    color: var(--tc-author-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__author-role {
+    color: var(--tc-role-color);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__controls {
+    display: flex;
+    gap: syn.$space-md;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__nav {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--tc-border);
+    border-radius: syn.$radius-full;
+    background: var(--tc-nav-surface);
+    color: var(--tc-nav-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--tc-nav-hover-surface);
+      border-color: var(--tc-border-subtle);
+    }
+  }
+
+  &__nav-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__dots {
+    display: inline-flex;
+    gap: syn.$space-2;
+    align-items: center;
+  }
+
+  &__dot {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(24);
+    block-size: syn.px-to-rem(24);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    @include syn.focus-visible;
+  }
+
+  &__dot-mark {
+    display: block;
+    inline-size: syn.px-to-rem(8);
+    block-size: syn.px-to-rem(8);
+    border-radius: syn.$radius-full;
+    background: var(--tc-dot-color);
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    .carousel__dot:hover & {
+      background: var(--tc-accent-strong);
+    }
+
+    .carousel__dot--active & {
+      background: var(--tc-accent);
+      transform: scale(1.4);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-xl;
+    border: syn.px-to-rem(1) dashed var(--tc-border);
+    border-radius: syn.$radius-lg;
+    color: var(--tc-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-testimonial-carousel__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .carousel__slide,
+  .carousel__nav,
+  .carousel__dot-mark {
+    transition: none;
+  }
+
+  .carousel__slide {
+    transform: none;
+  }
+
+  .carousel__dot--active .carousel__dot-mark {
+    transform: none;
+  }
 }

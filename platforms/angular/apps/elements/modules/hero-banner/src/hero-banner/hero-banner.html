@@ -1,3 +1,53 @@
-<div class="syn-hero-banner__placeholder" [attr.data-title]="title() ?? null" [attr.data-subtitle]="subtitle() ?? null" [attr.data-media]="media() ?? null" [attr.data-ctaLabel]="ctaLabel() ?? null" [attr.data-ctaLink]="ctaLink() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="hero-banner">
-  <span class="syn-hero-banner__name">synergos-hero-banner</span>
-</div>
+<section
+  class="hero"
+  [attr.aria-label]="hasTitle() ? title() : 'Sección destacada'"
+>
+  <div class="hero__media-frame">
+    @if (hasMedia()) {
+      <img
+        class="hero__media"
+        [src]="media()"
+        [alt]="imageAlt()"
+        [attr.role]="imageDecorative() ? 'presentation' : null"
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
+    } @else {
+      <div class="hero__media hero__media--placeholder" aria-hidden="true"></div>
+    }
+    <div class="hero__scrim" aria-hidden="true"></div>
+  </div>
+
+  @if (hasContent()) {
+    <div class="hero__inner">
+      <div class="hero__content">
+        @if (hasEyebrow()) {
+          <p class="hero__eyebrow">{{ eyebrow() }}</p>
+        }
+
+        @if (hasTitle()) {
+          <h1 class="hero__title">{{ title() }}</h1>
+        }
+
+        @if (hasSubtitle()) {
+          <p class="hero__subtitle">{{ subtitle() }}</p>
+        }
+
+        @if (hasCta()) {
+          <div class="hero__actions">
+            <syn-link
+              class="hero__cta"
+              [href]="ctaLink()"
+              [label]="ctaLabel()"
+              [tone]="ctaTone()"
+              [underline]="false"
+              [ariaLabel]="ctaLabel()"
+              (activated)="onCtaActivate()"
+            />
+          </div>
+        }
+      </div>
+    </div>
+  }
+</section>

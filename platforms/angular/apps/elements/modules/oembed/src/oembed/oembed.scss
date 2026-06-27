@@ -1,21 +1,114 @@
 @use 'scss' as syn;
 
 :host {
+  --oembed-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --oembed-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --oembed-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --oembed-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --oembed-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --oembed-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --oembed-url-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --oembed-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --oembed-accent: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --oembed-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-oembed__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.oembed__frame {
+  position: relative;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: syn.px-to-rem(1) solid var(--oembed-border);
+  border-radius: syn.$radius-xl;
+  background: var(--oembed-surface);
+  box-shadow: var(--oembed-shadow);
+}
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+.oembed__iframe {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  display: block;
+}
+
+.oembed__status {
+  margin: 0;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) dashed var(--oembed-border);
+  border-radius: syn.$radius-lg;
+  color: var(--oembed-status-color);
+  font-size: syn.$font-size-sm;
+  text-align: center;
+}
+
+.oembed__fallback {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--oembed-border);
+  border-radius: syn.$radius-xl;
+  background: var(--oembed-card-surface);
+  box-shadow: var(--oembed-shadow);
+  color: var(--oembed-title-color);
+  text-decoration: none;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  @include syn.focus-visible;
+
+  &:hover {
+    background: var(--oembed-hover-surface);
+    border-color: var(--oembed-border-subtle);
   }
 }
 
-.syn-oembed__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.oembed__fallback-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: syn.px-to-rem(40);
+  block-size: syn.px-to-rem(40);
+  border-radius: syn.$radius-md;
+  background: var(--oembed-surface);
+  color: var(--oembed-accent);
+
+  svg {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+}
+
+.oembed__fallback-body {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  min-width: 0;
+}
+
+.oembed__fallback-title {
+  color: var(--oembed-title-color);
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-snug;
+}
+
+.oembed__fallback-url {
+  overflow: hidden;
+  color: var(--oembed-url-color);
+  font-size: syn.$font-size-sm;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oembed__fallback {
+    transition: none;
+  }
 }

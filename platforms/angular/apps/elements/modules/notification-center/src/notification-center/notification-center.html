@@ -1,3 +1,110 @@
-<div class="syn-notification-center__placeholder" [attr.data-fetchEndpoint]="fetchEndpoint() ?? null" [attr.data-pollingInterval]="pollingInterval() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="notification-center">
-  <span class="syn-notification-center__name">synergos-notification-center</span>
-</div>
+<section class="notif" [attr.aria-label]="title()">
+  <header class="notif__header">
+    <h2 class="notif__title">
+      {{ title() }}
+      @if (unreadCount() > 0) {
+        <span
+          class="notif__badge"
+          aria-live="polite"
+          [attr.aria-label]="unreadCount() + ' sin leer'"
+          >{{ unreadCount() }}</span
+        >
+      }
+    </h2>
+
+    @if (hasUnread()) {
+      <button type="button" class="notif__mark-all" (click)="markAllRead()">
+        {{ markAllLabel() }}
+      </button>
+    }
+  </header>
+
+  @if (loading() && !hasItems()) {
+    <p class="notif__status" role="status">Cargando notificaciones…</p>
+  } @else if (fetchFailed() && !hasItems()) {
+    <p class="notif__status notif__status--error" role="status">
+      No se pudieron cargar las notificaciones.
+    </p>
+  }
+
+  @if (hasItems()) {
+    <ul class="notif__list" role="list">
+      @for (item of items(); track item.id) {
+        <li
+          class="notif__item"
+          [class.notif__item--unread]="!item.read"
+          role="listitem"
+          [attr.aria-label]="(item.read ? 'Leída: ' : 'Sin leer: ') + item.title"
+        >
+          @if (!item.read) {
+            <span class="notif__dot" aria-hidden="true"></span>
+          }
+
+          <div class="notif__body">
+            @if (item.title) {
+              @if (item.href) {
+                <a
+                  class="notif__item-title notif__item-link"
+                  [href]="item.href"
+                  (click)="markRead(item)"
+                  >{{ item.title }}</a
+                >
+              } @else {
+                <p class="notif__item-title">{{ item.title }}</p>
+              }
+            }
+
+            @if (item.body) {
+              <p class="notif__item-text">{{ item.body }}</p>
+            }
+
+            @if (item.timestamp) {
+              <p class="notif__item-time">{{ item.timestamp }}</p>
+            }
+          </div>
+
+          <div class="notif__actions">
+            <button
+              type="button"
+              class="notif__action"
+              [attr.aria-pressed]="item.read"
+              [attr.aria-label]="(item.read ? 'Marcar como no leída: ' : 'Marcar como leída: ') + item.title"
+              (click)="toggleRead(item)"
+            >
+              <svg class="notif__action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="m5 13 4 4L19 7"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
+            <button
+              type="button"
+              class="notif__action notif__action--dismiss"
+              [attr.aria-label]="'Descartar: ' + item.title"
+              (click)="dismiss(item)"
+            >
+              <svg class="notif__action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M6 6l12 12M18 6 6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  } @else if (!loading() && !fetchFailed()) {
+    <p class="notif__empty" role="status">{{ emptyLabel() }}</p>
+  }
+</section>

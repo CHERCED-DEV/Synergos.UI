@@ -1,21 +1,146 @@
 @use 'scss' as syn;
 
 :host {
+  --kpi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --kpi-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --kpi-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --kpi-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --kpi-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --kpi-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --kpi-period-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --kpi-up-color: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --kpi-down-color: var(--syn-color-action-danger, #{syn.$color-danger-500});
+  --kpi-flat-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-kpi-card__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--kpi-border);
+  border-radius: syn.$radius-xl;
+  background: var(--kpi-surface);
+  box-shadow: var(--kpi-shadow);
+  transition:
+    box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+    transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  // Per-trend accent surfaced through the delta colour.
+  &--up {
+    --kpi-accent: var(--kpi-up-color);
+  }
+
+  &--down {
+    --kpi-accent: var(--kpi-down-color);
+  }
+
+  &--flat {
+    --kpi-accent: var(--kpi-flat-color);
+  }
+
+  &:hover {
+    box-shadow: var(--kpi-shadow-hover);
+    transform: translateY(#{syn.px-to-rem(-2)});
+  }
+
+  &__label {
+    margin: 0;
+    color: var(--kpi-label-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__value {
+    margin: 0;
+    color: var(--kpi-value-color);
+    font-size: syn.$font-size-3xl;
+    font-weight: syn.$font-weight-bold;
+    line-height: syn.$line-height-snug;
+    letter-spacing: syn.$letter-spacing-tight;
+    font-variant-numeric: tabular-nums;
+    text-wrap: balance;
+  }
+
+  &__value-empty {
+    color: var(--kpi-label-color);
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: syn.$space-2 syn.$space-3;
+    margin-top: syn.$space-1;
+  }
+
+  &__delta {
+    display: inline-flex;
+    align-items: baseline;
+    gap: syn.$space-1;
+    color: var(--kpi-accent, var(--kpi-flat-color));
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__delta-arrow {
+    font-size: syn.$font-size-xs;
+    line-height: 1;
+  }
+
+  &__period {
+    color: var(--kpi-period-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-regular;
+  }
+
+  &__spark {
+    display: block;
+    inline-size: syn.px-to-rem(120);
+    block-size: syn.px-to-rem(36);
+    overflow: visible;
+    color: var(--kpi-accent, var(--kpi-flat-color));
+  }
+
+  &__spark-line {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: syn.px-to-rem(1.5);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__spark-area {
+    fill: currentColor;
+    opacity: 0.12;
+    stroke: none;
+  }
+
+  &__spark-dot {
+    fill: currentColor;
+    stroke: var(--kpi-surface);
+    stroke-width: syn.px-to-rem(1);
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 }
 
-.syn-kpi-card__name {
-  font-weight: 500;
-  letter-spacing: var(--syn-letter-spacing-wide, #{syn.$letter-spacing-wide});
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card {
+    transition: none;
+  }
+
+  .kpi-card:hover {
+    transform: none;
+  }
 }

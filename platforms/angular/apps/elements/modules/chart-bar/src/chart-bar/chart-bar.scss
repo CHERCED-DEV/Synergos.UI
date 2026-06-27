@@ -1,21 +1,230 @@
 @use 'scss' as syn;
 
 :host {
+  --cb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --cb-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cb-track: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --cb-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cb-category-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --cb-axis-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cb-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --cb-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cb-bar-start: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cb-bar-end: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cb-bar-on: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --cb-focus-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-chart-bar__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.chart-bar {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--cb-border);
+  border-radius: syn.$radius-xl;
+  background: var(--cb-surface);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--cb-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+    text-wrap: balance;
+  }
+
+  &__figure {
+    margin: 0;
+  }
+
+  &__plot {
+    display: grid;
+    gap: syn.$space-2;
+  }
+
+  &__axis-label {
+    margin: 0;
+    color: var(--cb-axis-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+
+    &--category {
+      text-align: center;
+    }
+  }
+
+  &__track {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: flex;
+    min-width: 0;
+  }
+
+  &__bar-frame {
+    position: relative;
+    background: var(--cb-track);
+  }
+
+  &__bar {
+    --chart-bar-percent: 0;
+
+    position: relative;
+    display: flex;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(180deg, var(--chart-bar-color, var(--cb-bar-start)), var(--cb-bar-end));
+    outline: none;
+    transition:
+      filter var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+      block-size var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-smooth,
+      inline-size var(--syn-duration-slow, #{syn.$duration-slow}) syn.$easing-smooth;
+
+    &:focus-visible {
+      box-shadow: 0 0 0 syn.px-to-rem(3) var(--cb-focus-ring);
+    }
+  }
+
+  &__value {
+    color: var(--cb-value-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    white-space: nowrap;
+  }
+
+  &__category {
+    overflow: hidden;
+    color: var(--cb-category-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    text-align: center;
+    text-overflow: ellipsis;
+  }
+
+  &__item--active &__bar {
+    filter: brightness(1.06);
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-xl;
+    border: syn.px-to-rem(1) dashed var(--cb-border);
+    border-radius: syn.$radius-lg;
+    color: var(--cb-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__sr-table {
+    @include syn.visually-hidden;
+  }
+
+  // ─── Vertical (default): bars grow upward, categories on the x-axis ──────────
+  &--vertical {
+    .chart-bar__track {
+      align-items: flex-end;
+      gap: syn.$space-sm;
+      block-size: syn.px-to-rem(220);
+    }
+
+    .chart-bar__item {
+      flex: 1 1 0;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-end;
+      gap: syn.$space-2;
+      block-size: 100%;
+    }
+
+    .chart-bar__bar-frame {
+      display: flex;
+      align-items: flex-end;
+      flex: 1 1 auto;
+      border-radius: syn.$radius-sm;
+    }
+
+    .chart-bar__bar {
+      align-items: flex-start;
+      justify-content: center;
+      inline-size: 100%;
+      block-size: calc(var(--chart-bar-percent) * 1%);
+      min-block-size: syn.px-to-rem(2);
+      padding-block-start: syn.$space-1;
+    }
+
+    .chart-bar__item--active .chart-bar__bar {
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+  }
+
+  // ─── Horizontal: bars grow rightward, categories on the y-axis ──────────────
+  &--horizontal {
+    .chart-bar__track {
+      flex-direction: column;
+      gap: syn.$space-sm;
+    }
+
+    .chart-bar__item {
+      flex-direction: column;
+      align-items: stretch;
+      gap: syn.px-to-rem(2);
+      inline-size: 100%;
+    }
+
+    .chart-bar__bar-frame {
+      display: flex;
+      inline-size: 100%;
+      border-radius: syn.$radius-full;
+    }
+
+    .chart-bar__bar {
+      align-items: center;
+      justify-content: flex-end;
+      inline-size: calc(var(--chart-bar-percent) * 1%);
+      min-inline-size: syn.px-to-rem(2);
+      block-size: syn.px-to-rem(20);
+      padding-inline-end: syn.$space-2;
+      border-radius: syn.$radius-full;
+      background: linear-gradient(90deg, var(--chart-bar-color, var(--cb-bar-start)), var(--cb-bar-end));
+    }
+
+    .chart-bar__value {
+      color: var(--cb-bar-on);
+    }
+
+    .chart-bar__category {
+      text-align: start;
+    }
+
+    .chart-bar__item--active .chart-bar__bar {
+      transform: translateX(#{syn.px-to-rem(2)});
+    }
   }
 }
 
-.syn-chart-bar__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .chart-bar__bar {
+    transition: none;
+  }
+
+  .chart-bar__item--active .chart-bar__bar {
+    transform: none;
+  }
 }

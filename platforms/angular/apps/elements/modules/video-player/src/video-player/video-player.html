@@ -1,3 +1,144 @@
-<div class="syn-video-player__placeholder" [attr.data-videoFile]="videoFile() ?? null" [attr.data-posterImage]="posterImage() ?? null" [attr.data-chaptersJson]="chaptersJson() ?? null" [attr.data-enableAnalytics]="enableAnalytics() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="video-player">
-  <span class="syn-video-player__name">synergos-video-player</span>
-</div>
+@if (hasSource()) {
+  <div
+    class="video-player"
+    [class.video-player--playing]="playing()"
+    [class.video-player--fullscreen]="fullscreen()"
+    role="group"
+    [attr.aria-label]="hasTitle() ? title() : 'Reproductor de video'"
+    tabindex="0"
+    (keydown)="onSurfaceKeydown($event)"
+    (fullscreenchange)="onFullscreenChange()"
+  >
+    <div class="video-player__stage">
+      <video
+        #video
+        class="video-player__media"
+        [src]="src()"
+        [attr.poster]="poster() || null"
+        [autoplay]="autoplay()"
+        [loop]="loop()"
+        [muted]="initiallyMuted()"
+        playsinline
+        preload="metadata"
+        [attr.aria-label]="hasTitle() ? title() : 'Video'"
+        (click)="togglePlay()"
+        (loadedmetadata)="onLoadedMetadata()"
+        (canplay)="onCanPlay()"
+        (timeupdate)="onTimeUpdate()"
+        (durationchange)="onDurationChange()"
+        (play)="onPlay()"
+        (pause)="onPause()"
+        (ended)="onEnded()"
+        (volumechange)="onVolumeChange()"
+      ></video>
+
+      @if (!playing()) {
+        <button
+          type="button"
+          class="video-player__bigplay"
+          [attr.aria-label]="playLabel()"
+          (click)="togglePlay()"
+        >
+          <svg class="video-player__bigplay-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 5v14l11-7z" fill="currentColor" />
+          </svg>
+        </button>
+      }
+    </div>
+
+    <div class="video-player__controls">
+      <button
+        type="button"
+        class="video-player__btn video-player__btn--play"
+        [attr.aria-label]="playLabel()"
+        [attr.aria-pressed]="playing()"
+        (click)="togglePlay()"
+      >
+        @if (playing()) {
+          <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M7 5h3v14H7zM14 5h3v14h-3z" fill="currentColor" />
+          </svg>
+        } @else {
+          <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 5v14l11-7z" fill="currentColor" />
+          </svg>
+        }
+      </button>
+
+      <span class="video-player__time" aria-hidden="true">
+        {{ currentTimeLabel() }} / {{ durationLabel() }}
+      </span>
+
+      <div class="video-player__seek">
+        <div class="video-player__seek-track" aria-hidden="true">
+          <div class="video-player__seek-fill" [style.width]="progressPercent()"></div>
+        </div>
+        <input
+          class="video-player__seek-input"
+          type="range"
+          min="0"
+          max="100"
+          step="0.1"
+          [value]="progress() * 100"
+          (input)="onSeekInput($event)"
+          [attr.aria-label]="'Buscar en el video'"
+          [attr.aria-valuetext]="currentTimeLabel() + ' de ' + durationLabel()"
+        />
+      </div>
+
+      <div class="video-player__volume">
+        <button
+          type="button"
+          class="video-player__btn video-player__btn--mute"
+          [attr.aria-label]="muteLabel()"
+          [attr.aria-pressed]="muted() || effectiveVolume() === 0"
+          (click)="toggleMute()"
+        >
+          @if (muted() || effectiveVolume() === 0) {
+            <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+              <path d="M16 9l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          } @else {
+            <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 9v6h4l5 5V4L8 9H4z" fill="currentColor" />
+              <path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          }
+        </button>
+
+        <input
+          class="video-player__volume-input"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          [value]="effectiveVolume() * 100"
+          (input)="onVolumeInput($event)"
+          [attr.aria-label]="'Volumen'"
+          [attr.aria-valuetext]="volumePercent()"
+        />
+      </div>
+
+      <button
+        type="button"
+        class="video-player__btn video-player__btn--fullscreen"
+        [attr.aria-label]="fullscreenLabel()"
+        [attr.aria-pressed]="fullscreen()"
+        (click)="toggleFullscreen()"
+      >
+        @if (fullscreen()) {
+          <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 9H4m5 0V4m6 5h5m-5 0V4M9 15H4m5 0v5m6-5h5m-5 0v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        } @else {
+          <svg class="video-player__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        }
+      </button>
+    </div>
+  </div>
+} @else {
+  <p class="video-player__empty" role="status">No hay un video configurado.</p>
+}

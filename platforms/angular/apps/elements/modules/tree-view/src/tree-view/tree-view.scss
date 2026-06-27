@@ -1,21 +1,125 @@
 @use 'scss' as syn;
 
 :host {
+  --tv-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tv-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tv-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --tv-row-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --tv-row-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tv-toggle-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tv-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tv-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tv-selected-surface: var(--syn-color-state-brand-surface-subtle, #{syn.$color-brand-100});
+  --tv-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-tree-view__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.tree-view {
+  padding: syn.$space-2;
+  border: syn.px-to-rem(1) solid var(--tv-border);
+  border-radius: syn.$radius-xl;
+  background: var(--tv-surface);
+  box-shadow: var(--tv-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__tree {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: block;
+  }
+
+  &__row {
+    --tv-level: 1;
+
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding-block: syn.$space-1;
+    padding-inline-end: syn.$space-2;
+    // Indent by depth using the 8pt scale; level 1 sits flush with the toggle.
+    padding-inline-start: calc((var(--tv-level) - 1) * #{syn.$space-md} + #{syn.$space-1});
+    border-radius: syn.$radius-md;
+    color: var(--tv-row-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-snug;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+
+    &:hover {
+      background: var(--tv-row-hover-surface);
+    }
+
+    @include syn.focus-visible;
+
+    &--selected {
+      background: var(--tv-selected-surface);
+      color: var(--tv-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__toggle {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    padding: 0;
+    border: none;
+    border-radius: syn.$radius-sm;
+    background: transparent;
+    color: var(--tv-toggle-color);
+    cursor: pointer;
+
+    &--leaf {
+      cursor: default;
+      pointer-events: none;
+    }
+
+    @include syn.focus-visible;
+  }
+
+  &__chevron {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    transition: transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
+  }
+
+  &__toggle--open &__chevron,
+  &__toggle--open .tree-view__chevron {
+    transform: rotate(90deg);
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    font-size: syn.$font-size-base;
+    line-height: 1;
+  }
+
+  &__label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-md;
+    color: var(--tv-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-tree-view__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .tree-view__row,
+  .tree-view__chevron {
+    transition: none;
+  }
 }

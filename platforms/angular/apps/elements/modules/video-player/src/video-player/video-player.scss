@@ -1,21 +1,236 @@
 @use 'scss' as syn;
 
 :host {
+  --vp-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --vp-stage: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+  --vp-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --vp-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --vp-control-color: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --vp-control-muted: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+  --vp-control-hover: var(--syn-color-state-overlay-hover, #{syn.$color-neutral-700});
+  --vp-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --vp-track: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --vp-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --vp-empty-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-video-player__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.video-player {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: syn.px-to-rem(1) solid var(--vp-border);
+  border-radius: syn.$radius-xl;
+  background: var(--vp-surface);
+  box-shadow: var(--vp-shadow);
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  @include syn.focus-visible;
+
+  &--fullscreen {
+    border: none;
+    border-radius: 0;
+  }
+
+  &__stage {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    background: var(--vp-stage);
+
+    .video-player--fullscreen & {
+      flex: 1 1 auto;
+      aspect-ratio: auto;
+    }
+  }
+
+  &__media {
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: contain;
+    background: var(--vp-stage);
+  }
+
+  &__bigplay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    inline-size: 100%;
+    block-size: 100%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--vp-control-color);
+    cursor: pointer;
+
+    @include syn.focus-visible;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inline-size: syn.px-to-rem(72);
+      block-size: syn.px-to-rem(72);
+      border-radius: syn.$radius-full;
+      background: var(--vp-accent);
+      opacity: 0.92;
+      transition: transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+    }
+
+    &:hover::before {
+      transform: scale(1.06);
+    }
+  }
+
+  &__bigplay-icon {
+    position: relative;
+    z-index: 1;
+    inline-size: syn.px-to-rem(32);
+    block-size: syn.px-to-rem(32);
+    margin-inline-start: syn.px-to-rem(4);
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--vp-surface);
+  }
+
+  &__btn {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    padding: 0;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--vp-control-color);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--vp-control-hover);
+    }
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__time {
+    flex: 0 0 auto;
+    color: var(--vp-control-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  &__seek {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    min-inline-size: syn.px-to-rem(80);
+    block-size: syn.px-to-rem(40);
+  }
+
+  &__seek-track {
+    position: absolute;
+    inset-inline: 0;
+    block-size: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: var(--vp-track);
+    pointer-events: none;
+  }
+
+  &__seek-fill {
+    block-size: 100%;
+    border-radius: syn.$radius-full;
+    background: var(--vp-accent);
+  }
+
+  &__seek-input,
+  &__volume-input {
+    position: relative;
+    inline-size: 100%;
+    block-size: syn.px-to-rem(40);
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    appearance: none;
+
+    @include syn.focus-visible;
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      inline-size: syn.px-to-rem(14);
+      block-size: syn.px-to-rem(14);
+      border: none;
+      border-radius: syn.$radius-full;
+      background: var(--vp-control-color);
+    }
+
+    &::-moz-range-thumb {
+      inline-size: syn.px-to-rem(14);
+      block-size: syn.px-to-rem(14);
+      border: none;
+      border-radius: syn.$radius-full;
+      background: var(--vp-control-color);
+    }
+  }
+
+  &__volume-input {
+    inline-size: syn.px-to-rem(80);
+
+    &::-webkit-slider-runnable-track {
+      block-size: syn.px-to-rem(4);
+      border-radius: syn.$radius-full;
+      background: var(--vp-track);
+    }
+
+    &::-moz-range-track {
+      block-size: syn.px-to-rem(4);
+      border-radius: syn.$radius-full;
+      background: var(--vp-track);
+    }
+  }
+
+  &__volume {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-xl;
+    border: syn.px-to-rem(1) dashed var(--vp-empty-border);
+    border-radius: syn.$radius-lg;
+    color: var(--vp-empty-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
   }
 }
 
-.syn-video-player__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .video-player__btn,
+  .video-player__bigplay::before {
+    transition: none;
+  }
+
+  .video-player__bigplay:hover::before {
+    transform: none;
+  }
 }

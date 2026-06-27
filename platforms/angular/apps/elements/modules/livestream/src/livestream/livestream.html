@@ -1,3 +1,90 @@
-<div class="syn-livestream__placeholder" [attr.data-streamUrl]="streamUrl() ?? null" [attr.data-streamType]="streamType() ?? null" [attr.data-viewerCountEndpoint]="viewerCountEndpoint() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="livestream">
-  <span class="syn-livestream__name">synergos-livestream</span>
+<div class="livestream">
+  <div
+    class="livestream__stage"
+    role="group"
+    [attr.aria-label]="(hasTitle() ? title() + ' — ' : '') + (isLive() ? liveLabel() : offlineLabel())"
+  >
+    @if (playerKind() === 'iframe') {
+      <iframe
+        class="livestream__media"
+        [src]="streamUrl()"
+        [title]="hasTitle() ? title() : (isLive() ? liveLabel() : offlineLabel())"
+        loading="lazy"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowfullscreen
+      ></iframe>
+    } @else if (playerKind() === 'video') {
+      <video
+        class="livestream__media"
+        [src]="streamUrl()"
+        [attr.poster]="posterUrl() || null"
+        controls
+        playsinline
+        preload="metadata"
+        [attr.aria-label]="hasTitle() ? title() : (isLive() ? liveLabel() : offlineLabel())"
+      ></video>
+    } @else {
+      <div class="livestream__empty" role="status">
+        <svg
+          class="livestream__empty-icon"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="m10 8 6 4-6 4V8Z M3 5h18v14H3z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <p class="livestream__empty-text">Transmisión no disponible.</p>
+      </div>
+    }
+
+    <div class="livestream__overlay" aria-hidden="false">
+      @if (isLive()) {
+        <span class="livestream__badge livestream__badge--live">
+          <span class="livestream__badge-dot" aria-hidden="true"></span>
+          <span class="livestream__badge-text">{{ liveLabel() }}</span>
+        </span>
+      } @else {
+        <span class="livestream__badge livestream__badge--offline">
+          <span class="livestream__badge-text">{{ offlineLabel() }}</span>
+        </span>
+      }
+
+      @if (hasViewers()) {
+        <span
+          class="livestream__viewers"
+          role="status"
+          aria-live="polite"
+          [attr.aria-label]="viewersLabel() + ' espectadores'"
+        >
+          <svg
+            class="livestream__viewers-icon"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M12 5c5 0 9 4.5 10 7-1 2.5-5 7-10 7S3 14.5 2 12c1-2.5 5-7 10-7Z"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+            <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6" />
+          </svg>
+          <span class="livestream__viewers-count">{{ viewersLabel() }}</span>
+        </span>
+      }
+    </div>
+  </div>
+
+  @if (hasTitle()) {
+    <h2 class="livestream__title">{{ title() }}</h2>
+  }
 </div>

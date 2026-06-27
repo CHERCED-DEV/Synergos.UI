@@ -1,21 +1,208 @@
 @use 'scss' as syn;
 
 :host {
+  --cc-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --cc-surface-subtle: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --cc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --cc-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --cc-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --cc-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --cc-text-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --cc-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cc-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --cc-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --cc-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --cc-link: var(--syn-color-text-accent, #{syn.$color-brand-600});
+
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-cookie-consent__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.cookie-consent {
+  position: fixed;
+  inset-block-end: 0;
+  inset-inline: 0;
+  z-index: syn.$z-overlay;
+  display: flex;
+  justify-content: center;
+  padding: syn.$space-md;
+  pointer-events: none;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__panel {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    inline-size: 100%;
+    max-inline-size: syn.$max-width-content;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--cc-border);
+    border-radius: syn.$radius-xl;
+    background: var(--cc-surface);
+    box-shadow: var(--cc-shadow);
+  }
+
+  &__intro {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--cc-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__text {
+    margin: 0;
+    color: var(--cc-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__policy {
+    color: var(--cc-link);
+    font-weight: syn.$font-weight-medium;
+    text-decoration: underline;
+    text-underline-offset: syn.px-to-rem(2);
+
+    @include syn.focus-visible;
+  }
+
+  &__categories {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--cc-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--cc-surface-subtle);
+  }
+
+  &__legend {
+    padding: 0;
+    margin-block-end: syn.$space-xs;
+    color: var(--cc-title-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__category {
+    display: flex;
+    gap: syn.$space-sm;
+    align-items: flex-start;
+    padding: syn.$space-sm;
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &:hover {
+      background: var(--cc-surface);
+    }
+
+    &--locked {
+      cursor: default;
+
+      &:hover {
+        background: transparent;
+      }
+    }
+  }
+
+  &__checkbox {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    margin-block-start: syn.px-to-rem(2);
+    flex: 0 0 auto;
+    accent-color: var(--cc-accent);
+    cursor: pointer;
+
+    @include syn.focus-visible;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  &__category-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+  }
+
+  &__category-label {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-xs;
+    color: var(--cc-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__category-desc {
+    color: var(--cc-muted-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__badge {
+    padding: syn.$space-xxs syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--cc-surface-subtle);
+    color: var(--cc-muted-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    justify-content: flex-end;
+  }
+
+  &__btn {
+    @include syn.button-base;
+
+    &--primary {
+      @include syn.button-variant(
+        $background: var(--cc-accent),
+        $color: var(--cc-on-accent),
+        $border-color: var(--cc-accent),
+        $hover-background: var(--cc-accent-strong),
+        $hover-border-color: var(--cc-accent-strong)
+      );
+    }
+
+    &--ghost {
+      @include syn.button-variant(
+        $background: transparent,
+        $color: var(--cc-title-color),
+        $border-color: var(--cc-border),
+        $hover-background: var(--cc-surface-subtle),
+        $hover-border-color: var(--cc-border)
+      );
+    }
   }
 }
 
-.syn-cookie-consent__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (max-width: syn.$bp-sm) {
+  .cookie-consent__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-consent__category {
+    transition: none;
+  }
 }

@@ -1,21 +1,138 @@
 @use 'scss' as syn;
 
 :host {
+  --tabs-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tabs-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tabs-tab-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tabs-tab-hover-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --tabs-tab-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tabs-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tabs-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tabs-panel-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --tabs-disabled-color: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-tabs__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+    border-bottom: syn.px-to-rem(1) solid var(--tabs-border);
+  }
+
+  &__tab {
+    position: relative;
+    margin: 0;
+    padding: syn.$space-sm syn.$space-md;
+    border: syn.px-to-rem(1) solid transparent;
+    border-bottom: none;
+    border-top-left-radius: syn.$radius-md;
+    border-top-right-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--tabs-tab-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover:not(:disabled) {
+      color: var(--tabs-tab-hover-color);
+      background: var(--tabs-tab-hover-surface);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      inset-block-end: syn.px-to-rem(-1);
+      block-size: syn.px-to-rem(2);
+      background: var(--tabs-accent);
+      transform: scaleX(0);
+      transform-origin: center;
+      transition: transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+    }
+
+    &--active {
+      color: var(--tabs-accent-strong);
+      font-weight: syn.$font-weight-semibold;
+
+      &::after {
+        transform: scaleX(1);
+      }
+    }
+
+    &:disabled {
+      color: var(--tabs-disabled-color);
+      cursor: not-allowed;
+    }
+  }
+
+  &__panel {
+    color: var(--tabs-panel-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+
+    @include syn.focus-visible;
+
+    &[hidden] {
+      display: none;
+    }
   }
 }
 
-.syn-tabs__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+:host([data-orientation='vertical']) {
+  .tabs {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: syn.$space-lg;
+  }
+
+  .tabs__list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    border-bottom: none;
+    border-inline-end: syn.px-to-rem(1) solid var(--tabs-border);
+  }
+
+  .tabs__tab {
+    border-top-right-radius: 0;
+    border-bottom-left-radius: syn.$radius-md;
+    border-inline-end: none;
+    text-align: start;
+
+    &::after {
+      inset-inline: auto;
+      inset-inline-end: syn.px-to-rem(-1);
+      inset-block: 0;
+      inline-size: syn.px-to-rem(2);
+      block-size: auto;
+      transform: scaleY(0);
+    }
+
+    &--active::after {
+      transform: scaleY(1);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs__tab,
+  .tabs__tab::after {
+    transition: none;
+  }
 }

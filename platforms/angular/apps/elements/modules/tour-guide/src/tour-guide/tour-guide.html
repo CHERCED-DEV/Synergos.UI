@@ -1,3 +1,76 @@
-<div class="syn-tour-guide__placeholder" [attr.data-stepsJson]="stepsJson() ?? null" [attr.data-autoStart]="autoStart() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="tour-guide">
-  <span class="syn-tour-guide__name">synergos-tour-guide</span>
-</div>
+@if (isActive() && currentStep(); as step) {
+  <div
+    class="tour"
+    [class.tour--has-spotlight]="spotlight() !== null"
+    (keydown)="onOverlayKeydown($event)"
+  >
+    <!-- Dimmed backdrop. Clicking it skips the tour. -->
+    <button
+      type="button"
+      class="tour__backdrop"
+      [attr.aria-label]="skipLabel()"
+      (click)="skip()"
+    ></button>
+
+    @if (spotlight(); as rect) {
+      <div
+        class="tour__spotlight"
+        aria-hidden="true"
+        [style.top.px]="rect.top"
+        [style.left.px]="rect.left"
+        [style.width.px]="rect.width"
+        [style.height.px]="rect.height"
+      ></div>
+    }
+
+    <div
+      class="tour__popover"
+      [class]="'tour__popover--' + resolvedPlacement()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tour-title"
+      aria-describedby="tour-body"
+    >
+      <header class="tour__header">
+        <span class="tour__progress" aria-live="polite">{{ progressLabel() }}</span>
+        <button
+          type="button"
+          class="tour__close"
+          [attr.aria-label]="skipLabel()"
+          (click)="skip()"
+        >
+          <svg class="tour__close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </header>
+
+      @if (step.title) {
+        <h2 class="tour__title" id="tour-title">{{ step.title }}</h2>
+      }
+      @if (step.body) {
+        <p class="tour__body" id="tour-body">{{ step.body }}</p>
+      }
+
+      <footer class="tour__footer">
+        <button type="button" class="tour__btn tour__btn--ghost" (click)="skip()">
+          {{ skipLabel() }}
+        </button>
+
+        <div class="tour__nav">
+          <button
+            type="button"
+            class="tour__btn tour__btn--secondary"
+            [disabled]="isFirst()"
+            (click)="previous()"
+          >
+            {{ previousLabel() }}
+          </button>
+          <button type="button" class="tour__btn tour__btn--primary" (click)="next()">
+            {{ isLast() ? doneLabel() : nextLabel() }}
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

@@ -1,21 +1,199 @@
 @use 'scss' as syn;
 
 :host {
+  --quote-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --quote-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --quote-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --quote-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --quote-text-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --quote-author-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --quote-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --quote-mark-color: var(--syn-color-border-brand, #{syn.$color-brand-300});
+  --quote-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --quote-dot-color: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --quote-nav-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --quote-nav-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-quote-animated__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.quote {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  margin: 0;
+  padding: syn.$space-xl;
+  border: syn.px-to-rem(1) solid var(--quote-border);
+  border-radius: syn.$radius-xl;
+  background: var(--quote-surface);
+  box-shadow: var(--quote-shadow);
+  text-align: center;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__mark {
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(30);
+    margin-inline: auto;
+    color: var(--quote-mark-color);
+  }
+
+  &__body {
+    margin: 0;
+  }
+
+  &__text {
+    margin: 0;
+    color: var(--quote-text-color);
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+    text-wrap: balance;
+
+    // Entry / rotation animation, keyed to the active quote string so a new
+    // quote re-triggers the keyframes. Driven by the host data-animation attr.
+    animation-duration: var(--syn-duration-slow, #{syn.$duration-slow});
+    animation-timing-function: syn.$easing-smooth;
+    animation-fill-mode: both;
+
+    :host([data-animation='fade']) & {
+      animation-name: quote-fade;
+    }
+
+    :host([data-animation='slide']) & {
+      animation-name: quote-slide;
+    }
+
+    :host([data-animation='rise']) & {
+      animation-name: quote-rise;
+    }
+
+    :host([data-animation='none']) & {
+      animation-name: none;
+    }
+  }
+
+  &__caption {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__author {
+    color: var(--quote-author-color);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__role {
+    color: var(--quote-role-color);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-sm;
+    margin-block-start: syn.$space-xs;
+  }
+
+  &__nav {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(36);
+    block-size: syn.px-to-rem(36);
+    padding: 0;
+    border: syn.px-to-rem(1) solid var(--quote-border);
+    border-radius: syn.$radius-full;
+    background: var(--quote-surface);
+    color: var(--quote-nav-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--quote-nav-hover-surface);
+      border-color: var(--quote-border-subtle);
+    }
+  }
+
+  &__nav-icon {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+
+  &__dots {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+  }
+
+  &__dot {
+    inline-size: syn.px-to-rem(8);
+    block-size: syn.px-to-rem(8);
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: var(--quote-dot-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible;
+
+    &--active {
+      background: var(--quote-accent);
+      transform: scale(1.4);
+    }
   }
 }
 
-.syn-quote-animated__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes quote-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes quote-slide {
+  from {
+    opacity: 0;
+    transform: translateX(#{syn.px-to-rem(16)});
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes quote-rise {
+  from {
+    opacity: 0;
+    transform: translateY(#{syn.px-to-rem(12)});
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quote__text {
+    animation: none;
+  }
+
+  .quote__nav,
+  .quote__dot {
+    transition: none;
+  }
+
+  .quote__dot--active {
+    transform: none;
+  }
 }

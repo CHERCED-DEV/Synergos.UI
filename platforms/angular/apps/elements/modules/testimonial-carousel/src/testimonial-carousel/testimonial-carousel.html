@@ -1,3 +1,114 @@
-<div class="syn-testimonial-carousel__placeholder" [attr.data-testimonialsJson]="testimonialsJson() ?? null" [attr.data-autoplayInterval]="autoplayInterval() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="testimonial-carousel">
-  <span class="syn-testimonial-carousel__name">synergos-testimonial-carousel</span>
-</div>
+@if (hasTestimonials()) {
+  <section
+    class="carousel"
+    role="region"
+    aria-roledescription="carrusel"
+    [attr.aria-label]="ariaLabel()"
+  >
+    <div
+      class="carousel__viewport"
+      [attr.aria-live]="isAutoplaying() ? 'off' : 'polite'"
+      tabindex="0"
+      (keydown)="onKeydown($event)"
+    >
+      @for (testimonial of testimonials(); track testimonial.id; let index = $index) {
+        <figure
+          class="carousel__slide"
+          [class.carousel__slide--active]="isActive(index)"
+          role="group"
+          aria-roledescription="diapositiva"
+          [attr.aria-label]="index + 1 + ' de ' + count()"
+          [attr.aria-hidden]="isActive(index) ? null : 'true'"
+          [attr.inert]="isActive(index) ? null : ''"
+        >
+          @if (testimonial.rating > 0) {
+            <div
+              class="carousel__rating"
+              role="img"
+              [attr.aria-label]="testimonial.rating + ' de 5 estrellas'"
+            >
+              @for (filled of starStates(testimonial.rating); track $index) {
+                <span
+                  class="carousel__star"
+                  [class.carousel__star--filled]="filled"
+                  aria-hidden="true"
+                >★</span>
+              }
+            </div>
+          }
+
+          <blockquote class="carousel__quote">
+            <p class="carousel__quote-text">{{ testimonial.quote }}</p>
+          </blockquote>
+
+          <figcaption class="carousel__author">
+            <span class="carousel__avatar" aria-hidden="true">
+              @if (testimonial.avatar) {
+                <img
+                  class="carousel__avatar-img"
+                  [src]="testimonial.avatar"
+                  [alt]="testimonial.avatarAlt"
+                  loading="lazy"
+                  decoding="async"
+                />
+              } @else {
+                <span class="carousel__avatar-initials">{{ testimonial.initials }}</span>
+              }
+            </span>
+            <span class="carousel__author-meta">
+              <span class="carousel__author-name">{{ testimonial.author }}</span>
+              @if (testimonial.role) {
+                <span class="carousel__author-role">{{ testimonial.role }}</span>
+              }
+            </span>
+          </figcaption>
+        </figure>
+      }
+    </div>
+
+    @if (hasMultiple()) {
+      <div class="carousel__controls">
+        <button
+          type="button"
+          class="carousel__nav carousel__nav--prev"
+          aria-label="Testimonio anterior"
+          (click)="previous()"
+        >
+          <svg class="carousel__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+
+        <div class="carousel__dots" role="tablist" [attr.aria-label]="ariaLabel()">
+          @for (testimonial of testimonials(); track testimonial.id; let index = $index) {
+            <button
+              type="button"
+              class="carousel__dot"
+              [class.carousel__dot--active]="isActive(index)"
+              role="tab"
+              [attr.aria-selected]="isActive(index)"
+              [attr.aria-label]="'Ir al testimonio ' + (index + 1)"
+              [attr.tabindex]="isActive(index) ? 0 : -1"
+              (click)="goTo(index)"
+            >
+              <span class="carousel__dot-mark" aria-hidden="true"></span>
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="carousel__nav carousel__nav--next"
+          aria-label="Testimonio siguiente"
+          (click)="next()"
+        >
+          <svg class="carousel__nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+      </div>
+    }
+  </section>
+} @else {
+  <p class="carousel__empty" role="status">No hay testimonios para mostrar.</p>
+}

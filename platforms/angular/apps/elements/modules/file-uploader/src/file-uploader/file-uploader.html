@@ -1,3 +1,123 @@
-<div class="syn-file-uploader__placeholder" [attr.data-uploadEndpoint]="uploadEndpoint() ?? null" [attr.data-acceptedTypes]="acceptedTypes() ?? null" [attr.data-maxFileSizeMb]="maxFileSizeMb() ?? null" [attr.data-maxFiles]="maxFiles() ?? null" [attr.data-label]="label() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="file-uploader">
-  <span class="syn-file-uploader__name">synergos-file-uploader</span>
+<div class="uploader">
+  <div
+    class="uploader__dropzone"
+    [class.uploader__dropzone--dragging]="isDragging()"
+    [class.uploader__dropzone--disabled]="!canAddMore()"
+    role="button"
+    tabindex="0"
+    [attr.aria-disabled]="!canAddMore()"
+    [attr.aria-label]="label()"
+    (click)="canAddMore() && fileInput.click()"
+    (keydown.enter)="canAddMore() && fileInput.click()"
+    (keydown.space)="canAddMore() ? fileInput.click() : null; $event.preventDefault()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    <svg class="uploader__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 16V4m0 0L8 8m4-4 4 4M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+
+    <p class="uploader__prompt">{{ label() }}</p>
+    <p class="uploader__hint">
+      Hasta {{ maxFiles() }} archivo(s), máximo {{ maxFileSizeMb() }} MB c/u.
+    </p>
+
+    <input
+      #fileInput
+      class="uploader__input"
+      type="file"
+      multiple
+      [attr.accept]="acceptedTypes() || null"
+      [disabled]="!canAddMore()"
+      (change)="onFileInputChange($event)"
+      tabindex="-1"
+      aria-hidden="true"
+    />
+  </div>
+
+  @if (rejection()) {
+    <p class="uploader__rejection" role="alert">{{ rejection() }}</p>
+  }
+
+  @if (hasFiles()) {
+    <div class="uploader__list-header">
+      <span class="uploader__summary" role="status" aria-live="polite">{{ summaryLabel() }}</span>
+      <button type="button" class="uploader__clear" (click)="clearAll()">
+        Quitar todos
+      </button>
+    </div>
+
+    <ul class="uploader__list" aria-label="Archivos">
+      @for (file of files(); track trackById($index, file)) {
+        <li
+          class="uploader__item"
+          [class.uploader__item--error]="file.status === 'error'"
+          [class.uploader__item--done]="file.status === 'done'"
+        >
+          <div class="uploader__item-main">
+            <span class="uploader__item-name" [attr.title]="file.name">{{ file.name }}</span>
+            <span class="uploader__item-size">{{ formatSize(file.size) }}</span>
+          </div>
+
+          <div
+            class="uploader__progress"
+            role="progressbar"
+            [attr.aria-valuenow]="file.progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="'Progreso de ' + file.name"
+          >
+            <span
+              class="uploader__progress-bar"
+              [class.uploader__progress-bar--error]="file.status === 'error'"
+              [class.uploader__progress-bar--done]="file.status === 'done'"
+              [style.width.%]="file.progress"
+            ></span>
+          </div>
+
+          <div class="uploader__item-meta">
+            @switch (file.status) {
+              @case ('queued') {
+                <span class="uploader__status">En cola</span>
+              }
+              @case ('uploading') {
+                <span class="uploader__status">{{ file.progress }}%</span>
+              }
+              @case ('done') {
+                <span class="uploader__status uploader__status--done">Listo</span>
+              }
+              @case ('error') {
+                <span class="uploader__status uploader__status--error">{{ file.error }}</span>
+              }
+            }
+
+            <button
+              type="button"
+              class="uploader__remove"
+              (click)="removeFile(file.id)"
+              [attr.aria-label]="'Quitar ' + file.name"
+            >
+              <svg class="uploader__remove-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M6 6l12 12M18 6 6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
 </div>

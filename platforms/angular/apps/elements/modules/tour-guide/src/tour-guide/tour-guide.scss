@@ -1,21 +1,225 @@
 @use 'scss' as syn;
 
 :host {
+  --tour-overlay: var(--syn-color-overlay-scrim, #{rgba(syn.$color-neutral-900, 0.6)});
+  --tour-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tour-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tour-shadow: var(--syn-shadow-floating, #{syn.$shadow-floating});
+  --tour-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tour-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --tour-progress-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tour-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --tour-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --tour-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --tour-ghost-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tour-secondary-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --tour-ring: var(--syn-color-border-brand, #{syn.$color-brand-300});
+
   display: block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-tour-guide__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: syn.$z-modal;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  &__backdrop {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--tour-overlay);
+    cursor: pointer;
+  }
+
+  &__spotlight {
+    position: fixed;
+    z-index: syn.$z-modal;
+    border-radius: syn.$radius-md;
+    box-shadow: 0 0 0 99999px var(--tour-overlay);
+    pointer-events: none;
+    transition:
+      top var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      left var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      width var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
+      height var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
+  }
+
+  // When a spotlight is shown its big box-shadow paints the scrim, so hide
+  // the flat backdrop to avoid double-dimming the cutout edges.
+  &--has-spotlight &__backdrop {
+    background: transparent;
+  }
+
+  &__popover {
+    position: fixed;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    z-index: syn.$z-tooltip;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    inline-size: min(#{syn.px-to-rem(360)}, calc(100vw - #{syn.$space-2xl}));
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--tour-border);
+    border-radius: syn.$radius-xl;
+    background: var(--tour-surface);
+    box-shadow: var(--tour-shadow);
+    transform: translate(-50%, -50%);
+
+    &--top {
+      inset-block-start: auto;
+      inset-block-end: syn.$space-2xl;
+      transform: translate(-50%, 0);
+    }
+
+    &--bottom {
+      inset-block-start: auto;
+      inset-block-start: syn.$space-2xl;
+      transform: translate(-50%, 0);
+    }
+
+    &--left {
+      inset-inline-start: syn.$space-2xl;
+      transform: translate(0, -50%);
+    }
+
+    &--right {
+      inset-inline-start: auto;
+      inset-inline-end: syn.$space-2xl;
+      transform: translate(0, -50%);
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__progress {
+    color: var(--tour-progress-color);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__close {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(32);
+    block-size: syn.px-to-rem(32);
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--tour-ghost-color);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--tour-secondary-surface);
+    }
+  }
+
+  &__close-icon {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--tour-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__body {
+    margin: 0;
+    color: var(--tour-body-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    margin-block-start: syn.$space-xs;
+  }
+
+  &__nav {
+    display: flex;
+    gap: syn.$space-xs;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: syn.px-to-rem(40);
+    padding-inline: syn.$space-md;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      background: var(--tour-accent);
+      border-color: var(--tour-accent);
+      color: var(--tour-on-accent);
+
+      &:not(:disabled):hover {
+        background: var(--tour-accent-strong);
+        border-color: var(--tour-accent-strong);
+      }
+    }
+
+    &--secondary {
+      background: var(--tour-surface);
+      border-color: var(--tour-border);
+      color: var(--tour-title-color);
+
+      &:not(:disabled):hover {
+        background: var(--tour-secondary-surface);
+      }
+    }
+
+    &--ghost {
+      background: transparent;
+      color: var(--tour-ghost-color);
+
+      &:not(:disabled):hover {
+        color: var(--tour-title-color);
+      }
+    }
   }
 }
 
-.syn-tour-guide__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@media (prefers-reduced-motion: reduce) {
+  .tour__spotlight,
+  .tour__close,
+  .tour__btn {
+    transition: none;
+  }
 }
