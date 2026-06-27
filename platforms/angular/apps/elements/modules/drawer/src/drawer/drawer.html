@@ -1,3 +1,56 @@
-<div class="syn-drawer__placeholder" [attr.data-triggerLabel]="triggerLabel() ?? null" [attr.data-drawerContent]="drawerContent() ?? null" [attr.data-side]="side() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="drawer">
-  <span class="syn-drawer__name">synergos-drawer</span>
-</div>
+<button
+  type="button"
+  class="drawer__trigger"
+  [attr.aria-haspopup]="'dialog'"
+  [attr.aria-expanded]="isOpen()"
+  (click)="open()"
+>
+  {{ triggerLabel() }}
+</button>
+
+@if (isOpen()) {
+  <div
+    class="drawer__backdrop"
+    (click)="onBackdropClick()"
+    aria-hidden="true"
+  ></div>
+
+  <div
+    #panel
+    class="drawer__panel"
+    [class]="'drawer__panel--' + side()"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="hasHeading() ? null : triggerLabel()"
+    [attr.aria-labelledby]="hasHeading() ? headingId : null"
+  >
+    <header class="drawer__header">
+      @if (hasHeading()) {
+        <h2 class="drawer__heading" [id]="headingId">{{ heading() }}</h2>
+      }
+      <button
+        #closeButton
+        type="button"
+        class="drawer__close"
+        aria-label="Cerrar panel"
+        (click)="close()"
+      >
+        <svg class="drawer__close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            d="M6 6 18 18M18 6 6 18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+    </header>
+
+    <div class="drawer__body">
+      @if (drawerContent()) {
+        <p class="drawer__content">{{ drawerContent() }}</p>
+      }
+    </div>
+  </div>
+}

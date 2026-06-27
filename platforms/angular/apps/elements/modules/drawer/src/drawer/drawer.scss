@@ -1,21 +1,217 @@
 @use 'scss' as syn;
 
 :host {
-  display: block;
+  --drawer-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --drawer-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --drawer-shadow: var(--syn-shadow-floating, #{syn.$shadow-xl});
+  --drawer-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --drawer-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --drawer-close-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --drawer-close-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --drawer-size: #{syn.px-to-rem(380)};
+
+  display: inline-block;
   max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-drawer__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.drawer {
+  &__trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xs;
+    padding: syn.$space-xs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+    border-radius: syn.$radius-md;
+    background: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+    color: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--syn-color-text-accent, #{syn.$color-brand-600});
+    }
+  }
+
+  &__backdrop {
+    @include syn.overlay-active($z-index: syn.$z-modal);
+
+    animation: drawer-backdrop-in var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out;
+  }
+
+  &__panel {
+    position: fixed;
+    z-index: syn.$z-modal;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    padding: syn.$space-lg;
+    background: var(--drawer-surface);
+    box-shadow: var(--drawer-shadow);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    animation-duration: var(--syn-duration-slow, #{syn.$duration-slow});
+    animation-timing-function: syn.$easing-out;
+    animation-fill-mode: both;
+
+    &--start,
+    &--end {
+      inset-block: 0;
+      inline-size: min(var(--drawer-size), 100vw);
+      max-inline-size: 100%;
+    }
+
+    &--start {
+      inset-inline-start: 0;
+      border-inline-end: syn.px-to-rem(1) solid var(--drawer-border);
+      animation-name: drawer-slide-in-start;
+    }
+
+    &--end {
+      inset-inline-end: 0;
+      border-inline-start: syn.px-to-rem(1) solid var(--drawer-border);
+      animation-name: drawer-slide-in-end;
+    }
+
+    &--top,
+    &--bottom {
+      inset-inline: 0;
+      block-size: min(var(--drawer-size), 100vh);
+      max-block-size: 100%;
+    }
+
+    &--top {
+      inset-block-start: 0;
+      border-block-end: syn.px-to-rem(1) solid var(--drawer-border);
+      animation-name: drawer-slide-in-top;
+    }
+
+    &--bottom {
+      inset-block-end: 0;
+      border-block-start: syn.px-to-rem(1) solid var(--drawer-border);
+      animation-name: drawer-slide-in-bottom;
+    }
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__heading {
+    margin: 0;
+    color: var(--drawer-heading-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__close {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(36);
+    block-size: syn.px-to-rem(36);
+    margin-inline-start: auto;
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--drawer-close-color);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--drawer-close-hover-surface);
+    }
+  }
+
+  &__close-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    color: var(--drawer-body-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+  }
+
+  &__content {
+    margin: 0;
   }
 }
 
-.syn-drawer__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+@keyframes drawer-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-slide-in-start {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawer-slide-in-end {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes drawer-slide-in-top {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-slide-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer__trigger,
+  .drawer__close {
+    transition: none;
+  }
+
+  .drawer__backdrop,
+  .drawer__panel {
+    animation: none;
+  }
 }

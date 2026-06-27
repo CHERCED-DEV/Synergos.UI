@@ -1,21 +1,185 @@
 @use 'scss' as syn;
 
 :host {
+  --toast-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --toast-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --toast-shadow: var(--syn-shadow-floating, #{syn.$shadow-lg});
+  --toast-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --toast-message-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --toast-close-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --toast-accent: var(--syn-color-info-500, #{syn.$color-info-500});
+  --toast-edge: var(--syn-color-info-100, #{syn.$color-info-100});
+  --toast-gap: #{syn.$space-sm};
+  --toast-width: #{syn.px-to-rem(360)};
+
   display: block;
-  max-width: 100%;
 }
 
-// SCAFFOLD - no publicar
-.syn-notification-toast__placeholder {
-  // Visible solo en contexto dev; en produccion el chip no se muestra.
-  display: none;
+.toast-stack {
+  position: fixed;
+  z-index: syn.$z-toast;
+  display: flex;
+  flex-direction: column;
+  gap: var(--toast-gap);
+  inline-size: min(var(--toast-width), calc(100vw - #{syn.$space-lg}));
+  max-block-size: calc(100vh - #{syn.$space-xl});
+  margin: 0;
+  padding: 0;
+  overflow: hidden auto;
+  pointer-events: none;
 
-  :host([data-syn-dev]) & {
-    @include syn.syn-scaffold-placeholder;
+  > * {
+    pointer-events: auto;
+  }
+
+  &--top-start,
+  &--top-center,
+  &--top-end {
+    inset-block-start: syn.$space-lg;
+  }
+
+  &--bottom-start,
+  &--bottom-center,
+  &--bottom-end {
+    inset-block-end: syn.$space-lg;
+    flex-direction: column-reverse;
+  }
+
+  &--top-start,
+  &--bottom-start {
+    inset-inline-start: syn.$space-lg;
+  }
+
+  &--top-end,
+  &--bottom-end {
+    inset-inline-end: syn.$space-lg;
+  }
+
+  &--top-center,
+  &--bottom-center {
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    align-items: center;
   }
 }
 
-.syn-notification-toast__name {
-  font-weight: 500;
-  letter-spacing: 0.04em;
+.toast {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: syn.$space-sm;
+  inline-size: 100%;
+  padding: syn.$space-sm syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--toast-border);
+  border-inline-start: syn.px-to-rem(3) solid var(--toast-accent);
+  border-radius: syn.$radius-lg;
+  background: var(--toast-surface);
+  box-shadow: var(--toast-shadow);
+  animation: toast-in var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-out both;
+
+  &--info {
+    --toast-accent: var(--syn-color-info-500, #{syn.$color-info-500});
+    --toast-edge: var(--syn-color-info-100, #{syn.$color-info-100});
+  }
+
+  &--success {
+    --toast-accent: var(--syn-color-success-500, #{syn.$color-success-500});
+    --toast-edge: var(--syn-color-success-100, #{syn.$color-success-100});
+  }
+
+  &--warning {
+    --toast-accent: var(--syn-color-warning-500, #{syn.$color-warning-500});
+    --toast-edge: var(--syn-color-warning-100, #{syn.$color-warning-100});
+  }
+
+  &--error {
+    --toast-accent: var(--syn-color-danger-500, #{syn.$color-danger-500});
+    --toast-edge: var(--syn-color-danger-100, #{syn.$color-danger-100});
+  }
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(24);
+    block-size: syn.px-to-rem(24);
+    border-radius: syn.$radius-full;
+    background: var(--toast-edge);
+    color: var(--toast-accent);
+  }
+
+  &__icon-glyph {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  &__body {
+    min-inline-size: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__title {
+    margin: 0;
+    color: var(--toast-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__message {
+    margin: 0;
+    color: var(--toast-message-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+    overflow-wrap: anywhere;
+  }
+
+  &__close {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
+    margin: syn.px-to-rem(-4) syn.px-to-rem(-4) 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--toast-close-color);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+    }
+  }
+
+  &__close-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(#{syn.px-to-rem(-8)}) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+
+  .toast__close {
+    transition: none;
+  }
 }

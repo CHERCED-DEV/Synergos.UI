@@ -55,4 +55,12 @@
   &__tabs {
     display: block;
   }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-sm;
+    color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
 }

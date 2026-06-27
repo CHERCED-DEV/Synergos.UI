@@ -1,3 +1,60 @@
-<div class="syn-notification-toast__placeholder" [attr.data-message]="message() ?? null" [attr.data-type]="type() ?? null" [attr.data-durationMs]="durationMs() ?? null" [attr.data-integration]="integration() ?? null" role="region" aria-label="notification-toast">
-  <span class="syn-notification-toast__name">synergos-notification-toast</span>
-</div>
+@if (hasToasts()) {
+  <div
+    class="toast-stack"
+    [class]="'toast-stack--' + position()"
+    role="region"
+    aria-label="Notificaciones"
+    [attr.aria-live]="liveAssertive() ? 'assertive' : 'polite'"
+    (mouseenter)="pause()"
+    (mouseleave)="resume()"
+    (focusin)="pause()"
+    (focusout)="resume()"
+  >
+    @for (toast of toasts(); track trackById($index, toast)) {
+      <div
+        class="toast"
+        [class]="'toast--' + toast.variant"
+        [attr.role]="toastRole(toast)"
+        [attr.aria-live]="toast.variant === 'error' ? 'assertive' : 'polite'"
+      >
+        <span class="toast__icon" aria-hidden="true">
+          <svg class="toast__icon-glyph" viewBox="0 0 24 24" focusable="false">
+            @switch (toast.variant) {
+              @case ('success') {
+                <path d="m5 13 4 4 10-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              }
+              @case ('error') {
+                <path d="M12 8v5M12 16.5v.5M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              }
+              @case ('warning') {
+                <path d="M12 9v4M12 16.5v.5M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              }
+              @default {
+                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="M12 11v5M12 8v.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              }
+            }
+          </svg>
+        </span>
+
+        <div class="toast__body">
+          @if (toast.title) {
+            <p class="toast__title">{{ toast.title }}</p>
+          }
+          <p class="toast__message">{{ toast.message }}</p>
+        </div>
+
+        <button
+          type="button"
+          class="toast__close"
+          aria-label="Descartar notificación"
+          (click)="dismiss(toast.id)"
+        >
+          <svg class="toast__close-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M6 6 18 18M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </button>
+      </div>
+    }
+  </div>
+}

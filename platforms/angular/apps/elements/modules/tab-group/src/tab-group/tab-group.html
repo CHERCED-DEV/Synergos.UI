@@ -1,5 +1,5 @@
-<section class="tab-group" [class]="hostClasses()" [attr.aria-label]="title() ? null : ariaLabel()">
-  @if (title()) {
+<section class="tab-group" [class]="hostClasses()" [attr.aria-label]="hasTitle() ? null : ariaLabel()">
+  @if (hasTitle()) {
     <syn-heading
       class="tab-group__title"
       [text]="title()"
@@ -8,10 +8,15 @@
     />
   }
 
-  <syn-tabs
-    class="tab-group__tabs"
-    [tabs]="parsedTabs()"
-    [activeId]="activeId()"
-    [ariaLabel]="ariaLabel()"
-  />
+  @if (hasTabs()) {
+    <syn-tabs
+      class="tab-group__tabs"
+      [tabs]="parsedTabs()"
+      [activeId]="activeId()"
+      [ariaLabel]="ariaLabel()"
+      (activeIdChange)="selectTab($event)"
+    />
+  } @else {
+    <p class="tab-group__empty" role="status">No hay pestañas para mostrar.</p>
+  }
 </section>
