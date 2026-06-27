@@ -1,0 +1,466 @@
+@use 'scss' as syn;
+
+:host {
+  --bw-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --bw-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --bw-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --bw-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --bw-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --bw-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --bw-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --bw-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --bw-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --bw-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --bw-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --bw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --bw-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --bw-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --bw-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+
+  display: block;
+  max-width: 100%;
+}
+
+.booking-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--bw-border);
+  border-radius: syn.$radius-xl;
+  background: var(--bw-surface);
+  box-shadow: var(--bw-shadow);
+  color: var(--bw-text);
+
+  // ─── Step indicator ───────────────────────────────────────────────────────
+  &__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0 0 syn.$space-3;
+    border-bottom: syn.px-to-rem(1) solid var(--bw-border-subtle);
+    list-style: none;
+  }
+
+  &__step {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    color: var(--bw-muted);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+
+    &.is-complete {
+      color: var(--bw-text-secondary);
+    }
+
+    &.is-current {
+      color: var(--bw-brand);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__step-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(24);
+    height: syn.px-to-rem(24);
+    border: syn.px-to-rem(1) solid currentColor;
+    border-radius: syn.$radius-full;
+    font-size: syn.$font-size-xs;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .is-current &__step-index {
+    background: var(--bw-brand);
+    border-color: var(--bw-brand);
+    color: var(--bw-brand-text);
+  }
+
+  &__step-label {
+    line-height: syn.$line-height-snug;
+  }
+
+  // ─── Status / error live regions ──────────────────────────────────────────
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    min-height: syn.px-to-rem(20);
+    margin: 0;
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  &__spinner {
+    display: inline-block;
+    width: syn.px-to-rem(16);
+    height: syn.px-to-rem(16);
+    border: syn.px-to-rem(2) solid var(--bw-brand-soft);
+    border-top-color: var(--bw-brand);
+    border-radius: syn.$radius-full;
+    animation: booking-wizard-spin 0.7s linear infinite;
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--bw-surface-muted);
+    color: var(--bw-danger);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Panels ───────────────────────────────────────────────────────────────
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__destination {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    margin: 0;
+  }
+
+  &__destination-label {
+    color: var(--bw-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__destination-value {
+    color: var(--bw-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ─── Fields / forms ───────────────────────────────────────────────────────
+  &__dates {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-3;
+
+    @include syn.respond-to(sm) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__label {
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__input {
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--bw-border);
+    border-radius: syn.$radius-md;
+    background: var(--bw-surface);
+    color: var(--bw-text);
+    font: inherit;
+    font-size: syn.$font-size-base;
+
+    @include syn.focus-visible(var(--bw-focus-ring));
+
+    &[aria-invalid='true'] {
+      border-color: var(--bw-danger);
+    }
+  }
+
+  &__field-error {
+    margin: 0;
+    color: var(--bw-danger);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__pax {
+    display: block;
+  }
+
+  // ─── Summary text ─────────────────────────────────────────────────────────
+  &__summary {
+    margin: 0;
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) dashed var(--bw-border);
+    border-radius: syn.$radius-lg;
+    background: var(--bw-surface-muted);
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  // ─── Offers ───────────────────────────────────────────────────────────────
+  &__offers {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--bw-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--bw-surface-muted);
+  }
+
+  &__offer-main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    min-width: 0;
+    flex: 1 1 syn.px-to-rem(220);
+  }
+
+  &__offer-title {
+    margin: 0;
+    color: var(--bw-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__offer-board {
+    margin: 0;
+    color: var(--bw-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__offer-policy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--bw-surface);
+    border: syn.px-to-rem(1) solid var(--bw-border);
+    color: var(--bw-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+
+    &.is-refundable {
+      background: var(--bw-success-soft);
+      border-color: var(--bw-success);
+      color: var(--bw-success);
+    }
+  }
+
+  &__offer-cancel {
+    color: var(--bw-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__offer-left {
+    margin: 0;
+    color: var(--bw-danger);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__offer-aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: syn.$space-2;
+    flex: 0 0 auto;
+  }
+
+  &__offer-price {
+    margin: 0;
+    color: var(--bw-text);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ─── Summary / voucher lists ──────────────────────────────────────────────
+  &__summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--bw-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--bw-surface-muted);
+  }
+
+  &__summary-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-3;
+
+    dt {
+      color: var(--bw-muted);
+      font-size: syn.$font-size-sm;
+    }
+
+    dd {
+      margin: 0;
+      color: var(--bw-text);
+      font-size: syn.$font-size-sm;
+      font-weight: syn.$font-weight-medium;
+      text-align: right;
+    }
+
+    &--total {
+      padding-top: syn.$space-2;
+      border-top: syn.px-to-rem(1) solid var(--bw-border);
+
+      dt,
+      dd {
+        font-size: syn.$font-size-base;
+        font-weight: syn.$font-weight-bold;
+      }
+    }
+  }
+
+  // ─── Voucher ──────────────────────────────────────────────────────────────
+  &__panel--voucher {
+    align-items: stretch;
+  }
+
+  &__voucher {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--bw-success);
+    border-radius: syn.$radius-xl;
+    background: var(--bw-success-soft);
+    text-align: center;
+  }
+
+  &__voucher-badge {
+    margin: 0;
+    color: var(--bw-success);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__voucher-id {
+    margin: 0;
+    color: var(--bw-text);
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ─── Actions / buttons ────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: syn.$space-2;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: syn.px-to-rem(44);
+    padding: syn.$space-2 syn.$space-5;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-full;
+    font: inherit;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible(var(--bw-focus-ring));
+
+    &:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    &--primary {
+      background: var(--bw-brand);
+      color: var(--bw-brand-text);
+
+      &:hover:not(:disabled) {
+        filter: brightness(0.95);
+      }
+    }
+
+    &--ghost {
+      background: transparent;
+      border-color: var(--bw-border);
+      color: var(--bw-text-secondary);
+
+      &:hover:not(:disabled) {
+        background: var(--bw-surface-muted);
+        color: var(--bw-text);
+      }
+    }
+  }
+}
+
+@keyframes booking-wizard-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .booking-wizard__btn,
+  .booking-wizard__input {
+    transition: none;
+  }
+
+  .booking-wizard__btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .booking-wizard__spinner {
+    animation: none;
+  }
+}

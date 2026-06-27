@@ -81,6 +81,7 @@
   { "name": "avatar-upload",          "alias": "elementSynAvatarUpload",       "tag": "synergos-avatar-upload",     "tier": "composition" },
   { "name": "badge",                  "alias": "elementSynBadge",              "tag": "synergos-badge",             "tier": "primitive" },
   { "name": "badge-group",            "alias": "elementSynBadgeGroup",         "tag": "synergos-badge-group",       "tier": "composition" },
+  { "name": "booking-wizard",         "alias": "elementSynBookingWizard",      "tag": "synergos-booking-wizard",    "tier": "module" },
   { "name": "breadcrumb",             "alias": "elementSynBreadcrumb",         "tag": "synergos-breadcrumb",        "tier": "primitive" },
   { "name": "calendar",               "alias": "elementSynCalendar",           "tag": "synergos-calendar",          "tier": "module" },
   { "name": "carousel",               "alias": "elementSynCarousel",           "tag": "synergos-carousel",          "tier": "module" },

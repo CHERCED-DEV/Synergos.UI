@@ -1,0 +1,294 @@
+<section class="booking-wizard" aria-label="Asistente de reserva">
+  <!-- Step indicator (tablist semantics, non-interactive past/future steps) -->
+  <ol class="booking-wizard__steps" role="list" aria-label="Pasos de la reserva">
+    @for (item of steps; track item; let index = $index) {
+      <li
+        class="booking-wizard__step"
+        [class.is-current]="isCurrent(item)"
+        [class.is-complete]="isComplete(item)"
+        [attr.aria-current]="isCurrent(item) ? 'step' : null"
+      >
+        <span class="booking-wizard__step-index" aria-hidden="true">{{ index + 1 }}</span>
+        <span class="booking-wizard__step-label">{{ stepLabel(item) }}</span>
+      </li>
+    }
+  </ol>
+
+  <!-- Global busy / error live regions -->
+  <p class="booking-wizard__status" role="status" aria-live="polite">
+    @if (loading()) {
+      <span class="booking-wizard__spinner" aria-hidden="true"></span>
+      <span>Procesando…</span>
+    }
+  </p>
+  @if (errorMessage()) {
+    <p class="booking-wizard__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ─── Step 1: Search ─────────────────────────────────────────────────── -->
+  @if (isCurrent('search')) {
+    <div class="booking-wizard__panel" role="group" aria-label="Buscar disponibilidad">
+      @if (destinationLabel()) {
+        <p class="booking-wizard__destination">
+          <span class="booking-wizard__destination-label">Destino</span>
+          <span class="booking-wizard__destination-value">{{ destinationLabel() }}</span>
+        </p>
+      }
+
+      <div class="booking-wizard__dates">
+        <div class="booking-wizard__field">
+          <label class="booking-wizard__label" [attr.for]="fieldId + '-checkin'">Entrada</label>
+          <input
+            class="booking-wizard__input"
+            type="date"
+            [id]="fieldId + '-checkin'"
+            [value]="checkIn()"
+            (input)="onCheckInInput($event)"
+          />
+        </div>
+        <div class="booking-wizard__field">
+          <label class="booking-wizard__label" [attr.for]="fieldId + '-checkout'">Salida</label>
+          <input
+            class="booking-wizard__input"
+            type="date"
+            [id]="fieldId + '-checkout'"
+            [value]="checkOut()"
+            [attr.aria-invalid]="dateError() ? 'true' : null"
+            [attr.aria-describedby]="dateError() ? fieldId + '-date-error' : null"
+            (input)="onCheckOutInput($event)"
+          />
+        </div>
+      </div>
+      @if (dateError()) {
+        <p class="booking-wizard__field-error" [id]="fieldId + '-date-error'" aria-live="polite">
+          {{ dateError() }}
+        </p>
+      }
+
+      <div class="booking-wizard__field">
+        <span class="booking-wizard__label" [id]="fieldId + '-occupancy'">Ocupación</span>
+        <synergos-pax-selector
+          class="booking-wizard__pax"
+          [attr.aria-labelledby]="fieldId + '-occupancy'"
+          [attr.initial]="paxInitialJson()"
+          (occupancychange)="onOccupancyChange($event)"
+        ></synergos-pax-selector>
+      </div>
+
+      <div class="booking-wizard__actions">
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--primary"
+          [disabled]="!canSearch()"
+          (click)="search()"
+        >
+          Buscar
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── Step 2: Results ────────────────────────────────────────────────── -->
+  @if (isCurrent('results')) {
+    <div class="booking-wizard__panel" role="group" aria-label="Ofertas disponibles">
+      <p class="booking-wizard__summary" aria-live="polite">
+        {{ summaryLabel() }}
+        @if (nightCount() > 0) {
+          · {{ nightCount() }} {{ nightCount() === 1 ? 'noche' : 'noches' }}
+        }
+      </p>
+
+      @if (loading()) {
+        <p class="booking-wizard__empty" aria-live="polite">Buscando disponibilidad…</p>
+      } @else if (!hasOffers()) {
+        <p class="booking-wizard__empty" role="status">
+          No encontramos disponibilidad para esas fechas. Ajusta tu búsqueda.
+        </p>
+      } @else {
+        <ul class="booking-wizard__offers" role="list">
+          @for (offer of offers(); track trackOffer($index, offer)) {
+            <li class="booking-wizard__offer">
+              <div class="booking-wizard__offer-main">
+                <h3 class="booking-wizard__offer-title">{{ offer.roomTypeName }}</h3>
+                @if (offer.board) {
+                  <p class="booking-wizard__offer-board">{{ offer.board }}</p>
+                }
+                <p class="booking-wizard__offer-policy">
+                  <span
+                    class="booking-wizard__chip"
+                    [class.is-refundable]="offer.refundable"
+                  >
+                    {{ offer.refundable ? 'Reembolsable' : 'No reembolsable' }}
+                  </span>
+                  @if (offer.cancellationPolicy) {
+                    <span class="booking-wizard__offer-cancel">{{ offer.cancellationPolicy }}</span>
+                  }
+                </p>
+                @if (offer.roomsLeft !== null && offer.roomsLeft <= 5) {
+                  <p class="booking-wizard__offer-left" aria-live="off">
+                    {{ offer.roomsLeft === 1 ? 'Última habitación' : '¡Solo ' + offer.roomsLeft + ' habitaciones!' }}
+                  </p>
+                }
+              </div>
+              <div class="booking-wizard__offer-aside">
+                <p class="booking-wizard__offer-price">{{ offer.totalPriceFormatted }}</p>
+                <button
+                  type="button"
+                  class="booking-wizard__btn booking-wizard__btn--primary"
+                  [attr.aria-label]="'Elegir ' + offer.roomTypeName"
+                  (click)="selectOffer(offer)"
+                >
+                  Elegir
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+
+      <div class="booking-wizard__actions">
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--ghost"
+          (click)="back()"
+        >
+          Volver
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── Step 3: Guest ──────────────────────────────────────────────────── -->
+  @if (isCurrent('guest')) {
+    <div class="booking-wizard__panel" role="group" aria-label="Datos del huésped">
+      <div class="booking-wizard__field">
+        <label class="booking-wizard__label" [attr.for]="fieldId + '-name'">Nombre completo</label>
+        <input
+          class="booking-wizard__input"
+          type="text"
+          autocomplete="name"
+          [id]="fieldId + '-name'"
+          [value]="guestName()"
+          [attr.aria-invalid]="guestName() && !guestNameValid() ? 'true' : null"
+          (input)="onGuestNameInput($event)"
+        />
+      </div>
+      <div class="booking-wizard__field">
+        <label class="booking-wizard__label" [attr.for]="fieldId + '-email'">Correo electrónico</label>
+        <input
+          class="booking-wizard__input"
+          type="email"
+          autocomplete="email"
+          [id]="fieldId + '-email'"
+          [value]="guestEmail()"
+          [attr.aria-invalid]="guestEmail() && !guestEmailValid() ? 'true' : null"
+          (input)="onGuestEmailInput($event)"
+        />
+      </div>
+
+      <div class="booking-wizard__actions">
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--ghost"
+          (click)="back()"
+        >
+          Volver
+        </button>
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--primary"
+          [disabled]="!guestValid()"
+          (click)="continueToPay()"
+        >
+          Continuar
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── Step 4: Pay ────────────────────────────────────────────────────── -->
+  @if (isCurrent('pay')) {
+    <div class="booking-wizard__panel" role="group" aria-label="Resumen y pago">
+      @if (selectedOffer(); as offer) {
+        <dl class="booking-wizard__summary-list">
+          <div class="booking-wizard__summary-row">
+            <dt>Habitación</dt>
+            <dd>{{ offer.roomTypeName }}</dd>
+          </div>
+          @if (offer.board) {
+            <div class="booking-wizard__summary-row">
+              <dt>Régimen</dt>
+              <dd>{{ offer.board }}</dd>
+            </div>
+          }
+          <div class="booking-wizard__summary-row">
+            <dt>Fechas</dt>
+            <dd>{{ checkIn() }} → {{ checkOut() }} ({{ nightCount() }} {{ nightCount() === 1 ? 'noche' : 'noches' }})</dd>
+          </div>
+          <div class="booking-wizard__summary-row">
+            <dt>Ocupación</dt>
+            <dd>{{ summaryLabel() }}</dd>
+          </div>
+          <div class="booking-wizard__summary-row">
+            <dt>Huésped</dt>
+            <dd>{{ guestName() }} · {{ guestEmail() }}</dd>
+          </div>
+          <div class="booking-wizard__summary-row booking-wizard__summary-row--total">
+            <dt>Total</dt>
+            <dd>{{ offer.totalPriceFormatted }}</dd>
+          </div>
+        </dl>
+      }
+
+      <div class="booking-wizard__actions">
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--ghost"
+          [disabled]="loading()"
+          (click)="back()"
+        >
+          Volver
+        </button>
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--primary"
+          [disabled]="loading() || !selectedOffer()"
+          (click)="pay()"
+        >
+          {{ loading() ? 'Procesando…' : 'Pagar' }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── Step 5: Confirmation ───────────────────────────────────────────── -->
+  @if (isCurrent('confirmation')) {
+    <div class="booking-wizard__panel booking-wizard__panel--voucher" role="group" aria-label="Reserva confirmada">
+      @if (voucher(); as v) {
+        <div class="booking-wizard__voucher" role="status" aria-live="polite">
+          <p class="booking-wizard__voucher-badge">Reserva confirmada</p>
+          <h3 class="booking-wizard__voucher-id">{{ v.reservationId }}</h3>
+          <dl class="booking-wizard__summary-list">
+            <div class="booking-wizard__summary-row">
+              <dt>Fechas</dt>
+              <dd>{{ v.checkIn }} → {{ v.checkOut }}</dd>
+            </div>
+            <div class="booking-wizard__summary-row booking-wizard__summary-row--total">
+              <dt>Monto pagado</dt>
+              <dd>{{ v.totalPriceFormatted }}</dd>
+            </div>
+          </dl>
+        </div>
+      }
+      <div class="booking-wizard__actions">
+        <button
+          type="button"
+          class="booking-wizard__btn booking-wizard__btn--primary"
+          (click)="startOver()"
+        >
+          Nueva reserva
+        </button>
+      </div>
+    </div>
+  }
+</section>
