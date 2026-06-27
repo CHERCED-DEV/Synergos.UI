@@ -79,7 +79,7 @@
 
   &__label {
     position: absolute;
-    inset-block-end: #{syn.px-to-rem(-22)};
+    inset-block-end: calc(-1 * #{syn.$space-lg});
     z-index: 1;
     color: var(--cc-label-color);
     font-size: syn.$font-size-xs;

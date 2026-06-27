@@ -122,3 +122,13 @@
     line-height: syn.$line-height-normal;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .testimonial-item {
+    transition: none;
+  }
+
+  .testimonial-item:hover {
+    transform: none;
+  }
+}

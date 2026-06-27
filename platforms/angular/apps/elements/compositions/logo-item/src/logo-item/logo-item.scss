@@ -64,3 +64,13 @@
     line-height: syn.$line-height-normal;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-item__frame {
+    transition: none;
+  }
+
+  .logo-item__frame:hover {
+    transform: none;
+  }
+}

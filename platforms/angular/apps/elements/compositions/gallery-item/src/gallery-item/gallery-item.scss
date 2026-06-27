@@ -71,3 +71,18 @@
     }
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-item,
+  .gallery-item__media {
+    transition: none;
+  }
+
+  .gallery-item:hover {
+    transform: none;
+  }
+
+  .gallery-item:hover .gallery-item__media {
+    transform: none;
+  }
+}

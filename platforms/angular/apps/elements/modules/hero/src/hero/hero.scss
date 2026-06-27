@@ -7,7 +7,7 @@
 
 .hero {
   // Fallback canónico dark si el CMS no emite --syn-gradient-hero (namespace --sg- muerto).
-  --syn-hero-gradient-fallback: linear-gradient(135deg, #060d18 0%, #172338 52%, #4f6ef7 100%);
+  --syn-hero-gradient-fallback: linear-gradient(135deg, #{syn.$color-neutral-900} 0%, #{syn.$color-neutral-800} 52%, #{syn.$color-brand-500} 100%);
   --syn-hero-background: var(--syn-gradient-hero, var(--syn-hero-gradient-fallback));
   --syn-hero-border: var(--syn-color-border-default, transparent);
   --syn-hero-shadow: var(--syn-shadow-floating, #{syn.$shadow-xl});
@@ -53,7 +53,7 @@
     position: absolute;
     inset: 0;
     // Overlay canónico via canal ink (tema-aware) en vez del --sg- muerto.
-    background: rgb(var(--syn-channel-ink, 15 23 42) / 0.42);
+    background: rgb(var(--syn-channel-ink, #{syn.$color-neutral-900}) / 0.42);
   }
 
   &::after {

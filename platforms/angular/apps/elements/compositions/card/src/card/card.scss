@@ -168,8 +168,25 @@
   }
 
   &__cta-link {
+    @include syn.focus-visible;
+
     text-decoration: none;
     align-self: flex-start;
     margin-top: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card__image img {
+    transition: none;
+  }
+
+  .card:hover {
+    transform: none;
+  }
+
+  .card:hover .card__image img {
+    transform: none;
   }
 }

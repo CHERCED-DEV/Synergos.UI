@@ -106,3 +106,13 @@
     border-radius: syn.$radius-md;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .media-text__img {
+    transition: none;
+  }
+
+  .media-text:hover .media-text__img {
+    transform: none;
+  }
+}

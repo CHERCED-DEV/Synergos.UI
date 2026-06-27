@@ -102,3 +102,14 @@
     text-wrap: pretty;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-item,
+  .feature-item__icon {
+    transition: none;
+  }
+
+  .feature-item.sg-feature-item--card:hover {
+    transform: none;
+  }
+}

@@ -4,6 +4,7 @@
 @use '../tokens/spacing' as spacing;
 @use '../tokens/radius' as radius;
 @use '../tokens/typography' as typography;
+@use '../tokens/motion' as motion;
 @use '../functions/px-to-rem' as rem;
 @use 'custom-scrollbar';
 @use 'focus';
@@ -85,10 +86,10 @@
   line-height: typography.$line-height-normal;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease,
-    box-shadow 120ms ease,
-    transform 120ms ease;
+    background-color motion.$duration-fast motion.$easing-smooth,
+    color motion.$duration-fast motion.$easing-smooth,
+    box-shadow motion.$duration-fast motion.$easing-smooth,
+    transform motion.$duration-fast motion.$easing-smooth;
 
   @include focus.focus-visible;
 

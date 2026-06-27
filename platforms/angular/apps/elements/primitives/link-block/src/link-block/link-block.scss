@@ -56,4 +56,18 @@
     color: syn.$color-brand-300;
     &:hover { color: syn.$color-brand-200; }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    & {
+      transition: none;
+    }
+
+    &:hover {
+      gap: syn.$space-xs;
+    }
+
+    &--standalone:hover {
+      gap: syn.$space-sm;
+    }
+  }
 }

@@ -141,3 +141,14 @@
     line-height: syn.$line-height-normal;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-cloud__frame,
+  .logo-cloud__image {
+    transition: none;
+  }
+
+  .logo-cloud__frame:hover {
+    transform: none;
+  }
+}

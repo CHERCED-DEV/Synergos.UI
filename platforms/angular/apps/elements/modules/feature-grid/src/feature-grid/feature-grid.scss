@@ -118,3 +118,13 @@
     text-wrap: pretty;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-grid__item {
+    transition: none;
+  }
+
+  .feature-grid__item:hover {
+    transform: none;
+  }
+}

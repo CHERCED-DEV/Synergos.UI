@@ -138,3 +138,13 @@
     line-height: syn.$line-height-normal;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .testimonial-section__card {
+    transition: none;
+  }
+
+  .testimonial-section__card:hover {
+    transform: none;
+  }
+}

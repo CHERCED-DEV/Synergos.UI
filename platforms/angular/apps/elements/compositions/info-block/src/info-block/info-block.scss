@@ -75,8 +75,21 @@
   }
 
   &__cta {
+    @include syn.focus-visible;
+
     align-self: flex-start;
     margin-top: auto;
     text-decoration: none;
+    border-radius: syn.$radius-md;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-block {
+    transition: none;
+  }
+
+  .info-block.sg-info-block--card:hover {
+    transform: none;
   }
 }

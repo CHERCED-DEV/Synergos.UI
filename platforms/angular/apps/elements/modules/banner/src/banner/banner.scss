@@ -56,7 +56,7 @@
   &::after {
     content: '';
     position: absolute;
-    inset: auto -8% -28% auto;
+    inset: auto #{syn.px-to-rem(-40)} #{syn.px-to-rem(-72)} auto;
     width: clamp(#{syn.px-to-rem(180)}, 24vw, #{syn.px-to-rem(280)});
     aspect-ratio: 1;
     border-radius: 50%;
