@@ -1,0 +1,1319 @@
+@use 'scss' as syn;
+
+:host {
+  --ac-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ac-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ac-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ac-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ac-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --ac-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --ac-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ac-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ac-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ac-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --ac-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --ac-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --ac-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --ac-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --ac-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --ac-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --ac-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --ac-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+
+  display: block;
+  max-width: 100%;
+}
+
+.academy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--ac-border);
+  border-radius: syn.$radius-xl;
+  background: var(--ac-surface);
+  box-shadow: var(--ac-shadow);
+  color: var(--ac-text);
+
+  &__sr-only {
+    position: absolute;
+    width: syn.px-to-rem(1);
+    height: syn.px-to-rem(1);
+    margin: syn.px-to-rem(-1);
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  // ─── Top bar ───────────────────────────────────────────────────────────────
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+    padding-bottom: syn.$space-3;
+    border-bottom: syn.px-to-rem(1) solid var(--ac-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+  }
+
+  &__brand-mark {
+    color: var(--ac-brand);
+    font-size: syn.$font-size-lg;
+  }
+
+  &__brand-text {
+    color: var(--ac-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  &__searchbar {
+    display: flex;
+    flex: 1 1 syn.px-to-rem(280);
+    min-width: syn.px-to-rem(200);
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    overflow: hidden;
+
+    &:focus-within {
+      border-color: var(--ac-brand);
+    }
+  }
+
+  &__searchbar-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: syn.$space-2 syn.$space-4;
+    border: none;
+    background: transparent;
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-base;
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+
+  &__searchbar-btn {
+    flex: 0 0 auto;
+    padding: syn.$space-2 syn.$space-4;
+    border: none;
+    background: var(--ac-brand);
+    color: var(--ac-brand-text);
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  // ─── Degraded banner ─────────────────────────────────────────────────────────
+  &__degraded {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-warn);
+    border-radius: syn.$radius-md;
+    background: var(--ac-warn-soft);
+    color: var(--ac-text);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__error {
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-danger);
+    border-radius: syn.$radius-md;
+    color: var(--ac-danger);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Toolbar (filters + sort) ─────────────────────────────────────────────────
+  &__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__chip {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface);
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition: background syn.$duration-fast syn.$easing-smooth,
+      border-color syn.$duration-fast syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &:hover {
+      border-color: var(--ac-brand);
+    }
+
+    &[aria-pressed='true'] {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand-soft);
+      color: var(--ac-text);
+    }
+  }
+
+  &__select {
+    margin-left: auto;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  &__clear {
+    padding: syn.$space-1 syn.$space-3;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--ac-brand);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  // ─── Catalogue grid ───────────────────────────────────────────────────────────
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(260), 1fr));
+    gap: syn.$space-md;
+  }
+
+  &__empty {
+    padding: syn.$space-lg;
+    text-align: center;
+    color: var(--ac-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Course card ────────────────────────────────────────────────────────────
+  &__card {
+    display: flex;
+    flex-direction: column;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface);
+    overflow: hidden;
+    text-align: left;
+    cursor: pointer;
+    transition: transform syn.$duration-fast syn.$easing-smooth,
+      box-shadow syn.$duration-fast syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &:hover {
+      transform: translateY(syn.px-to-rem(-2));
+      box-shadow: var(--ac-shadow-pop);
+    }
+  }
+
+  &__card-cover {
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, var(--ac-brand-soft), var(--ac-surface-muted));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ac-brand);
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__card-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__card-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-3;
+  }
+
+  &__card-cat {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+    color: var(--ac-brand);
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+    line-height: syn.$line-height-snug;
+    color: var(--ac-text);
+  }
+
+  &__card-instructor {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__card-rating {
+    color: var(--ac-warn);
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__card-foot {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-2;
+    margin-top: auto;
+    padding-top: syn.$space-2;
+  }
+
+  &__price {
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+    color: var(--ac-text);
+  }
+
+  &__price--free {
+    color: var(--ac-success);
+  }
+
+  &__price-list {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+    text-decoration: line-through;
+  }
+
+  &__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+  }
+
+  &__badge {
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  // ─── Generic buttons ──────────────────────────────────────────────────────────
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition: background syn.$duration-fast syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__btn--primary {
+    border-color: var(--ac-brand);
+    background: var(--ac-brand);
+    color: var(--ac-brand-text);
+  }
+
+  &__btn--ghost {
+    border-color: transparent;
+    background: transparent;
+    color: var(--ac-brand);
+  }
+
+  &__btn--block {
+    width: 100%;
+  }
+
+  &__back {
+    align-self: flex-start;
+    padding: syn.$space-1 syn.$space-2;
+    border: none;
+    background: transparent;
+    color: var(--ac-brand);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  // ─── Course PDP ───────────────────────────────────────────────────────────────
+  &__pdp {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-md;
+
+    @include syn.respond-to(md) {
+      grid-template-columns: 2fr 1fr;
+      align-items: start;
+    }
+  }
+
+  &__pdp-main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    min-width: 0;
+  }
+
+  &__pdp-aside {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+
+    @include syn.respond-to(md) {
+      position: sticky;
+      top: syn.$space-md;
+    }
+  }
+
+  &__hero {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__hero-cat {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+    color: var(--ac-brand);
+  }
+
+  &__hero-title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__hero-sub {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    color: var(--ac-text-secondary);
+  }
+
+  &__hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-3;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-muted);
+  }
+
+  &__section-title {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__outcomes {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @include syn.respond-to(sm) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  &__outcome {
+    display: flex;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__outcome-mark {
+    color: var(--ac-success);
+    font-weight: syn.$font-weight-bold;
+  }
+
+  // ─── Curriculum (accordion + lesson rows) ─────────────────────────────────────
+  &__curriculum {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    overflow: hidden;
+  }
+
+  &__sec {
+    border-bottom: syn.px-to-rem(1) solid var(--ac-border-subtle);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__sec-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    width: 100%;
+    padding: syn.$space-3;
+    border: none;
+    background: var(--ac-surface-muted);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  &__sec-toggle {
+    color: var(--ac-muted);
+  }
+
+  &__lessons {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__lesson {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-2 syn.$space-3;
+    border-top: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__lesson-icon {
+    flex: 0 0 auto;
+    color: var(--ac-brand);
+  }
+
+  &__lesson-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--ac-text);
+  }
+
+  &__lesson-dur {
+    flex: 0 0 auto;
+    color: var(--ac-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__lesson-preview {
+    flex: 0 0 auto;
+    padding: syn.px-to-rem(1) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  // ─── Instructor card ──────────────────────────────────────────────────────────
+  &__instructor {
+    display: flex;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+  }
+
+  &__instructor-avatar {
+    flex: 0 0 auto;
+    width: syn.px-to-rem(56);
+    height: syn.px-to-rem(56);
+    border-radius: syn.$radius-full;
+    background: var(--ac-brand-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ac-brand);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    overflow: hidden;
+  }
+
+  &__instructor-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__instructor-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    min-width: 0;
+  }
+
+  &__instructor-name {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__instructor-headline {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-brand);
+  }
+
+  &__instructor-bio {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+    line-height: syn.$line-height-relaxed;
+  }
+
+  // ─── Enrollment panel (PDP aside) ─────────────────────────────────────────────
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface);
+    box-shadow: var(--ac-shadow);
+  }
+
+  &__panel-price {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-2;
+  }
+
+  &__panel-price-main {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  // ─── Plans ────────────────────────────────────────────────────────────────────
+  &__plans {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__plan {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &[aria-pressed='true'] {
+      border-color: var(--ac-brand);
+      box-shadow: 0 0 0 syn.px-to-rem(1) var(--ac-brand);
+    }
+  }
+
+  &__plan-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__plan-label {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__plan-featured {
+    padding: syn.px-to-rem(1) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ac-brand);
+    color: var(--ac-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__plan-price {
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__plan-installments {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__plan-perks {
+    margin: 0;
+    padding-left: syn.$space-4;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+
+    li {
+      margin-bottom: syn.$space-1;
+    }
+  }
+
+  // ─── Wizard (checkout) ──────────────────────────────────────────────────────
+  &__wizard {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    max-width: syn.px-to-rem(640);
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  &__steps {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__step {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-muted);
+
+    &[data-active='true'] {
+      color: var(--ac-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(24);
+    height: syn.px-to-rem(24);
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+
+    .academy__step[data-active='true'] & {
+      background: var(--ac-brand);
+      color: var(--ac-brand-text);
+    }
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__label {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    color: var(--ac-text);
+  }
+
+  &__input {
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &[aria-invalid='true'] {
+      border-color: var(--ac-danger);
+    }
+  }
+
+  &__hint {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-danger);
+  }
+
+  &__pay-methods {
+    display: flex;
+    gap: syn.$space-2;
+  }
+
+  &__pay-method {
+    flex: 1 1 0;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &[aria-pressed='true'] {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand-soft);
+    }
+  }
+
+  &__review {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface-muted);
+  }
+
+  &__review-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__review-total {
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__wizard-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  // ─── Confirmation / enrolled bridge ───────────────────────────────────────────
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-lg;
+    text-align: center;
+  }
+
+  &__confirm-mark {
+    width: syn.px-to-rem(64);
+    height: syn.px-to-rem(64);
+    border-radius: syn.$radius-full;
+    background: var(--ac-success-soft);
+    color: var(--ac-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__confirm-title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__confirm-meta {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Classroom (aula) ─────────────────────────────────────────────────────────
+  &__classroom {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-md;
+
+    @include syn.respond-to(md) {
+      grid-template-columns: 2fr 1fr;
+      align-items: start;
+    }
+  }
+
+  &__player-col {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    min-width: 0;
+  }
+
+  &__player {
+    aspect-ratio: 16 / 9;
+    border-radius: syn.$radius-lg;
+    background: #{syn.$color-neutral-900};
+    color: #{syn.$color-neutral-0};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: syn.$space-2;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  &__player-icon {
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__player-label {
+    font-size: syn.$font-size-sm;
+    opacity: 0.85;
+  }
+
+  &__lesson-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__lesson-name {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__nav {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  // ─── Tabs ────────────────────────────────────────────────────────────────────
+  &__tabs {
+    display: flex;
+    gap: syn.$space-1;
+    border-bottom: syn.px-to-rem(1) solid var(--ac-border);
+  }
+
+  &__tab {
+    padding: syn.$space-2 syn.$space-3;
+    border: none;
+    border-bottom: syn.px-to-rem(2) solid transparent;
+    background: transparent;
+    color: var(--ac-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &[aria-selected='true'] {
+      color: var(--ac-brand);
+      border-bottom-color: var(--ac-brand);
+    }
+  }
+
+  &__tabpanel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding-top: syn.$space-3;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+    line-height: syn.$line-height-relaxed;
+  }
+
+  // ─── Resources ────────────────────────────────────────────────────────────────
+  &__resources {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__resource {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    color: var(--ac-text);
+    text-decoration: none;
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &:hover {
+      border-color: var(--ac-brand);
+    }
+  }
+
+  &__resource-type {
+    flex: 0 0 auto;
+    padding: syn.px-to-rem(1) syn.$space-2;
+    border-radius: syn.$radius-md;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__resource-name {
+    flex: 1 1 auto;
+  }
+
+  &__resource-size {
+    flex: 0 0 auto;
+    color: var(--ac-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  // ─── Q&A ──────────────────────────────────────────────────────────────────────
+  &__qa-form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__textarea {
+    min-height: syn.px-to-rem(72);
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    resize: vertical;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+  }
+
+  &__qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__qa-item {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+  }
+
+  &__qa-author {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--ac-text);
+  }
+
+  &__qa-date {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__qa-question {
+    margin: syn.$space-1 0 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text);
+  }
+
+  &__qa-answer {
+    margin: syn.$space-2 0 0;
+    padding-left: syn.$space-3;
+    border-left: syn.px-to-rem(2) solid var(--ac-brand);
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Assignment ─────────────────────────────────────────────────────────────
+  &__dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(2) dashed var(--ac-border);
+    border-radius: syn.$radius-lg;
+    text-align: center;
+  }
+
+  &__file-input {
+    font: inherit;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__submission {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--ac-success-soft);
+    color: var(--ac-text);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Curriculum aside (classroom right column) ────────────────────────────────
+  &__aside {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface);
+
+    @include syn.respond-to(md) {
+      position: sticky;
+      top: syn.$space-md;
+    }
+  }
+
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__progress-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__progress-track {
+    height: syn.px-to-rem(8);
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: syn.$radius-full;
+    background: var(--ac-brand);
+    transition: width syn.$duration-fast syn.$easing-smooth;
+  }
+
+  &__tree {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-height: syn.px-to-rem(420);
+    overflow-y: auto;
+  }
+
+  &__tree-sec {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+    color: var(--ac-muted);
+    margin-top: syn.$space-2;
+  }
+
+  &__tree-lesson {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    width: 100%;
+    padding: syn.$space-2;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--ac-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    &:hover {
+      background: var(--ac-surface-muted);
+    }
+
+    &[aria-current='true'] {
+      background: var(--ac-brand-soft);
+      color: var(--ac-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__tree-check {
+    flex: 0 0 auto;
+    width: syn.px-to-rem(18);
+    height: syn.px-to-rem(18);
+    border-radius: syn.$radius-full;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: syn.$font-size-xs;
+    color: transparent;
+
+    &[data-done='true'] {
+      background: var(--ac-success);
+      border-color: var(--ac-success);
+      color: #{syn.$color-neutral-0};
+    }
+  }
+
+  &__tree-title {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  // ─── Certificate ────────────────────────────────────────────────────────────
+  &__certificate {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    align-items: center;
+  }
+
+  &__cert-card {
+    width: 100%;
+    max-width: syn.px-to-rem(720);
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(2) solid var(--ac-brand);
+    border-radius: syn.$radius-lg;
+    background: linear-gradient(135deg, var(--ac-surface), var(--ac-brand-soft));
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__cert-eyebrow {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+    color: var(--ac-brand);
+  }
+
+  &__cert-student {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__cert-course {
+    font-size: syn.$font-size-base;
+    color: var(--ac-text-secondary);
+  }
+
+  &__cert-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-3;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  // ─── Skeleton ───────────────────────────────────────────────────────────────
+  &__skeleton {
+    height: syn.px-to-rem(220);
+    border-radius: syn.$radius-lg;
+    background: linear-gradient(
+      90deg,
+      var(--ac-surface-muted) 25%,
+      var(--ac-border-subtle) 37%,
+      var(--ac-surface-muted) 63%
+    );
+    background-size: 400% 100%;
+    animation: academy-shimmer 1.4s ease infinite;
+  }
+}
+
+@keyframes academy-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+// Respect the user's motion preference (premium + a11y).
+@media (prefers-reduced-motion: reduce) {
+  .academy *,
+  .academy *::before,
+  .academy *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
