@@ -1,0 +1,53 @@
+{
+  "name": "elements-modules-storefront",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/storefront/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:storefront",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "dependsOn": [],
+      "options": {
+        "outputPath": "dist/storefront",
+        "browser": "apps/elements/modules/storefront/src/main.ts",
+        "index": "apps/elements/modules/storefront/src/index.html",
+        "tsConfig": "apps/elements/modules/storefront/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "150kb", "maximumError": "360kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4355 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/storefront/src/**/*.ts",
+          "apps/elements/modules/storefront/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/storefront/tsconfig.spec.json"
+      }
+    }
+  }
+}

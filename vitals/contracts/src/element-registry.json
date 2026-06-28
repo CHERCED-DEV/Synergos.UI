@@ -138,6 +138,7 @@
   { "name": "splitter",               "alias": "elementSynSplitter",           "tag": "synergos-splitter",          "tier": "composition" },
   { "name": "stat-ticker",            "alias": "elementSynStatTicker",         "tag": "synergos-stat-ticker",       "tier": "primitive" },
   { "name": "stepper",                "alias": "elementSynStepper",            "tag": "synergos-stepper",           "tier": "composition" },
+  { "name": "storefront",             "alias": "elementSynStorefront",         "tag": "synergos-storefront",        "tier": "module" },
   { "name": "tabs",                   "alias": "elementSynTabs",               "tag": "synergos-tabs",              "tier": "composition" },
   { "name": "tag",                    "alias": "elementSynTag",                "tag": "synergos-tag",               "tier": "primitive" },
   { "name": "testimonial-carousel",   "alias": "elementSynTestimonialCarousel","tag": "synergos-testimonial-carousel","tier": "module" },
