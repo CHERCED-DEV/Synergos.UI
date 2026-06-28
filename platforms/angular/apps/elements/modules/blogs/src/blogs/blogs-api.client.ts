@@ -1,0 +1,584 @@
+import { Injectable, inject } from '@angular/core';
+import { LoggerService } from '@synergos/core';
+import {
+  buildMockComments,
+  buildMockFeed,
+  buildMockNotifications,
+  buildMockProfile,
+  buildMockSearch,
+  buildMockTrending,
+  reactionStateFor,
+} from './blogs.mock';
+import {
+  type Author,
+  type Comment,
+  type FeedPage,
+  type FeedScope,
+  type NewPost,
+  type Notification,
+  type Post,
+  type PostDetail,
+  type ProfilePayload,
+  type ProfileStats,
+  type ReactionCount,
+  type ReactionState,
+  type ReactionType,
+  type SearchResult,
+  type TrendingTag,
+} from './blogs.model';
+
+/**
+ * Thin HTTP client over the Blogs (red social) backend contract — provided by the
+ * backend agent in parallel. Programs against the app-spec endpoints:
+ *
+ *  - `GET  /api/blogs/feed?scope=foryou|following&cursor=`  → `{ posts, nextCursor }`
+ *  - `GET  /api/blogs/post/{id}`                            → `{ post, comments }`
+ *  - `POST /api/blogs/post` `{ body, mediaUrl? }`           → `{ post }`
+ *  - `POST /api/blogs/post/{id}/react` `{ type }`           → `{ reactions }`
+ *  - `POST /api/blogs/follow/{authorId}`                    → `{ following }`
+ *  - `GET  /api/blogs/profile/{handle}`                     → `{ author, posts, stats }`
+ *
+ * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
+ * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
+ * flow is complete end-to-end before the backend lands. Every mock path flips the
+ * `degraded` flag so the shell surfaces a "datos de ejemplo" notice.
+ *
+ * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
+ */
+@Injectable()
+export class BlogsApiClient {
+  readonly #logger = inject(LoggerService);
+
+  /** Set to `true` after any mock fallback so the UI can flag example data. */
+  #degraded = false;
+
+  get degraded(): boolean {
+    return this.#degraded;
+  }
+
+  // ─── Feed ──────────────────────────────────────────────────────────────────
+
+  async feed(apiBase: string, scope: FeedScope, cursor: string | null): Promise<FeedPage> {
+    const params = new URLSearchParams({ scope });
+    if (cursor) {
+      params.set('cursor', cursor);
+    }
+    const url = `${apiBase}/feed?${params.toString()}`;
+    try {
+      const data = await this.getJson(url);
+      const page = normalizeFeed(data);
+      if (page) {
+        return page;
+      }
+      throw new Error('feed-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/feed', error);
+      return buildMockFeed(scope, cursor);
+    }
+  }
+
+  // ─── Post detail (+ nested comments) ───────────────────────────────────────
+
+  async post(apiBase: string, id: string): Promise<PostDetail> {
+    const url = `${apiBase}/post/${encodeURIComponent(id)}`;
+    try {
+      const data = await this.getJson(url);
+      const detail = normalizeDetail(data);
+      if (detail) {
+        return detail;
+      }
+      throw new Error('post-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/post/{id}', error);
+      const feed = buildMockFeed('foryou', null).posts;
+      const post = feed.find((entry) => entry.id === id) ?? feed[0];
+      return { post, comments: buildMockComments(post.id) };
+    }
+  }
+
+  // ─── Publish a post ─────────────────────────────────────────────────────────
+
+  async publish(apiBase: string, draft: NewPost, author: Author): Promise<Post> {
+    const url = `${apiBase}/post`;
+    try {
+      const data = await this.postJson(url, draft);
+      const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
+      if (post) {
+        return post;
+      }
+      throw new Error('publish-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/blogs/post', error);
+      return synthesizePost(draft, author);
+    }
+  }
+
+  // ─── React (idempotent toggle) ──────────────────────────────────────────────
+
+  async react(
+    apiBase: string,
+    postId: string,
+    type: ReactionType,
+    optimistic: ReactionState,
+  ): Promise<ReactionState> {
+    const url = `${apiBase}/post/${encodeURIComponent(postId)}/react`;
+    try {
+      const data = await this.postJson(url, { type });
+      const reactions = normalizeReactions(
+        isRecord(data) && data['reactions'] !== undefined ? data['reactions'] : data,
+      );
+      if (reactions) {
+        return reactions;
+      }
+      throw new Error('react-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/blogs/post/{id}/react', error);
+      // The component already applied an optimistic state; echo it back.
+      return optimistic;
+    }
+  }
+
+  // ─── Follow / unfollow ──────────────────────────────────────────────────────
+
+  async follow(apiBase: string, authorKey: string, optimistic: boolean): Promise<boolean> {
+    const url = `${apiBase}/follow/${encodeURIComponent(authorKey)}`;
+    try {
+      const data = await this.postJson(url, {});
+      if (isRecord(data) && typeof data['following'] === 'boolean') {
+        return data['following'];
+      }
+      throw new Error('follow-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/blogs/follow/{authorId}', error);
+      return optimistic;
+    }
+  }
+
+  // ─── Profile ────────────────────────────────────────────────────────────────
+
+  async profile(apiBase: string, handle: string): Promise<ProfilePayload> {
+    const url = `${apiBase}/profile/${encodeURIComponent(handle)}`;
+    try {
+      const data = await this.getJson(url);
+      const payload = normalizeProfile(data);
+      if (payload) {
+        return payload;
+      }
+      throw new Error('profile-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/profile/{handle}', error);
+      return buildMockProfile(handle);
+    }
+  }
+
+  // ─── Notifications (no contract endpoint yet — degrades to mock) ─────────────
+
+  async notifications(apiBase: string): Promise<readonly Notification[]> {
+    const url = `${apiBase}/notifications`;
+    try {
+      const data = await this.getJson(url);
+      const list = normalizeNotifications(data);
+      if (list) {
+        return list;
+      }
+      throw new Error('notifications-shape');
+    } catch (error) {
+      // TODO(backend): no `/notifications` endpoint in the OLA 3 contract yet.
+      this.markDegraded('GET /api/blogs/notifications', error);
+      return buildMockNotifications();
+    }
+  }
+
+  // ─── Search / explore (unified — degrades to mock) ──────────────────────────
+
+  async search(apiBase: string, query: string): Promise<SearchResult> {
+    const params = new URLSearchParams();
+    if (query.trim()) {
+      params.set('q', query.trim());
+    }
+    const qs = params.toString();
+    const url = `${apiBase}/search${qs ? `?${qs}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeSearch(data);
+      if (result) {
+        return result;
+      }
+      throw new Error('search-shape');
+    } catch (error) {
+      // TODO(backend): no `/search` endpoint in the OLA 3 contract yet.
+      this.markDegraded('GET /api/blogs/search', error);
+      return buildMockSearch(query);
+    }
+  }
+
+  async trending(apiBase: string): Promise<readonly TrendingTag[]> {
+    const url = `${apiBase}/trending`;
+    try {
+      const data = await this.getJson(url);
+      const tags = normalizeTrending(data);
+      if (tags) {
+        return tags;
+      }
+      throw new Error('trending-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/trending', error);
+      return buildMockTrending();
+    }
+  }
+
+  // ─── HTTP helpers ────────────────────────────────────────────────────────────
+
+  private getJson(url: string): Promise<unknown> {
+    return this.request(url, { method: 'GET' });
+  }
+
+  private postJson(url: string, body: unknown): Promise<unknown> {
+    return this.request(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  private request(url: string, init: RequestInit): Promise<unknown> {
+    if (typeof fetch !== 'function') {
+      return Promise.reject(new Error('fetch-unavailable'));
+    }
+    return fetch(url, {
+      ...init,
+      headers: { Accept: 'application/json', ...(init.headers ?? {}) },
+    }).then((response) =>
+      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
+    );
+  }
+
+  private markDegraded(endpoint: string, error: unknown): void {
+    this.#degraded = true;
+    // TODO(backend): remove the mock fallback once the Blogs API responds.
+    this.#logger.warn(`Blogs API "${endpoint}" unavailable — using mock data.`, error);
+  }
+}
+
+// ─── Normalisers (defensive — tolerate partial/loose API shapes) ───────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return '';
+}
+
+function readNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value.replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function readBoolean(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    return value.trim().toLowerCase() === 'true';
+  }
+  return fallback;
+}
+
+function readStringArray(value: unknown): readonly string[] {
+  return Array.isArray(value) ? value.map(readString).filter((entry) => entry !== '') : [];
+}
+
+const REACTION_TYPES: readonly ReactionType[] = ['like', 'love', 'celebrate', 'insightful'];
+
+function readReactionType(value: unknown): ReactionType | null {
+  const raw = readString(value).trim().toLowerCase();
+  return REACTION_TYPES.includes(raw as ReactionType) ? (raw as ReactionType) : null;
+}
+
+function normalizeAuthor(value: unknown): Author | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const handle = readString(value['handle']).trim().replace(/^@/, '');
+  const actorKey = readString(value['actorKey']).trim() || readString(value['id']).trim() || handle;
+  if (!handle && !actorKey) {
+    return null;
+  }
+  return {
+    actorKey: actorKey || handle,
+    handle: handle || actorKey,
+    displayName: readString(value['displayName']).trim() || readString(value['name']).trim() || handle,
+    bio: readString(value['bio']).trim(),
+    avatarUrl: readString(value['avatarUrl']).trim() || readString(value['avatar']).trim(),
+    bannerUrl: readString(value['bannerUrl']).trim() || readString(value['banner']).trim(),
+    verified: readBoolean(value['verified']),
+    followersCount: Math.trunc(readNumber(value['followersCount'])),
+    followingCount: Math.trunc(readNumber(value['followingCount'])),
+    postsCount: Math.trunc(readNumber(value['postsCount'])),
+  };
+}
+
+function normalizeReactions(value: unknown): ReactionState | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawCounts = Array.isArray(value['counts']) ? value['counts'] : [];
+  const counts: ReactionCount[] = rawCounts
+    .map((entry): ReactionCount | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const type = readReactionType(entry['type']);
+      if (!type) {
+        return null;
+      }
+      return { type, count: Math.trunc(readNumber(entry['count'])) };
+    })
+    .filter((entry): entry is ReactionCount => entry !== null);
+  const total =
+    value['total'] !== undefined
+      ? Math.trunc(readNumber(value['total']))
+      : counts.reduce((sum, entry) => sum + entry.count, 0);
+  return { counts, mine: readReactionType(value['mine']), total };
+}
+
+function normalizeMedia(value: unknown): Post['media'] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const url = readString(entry['url']).trim();
+      if (!url) {
+        return null;
+      }
+      const kind = readString(entry['kind']).trim().toLowerCase() === 'video' ? 'video' : 'image';
+      return { url, kind: kind as 'image' | 'video', alt: readString(entry['alt']).trim() };
+    })
+    .filter((entry): entry is Post['media'][number] => entry !== null);
+}
+
+function normalizePost(value: unknown): Post | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const author = normalizeAuthor(value['author']);
+  if (!id || !author) {
+    return null;
+  }
+  const kindRaw = readString(value['objectKind']).trim();
+  const objectKind = kindRaw === 'postPage' || kindRaw === 'lesson' ? kindRaw : 'post';
+  return {
+    id,
+    author,
+    objectKind,
+    body: readString(value['body']).trim(),
+    media: normalizeMedia(value['media']),
+    hashtags: readStringArray(value['hashtags']).map((tag) => tag.replace(/^#/, '')),
+    mentions: readStringArray(value['mentions']).map((handle) => handle.replace(/^@/, '')),
+    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    reactions: normalizeReactions(value['reactions']) ?? { counts: [], mine: null, total: 0 },
+    commentCount: Math.trunc(readNumber(value['commentCount'])),
+    repostCount: Math.trunc(readNumber(value['repostCount'])),
+    reposted: readBoolean(value['reposted']),
+  };
+}
+
+function normalizeFeed(value: unknown): FeedPage | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawPosts = Array.isArray(value['posts'])
+    ? value['posts']
+    : Array.isArray(value['items'])
+      ? value['items']
+      : null;
+  if (!rawPosts) {
+    return null;
+  }
+  return {
+    posts: rawPosts.map(normalizePost).filter((post): post is Post => post !== null),
+    nextCursor: typeof value['nextCursor'] === 'string' ? value['nextCursor'] : null,
+  };
+}
+
+function normalizeComment(value: unknown, postId: string): Comment | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const author = normalizeAuthor(value['author']);
+  if (!id || !author) {
+    return null;
+  }
+  const rawReplies = Array.isArray(value['replies']) ? value['replies'] : [];
+  return {
+    id,
+    postId,
+    author,
+    body: readString(value['body']).trim(),
+    parentId: typeof value['parentId'] === 'string' ? value['parentId'] : null,
+    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    likeCount: Math.trunc(readNumber(value['likeCount'])),
+    liked: readBoolean(value['liked']),
+    replies: rawReplies
+      .map((reply) => normalizeComment(reply, postId))
+      .filter((reply): reply is Comment => reply !== null),
+  };
+}
+
+function normalizeDetail(value: unknown): PostDetail | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const post = normalizePost(value['post'] ?? value);
+  if (!post) {
+    return null;
+  }
+  const rawComments = Array.isArray(value['comments']) ? value['comments'] : [];
+  return {
+    post,
+    comments: rawComments
+      .map((comment) => normalizeComment(comment, post.id))
+      .filter((comment): comment is Comment => comment !== null),
+  };
+}
+
+function normalizeProfile(value: unknown): ProfilePayload | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const author = normalizeAuthor(value['author']);
+  if (!author) {
+    return null;
+  }
+  const rawPosts = Array.isArray(value['posts']) ? value['posts'] : [];
+  const statsRaw = isRecord(value['stats']) ? value['stats'] : {};
+  const stats: ProfileStats = {
+    followers: Math.trunc(readNumber(statsRaw['followers'] ?? author.followersCount)),
+    following: Math.trunc(readNumber(statsRaw['following'] ?? author.followingCount)),
+    posts: Math.trunc(readNumber(statsRaw['posts'] ?? author.postsCount)),
+  };
+  return {
+    author,
+    posts: rawPosts.map(normalizePost).filter((post): post is Post => post !== null),
+    stats,
+    following: readBoolean(value['following']),
+  };
+}
+
+function normalizeNotifications(value: unknown): readonly Notification[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['notifications'])
+      ? value['notifications']
+      : null;
+  if (!list) {
+    return null;
+  }
+  const verbs: readonly Notification['verb'][] = ['follow', 'react', 'mention', 'reply', 'repost'];
+  return list
+    .map((entry): Notification | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const actor = normalizeAuthor(entry['actor']);
+      if (!id || !actor) {
+        return null;
+      }
+      const verbRaw = readString(entry['verb']).trim().toLowerCase();
+      const verb = verbs.includes(verbRaw as Notification['verb'])
+        ? (verbRaw as Notification['verb'])
+        : 'mention';
+      return {
+        id,
+        verb,
+        actor,
+        summary: readString(entry['summary']).trim(),
+        postId: typeof entry['postId'] === 'string' ? entry['postId'] : null,
+        createdAtUtc: readString(entry['createdAtUtc']).trim() || new Date().toISOString(),
+        read: readBoolean(entry['read']),
+      };
+    })
+    .filter((entry): entry is Notification => entry !== null);
+}
+
+function normalizeTrending(value: unknown): readonly TrendingTag[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['hashtags'])
+      ? value['hashtags']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list
+    .map((entry): TrendingTag | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const tag = readString(entry['tag']).trim().replace(/^#/, '');
+      if (!tag) {
+        return null;
+      }
+      return { tag, postCount: Math.trunc(readNumber(entry['postCount'])) };
+    })
+    .filter((entry): entry is TrendingTag => entry !== null);
+}
+
+function normalizeSearch(value: unknown): SearchResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawAccounts = Array.isArray(value['accounts']) ? value['accounts'] : [];
+  const rawPosts = Array.isArray(value['posts']) ? value['posts'] : [];
+  return {
+    accounts: rawAccounts.map(normalizeAuthor).filter((a): a is Author => a !== null),
+    posts: rawPosts.map(normalizePost).filter((p): p is Post => p !== null),
+    hashtags: normalizeTrending(value['hashtags']) ?? [],
+  };
+}
+
+// ─── Optimistic / synthesized fallbacks ────────────────────────────────────────
+
+/** Build a Post locally for the optimistic insert when the publish endpoint is down. */
+function synthesizePost(draft: NewPost, author: Author): Post {
+  const body = draft.body.trim();
+  const hashtags = Array.from(body.matchAll(/#(\w+)/g)).map((match) => match[1]);
+  const mentions = Array.from(body.matchAll(/@(\w+)/g)).map((match) => match[1]);
+  const media = draft.mediaUrl
+    ? [{ url: draft.mediaUrl, kind: 'image' as const, alt: draft.mediaAlt?.trim() || 'Imagen adjunta' }]
+    : [];
+  return {
+    id: `local-${Date.now().toString(36)}`,
+    author,
+    objectKind: 'post',
+    body,
+    media,
+    hashtags,
+    mentions,
+    createdAtUtc: new Date().toISOString(),
+    reactions: reactionStateFor(0, 0, 0, 0, null),
+    commentCount: 0,
+    repostCount: 0,
+    reposted: false,
+  };
+}
