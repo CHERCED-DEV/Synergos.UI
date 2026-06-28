@@ -103,6 +103,7 @@
   { "name": "drawer",                 "alias": "elementSynDrawer",             "tag": "synergos-drawer",            "tier": "module" },
   { "name": "dropdown",               "alias": "elementSynDropdown",           "tag": "synergos-dropdown",          "tier": "composition" },
   { "name": "dropzone",               "alias": "elementSynDropzone",           "tag": "synergos-dropzone",          "tier": "module" },
+  { "name": "ehr",                    "alias": "elementSynEhr",                "tag": "synergos-ehr",               "tier": "module" },
   { "name": "fab",                    "alias": "elementSynFab",                "tag": "synergos-fab",               "tier": "primitive" },
   { "name": "file-uploader",          "alias": "elementSynFileUploader",       "tag": "synergos-file-uploader",     "tier": "module" },
   { "name": "form-stepper",           "alias": "elementSynFormStepper",        "tag": "synergos-form-stepper",      "tier": "composition" },
