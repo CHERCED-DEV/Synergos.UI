@@ -1,0 +1,53 @@
+{
+  "name": "elements-modules-travel-shell",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/travel-shell/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:travel-shell",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "dependsOn": [],
+      "options": {
+        "outputPath": "dist/travel-shell",
+        "browser": "apps/elements/modules/travel-shell/src/main.ts",
+        "index": "apps/elements/modules/travel-shell/src/index.html",
+        "tsConfig": "apps/elements/modules/travel-shell/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "120kb", "maximumError": "300kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4354 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/travel-shell/src/**/*.ts",
+          "apps/elements/modules/travel-shell/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/travel-shell/tsconfig.spec.json"
+      }
+    }
+  }
+}

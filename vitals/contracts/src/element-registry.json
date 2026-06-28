@@ -146,6 +146,7 @@
   { "name": "toast-center",           "alias": "elementSynToastCenter",        "tag": "synergos-toast-center",      "tier": "module" },
   { "name": "tooltip",                "alias": "elementSynTooltip",            "tag": "synergos-tooltip",           "tier": "primitive" },
   { "name": "tour-guide",             "alias": "elementSynTourGuide",          "tag": "synergos-tour-guide",        "tier": "module" },
+  { "name": "travel-shell",           "alias": "elementSynTravelShell",        "tag": "synergos-travel-shell",      "tier": "module" },
   { "name": "tree-view",              "alias": "elementSynTreeView",           "tag": "synergos-tree-view",         "tier": "module" },
   { "name": "video-player",           "alias": "elementSynVideoPlayer",        "tag": "synergos-video-player",      "tier": "module" }
 ]

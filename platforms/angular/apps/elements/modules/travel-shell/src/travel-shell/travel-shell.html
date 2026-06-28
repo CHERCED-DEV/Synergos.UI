@@ -1,0 +1,426 @@
+<section class="travel-shell" aria-label="Reservas de viaje">
+  <!-- ─── Top bar: brand + cart toggle ───────────────────────────────────── -->
+  <header class="travel-shell__bar">
+    <p class="travel-shell__brand">
+      <span class="travel-shell__brand-mark" aria-hidden="true">◈</span>
+      <span class="travel-shell__brand-text">Synergos Viajes</span>
+    </p>
+    <button
+      type="button"
+      class="travel-shell__cart-toggle"
+      [class.is-active]="cartOpen()"
+      [attr.aria-expanded]="cartOpen()"
+      [attr.aria-controls]="fieldId + '-cart'"
+      (click)="toggleCart()"
+    >
+      <span aria-hidden="true">🛒</span>
+      <span>Carrito</span>
+      @if (cartCount() > 0) {
+        <span class="travel-shell__cart-count" [attr.aria-label]="cartCount() + ' artículos'">
+          {{ cartCount() }}
+        </span>
+      }
+    </button>
+  </header>
+
+  <!-- Multi-tab live-session notice -->
+  @if (liveConflict()) {
+    <p class="travel-shell__notice" role="status">
+      Otra pestaña tomó esta sesión de viaje. Tu carrito se sincronizó.
+    </p>
+  }
+
+  <!-- Mock-data degradation notice -->
+  @if (degraded()) {
+    <p class="travel-shell__notice travel-shell__notice--warn" role="status">
+      Mostrando datos de ejemplo: el motor de reservas aún no responde.
+    </p>
+  }
+
+  <!-- Global error live region -->
+  @if (errorMessage()) {
+    <p class="travel-shell__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ═══ SHOP phase ═══════════════════════════════════════════════════════ -->
+  @if (phase() === 'shop') {
+    <!-- Product selector tabs -->
+    <div class="travel-shell__tabs" role="tablist" aria-label="Tipo de producto">
+      @for (product of products; track product) {
+        <button
+          type="button"
+          role="tab"
+          class="travel-shell__tab"
+          [class.is-active]="activeProduct() === product"
+          [id]="fieldId + '-tab-' + product"
+          [attr.aria-selected]="activeProduct() === product"
+          [attr.aria-controls]="fieldId + '-panel-' + product"
+          [attr.tabindex]="activeProduct() === product ? 0 : -1"
+          (click)="selectProduct(product)"
+        >
+          <span class="travel-shell__tab-icon" aria-hidden="true">{{ productIcon(product) }}</span>
+          <span>{{ productLabel(product) }}</span>
+        </button>
+      }
+    </div>
+
+    <!-- Search panel per product -->
+    <div
+      class="travel-shell__search"
+      role="tabpanel"
+      [id]="fieldId + '-panel-' + activeProduct()"
+      [attr.aria-labelledby]="fieldId + '-tab-' + activeProduct()"
+    >
+      <!-- ── Hotel search ── -->
+      @if (activeProduct() === 'hotel') {
+        <div class="travel-shell__field travel-shell__field--wide">
+          <label class="travel-shell__label" [attr.for]="fieldId + '-h-dest'">Destino</label>
+          <input
+            class="travel-shell__input"
+            type="text"
+            autocomplete="off"
+            placeholder="Cartagena, Colombia"
+            [id]="fieldId + '-h-dest'"
+            [value]="hotelDestination()"
+            (input)="bind(hotelDestination.set)($event)"
+          />
+        </div>
+        <div class="travel-shell__dates">
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-h-in'">Entrada</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-h-in'"
+              [value]="hotelCheckIn()"
+              (input)="bind(hotelCheckIn.set)($event)"
+            />
+          </div>
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-h-out'">Salida</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-h-out'"
+              [value]="hotelCheckOut()"
+              (input)="bind(hotelCheckOut.set)($event)"
+            />
+          </div>
+        </div>
+        <div class="travel-shell__field travel-shell__field--wide">
+          <span class="travel-shell__label" [id]="fieldId + '-h-occ'">Ocupación</span>
+          <synergos-pax-selector
+            class="travel-shell__pax"
+            [attr.aria-labelledby]="fieldId + '-h-occ'"
+            [attr.initial]="hotelPaxJson()"
+            (occupancychange)="onHotelOccupancyChange($event)"
+          ></synergos-pax-selector>
+        </div>
+      }
+
+      <!-- ── Flight search ── -->
+      @if (activeProduct() === 'flight') {
+        <div class="travel-shell__dates">
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-f-from'">Origen</label>
+            <input
+              class="travel-shell__input"
+              type="text"
+              autocomplete="off"
+              placeholder="Bogotá (BOG)"
+              [id]="fieldId + '-f-from'"
+              [value]="flightOrigin()"
+              (input)="bind(flightOrigin.set)($event)"
+            />
+          </div>
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-f-to'">Destino</label>
+            <input
+              class="travel-shell__input"
+              type="text"
+              autocomplete="off"
+              placeholder="Cartagena (CTG)"
+              [id]="fieldId + '-f-to'"
+              [value]="flightDestination()"
+              (input)="bind(flightDestination.set)($event)"
+            />
+          </div>
+        </div>
+        <div class="travel-shell__dates">
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-f-dep'">Ida</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-f-dep'"
+              [value]="flightDepart()"
+              (input)="bind(flightDepart.set)($event)"
+            />
+          </div>
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-f-ret'">Regreso</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-f-ret'"
+              [value]="flightReturn()"
+              (input)="bind(flightReturn.set)($event)"
+            />
+          </div>
+        </div>
+        <div class="travel-shell__field travel-shell__field--wide">
+          <span class="travel-shell__label" [id]="fieldId + '-f-occ'">Pasajeros</span>
+          <synergos-pax-selector
+            class="travel-shell__pax"
+            [attr.aria-labelledby]="fieldId + '-f-occ'"
+            [attr.initial]="flightPaxJson()"
+            (occupancychange)="onFlightOccupancyChange($event)"
+          ></synergos-pax-selector>
+        </div>
+      }
+
+      <!-- ── Car search ── -->
+      @if (activeProduct() === 'car') {
+        <div class="travel-shell__field travel-shell__field--wide">
+          <label class="travel-shell__label" [attr.for]="fieldId + '-c-loc'">Lugar de recogida</label>
+          <input
+            class="travel-shell__input"
+            type="text"
+            autocomplete="off"
+            placeholder="Aeropuerto Rafael Núñez (CTG)"
+            [id]="fieldId + '-c-loc'"
+            [value]="carLocation()"
+            (input)="bind(carLocation.set)($event)"
+          />
+        </div>
+        <div class="travel-shell__dates">
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-c-up'">Recogida</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-c-up'"
+              [value]="carPickUp()"
+              (input)="bind(carPickUp.set)($event)"
+            />
+          </div>
+          <div class="travel-shell__field">
+            <label class="travel-shell__label" [attr.for]="fieldId + '-c-down'">Devolución</label>
+            <input
+              class="travel-shell__input"
+              type="date"
+              [id]="fieldId + '-c-down'"
+              [value]="carDropOff()"
+              (input)="bind(carDropOff.set)($event)"
+            />
+          </div>
+        </div>
+      }
+
+      <div class="travel-shell__actions">
+        <button
+          type="button"
+          class="travel-shell__btn travel-shell__btn--primary"
+          [disabled]="!canSearch() || loading()"
+          (click)="search()"
+        >
+          {{ loading() ? 'Buscando…' : 'Buscar' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="travel-shell__results" aria-live="polite">
+      @if (loading()) {
+        <p class="travel-shell__empty">Buscando disponibilidad…</p>
+      } @else if (searched() && offers().length === 0) {
+        <p class="travel-shell__empty" role="status">
+          No encontramos resultados. Ajusta tu búsqueda.
+        </p>
+      } @else if (offers().length > 0) {
+        <ul class="travel-shell__offers" role="list">
+          @for (offer of offers(); track offer.offerId) {
+            <li class="travel-shell__offer">
+              <div class="travel-shell__offer-main">
+                <h3 class="travel-shell__offer-title">{{ offer.title }}</h3>
+                @if (offer.subtitle) {
+                  <p class="travel-shell__offer-sub">{{ offer.subtitle }}</p>
+                }
+                @if (offer.badges.length > 0) {
+                  <p class="travel-shell__offer-badges">
+                    @for (badge of offer.badges; track badge) {
+                      <span class="travel-shell__chip">{{ badge }}</span>
+                    }
+                  </p>
+                }
+              </div>
+              <div class="travel-shell__offer-aside">
+                <p class="travel-shell__offer-price">{{ offerPriceLabel(offer) }}</p>
+                <button
+                  type="button"
+                  class="travel-shell__btn travel-shell__btn--primary travel-shell__btn--sm"
+                  [attr.aria-label]="'Agregar ' + offer.title + ' al carrito'"
+                  (click)="addToCart(offer)"
+                >
+                  Agregar
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+
+  <!-- ═══ CHECKOUT phase ═══════════════════════════════════════════════════ -->
+  @if (phase() === 'checkout') {
+    <div class="travel-shell__checkout" role="group" aria-label="Pago del viaje">
+      <h2 class="travel-shell__heading">Pago único de tu viaje</h2>
+
+      <dl class="travel-shell__summary">
+        @for (item of cartItems(); track item.id) {
+          <div class="travel-shell__summary-row">
+            <dt>
+              <span class="travel-shell__summary-icon" aria-hidden="true">{{ productIcon(itemProduct(item)) }}</span>
+              {{ itemLabel(item) }}
+            </dt>
+            <dd>{{ itemPriceLabel(item) }}</dd>
+          </div>
+        }
+        <div class="travel-shell__summary-row travel-shell__summary-row--total">
+          <dt>Total</dt>
+          <dd>{{ cartTotalLabel() }}</dd>
+        </div>
+      </dl>
+
+      <div class="travel-shell__field travel-shell__field--wide">
+        <label class="travel-shell__label" [attr.for]="fieldId + '-g-name'">Nombre completo</label>
+        <input
+          class="travel-shell__input"
+          type="text"
+          autocomplete="name"
+          [id]="fieldId + '-g-name'"
+          [value]="guestName()"
+          [attr.aria-invalid]="guestName() && !guestNameValid() ? 'true' : null"
+          (input)="bind(guestName.set)($event)"
+        />
+      </div>
+      <div class="travel-shell__field travel-shell__field--wide">
+        <label class="travel-shell__label" [attr.for]="fieldId + '-g-email'">Correo electrónico</label>
+        <input
+          class="travel-shell__input"
+          type="email"
+          autocomplete="email"
+          [id]="fieldId + '-g-email'"
+          [value]="guestEmail()"
+          [attr.aria-invalid]="guestEmail() && !guestEmailValid() ? 'true' : null"
+          (input)="bind(guestEmail.set)($event)"
+        />
+      </div>
+
+      <div class="travel-shell__actions">
+        <button
+          type="button"
+          class="travel-shell__btn travel-shell__btn--ghost"
+          [disabled]="loading()"
+          (click)="backToShop()"
+        >
+          Volver
+        </button>
+        <button
+          type="button"
+          class="travel-shell__btn travel-shell__btn--primary"
+          [disabled]="!guestValid() || loading()"
+          (click)="pay()"
+        >
+          {{ loading() ? 'Procesando…' : 'Pagar ' + cartTotalLabel() }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ═══ CONFIRMATION phase ═══════════════════════════════════════════════ -->
+  @if (phase() === 'confirmation') {
+    <div class="travel-shell__confirmation" role="status" aria-live="polite">
+      <p class="travel-shell__confirm-badge">Viaje confirmado</p>
+      <h2 class="travel-shell__confirm-code">{{ confirmationCode() }}</h2>
+      <p class="travel-shell__confirm-order">Orden {{ orderRef() }}</p>
+      <ul class="travel-shell__vouchers" role="list">
+        @for (voucher of confirmedVouchers(); track voucher.reference) {
+          <li class="travel-shell__voucher">
+            <span class="travel-shell__voucher-title">{{ voucher.title }}</span>
+            <span class="travel-shell__voucher-ref">{{ voucher.reference }}</span>
+          </li>
+        }
+      </ul>
+      <div class="travel-shell__actions">
+        <button
+          type="button"
+          class="travel-shell__btn travel-shell__btn--primary"
+          (click)="startOver()"
+        >
+          Planear otro viaje
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ─── Unified cart panel ─────────────────────────────────────────────── -->
+  @if (cartOpen()) {
+    <aside class="travel-shell__cart" [id]="fieldId + '-cart'" aria-label="Carrito de viaje">
+      <header class="travel-shell__cart-head">
+        <h2 class="travel-shell__cart-title">Tu viaje</h2>
+        <button
+          type="button"
+          class="travel-shell__cart-close"
+          aria-label="Cerrar carrito"
+          (click)="toggleCart()"
+        >
+          ✕
+        </button>
+      </header>
+
+      @if (!hasCart()) {
+        <p class="travel-shell__empty">Tu carrito está vacío. Agrega hoteles, vuelos o autos.</p>
+      } @else {
+        <ul class="travel-shell__cart-items" role="list">
+          @for (item of cartItems(); track item.id) {
+            <li class="travel-shell__cart-item">
+              <span class="travel-shell__cart-icon" aria-hidden="true">{{ productIcon(itemProduct(item)) }}</span>
+              <div class="travel-shell__cart-main">
+                <span class="travel-shell__cart-name">{{ itemLabel(item) }}</span>
+                @if (itemSubtitle(item)) {
+                  <span class="travel-shell__cart-sub">{{ itemSubtitle(item) }}</span>
+                }
+              </div>
+              <span class="travel-shell__cart-price">{{ itemPriceLabel(item) }}</span>
+              <button
+                type="button"
+                class="travel-shell__cart-remove"
+                [attr.aria-label]="'Quitar ' + itemLabel(item)"
+                (click)="removeFromCart(item.id)"
+              >
+                ✕
+              </button>
+            </li>
+          }
+        </ul>
+
+        <footer class="travel-shell__cart-foot">
+          <p class="travel-shell__cart-total">
+            <span>Total</span>
+            <span>{{ cartTotalLabel() }}</span>
+          </p>
+          <button
+            type="button"
+            class="travel-shell__btn travel-shell__btn--primary travel-shell__btn--block"
+            [disabled]="phase() === 'checkout'"
+            (click)="goToCheckout()"
+          >
+            Ir a pagar
+          </button>
+        </footer>
+      }
+    </aside>
+  }
+</section>
