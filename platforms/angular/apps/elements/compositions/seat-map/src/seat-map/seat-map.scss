@@ -1,0 +1,272 @@
+@use 'scss' as syn;
+
+:host {
+  --sm-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sm-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sm-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sm-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --sm-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --sm-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sm-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --sm-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sm-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  // Seat availability palette.
+  --sm-seat-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sm-seat-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --sm-seat-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
+  // Seat-type accents (window / aisle / middle / extra-legroom).
+  --sm-window-border: var(--syn-color-brand-400, #{syn.$color-brand-400});
+  --sm-window-surface: var(--syn-color-brand-100, #{syn.$color-brand-100});
+  --sm-aisle-border: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
+  --sm-aisle-surface: var(--syn-color-neutral-100, #{syn.$color-neutral-100});
+  --sm-legroom-border: var(--syn-color-success-500, #{syn.$color-success-500});
+  --sm-legroom-surface: var(--syn-color-success-100, #{syn.$color-success-100});
+
+  // Selected + occupied states.
+  --sm-selected-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sm-selected-border: var(--syn-color-brand-600, #{syn.$color-brand-600});
+  --sm-selected-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sm-occupied-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --sm-occupied-border: var(--syn-color-border-subtle, #{syn.$color-neutral-200});
+  --sm-occupied-text: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+
+  display: block;
+  max-width: 100%;
+}
+
+.seat-map {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--sm-border);
+  border-radius: syn.$radius-xl;
+  background: var(--sm-surface);
+  box-shadow: var(--sm-shadow);
+  color: var(--sm-text);
+
+  &__header {
+    padding-bottom: syn.$space-2;
+    border-bottom: syn.px-to-rem(1) solid var(--sm-border-subtle);
+  }
+
+  &__summary {
+    margin: 0;
+    color: var(--sm-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__cabin {
+    display: flex;
+    justify-content: center;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sm-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--sm-surface-muted);
+    overflow-x: auto;
+  }
+
+  &__grid {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: max-content;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__row-number {
+    flex: 0 0 auto;
+    width: syn.px-to-rem(28);
+    color: var(--sm-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  &__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__aisle {
+    flex: 0 0 auto;
+    width: syn.$space-5;
+  }
+
+  &__seat {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(40);
+    height: syn.px-to-rem(40);
+    border: syn.px-to-rem(2) solid var(--sm-seat-border);
+    border-radius: syn.$radius-md;
+    background: var(--sm-seat-surface);
+    color: var(--sm-seat-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible(var(--sm-focus-ring));
+
+    &--window {
+      border-color: var(--sm-window-border);
+      background: var(--sm-window-surface);
+    }
+
+    &--aisle {
+      border-color: var(--sm-aisle-border);
+      background: var(--sm-aisle-surface);
+    }
+
+    &--extra-legroom {
+      border-color: var(--sm-legroom-border);
+      background: var(--sm-legroom-surface);
+    }
+
+    &:hover:not(:disabled) {
+      transform: translateY(#{syn.px-to-rem(-1)});
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.94);
+    }
+
+    &--selected,
+    &--selected.seat-map__seat--window,
+    &--selected.seat-map__seat--aisle,
+    &--selected.seat-map__seat--middle,
+    &--selected.seat-map__seat--extra-legroom {
+      border-color: var(--sm-selected-border);
+      background: var(--sm-selected-surface);
+      color: var(--sm-selected-text);
+    }
+
+    &--occupied,
+    &--occupied.seat-map__seat--window,
+    &--occupied.seat-map__seat--aisle,
+    &--occupied.seat-map__seat--middle,
+    &--occupied.seat-map__seat--extra-legroom {
+      border-color: var(--sm-occupied-border);
+      background: var(--sm-occupied-surface);
+      color: var(--sm-occupied-text);
+      cursor: not-allowed;
+      text-decoration: line-through;
+    }
+  }
+
+  &__seat-letter {
+    line-height: 1;
+  }
+
+  &__seat-check {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__seat-price {
+    color: var(--sm-muted);
+    font-size: syn.px-to-rem(10);
+    font-weight: syn.$font-weight-medium;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__legend-swatch {
+    display: inline-block;
+    width: syn.px-to-rem(16);
+    height: syn.px-to-rem(16);
+    border: syn.px-to-rem(2) solid var(--sm-seat-border);
+    border-radius: syn.$radius-sm;
+    background: var(--sm-seat-surface);
+
+    &--window {
+      border-color: var(--sm-window-border);
+      background: var(--sm-window-surface);
+    }
+
+    &--aisle {
+      border-color: var(--sm-aisle-border);
+      background: var(--sm-aisle-surface);
+    }
+
+    &--extra-legroom {
+      border-color: var(--sm-legroom-border);
+      background: var(--sm-legroom-surface);
+    }
+
+    &--occupied {
+      border-color: var(--sm-occupied-border);
+      background: var(--sm-occupied-surface);
+    }
+
+    &--selected {
+      border-color: var(--sm-selected-border);
+      background: var(--sm-selected-surface);
+    }
+  }
+
+  &__legend-label {
+    color: var(--sm-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-5;
+    border: syn.px-to-rem(1) dashed var(--sm-border);
+    border-radius: syn.$radius-lg;
+    background: var(--sm-surface-muted);
+    color: var(--sm-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat-map__seat {
+    transition: none;
+  }
+
+  .seat-map__seat:hover:not(:disabled),
+  .seat-map__seat:active:not(:disabled) {
+    transform: none;
+  }
+}
