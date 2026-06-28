@@ -74,6 +74,7 @@
   { "name": "quantity-selector",   "alias": "elementShopQuantitySelector",  "tag": "synergos-quantity-selector",    "tier": "primitive" },
   { "name": "variant-picker",      "alias": "elementShopVariantPicker",     "tag": "synergos-variant-picker",       "tier": "composition" },
   { "name": "accordion",              "alias": "elementSynAccordion",          "tag": "synergos-accordion",         "tier": "composition" },
+  { "name": "app-launcher",           "alias": "elementSynAppLauncher",        "tag": "synergos-app-launcher",      "tier": "module" },
   { "name": "audio-player",           "alias": "elementSynAudioPlayer",        "tag": "synergos-audio-player",      "tier": "module" },
   { "name": "autocomplete",           "alias": "elementSynAutocomplete",       "tag": "synergos-autocomplete",      "tier": "composition" },
   { "name": "avatar",                 "alias": "elementSynAvatar",             "tag": "synergos-avatar",            "tier": "primitive" },

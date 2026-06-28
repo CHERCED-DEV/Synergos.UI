@@ -1,0 +1,141 @@
+<section class="app-launcher" [attr.aria-label]="title()">
+  <header class="app-launcher__header">
+    <syn-heading [text]="title()" level="h2" size="lg" class="app-launcher__heading" />
+    <p class="app-launcher__count" aria-live="polite">{{ resultLabel() }}</p>
+  </header>
+
+  <form
+    class="app-launcher__controls"
+    role="search"
+    [attr.aria-label]="searchLabel()"
+    (submit)="$event.preventDefault()"
+  >
+    <div class="app-launcher__search">
+      <label class="app-launcher__sr" [attr.for]="'app-launcher-search'">{{ searchLabel() }}</label>
+      <input
+        id="app-launcher-search"
+        class="app-launcher__search-input"
+        type="search"
+        autocomplete="off"
+        [value]="query()"
+        [attr.placeholder]="searchPlaceholder()"
+        [attr.aria-label]="searchLabel()"
+        (input)="onSearchInput($event)"
+      />
+    </div>
+
+    @if (hasFilters()) {
+      <div class="app-launcher__filters" role="group" aria-label="Filtros">
+        @if (hasIndustryFilter()) {
+          <div class="app-launcher__filter">
+            <label class="app-launcher__filter-label" for="app-launcher-industry">Industria</label>
+            <select
+              id="app-launcher-industry"
+              class="app-launcher__select"
+              [value]="industry()"
+              (change)="onIndustryChange($event)"
+            >
+              <option value="__all__">{{ allFiltersLabel() }}</option>
+              @for (option of industryOptions(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        @if (hasPersonaFilter()) {
+          <div class="app-launcher__filter">
+            <label class="app-launcher__filter-label" for="app-launcher-persona">Persona</label>
+            <select
+              id="app-launcher-persona"
+              class="app-launcher__select"
+              [value]="persona()"
+              (change)="onPersonaChange($event)"
+            >
+              <option value="__all__">{{ allFiltersLabel() }}</option>
+              @for (option of personaOptions(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        @if (hasCapabilityFilter()) {
+          <div class="app-launcher__filter">
+            <label class="app-launcher__filter-label" for="app-launcher-capability">Capacidad</label>
+            <select
+              id="app-launcher-capability"
+              class="app-launcher__select"
+              [value]="capability()"
+              (change)="onCapabilityChange($event)"
+            >
+              <option value="__all__">{{ allFiltersLabel() }}</option>
+              @for (option of capabilityOptions(); track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+    }
+  </form>
+
+  @if (visibleApps().length > 0) {
+    <ul class="app-launcher__grid" role="list">
+      @for (app of visibleApps(); track app.id) {
+        <li class="app-launcher__item">
+          <article
+            class="domain-card"
+            [class.domain-card--soon]="app.status === 'soon'"
+          >
+            <div class="domain-card__top">
+              <span class="domain-card__icon" aria-hidden="true">
+                @if (app.icon) {
+                  <span class="domain-card__icon-glyph">{{ app.icon }}</span>
+                }
+              </span>
+              <syn-badge
+                class="domain-card__badge"
+                [text]="app.statusLabel"
+                [tone]="app.status === 'live' ? 'brand' : 'neutral'"
+                [ariaLabel]="'Estado: ' + app.statusLabel"
+              />
+            </div>
+
+            <div class="domain-card__body">
+              <h3 class="domain-card__title">{{ app.name }}</h3>
+              @if (app.tagline) {
+                <p class="domain-card__tagline">{{ app.tagline }}</p>
+              }
+
+              @if (app.capabilities.length > 0) {
+                <ul class="domain-card__caps" aria-label="Capacidades">
+                  @for (cap of app.capabilities; track cap) {
+                    <li class="domain-card__cap">{{ cap }}</li>
+                  }
+                </ul>
+              }
+            </div>
+
+            <div class="domain-card__actions">
+              @if (app.demoMode === 'embed') {
+                <span class="domain-card__embed-mark">Vista previa integrada</span>
+              }
+              <syn-link
+                class="domain-card__cta"
+                [href]="app.url"
+                [label]="ctaLabel()"
+                tone="brand"
+                [underline]="false"
+                [ariaLabel]="ctaLabel() + ': ' + app.name"
+                (activated)="onSelect(app)"
+              />
+            </div>
+          </article>
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="app-launcher__empty" role="status">{{ emptyLabel() }}</p>
+  }
+</section>

@@ -11,7 +11,8 @@
       "@synergos/shared": ["./libs/shared/src/index.ts"],
       "@synergos/core-assets": ["../../vitals/core-assets/src/index.ts"],
       "@synergos/rendering": ["./libs/rendering/src/index.ts"],
-      "@synergos/integrations": ["./libs/integrations/src/index.ts"]
+      "@synergos/integrations": ["./libs/integrations/src/index.ts"],
+      "@synergos/transaction-engine": ["./libs/transaction-engine/src/index.ts"]
     }
   },
   "angularCompilerOptions": {
