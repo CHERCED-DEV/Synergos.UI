@@ -1,0 +1,695 @@
+<div class="eventos">
+  <!-- ─── Top bar + role switch ─────────────────────────────────────────────── -->
+  <header class="eventos__bar">
+    <h2 class="eventos__brand">
+      <span class="eventos__brand-mark" aria-hidden="true">&#9733;</span>
+      <span class="eventos__brand-text">Synergos Eventos</span>
+    </h2>
+    <div class="eventos__roles" role="group" aria-label="Cambiar de vista">
+      @for (option of roles; track option.key) {
+        <button
+          type="button"
+          class="eventos__role"
+          [attr.aria-pressed]="role() === option.key"
+          (click)="setRole(option.key)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (degraded()) {
+    <p class="ev-banner ev-banner--degraded" role="status">
+      <span aria-hidden="true">&#9888;</span>
+      Mostrando datos de ejemplo — la API de Eventos aún no responde.
+    </p>
+  }
+  @if (errorMessage()) {
+    <p class="ev-banner ev-banner--error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ═══════════════════════════ CARA ASISTENTE ═══════════════════════════════ -->
+  @if (role() === 'attendee') {
+    @switch (view()) {
+      <!-- ─── Catálogo / agenda ──────────────────────────────────────────────── -->
+      @case ('catalog') {
+        <section class="catalog" aria-label="Catálogo de eventos">
+          <form class="catalog__searchbar" (submit)="$event.preventDefault(); submitSearch()">
+            <div class="ev-field catalog__search">
+              <label class="ev-field__label" [attr.for]="fieldId + '-q'">Buscar eventos</label>
+              <input
+                class="ev-input"
+                [id]="fieldId + '-q'"
+                type="search"
+                placeholder="Conciertos, conferencias, ciudad…"
+                [value]="searchTerm()"
+                (input)="bind(searchTerm.set)($event)"
+              />
+            </div>
+            <button type="submit" class="ev-btn ev-btn--primary">Buscar</button>
+          </form>
+
+          <div class="catalog__filters">
+            @for (category of categories(); track category) {
+              <button
+                type="button"
+                class="ev-chip"
+                [attr.aria-pressed]="activeCategory() === category"
+                (click)="selectCategory(category)"
+              >
+                {{ category }}
+              </button>
+            }
+            <div class="ev-field">
+              <label class="ev-field__label" [attr.for]="fieldId + '-city'">Ciudad</label>
+              <select
+                class="ev-select"
+                [id]="fieldId + '-city'"
+                [value]="activeCity()"
+                (change)="onCityChange($event)"
+              >
+                <option value="">Todas</option>
+                @for (city of cities(); track city) {
+                  <option [value]="city">{{ city }}</option>
+                }
+              </select>
+            </div>
+            <div class="ev-field">
+              <label class="ev-field__label" [attr.for]="fieldId + '-sort'">Ordenar</label>
+              <select
+                class="ev-select"
+                [id]="fieldId + '-sort'"
+                [value]="sort()"
+                (change)="onSortChange($event)"
+              >
+                @for (option of sortOptions; track option.key) {
+                  <option [value]="option.key">{{ option.label }}</option>
+                }
+              </select>
+            </div>
+            @if (hasActiveFilters()) {
+              <button type="button" class="ev-btn ev-btn--ghost" (click)="clearFilters()">
+                Limpiar
+              </button>
+            }
+          </div>
+
+          @if (loading()) {
+            <p class="eventos__loading">Cargando eventos…</p>
+          } @else if (events().length === 0) {
+            <p class="catalog__empty">No encontramos eventos con esos filtros.</p>
+          } @else {
+            <div class="catalog__grid">
+              @for (event of events(); track event.id) {
+                <button type="button" class="event-card" (click)="openEvent(event)">
+                  <span class="event-card__cover" aria-hidden="true">&#127915;</span>
+                  <span class="event-card__body">
+                    <span class="event-card__badges">
+                      @for (badge of event.badges; track badge) {
+                        <span class="ev-badge">{{ badge }}</span>
+                      }
+                    </span>
+                    <span class="event-card__title">{{ event.title }}</span>
+                    <span class="event-card__meta">
+                      <span>{{ formatDateShort(event.startsAt) }}</span>
+                      <span>· {{ event.venueName }}, {{ event.city }}</span>
+                    </span>
+                    <span class="meter" [class.meter--warn]="event.soldPercent >= 80">
+                      <span class="meter__fill" [style.width.%]="event.soldPercent"></span>
+                    </span>
+                    <span class="event-card__foot">
+                      <span class="event-card__price">
+                        @if (event.fromAmount > 0) {
+                          Desde {{ formatPrice(event.fromAmount, event.currency) }}
+                        } @else {
+                          Gratis
+                        }
+                      </span>
+                      <span class="ev-badge">{{ event.soldPercent }}% vendido</span>
+                    </span>
+                  </span>
+                </button>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ─── Ficha de evento (PDP) ─────────────────────────────────────────────── -->
+      @case ('event') {
+        @if (detail(); as detail) {
+          <section class="pdp" aria-label="Ficha del evento">
+            <div class="pdp__main">
+              <button type="button" class="ev-btn ev-btn--ghost" (click)="backToCatalog()">
+                &#8592; Volver al catálogo
+              </button>
+              <div class="pdp__hero">
+                <div class="pdp__hero-cover">
+                  <h3 class="pdp__hero-title">{{ detail.event.title }}</h3>
+                </div>
+              </div>
+              <div class="pdp__section">
+                <p>{{ formatDate(detail.event.startsAt) }}</p>
+                <p>{{ detail.venue.name }} · {{ detail.venue.address }}, {{ detail.venue.city }}</p>
+              </div>
+              <div class="pdp__section">
+                <h4 class="pdp__section-title">Sobre el evento</h4>
+                <p>{{ detail.description }}</p>
+              </div>
+              @if (detail.highlights.length) {
+                <div class="pdp__section">
+                  <h4 class="pdp__section-title">Por qué asistir</h4>
+                  <ul class="pdp__list">
+                    @for (highlight of detail.highlights; track highlight) {
+                      <li>{{ highlight }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+              @if (detail.sessions.length) {
+                <div class="pdp__section">
+                  <h4 class="pdp__section-title">Agenda</h4>
+                  <div class="pdp__agenda">
+                    @for (session of detail.sessions; track session.id) {
+                      <div class="pdp__agenda-row">
+                        <span class="pdp__agenda-time">{{ session.time }}</span>
+                        <span>
+                          {{ session.title }}
+                          @if (session.speaker) {
+                            <em>· {{ session.speaker }}</em>
+                          }
+                        </span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+              <div class="pdp__section">
+                <h4 class="pdp__section-title">Organiza</h4>
+                <p>{{ detail.organizer.name }} — {{ detail.organizer.headline }}</p>
+              </div>
+            </div>
+
+            <aside class="pdp__aside" aria-label="Entradas">
+              <h4 class="pdp__section-title">Entradas</h4>
+              @for (tier of tiers(); track tier.id) {
+                <button
+                  type="button"
+                  class="tier-card"
+                  [attr.aria-pressed]="selectedTier()?.id === tier.id"
+                  (click)="selectTier(tier)"
+                >
+                  <span class="tier-card__head">
+                    <span class="tier-card__name">
+                      {{ tier.name }}
+                      @if (tier.featured) {
+                        <span class="ev-badge">Recomendado</span>
+                      }
+                    </span>
+                    <span class="tier-card__price">{{ tierPriceLabel(tier) }}</span>
+                  </span>
+                  @if (tier.description) {
+                    <span class="tier-card__desc">{{ tier.description }}</span>
+                  }
+                  @if (tier.remaining > 0 && tier.remaining <= 20) {
+                    <span class="tier-card__remaining">¡Quedan {{ tier.remaining }}!</span>
+                  }
+                  @if (tier.perks.length) {
+                    <ul class="tier-card__perks">
+                      @for (perk of tier.perks; track perk) {
+                        <li>{{ perk }}</li>
+                      }
+                    </ul>
+                  }
+                  @if (tier.saleWindow) {
+                    <span class="tier-card__desc">{{ tier.saleWindow }}</span>
+                  }
+                </button>
+              }
+              <button
+                type="button"
+                class="ev-btn ev-btn--primary"
+                [disabled]="!selectedTier()"
+                (click)="startSelection()"
+              >
+                Seleccionar entradas
+              </button>
+            </aside>
+          </section>
+        }
+      }
+
+      <!-- ─── Selección (cantidad / asiento) ─────────────────────────────────────── -->
+      @case ('select') {
+        @if (selectedTier(); as tier) {
+          <section class="select" aria-label="Selección de entradas">
+            <button type="button" class="ev-btn ev-btn--ghost" (click)="backToEvent()">
+              &#8592; Volver al evento
+            </button>
+            <h3 class="pdp__section-title">{{ tier.name }} — {{ tierPriceLabel(tier) }}</h3>
+
+            @if (isReserved()) {
+              @if (selectedZone(); as zone) {
+                <p>Elige tus asientos en la zona <strong>{{ zone.name }}</strong>.</p>
+                <div class="select__seatmap">
+                  <!-- Reuses the published seat-map element (CUSTOM_ELEMENTS_SCHEMA). -->
+                  <synergos-seat-map
+                    [attr.seatmap]="seatmapJson()"
+                    [attr.currency]="currency()"
+                    [attr.maxSelectable]="tier.maxPerOrder"
+                    (seatselect)="onSeatSelect($event)"
+                  ></synergos-seat-map>
+                </div>
+                <p>{{ formatCount(selectedSeats().length) }} asiento(s) seleccionado(s).</p>
+              } @else {
+                <p class="catalog__empty">Este evento no tiene mapa de asientos configurado.</p>
+              }
+            } @else {
+              <p>Selecciona la cantidad de entradas (máx. {{ tier.maxPerOrder }} por orden).</p>
+              <div class="select__qty" role="group" aria-label="Cantidad de entradas">
+                <button
+                  type="button"
+                  class="select__qty-btn"
+                  [disabled]="quantity() <= 1"
+                  (click)="decrementQty()"
+                  aria-label="Quitar una entrada"
+                >
+                  &#8722;
+                </button>
+                <span class="select__qty-value" aria-live="polite">{{ quantity() }}</span>
+                <button
+                  type="button"
+                  class="select__qty-btn"
+                  [disabled]="quantity() >= tier.maxPerOrder"
+                  (click)="incrementQty()"
+                  aria-label="Agregar una entrada"
+                >
+                  +
+                </button>
+              </div>
+            }
+
+            <div class="summary">
+              <div class="summary__row">
+                <span>{{ formatCount(ticketCount()) }} × {{ tier.name }}</span>
+                <span>{{ selectionAmountLabel() }}</span>
+              </div>
+              <div class="summary__row summary__total">
+                <span>Total</span>
+                <span>{{ selectionAmountLabel() }}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="ev-btn ev-btn--primary"
+              [disabled]="!canProceedSelection()"
+              (click)="proceedToAttendees()"
+            >
+              Continuar
+            </button>
+          </section>
+        }
+      }
+
+      <!-- ─── Datos de asistentes ─────────────────────────────────────────────────── -->
+      @case ('attendees') {
+        <section class="form" aria-label="Datos de asistentes">
+          <button type="button" class="ev-btn ev-btn--ghost" (click)="backToSelection()">
+            &#8592; Volver
+          </button>
+          <h3 class="pdp__section-title">Datos de los asistentes</h3>
+          @for (attendee of attendees(); track $index) {
+            <div class="form__attendee">
+              <h4 class="form__attendee-title">Asistente {{ $index + 1 }}</h4>
+              <div class="form__grid">
+                <div class="ev-field">
+                  <label class="ev-field__label" [attr.for]="fieldId + '-att-name-' + $index">Nombre</label>
+                  <input
+                    class="ev-input"
+                    [id]="fieldId + '-att-name-' + $index"
+                    type="text"
+                    [value]="attendee.name"
+                    (input)="attendeeFieldHandler($index, 'name')($event)"
+                  />
+                </div>
+                <div class="ev-field">
+                  <label class="ev-field__label" [attr.for]="fieldId + '-att-email-' + $index">Correo</label>
+                  <input
+                    class="ev-input"
+                    [id]="fieldId + '-att-email-' + $index"
+                    type="email"
+                    [value]="attendee.email"
+                    (input)="attendeeFieldHandler($index, 'email')($event)"
+                  />
+                </div>
+                <div class="ev-field">
+                  <label class="ev-field__label" [attr.for]="fieldId + '-att-doc-' + $index">Documento</label>
+                  <input
+                    class="ev-input"
+                    [id]="fieldId + '-att-doc-' + $index"
+                    type="text"
+                    [value]="attendee.document"
+                    (input)="attendeeFieldHandler($index, 'document')($event)"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+          <button
+            type="button"
+            class="ev-btn ev-btn--primary"
+            [disabled]="!attendeesValid()"
+            (click)="proceedToCheckout()"
+          >
+            Continuar al pago
+          </button>
+        </section>
+      }
+
+      <!-- ─── Pago / checkout ───────────────────────────────────────────────────── -->
+      @case ('checkout') {
+        <section class="form" aria-label="Pago">
+          <button type="button" class="ev-btn ev-btn--ghost" (click)="backToAttendees()">
+            &#8592; Volver
+          </button>
+          <h3 class="pdp__section-title">Pago</h3>
+
+          <div class="form__grid">
+            <div class="ev-field">
+              <label class="ev-field__label" [attr.for]="fieldId + '-buyer-name'">Nombre del comprador</label>
+              <input
+                class="ev-input"
+                [id]="fieldId + '-buyer-name'"
+                type="text"
+                [value]="buyerName()"
+                (input)="bind(buyerName.set)($event)"
+              />
+            </div>
+            <div class="ev-field">
+              <label class="ev-field__label" [attr.for]="fieldId + '-buyer-email'">Correo del comprador</label>
+              <input
+                class="ev-input"
+                [id]="fieldId + '-buyer-email'"
+                type="email"
+                [value]="buyerEmail()"
+                (input)="bind(buyerEmail.set)($event)"
+              />
+            </div>
+          </div>
+
+          @if (!isFreeEvent()) {
+            <div class="form__pay-methods" role="group" aria-label="Método de pago">
+              <button
+                type="button"
+                class="ev-btn"
+                [class.ev-btn--soft]="paymentMethod() === 'card'"
+                [class.ev-btn--ghost]="paymentMethod() !== 'card'"
+                (click)="setPaymentMethod('card')"
+              >
+                Tarjeta
+              </button>
+              <button
+                type="button"
+                class="ev-btn"
+                [class.ev-btn--soft]="paymentMethod() === 'pse'"
+                [class.ev-btn--ghost]="paymentMethod() !== 'pse'"
+                (click)="setPaymentMethod('pse')"
+              >
+                PSE
+              </button>
+            </div>
+          }
+
+          <div class="summary">
+            @for (line of (detail() ? [selectedTier()] : []); track $index) {
+              @if (line) {
+                <div class="summary__row">
+                  <span>{{ formatCount(ticketCount()) }} × {{ line.name }}</span>
+                  <span>{{ selectionAmountLabel() }}</span>
+                </div>
+              }
+            }
+            <div class="summary__row summary__total">
+              <span>Total a pagar</span>
+              <span>{{ selectionAmountLabel() }}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="ev-btn ev-btn--primary"
+            [disabled]="!checkoutValid() || loading()"
+            (click)="confirmPurchase()"
+          >
+            @if (loading()) {
+              Procesando…
+            } @else if (isFreeEvent()) {
+              Confirmar registro
+            } @else {
+              Pagar {{ selectionAmountLabel() }}
+            }
+          </button>
+        </section>
+      }
+
+      <!-- ─── Confirmación + e-ticket QR ────────────────────────────────────────── -->
+      @case ('confirmed') {
+        <section class="confirmed" aria-label="Compra confirmada">
+          <span class="confirmed__icon" aria-hidden="true">&#10003;</span>
+          <h3 class="pdp__section-title">¡Compra confirmada!</h3>
+          <p>Orden <strong>{{ orderRef() }}</strong> — guarda tus e-tickets con código QR.</p>
+
+          <div class="confirmed__tickets">
+            @for (ticket of tickets(); track ticket.id) {
+              <div class="ticket">
+                @if (ticket.attendee) {
+                  <span class="ticket__attendee">{{ ticket.attendee }}</span>
+                }
+                <!-- Reuses the published qr-code element (CUSTOM_ELEMENTS_SCHEMA). -->
+                <synergos-qr-code
+                  [attr.data]="ticket.qr"
+                  [attr.size]="160"
+                  [attr.caption]="ticket.tier || ''"
+                ></synergos-qr-code>
+                <span class="ticket__meta">
+                  @if (ticket.tier) {
+                    <span>{{ ticket.tier }}</span>
+                  }
+                  @if (ticket.seat) {
+                    <span> · Asiento {{ ticket.seat }}</span>
+                  }
+                </span>
+                <span class="ticket__code">{{ ticket.id }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="form__actions">
+            <button type="button" class="ev-btn ev-btn--ghost" (click)="printTickets()">
+              Descargar / imprimir
+            </button>
+            <button type="button" class="ev-btn ev-btn--primary" (click)="startOver()">
+              Explorar más eventos
+            </button>
+          </div>
+        </section>
+      }
+    }
+  } @else {
+    <!-- ═══════════════════════════ CARA ORGANIZADOR ═════════════════════════════ -->
+    <section class="manager" aria-label="Panel del organizador">
+      <div class="manager__tabs" role="group" aria-label="Secciones del panel">
+        <button
+          type="button"
+          class="manager__tab"
+          [attr.aria-pressed]="managerView() === 'dashboard'"
+          (click)="setManagerView('dashboard')"
+        >
+          Resumen
+        </button>
+        <button
+          type="button"
+          class="manager__tab"
+          [attr.aria-pressed]="managerView() === 'attendees'"
+          (click)="setManagerView('attendees')"
+        >
+          Asistentes
+        </button>
+        <button
+          type="button"
+          class="manager__tab"
+          [attr.aria-pressed]="managerView() === 'checkin'"
+          (click)="setManagerView('checkin')"
+        >
+          Check-in
+        </button>
+      </div>
+
+      @if (loading() && !manage()) {
+        <p class="eventos__loading">Cargando panel…</p>
+      } @else if (manage(); as data) {
+        @switch (managerView()) {
+          <!-- ─── Dashboard ───────────────────────────────────────────────────── -->
+          @case ('dashboard') {
+            <div class="manager__kpis">
+              <div class="kpi">
+                <span class="kpi__label">Vendidos</span>
+                <span class="kpi__value">{{ formatCount(data.sold) }}</span>
+                <span class="kpi__hint">de {{ formatCount(data.capacity) }} de aforo</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">Aforo</span>
+                <span class="kpi__value">{{ soldPercent() }}%</span>
+                <span class="meter" [class.meter--warn]="soldPercent() >= 80">
+                  <span class="meter__fill" [style.width.%]="soldPercent()"></span>
+                </span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">Disponibles</span>
+                <span class="kpi__value">{{ formatCount(availableCapacity()) }}</span>
+                <span class="kpi__hint">cupos por vender</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">Ingresos (est.)</span>
+                <span class="kpi__value">{{ formatPrice(revenueEstimate(), currency()) }}</span>
+                <span class="kpi__hint">estimado por mezcla de tier</span>
+              </div>
+              <div class="kpi">
+                <span class="kpi__label">Check-ins</span>
+                <span class="kpi__value">{{ formatCount(checkedInCount()) }}</span>
+                <span class="kpi__hint">{{ checkinRate() }}% de asistencia</span>
+              </div>
+            </div>
+            <button type="button" class="ev-btn ev-btn--ghost" (click)="reloadManage()">
+              Actualizar
+            </button>
+          }
+
+          <!-- ─── Lista de asistentes ─────────────────────────────────────────── -->
+          @case ('attendees') {
+            <div class="ev-field">
+              <label class="ev-field__label" [attr.for]="fieldId + '-att-filter'">Filtrar asistentes</label>
+              <input
+                class="ev-input"
+                [id]="fieldId + '-att-filter'"
+                type="search"
+                placeholder="Nombre, correo, tier o ticket…"
+                [value]="attendeeFilter()"
+                (input)="bind(attendeeFilter.set)($event)"
+              />
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Asistente</th>
+                  <th scope="col">Tier</th>
+                  <th scope="col">Asiento</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col"><span class="eventos__sr-only">Acción</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (attendee of filteredAttendees(); track attendee.ticketId) {
+                  <tr>
+                    <td>
+                      <strong>{{ attendee.name }}</strong><br />
+                      <span class="ticket__meta">{{ attendee.email }}</span>
+                    </td>
+                    <td>{{ attendee.tier }}</td>
+                    <td>{{ attendee.seat || '—' }}</td>
+                    <td>
+                      <span class="table__state" [class]="'table__state table__state--' + attendee.state">
+                        {{ attendee.state === 'checked-in' ? 'Ingresó' : 'Pendiente' }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (attendee.state !== 'checked-in') {
+                        <button
+                          type="button"
+                          class="ev-btn ev-btn--soft"
+                          (click)="checkinAttendee(attendee)"
+                        >
+                          Check-in
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="catalog__empty">No hay asistentes que coincidan.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+
+          <!-- ─── Check-in / scan ─────────────────────────────────────────────── -->
+          @case ('checkin') {
+            <div class="checkin">
+              <div class="checkin__scanner">
+                <h4 class="pdp__section-title">Validar e-ticket</h4>
+                <p>Escanea el QR o ingresa el código del e-ticket.</p>
+                <form (submit)="$event.preventDefault(); submitCheckin()">
+                  <div class="ev-field">
+                    <label class="ev-field__label" [attr.for]="fieldId + '-checkin'">Código del ticket</label>
+                    <input
+                      class="ev-input"
+                      [id]="fieldId + '-checkin'"
+                      type="text"
+                      placeholder="TKT-… o payload QR"
+                      [value]="checkinCode()"
+                      (input)="onCheckinInput($event)"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    class="ev-btn ev-btn--primary"
+                    [disabled]="!checkinCode().trim() || loading()"
+                  >
+                    Validar
+                  </button>
+                </form>
+
+                @if (lastScan(); as scan) {
+                  <div class="checkin__result" [class]="'checkin__result checkin__result--' + scan.status" role="status">
+                    <h5 class="checkin__result-title">{{ checkinOutcomeLabel(scan.status) }}</h5>
+                    @if (scan.attendee) {
+                      <span>{{ scan.attendee }}</span>
+                    }
+                    @if (scan.ticketId) {
+                      <span class="ticket__code">{{ scan.ticketId }}</span>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div>
+                <h4 class="pdp__section-title">Aforo en vivo</h4>
+                <div class="kpi">
+                  <span class="kpi__label">Ingresos confirmados</span>
+                  <span class="kpi__value">{{ formatCount(checkedInCount()) }}</span>
+                  <span class="kpi__hint">de {{ formatCount(data.sold) }} vendidos</span>
+                </div>
+                <h4 class="pdp__section-title">Últimos escaneos</h4>
+                <div class="checkin__log">
+                  @for (scan of scanLog(); track $index) {
+                    <div class="checkin__log-row">
+                      <span>{{ scan.attendee || scan.code }}</span>
+                      <span>{{ checkinOutcomeLabel(scan.outcome) }}</span>
+                    </div>
+                  } @empty {
+                    <p class="ticket__meta">Aún no hay escaneos en esta sesión.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        }
+      } @else {
+        <p class="catalog__empty">No pudimos cargar el panel del evento.</p>
+      }
+    </section>
+  }
+</div>

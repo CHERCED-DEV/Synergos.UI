@@ -1,0 +1,53 @@
+{
+  "name": "elements-modules-eventos",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/eventos/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:eventos",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "dependsOn": [],
+      "options": {
+        "outputPath": "dist/eventos",
+        "browser": "apps/elements/modules/eventos/src/main.ts",
+        "index": "apps/elements/modules/eventos/src/index.html",
+        "tsConfig": "apps/elements/modules/eventos/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "180kb", "maximumError": "440kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4372 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/eventos/src/**/*.ts",
+          "apps/elements/modules/eventos/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/eventos/tsconfig.spec.json"
+      }
+    }
+  }
+}
