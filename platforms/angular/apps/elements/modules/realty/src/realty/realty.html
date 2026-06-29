@@ -1,0 +1,980 @@
+<div class="realty">
+  <!-- ─── Topbar: operación + búsqueda global + favoritos / cuenta ─────────────── -->
+  <header class="realty__bar">
+    <button
+      type="button"
+      class="realty__brand"
+      (click)="startOver()"
+      aria-label="Inicio del portal"
+    >
+      <span class="realty__brand-mark" aria-hidden="true">⌂</span>
+      <span class="realty__brand-name">Propiedades</span>
+    </button>
+
+    <div class="realty__ops" role="tablist" aria-label="Tipo de operación">
+      @for (op of operations; track op.key) {
+        <button
+          type="button"
+          role="tab"
+          class="realty__op"
+          [class.realty__op--active]="operation() === op.key"
+          [attr.aria-selected]="operation() === op.key"
+          (click)="setOperation(op.key)"
+        >
+          {{ op.label }}
+        </button>
+      }
+    </div>
+
+    <form class="realty__search" (submit)="$event.preventDefault(); submitSearch()" role="search">
+      <input
+        type="search"
+        class="realty__search-input"
+        placeholder="Barrio, ciudad o palabra clave…"
+        [value]="searchTerm()"
+        (input)="bind(searchTerm.set)($event)"
+        [attr.aria-label]="'Buscar propiedades'"
+      />
+      <button type="submit" class="rt-btn rt-btn--brand realty__search-go">Buscar</button>
+    </form>
+
+    <nav class="realty__nav" aria-label="Cuenta">
+      <button
+        type="button"
+        class="realty__nav-btn"
+        (click)="goToMortgage()"
+        [class.realty__nav-btn--active]="view() === 'mortgage'"
+      >
+        Hipoteca
+      </button>
+      <button
+        type="button"
+        class="realty__nav-btn"
+        (click)="goToFavorites()"
+        [class.realty__nav-btn--active]="view() === 'favorites'"
+      >
+        Favoritos
+        @if (favoriteCount() > 0) {
+          <span class="realty__badge" aria-label="{{ favoriteCount() }} guardadas">{{
+            favoriteCount()
+          }}</span>
+        }
+      </button>
+      <button
+        type="button"
+        class="realty__nav-btn"
+        (click)="goToAccount()"
+        [class.realty__nav-btn--active]="view() === 'account'"
+      >
+        Mi cuenta
+      </button>
+    </nav>
+  </header>
+
+  @if (degraded()) {
+    <p class="realty__notice" role="status">
+      Mostrando <strong>datos de ejemplo</strong> con geolocalización. El motor de propiedades
+      conectará el catálogo real.
+    </p>
+  }
+
+  @if (errorMessage()) {
+    <p class="realty__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ════════════════════ SEARCH (lista ↔ mapa) ════════════════════ -->
+  @if (view() === 'search') {
+    <section class="realty__filters" aria-label="Filtros">
+      <label class="rt-field">
+        <span class="rt-field__label">Tipo</span>
+        <select class="rt-select" [value]="filterType()" (change)="bind(setType)($event)">
+          @for (t of types; track t.key) {
+            <option [value]="t.key">{{ t.label }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="rt-field" role="group" aria-label="Habitaciones mínimas">
+        <span class="rt-field__label" id="{{ fieldId }}-beds">Habitaciones</span>
+        <div class="rt-chips">
+          @for (b of bedOptions; track b.value) {
+            <button
+              type="button"
+              class="rt-chip"
+              [class.rt-chip--active]="filterBeds() === b.value"
+              [attr.aria-pressed]="filterBeds() === b.value"
+              (click)="setBeds(b.value)"
+            >
+              {{ b.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <label class="rt-field">
+        <span class="rt-field__label">Ubicación</span>
+        <input
+          type="text"
+          class="rt-input"
+          placeholder="Barrio o ciudad"
+          [value]="filterLocation()"
+          (input)="bind(filterLocation.set)($event)"
+          (change)="applyPriceFilter()"
+        />
+      </label>
+
+      <fieldset class="rt-field rt-field--range">
+        <legend class="rt-field__label">Precio</legend>
+        <div class="rt-range">
+          <input
+            type="number"
+            class="rt-input rt-input--sm"
+            placeholder="Mínimo"
+            min="0"
+            [value]="filterMinPrice() || ''"
+            (input)="bindNumber(filterMinPrice.set)($event)"
+            (change)="applyPriceFilter()"
+            aria-label="Precio mínimo"
+          />
+          <span class="rt-range__sep" aria-hidden="true">—</span>
+          <input
+            type="number"
+            class="rt-input rt-input--sm"
+            placeholder="Máximo"
+            min="0"
+            [value]="filterMaxPrice() || ''"
+            (input)="bindNumber(filterMaxPrice.set)($event)"
+            (change)="applyPriceFilter()"
+            aria-label="Precio máximo"
+          />
+        </div>
+      </fieldset>
+
+      <label class="rt-field rt-field--sort">
+        <span class="rt-field__label">Ordenar</span>
+        <select class="rt-select" [value]="sort()" (change)="bind(setSort)($event)">
+          @for (option of sortOptions; track option.key) {
+            <option [value]="option.key">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+
+      @if (hasActiveFilters()) {
+        <button type="button" class="rt-btn rt-btn--ghost" (click)="clearFilters()">
+          Limpiar filtros
+        </button>
+      }
+    </section>
+
+    <div class="realty__results-head">
+      <p class="realty__count" aria-live="polite">
+        @if (loading()) {
+          Buscando…
+        } @else {
+          <strong>{{ total() }}</strong> propiedades {{ operationSummaryLabel() }}
+        }
+      </p>
+      <div class="realty__layout-toggle" role="group" aria-label="Vista de resultados">
+        <button
+          type="button"
+          class="realty__layout-btn"
+          [class.realty__layout-btn--active]="layout() === 'list'"
+          [attr.aria-pressed]="layout() === 'list'"
+          (click)="setLayout('list')"
+        >
+          Lista
+        </button>
+        <button
+          type="button"
+          class="realty__layout-btn"
+          [class.realty__layout-btn--active]="layout() === 'split'"
+          [attr.aria-pressed]="layout() === 'split'"
+          (click)="setLayout('split')"
+        >
+          Dividido
+        </button>
+        <button
+          type="button"
+          class="realty__layout-btn"
+          [class.realty__layout-btn--active]="layout() === 'map'"
+          [attr.aria-pressed]="layout() === 'map'"
+          (click)="setLayout('map')"
+        >
+          Mapa
+        </button>
+      </div>
+    </div>
+
+    <div class="realty__split" [attr.data-layout]="layout()">
+      <!-- Lista de resultados -->
+      @if (layout() !== 'map') {
+        <ol class="realty__list" aria-label="Resultados">
+          @for (listing of listings(); track listing.id) {
+            <li
+              class="property-card"
+              [class.property-card--hover]="isHovered(listing.id)"
+              (mouseenter)="hoverListing(listing.id)"
+              (mouseleave)="clearHover()"
+            >
+              <button
+                type="button"
+                class="property-card__media"
+                (click)="openListing(listing)"
+                [attr.aria-label]="'Ver ' + listing.title"
+              >
+                <span class="property-card__placeholder" aria-hidden="true">⌂</span>
+                @if (listing.status !== 'active') {
+                  <span class="property-card__status">{{ statusLabel(listing.status) }}</span>
+                }
+                @if (listing.featured) {
+                  <span class="property-card__featured">Destacado</span>
+                }
+              </button>
+              <button
+                type="button"
+                class="property-card__fav"
+                [class.property-card__fav--on]="isFavorite(listing.id)"
+                (click)="toggleFavorite(listing.id)"
+                [attr.aria-pressed]="isFavorite(listing.id)"
+                [attr.aria-label]="
+                  isFavorite(listing.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'
+                "
+              >
+                ♥
+              </button>
+              <div class="property-card__body">
+                <p class="property-card__price">{{ priceLabel(listing) }}</p>
+                <h3 class="property-card__title">
+                  <button type="button" class="property-card__link" (click)="openListing(listing)">
+                    {{ listing.title }}
+                  </button>
+                </h3>
+                <p class="property-card__loc">
+                  {{ listing.geo.neighborhood }}, {{ listing.geo.city }}
+                </p>
+                <ul class="spec-stats" aria-label="Especificaciones">
+                  @if (listing.specs.beds > 0) {
+                    <li class="spec-stats__item"><span aria-hidden="true">🛏</span> {{ listing.specs.beds }} hab</li>
+                  }
+                  @if (listing.specs.baths > 0) {
+                    <li class="spec-stats__item"><span aria-hidden="true">🛁</span> {{ listing.specs.baths }} baños</li>
+                  }
+                  <li class="spec-stats__item">
+                    <span aria-hidden="true">▭</span> {{ formatArea(listing.specs.areaBuilt || listing.specs.areaPrivate) }}
+                  </li>
+                  @if (listing.specs.stratum > 0) {
+                    <li class="spec-stats__item"><span aria-hidden="true">◷</span> Estrato {{ listing.specs.stratum }}</li>
+                  }
+                </ul>
+                @if (listing.badges.length > 0) {
+                  <ul class="property-card__badges" aria-label="Etiquetas">
+                    @for (badge of listing.badges; track badge) {
+                      <li class="rt-tag">{{ badge }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            </li>
+          } @empty {
+            @if (!loading()) {
+              <li class="realty__empty">
+                No hay propiedades que coincidan con tu búsqueda. Ajusta los filtros.
+              </li>
+            }
+          }
+        </ol>
+      }
+
+      <!-- Mapa (frame con pins; sync hover ↔ lista) -->
+      @if (layout() !== 'list') {
+        <div class="results-map" aria-label="Mapa de propiedades">
+          <div class="results-map__canvas">
+            <div class="results-map__grid" aria-hidden="true"></div>
+            @for (listing of listings(); track listing.id) {
+              <button
+                type="button"
+                class="map-pin"
+                [class.map-pin--hover]="isHovered(listing.id)"
+                [style.left.%]="pinX(listing)"
+                [style.top.%]="pinY(listing)"
+                (mouseenter)="hoverListing(listing.id)"
+                (mouseleave)="clearHover()"
+                (click)="openListing(listing)"
+                [attr.aria-label]="listing.title + ' — ' + priceLabel(listing)"
+              >
+                {{ pinLabel(listing) }}
+              </button>
+            }
+          </div>
+          <div class="results-map__controls">
+            <label class="rt-check">
+              <input
+                type="checkbox"
+                [checked]="searchAsIMove()"
+                (change)="toggleSearchAsIMove()"
+              />
+              Buscar al mover el mapa
+            </label>
+            @if (!searchAsIMove()) {
+              <button type="button" class="rt-btn rt-btn--ghost rt-btn--sm" (click)="searchThisArea()">
+                Buscar en esta zona
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ════════════════════ PDP (ficha de propiedad) ════════════════════ -->
+  @if (view() === 'pdp' && detail(); as d) {
+    <article class="pdp">
+      <button type="button" class="rt-btn rt-btn--ghost pdp__back" (click)="backToSearch()">
+        ← Volver a resultados
+      </button>
+
+      <div class="pdp__grid">
+        <div class="pdp__main">
+          <!-- Galería -->
+          <div class="property-gallery">
+            <button
+              type="button"
+              class="property-gallery__hero"
+              (click)="openLightbox(0)"
+              aria-label="Abrir galería"
+            >
+              <span class="property-gallery__placeholder" aria-hidden="true">⌂</span>
+              <span class="property-gallery__count">{{ galleryCount() }} fotos</span>
+            </button>
+            <div class="property-gallery__thumbs" aria-hidden="true">
+              @for (n of [1, 2, 3, 4]; track n) {
+                <span class="property-gallery__thumb">⌂</span>
+              }
+            </div>
+          </div>
+
+          <header class="pdp__head">
+            <div>
+              <p class="pdp__price">{{ priceLabel(d.listing) }}</p>
+              <h1 class="pdp__title">{{ d.listing.title }}</h1>
+              <p class="pdp__loc">{{ d.location.address }} · {{ d.location.neighborhood }}, {{ d.location.city }}</p>
+            </div>
+            <button
+              type="button"
+              class="property-card__fav property-card__fav--lg"
+              [class.property-card__fav--on]="isFavorite(d.listing.id)"
+              (click)="toggleFavorite(d.listing.id)"
+              [attr.aria-pressed]="isFavorite(d.listing.id)"
+              [attr.aria-label]="
+                isFavorite(d.listing.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'
+              "
+            >
+              ♥
+            </button>
+          </header>
+
+          <!-- Specs key-value (spec-icon-stat) -->
+          <ul class="specs-panel" aria-label="Especificaciones">
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">🛏</span>
+              <span class="specs-panel__value">{{ d.specs.beds }}</span>
+              <span class="specs-panel__key">Habitaciones</span>
+            </li>
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">🛁</span>
+              <span class="specs-panel__value">{{ d.specs.baths }}</span>
+              <span class="specs-panel__key">Baños</span>
+            </li>
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">▭</span>
+              <span class="specs-panel__value">{{ d.specs.areaBuilt || d.specs.areaPrivate }}</span>
+              <span class="specs-panel__key">m² construidos</span>
+            </li>
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">🚗</span>
+              <span class="specs-panel__value">{{ d.specs.parking }}</span>
+              <span class="specs-panel__key">Parqueaderos</span>
+            </li>
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">◷</span>
+              <span class="specs-panel__value">{{ d.specs.stratum }}</span>
+              <span class="specs-panel__key">Estrato</span>
+            </li>
+            <li class="specs-panel__item">
+              <span class="specs-panel__icon" aria-hidden="true">⏱</span>
+              <span class="specs-panel__value">{{ d.specs.ageYears }}</span>
+              <span class="specs-panel__key">Años</span>
+            </li>
+          </ul>
+
+          <!-- Tabs: descripción / amenities / mapa -->
+          <div class="pdp__tabs" role="tablist" aria-label="Detalle">
+            <button
+              type="button"
+              role="tab"
+              class="pdp__tab"
+              [class.pdp__tab--active]="pdpTab() === 'description'"
+              [attr.aria-selected]="pdpTab() === 'description'"
+              (click)="setPdpTab('description')"
+            >
+              Descripción
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="pdp__tab"
+              [class.pdp__tab--active]="pdpTab() === 'amenities'"
+              [attr.aria-selected]="pdpTab() === 'amenities'"
+              (click)="setPdpTab('amenities')"
+            >
+              Características
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="pdp__tab"
+              [class.pdp__tab--active]="pdpTab() === 'location'"
+              [attr.aria-selected]="pdpTab() === 'location'"
+              (click)="setPdpTab('location')"
+            >
+              Ubicación
+            </button>
+          </div>
+
+          <div class="pdp__panel" role="tabpanel">
+            @switch (pdpTab()) {
+              @case ('description') {
+                <p class="pdp__desc">{{ d.description }}</p>
+              }
+              @case ('amenities') {
+                <ul class="amenities">
+                  @for (amenity of amenityList(); track amenity.key) {
+                    <li class="amenities__item"><span aria-hidden="true">✓</span> {{ amenity.label }}</li>
+                  } @empty {
+                    <li class="amenities__item amenities__item--empty">Sin características registradas.</li>
+                  }
+                </ul>
+              }
+              @case ('location') {
+                <div class="results-map results-map--pdp" aria-label="Mapa de ubicación">
+                  <div class="results-map__canvas">
+                    <div class="results-map__grid" aria-hidden="true"></div>
+                    <span
+                      class="map-pin map-pin--solo map-pin--hover"
+                      [style.left.%]="pinX(d.listing)"
+                      [style.top.%]="pinY(d.listing)"
+                      >{{ pinLabel(d.listing) }}</span
+                    >
+                  </div>
+                  <p class="results-map__addr">{{ d.location.address }}, {{ d.location.neighborhood }}</p>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- Calculadora de hipoteca embebida -->
+          <section class="mortgage mortgage--embedded" aria-label="Calculadora de hipoteca">
+            <h2 class="mortgage__title">Simula tu crédito</h2>
+            <div class="mortgage__row">
+              <label class="rt-field">
+                <span class="rt-field__label">Precio</span>
+                <input
+                  type="number"
+                  class="rt-input"
+                  [value]="mortgagePrice()"
+                  (input)="bindNumber(setMortgagePrice)($event)"
+                  aria-label="Precio del inmueble"
+                />
+              </label>
+              <label class="rt-field">
+                <span class="rt-field__label">Cuota inicial ({{ downPaymentPct() }}%)</span>
+                <input
+                  type="number"
+                  class="rt-input"
+                  [value]="mortgageDown()"
+                  (input)="bindNumber(setMortgageDown)($event)"
+                  aria-label="Cuota inicial"
+                />
+              </label>
+              <label class="rt-field">
+                <span class="rt-field__label">Plazo (meses)</span>
+                <input
+                  type="number"
+                  class="rt-input rt-input--sm"
+                  [value]="mortgageTermMonths()"
+                  (input)="bindNumber(setMortgageTerm)($event)"
+                  aria-label="Plazo en meses"
+                />
+              </label>
+              <label class="rt-field">
+                <span class="rt-field__label">Tasa E.A. (%)</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  class="rt-input rt-input--sm"
+                  [value]="mortgageRate()"
+                  (input)="bindNumber(setMortgageRate)($event)"
+                  aria-label="Tasa anual efectiva"
+                />
+              </label>
+            </div>
+            <p class="mortgage__result" aria-live="polite">
+              Cuota mensual estimada:
+              <strong>{{ formatPrice(mortgageResult().monthly, currency()) }}</strong>
+            </p>
+            <button type="button" class="rt-link" (click)="goToMortgage()">
+              Ver desglose y amortización →
+            </button>
+          </section>
+        </div>
+
+        <!-- Panel sticky del agente: contactar + agendar visita -->
+        <aside class="agent-card" aria-label="Asesor">
+          <div class="agent-card__head">
+            <span class="agent-card__avatar" aria-hidden="true">{{ d.agent.name.charAt(0) }}</span>
+            <div>
+              <p class="agent-card__name">{{ d.agent.name }}</p>
+              <p class="agent-card__agency">{{ d.agent.agency }}</p>
+              <p class="agent-card__rating">★ {{ d.agent.rating }} · {{ d.agent.listingsCount }} inmuebles</p>
+            </div>
+          </div>
+          <button type="button" class="rt-btn rt-btn--brand rt-btn--block" (click)="startVisit()">
+            Agendar visita
+          </button>
+          <button type="button" class="rt-btn rt-btn--outline rt-btn--block" (click)="openLead()">
+            Contactar al asesor
+          </button>
+          @if (d.agent.phone) {
+            <p class="agent-card__phone">{{ d.agent.phone }}</p>
+          }
+        </aside>
+      </div>
+
+      <!-- Lightbox -->
+      @if (lightboxOpen()) {
+        <div class="lightbox" role="dialog" aria-modal="true" aria-label="Galería de fotos">
+          <button type="button" class="lightbox__close" (click)="closeLightbox()" aria-label="Cerrar">×</button>
+          <button type="button" class="lightbox__nav lightbox__nav--prev" (click)="galleryPrev()" aria-label="Anterior">‹</button>
+          <div class="lightbox__stage">
+            <span class="lightbox__placeholder" aria-hidden="true">⌂</span>
+            <p class="lightbox__caption">Foto {{ galleryIndex() + 1 }} de {{ galleryCount() }}</p>
+          </div>
+          <button type="button" class="lightbox__nav lightbox__nav--next" (click)="galleryNext()" aria-label="Siguiente">›</button>
+        </div>
+      }
+
+      <!-- Modal de contacto / lead -->
+      @if (leadOpen()) {
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Contactar al asesor">
+          <div class="modal__panel lead-form">
+            <button type="button" class="modal__close" (click)="closeLead()" aria-label="Cerrar">×</button>
+            <h2 class="modal__title">Contactar al asesor</h2>
+            <label class="rt-field">
+              <span class="rt-field__label">Nombre</span>
+              <input type="text" class="rt-input" [value]="leadName()" (input)="bind(leadName.set)($event)" />
+            </label>
+            <label class="rt-field">
+              <span class="rt-field__label">Correo</span>
+              <input type="email" class="rt-input" [value]="leadEmail()" (input)="bind(leadEmail.set)($event)" />
+            </label>
+            <label class="rt-field">
+              <span class="rt-field__label">Teléfono</span>
+              <input type="tel" class="rt-input" [value]="leadPhone()" (input)="bind(leadPhone.set)($event)" />
+            </label>
+            <label class="rt-field">
+              <span class="rt-field__label">Mensaje</span>
+              <textarea class="rt-textarea" rows="3" [value]="leadMessage()" (input)="bind(leadMessage.set)($event)"></textarea>
+            </label>
+            <button
+              type="button"
+              class="rt-btn rt-btn--brand rt-btn--block"
+              [disabled]="!leadValid() || loading()"
+              (click)="submitLead()"
+            >
+              Enviar mensaje
+            </button>
+          </div>
+        </div>
+      }
+    </article>
+  }
+
+  <!-- ════════════════════ MORTGAGE (standalone) ════════════════════ -->
+  @if (view() === 'mortgage') {
+    <section class="mortgage mortgage--standalone" aria-label="Calculadora de hipoteca">
+      <button type="button" class="rt-btn rt-btn--ghost" (click)="startOver()">← Volver</button>
+      <h1 class="mortgage__title">Calculadora de hipoteca</h1>
+      <div class="mortgage__row">
+        <label class="rt-field">
+          <span class="rt-field__label">Precio del inmueble</span>
+          <input type="number" class="rt-input" [value]="mortgagePrice()" (input)="bindNumber(setMortgagePrice)($event)" />
+        </label>
+        <label class="rt-field">
+          <span class="rt-field__label">Cuota inicial ({{ downPaymentPct() }}%)</span>
+          <input type="number" class="rt-input" [value]="mortgageDown()" (input)="bindNumber(setMortgageDown)($event)" />
+        </label>
+        <label class="rt-field">
+          <span class="rt-field__label">Plazo (meses)</span>
+          <input type="number" class="rt-input rt-input--sm" [value]="mortgageTermMonths()" (input)="bindNumber(setMortgageTerm)($event)" />
+        </label>
+        <label class="rt-field">
+          <span class="rt-field__label">Tasa E.A. (%)</span>
+          <input type="number" step="0.1" class="rt-input rt-input--sm" [value]="mortgageRate()" (input)="bindNumber(setMortgageRate)($event)" />
+        </label>
+      </div>
+
+      <div class="mortgage__summary" aria-live="polite">
+        <div class="mortgage__kpi mortgage__kpi--primary">
+          <span class="mortgage__kpi-label">Cuota mensual</span>
+          <span class="mortgage__kpi-value">{{ formatPrice(mortgageResult().monthly, currency()) }}</span>
+        </div>
+        <div class="mortgage__kpi">
+          <span class="mortgage__kpi-label">Monto financiado</span>
+          <span class="mortgage__kpi-value">{{ formatPrice(mortgageResult().principal, currency()) }}</span>
+        </div>
+        <div class="mortgage__kpi">
+          <span class="mortgage__kpi-label">Interés total</span>
+          <span class="mortgage__kpi-value">{{ formatPrice(mortgageResult().totalInterest, currency()) }}</span>
+        </div>
+        <div class="mortgage__kpi">
+          <span class="mortgage__kpi-label">Total a pagar</span>
+          <span class="mortgage__kpi-value">{{ formatPrice(mortgageResult().totalPaid, currency()) }}</span>
+        </div>
+      </div>
+
+      @if (mortgageResult().schedule && mortgageResult().schedule!.length > 0) {
+        <table class="amort-table">
+          <caption class="amort-table__caption">Amortización (primeros meses)</caption>
+          <thead>
+            <tr>
+              <th scope="col">Mes</th>
+              <th scope="col">Cuota</th>
+              <th scope="col">Capital</th>
+              <th scope="col">Interés</th>
+              <th scope="col">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of mortgageResult().schedule; track row.period) {
+              <tr>
+                <td>{{ row.period }}</td>
+                <td>{{ formatPrice(row.payment, currency()) }}</td>
+                <td>{{ formatPrice(row.principal, currency()) }}</td>
+                <td>{{ formatPrice(row.interest, currency()) }}</td>
+                <td>{{ formatPrice(row.balance, currency()) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </section>
+  }
+
+  <!-- ════════════════════ FAVORITES / COMPARE ════════════════════ -->
+  @if (view() === 'favorites') {
+    <section class="favorites" aria-label="Favoritos">
+      <div class="favorites__head">
+        <h1 class="favorites__title">Tus favoritos ({{ favoriteCount() }})</h1>
+        @if (favoriteCount() >= 2) {
+          <button type="button" class="rt-btn rt-btn--outline" (click)="toggleCompare()">
+            {{ compareMode() ? 'Ver como tarjetas' : 'Comparar' }}
+          </button>
+        }
+      </div>
+
+      @if (favoriteCount() === 0) {
+        <p class="realty__empty">
+          Aún no has guardado propiedades. Toca el ♥ en cualquier resultado para agregarla.
+        </p>
+      } @else if (compareMode()) {
+        <div class="shortlist-compare">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th scope="col">Característica</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <th scope="col">{{ fav.title }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Precio</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ priceLabel(fav) }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Habitaciones</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ fav.specs.beds }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Baños</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ fav.specs.baths }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Área</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ formatArea(fav.specs.areaBuilt || fav.specs.areaPrivate) }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Estrato</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ fav.specs.stratum }}</td>
+                }
+              </tr>
+              <tr>
+                <th scope="row">Ubicación</th>
+                @for (fav of favoriteListings(); track fav.id) {
+                  <td>{{ fav.geo.neighborhood }}</td>
+                }
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <ol class="realty__list realty__list--grid">
+          @for (fav of favoriteListings(); track fav.id) {
+            <li class="property-card">
+              <button type="button" class="property-card__media" (click)="openListing(fav)">
+                <span class="property-card__placeholder" aria-hidden="true">⌂</span>
+              </button>
+              <button
+                type="button"
+                class="property-card__fav property-card__fav--on"
+                (click)="removeFavorite(fav.id)"
+                aria-label="Quitar de favoritos"
+              >
+                ♥
+              </button>
+              <div class="property-card__body">
+                <p class="property-card__price">{{ priceLabel(fav) }}</p>
+                <h3 class="property-card__title">
+                  <button type="button" class="property-card__link" (click)="openListing(fav)">{{ fav.title }}</button>
+                </h3>
+                <p class="property-card__loc">{{ fav.geo.neighborhood }}, {{ fav.geo.city }}</p>
+              </div>
+            </li>
+          }
+        </ol>
+      }
+    </section>
+  }
+
+  <!-- ════════════════════ VISIT WIZARD ════════════════════ -->
+  @if (view() === 'visit' && visitListing(); as listing) {
+    <section class="visit-wizard" aria-label="Agendar visita">
+      <ol class="stepper" aria-label="Pasos">
+        @for (step of visitSteps; track step; let i = $index) {
+          <li
+            class="stepper__step"
+            [class.stepper__step--active]="visitStep() === step"
+            [class.stepper__step--done]="visitSteps.indexOf(visitStep()) > i"
+          >
+            <span class="stepper__num">{{ i + 1 }}</span>
+            <span class="stepper__label">
+              @switch (step) {
+                @case ('mode') { Modalidad }
+                @case ('slot') { Fecha y hora }
+                @case ('contact') { Tus datos }
+                @case ('review') { Confirmar }
+              }
+            </span>
+          </li>
+        }
+      </ol>
+
+      <p class="visit-wizard__subject">Visita a <strong>{{ listing.title }}</strong></p>
+
+      @switch (visitStep()) {
+        @case ('mode') {
+          <div class="visit-modes" role="radiogroup" aria-label="Modalidad de visita">
+            <button
+              type="button"
+              role="radio"
+              class="visit-mode"
+              [class.visit-mode--active]="visitMode() === 'in-person'"
+              [attr.aria-checked]="visitMode() === 'in-person'"
+              (click)="setVisitMode('in-person')"
+            >
+              <span class="visit-mode__icon" aria-hidden="true">⌂</span>
+              <span class="visit-mode__title">Visita presencial</span>
+              <span class="visit-mode__desc">Recorre el inmueble con el asesor.</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="visit-mode"
+              [class.visit-mode--active]="visitMode() === 'video'"
+              [attr.aria-checked]="visitMode() === 'video'"
+              (click)="setVisitMode('video')"
+            >
+              <span class="visit-mode__icon" aria-hidden="true">▶</span>
+              <span class="visit-mode__title">Video-tour</span>
+              <span class="visit-mode__desc">Recorrido en vivo por videollamada.</span>
+            </button>
+          </div>
+        }
+        @case ('slot') {
+          <div class="slots">
+            @for (day of availableDays(); track day) {
+              <div class="slots__day">
+                <p class="slots__date">{{ formatDate(day) }}</p>
+                <div class="slots__times" role="group" [attr.aria-label]="'Horarios ' + formatDate(day)">
+                  @for (slot of slotsForDay(day); track slot.time) {
+                    <button
+                      type="button"
+                      class="slots__time"
+                      [class.slots__time--active]="isSlotSelected(slot)"
+                      [attr.aria-pressed]="isSlotSelected(slot)"
+                      (click)="selectSlot(slot)"
+                    >
+                      {{ slot.time }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+        @case ('contact') {
+          <div class="visit-contact">
+            <label class="rt-field">
+              <span class="rt-field__label">Nombre completo</span>
+              <input type="text" class="rt-input" [value]="visitName()" (input)="bind(visitName.set)($event)" />
+            </label>
+            <label class="rt-field">
+              <span class="rt-field__label">Correo</span>
+              <input type="email" class="rt-input" [value]="visitEmail()" (input)="bind(visitEmail.set)($event)" />
+            </label>
+            <label class="rt-field">
+              <span class="rt-field__label">Teléfono</span>
+              <input type="tel" class="rt-input" [value]="visitPhone()" (input)="bind(visitPhone.set)($event)" />
+            </label>
+          </div>
+        }
+        @case ('review') {
+          <dl class="visit-review">
+            <div class="visit-review__row"><dt>Propiedad</dt><dd>{{ listing.title }}</dd></div>
+            <div class="visit-review__row"><dt>Modalidad</dt><dd>{{ visitModeLabel(visitMode()) }}</dd></div>
+            <div class="visit-review__row"><dt>Fecha</dt><dd>{{ formatDate(visitDate()) }} · {{ visitTime() }}</dd></div>
+            <div class="visit-review__row"><dt>Interesado</dt><dd>{{ visitName() }}</dd></div>
+            <div class="visit-review__row"><dt>Contacto</dt><dd>{{ visitEmail() }} · {{ visitPhone() }}</dd></div>
+          </dl>
+          <p class="visit-review__note">No se requiere pago para agendar la visita.</p>
+        }
+      }
+
+      <div class="visit-wizard__actions">
+        <button type="button" class="rt-btn rt-btn--ghost" (click)="previousVisitStep()">Atrás</button>
+        @if (visitStep() !== 'review') {
+          <button
+            type="button"
+            class="rt-btn rt-btn--brand"
+            [disabled]="
+              (visitStep() === 'slot' && !visitSlotValid()) ||
+              (visitStep() === 'contact' && !visitContactValid())
+            "
+            (click)="nextVisitStep()"
+          >
+            Continuar
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="rt-btn rt-btn--brand"
+            [disabled]="!visitSlotValid() || !visitContactValid() || loading()"
+            (click)="confirmVisit()"
+          >
+            Confirmar visita
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ CONFIRMATION ════════════════════ -->
+  @if (view() === 'confirmation') {
+    <section class="confirmation" aria-label="Confirmación">
+      <span class="confirmation__check" aria-hidden="true">✓</span>
+      @if (confirmedVisit(); as visit) {
+        <h1 class="confirmation__title">¡Visita agendada!</h1>
+        <p class="confirmation__lead">
+          {{ visitModeLabel(visit.mode) }} a <strong>{{ visit.listingTitle }}</strong>
+        </p>
+        <dl class="confirmation__detail">
+          <div><dt>Cita</dt><dd>{{ formatDate(visit.slot.date) }} · {{ visit.slot.time }}</dd></div>
+          <div><dt>Comprobante</dt><dd>{{ visit.id }}</dd></div>
+          <div><dt>A nombre de</dt><dd>{{ visit.contact.name }}</dd></div>
+        </dl>
+        <p class="confirmation__hint">Te enviamos un recordatorio a {{ visit.contact.email }}.</p>
+      } @else if (confirmedLeadId()) {
+        <h1 class="confirmation__title">¡Mensaje enviado!</h1>
+        <p class="confirmation__lead">El asesor te contactará pronto.</p>
+        <dl class="confirmation__detail">
+          <div><dt>Referencia</dt><dd>{{ confirmedLeadId() }}</dd></div>
+        </dl>
+      }
+      <div class="confirmation__actions">
+        <button type="button" class="rt-btn rt-btn--brand" (click)="goToAccount()">Ver mi cuenta</button>
+        <button type="button" class="rt-btn rt-btn--ghost" (click)="startOver()">Seguir buscando</button>
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ ACCOUNT ════════════════════ -->
+  @if (view() === 'account') {
+    <section class="account" aria-label="Mi cuenta">
+      <button type="button" class="rt-btn rt-btn--ghost" (click)="startOver()">← Volver</button>
+      <h1 class="account__title">Mi cuenta</h1>
+
+      <div class="account__cols">
+        <div class="account__col">
+          <h2 class="account__subtitle">Visitas agendadas ({{ myVisits().length }})</h2>
+          @for (visit of myVisits(); track visit.id) {
+            <article class="account__item">
+              <p class="account__item-title">{{ visit.listingTitle }}</p>
+              <p class="account__item-meta">
+                {{ visitModeLabel(visit.mode) }} · {{ formatDate(visit.slot.date) }} {{ visit.slot.time }}
+              </p>
+              <span class="rt-tag rt-tag--ok">{{ visit.status === 'confirmed' ? 'Confirmada' : visit.status }}</span>
+            </article>
+          } @empty {
+            <p class="realty__empty">No tienes visitas agendadas.</p>
+          }
+        </div>
+
+        <div class="account__col">
+          <h2 class="account__subtitle">Mensajes enviados ({{ myLeads().length }})</h2>
+          @for (lead of myLeads(); track lead.leadId) {
+            <article class="account__item">
+              <p class="account__item-title">{{ lead.listingTitle }}</p>
+              <p class="account__item-meta">Ref. {{ lead.leadId }}</p>
+            </article>
+          } @empty {
+            <p class="realty__empty">No has contactado asesores.</p>
+          }
+        </div>
+
+        <div class="account__col">
+          <h2 class="account__subtitle">Favoritos ({{ favoriteCount() }})</h2>
+          @for (fav of favoriteListings(); track fav.id) {
+            <article class="account__item">
+              <p class="account__item-title">
+                <button type="button" class="property-card__link" (click)="openListing(fav)">{{ fav.title }}</button>
+              </p>
+              <p class="account__item-meta">{{ priceLabel(fav) }}</p>
+            </article>
+          } @empty {
+            <p class="realty__empty">Sin propiedades guardadas.</p>
+          }
+        </div>
+      </div>
+    </section>
+  }
+</div>
