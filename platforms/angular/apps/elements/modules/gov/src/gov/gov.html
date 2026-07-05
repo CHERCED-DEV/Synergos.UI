@@ -1,0 +1,891 @@
+<div class="gov">
+  <!-- ─── Topbar: marca + role-switch + navegación por cara ────────────────────── -->
+  <header class="gov__bar">
+    <button
+      type="button"
+      class="gov__brand"
+      (click)="role() === 'officer' ? goToQueue() : backToCatalog()"
+      aria-label="Inicio del portal de trámites"
+    >
+      <span class="gov__brand-mark" aria-hidden="true">⚖</span>
+      <span class="gov__brand-name">Trámites</span>
+    </button>
+
+    <div class="gov__roles" role="tablist" aria-label="Cara de demostración">
+      @for (r of roles; track r.key) {
+        <button
+          type="button"
+          role="tab"
+          class="gov__role"
+          [class.gov__role--active]="role() === r.key"
+          [attr.aria-selected]="role() === r.key"
+          (click)="setRole(r.key)"
+        >
+          {{ r.label }}
+        </button>
+      }
+    </div>
+
+    <nav class="gov__nav" aria-label="Secciones">
+      @if (role() === 'citizen') {
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'catalog'"
+          (click)="backToCatalog()"
+        >
+          Catálogo
+        </button>
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'folder' || view() === 'case'"
+          (click)="goToFolder()"
+        >
+          Mi carpeta
+          @if (myCases().length > 0) {
+            <span class="gov__badge" aria-label="{{ myCases().length }} trámites">{{
+              myCases().length
+            }}</span>
+          }
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'queue' || view() === 'officer-case'"
+          (click)="goToQueue()"
+        >
+          Bandeja de expedientes
+        </button>
+      }
+    </nav>
+  </header>
+
+  <!-- WCAG: cambios de estado anunciados sin recarga -->
+  <p class="gov__sr-status" role="status" aria-live="polite">{{ announcement() }}</p>
+
+  @if (degraded()) {
+    <p class="gov__notice" role="status">
+      Mostrando <strong>datos de ejemplo</strong>. El motor de trámites conectará el catálogo y
+      los expedientes reales.
+    </p>
+  }
+
+  @if (errorMessage()) {
+    <p class="gov__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ════════════════════ CATÁLOGO DE TRÁMITES ════════════════════ -->
+  @if (view() === 'catalog') {
+    <section class="catalog" aria-label="Catálogo de trámites">
+      <div class="catalog__intro">
+        <h1 class="catalog__title">¿Qué trámite necesita hacer?</h1>
+        <p class="catalog__lead">Busque por nombre, entidad o palabra clave. Sin filas ni papeleo.</p>
+      </div>
+
+      <form class="gov__search" (submit)="$event.preventDefault(); submitSearch()" role="search">
+        <input
+          type="search"
+          class="gov__search-input"
+          placeholder="Ej.: pasaporte, licencia, Sisbén…"
+          [value]="searchTerm()"
+          (input)="bind(searchTerm.set)($event)"
+          aria-label="Buscar trámites"
+        />
+        <button type="submit" class="gv-btn gv-btn--brand">Buscar</button>
+      </form>
+
+      <div class="gov__chips" role="group" aria-label="Filtrar por categoría">
+        @for (cat of categories; track cat.key) {
+          <button
+            type="button"
+            class="gv-chip"
+            [class.gv-chip--active]="category() === cat.key"
+            [attr.aria-pressed]="category() === cat.key"
+            (click)="setCategory(cat.key)"
+          >
+            {{ cat.label }}
+          </button>
+        }
+      </div>
+
+      <p class="catalog__count" aria-live="polite">
+        @if (loading()) {
+          Buscando…
+        } @else {
+          <strong>{{ total() }}</strong> trámites disponibles
+          @if (searchTerm() || category()) {
+            <button type="button" class="gv-link" (click)="clearSearch()">Limpiar búsqueda</button>
+          }
+        }
+      </p>
+
+      <ol class="catalog__list" aria-label="Resultados">
+        @for (t of tramites(); track t.id) {
+          <li class="tramite-card">
+            <div class="tramite-card__body">
+              <p class="tramite-card__entity">{{ t.entity }}</p>
+              <h2 class="tramite-card__title">
+                <button type="button" class="tramite-card__link" (click)="openTramite(t)">
+                  {{ t.name }}
+                </button>
+              </h2>
+              <p class="tramite-card__summary">{{ t.summary }}</p>
+              <ul class="tramite-card__meta" aria-label="Datos del trámite">
+                <li class="gv-tag">{{ channelLabel(t.channel) }}</li>
+                <li class="gv-tag">{{ categoryLabel(t.category) }}</li>
+                <li class="gv-tag" [class.gv-tag--ok]="t.feeAmount === 0">
+                  {{ feeLabel(t.feeAmount, t.currency) }}
+                </li>
+                <li class="gv-tag">Respuesta en ~{{ t.estimatedDays }} días hábiles</li>
+              </ul>
+            </div>
+            <button type="button" class="gv-btn gv-btn--outline" (click)="openTramite(t)">
+              Ver el trámite
+            </button>
+          </li>
+        } @empty {
+          @if (!loading()) {
+            <li class="gov__empty">
+              No encontramos trámites con esa búsqueda. Pruebe con otra palabra o quite los filtros.
+            </li>
+          }
+        }
+      </ol>
+    </section>
+  }
+
+  <!-- ════════════════════ FICHA DEL TRÁMITE (lenguaje claro) ════════════════════ -->
+  @if (view() === 'detail' && detail(); as d) {
+    <article class="ficha" aria-label="Ficha del trámite">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">
+        ← Volver al catálogo
+      </button>
+
+      <header class="ficha__head">
+        <p class="ficha__entity">{{ d.tramite.entity }}</p>
+        <h1 class="ficha__title">{{ d.tramite.name }}</h1>
+        <ul class="tramite-card__meta" aria-label="Datos del trámite">
+          <li class="gv-tag">{{ channelLabel(d.tramite.channel) }}</li>
+          <li class="gv-tag" [class.gv-tag--ok]="!hasFee()">
+            {{ feeLabel(d.fee.amount, d.fee.currency) }}
+          </li>
+          <li class="gv-tag">Respuesta en ~{{ d.tramite.estimatedDays }} días hábiles</li>
+        </ul>
+      </header>
+
+      <div class="ficha__grid">
+        <div class="ficha__main">
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-que-es">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-que-es">¿Qué es?</h2>
+            <p class="ficha__text">{{ d.tramite.summary }}</p>
+          </section>
+
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-necesita">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-necesita">¿Qué necesita tener a la mano?</h2>
+            @if (d.requirements.length > 0) {
+              <ul class="ficha__checklist">
+                @for (req of d.requirements; track req) {
+                  <li class="ficha__check-item"><span aria-hidden="true">✓</span> {{ req }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="ficha__text">Solo su documento de identidad. No necesita anexar papeles.</p>
+            }
+          </section>
+
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-cuesta">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-cuesta">¿Cuánto cuesta?</h2>
+            @if (hasFee()) {
+              <p class="ficha__text">
+                <strong>{{ formatMoney(d.fee.amount, d.fee.currency) }}</strong>. La tasa se paga en
+                línea al final, justo antes de radicar.
+              </p>
+            } @else {
+              <p class="ficha__text"><strong>Nada.</strong> Este trámite es gratuito.</p>
+            }
+          </section>
+
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-tarda">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-tarda">¿Cuánto tarda?</h2>
+            <p class="ficha__text">
+              Hasta <strong>{{ d.tramite.estimatedDays }} días hábiles</strong> después de radicar.
+              Puede seguir el avance en <strong>Mi carpeta</strong> en cualquier momento.
+            </p>
+          </section>
+        </div>
+
+        <aside class="ficha__cta" aria-label="Iniciar">
+          <p class="ficha__cta-hint">El formulario se guarda paso a paso. Tarda unos 5 minutos.</p>
+          <button type="button" class="gv-btn gv-btn--brand gv-btn--block" (click)="startApplication()">
+            Iniciar trámite
+          </button>
+        </aside>
+      </div>
+    </article>
+  }
+
+  <!-- ════════════════════ WIZARD DE RADICACIÓN (data-driven) ════════════════════ -->
+  @if (view() === 'apply' && detail(); as d) {
+    <section class="wizard" aria-label="Radicar solicitud">
+      <ol class="stepper" aria-label="Pasos de la radicación">
+        @for (step of applySteps(); track step; let i = $index) {
+          <li
+            class="stepper__step"
+            [class.stepper__step--active]="applyStep() === step"
+            [class.stepper__step--done]="isStepDone(step)"
+            [attr.aria-current]="applyStep() === step ? 'step' : null"
+          >
+            <span class="stepper__num" aria-hidden="true">{{ i + 1 }}</span>
+            <span class="stepper__label">{{ stepLabel(step) }}</span>
+          </li>
+        }
+      </ol>
+
+      <p class="wizard__subject">
+        Está radicando: <strong>{{ d.tramite.name }}</strong> — {{ d.tramite.entity }}
+      </p>
+
+      @switch (applyStep()) {
+        <!-- Paso 1: datos del solicitante (once-only) -->
+        @case ('applicant') {
+          <fieldset class="wizard__panel">
+            <legend class="wizard__panel-title">Sus datos</legend>
+            <p class="wizard__hint">
+              Ya los tenemos guardados para que no vuelva a escribirlos. Revíselos y corrija si
+              algo cambió.
+            </p>
+            <div class="wizard__fields">
+              <label class="gv-field">
+                <span class="gv-field__label">Nombre completo</span>
+                <input
+                  type="text"
+                  class="gv-input"
+                  autocomplete="name"
+                  [value]="applicantName()"
+                  (input)="bind(applicantName.set)($event)"
+                />
+              </label>
+              <label class="gv-field gv-field--sm">
+                <span class="gv-field__label">Tipo de documento</span>
+                <select
+                  class="gv-select"
+                  [value]="applicantDocType()"
+                  (change)="bind(applicantDocType.set)($event)"
+                >
+                  <option value="CC">Cédula de ciudadanía</option>
+                  <option value="CE">Cédula de extranjería</option>
+                  <option value="PA">Pasaporte</option>
+                </select>
+              </label>
+              <label class="gv-field gv-field--sm">
+                <span class="gv-field__label">Número de documento</span>
+                <input
+                  type="text"
+                  class="gv-input"
+                  inputmode="numeric"
+                  [value]="applicantDocNumber()"
+                  (input)="bind(applicantDocNumber.set)($event)"
+                />
+              </label>
+              <label class="gv-field">
+                <span class="gv-field__label">Correo electrónico</span>
+                <input
+                  type="email"
+                  class="gv-input"
+                  autocomplete="email"
+                  [value]="applicantEmail()"
+                  (input)="bind(applicantEmail.set)($event)"
+                />
+              </label>
+              <label class="gv-field gv-field--sm">
+                <span class="gv-field__label">Teléfono celular</span>
+                <input
+                  type="tel"
+                  class="gv-input"
+                  autocomplete="tel"
+                  [value]="applicantPhone()"
+                  (input)="bind(applicantPhone.set)($event)"
+                />
+              </label>
+            </div>
+          </fieldset>
+        }
+
+        <!-- Paso 2: formulario dinámico dirigido por la definición del trámite -->
+        @case ('form') {
+          <fieldset class="wizard__panel">
+            <legend class="wizard__panel-title">Datos del trámite</legend>
+            <div class="wizard__fields">
+              @for (field of formFields(); track field.key) {
+                @switch (field.type) {
+                  @case ('select') {
+                    <label class="gv-field">
+                      <span class="gv-field__label">
+                        {{ field.label }}
+                        @if (!field.required) { <em class="gv-field__opt">(opcional)</em> }
+                      </span>
+                      @if (field.hint) {
+                        <span class="gv-field__hint" id="{{ fieldId }}-{{ field.key }}-hint">{{ field.hint }}</span>
+                      }
+                      <select
+                        class="gv-select"
+                        [value]="answerOf(field.key)"
+                        (change)="bindAnswer(field.key)($event)"
+                        [attr.aria-describedby]="field.hint ? fieldId + '-' + field.key + '-hint' : null"
+                      >
+                        <option value="">Seleccione…</option>
+                        @for (option of field.options; track option.value) {
+                          <option [value]="option.value">{{ option.label }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                  @case ('textarea') {
+                    <label class="gv-field gv-field--full">
+                      <span class="gv-field__label">
+                        {{ field.label }}
+                        @if (!field.required) { <em class="gv-field__opt">(opcional)</em> }
+                      </span>
+                      @if (field.hint) {
+                        <span class="gv-field__hint" id="{{ fieldId }}-{{ field.key }}-hint">{{ field.hint }}</span>
+                      }
+                      <textarea
+                        class="gv-textarea"
+                        rows="3"
+                        [value]="answerOf(field.key)"
+                        (input)="bindAnswer(field.key)($event)"
+                        [attr.placeholder]="field.placeholder || null"
+                        [attr.aria-describedby]="field.hint ? fieldId + '-' + field.key + '-hint' : null"
+                      ></textarea>
+                    </label>
+                  }
+                  @case ('checkbox') {
+                    <label class="gv-check gv-field--full">
+                      <input
+                        type="checkbox"
+                        [checked]="answerOf(field.key) === 'true'"
+                        (change)="toggleAnswer(field.key)($event)"
+                        [attr.aria-describedby]="field.hint ? fieldId + '-' + field.key + '-hint' : null"
+                      />
+                      <span>
+                        {{ field.label }}
+                        @if (field.hint) {
+                          <span class="gv-field__hint" id="{{ fieldId }}-{{ field.key }}-hint">{{ field.hint }}</span>
+                        }
+                      </span>
+                    </label>
+                  }
+                  @default {
+                    <label class="gv-field">
+                      <span class="gv-field__label">
+                        {{ field.label }}
+                        @if (!field.required) { <em class="gv-field__opt">(opcional)</em> }
+                      </span>
+                      @if (field.hint) {
+                        <span class="gv-field__hint" id="{{ fieldId }}-{{ field.key }}-hint">{{ field.hint }}</span>
+                      }
+                      <input
+                        class="gv-input"
+                        [type]="field.type"
+                        [value]="answerOf(field.key)"
+                        (input)="bindAnswer(field.key)($event)"
+                        [attr.placeholder]="field.placeholder || null"
+                        [attr.aria-describedby]="field.hint ? fieldId + '-' + field.key + '-hint' : null"
+                      />
+                    </label>
+                  }
+                }
+              }
+            </div>
+          </fieldset>
+        }
+
+        <!-- Paso 3: documentos (dropzone del registry + fallback nativo) -->
+        @case ('documents') {
+          <fieldset class="wizard__panel">
+            <legend class="wizard__panel-title">Documentos</legend>
+            @if (d.requirements.length > 0) {
+              <p class="wizard__hint">Adjunte estos documentos en PDF o imagen:</p>
+              <ul class="ficha__checklist">
+                @for (req of d.requirements; track req) {
+                  <li class="ficha__check-item"><span aria-hidden="true">•</span> {{ req }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="wizard__hint">Este trámite no exige documentos. Puede continuar.</p>
+            }
+
+            <!-- Reuses the published dropzone element (CUSTOM_ELEMENTS_SCHEMA). -->
+            <synergos-dropzone
+              label="Arrastre sus documentos aquí"
+              acceptedTypes=".pdf,.jpg,.png"
+              (filesaccepted)="onDropzoneFiles($event)"
+            ></synergos-dropzone>
+
+            <label class="wizard__file-fallback">
+              <span class="gv-field__label">O seleccione los archivos desde su equipo</span>
+              <input type="file" multiple accept=".pdf,.jpg,.png" (change)="onNativeFiles($event)" />
+            </label>
+
+            @if (docs().length > 0) {
+              <ul class="doc-list" aria-label="Documentos adjuntos">
+                @for (doc of docs(); track doc.id) {
+                  <li class="doc-list__item">
+                    <span class="doc-list__name">📄 {{ doc.name }}</span>
+                    @if (formatSize(doc.size)) {
+                      <span class="doc-list__size">{{ formatSize(doc.size) }}</span>
+                    }
+                    <button
+                      type="button"
+                      class="doc-list__remove"
+                      (click)="removeDocument(doc.id)"
+                      [attr.aria-label]="'Quitar ' + doc.name"
+                    >
+                      ×
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </fieldset>
+        }
+
+        <!-- Paso 4: revisar respuestas (check-answers GOV.UK) -->
+        @case ('review') {
+          <div class="wizard__panel">
+            <h2 class="wizard__panel-title">Revise sus respuestas antes de enviar</h2>
+
+            <dl class="answers">
+              <div class="answers__section">
+                <div class="answers__section-head">
+                  <h3 class="answers__section-title">Sus datos</h3>
+                  <button type="button" class="gv-link" (click)="goToStep('applicant')">Cambiar</button>
+                </div>
+                <div class="answers__row"><dt>Nombre</dt><dd>{{ applicantName() }}</dd></div>
+                <div class="answers__row">
+                  <dt>Documento</dt>
+                  <dd>{{ applicantDocType() }} {{ applicantDocNumber() }}</dd>
+                </div>
+                <div class="answers__row"><dt>Contacto</dt><dd>{{ applicantEmail() }} · {{ applicantPhone() }}</dd></div>
+              </div>
+
+              <div class="answers__section">
+                <div class="answers__section-head">
+                  <h3 class="answers__section-title">Datos del trámite</h3>
+                  <button type="button" class="gv-link" (click)="goToStep('form')">Cambiar</button>
+                </div>
+                @for (field of formFields(); track field.key) {
+                  <div class="answers__row">
+                    <dt>{{ field.label }}</dt>
+                    <dd>{{ answerLabel(field) || '—' }}</dd>
+                  </div>
+                }
+              </div>
+
+              <div class="answers__section">
+                <div class="answers__section-head">
+                  <h3 class="answers__section-title">Documentos</h3>
+                  <button type="button" class="gv-link" (click)="goToStep('documents')">Cambiar</button>
+                </div>
+                <div class="answers__row">
+                  <dt>Adjuntos</dt>
+                  <dd>
+                    @if (docs().length > 0) {
+                      {{ docs().length }} documento(s)
+                    } @else {
+                      Sin documentos
+                    }
+                  </dd>
+                </div>
+              </div>
+
+              <div class="answers__section">
+                <div class="answers__section-head">
+                  <h3 class="answers__section-title">Tasa</h3>
+                </div>
+                <div class="answers__row">
+                  <dt>Valor a pagar</dt>
+                  <dd>{{ feeLabel(d.fee.amount, d.fee.currency) }}</dd>
+                </div>
+              </div>
+            </dl>
+
+            <p class="wizard__declaration">
+              Al enviar, usted declara que la información es verdadera y autoriza a la entidad a
+              verificarla.
+            </p>
+          </div>
+        }
+
+        <!-- Paso 5 (solo con tasa): pago simulado -->
+        @case ('payment') {
+          <div class="wizard__panel">
+            <h2 class="wizard__panel-title">Pague la tasa del trámite</h2>
+            <div class="payment">
+              <div class="payment__summary">
+                <span class="payment__label">Total a pagar</span>
+                <span class="payment__amount">{{ formatMoney(d.fee.amount, d.fee.currency) }}</span>
+              </div>
+              @if (!paid()) {
+                <button type="button" class="gv-btn gv-btn--brand" (click)="payFee()">
+                  Pagar con PSE (simulado)
+                </button>
+                <p class="wizard__hint">
+                  Demo: el pago es simulado. En producción conecta el proveedor de pagos (PSE).
+                </p>
+              } @else {
+                <p class="payment__ok" role="status">
+                  <span aria-hidden="true">✓</span> Pago aprobado (simulado). Ya puede radicar su
+                  solicitud.
+                </p>
+              }
+            </div>
+          </div>
+        }
+      }
+
+      <div class="wizard__actions">
+        <button type="button" class="gv-btn gv-btn--ghost" (click)="previousStep()">Atrás</button>
+        @if (applyStep() === 'review' && !hasFee()) {
+          <button
+            type="button"
+            class="gv-btn gv-btn--brand"
+            [disabled]="!canSubmit() || loading()"
+            (click)="submitApplication()"
+          >
+            Radicar solicitud
+          </button>
+        } @else if (applyStep() === 'payment') {
+          <button
+            type="button"
+            class="gv-btn gv-btn--brand"
+            [disabled]="!canSubmit() || loading()"
+            (click)="submitApplication()"
+          >
+            Radicar solicitud
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="gv-btn gv-btn--brand"
+            [disabled]="!stepValid(applyStep())"
+            (click)="nextStep()"
+          >
+            Continuar
+          </button>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ RADICADO (confirmation page + QR) ════════════════════ -->
+  @if (view() === 'receipt' && confirmedCase(); as kase) {
+    <section class="receipt" aria-label="Comprobante de radicación">
+      <span class="receipt__check" aria-hidden="true">✓</span>
+      <h1 class="receipt__title">Solicitud radicada</h1>
+      <p class="receipt__number">
+        Su número de radicado es
+        <strong class="receipt__radicado">{{ kase.radicado }}</strong>
+      </p>
+
+      <!-- Reuses the published qr-code element (CUSTOM_ELEMENTS_SCHEMA). -->
+      <div class="receipt__qr">
+        <synergos-qr-code [attr.data]="kase.radicado" [attr.size]="160"></synergos-qr-code>
+      </div>
+
+      <dl class="receipt__detail">
+        <div><dt>Trámite</dt><dd>{{ kase.tramiteName }}</dd></div>
+        <div><dt>Entidad</dt><dd>{{ kase.entity }}</dd></div>
+        <div><dt>Fecha de radicación</dt><dd>{{ formatDate(kase.submittedAt) }}</dd></div>
+        <div><dt>Estado</dt><dd><span class="status-tag status-tag--radicado">{{ statusLabel(kase.status) }}</span></dd></div>
+      </dl>
+
+      <div class="receipt__next">
+        <h2 class="receipt__next-title">¿Qué sigue?</h2>
+        <p class="ficha__text">
+          Guarde su número de radicado. Le respondemos en máximo
+          <strong>{{ kase.slaDays }} días hábiles</strong> y le avisamos por correo a
+          {{ kase.applicant.email }}. Puede ver el avance cuando quiera en
+          <strong>Mi carpeta</strong>.
+        </p>
+      </div>
+
+      <div class="receipt__actions">
+        <button type="button" class="gv-btn gv-btn--brand" (click)="goToFolder()">Ver mi carpeta</button>
+        <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">Volver al catálogo</button>
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ MI CARPETA (bandeja del ciudadano) ════════════════════ -->
+  @if (view() === 'folder') {
+    <section class="folder" aria-label="Mi carpeta">
+      <h1 class="folder__title">Mi carpeta ({{ myCases().length }})</h1>
+      <p class="folder__lead">Aquí están sus trámites y el estado de cada uno.</p>
+
+      <ol class="folder__list">
+        @for (kase of myCases(); track kase.caseId) {
+          <li class="case-card">
+            <div class="case-card__body">
+              <p class="case-card__radicado">{{ kase.radicado }}</p>
+              <h2 class="case-card__title">
+                <button type="button" class="tramite-card__link" (click)="openCase(kase.caseId)">
+                  {{ kase.tramiteName }}
+                </button>
+              </h2>
+              <p class="case-card__meta">
+                Radicado el {{ formatDate(kase.submittedAt) }} · {{ daysLeftLabel(kase) }}
+              </p>
+            </div>
+            <span class="status-tag status-tag--{{ kase.status }}">{{ statusLabel(kase.status) }}</span>
+            <button type="button" class="gv-btn gv-btn--outline" (click)="openCase(kase.caseId)">
+              Ver seguimiento
+            </button>
+          </li>
+        } @empty {
+          @if (!loading()) {
+            <li class="gov__empty">
+              Aún no tiene trámites radicados. Empiece por el catálogo.
+            </li>
+          }
+        }
+      </ol>
+    </section>
+  }
+
+  <!-- ════════════════════ SEGUIMIENTO DEL EXPEDIENTE (ciudadano) ════════════════════ -->
+  @if (view() === 'case' && activeCase(); as kase) {
+    <section class="tracking" aria-label="Seguimiento del expediente">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="goToFolder()">← Volver a mi carpeta</button>
+
+      <header class="tracking__head">
+        <p class="case-card__radicado">{{ kase.radicado }}</p>
+        <h1 class="tracking__title">{{ kase.tramiteName }}</h1>
+        <p class="tracking__status" role="status">
+          <span class="status-tag status-tag--{{ kase.status }}">{{ statusLabel(kase.status) }}</span>
+          <span class="tracking__days">{{ daysLeftLabel(kase) }}</span>
+        </p>
+        <p class="tracking__hint">{{ statusHint(kase.status) }}</p>
+      </header>
+
+      @if (kase.status === 'subsanacion') {
+        <!-- Reuses the published alert-bar element (CUSTOM_ELEMENTS_SCHEMA). -->
+        <synergos-alert-bar
+          title="Necesitamos algo de usted"
+          description="Revise la solicitud del funcionario y responda para que su trámite continúe."
+          tone="warning"
+        ></synergos-alert-bar>
+
+        <form class="subsanacion" (submit)="$event.preventDefault(); respondSubsanacion()">
+          <h2 class="tracking__section-title">Responder la subsanación</h2>
+          <label class="gv-field gv-field--full">
+            <span class="gv-field__label">Su respuesta</span>
+            <span class="gv-field__hint">Explique qué corrigió o qué documento adjunta.</span>
+            <textarea
+              class="gv-textarea"
+              rows="3"
+              [value]="subsanacionNote()"
+              (input)="bind(subsanacionNote.set)($event)"
+            ></textarea>
+          </label>
+          <button
+            type="submit"
+            class="gv-btn gv-btn--brand"
+            [disabled]="subsanacionNote().trim() === '' || loading()"
+          >
+            Enviar respuesta
+          </button>
+        </form>
+      }
+
+      <h2 class="tracking__section-title">Historial del expediente</h2>
+      <!-- Reuses the published timeline element (CUSTOM_ELEMENTS_SCHEMA). -->
+      <synergos-timeline [attr.eventsJson]="timelineJson()" orientation="vertical"></synergos-timeline>
+
+      @if (kase.documents.length > 0) {
+        <h2 class="tracking__section-title">Documentos</h2>
+        <ul class="doc-list" aria-label="Documentos del expediente">
+          @for (doc of kase.documents; track doc.id) {
+            <li class="doc-list__item">
+              <span class="doc-list__name">📄 {{ doc.name }}</span>
+              @if (formatSize(doc.size)) {
+                <span class="doc-list__size">{{ formatSize(doc.size) }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <!-- ════════════════════ BANDEJA DEL FUNCIONARIO (cola) ════════════════════ -->
+  @if (view() === 'queue') {
+    <section class="queue" aria-label="Bandeja de expedientes">
+      <h1 class="queue__title">Bandeja de expedientes</h1>
+
+      <div class="queue__kpis" aria-label="Resumen de la cola">
+        <div class="kpi"><span class="kpi__value">{{ queueKpis().pending }}</span><span class="kpi__label">Por revisar</span></div>
+        <div class="kpi"><span class="kpi__value">{{ queueKpis().reviewing }}</span><span class="kpi__label">En revisión</span></div>
+        <div class="kpi kpi--warn"><span class="kpi__value">{{ queueKpis().subsanacion }}</span><span class="kpi__label">En subsanación</span></div>
+        <div class="kpi kpi--ok"><span class="kpi__value">{{ queueKpis().closed }}</span><span class="kpi__label">Cerrados</span></div>
+      </div>
+
+      <div class="gov__chips" role="group" aria-label="Filtrar por estado">
+        @for (f of queueFilters; track f.key) {
+          <button
+            type="button"
+            class="gv-chip"
+            [class.gv-chip--active]="queueFilter() === f.key"
+            [attr.aria-pressed]="queueFilter() === f.key"
+            (click)="setQueueFilter(f.key)"
+          >
+            {{ f.label }}
+          </button>
+        }
+      </div>
+
+      <div class="queue__table-wrap">
+        <table class="queue__table">
+          <caption class="gov__sr-status">Expedientes de la cola con estado y días restantes</caption>
+          <thead>
+            <tr>
+              <th scope="col">Radicado</th>
+              <th scope="col">Trámite</th>
+              <th scope="col">Solicitante</th>
+              <th scope="col">Estado</th>
+              <th scope="col">SLA</th>
+              <th scope="col"><span class="gov__sr-status">Acciones</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (kase of filteredQueue(); track kase.caseId) {
+              <tr>
+                <td class="queue__radicado">{{ kase.radicado }}</td>
+                <td>{{ kase.tramiteName }}</td>
+                <td>{{ kase.applicant.name }}</td>
+                <td><span class="status-tag status-tag--{{ kase.status }}">{{ statusLabel(kase.status) }}</span></td>
+                <td>{{ daysLeftLabel(kase) }}</td>
+                <td>
+                  <button type="button" class="gv-btn gv-btn--outline gv-btn--sm" (click)="openCase(kase.caseId)">
+                    Abrir
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="gov__empty">No hay expedientes con ese estado.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ EXPEDIENTE (funcionario) ════════════════════ -->
+  @if (view() === 'officer-case' && activeCase(); as kase) {
+    <section class="expediente" aria-label="Expediente">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="backFromCase()">← Volver a la bandeja</button>
+
+      <header class="tracking__head">
+        <p class="case-card__radicado">{{ kase.radicado }}</p>
+        <h1 class="tracking__title">{{ kase.tramiteName }}</h1>
+        <p class="tracking__status">
+          <span class="status-tag status-tag--{{ kase.status }}">{{ statusLabel(kase.status) }}</span>
+          <span class="tracking__days">{{ daysLeftLabel(kase) }}</span>
+        </p>
+      </header>
+
+      <div class="expediente__grid">
+        <div class="expediente__main">
+          <h2 class="tracking__section-title">Solicitante</h2>
+          <dl class="answers answers--flat">
+            <div class="answers__row"><dt>Nombre</dt><dd>{{ kase.applicant.name }}</dd></div>
+            <div class="answers__row"><dt>Documento</dt><dd>{{ kase.applicant.docType }} {{ kase.applicant.docNumber }}</dd></div>
+            <div class="answers__row"><dt>Contacto</dt><dd>{{ kase.applicant.email }} · {{ kase.applicant.phone }}</dd></div>
+          </dl>
+
+          <h2 class="tracking__section-title">Respuestas del formulario</h2>
+          <dl class="answers answers--flat">
+            @for (entry of caseAnswers(kase); track entry.key) {
+              <div class="answers__row"><dt>{{ entry.key }}</dt><dd>{{ entry.value }}</dd></div>
+            }
+          </dl>
+
+          @if (kase.documents.length > 0) {
+            <h2 class="tracking__section-title">Adjuntos</h2>
+            <ul class="doc-list" aria-label="Documentos adjuntos">
+              @for (doc of kase.documents; track doc.id) {
+                <li class="doc-list__item">
+                  <span class="doc-list__name">📄 {{ doc.name }}</span>
+                  @if (formatSize(doc.size)) {
+                    <span class="doc-list__size">{{ formatSize(doc.size) }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          <h2 class="tracking__section-title">Historial</h2>
+          <ol class="track">
+            @for (entry of kase.timeline; track $index) {
+              <li class="track__item">
+                <span class="track__dot status-dot--{{ entry.status }}" aria-hidden="true"></span>
+                <div class="track__body">
+                  <p class="track__head">
+                    <strong>{{ statusLabel(entry.status) }}</strong>
+                    <time class="track__date">{{ formatDate(entry.date) }}</time>
+                  </p>
+                  @if (entry.note) {
+                    <p class="track__note">{{ entry.note }}</p>
+                  }
+                  <p class="track__actor">{{ entry.actor }}</p>
+                </div>
+              </li>
+            }
+          </ol>
+        </div>
+
+        <aside class="expediente__actions" aria-label="Acciones del expediente">
+          <h2 class="tracking__section-title">Avanzar el expediente</h2>
+          @if (!isClosed(kase.status)) {
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Nota (queda en el historial)</span>
+              <textarea
+                class="gv-textarea"
+                rows="3"
+                [value]="officerNote()"
+                (input)="bind(officerNote.set)($event)"
+              ></textarea>
+            </label>
+            <div class="expediente__buttons">
+              @for (to of nextStatuses(); track to) {
+                <button
+                  type="button"
+                  class="gv-btn gv-btn--block"
+                  [class.gv-btn--brand]="to === 'en-revision' || to === 'resuelto'"
+                  [class.gv-btn--warn]="to === 'subsanacion'"
+                  [class.gv-btn--danger]="to === 'rechazado'"
+                  [disabled]="loading()"
+                  (click)="transitionCase(to)"
+                >
+                  {{ transitionLabel(to) }}
+                </button>
+              }
+            </div>
+            <p class="wizard__hint">
+              Solo se muestran las transiciones legales desde el estado actual. Cada una queda
+              registrada en el historial.
+            </p>
+          } @else {
+            <p class="expediente__closed">
+              Expediente cerrado. No admite más acciones.
+            </p>
+          }
+        </aside>
+      </div>
+    </section>
+  }
+</div>

@@ -108,6 +108,7 @@
   { "name": "fab",                    "alias": "elementSynFab",                "tag": "synergos-fab",               "tier": "primitive" },
   { "name": "file-uploader",          "alias": "elementSynFileUploader",       "tag": "synergos-file-uploader",     "tier": "module" },
   { "name": "form-stepper",           "alias": "elementSynFormStepper",        "tag": "synergos-form-stepper",      "tier": "composition" },
+  { "name": "gov",                    "alias": "elementSynGov",                "tag": "synergos-gov",               "tier": "module" },
   { "name": "hero-banner",            "alias": "elementSynHeroBanner",         "tag": "synergos-hero-banner",       "tier": "module" },
   { "name": "icon-label",             "alias": "elementSynIconLabel",          "tag": "synergos-icon-label",        "tier": "primitive" },
   { "name": "kpi-card",               "alias": "elementSynKpiCard",            "tag": "synergos-kpi-card",          "tier": "module" },
