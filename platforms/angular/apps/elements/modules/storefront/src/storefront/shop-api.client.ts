@@ -4,17 +4,22 @@ import {
   type CheckoutLine,
   type CheckoutResult,
   type Facet,
+  type MessageThread,
   type OrderConfirmation,
+  type OrderTracking,
   type ProductCondition,
   type ProductDetail,
   type ProductQuestion,
   type ProductReview,
   type ProductVariant,
+  type ReturnReceipt,
   type SearchCriteria,
   type SearchResult,
+  type ShipmentStage,
   type ShopCustomer,
   type ShopOrder,
   type ShopProduct,
+  type WishlistEntry,
 } from './shop.model';
 
 /**
@@ -26,6 +31,11 @@ import {
  *  - `POST /api/shop/checkout` `{ items, customer }`       → `{ orderRef, paymentSessionId, amount, currency }`
  *  - `POST /api/shop/confirm`  `{ orderRef }`              → `{ status, orderNumber, items }`
  *  - `GET  /api/shop/orders?customer=`                     → `{ orders }`
+ *  - `GET  /api/shop/wishlist`                             → `{ items }`
+ *  - `POST /api/shop/wishlist` `{ productId, action }`     → `{ items }` (add | remove)
+ *  - `GET  /api/shop/order/{ref}/tracking`                 → `{ orderRef, carrier, stages }`
+ *  - `POST /api/shop/order/{ref}/return` `{ reason }`      → `{ claimId, status }`
+ *  - `GET  /api/shop/messages`                             → `{ threads }` (mensajería v1)
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
@@ -161,6 +171,102 @@ export class ShopApiClient {
     }
   }
 
+  // ─── Wishlist (favoritos / listas) ───────────────────────────────────────────
+
+  async wishlist(apiBase: string, currency: string): Promise<readonly WishlistEntry[]> {
+    const url = `${apiBase}/wishlist`;
+    try {
+      const data = await this.getJson(url);
+      const entries = normalizeWishlist(data, currency);
+      if (entries) {
+        return entries;
+      }
+      throw new Error('wishlist-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/shop/wishlist', error);
+      return this.#localWishlist;
+    }
+  }
+
+  async wishlistMutate(
+    apiBase: string,
+    entry: WishlistEntry,
+    action: 'add' | 'remove',
+  ): Promise<readonly WishlistEntry[]> {
+    const url = `${apiBase}/wishlist`;
+    try {
+      const data = await this.postJson(url, { productId: entry.productId, action });
+      const entries = normalizeWishlist(data, entry.currency);
+      if (entries) {
+        return entries;
+      }
+      throw new Error('wishlist-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/shop/wishlist', error);
+      // Local optimistic fallback so the whole favoritos flow works offline.
+      const without = this.#localWishlist.filter((line) => line.productId !== entry.productId);
+      this.#localWishlist = action === 'add' ? [...without, entry] : without;
+      return this.#localWishlist;
+    }
+  }
+
+  // ─── Tracking (seguimiento de envío) ─────────────────────────────────────────
+
+  async tracking(apiBase: string, orderRef: string, status: string): Promise<OrderTracking> {
+    const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking`;
+    try {
+      const data = await this.getJson(url);
+      const tracking = normalizeTracking(data, orderRef);
+      if (tracking) {
+        return tracking;
+      }
+      throw new Error('tracking-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/shop/order/{ref}/tracking', error);
+      return mockTracking(orderRef, status);
+    }
+  }
+
+  // ─── Returns (devoluciones / reclamos) ───────────────────────────────────────
+
+  async requestReturn(apiBase: string, orderRef: string, reason: string): Promise<ReturnReceipt> {
+    const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
+    try {
+      const data = await this.postJson(url, { reason });
+      const receipt = normalizeReturn(data);
+      if (receipt) {
+        return receipt;
+      }
+      throw new Error('return-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/shop/order/{ref}/return', error);
+      return {
+        claimId: `CLM-${Date.now().toString(36).toUpperCase()}`,
+        status: 'abierto',
+      };
+    }
+  }
+
+  // ─── Messages (mensajería v1) ────────────────────────────────────────────────
+
+  async messages(apiBase: string): Promise<readonly MessageThread[]> {
+    const url = `${apiBase}/messages`;
+    try {
+      const data = await this.getJson(url);
+      const threads = normalizeThreads(data);
+      if (threads) {
+        return threads;
+      }
+      throw new Error('messages-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/shop/messages', error);
+      return mockThreads();
+    }
+  }
+
+  /** Local wishlist store used only while the backend endpoint is missing. */
+  #localWishlist: readonly WishlistEntry[] = [];
+
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
   private getJson(url: string): Promise<unknown> {
@@ -282,6 +388,7 @@ function normalizeProduct(value: unknown, fallbackCurrency: string): ShopProduct
     currency: readString(value['currency']).trim() || fallbackCurrency,
     brand: readString(value['brand']).trim(),
     category: readString(value['category']).trim(),
+    seller: readString(value['seller']).trim() || undefined,
     condition: readCondition(value['condition']),
     freeShipping: readBoolean(value['freeShipping']),
     rating: readNumber(value['rating']),
@@ -525,6 +632,127 @@ function normalizeOrders(value: unknown, fallbackCurrency: string): readonly Sho
     .filter((order): order is ShopOrder => order !== null);
 }
 
+function normalizeWishlist(
+  value: unknown,
+  fallbackCurrency: string,
+): readonly WishlistEntry[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['items'])
+      ? value['items']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list
+    .map((entry): WishlistEntry | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const productId = readString(entry['productId']).trim() || readString(entry['id']).trim();
+      const title = readString(entry['title']).trim();
+      if (!productId || !title) {
+        return null;
+      }
+      const image = readString(entry['image']).trim();
+      return {
+        productId,
+        title,
+        amount: readNumber(entry['amount'] ?? entry['price']),
+        currency: readString(entry['currency']).trim() || fallbackCurrency,
+        image: image || undefined,
+      };
+    })
+    .filter((entry): entry is WishlistEntry => entry !== null);
+}
+
+const STAGE_STATES = ['done', 'current', 'pending'] as const;
+
+function normalizeTracking(value: unknown, orderRef: string): OrderTracking | null {
+  if (!isRecord(value) || !Array.isArray(value['stages'])) {
+    return null;
+  }
+  const stages = value['stages']
+    .map((entry): ShipmentStage | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const label = readString(entry['label']).trim();
+      if (!label) {
+        return null;
+      }
+      const stateRaw = readString(entry['state']).trim().toLowerCase();
+      const state = (STAGE_STATES as readonly string[]).includes(stateRaw)
+        ? (stateRaw as ShipmentStage['state'])
+        : 'pending';
+      const date = readString(entry['date']).trim();
+      const description = readString(entry['description']).trim();
+      return {
+        id: readString(entry['id']).trim() || label,
+        label,
+        date: date || undefined,
+        description: description || undefined,
+        state,
+      };
+    })
+    .filter((stage): stage is ShipmentStage => stage !== null);
+  if (stages.length === 0) {
+    return null;
+  }
+  const carrier = readString(value['carrier']).trim();
+  return {
+    orderRef: readString(value['orderRef']).trim() || orderRef,
+    carrier: carrier || undefined,
+    stages,
+  };
+}
+
+function normalizeReturn(value: unknown): ReturnReceipt | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const claimId = readString(value['claimId']).trim() || readString(value['id']).trim();
+  if (!claimId) {
+    return null;
+  }
+  const statusRaw = readString(value['status']).trim().toLowerCase();
+  const status = (['abierto', 'en-revision', 'resuelto'] as const).includes(statusRaw as never)
+    ? (statusRaw as ReturnReceipt['status'])
+    : 'abierto';
+  return { claimId, status };
+}
+
+function normalizeThreads(value: unknown): readonly MessageThread[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['threads'])
+      ? value['threads']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list
+    .map((entry): MessageThread | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const subject = readString(entry['subject']).trim();
+      if (!id || !subject) {
+        return null;
+      }
+      return {
+        id,
+        subject,
+        counterpart: readString(entry['counterpart']).trim() || readString(entry['seller']).trim(),
+        lastMessage: readString(entry['lastMessage']).trim(),
+        date: readString(entry['date']).trim(),
+        unread: readBoolean(entry['unread']),
+      };
+    })
+    .filter((thread): thread is MessageThread => thread !== null);
+}
+
 // ─── Mock data (visible degradation when the backend is not yet wired) ─────────
 
 const MOCK_BRANDS = ['Sony', 'Samsung', 'Logitech', 'Xiaomi', 'Apple'];
@@ -618,6 +846,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       listAmount: 1_799_000,
       brand: 'Sony',
       category: 'Audio',
+      seller: 'TecnoHub',
       condition: 'new',
       freeShipping: true,
       rating: 4.8,
@@ -633,6 +862,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       amount: 3_299_000,
       brand: 'Samsung',
       category: 'Electrónica',
+      seller: 'TecnoHub',
       condition: 'new',
       freeShipping: true,
       rating: 4.6,
@@ -649,6 +879,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       listAmount: 459_000,
       brand: 'Logitech',
       category: 'Computación',
+      seller: 'PeriferiCO',
       condition: 'new',
       freeShipping: false,
       rating: 4.9,
@@ -664,6 +895,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       amount: 1_099_000,
       brand: 'Xiaomi',
       category: 'Hogar',
+      seller: 'HogarPlus',
       condition: 'new',
       freeShipping: true,
       rating: 4.4,
@@ -680,6 +912,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       listAmount: 1_899_000,
       brand: 'Apple',
       category: 'Computación',
+      seller: 'PeriferiCO',
       condition: 'used',
       freeShipping: false,
       rating: 4.2,
@@ -695,6 +928,7 @@ function mockCatalogue(currency: string): readonly ShopProduct[] {
       amount: 329_000,
       brand: 'Sony',
       category: 'Audio',
+      seller: 'TecnoHub',
       condition: 'new',
       freeShipping: true,
       rating: 4.5,
@@ -794,6 +1028,47 @@ function mockOrders(currency: string): readonly ShopOrder[] {
       total: 389_000,
       currency,
       items: [{ title: 'Mouse Logitech MX Master 3S', qty: 1, amount: 389_000 }],
+    },
+  ];
+}
+
+function mockTracking(orderRef: string, status: string): OrderTracking {
+  // Derive a coherent timeline from the coarse order status.
+  const order: readonly { id: string; label: string; date?: string }[] = [
+    { id: 'paid', label: 'Pago aprobado', date: '2026-06-22' },
+    { id: 'preparing', label: 'Preparando el paquete', date: '2026-06-23' },
+    { id: 'shipped', label: 'En camino', date: '2026-06-24' },
+    { id: 'delivered', label: 'Entregado' },
+  ];
+  const reached =
+    status === 'delivered' ? 4 : status === 'shipped' ? 3 : status === 'preparing' ? 2 : 1;
+  return {
+    orderRef,
+    carrier: 'Envíos Synergos',
+    stages: order.map((stage, index) => ({
+      ...stage,
+      state: index < reached - 1 ? 'done' : index === reached - 1 ? 'current' : 'pending',
+    })),
+  };
+}
+
+function mockThreads(): readonly MessageThread[] {
+  return [
+    {
+      id: 'th-1',
+      subject: 'Consulta sobre garantía',
+      counterpart: 'TecnoHub',
+      lastMessage: 'Sí, la garantía cubre 12 meses con distribuidor oficial.',
+      date: '2026-06-25',
+      unread: true,
+    },
+    {
+      id: 'th-2',
+      subject: 'Pedido ORD-2026-00512',
+      counterpart: 'PeriferiCO',
+      lastMessage: 'Tu pedido salió de bodega, llega mañana.',
+      date: '2026-06-23',
+      unread: false,
     },
   ];
 }

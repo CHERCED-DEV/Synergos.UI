@@ -37,6 +37,8 @@ export interface ShopSelectionPayload {
   readonly currency: string;
   readonly quantity: number;
   readonly image: string;
+  /** Marketplace seller — the cart groups lines per seller. */
+  readonly seller?: string;
 }
 
 /** PSP instrument the storefront hands the strategy on `pay`. */
@@ -105,6 +107,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
         variantLabel: payload.variantLabel,
         currency: payload.currency,
         image: payload.image,
+        seller: payload.seller ?? '',
         unitAmount: Math.round(payload.unitAmount * 100),
       },
       // Engine pricing is in minor units; payload carries major units.

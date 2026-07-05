@@ -1406,3 +1406,276 @@
     transform: none;
   }
 }
+
+// ─── v2: home + shells consumer + cuenta (SH-1..SH-4) ─────────────────────────
+.storefront {
+  &__brand--btn {
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+
+    @include syn.focus-visible(var(--sf-focus-ring));
+  }
+
+  &__nav-btn.is-active {
+    color: var(--sf-brand);
+    font-weight: syn.$font-weight-bold;
+  }
+
+  // ── Home ────────────────────────────────────────────────────────────────
+  &__home {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-lg;
+  }
+
+  &__hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-xl syn.$space-lg;
+    border-radius: syn.$radius-lg;
+    background: var(--sf-brand-soft);
+    text-align: center;
+  }
+
+  &__hero-title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  &__hero-sub {
+    margin: 0;
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__searchbar--hero {
+    width: 100%;
+    max-width: syn.px-to-rem(520);
+    background: var(--sf-surface);
+  }
+
+  &__home-section {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__cat-rail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__cat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: syn.$radius-full;
+    background: var(--sf-surface);
+    color: var(--sf-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sf-focus-ring));
+
+    &:hover {
+      border-color: var(--sf-brand);
+    }
+  }
+
+  &__cat-count {
+    color: var(--sf-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__home-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(200), 1fr));
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  // ── Wishlist heart ──────────────────────────────────────────────────────
+  &__wish {
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: syn.$radius-full;
+    background: var(--sf-surface);
+    color: var(--sf-muted);
+    font: inherit;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sf-focus-ring));
+
+    &.is-active {
+      border-color: var(--sf-danger);
+      color: var(--sf-danger);
+    }
+  }
+
+  &__seller-note {
+    margin: 0;
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ── Cart grouped by seller ──────────────────────────────────────────────
+  &__cart-group {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sf-border-subtle);
+    border-radius: syn.$radius-lg;
+  }
+
+  &__cart-group-head {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    margin: 0;
+    padding-bottom: syn.$space-2;
+    border-bottom: syn.px-to-rem(1) solid var(--sf-border-subtle);
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__cart-group-total {
+    font-variant-numeric: tabular-nums;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ── Account: order detail + returns ─────────────────────────────────────
+  &__order-detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+  }
+
+  &__return-note {
+    margin: 0;
+    padding: syn.$space-1 syn.$space-3;
+    border-radius: syn.$radius-full;
+    background: var(--sf-warn-soft);
+    color: var(--sf-text);
+    font-size: syn.$font-size-xs;
+  }
+
+  // ── Account: wishlist grid ──────────────────────────────────────────────
+  &__wish-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(180), 1fr));
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__wish-card {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: syn.$radius-lg;
+    background: var(--sf-surface);
+  }
+
+  &__wish-img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: syn.$radius-md;
+    object-fit: cover;
+  }
+
+  &__wish-title {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ── Account: mensajería v1 ──────────────────────────────────────────────
+  &__messages {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__thread-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__thread {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sf-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--sf-surface);
+
+    &.is-unread {
+      border-color: var(--sf-brand);
+    }
+  }
+
+  &__thread-head {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    margin: 0;
+  }
+
+  &__thread-subject {
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__thread-date,
+  &__thread-meta {
+    margin: 0;
+    color: var(--sf-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__thread-last {
+    margin: 0;
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .storefront *,
+  .storefront *::before,
+  .storefront *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

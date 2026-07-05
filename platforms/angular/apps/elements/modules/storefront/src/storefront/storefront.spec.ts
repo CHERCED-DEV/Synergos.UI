@@ -1,6 +1,8 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
+import { CheckoutWizardComponent } from '@synergos/shells';
 import { ShopApiClient } from './shop-api.client';
 import { ShopFulfillmentStrategy } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
@@ -42,6 +44,7 @@ const PRODUCT_A: ShopProduct = {
   currency: 'COP',
   brand: 'Sony',
   category: 'Audio',
+  seller: 'TecnoHub',
   condition: 'new',
   freeShipping: true,
   rating: 4.7,
@@ -58,9 +61,10 @@ const PRODUCT_B: ShopProduct = {
   amount: 200_000,
   brand: 'Logitech',
   category: 'Computación',
+  seller: 'PeriferiCO',
 };
 
-describe('StorefrontElementComponent', () => {
+describe('StorefrontElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<StorefrontElementComponent>;
   let component: StorefrontElementComponent;
 
@@ -82,29 +86,34 @@ describe('StorefrontElementComponent', () => {
   }
 
   afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
   });
 
-  // ── empty: pristine storefront, cart empty, PLP view ─────────────────────────
-  it('starts on the PLP with an empty cart (empty case)', async () => {
+  // ── empty: pristine storefront, home view, cart empty ────────────────────────
+  it('starts on the home with an empty cart and degraded mock rails (empty case)', async () => {
     installMemoryStorage();
     // Offline → mock catalogue; still a valid empty cart.
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     expect(component).toBeTruthy();
-    expect(component.view()).toBe('plp');
+    expect(component.view()).toBe('home');
     expect(component.cartCount()).toBe(0);
     expect(component.hasCart()).toBe(false);
-    // Mock catalogue loaded → results present, degradation flagged.
+    // Mock catalogue loaded → home rails present, degradation flagged.
     expect(component.products().length).toBeGreaterThan(0);
+    expect(component.deals().length).toBeGreaterThan(0);
+    expect(component.homeCategories().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: add → cart → checkout wizard → pay → confirm ──────────────────────
-  it('runs the full lifecycle to a single confirmation (happy case)', async () => {
+  // ── happy: add → cart agrupado → SH-3 wizard → pay → confirm ─────────────────
+  it('runs the full lifecycle through the SH-3 wizard to a confirmation (happy case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -114,13 +123,12 @@ describe('StorefrontElementComponent', () => {
     await flushMicrotasks();
 
     expect(component.cartCount()).toBe(2);
-    expect(component.hasCart()).toBe(true);
     expect(component.cartTotalMinor()).toBe((500_000 + 200_000) * 100);
-
-    // Cart → checkout wizard.
-    component.goToCheckout();
-    expect(component.view()).toBe('checkout');
-    expect(component.checkoutStep()).toBe('shipping');
+    // Carrito agrupado por vendedor (multi-seller marketplace).
+    expect(component.cartGroups().map((group) => group.seller).sort()).toEqual([
+      'PeriferiCO',
+      'TecnoHub',
+    ]);
 
     component.customerName.set('Ada Lovelace');
     component.customerEmail.set('ada@example.com');
@@ -128,17 +136,29 @@ describe('StorefrontElementComponent', () => {
     component.customerCity.set('Bogotá');
     expect(component.shippingValid()).toBe(true);
 
-    component.nextCheckoutStep();
-    expect(component.checkoutStep()).toBe('payment');
-    component.nextCheckoutStep();
-    expect(component.checkoutStep()).toBe('review');
+    component.goToCheckout();
+    fixture.detectChanges();
+    expect(component.view()).toBe('checkout');
 
-    component.placeOrder();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    expect(wizard.currentStep()?.id).toBe('datos');
+
+    wizard.next();
+    fixture.detectChanges();
+    expect(wizard.currentStep()?.id).toBe('pago');
+    wizard.next();
+    fixture.detectChanges();
+    expect(wizard.currentStep()?.id).toBe('revisar');
+
+    wizard.next(); // submit → pay → confirm (mock degradado)
     await flushMicrotasks(30);
+    fixture.detectChanges();
 
     expect(component.view()).toBe('confirmation');
     expect(component.orderNumber().length).toBeGreaterThan(0);
     expect(component.confirmedItems().length).toBeGreaterThan(0);
+    expect(window.location.hash).toContain('/confirmacion');
   });
 
   // ── filter: removing one line keeps the rest ─────────────────────────────────
@@ -159,6 +179,7 @@ describe('StorefrontElementComponent', () => {
     const refs = component.cartItems().map((item) => item.productRef);
     expect(refs).toEqual(['P-A']);
     expect(component.cartTotalMinor()).toBe(500_000 * 100);
+    expect(component.cartGroups()).toHaveLength(1);
   });
 
   // ── idempotent: re-adding the same product+variant accumulates qty, one line ──
@@ -178,8 +199,8 @@ describe('StorefrontElementComponent', () => {
     expect(component.cartTotalMinor()).toBe(500_000 * 3 * 100);
   });
 
-  // ── PDP: open a product, switch variant, change qty, add to cart ─────────────
-  it('opens the PDP and adds the selected variant with quantity', async () => {
+  // ── PDP (SH-2): open product, switch variant, qty, add, wishlist toggle ──────
+  it('opens the PDP, adds the selected variant and toggles wishlist once (SH-2 case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -187,10 +208,12 @@ describe('StorefrontElementComponent', () => {
     const first = component.products()[0];
     component.openProduct(first);
     await flushMicrotasks();
+    fixture.detectChanges();
 
     expect(component.view()).toBe('pdp');
     expect(component.detail()).not.toBeNull();
     expect(component.selectedVariant()).not.toBeNull();
+    expect(window.location.hash).toContain(`/p/${first.id}`);
 
     component.changeQuantity(1);
     expect(component.pdpQuantity()).toBe(2);
@@ -198,16 +221,71 @@ describe('StorefrontElementComponent', () => {
     component.addCurrentToCart();
     await flushMicrotasks();
     expect(component.cartCount()).toBe(2);
+
+    // Wishlist: toggle on + toggle on the same product stays a single entry.
+    const product = component.detail()!.product;
+    component.toggleWishlist(product);
+    await flushMicrotasks();
+    expect(component.isWished(product.id)).toBe(true);
+    expect(component.wishlist()).toHaveLength(1);
+
+    component.toggleWishlist(product);
+    await flushMicrotasks();
+    expect(component.isWished(product.id)).toBe(false);
+    expect(component.wishlist()).toHaveLength(0);
   });
 
-  // ── degradation: PLP falls back to visible mock catalogue ────────────────────
-  it('degrades to a visible mock catalogue when the search endpoint is unavailable', async () => {
+  // ── Account (SH-4): orders inbox + tracking timeline + return ────────────────
+  it('loads mis compras, derives the tracking timeline and opens a return (SH-4 case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    expect(component.products().length).toBeGreaterThan(0);
-    expect(component.degraded()).toBe(true);
+    component.goToAccount();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('account');
+    expect(component.accountSection()).toBe('compras');
+    expect(component.orders().length).toBeGreaterThan(0);
+
+    const order = component.orders()[0];
+    component.onOrderSelect(order);
+    await flushMicrotasks();
+
+    const stages = component.trackingStages(order.orderNumber);
+    expect(stages.length).toBeGreaterThan(0);
+    expect(stages.some((stage) => stage.state === 'current' || stage.state === 'done')).toBe(true);
+
+    // Return flow (mock degradado → claim abierto), idempotente por orden.
+    expect(component.canReturn(order)).toBe(true);
+    component.startReturn(order);
+    await flushMicrotasks();
+    expect(component.returnReceipt(order.orderNumber)?.status).toBe('abierto');
+    expect(component.canReturn(order)).toBe(false);
+
+    // Sección mensajes (v1): threads mock cargados al cambiar de sección.
+    component.onAccountSectionChange('mensajes');
+    await flushMicrotasks();
+    expect(component.threads().length).toBeGreaterThan(0);
+  });
+
+  // ── Hash router: deep-link a una vista ────────────────────────────────────────
+  it('deep-links views through the hash router', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.goToPlp();
+    expect(window.location.hash).toBe('#/storefront/plp');
+
+    component.goToAccount('favoritos');
+    expect(window.location.hash).toBe('#/storefront/cuenta/favoritos');
+    expect(component.accountSection()).toBe('favoritos');
+
+    // checkout sin carrito redirige a carrito.
+    component.navigate('checkout');
+    expect(component.view()).toBe('cart');
   });
 });
 
@@ -297,5 +375,32 @@ describe('ShopApiClient', () => {
     expect(client.degraded).toBe(true);
     expect(result.products.length).toBeGreaterThan(0);
     expect(result.products.every((product) => product.brand === 'Sony')).toBe(true);
+  });
+
+  it('degrades tracking to a status-coherent timeline and wishlist to a local store', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const tracking = await client.tracking('/api/shop', 'ORD-9', 'shipped');
+    expect(client.degraded).toBe(true);
+    expect(tracking.orderRef).toBe('ORD-9');
+    expect(tracking.stages.find((stage) => stage.id === 'shipped')?.state).toBe('current');
+    expect(tracking.stages.find((stage) => stage.id === 'paid')?.state).toBe('done');
+    expect(tracking.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
+
+    // Wishlist add + remove degradan a un store local coherente (idempotente).
+    const entry = { productId: 'X1', title: 'Producto X', amount: 10, currency: 'COP' };
+    let list = await client.wishlistMutate('/api/shop', entry, 'add');
+    expect(list.map((line) => line.productId)).toEqual(['X1']);
+    list = await client.wishlistMutate('/api/shop', entry, 'add');
+    expect(list).toHaveLength(1);
+    list = await client.wishlistMutate('/api/shop', entry, 'remove');
+    expect(list).toHaveLength(0);
+
+    // Return + messages degradan visibles.
+    const receipt = await client.requestReturn('/api/shop', 'ORD-9', 'motivo');
+    expect(receipt.status).toBe('abierto');
+    const threads = await client.messages('/api/shop');
+    expect(threads.length).toBeGreaterThan(0);
   });
 });

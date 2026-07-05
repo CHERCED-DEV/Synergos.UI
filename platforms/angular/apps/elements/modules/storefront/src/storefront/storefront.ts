@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   FulfillmentContext,
   OrchestratorService,
@@ -16,6 +17,21 @@ import {
   TransactionEventBusService,
   type SessionItem,
 } from '@synergos/transaction-engine';
+import {
+  AccountShellComponent,
+  CheckoutWizardComponent,
+  DetailShellComponent,
+  DiscoveryShellComponent,
+  TrackingTimelineComponent,
+  type AccountShellConfig,
+  type CheckoutWizardConfig,
+  type CheckoutWizardResult,
+  type DetailMedia,
+  type DetailSpec,
+  type DiscoveryCriteria,
+  type DiscoveryFacet,
+  type TrackingStage,
+} from '@synergos/shells';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -26,24 +42,30 @@ import { ShopApiClient } from './shop-api.client';
 import type { ShopSelectionPayload } from './shop-fulfillment.strategy';
 import {
   STOREFRONT_FLOW,
-  type CheckoutStep,
-  type Facet,
+  type AccountSectionId,
+  type MessageThread,
   type ProductDetail,
   type ProductVariant,
+  type ReturnReceipt,
   type SearchCriteria,
   type ShopCustomer,
   type ShopOrder,
   type ShopProduct,
   type SortKey,
   type StorefrontView,
+  type WishlistEntry,
 } from './shop.model';
 
 /**
  * Runtime config for the CMS element <c>elementSynStorefront</c>.
  *
- * The Tienda vertical as a real marketplace app (search · PLP · PDP · cart ·
- * checkout · órdenes), reusing the shared <c>@synergos/transaction-engine</c> for
- * the unified cart, single checkout and cross-island coordination.
+ * Storefront **v2** — the Tienda buyer-side app (Ola 1 doc 21) rebuilt as the
+ * **first consumer of the reusable shell catalogue** `@synergos/shells`:
+ * SH-1 `syn-discovery-shell` (PLP), SH-2 `syn-detail-shell` (PDP), SH-3
+ * `syn-checkout-wizard` (checkout over the engine) and SH-4 `syn-account-shell`
+ * (+ `syn-tracking-timeline`) for mis compras / tracking / wishlist / mensajes.
+ * The storefront only contributes domain data, templates and its
+ * `ShopFulfillmentStrategy` — the shells stay domain-free (contrato D3).
  */
 export interface StorefrontRuntimeConfig {
   /** Base URL of the shop API. Default `/api/shop`. */
@@ -60,15 +82,30 @@ interface StorefrontBus extends Record<string, unknown> {
   readonly orderconfirmed: { readonly orderRef: string; readonly orderNumber: string };
 }
 
+/** One seller group of cart lines (carrito agrupado por vendedor). */
+interface CartSellerGroup {
+  readonly seller: string;
+  readonly items: readonly SessionItem[];
+  readonly totalMinor: number;
+}
+
 const DEFAULT_API_BASE = '/api/shop';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'storefront';
+const DEFAULT_SELLER_GROUP = 'Synergos Market';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const SORT_OPTIONS: readonly { key: SortKey; label: string }[] = [
   { key: 'relevance', label: 'Más relevantes' },
   { key: 'price-asc', label: 'Menor precio' },
   { key: 'price-desc', label: 'Mayor precio' },
   { key: 'newest', label: 'Más recientes' },
+];
+const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevance', page: 1 };
+const ACCOUNT_SECTIONS: readonly AccountSectionId[] = [
+  'compras',
+  'favoritos',
+  'mensajes',
+  'perfil',
 ];
 
 function sanitizeConfig(value: Partial<StorefrontRuntimeConfig>): StorefrontRuntimeConfig {
@@ -84,7 +121,14 @@ let storefrontInstanceId = 0;
 @Component({
   selector: 'sg-storefront',
   standalone: true,
-  imports: [],
+  imports: [
+    NgTemplateOutlet,
+    DiscoveryShellComponent,
+    DetailShellComponent,
+    CheckoutWizardComponent,
+    AccountShellComponent,
+    TrackingTimelineComponent,
+  ],
   templateUrl: './storefront.html',
   styleUrl: './storefront.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -138,67 +182,93 @@ export class StorefrontElementComponent {
   readonly cartchange = output<number>();
   readonly orderconfirmed = output<{ orderRef: string; orderNumber: string }>();
 
-  // ─── UI state ───────────────────────────────────────────────────────────────
-  readonly view = signal<StorefrontView>('plp');
+  // ─── Router (signals + hash deep-links) ─────────────────────────────────────
+  readonly view = signal<StorefrontView>('home');
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   readonly cartOpen = signal(false);
+  #suppressedHash = '';
 
-  // Search / PLP
-  readonly searchTerm = signal('');
-  readonly activeCategory = signal('');
-  readonly selectedFacets = signal<Readonly<Record<string, readonly string[]>>>({});
-  readonly sort = signal<SortKey>('relevance');
+  // ─── Search / PLP (SH-1 inputs) ─────────────────────────────────────────────
+  readonly criteria = signal<DiscoveryCriteria>(CLEAN_CRITERIA);
   readonly products = signal<readonly ShopProduct[]>([]);
-  readonly facets = signal<readonly Facet[]>([]);
+  readonly discoveryFacets = signal<readonly DiscoveryFacet[]>([]);
   readonly searched = signal(false);
+  readonly homeTerm = signal('');
 
-  // PDP
+  // ─── Home (derived rails) ────────────────────────────────────────────────────
+  readonly deals = computed(() => this.products().filter((product) => product.listAmount).slice(0, 4));
+  readonly topRated = computed(() =>
+    [...this.products()].sort((a, b) => b.rating - a.rating).slice(0, 4),
+  );
+  readonly homeCategories = computed(
+    () => this.discoveryFacets().find((facet) => facet.key === 'category')?.values ?? [],
+  );
+
+  // ─── PDP (SH-2 inputs) ──────────────────────────────────────────────────────
   readonly detail = signal<ProductDetail | null>(null);
   readonly selectedVariantId = signal('');
   readonly pdpQuantity = signal(1);
-  readonly pdpTab = signal<'reviews' | 'questions'>('reviews');
 
-  // Checkout wizard
-  readonly checkoutStep = signal<CheckoutStep>('shipping');
-  readonly customerName = signal('');
-  readonly customerEmail = signal('');
-  readonly customerAddress = signal('');
-  readonly customerCity = signal('');
-  readonly paymentMethod = signal<'card' | 'pse'>('card');
-
-  // Confirmation
-  readonly orderRef = signal('');
-  readonly orderNumber = signal('');
-  readonly confirmedItems = signal<readonly { title: string; qty: number; reference: string }[]>(
-    [],
-  );
-
-  // Orders
-  readonly orders = signal<readonly ShopOrder[]>([]);
-  readonly ordersLoaded = signal(false);
-
-  // ─── Derived cart state (from the engine store) ─────────────────────────────
-  readonly cartItems = this.#store.items;
-  readonly cartCount = computed(() =>
-    this.#store.items().reduce((sum, item) => sum + item.quantity, 0),
-  );
-  readonly cartLineCount = this.#store.itemCount;
-  readonly hasCart = this.#store.hasItems;
-  readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
-  readonly cartTotalLabel = computed(() =>
-    this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency()),
-  );
-  readonly liveConflict = this.#store.liveSessionConflict;
-  readonly degraded = computed(() => {
-    // Recompute on each search/pdp/checkout; the flag is set by the API client.
-    void this.searched();
-    void this.view();
-    void this.detail();
-    return this.#api.degraded;
+  readonly pdpMedia = computed<readonly DetailMedia[]>(() => {
+    const detail = this.detail();
+    if (!detail) {
+      return [];
+    }
+    return detail.product.images.map((url) => ({ url, alt: detail.product.title }));
   });
 
-  // ─── PDP derived ─────────────────────────────────────────────────────────────
+  readonly pdpEyebrow = computed(() => {
+    const product = this.detail()?.product;
+    if (!product) {
+      return '';
+    }
+    const condition =
+      product.condition === 'used'
+        ? 'Usado'
+        : product.condition === 'refurbished'
+          ? 'Reacondicionado'
+          : 'Nuevo';
+    return `${condition} · ${product.brand}`;
+  });
+
+  readonly pdpSpecs = computed<readonly DetailSpec[]>(() => {
+    const detail = this.detail();
+    if (!detail) {
+      return [];
+    }
+    const product = detail.product;
+    const specs: DetailSpec[] = [
+      { label: 'Marca', value: product.brand || '—' },
+      { label: 'Categoría', value: product.category || '—' },
+      {
+        label: 'Condición',
+        value:
+          product.condition === 'used'
+            ? 'Usado'
+            : product.condition === 'refurbished'
+              ? 'Reacondicionado'
+              : 'Nuevo',
+      },
+      { label: 'Envío', value: product.freeShipping ? 'Gratis a todo el país' : 'Con costo' },
+    ];
+    if (product.seller) {
+      specs.push({ label: 'Vendido por', value: product.seller });
+    }
+    const variant = this.selectedVariant();
+    if (variant) {
+      for (const [key, value] of Object.entries(variant.attributes)) {
+        specs.push({ label: key, value });
+      }
+    }
+    return specs;
+  });
+
+  readonly related = computed(() => {
+    const current = this.detail()?.product.id;
+    return this.products().filter((product) => product.id !== current).slice(0, 4);
+  });
+
   readonly selectedVariant = computed<ProductVariant | null>(() => {
     const detail = this.detail();
     if (!detail) {
@@ -245,7 +315,51 @@ export class StorefrontElementComponent {
     };
   });
 
-  // ─── Search validity ─────────────────────────────────────────────────────────
+  // ─── Cart (engine) ──────────────────────────────────────────────────────────
+  readonly cartItems = this.#store.items;
+  readonly cartCount = computed(() =>
+    this.#store.items().reduce((sum, item) => sum + item.quantity, 0),
+  );
+  readonly cartLineCount = this.#store.itemCount;
+  readonly hasCart = this.#store.hasItems;
+  readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
+  readonly cartTotalLabel = computed(() =>
+    this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency()),
+  );
+  readonly liveConflict = this.#store.liveSessionConflict;
+  readonly degraded = computed(() => {
+    // Recompute on each navigation/data load; the flag is set by the API client.
+    void this.searched();
+    void this.view();
+    void this.detail();
+    void this.orders();
+    void this.wishlist();
+    return this.#api.degraded;
+  });
+
+  /** Carrito agrupado por vendedor (marketplace multi-seller). */
+  readonly cartGroups = computed<readonly CartSellerGroup[]>(() => {
+    const groups = new Map<string, SessionItem[]>();
+    for (const item of this.cartItems()) {
+      const seller = this.itemString(item.selection, 'seller') || DEFAULT_SELLER_GROUP;
+      const bucket = groups.get(seller) ?? [];
+      bucket.push(item);
+      groups.set(seller, bucket);
+    }
+    return [...groups.entries()].map(([seller, items]) => ({
+      seller,
+      items,
+      totalMinor: items.reduce((sum, item) => sum + item.amount * item.quantity, 0),
+    }));
+  });
+
+  // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
+  readonly customerName = signal('');
+  readonly customerEmail = signal('');
+  readonly customerAddress = signal('');
+  readonly customerCity = signal('');
+  readonly paymentMethod = signal<'card' | 'pse'>('card');
+
   readonly customerNameValid = computed(() => this.customerName().trim().length >= 2);
   readonly customerEmailValid = computed(() => /.+@.+\..+/.test(this.customerEmail().trim()));
   readonly shippingValid = computed(
@@ -255,6 +369,68 @@ export class StorefrontElementComponent {
       this.customerAddress().trim().length > 3 &&
       this.customerCity().trim().length > 1,
   );
+
+  /** Pasos apagables por config: datos → pago → revisar (sin paso de cita). */
+  readonly checkoutConfig: CheckoutWizardConfig = {
+    steps: [
+      { id: 'datos', label: 'Envío' },
+      { id: 'pago', label: 'Pago' },
+      { id: 'revisar', label: 'Confirmar' },
+    ],
+    summaryHeading: 'Tu pedido',
+    submitLabel: 'Pagar y confirmar',
+    processingLabel: 'Procesando…',
+    nextLabel: 'Continuar',
+    backLabel: 'Atrás',
+  };
+
+  readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
+    datos: this.shippingValid(),
+    pago: true,
+    revisar: true,
+  }));
+
+  readonly checkoutInstrument = computed<Readonly<Record<string, unknown>>>(() => ({
+    apiBase: this.apiBase(),
+    customer: this.checkoutCustomer(),
+    provider: this.paymentMethod() === 'pse' ? 'shop-pse' : 'shop-card',
+  }));
+
+  // ─── Confirmation ───────────────────────────────────────────────────────────
+  readonly orderRef = signal('');
+  readonly orderNumber = signal('');
+  readonly confirmedItems = signal<readonly { title: string; qty: number; reference: string }[]>(
+    [],
+  );
+
+  // ─── Account (SH-4 inputs) ──────────────────────────────────────────────────
+  readonly accountSection = signal<AccountSectionId>('compras');
+  readonly orders = signal<readonly ShopOrder[]>([]);
+  readonly ordersLoaded = signal(false);
+  readonly ordersLoading = signal(false);
+  readonly wishlist = signal<readonly WishlistEntry[]>([]);
+  readonly wishlistLoaded = signal(false);
+  readonly threads = signal<readonly MessageThread[]>([]);
+  readonly threadsLoaded = signal(false);
+  readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
+  readonly returnsByRef = signal<Readonly<Record<string, ReturnReceipt>>>({});
+
+  readonly wishedIds = computed(() => new Set(this.wishlist().map((entry) => entry.productId)));
+  readonly unreadCount = computed(() => this.threads().filter((thread) => thread.unread).length);
+
+  readonly accountConfig = computed<AccountShellConfig>(() => ({
+    heading: 'Mi cuenta',
+    navLabel: 'Secciones de la cuenta',
+    inboxEmptyMessage: 'Todavía no tienes compras.',
+    inboxLoadingMessage: 'Cargando tus compras…',
+    detailPlaceholder: 'Selecciona una compra para ver el detalle y su seguimiento.',
+    sections: [
+      { id: 'compras', label: 'Mis compras', kind: 'inbox' },
+      { id: 'favoritos', label: 'Favoritos', badge: this.wishlist().length || undefined },
+      { id: 'mensajes', label: 'Mensajes', badge: this.unreadCount() || undefined },
+      { id: 'perfil', label: 'Mis datos' },
+    ],
+  }));
 
   constructor() {
     // Bind the unified cart to this origin and rehydrate any live session.
@@ -270,13 +446,22 @@ export class StorefrontElementComponent {
     const cartWidget = this.#orchestrator.register('storefront-cart', { order: 0 });
     this.#orchestrator.setStatus(cartWidget, 'ready');
 
+    // Hash router: deep-linkable views (#/<scope>/p/<id>, #/<scope>/cuenta/...).
+    const onHashChange = (): void => this.applyHash();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', onHashChange);
+    }
+
     this.#destroyRef.onDestroy(() => {
       this.#orchestrator.unregister(cartWidget);
       this.#bus.destroy();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('hashchange', onHashChange);
+      }
     });
 
-    // Open the storefront with an initial unfiltered listing.
-    void this.runSearch();
+    // Open with an unfiltered listing (feeds home rails + PLP), then honour a deep link.
+    void this.runSearch().then(() => this.applyHash());
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────
@@ -284,63 +469,181 @@ export class StorefrontElementComponent {
     return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
   }
 
-  // ─── Search / PLP ──────────────────────────────────────────────────────────
-  submitSearch(): void {
-    void this.runSearch();
-  }
-
-  setSort(value: string): void {
-    const next = SORT_OPTIONS.find((option) => option.key === value)?.key ?? 'relevance';
-    this.sort.set(next);
-    void this.runSearch();
-  }
-
-  selectCategory(category: string): void {
-    this.activeCategory.set(this.activeCategory() === category ? '' : category);
-    void this.runSearch();
-  }
-
-  isFacetSelected(facetKey: string, value: string): boolean {
-    return (this.selectedFacets()[facetKey] ?? []).includes(value);
-  }
-
-  toggleFacet(facetKey: string, value: string): void {
-    const current = this.selectedFacets();
-    const selected = current[facetKey] ?? [];
-    const next = selected.includes(value)
-      ? selected.filter((entry) => entry !== value)
-      : [...selected, value];
-    this.selectedFacets.set({ ...current, [facetKey]: next });
-    void this.runSearch();
-  }
-
-  clearFacets(): void {
-    this.selectedFacets.set({});
-    this.activeCategory.set('');
-    void this.runSearch();
-  }
-
-  readonly hasActiveFacets = computed(() => {
-    if (this.activeCategory()) {
-      return true;
+  // ─── Router ──────────────────────────────────────────────────────────────────
+  navigate(view: StorefrontView, param = ''): void {
+    if (view === 'checkout' && !this.hasCart()) {
+      view = 'cart';
     }
-    return Object.values(this.selectedFacets()).some((values) => values.length > 0);
-  });
+    this.applyRoute(view, param);
+    this.writeHash(view, param);
+  }
 
-  private async runSearch(): Promise<void> {
-    if (this.loading()) {
+  goHome(): void {
+    this.navigate('home');
+  }
+
+  goToPlp(): void {
+    this.navigate('plp');
+  }
+
+  goToCart(): void {
+    this.cartOpen.set(false);
+    this.navigate('cart');
+  }
+
+  goToCheckout(): void {
+    if (!this.hasCart()) {
       return;
     }
+    this.cartOpen.set(false);
+    this.navigate('checkout');
+  }
+
+  goToAccount(section: AccountSectionId = 'compras'): void {
+    this.navigate('account', section);
+  }
+
+  continueShopping(): void {
+    this.navigate('plp');
+  }
+
+  private applyRoute(view: StorefrontView, param: string): void {
+    this.errorMessage.set('');
+    switch (view) {
+      case 'pdp':
+        if (param && param !== this.detail()?.product.id) {
+          void this.loadProduct(param);
+        }
+        this.view.set('pdp');
+        return;
+      case 'account': {
+        const section = (ACCOUNT_SECTIONS as readonly string[]).includes(param)
+          ? (param as AccountSectionId)
+          : 'compras';
+        this.accountSection.set(section);
+        this.view.set('account');
+        this.loadAccountSection(section);
+        return;
+      }
+      case 'confirmation':
+        if (!this.orderNumber()) {
+          this.view.set('home');
+          return;
+        }
+        this.view.set('confirmation');
+        return;
+      default:
+        this.view.set(view);
+    }
+  }
+
+  private routeHash(view: StorefrontView, param: string): string {
+    const base = `#/${this.scope()}`;
+    switch (view) {
+      case 'home':
+        return base;
+      case 'pdp':
+        return `${base}/p/${encodeURIComponent(param)}`;
+      case 'account':
+        return `${base}/cuenta${param ? `/${param}` : ''}`;
+      case 'cart':
+        return `${base}/carrito`;
+      case 'confirmation':
+        return `${base}/confirmacion`;
+      default:
+        return `${base}/${view}`;
+    }
+  }
+
+  private writeHash(view: StorefrontView, param: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hash = this.routeHash(view, param);
+    if (window.location.hash !== hash) {
+      this.#suppressedHash = hash;
+      window.location.hash = hash;
+    }
+  }
+
+  private applyHash(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hash = window.location.hash;
+    if (hash === this.#suppressedHash) {
+      this.#suppressedHash = '';
+      return;
+    }
+    const base = `#/${this.scope()}`;
+    if (hash !== base && !hash.startsWith(`${base}/`)) {
+      return;
+    }
+    const segments = hash
+      .slice(base.length)
+      .split('/')
+      .filter((segment) => segment !== '');
+    const [head = '', tail = ''] = segments;
+    switch (head) {
+      case '':
+        this.applyRoute('home', '');
+        return;
+      case 'plp':
+        this.applyRoute('plp', '');
+        return;
+      case 'p':
+        this.applyRoute('pdp', decodeURIComponent(tail));
+        return;
+      case 'carrito':
+        this.applyRoute('cart', '');
+        return;
+      case 'checkout':
+        this.applyRoute(this.hasCart() ? 'checkout' : 'cart', '');
+        return;
+      case 'confirmacion':
+        this.applyRoute('confirmation', '');
+        return;
+      case 'cuenta':
+        this.applyRoute('account', tail);
+        return;
+      default:
+        this.applyRoute('home', '');
+    }
+  }
+
+  // ─── Home ────────────────────────────────────────────────────────────────────
+  submitHomeSearch(): void {
+    const term = this.homeTerm().trim();
+    this.criteria.set({ ...CLEAN_CRITERIA, term });
+    this.navigate('plp');
+    void this.runSearch();
+  }
+
+  openCategory(category: string): void {
+    this.criteria.set({ ...CLEAN_CRITERIA, facets: { category: [category] } });
+    this.navigate('plp');
+    void this.runSearch();
+  }
+
+  // ─── Search / PLP (SH-1 wiring) ──────────────────────────────────────────────
+  onCriteriaChange(criteria: DiscoveryCriteria): void {
+    this.criteria.set(criteria);
+    void this.runSearch();
+  }
+
+  private async runSearch(): Promise<void> {
+    const active = this.criteria();
+    const sort =
+      SORT_OPTIONS.find((option) => option.key === active.sort)?.key ?? 'relevance';
     const criteria: SearchCriteria = {
-      q: this.searchTerm().trim(),
-      category: this.activeCategory(),
-      facets: this.selectedFacets(),
-      sort: this.sort(),
-      page: 1,
+      q: active.term,
+      category: '',
+      facets: active.facets,
+      sort,
+      page: active.page,
     };
     this.loading.set(true);
     this.errorMessage.set('');
-    this.view.set('plp');
     // Dedup concurrent identical searches via the orchestrator.
     const requestId = `search:${JSON.stringify(criteria)}`;
     try {
@@ -348,7 +651,17 @@ export class StorefrontElementComponent {
         this.#api.search(this.apiBase(), criteria, this.currency()),
       );
       this.products.set(result.products);
-      this.facets.set(result.facets);
+      this.discoveryFacets.set(
+        result.facets.map((facet) => ({
+          key: facet.key,
+          label: facet.label,
+          values: facet.values.map((value) => ({
+            value: value.value,
+            label: value.label,
+            count: value.count,
+          })),
+        })),
+      );
       this.searched.set(true);
     } catch (error) {
       this.errorMessage.set('No pudimos cargar los productos. Intenta de nuevo.');
@@ -368,23 +681,18 @@ export class StorefrontElementComponent {
       : '';
   }
 
-  // ─── PDP ─────────────────────────────────────────────────────────────────────
+  // ─── PDP (SH-2 wiring) ───────────────────────────────────────────────────────
   openProduct(product: ShopProduct): void {
-    void this.loadProduct(product.id);
+    this.navigate('pdp', product.id);
   }
 
   backToResults(): void {
-    this.view.set('plp');
     this.detail.set(null);
-    this.errorMessage.set('');
+    this.navigate('plp');
   }
 
   selectVariant(variant: ProductVariant): void {
     this.selectedVariantId.set(variant.variantId);
-  }
-
-  setPdpTab(tab: 'reviews' | 'questions'): void {
-    this.pdpTab.set(tab);
   }
 
   changeQuantity(delta: number): void {
@@ -406,8 +714,6 @@ export class StorefrontElementComponent {
         detail.variants.find((variant) => variant.inStock) ?? detail.variants[0] ?? null;
       this.selectedVariantId.set(firstInStock?.variantId ?? '');
       this.pdpQuantity.set(1);
-      this.pdpTab.set('reviews');
-      this.view.set('pdp');
     } catch (error) {
       this.errorMessage.set('No pudimos abrir el producto. Intenta de nuevo.');
       void error;
@@ -416,7 +722,57 @@ export class StorefrontElementComponent {
     }
   }
 
-  // ─── Cart ─────────────────────────────────────────────────────────────────────
+  // ─── Wishlist (favoritos) ────────────────────────────────────────────────────
+  isWished(productId: string): boolean {
+    return this.wishedIds().has(productId);
+  }
+
+  toggleWishlist(product: ShopProduct): void {
+    const entry: WishlistEntry = {
+      productId: product.id,
+      title: product.title,
+      amount: product.amount,
+      currency: product.currency || this.currency(),
+      image: product.images[0],
+    };
+    const action = this.isWished(product.id) ? 'remove' : 'add';
+    // Optimistic update; the API (or its local fallback) reconciles after.
+    this.wishlist.update((list) => {
+      const without = list.filter((line) => line.productId !== product.id);
+      return action === 'add' ? [...without, entry] : without;
+    });
+    this.wishlistLoaded.set(true);
+    void this.#api
+      .wishlistMutate(this.apiBase(), entry, action)
+      .then((list) => this.wishlist.set(list));
+  }
+
+  removeWishlistEntry(entry: WishlistEntry): void {
+    this.wishlist.update((list) => list.filter((line) => line.productId !== entry.productId));
+    void this.#api
+      .wishlistMutate(this.apiBase(), entry, 'remove')
+      .then((list) => this.wishlist.set(list));
+  }
+
+  openWishlistEntry(entry: WishlistEntry): void {
+    this.navigate('pdp', entry.productId);
+  }
+
+  wishlistPriceLabel(entry: WishlistEntry): string {
+    return this.formatPrice(entry.amount, entry.currency || this.currency());
+  }
+
+  private loadWishlist(): void {
+    if (this.wishlistLoaded()) {
+      return;
+    }
+    void this.#api.wishlist(this.apiBase(), this.currency()).then((list) => {
+      this.wishlist.set(list);
+      this.wishlistLoaded.set(true);
+    });
+  }
+
+  // ─── Cart (engine wiring) ────────────────────────────────────────────────────
   addCurrentToCart(): void {
     const detail = this.detail();
     const variant = this.selectedVariant();
@@ -453,6 +809,7 @@ export class StorefrontElementComponent {
       currency: product.currency || this.currency(),
       quantity,
       image: product.images[0] ?? '',
+      seller: product.seller,
     };
     void this.#fulfillment
       .select(
@@ -523,137 +880,125 @@ export class StorefrontElementComponent {
     );
   }
 
-  // ─── Cart → checkout ─────────────────────────────────────────────────────────
-  goToCart(): void {
-    this.cartOpen.set(false);
-    this.view.set('cart');
-    this.errorMessage.set('');
+  groupTotalLabel(group: CartSellerGroup): string {
+    return this.formatPrice(
+      group.totalMinor / 100,
+      this.#store.pricing().currency || this.currency(),
+    );
   }
 
-  goToCheckout(): void {
-    if (!this.hasCart()) {
-      return;
-    }
-    this.errorMessage.set('');
-    this.checkoutStep.set('shipping');
-    this.view.set('checkout');
-    this.cartOpen.set(false);
-  }
-
-  continueShopping(): void {
-    this.view.set('plp');
-    this.errorMessage.set('');
-  }
-
-  // ─── Checkout wizard ─────────────────────────────────────────────────────────
-  nextCheckoutStep(): void {
-    const step = this.checkoutStep();
-    if (step === 'shipping') {
-      if (!this.shippingValid()) {
-        return;
-      }
-      this.checkoutStep.set('payment');
-    } else if (step === 'payment') {
-      this.checkoutStep.set('review');
-    }
-  }
-
-  previousCheckoutStep(): void {
-    const step = this.checkoutStep();
-    if (step === 'review') {
-      this.checkoutStep.set('payment');
-    } else if (step === 'payment') {
-      this.checkoutStep.set('shipping');
-    } else {
-      this.view.set('cart');
-    }
-  }
-
+  // ─── Checkout (SH-3 wiring) ──────────────────────────────────────────────────
   setPaymentMethod(method: 'card' | 'pse'): void {
     this.paymentMethod.set(method);
   }
 
-  // ─── Single payment + confirmation for the whole cart ────────────────────────
-  placeOrder(): void {
-    if (!this.shippingValid() || !this.hasCart() || this.loading()) {
-      return;
-    }
-    const customer: ShopCustomer = {
+  private checkoutCustomer(): ShopCustomer {
+    return {
       name: this.customerName().trim(),
       email: this.customerEmail().trim(),
       address: this.customerAddress().trim(),
       city: this.customerCity().trim(),
     };
-    this.loading.set(true);
-    this.errorMessage.set('');
-    this.#store.setStatus('paying');
+  }
 
-    const session = this.#store.getValidSession();
-    // FulfillmentContext routes pay → confirm to the storefront strategy.
-    this.#fulfillment
-      .pay({ session, instrument: { apiBase: this.apiBase(), customer } })
-      .then((result) => {
-        if (!result.accepted || !result.reference) {
-          throw new Error('payment-rejected');
-        }
-        this.orderRef.set(result.reference);
-        const paid = {
-          ...this.#store.getValidSession(),
-          payments: [
-            {
-              id: `pay-${Date.now().toString(36)}`,
-              amount: this.cartTotalMinor(),
-              provider: this.paymentMethod() === 'pse' ? 'shop-pse' : 'shop-card',
-              status: 'captured' as const,
-              reference: result.reference,
-            },
-          ],
-          status: 'paying' as const,
-        };
-        this.#store.setSession(paid);
-        return this.#fulfillment.confirm(this.#store.getValidSession());
-      })
-      .then((confirmation) => {
-        if (!confirmation.confirmed) {
-          throw new Error('not-confirmed');
-        }
-        const orderNumber =
-          this.confirmationOrderNumber(confirmation.vouchers) || this.orderRef();
-        this.orderNumber.set(orderNumber);
-        this.confirmedItems.set(
-          confirmation.vouchers.map((voucher) => ({
-            title: this.voucherTitle(voucher.detail),
-            qty: this.voucherQty(voucher.detail),
-            reference: voucher.reference,
-          })),
-        );
-        this.#store.setStatus('confirmed');
-        this.loading.set(false);
-        this.view.set('confirmation');
-        this.ordersLoaded.set(false);
-        const payload = { orderRef: this.orderRef(), orderNumber };
-        this.orderconfirmed.emit(payload);
-        this.#bus.publish('orderconfirmed', payload);
-      })
-      .catch((error: unknown) => {
-        this.loading.set(false);
-        this.errorMessage.set('No pudimos completar el pago. Intenta de nuevo.');
-        this.#store.setStatus('building');
-        void error;
+  onCheckoutCompleted(result: CheckoutWizardResult): void {
+    this.orderRef.set(result.reference);
+    const orderNumber =
+      this.voucherOrderNumber(result.vouchers) || result.reference;
+    this.orderNumber.set(orderNumber);
+    this.confirmedItems.set(
+      result.vouchers.map((voucher) => ({
+        title: this.voucherTitle(voucher.detail),
+        qty: this.voucherQty(voucher.detail),
+        reference: voucher.reference,
+      })),
+    );
+    this.ordersLoaded.set(false);
+    this.navigate('confirmation');
+    const payload = { orderRef: result.reference, orderNumber };
+    this.orderconfirmed.emit(payload);
+    this.#bus.publish('orderconfirmed', payload);
+    this.emitCartUpdate();
+  }
+
+  onCheckoutFailed(reason: string): void {
+    void reason;
+    this.errorMessage.set('No pudimos completar el pago. Intenta de nuevo.');
+  }
+
+  // ─── Account (SH-4 wiring) ───────────────────────────────────────────────────
+  onAccountSectionChange(sectionId: string): void {
+    const section = (ACCOUNT_SECTIONS as readonly string[]).includes(sectionId)
+      ? (sectionId as AccountSectionId)
+      : 'compras';
+    this.accountSection.set(section);
+    this.writeHash('account', section);
+    this.loadAccountSection(section);
+  }
+
+  private loadAccountSection(section: AccountSectionId): void {
+    if (section === 'compras' && !this.ordersLoaded()) {
+      void this.loadOrders();
+    } else if (section === 'favoritos') {
+      this.loadWishlist();
+    } else if (section === 'mensajes') {
+      this.loadThreads();
+    }
+  }
+
+  onOrderSelect(order: ShopOrder): void {
+    if (this.trackingByRef()[order.orderNumber]) {
+      return;
+    }
+    void this.#api
+      .tracking(this.apiBase(), order.orderNumber, order.status)
+      .then((tracking) => {
+        this.trackingByRef.update((map) => ({
+          ...map,
+          [order.orderNumber]: tracking.stages.map((stage) => ({ ...stage })),
+        }));
       });
   }
 
-  // ─── Orders (history) ────────────────────────────────────────────────────────
-  goToOrders(): void {
-    this.view.set('orders');
-    this.errorMessage.set('');
-    if (!this.ordersLoaded()) {
-      void this.loadOrders();
+  trackingStages(orderRef: string): readonly TrackingStage[] {
+    return this.trackingByRef()[orderRef] ?? [];
+  }
+
+  canReturn(order: ShopOrder): boolean {
+    return (
+      (order.status === 'delivered' || order.status === 'shipped') &&
+      !this.returnsByRef()[order.orderNumber]
+    );
+  }
+
+  returnReceipt(orderRef: string): ReturnReceipt | null {
+    return this.returnsByRef()[orderRef] ?? null;
+  }
+
+  startReturn(order: ShopOrder): void {
+    if (!this.canReturn(order)) {
+      return;
+    }
+    void this.#api
+      .requestReturn(this.apiBase(), order.orderNumber, 'solicitud-comprador')
+      .then((receipt) => {
+        this.returnsByRef.update((map) => ({ ...map, [order.orderNumber]: receipt }));
+      });
+  }
+
+  returnStatusLabel(receipt: ReturnReceipt): string {
+    switch (receipt.status) {
+      case 'abierto':
+        return 'Reclamo abierto';
+      case 'en-revision':
+        return 'En revisión';
+      case 'resuelto':
+        return 'Resuelto';
     }
   }
 
   private async loadOrders(): Promise<void> {
-    this.loading.set(true);
+    this.ordersLoading.set(true);
     try {
       const customer = this.customerEmail().trim();
       const orders = await this.#api.orders(this.apiBase(), customer, this.currency());
@@ -663,8 +1008,18 @@ export class StorefrontElementComponent {
       this.errorMessage.set('No pudimos cargar tus compras.');
       void error;
     } finally {
-      this.loading.set(false);
+      this.ordersLoading.set(false);
     }
+  }
+
+  private loadThreads(): void {
+    if (this.threadsLoaded()) {
+      return;
+    }
+    void this.#api.messages(this.apiBase()).then((threads) => {
+      this.threads.set(threads);
+      this.threadsLoaded.set(true);
+    });
   }
 
   orderTotalLabel(order: ShopOrder): string {
@@ -695,8 +1050,7 @@ export class StorefrontElementComponent {
     this.orderNumber.set('');
     this.confirmedItems.set([]);
     this.errorMessage.set('');
-    this.checkoutStep.set('shipping');
-    this.view.set('plp');
+    this.navigate('plp');
     this.emitCartUpdate();
   }
 
@@ -741,7 +1095,7 @@ export class StorefrontElementComponent {
     return typeof value === 'number' && Number.isFinite(value) ? value : 1;
   }
 
-  private confirmationOrderNumber(
+  private voucherOrderNumber(
     vouchers: readonly { detail?: Readonly<Record<string, unknown>> }[],
   ): string {
     const value = vouchers[0]?.detail?.['orderNumber'];

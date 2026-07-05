@@ -1,0 +1,271 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shd-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shd-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shd-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shd-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shd-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shd-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shd-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shd-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shd-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shd-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shd-text);
+}
+
+.syn-discovery {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__sr-only {
+    position: absolute;
+    width: syn.px-to-rem(1);
+    height: syn.px-to-rem(1);
+    margin: syn.px-to-rem(-1);
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  // ─── Search ────────────────────────────────────────────────────────────────
+  &__search {
+    display: flex;
+    max-width: syn.px-to-rem(560);
+    border: syn.px-to-rem(1) solid var(--shd-border);
+    border-radius: syn.$radius-full;
+    background: var(--shd-surface-muted);
+    overflow: hidden;
+
+    &:focus-within {
+      border-color: var(--shd-brand);
+    }
+  }
+
+  &__search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: syn.$space-2 syn.$space-4;
+    border: none;
+    background: transparent;
+    color: var(--shd-text);
+    font: inherit;
+
+    &:focus-visible {
+      outline: none;
+    }
+  }
+
+  &__search-btn {
+    flex: 0 0 auto;
+    padding: syn.$space-2 syn.$space-4;
+    border: none;
+    background: var(--shd-brand);
+    color: var(--shd-brand-text);
+    font: inherit;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shd-focus-ring));
+  }
+
+  // ─── Layout ────────────────────────────────────────────────────────────────
+  &__body {
+    display: grid;
+    grid-template-columns: syn.px-to-rem(224) minmax(0, 1fr);
+    gap: syn.$space-lg;
+
+    @media (max-width: #{syn.px-to-rem(720)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__body:not(:has(.syn-discovery__facets)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  // ─── Facet board ───────────────────────────────────────────────────────────
+  &__facets {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    align-self: start;
+  }
+
+  &__facets-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__facets-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__clear {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--shd-brand);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+    text-decoration: underline;
+
+    @include syn.focus-visible(var(--shd-focus-ring));
+  }
+
+  &__facet {
+    margin: 0;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shd-border-subtle);
+    border-radius: syn.$radius-md;
+  }
+
+  &__facet-legend {
+    padding: 0 syn.$space-1;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--shd-text-secondary);
+  }
+
+  &__facet-option {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-1 0;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+  }
+
+  &__facet-label {
+    flex: 1 1 auto;
+  }
+
+  &__facet-count {
+    color: var(--shd-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  // ─── Toolbar + results ─────────────────────────────────────────────────────
+  &__results {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    min-width: 0;
+  }
+
+  &__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__count {
+    margin: 0;
+    color: var(--shd-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__sort-label {
+    color: var(--shd-muted);
+  }
+
+  &__select {
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--shd-border);
+    border-radius: syn.$radius-sm;
+    background: var(--shd-surface);
+    color: var(--shd-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible(var(--shd-focus-ring));
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) dashed var(--shd-border);
+    border-radius: syn.$radius-md;
+    color: var(--shd-muted);
+    text-align: center;
+  }
+
+  &__items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(216), 1fr));
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    &--list {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  // ─── Pagination ───────────────────────────────────────────────────────────
+  &__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-3;
+  }
+
+  &__page-btn {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shd-border);
+    border-radius: syn.$radius-sm;
+    background: var(--shd-surface);
+    color: var(--shd-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shd-focus-ring));
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__page-info {
+    color: var(--shd-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-discovery *,
+  .syn-discovery *::before,
+  .syn-discovery *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

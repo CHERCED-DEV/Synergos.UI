@@ -1,28 +1,15 @@
 <section class="storefront" aria-label="Tienda Synergos">
-  <!-- ─── Top bar: brand + search + nav + cart ───────────────────────────── -->
+  <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
   <header class="storefront__bar">
-    <p class="storefront__brand">
+    <button type="button" class="storefront__brand storefront__brand--btn" (click)="goHome()">
       <span class="storefront__brand-mark" aria-hidden="true">◈</span>
       <span class="storefront__brand-text">Synergos Market</span>
-    </p>
+    </button>
 
-    <form class="storefront__searchbar" role="search" (submit)="$event.preventDefault(); submitSearch()">
-      <label class="storefront__sr-only" [attr.for]="fieldId + '-q'">Buscar productos</label>
-      <input
-        class="storefront__searchbar-input"
-        type="search"
-        [id]="fieldId + '-q'"
-        placeholder="Buscar productos, marcas y más…"
-        [value]="searchTerm()"
-        (input)="bind(searchTerm.set)($event)"
-      />
-      <button class="storefront__searchbar-btn" type="submit" aria-label="Buscar">
-        <span aria-hidden="true">🔍</span>
-      </button>
-    </form>
-
-    <nav class="storefront__nav" aria-label="Cuenta">
-      <button type="button" class="storefront__nav-btn" (click)="goToOrders()">Mis compras</button>
+    <nav class="storefront__nav" aria-label="Navegación de la tienda">
+      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Inicio</button>
+      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'plp'" (click)="goToPlp()">Tienda</button>
+      <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'account'" (click)="goToAccount()">Mi cuenta</button>
       <button
         type="button"
         class="storefront__cart-toggle"
@@ -61,65 +48,374 @@
     <p class="storefront__error" role="alert">{{ errorMessage() }}</p>
   }
 
-  <!-- ═══ PLP: search results / category listing ═══════════════════════════ -->
+  <!-- ═══ HOME: hero search + ofertas + categorías destacadas ══════════════ -->
+  @if (view() === 'home') {
+    <div class="storefront__home">
+      <div class="storefront__hero">
+        <h1 class="storefront__hero-title">Todo lo que buscas, en un solo lugar</h1>
+        <p class="storefront__hero-sub">Envíos a todo el país · hasta 36 cuotas · compra protegida</p>
+        <form class="storefront__searchbar storefront__searchbar--hero" role="search" (submit)="$event.preventDefault(); submitHomeSearch()">
+          <label class="storefront__sr-only" [attr.for]="fieldId + '-hq'">Buscar productos</label>
+          <input
+            class="storefront__searchbar-input"
+            type="search"
+            [id]="fieldId + '-hq'"
+            placeholder="Buscar productos, marcas y más…"
+            [value]="homeTerm()"
+            (input)="bind(homeTerm.set)($event)"
+          />
+          <button class="storefront__searchbar-btn" type="submit" aria-label="Buscar">
+            <span aria-hidden="true">🔍</span>
+          </button>
+        </form>
+      </div>
+
+      @if (homeCategories().length > 0) {
+        <section class="storefront__home-section" aria-label="Categorías destacadas">
+          <h2 class="storefront__heading">Categorías destacadas</h2>
+          <ul class="storefront__cat-rail">
+            @for (category of homeCategories(); track category.value) {
+              <li>
+                <button type="button" class="storefront__cat-chip" (click)="openCategory(category.value)">
+                  {{ category.label }}
+                  @if (category.count !== undefined) {
+                    <span class="storefront__cat-count">{{ category.count }}</span>
+                  }
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (deals().length > 0) {
+        <section class="storefront__home-section" aria-label="Ofertas del día">
+          <h2 class="storefront__heading">Ofertas del día</h2>
+          <ul class="storefront__home-grid">
+            @for (product of deals(); track product.id) {
+              <li>
+                <ng-container
+                  [ngTemplateOutlet]="homeCard"
+                  [ngTemplateOutletContext]="{ $implicit: product }"
+                />
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (topRated().length > 0) {
+        <section class="storefront__home-section" aria-label="Más vendidos">
+          <h2 class="storefront__heading">Más vendidos</h2>
+          <ul class="storefront__home-grid">
+            @for (product of topRated(); track product.id) {
+              <li>
+                <ng-container
+                  [ngTemplateOutlet]="homeCard"
+                  [ngTemplateOutletContext]="{ $implicit: product }"
+                />
+              </li>
+            }
+          </ul>
+        </section>
+      }
+
+      <ng-template #homeCard let-product>
+        <article class="storefront__card">
+          <button
+            type="button"
+            class="storefront__card-media"
+            (click)="openProduct(product)"
+            [attr.aria-label]="'Ver ' + product.title"
+          >
+            @if (product.images.length > 0) {
+              <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
+            } @else {
+              <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+            }
+          </button>
+          <div class="storefront__card-body">
+            <h3 class="storefront__card-title">
+              <button type="button" class="storefront__card-link" (click)="openProduct(product)">
+                {{ product.title }}
+              </button>
+            </h3>
+            <p class="storefront__card-price">
+              @if (productListPriceLabel(product)) {
+                <span class="storefront__card-list">{{ productListPriceLabel(product) }}</span>
+              }
+              <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
+            </p>
+          </div>
+        </article>
+      </ng-template>
+    </div>
+  }
+
+  <!-- ═══ PLP: SH-1 discovery-shell (búsqueda facetada real) ═══════════════ -->
   @if (view() === 'plp') {
-    <div class="storefront__plp">
-      <!-- Facet board (left) -->
-      <aside class="storefront__facets" aria-label="Filtros">
-        <div class="storefront__facets-head">
-          <h2 class="storefront__facets-title">Filtros</h2>
-          @if (hasActiveFacets()) {
-            <button type="button" class="storefront__link" (click)="clearFacets()">Limpiar</button>
+    <syn-discovery-shell
+      [items]="products()"
+      [facets]="discoveryFacets()"
+      [sortOptions]="sortOptions"
+      [loading]="loading()"
+      [initialCriteria]="criteria()"
+      [config]="{
+        searchLabel: 'Buscar productos',
+        searchPlaceholder: 'Buscar productos, marcas y más…',
+        filtersHeading: 'Filtros',
+        clearLabel: 'Limpiar',
+        sortLabel: 'Ordenar por',
+        emptyMessage: 'No encontramos productos. Ajusta la búsqueda o limpia los filtros.',
+        loadingMessage: 'Cargando productos…',
+        resultsNoun: { one: 'resultado', many: 'resultados' },
+        pageSize: 12
+      }"
+      [itemTemplate]="productCard"
+      (criteriachange)="onCriteriaChange($event)"
+      (itemselect)="openProduct($event)"
+    />
+
+    <ng-template #productCard let-product let-select="select">
+      <article class="storefront__card">
+        <button
+          type="button"
+          class="storefront__card-media"
+          (click)="select()"
+          [attr.aria-label]="'Ver ' + product.title"
+        >
+          @if (product.images.length > 0) {
+            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
+          } @else {
+            <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+          }
+        </button>
+        <div class="storefront__card-body">
+          <h3 class="storefront__card-title">
+            <button type="button" class="storefront__card-link" (click)="select()">
+              {{ product.title }}
+            </button>
+          </h3>
+          <p class="storefront__card-sub">{{ product.subtitle }}</p>
+          <p class="storefront__card-price">
+            @if (productListPriceLabel(product)) {
+              <span class="storefront__card-list">{{ productListPriceLabel(product) }}</span>
+            }
+            <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
+          </p>
+          <p class="storefront__card-meta">
+            <synergos-rating-stars
+              [attr.value]="product.rating"
+              [attr.readonly]="'true'"
+            ></synergos-rating-stars>
+            <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
+          </p>
+          @if (product.badges.length > 0) {
+            <ul class="storefront__card-badges">
+              @for (badge of product.badges; track badge) {
+                <li class="storefront__chip">{{ badge }}</li>
+              }
+            </ul>
+          }
+          <div class="storefront__card-actions">
+            @if (product.inStock) {
+              <button
+                type="button"
+                class="storefront__btn storefront__btn--primary storefront__btn--sm"
+                (click)="quickAdd(product)"
+              >
+                Agregar
+              </button>
+            } @else {
+              <span class="storefront__out">Sin stock</span>
+            }
+            <button
+              type="button"
+              class="storefront__wish"
+              [class.is-active]="isWished(product.id)"
+              [attr.aria-pressed]="isWished(product.id)"
+              [attr.aria-label]="isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              (click)="toggleWishlist(product)"
+            >
+              {{ isWished(product.id) ? '♥' : '♡' }}
+            </button>
+          </div>
+        </div>
+      </article>
+    </ng-template>
+  }
+
+  <!-- ═══ PDP: SH-2 detail-shell (galería + specs + reviews/Q&A + CTA) ═════ -->
+  @if (view() === 'pdp') {
+    @if (detail(); as pdp) {
+      <syn-detail-shell
+        [eyebrow]="pdpEyebrow()"
+        [title]="pdp.product.title"
+        [subtitle]="pdp.product.subtitle"
+        [media]="pdpMedia()"
+        [specs]="pdpSpecs()"
+        [config]="{
+          backLabel: 'Volver a resultados',
+          specsHeading: 'Ficha técnica',
+          reviewsLabel: 'Opiniones (' + pdp.reviews.length + ')',
+          qaLabel: 'Preguntas (' + pdp.questions.length + ')',
+          relatedHeading: 'Quienes vieron esto también miraron',
+          galleryLabel: 'Galería de ' + pdp.product.title,
+          mediaPlaceholder: '📦'
+        }"
+        [ctaTemplate]="pdpCta"
+        [bodyTemplate]="pdpBody"
+        [reviewsTemplate]="pdpReviews"
+        [qaTemplate]="pdpQa"
+        [relatedTemplate]="related().length > 0 ? pdpRelated : null"
+        (back)="backToResults()"
+      />
+
+      <ng-template #pdpBody>
+        <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
+        <p class="storefront__pdp-meta">
+          <synergos-rating-stars
+            [attr.value]="pdp.product.rating"
+            [attr.readonly]="'true'"
+          ></synergos-rating-stars>
+          <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
+        </p>
+      </ng-template>
+
+      <ng-template #pdpCta>
+        <p class="storefront__pdp-price">{{ pdpPriceLabel() }}</p>
+        @if (pdp.product.freeShipping) {
+          <p class="storefront__pdp-ship">Envío gratis a todo el país</p>
+        }
+
+        @if (pdp.variants.length > 0) {
+          <div class="storefront__variants" role="group" aria-label="Variantes">
+            @for (variant of pdp.variants; track variant.variantId) {
+              <button
+                type="button"
+                class="storefront__variant"
+                [class.is-active]="selectedVariant()?.variantId === variant.variantId"
+                [disabled]="!variant.inStock"
+                [attr.aria-pressed]="selectedVariant()?.variantId === variant.variantId"
+                (click)="selectVariant(variant)"
+              >
+                {{ variant.label }}
+                @if (!variant.inStock) {
+                  <span class="storefront__variant-out">agotado</span>
+                }
+              </button>
+            }
+          </div>
+        }
+
+        <p class="storefront__pdp-stock" [class.is-out]="!pdpInStock()">
+          {{ pdpInStock() ? 'Disponible' : 'Sin stock' }}
+          @if (pdpInStock() && selectedVariant(); as variant) {
+            <span class="storefront__pdp-stock-n">({{ variant.stock }} unidades)</span>
+          }
+        </p>
+
+        <div class="storefront__qty" role="group" aria-label="Cantidad">
+          <button
+            type="button"
+            class="storefront__qty-btn"
+            [disabled]="pdpQuantity() <= 1"
+            (click)="changeQuantity(-1)"
+            aria-label="Disminuir cantidad"
+          >−</button>
+          <span class="storefront__qty-value" aria-live="polite">{{ pdpQuantity() }}</span>
+          <button
+            type="button"
+            class="storefront__qty-btn"
+            (click)="changeQuantity(1)"
+            aria-label="Aumentar cantidad"
+          >+</button>
+        </div>
+
+        <button
+          type="button"
+          class="storefront__btn storefront__btn--primary storefront__btn--block"
+          [disabled]="!pdpInStock()"
+          (click)="addCurrentToCart()"
+        >
+          Agregar al carrito
+        </button>
+        <button
+          type="button"
+          class="storefront__btn storefront__btn--ghost storefront__btn--block"
+          [attr.aria-pressed]="isWished(pdp.product.id)"
+          (click)="toggleWishlist(pdp.product)"
+        >
+          {{ isWished(pdp.product.id) ? '♥ En favoritos' : '♡ Agregar a favoritos' }}
+        </button>
+        @if (pdp.product.seller) {
+          <p class="storefront__seller-note">Vendido por <strong>{{ pdp.product.seller }}</strong></p>
+        }
+      </ng-template>
+
+      <ng-template #pdpReviews>
+        <div class="storefront__reviews">
+          <div class="storefront__review-summary">
+            <p class="storefront__review-avg">{{ reviewSummary().average }}</p>
+            <synergos-rating-stars
+              [attr.value]="reviewSummary().average"
+              [attr.readonly]="'true'"
+            ></synergos-rating-stars>
+            <p class="storefront__review-count">{{ reviewSummary().count }} opiniones</p>
+          </div>
+          @if (pdp.reviews.length === 0) {
+            <p class="storefront__empty">Aún no hay opiniones para este producto.</p>
+          } @else {
+            <ul class="storefront__review-list">
+              @for (review of pdp.reviews; track review.id) {
+                <li class="storefront__review">
+                  <p class="storefront__review-head">
+                    <span class="storefront__review-author">{{ review.author }}</span>
+                    <synergos-rating-stars
+                      [attr.value]="review.rating"
+                      [attr.readonly]="'true'"
+                    ></synergos-rating-stars>
+                  </p>
+                  @if (review.title) {
+                    <p class="storefront__review-title">{{ review.title }}</p>
+                  }
+                  <p class="storefront__review-body">{{ review.body }}</p>
+                  @if (review.date) {
+                    <p class="storefront__review-date">{{ review.date }}</p>
+                  }
+                </li>
+              }
+            </ul>
           }
         </div>
-        @for (facet of facets(); track facet.key) {
-          <fieldset class="storefront__facet">
-            <legend class="storefront__facet-legend">{{ facet.label }}</legend>
-            @for (value of facet.values; track value.value) {
-              <label class="storefront__facet-option">
-                <input
-                  type="checkbox"
-                  [checked]="isFacetSelected(facet.key, value.value)"
-                  (change)="toggleFacet(facet.key, value.value)"
-                />
-                <span class="storefront__facet-label">{{ value.label }}</span>
-                <span class="storefront__facet-count">{{ value.count }}</span>
-              </label>
-            }
-          </fieldset>
-        }
-      </aside>
+      </ng-template>
 
-      <!-- Results (right) -->
-      <div class="storefront__results">
-        <div class="storefront__results-bar">
-          <p class="storefront__results-count" aria-live="polite">
-            {{ products().length }} {{ products().length === 1 ? 'resultado' : 'resultados' }}
-          </p>
-          <label class="storefront__sort">
-            <span class="storefront__sort-label">Ordenar por</span>
-            <select
-              class="storefront__select"
-              [value]="sort()"
-              (change)="setSort($any($event.target).value)"
-            >
-              @for (option of sortOptions; track option.key) {
-                <option [value]="option.key">{{ option.label }}</option>
+      <ng-template #pdpQa>
+        <div class="storefront__qa">
+          @if (pdp.questions.length === 0) {
+            <p class="storefront__empty">Sé el primero en preguntar al vendedor.</p>
+          } @else {
+            <ul class="storefront__qa-list">
+              @for (question of pdp.questions; track question.id) {
+                <li class="storefront__qa-item">
+                  <p class="storefront__qa-q"><span aria-hidden="true">P:</span> {{ question.question }}</p>
+                  @if (question.answer) {
+                    <p class="storefront__qa-a"><span aria-hidden="true">R:</span> {{ question.answer }}</p>
+                  } @else {
+                    <p class="storefront__qa-pending">Pregunta sin responder</p>
+                  }
+                </li>
               }
-            </select>
-          </label>
+            </ul>
+          }
         </div>
+      </ng-template>
 
-        @if (loading()) {
-          <p class="storefront__empty" role="status">Cargando productos…</p>
-        } @else if (products().length === 0) {
-          <p class="storefront__empty">
-            No encontramos productos. Ajusta la búsqueda o limpia los filtros.
-          </p>
-        } @else {
-          <ul class="storefront__grid">
-            @for (product of products(); track product.id) {
-              <li class="storefront__card">
+      <ng-template #pdpRelated>
+        <ul class="storefront__home-grid">
+          @for (product of related(); track product.id) {
+            <li>
+              <article class="storefront__card">
                 <button
                   type="button"
                   class="storefront__card-media"
@@ -138,237 +434,21 @@
                       {{ product.title }}
                     </button>
                   </h3>
-                  <p class="storefront__card-sub">{{ product.subtitle }}</p>
                   <p class="storefront__card-price">
-                    @if (productListPriceLabel(product)) {
-                      <span class="storefront__card-list">{{ productListPriceLabel(product) }}</span>
-                    }
                     <span class="storefront__card-now">{{ productPriceLabel(product) }}</span>
                   </p>
-                  <p class="storefront__card-meta">
-                    <synergos-rating-stars
-                      [attr.value]="product.rating"
-                      [attr.readonly]="'true'"
-                    ></synergos-rating-stars>
-                    <span class="storefront__card-reviews">({{ product.reviewCount }})</span>
-                  </p>
-                  @if (product.badges.length > 0) {
-                    <ul class="storefront__card-badges">
-                      @for (badge of product.badges; track badge) {
-                        <li class="storefront__chip">{{ badge }}</li>
-                      }
-                    </ul>
-                  }
-                  <div class="storefront__card-actions">
-                    @if (product.inStock) {
-                      <button
-                        type="button"
-                        class="storefront__btn storefront__btn--primary storefront__btn--sm"
-                        (click)="quickAdd(product)"
-                      >
-                        Agregar
-                      </button>
-                    } @else {
-                      <span class="storefront__out">Sin stock</span>
-                    }
-                  </div>
                 </div>
-              </li>
-            }
-          </ul>
-        }
-      </div>
-    </div>
+              </article>
+            </li>
+          }
+        </ul>
+      </ng-template>
+    } @else {
+      <p class="storefront__empty" role="status">Cargando producto…</p>
+    }
   }
 
-  <!-- ═══ PDP: product detail ══════════════════════════════════════════════ -->
-  @if (view() === 'pdp' && detail(); as pdp) {
-    <article class="storefront__pdp">
-      <button type="button" class="storefront__link storefront__back" (click)="backToResults()">
-        ← Volver a resultados
-      </button>
-
-      <div class="storefront__pdp-top">
-        <!-- Gallery -->
-        <div class="storefront__gallery">
-          @if (pdp.product.images.length > 0) {
-            <img class="storefront__gallery-img" [src]="pdp.product.images[0]" alt="" />
-          } @else {
-            <span class="storefront__gallery-placeholder" aria-hidden="true">📦</span>
-          }
-        </div>
-
-        <!-- Buy box -->
-        <div class="storefront__buybox">
-          <p class="storefront__pdp-condition">
-            {{ pdp.product.condition === 'used' ? 'Usado' : pdp.product.condition === 'refurbished' ? 'Reacondicionado' : 'Nuevo' }}
-            · {{ pdp.product.brand }}
-          </p>
-          <h1 class="storefront__pdp-title">{{ pdp.product.title }}</h1>
-          <p class="storefront__pdp-meta">
-            <synergos-rating-stars
-              [attr.value]="pdp.product.rating"
-              [attr.readonly]="'true'"
-            ></synergos-rating-stars>
-            <span class="storefront__card-reviews">{{ pdp.product.rating }} ({{ pdp.product.reviewCount }} opiniones)</span>
-          </p>
-
-          <p class="storefront__pdp-price">{{ pdpPriceLabel() }}</p>
-          @if (pdp.product.freeShipping) {
-            <p class="storefront__pdp-ship">Envío gratis a todo el país</p>
-          }
-
-          <!-- Variant picker -->
-          @if (pdp.variants.length > 0) {
-            <div class="storefront__variants" role="group" aria-label="Variantes">
-              @for (variant of pdp.variants; track variant.variantId) {
-                <button
-                  type="button"
-                  class="storefront__variant"
-                  [class.is-active]="selectedVariant()?.variantId === variant.variantId"
-                  [disabled]="!variant.inStock"
-                  [attr.aria-pressed]="selectedVariant()?.variantId === variant.variantId"
-                  (click)="selectVariant(variant)"
-                >
-                  {{ variant.label }}
-                  @if (!variant.inStock) {
-                    <span class="storefront__variant-out">agotado</span>
-                  }
-                </button>
-              }
-            </div>
-          }
-
-          <!-- Stock -->
-          <p class="storefront__pdp-stock" [class.is-out]="!pdpInStock()">
-            {{ pdpInStock() ? 'Disponible' : 'Sin stock' }}
-            @if (pdpInStock() && selectedVariant(); as variant) {
-              <span class="storefront__pdp-stock-n">({{ variant.stock }} unidades)</span>
-            }
-          </p>
-
-          <!-- Quantity -->
-          <div class="storefront__qty" role="group" aria-label="Cantidad">
-            <button
-              type="button"
-              class="storefront__qty-btn"
-              [disabled]="pdpQuantity() <= 1"
-              (click)="changeQuantity(-1)"
-              aria-label="Disminuir cantidad"
-            >−</button>
-            <span class="storefront__qty-value" aria-live="polite">{{ pdpQuantity() }}</span>
-            <button
-              type="button"
-              class="storefront__qty-btn"
-              (click)="changeQuantity(1)"
-              aria-label="Aumentar cantidad"
-            >+</button>
-          </div>
-
-          <div class="storefront__pdp-actions">
-            <button
-              type="button"
-              class="storefront__btn storefront__btn--primary storefront__btn--block"
-              [disabled]="!pdpInStock()"
-              (click)="addCurrentToCart()"
-            >
-              Agregar al carrito
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Description -->
-      <section class="storefront__pdp-desc">
-        <h2 class="storefront__heading">Descripción</h2>
-        <p class="storefront__pdp-desc-text">{{ pdp.description }}</p>
-      </section>
-
-      <!-- Reviews / Q&A tabs -->
-      <section class="storefront__social">
-        <div class="storefront__social-tabs" role="tablist" aria-label="Opiniones y preguntas">
-          <button
-            type="button"
-            role="tab"
-            class="storefront__social-tab"
-            [class.is-active]="pdpTab() === 'reviews'"
-            [attr.aria-selected]="pdpTab() === 'reviews'"
-            (click)="setPdpTab('reviews')"
-          >
-            Opiniones ({{ pdp.reviews.length }})
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="storefront__social-tab"
-            [class.is-active]="pdpTab() === 'questions'"
-            [attr.aria-selected]="pdpTab() === 'questions'"
-            (click)="setPdpTab('questions')"
-          >
-            Preguntas ({{ pdp.questions.length }})
-          </button>
-        </div>
-
-        @if (pdpTab() === 'reviews') {
-          <div class="storefront__reviews">
-            <div class="storefront__review-summary">
-              <p class="storefront__review-avg">{{ reviewSummary().average }}</p>
-              <synergos-rating-stars
-                [attr.value]="reviewSummary().average"
-                [attr.readonly]="'true'"
-              ></synergos-rating-stars>
-              <p class="storefront__review-count">{{ reviewSummary().count }} opiniones</p>
-            </div>
-            @if (pdp.reviews.length === 0) {
-              <p class="storefront__empty">Aún no hay opiniones para este producto.</p>
-            } @else {
-              <ul class="storefront__review-list">
-                @for (review of pdp.reviews; track review.id) {
-                  <li class="storefront__review">
-                    <p class="storefront__review-head">
-                      <span class="storefront__review-author">{{ review.author }}</span>
-                      <synergos-rating-stars
-                        [attr.value]="review.rating"
-                        [attr.readonly]="'true'"
-                      ></synergos-rating-stars>
-                    </p>
-                    @if (review.title) {
-                      <p class="storefront__review-title">{{ review.title }}</p>
-                    }
-                    <p class="storefront__review-body">{{ review.body }}</p>
-                    @if (review.date) {
-                      <p class="storefront__review-date">{{ review.date }}</p>
-                    }
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        } @else {
-          <div class="storefront__qa">
-            @if (pdp.questions.length === 0) {
-              <p class="storefront__empty">Sé el primero en preguntar al vendedor.</p>
-            } @else {
-              <ul class="storefront__qa-list">
-                @for (question of pdp.questions; track question.id) {
-                  <li class="storefront__qa-item">
-                    <p class="storefront__qa-q"><span aria-hidden="true">P:</span> {{ question.question }}</p>
-                    @if (question.answer) {
-                      <p class="storefront__qa-a"><span aria-hidden="true">R:</span> {{ question.answer }}</p>
-                    } @else {
-                      <p class="storefront__qa-pending">Pregunta sin responder</p>
-                    }
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-        }
-      </section>
-    </article>
-  }
-
-  <!-- ═══ CART ═════════════════════════════════════════════════════════════ -->
+  <!-- ═══ CART: agrupado por vendedor ══════════════════════════════════════ -->
   @if (view() === 'cart') {
     <div class="storefront__cart-page">
       <h1 class="storefront__heading">Tu carrito</h1>
@@ -378,28 +458,36 @@
           Seguir comprando
         </button>
       } @else {
-        <ul class="storefront__cart-lines">
-          @for (item of cartItems(); track item.id) {
-            <li class="storefront__cart-line">
-              <div class="storefront__cart-line-main">
-                <p class="storefront__cart-line-name">{{ itemLineLabel(item) }}</p>
-                <p class="storefront__cart-line-unit">{{ itemUnitLabel(item) }} c/u</p>
-              </div>
-              <div class="storefront__qty storefront__qty--sm" role="group" aria-label="Cantidad">
-                <button type="button" class="storefront__qty-btn" (click)="decrementLine(item)" aria-label="Disminuir">−</button>
-                <span class="storefront__qty-value">{{ item.quantity }}</span>
-                <button type="button" class="storefront__qty-btn" (click)="incrementLine(item)" aria-label="Aumentar">+</button>
-              </div>
-              <p class="storefront__cart-line-total">{{ itemLineTotalLabel(item) }}</p>
-              <button
-                type="button"
-                class="storefront__cart-remove"
-                (click)="removeFromCart(item.id)"
-                [attr.aria-label]="'Eliminar ' + item.label"
-              >✕</button>
-            </li>
-          }
-        </ul>
+        @for (group of cartGroups(); track group.seller) {
+          <section class="storefront__cart-group" [attr.aria-label]="'Vendido por ' + group.seller">
+            <p class="storefront__cart-group-head">
+              <span class="storefront__cart-group-seller">Vendido por <strong>{{ group.seller }}</strong></span>
+              <span class="storefront__cart-group-total">{{ groupTotalLabel(group) }}</span>
+            </p>
+            <ul class="storefront__cart-lines">
+              @for (item of group.items; track item.id) {
+                <li class="storefront__cart-line">
+                  <div class="storefront__cart-line-main">
+                    <p class="storefront__cart-line-name">{{ itemLineLabel(item) }}</p>
+                    <p class="storefront__cart-line-unit">{{ itemUnitLabel(item) }} c/u</p>
+                  </div>
+                  <div class="storefront__qty storefront__qty--sm" role="group" aria-label="Cantidad">
+                    <button type="button" class="storefront__qty-btn" (click)="decrementLine(item)" aria-label="Disminuir">−</button>
+                    <span class="storefront__qty-value">{{ item.quantity }}</span>
+                    <button type="button" class="storefront__qty-btn" (click)="incrementLine(item)" aria-label="Aumentar">+</button>
+                  </div>
+                  <p class="storefront__cart-line-total">{{ itemLineTotalLabel(item) }}</p>
+                  <button
+                    type="button"
+                    class="storefront__cart-remove"
+                    (click)="removeFromCart(item.id)"
+                    [attr.aria-label]="'Eliminar ' + item.label"
+                  >✕</button>
+                </li>
+              }
+            </ul>
+          </section>
+        }
         <div class="storefront__cart-foot">
           <p class="storefront__cart-total">
             <span>Total</span>
@@ -418,87 +506,77 @@
     </div>
   }
 
-  <!-- ═══ CHECKOUT (wizard) ════════════════════════════════════════════════ -->
+  <!-- ═══ CHECKOUT: SH-3 checkout-wizard sobre el engine ═══════════════════ -->
   @if (view() === 'checkout') {
-    <div class="storefront__checkout">
-      <ol class="storefront__steps" aria-label="Pasos del pago">
-        <li class="storefront__step" [class.is-active]="checkoutStep() === 'shipping'" [class.is-done]="checkoutStep() !== 'shipping'">1. Envío</li>
-        <li class="storefront__step" [class.is-active]="checkoutStep() === 'payment'" [class.is-done]="checkoutStep() === 'review'">2. Pago</li>
-        <li class="storefront__step" [class.is-active]="checkoutStep() === 'review'">3. Confirmar</li>
-      </ol>
+    <syn-checkout-wizard
+      [config]="checkoutConfig"
+      [stepTemplate]="checkoutStep"
+      [validity]="checkoutValidity()"
+      [instrument]="checkoutInstrument()"
+      (completed)="onCheckoutCompleted($event)"
+      (failed)="onCheckoutFailed($event)"
+      (exit)="goToCart()"
+    />
 
-      @if (checkoutStep() === 'shipping') {
-        <fieldset class="storefront__form">
-          <legend class="storefront__heading">Datos de envío</legend>
-          <label class="storefront__field">
-            <span class="storefront__label">Nombre completo</span>
-            <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" [attr.aria-invalid]="customerName() && !customerNameValid() ? 'true' : null" />
-          </label>
-          <label class="storefront__field">
-            <span class="storefront__label">Correo electrónico</span>
-            <input class="storefront__input" type="email" [value]="customerEmail()" (input)="bind(customerEmail.set)($event)" [attr.aria-invalid]="customerEmail() && !customerEmailValid() ? 'true' : null" />
-          </label>
-          <label class="storefront__field">
-            <span class="storefront__label">Dirección</span>
-            <input class="storefront__input" type="text" [value]="customerAddress()" (input)="bind(customerAddress.set)($event)" />
-          </label>
-          <label class="storefront__field">
-            <span class="storefront__label">Ciudad</span>
-            <input class="storefront__input" type="text" [value]="customerCity()" (input)="bind(customerCity.set)($event)" />
-          </label>
-        </fieldset>
-        <div class="storefront__actions">
-          <button type="button" class="storefront__btn storefront__btn--ghost" (click)="previousCheckoutStep()">Volver al carrito</button>
-          <button type="button" class="storefront__btn storefront__btn--primary" [disabled]="!shippingValid()" (click)="nextCheckoutStep()">Continuar a pago</button>
-        </div>
-      }
-
-      @if (checkoutStep() === 'payment') {
-        <fieldset class="storefront__form">
-          <legend class="storefront__heading">Método de pago</legend>
-          <label class="storefront__radio">
-            <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
-            <span>Tarjeta de crédito / débito (hasta 36 cuotas)</span>
-          </label>
-          <label class="storefront__radio">
-            <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
-            <span>PSE — débito desde tu banco</span>
-          </label>
-          <p class="storefront__notice">Demostración: no se realiza un cobro real.</p>
-        </fieldset>
-        <div class="storefront__actions">
-          <button type="button" class="storefront__btn storefront__btn--ghost" (click)="previousCheckoutStep()">Atrás</button>
-          <button type="button" class="storefront__btn storefront__btn--primary" (click)="nextCheckoutStep()">Revisar pedido</button>
-        </div>
-      }
-
-      @if (checkoutStep() === 'review') {
-        <div class="storefront__review-order">
-          <h2 class="storefront__heading">Revisa tu pedido</h2>
-          <dl class="storefront__summary">
-            @for (item of cartItems(); track item.id) {
-              <div class="storefront__summary-row">
-                <dt>{{ itemLineLabel(item) }} × {{ item.quantity }}</dt>
-                <dd>{{ itemLineTotalLabel(item) }}</dd>
+    <ng-template #checkoutStep let-step>
+      @switch (step.id) {
+        @case ('datos') {
+          <fieldset class="storefront__form">
+            <legend class="storefront__heading">Datos de envío</legend>
+            <label class="storefront__field">
+              <span class="storefront__label">Nombre completo</span>
+              <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" [attr.aria-invalid]="customerName() && !customerNameValid() ? 'true' : null" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Correo electrónico</span>
+              <input class="storefront__input" type="email" [value]="customerEmail()" (input)="bind(customerEmail.set)($event)" [attr.aria-invalid]="customerEmail() && !customerEmailValid() ? 'true' : null" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Dirección</span>
+              <input class="storefront__input" type="text" [value]="customerAddress()" (input)="bind(customerAddress.set)($event)" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Ciudad</span>
+              <input class="storefront__input" type="text" [value]="customerCity()" (input)="bind(customerCity.set)($event)" />
+            </label>
+          </fieldset>
+        }
+        @case ('pago') {
+          <fieldset class="storefront__form">
+            <legend class="storefront__heading">Método de pago</legend>
+            <label class="storefront__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
+              <span>Tarjeta de crédito / débito (hasta 36 cuotas)</span>
+            </label>
+            <label class="storefront__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
+              <span>PSE — débito desde tu banco</span>
+            </label>
+            <p class="storefront__notice">Demostración: no se realiza un cobro real.</p>
+          </fieldset>
+        }
+        @case ('revisar') {
+          <div class="storefront__review-order">
+            <h2 class="storefront__heading">Revisa tu pedido</h2>
+            <dl class="storefront__summary">
+              @for (item of cartItems(); track item.id) {
+                <div class="storefront__summary-row">
+                  <dt>{{ itemLineLabel(item) }} × {{ item.quantity }}</dt>
+                  <dd>{{ itemLineTotalLabel(item) }}</dd>
+                </div>
+              }
+              <div class="storefront__summary-row storefront__summary-row--total">
+                <dt>Total</dt>
+                <dd>{{ cartTotalLabel() }}</dd>
               </div>
-            }
-            <div class="storefront__summary-row storefront__summary-row--total">
-              <dt>Total</dt>
-              <dd>{{ cartTotalLabel() }}</dd>
-            </div>
-          </dl>
-          <p class="storefront__ship-to">
-            Envío a: {{ customerName() }} · {{ customerAddress() }}, {{ customerCity() }}
-          </p>
-        </div>
-        <div class="storefront__actions">
-          <button type="button" class="storefront__btn storefront__btn--ghost" (click)="previousCheckoutStep()">Atrás</button>
-          <button type="button" class="storefront__btn storefront__btn--primary" [disabled]="loading()" (click)="placeOrder()">
-            {{ loading() ? 'Procesando…' : 'Pagar y confirmar' }}
-          </button>
-        </div>
+            </dl>
+            <p class="storefront__ship-to">
+              Envío a: {{ customerName() }} · {{ customerAddress() }}, {{ customerCity() }}
+            </p>
+          </div>
+        }
       }
-    </div>
+    </ng-template>
   }
 
   <!-- ═══ CONFIRMATION ═════════════════════════════════════════════════════ -->
@@ -518,43 +596,141 @@
         </ul>
       }
       <div class="storefront__actions">
-        <button type="button" class="storefront__btn storefront__btn--ghost" (click)="goToOrders()">Ver mis compras</button>
+        <button type="button" class="storefront__btn storefront__btn--ghost" (click)="goToAccount()">Ver mis compras</button>
         <button type="button" class="storefront__btn storefront__btn--primary" (click)="startOver()">Seguir comprando</button>
       </div>
     </div>
   }
 
-  <!-- ═══ ORDERS (history) ═════════════════════════════════════════════════ -->
-  @if (view() === 'orders') {
-    <div class="storefront__orders">
-      <div class="storefront__orders-head">
-        <h1 class="storefront__heading">Mis compras</h1>
-        <button type="button" class="storefront__link" (click)="continueShopping()">Ir a la tienda</button>
-      </div>
-      @if (loading()) {
-        <p class="storefront__empty" role="status">Cargando tus compras…</p>
-      } @else if (orders().length === 0) {
-        <p class="storefront__empty">Todavía no tienes compras.</p>
-      } @else {
-        <ul class="storefront__order-list">
-          @for (order of orders(); track order.orderNumber) {
-            <li class="storefront__order">
-              <div class="storefront__order-head">
-                <span class="storefront__order-number">{{ order.orderNumber }}</span>
-                <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
-              </div>
-              <p class="storefront__order-date">{{ order.date }}</p>
-              <ul class="storefront__order-items">
-                @for (line of order.items; track line.title) {
-                  <li class="storefront__order-item">{{ line.title }} × {{ line.qty }}</li>
-                }
-              </ul>
-              <p class="storefront__order-total">{{ orderTotalLabel(order) }}</p>
-            </li>
+  <!-- ═══ ACCOUNT: SH-4 account-shell (compras + tracking + wishlist + msgs) ═ -->
+  @if (view() === 'account') {
+    <syn-account-shell
+      [config]="accountConfig()"
+      [items]="orders()"
+      [loading]="ordersLoading()"
+      [section]="accountSection()"
+      [itemTemplate]="orderRow"
+      [detailTemplate]="orderDetail"
+      [sectionTemplate]="accountSectionTpl"
+      (sectionchange)="onAccountSectionChange($event)"
+      (itemselect)="onOrderSelect($event)"
+    />
+
+    <ng-template #orderRow let-order>
+      <span class="storefront__order-head">
+        <span class="storefront__order-number">{{ order.orderNumber }}</span>
+        <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
+      </span>
+      <span class="storefront__order-date">{{ order.date }} · {{ orderTotalLabel(order) }}</span>
+    </ng-template>
+
+    <ng-template #orderDetail let-order>
+      <div class="storefront__order-detail">
+        <div class="storefront__order-head">
+          <span class="storefront__order-number">{{ order.orderNumber }}</span>
+          <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
+        </div>
+        <ul class="storefront__order-items">
+          @for (line of order.items; track line.title) {
+            <li class="storefront__order-item">{{ line.title }} × {{ line.qty }}</li>
           }
         </ul>
+        <p class="storefront__order-total">{{ orderTotalLabel(order) }}</p>
+
+        <syn-tracking-timeline
+          heading="Seguimiento del envío"
+          [stages]="trackingStages(order.orderNumber)"
+          emptyMessage="Consultando el seguimiento…"
+        />
+
+        <div class="storefront__order-actions">
+          @if (canReturn(order)) {
+            <button type="button" class="storefront__btn storefront__btn--ghost" (click)="startReturn(order)">
+              Iniciar devolución
+            </button>
+          }
+          @if (returnReceipt(order.orderNumber); as receipt) {
+            <p class="storefront__return-note" role="status">
+              {{ returnStatusLabel(receipt) }} · reclamo {{ receipt.claimId }}
+            </p>
+          }
+          <button type="button" class="storefront__link" (click)="goToAccount('mensajes')">
+            Contactar al vendedor
+          </button>
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #accountSectionTpl let-section>
+      @switch (section.id) {
+        @case ('favoritos') {
+          @if (wishlist().length === 0) {
+            <p class="storefront__empty">Todavía no guardas productos. Toca ♡ en cualquier producto.</p>
+          } @else {
+            <ul class="storefront__wish-grid">
+              @for (entry of wishlist(); track entry.productId) {
+                <li class="storefront__wish-card">
+                  @if (entry.image) {
+                    <img class="storefront__wish-img" [src]="entry.image" alt="" loading="lazy" />
+                  } @else {
+                    <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+                  }
+                  <p class="storefront__wish-title">{{ entry.title }}</p>
+                  <p class="storefront__card-now">{{ wishlistPriceLabel(entry) }}</p>
+                  <div class="storefront__actions">
+                    <button type="button" class="storefront__btn storefront__btn--sm storefront__btn--primary" (click)="openWishlistEntry(entry)">Ver</button>
+                    <button type="button" class="storefront__btn storefront__btn--sm storefront__btn--ghost" (click)="removeWishlistEntry(entry)">Quitar</button>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        }
+        @case ('mensajes') {
+          <div class="storefront__messages">
+            <p class="storefront__notice">Mensajería v1 — lectura de hilos; responder llega con la cara vendedor.</p>
+            @if (threads().length === 0) {
+              <p class="storefront__empty">No tienes mensajes con vendedores.</p>
+            } @else {
+              <ul class="storefront__thread-list">
+                @for (thread of threads(); track thread.id) {
+                  <li class="storefront__thread" [class.is-unread]="thread.unread">
+                    <p class="storefront__thread-head">
+                      <span class="storefront__thread-subject">{{ thread.subject }}</span>
+                      <span class="storefront__thread-date">{{ thread.date }}</span>
+                    </p>
+                    <p class="storefront__thread-meta">{{ thread.counterpart }}</p>
+                    <p class="storefront__thread-last">{{ thread.lastMessage }}</p>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+        @case ('perfil') {
+          <fieldset class="storefront__form">
+            <legend class="storefront__heading">Mis datos</legend>
+            <p class="storefront__notice">Estos datos prellenan el checkout.</p>
+            <label class="storefront__field">
+              <span class="storefront__label">Nombre completo</span>
+              <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Correo electrónico</span>
+              <input class="storefront__input" type="email" [value]="customerEmail()" (input)="bind(customerEmail.set)($event)" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Dirección</span>
+              <input class="storefront__input" type="text" [value]="customerAddress()" (input)="bind(customerAddress.set)($event)" />
+            </label>
+            <label class="storefront__field">
+              <span class="storefront__label">Ciudad</span>
+              <input class="storefront__input" type="text" [value]="customerCity()" (input)="bind(customerCity.set)($event)" />
+            </label>
+          </fieldset>
+        }
       }
-    </div>
+    </ng-template>
   }
 
   <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->

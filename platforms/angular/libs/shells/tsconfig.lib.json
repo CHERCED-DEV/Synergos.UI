@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/libs/shells",
+    "declaration": true,
+    "declarationMap": true,
+    "inlineSources": true,
+    "sourceMap": true
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "**/*.spec.ts"]
+}

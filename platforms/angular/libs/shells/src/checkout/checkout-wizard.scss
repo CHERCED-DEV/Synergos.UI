@@ -1,0 +1,185 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shw-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shw-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shw-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shw-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shw-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shw-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shw-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shw-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shw-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --shw-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --shw-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --shw-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shw-text);
+}
+
+.syn-wizard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(syn.px-to-rem(240), 1fr);
+  gap: syn.$space-lg;
+  align-items: start;
+
+  @media (max-width: #{syn.px-to-rem(840)}) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &--no-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-4;
+    min-width: 0;
+  }
+
+  // ─── Step indicator ────────────────────────────────────────────────────────
+  &__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__step {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shw-border);
+    border-radius: syn.$radius-full;
+    color: var(--shw-muted);
+    font-size: syn.$font-size-sm;
+
+    &.is-active {
+      border-color: var(--shw-brand);
+      background: var(--shw-brand-soft);
+      color: var(--shw-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &.is-done {
+      color: var(--shw-text-secondary);
+      text-decoration: line-through;
+    }
+  }
+
+  &__content {
+    min-width: 0;
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+    color: var(--shw-danger);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Actions ───────────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  &__btn {
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shw-border);
+    border-radius: syn.$radius-md;
+    background: var(--shw-surface);
+    color: var(--shw-text);
+    font: inherit;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shw-focus-ring));
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      border-color: var(--shw-brand);
+      background: var(--shw-brand);
+      color: var(--shw-brand-text);
+    }
+  }
+
+  // ─── Summary ───────────────────────────────────────────────────────────────
+  &__summary {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shw-border);
+    border-radius: syn.$radius-lg;
+    background: var(--shw-surface-muted);
+    box-shadow: var(--shw-shadow);
+  }
+
+  &__summary-heading {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__summary-empty {
+    margin: 0;
+    color: var(--shw-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__lines {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__line {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__line-label {
+    color: var(--shw-text-secondary);
+  }
+
+  &__line-amount {
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__total {
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    padding-top: syn.$space-2;
+    border-top: syn.px-to-rem(1) solid var(--shw-border-subtle);
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-wizard *,
+  .syn-wizard *::before,
+  .syn-wizard *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

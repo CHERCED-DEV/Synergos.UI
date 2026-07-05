@@ -20,17 +20,18 @@ export const STOREFRONT_FLOW = 'storefront';
 /** Every storefront cart line is a `product` kind for the engine. */
 export const STOREFRONT_KIND: SessionItemKind = 'product';
 
-/** The high-level phase / route the storefront is in. */
+/** The high-level phase / route the storefront is in (hash deep-linkable). */
 export type StorefrontView =
-  | 'plp' // search results / category listing
-  | 'pdp' // product detail
+  | 'home' // marketplace home: deals + featured categories
+  | 'plp' // search results / category listing (SH-1)
+  | 'pdp' // product detail (SH-2)
   | 'cart'
-  | 'checkout'
+  | 'checkout' // SH-3 over the engine
   | 'confirmation'
-  | 'orders';
+  | 'account'; // SH-4: mis compras + tracking + wishlist + mensajes + perfil
 
-/** The checkout wizard step. */
-export type CheckoutStep = 'shipping' | 'payment' | 'review';
+/** Account sections rendered inside SH-4. */
+export type AccountSectionId = 'compras' | 'favoritos' | 'mensajes' | 'perfil';
 
 /** Catalogue sort options for the PLP. Maps 1:1 to the API `sort` query param. */
 export type SortKey = 'relevance' | 'price-asc' | 'price-desc' | 'newest';
@@ -53,6 +54,8 @@ export interface ShopProduct {
   readonly currency: string;
   readonly brand: string;
   readonly category: string;
+  /** Marketplace seller (cart groups lines per seller). Optional — single-seller shops omit it. */
+  readonly seller?: string;
   readonly condition: ProductCondition;
   readonly freeShipping: boolean;
   readonly rating: number;
@@ -205,4 +208,48 @@ export interface OrderLine {
   readonly title: string;
   readonly qty: number;
   readonly amount: number;
+}
+
+// ─── Post-venta / cuenta (contratos nuevos — backend en paralelo) ─────────────
+
+/** One saved product from `GET /api/shop/wishlist`. */
+export interface WishlistEntry {
+  readonly productId: string;
+  readonly title: string;
+  /** Price in major units. */
+  readonly amount: number;
+  readonly currency: string;
+  readonly image?: string;
+}
+
+/** One shipment stage from `GET /api/shop/order/{ref}/tracking`. */
+export interface ShipmentStage {
+  readonly id: string;
+  readonly label: string;
+  readonly date?: string;
+  readonly description?: string;
+  readonly state: 'done' | 'current' | 'pending';
+}
+
+/** `GET /api/shop/order/{ref}/tracking` response. */
+export interface OrderTracking {
+  readonly orderRef: string;
+  readonly carrier?: string;
+  readonly stages: readonly ShipmentStage[];
+}
+
+/** `POST /api/shop/order/{ref}/return` response — a claim was opened. */
+export interface ReturnReceipt {
+  readonly claimId: string;
+  readonly status: 'abierto' | 'en-revision' | 'resuelto';
+}
+
+/** One buyer↔seller thread from `GET /api/shop/messages` (mensajería v1). */
+export interface MessageThread {
+  readonly id: string;
+  readonly subject: string;
+  readonly counterpart: string;
+  readonly lastMessage: string;
+  readonly date: string;
+  readonly unread: boolean;
 }
