@@ -1,0 +1,113 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shw-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shw-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shw-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shw-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shw-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shw-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shw-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shw-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shw-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --shw-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --shw-done: var(--syn-color-state-success-surface, #{syn.$color-success-600});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shw-text);
+}
+
+.syn-authoring {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-4;
+
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  // ─── Stepper ───────────────────────────────────────────────────────────────
+  &__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__step {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shw-border);
+    border-radius: syn.$radius-full;
+    color: var(--shw-muted);
+    font-size: syn.$font-size-sm;
+
+    &.is-active {
+      border-color: var(--shw-brand);
+      background: var(--shw-brand);
+      color: var(--shw-brand-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &.is-done {
+      border-color: var(--shw-done);
+      color: var(--shw-done);
+    }
+  }
+
+  // ─── Step content ──────────────────────────────────────────────────────────
+  &__content {
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shw-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--shw-surface);
+    min-width: 0;
+  }
+
+  // ─── Actions ───────────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__btn {
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shw-border);
+    border-radius: syn.$radius-md;
+    background: var(--shw-surface);
+    color: var(--shw-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shw-focus-ring));
+
+    &--primary {
+      border-color: var(--shw-brand);
+      background: var(--shw-brand);
+      color: var(--shw-brand-text);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-authoring *,
+  .syn-authoring *::before,
+  .syn-authoring *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

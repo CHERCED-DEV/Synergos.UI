@@ -9,6 +9,9 @@
 //  - SH-2 `syn-detail-shell`     — gallery + specs + reviews/Q&A slots + sticky CTA + related
 //  - SH-3 `syn-checkout-wizard`  — configurable multi-step checkout over the transaction engine
 //  - SH-4 `syn-account-shell`    — "mis X" inbox + custom sections + `syn-tracking-timeline`
+//  - SH-5 `syn-console-shell`    — cara B: KPI dashboard + sectioned data-table/queue + reports
+//  - SH-6 `syn-authoring-wizard` — publicar/crear entidad: form stepper + persistent draft
+//  - SH-7 `syn-message-center`   — v1: conversation-list + thread + reply composer
 
 // ─── SH-1 Discovery ──────────────────────────────────────────────────────────
 export {
@@ -51,3 +54,36 @@ export {
   TrackingTimelineComponent,
   type TrackingStage,
 } from './account/tracking-timeline';
+
+// ─── SH-5 Console ────────────────────────────────────────────────────────────
+export {
+  ConsoleShellComponent,
+  type ConsoleCellContext,
+  type ConsoleColumn,
+  type ConsoleFilter,
+  type ConsoleKpi,
+  type ConsoleReportsContext,
+  type ConsoleRowAction,
+  type ConsoleRowActionEvent,
+  type ConsoleSection,
+  type ConsoleSectionContext,
+  type ConsoleShellConfig,
+} from './console/console-shell';
+
+// ─── SH-6 Authoring wizard ───────────────────────────────────────────────────
+export {
+  AuthoringWizardComponent,
+  type AuthoringDraft,
+  type AuthoringStep,
+  type AuthoringStepContext,
+  type AuthoringWizardConfig,
+} from './authoring/authoring-wizard';
+
+// ─── SH-7 Message center ─────────────────────────────────────────────────────
+export {
+  MessageCenterComponent,
+  type MessageCenterConfig,
+  type MessageDetailContext,
+  type MessageSendEvent,
+  type MessageThreadContext,
+} from './messaging/message-center';

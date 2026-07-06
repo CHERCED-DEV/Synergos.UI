@@ -1,0 +1,158 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shm-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shm-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shm-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shm-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shm-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shm-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shm-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shm-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shm-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --shm-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shm-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shm-text);
+}
+
+.syn-messages {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-4;
+
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  &__panes {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    gap: syn.$space-4;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(760)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  // ─── Conversation list ─────────────────────────────────────────────────────
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__row {
+    display: block;
+    width: 100%;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-md;
+    background: var(--shm-surface);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &.is-selected {
+      border-color: var(--shm-brand);
+      background: var(--shm-brand-soft);
+    }
+  }
+
+  // ─── Thread pane + composer ────────────────────────────────────────────────
+  &__thread-pane {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shm-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--shm-surface-muted);
+    min-width: 0;
+  }
+
+  &__thread {
+    min-width: 0;
+  }
+
+  &__composer {
+    display: flex;
+    align-items: flex-end;
+    gap: syn.$space-2;
+  }
+
+  &__input {
+    flex: 1;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-md;
+    background: var(--shm-surface);
+    color: inherit;
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    resize: vertical;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+  }
+
+  &__send {
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shm-brand);
+    border-radius: syn.$radius-md;
+    background: var(--shm-brand);
+    color: var(--shm-brand-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
+  &__placeholder,
+  &__empty {
+    margin: 0;
+    padding: syn.$space-4;
+    color: var(--shm-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__sr-only {
+    position: absolute;
+    width: syn.px-to-rem(1);
+    height: syn.px-to-rem(1);
+    margin: syn.px-to-rem(-1);
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-messages *,
+  .syn-messages *::before,
+  .syn-messages *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
