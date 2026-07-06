@@ -1,426 +1,654 @@
-<section class="travel-shell" aria-label="Reservas de viaje">
-  <!-- ─── Top bar: brand + cart toggle ───────────────────────────────────── -->
-  <header class="travel-shell__bar">
-    <p class="travel-shell__brand">
-      <span class="travel-shell__brand-mark" aria-hidden="true">◈</span>
-      <span class="travel-shell__brand-text">Synergos Viajes</span>
-    </p>
-    <button
-      type="button"
-      class="travel-shell__cart-toggle"
-      [class.is-active]="cartOpen()"
-      [attr.aria-expanded]="cartOpen()"
-      [attr.aria-controls]="fieldId + '-cart'"
-      (click)="toggleCart()"
-    >
-      <span aria-hidden="true">🛒</span>
-      <span>Carrito</span>
-      @if (cartCount() > 0) {
-        <span class="travel-shell__cart-count" [attr.aria-label]="cartCount() + ' artículos'">
-          {{ cartCount() }}
-        </span>
-      }
+<section class="travel" aria-label="Synergos Viajes">
+  <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
+  <header class="travel__bar">
+    <button type="button" class="travel__brand travel__brand--btn" (click)="goHome()">
+      <span class="travel__brand-mark" aria-hidden="true">◈</span>
+      <span class="travel__brand-text">Synergos Viajes</span>
     </button>
+
+    <nav class="travel__nav" aria-label="Navegación de viajes">
+      <button type="button" class="travel__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Buscar</button>
+      <button type="button" class="travel__nav-btn" [class.is-active]="view() === 'account'" (click)="goToAccount()">Mis viajes</button>
+      <button
+        type="button"
+        class="travel__cart-toggle"
+        [class.is-active]="cartOpen()"
+        [attr.aria-expanded]="cartOpen()"
+        [attr.aria-controls]="fieldId + '-cart'"
+        (click)="toggleCart()"
+      >
+        <span aria-hidden="true">🧳</span>
+        <span>Tu viaje</span>
+        @if (cartCount() > 0) {
+          <span class="travel__cart-count" [attr.aria-label]="cartCount() + ' ítems'">{{ cartCount() }}</span>
+        }
+      </button>
+    </nav>
   </header>
 
   <!-- Multi-tab live-session notice -->
   @if (liveConflict()) {
-    <p class="travel-shell__notice" role="status">
+    <p class="travel__notice" role="status">
       Otra pestaña tomó esta sesión de viaje. Tu carrito se sincronizó.
     </p>
   }
 
   <!-- Mock-data degradation notice -->
   @if (degraded()) {
-    <p class="travel-shell__notice travel-shell__notice--warn" role="status">
+    <p class="travel__notice travel__notice--warn" role="status">
       Mostrando datos de ejemplo: el motor de reservas aún no responde.
     </p>
   }
 
   <!-- Global error live region -->
   @if (errorMessage()) {
-    <p class="travel-shell__error" role="alert">{{ errorMessage() }}</p>
+    <p class="travel__error" role="alert">{{ errorMessage() }}</p>
   }
 
-  <!-- ═══ SHOP phase ═══════════════════════════════════════════════════════ -->
-  @if (phase() === 'shop') {
-    <!-- Product selector tabs -->
-    <div class="travel-shell__tabs" role="tablist" aria-label="Tipo de producto">
-      @for (product of products; track product) {
+  <!-- ═══ HOME: buscador multi-tab (Estadías · Vuelos · Autos) ══════════════ -->
+  @if (view() === 'home') {
+    <div class="travel__home">
+      <div class="travel__hero">
+        <h1 class="travel__hero-title">Tu próximo viaje empieza aquí</h1>
+        <p class="travel__hero-sub">Estadías, vuelos y autos en un solo lugar · un solo pago</p>
+      </div>
+
+      <div class="travel__tabs" role="tablist" aria-label="Tipo de producto">
+        @for (product of products; track product) {
+          <button
+            type="button"
+            role="tab"
+            class="travel__tab"
+            [class.is-active]="activeProduct() === product"
+            [attr.aria-selected]="activeProduct() === product"
+            (click)="selectProduct(product)"
+          >
+            <span class="travel__tab-icon" aria-hidden="true">{{ productIcon(product) }}</span>
+            {{ productLabel(product) }}
+          </button>
+        }
+      </div>
+
+      <form class="travel__search" role="search" (submit)="$event.preventDefault(); search()">
+        <!-- Estadías -->
+        @if (activeProduct() === 'hotel') {
+          <div class="travel__field travel__field--grow">
+            <span class="travel__label" [id]="fieldId + '-hdest'">Destino</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-hdest'"
+              placeholder="¿A dónde vas? (ej. Cartagena)"
+              [value]="hotelDestination()" (input)="bind(hotelDestination.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hin'">Entrada</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-hin'"
+              [value]="hotelCheckIn()" (input)="bind(hotelCheckIn.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hout'">Salida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-hout'"
+              [value]="hotelCheckOut()" (input)="bind(hotelCheckOut.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hpax'">Huéspedes</span>
+            <synergos-pax-selector
+              class="travel__pax"
+              [attr.aria-labelledby]="fieldId + '-hpax'"
+              [attr.initial]="hotelPaxJson()"
+              (occupancychange)="onHotelOccupancyChange($event)"
+            ></synergos-pax-selector>
+          </div>
+        }
+
+        <!-- Vuelos -->
+        @if (activeProduct() === 'flight') {
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-forig'">Origen</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-forig'"
+              placeholder="Ciudad o aeropuerto (BOG)"
+              [value]="flightOrigin()" (input)="bind(flightOrigin.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fdest'">Destino</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-fdest'"
+              placeholder="Ciudad o aeropuerto (CTG)"
+              [value]="flightDestination()" (input)="bind(flightDestination.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fdep'">Ida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-fdep'"
+              [value]="flightDepart()" (input)="bind(flightDepart.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fret'">Regreso</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-fret'"
+              [value]="flightReturn()" (input)="bind(flightReturn.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fpax'">Pasajeros</span>
+            <synergos-pax-selector
+              class="travel__pax"
+              [attr.aria-labelledby]="fieldId + '-fpax'"
+              [attr.initial]="flightPaxJson()"
+              (occupancychange)="onFlightOccupancyChange($event)"
+            ></synergos-pax-selector>
+          </div>
+        }
+
+        <!-- Autos -->
+        @if (activeProduct() === 'car') {
+          <div class="travel__field travel__field--grow">
+            <span class="travel__label" [id]="fieldId + '-cloc'">Lugar de recogida</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-cloc'"
+              placeholder="Aeropuerto o ciudad"
+              [value]="carLocation()" (input)="bind(carLocation.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-cpick'">Recogida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-cpick'"
+              [value]="carPickUp()" (input)="bind(carPickUp.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-cdrop'">Devolución</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-cdrop'"
+              [value]="carDropOff()" (input)="bind(carDropOff.set)($event)" />
+          </div>
+        }
+
         <button
-          type="button"
-          role="tab"
-          class="travel-shell__tab"
-          [class.is-active]="activeProduct() === product"
-          [id]="fieldId + '-tab-' + product"
-          [attr.aria-selected]="activeProduct() === product"
-          [attr.aria-controls]="fieldId + '-panel-' + product"
-          [attr.tabindex]="activeProduct() === product ? 0 : -1"
-          (click)="selectProduct(product)"
-        >
-          <span class="travel-shell__tab-icon" aria-hidden="true">{{ productIcon(product) }}</span>
-          <span>{{ productLabel(product) }}</span>
-        </button>
-      }
-    </div>
-
-    <!-- Search panel per product -->
-    <div
-      class="travel-shell__search"
-      role="tabpanel"
-      [id]="fieldId + '-panel-' + activeProduct()"
-      [attr.aria-labelledby]="fieldId + '-tab-' + activeProduct()"
-    >
-      <!-- ── Hotel search ── -->
-      @if (activeProduct() === 'hotel') {
-        <div class="travel-shell__field travel-shell__field--wide">
-          <label class="travel-shell__label" [attr.for]="fieldId + '-h-dest'">Destino</label>
-          <input
-            class="travel-shell__input"
-            type="text"
-            autocomplete="off"
-            placeholder="Cartagena, Colombia"
-            [id]="fieldId + '-h-dest'"
-            [value]="hotelDestination()"
-            (input)="bind(hotelDestination.set)($event)"
-          />
-        </div>
-        <div class="travel-shell__dates">
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-h-in'">Entrada</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-h-in'"
-              [value]="hotelCheckIn()"
-              (input)="bind(hotelCheckIn.set)($event)"
-            />
-          </div>
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-h-out'">Salida</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-h-out'"
-              [value]="hotelCheckOut()"
-              (input)="bind(hotelCheckOut.set)($event)"
-            />
-          </div>
-        </div>
-        <div class="travel-shell__field travel-shell__field--wide">
-          <span class="travel-shell__label" [id]="fieldId + '-h-occ'">Ocupación</span>
-          <synergos-pax-selector
-            class="travel-shell__pax"
-            [attr.aria-labelledby]="fieldId + '-h-occ'"
-            [attr.initial]="hotelPaxJson()"
-            (occupancychange)="onHotelOccupancyChange($event)"
-          ></synergos-pax-selector>
-        </div>
-      }
-
-      <!-- ── Flight search ── -->
-      @if (activeProduct() === 'flight') {
-        <div class="travel-shell__dates">
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-f-from'">Origen</label>
-            <input
-              class="travel-shell__input"
-              type="text"
-              autocomplete="off"
-              placeholder="Bogotá (BOG)"
-              [id]="fieldId + '-f-from'"
-              [value]="flightOrigin()"
-              (input)="bind(flightOrigin.set)($event)"
-            />
-          </div>
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-f-to'">Destino</label>
-            <input
-              class="travel-shell__input"
-              type="text"
-              autocomplete="off"
-              placeholder="Cartagena (CTG)"
-              [id]="fieldId + '-f-to'"
-              [value]="flightDestination()"
-              (input)="bind(flightDestination.set)($event)"
-            />
-          </div>
-        </div>
-        <div class="travel-shell__dates">
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-f-dep'">Ida</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-f-dep'"
-              [value]="flightDepart()"
-              (input)="bind(flightDepart.set)($event)"
-            />
-          </div>
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-f-ret'">Regreso</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-f-ret'"
-              [value]="flightReturn()"
-              (input)="bind(flightReturn.set)($event)"
-            />
-          </div>
-        </div>
-        <div class="travel-shell__field travel-shell__field--wide">
-          <span class="travel-shell__label" [id]="fieldId + '-f-occ'">Pasajeros</span>
-          <synergos-pax-selector
-            class="travel-shell__pax"
-            [attr.aria-labelledby]="fieldId + '-f-occ'"
-            [attr.initial]="flightPaxJson()"
-            (occupancychange)="onFlightOccupancyChange($event)"
-          ></synergos-pax-selector>
-        </div>
-      }
-
-      <!-- ── Car search ── -->
-      @if (activeProduct() === 'car') {
-        <div class="travel-shell__field travel-shell__field--wide">
-          <label class="travel-shell__label" [attr.for]="fieldId + '-c-loc'">Lugar de recogida</label>
-          <input
-            class="travel-shell__input"
-            type="text"
-            autocomplete="off"
-            placeholder="Aeropuerto Rafael Núñez (CTG)"
-            [id]="fieldId + '-c-loc'"
-            [value]="carLocation()"
-            (input)="bind(carLocation.set)($event)"
-          />
-        </div>
-        <div class="travel-shell__dates">
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-c-up'">Recogida</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-c-up'"
-              [value]="carPickUp()"
-              (input)="bind(carPickUp.set)($event)"
-            />
-          </div>
-          <div class="travel-shell__field">
-            <label class="travel-shell__label" [attr.for]="fieldId + '-c-down'">Devolución</label>
-            <input
-              class="travel-shell__input"
-              type="date"
-              [id]="fieldId + '-c-down'"
-              [value]="carDropOff()"
-              (input)="bind(carDropOff.set)($event)"
-            />
-          </div>
-        </div>
-      }
-
-      <div class="travel-shell__actions">
-        <button
-          type="button"
-          class="travel-shell__btn travel-shell__btn--primary"
+          type="submit"
+          class="travel__btn travel__btn--primary travel__search-btn"
           [disabled]="!canSearch() || loading()"
-          (click)="search()"
         >
           {{ loading() ? 'Buscando…' : 'Buscar' }}
         </button>
-      </div>
+      </form>
     </div>
+  }
 
-    <!-- Results -->
-    <div class="travel-shell__results" aria-live="polite">
+  <!-- ═══ VUELOS: cards + fare families + seat map ═════════════════════════ -->
+  @if (view() === 'flights') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Vuelos disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
+      </div>
+
       @if (loading()) {
-        <p class="travel-shell__empty">Buscando disponibilidad…</p>
-      } @else if (searched() && offers().length === 0) {
-        <p class="travel-shell__empty" role="status">
-          No encontramos resultados. Ajusta tu búsqueda.
-        </p>
-      } @else if (offers().length > 0) {
-        <ul class="travel-shell__offers" role="list">
+        <p class="travel__empty" role="status">Buscando vuelos…</p>
+      } @else if (offers().length === 0) {
+        <p class="travel__empty">No encontramos vuelos para esa ruta.</p>
+      } @else {
+        <ul class="travel__flight-list">
           @for (offer of offers(); track offer.offerId) {
-            <li class="travel-shell__offer">
-              <div class="travel-shell__offer-main">
-                <h3 class="travel-shell__offer-title">{{ offer.title }}</h3>
-                @if (offer.subtitle) {
-                  <p class="travel-shell__offer-sub">{{ offer.subtitle }}</p>
-                }
-                @if (offer.badges.length > 0) {
-                  <p class="travel-shell__offer-badges">
-                    @for (badge of offer.badges; track badge) {
-                      <span class="travel-shell__chip">{{ badge }}</span>
-                    }
-                  </p>
-                }
-              </div>
-              <div class="travel-shell__offer-aside">
-                <p class="travel-shell__offer-price">{{ offerPriceLabel(offer) }}</p>
-                <button
-                  type="button"
-                  class="travel-shell__btn travel-shell__btn--primary travel-shell__btn--sm"
-                  [attr.aria-label]="'Agregar ' + offer.title + ' al carrito'"
-                  (click)="addToCart(offer)"
-                >
-                  Agregar
+            <li>
+              <article class="travel__flight" [class.is-active]="selectedFlightId() === offer.offerId">
+                <button type="button" class="travel__flight-main" (click)="selectFlight(offer)">
+                  <span class="travel__flight-route">{{ offer.title }}</span>
+                  <span class="travel__flight-sub">{{ offer.subtitle }}</span>
+                  @if (offer.badges.length > 0) {
+                    <span class="travel__chips">
+                      @for (badge of offer.badges; track badge) {
+                        <span class="travel__chip">{{ badge }}</span>
+                      }
+                    </span>
+                  }
                 </button>
-              </div>
+                <span class="travel__flight-price">
+                  <span class="travel__flight-from">desde</span>
+                  <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+                </span>
+              </article>
             </li>
           }
         </ul>
+
+        <!-- Fare families + seat map for the selected flight -->
+        @if (selectedFlight(); as flight) {
+          <section class="travel__fare-panel" aria-label="Tarifas y asiento">
+            <h2 class="travel__heading">Elige tu tarifa — {{ flight.title }}</h2>
+            <ul class="travel__fares">
+              @for (fare of fareFamilies(); track fare.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="travel__fare"
+                    [class.is-active]="selectedFare()?.id === fare.id"
+                    [attr.aria-pressed]="selectedFare()?.id === fare.id"
+                    (click)="selectFare(fare)"
+                  >
+                    @if (fare.badge) {
+                      <span class="travel__fare-badge">{{ fare.badge }}</span>
+                    }
+                    <span class="travel__fare-label">{{ fare.label }}</span>
+                    <span class="travel__fare-price">{{ farePriceLabel(fare) }}</span>
+                    <ul class="travel__fare-perks">
+                      @for (perk of fare.perks; track perk) {
+                        <li class="travel__fare-perk">✓ {{ perk }}</li>
+                      }
+                    </ul>
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <div class="travel__seatmap-wrap">
+              <h3 class="travel__subheading">Selecciona tu asiento</h3>
+              @if (seatMapJson()) {
+                <synergos-seat-map
+                  class="travel__seatmap"
+                  [attr.seatmap]="seatMapJson()"
+                  [attr.currency]="currency()"
+                  [attr.maxSelectable]="1"
+                  (seatselect)="onSeatSelect($event)"
+                ></synergos-seat-map>
+              }
+              @if (selectedSeats().length > 0) {
+                <p class="travel__seat-note">Asiento seleccionado: <strong>{{ selectedSeats().join(', ') }}</strong></p>
+              } @else {
+                <p class="travel__seat-note travel__seat-note--muted">El asiento es opcional; puedes continuar sin elegir.</p>
+              }
+            </div>
+
+            <div class="travel__fare-foot">
+              <p class="travel__fare-total">
+                <span>Total tarifa</span>
+                <span>{{ selectedFare() ? farePriceLabel(selectedFare()!) : '' }}</span>
+              </p>
+              <button
+                type="button"
+                class="travel__btn travel__btn--primary"
+                [disabled]="!selectedFare()"
+                (click)="addFlightToCart()"
+              >
+                Agregar vuelo al viaje
+              </button>
+            </div>
+          </section>
+        }
       }
     </div>
   }
 
-  <!-- ═══ CHECKOUT phase ═══════════════════════════════════════════════════ -->
-  @if (phase() === 'checkout') {
-    <div class="travel-shell__checkout" role="group" aria-label="Pago del viaje">
-      <h2 class="travel-shell__heading">Pago único de tu viaje</h2>
-
-      <dl class="travel-shell__summary">
-        @for (item of cartItems(); track item.id) {
-          <div class="travel-shell__summary-row">
-            <dt>
-              <span class="travel-shell__summary-icon" aria-hidden="true">{{ productIcon(itemProduct(item)) }}</span>
-              {{ itemLabel(item) }}
-            </dt>
-            <dd>{{ itemPriceLabel(item) }}</dd>
-          </div>
-        }
-        <div class="travel-shell__summary-row travel-shell__summary-row--total">
-          <dt>Total</dt>
-          <dd>{{ cartTotalLabel() }}</dd>
-        </div>
-      </dl>
-
-      <div class="travel-shell__field travel-shell__field--wide">
-        <label class="travel-shell__label" [attr.for]="fieldId + '-g-name'">Nombre completo</label>
-        <input
-          class="travel-shell__input"
-          type="text"
-          autocomplete="name"
-          [id]="fieldId + '-g-name'"
-          [value]="guestName()"
-          [attr.aria-invalid]="guestName() && !guestNameValid() ? 'true' : null"
-          (input)="bind(guestName.set)($event)"
-        />
-      </div>
-      <div class="travel-shell__field travel-shell__field--wide">
-        <label class="travel-shell__label" [attr.for]="fieldId + '-g-email'">Correo electrónico</label>
-        <input
-          class="travel-shell__input"
-          type="email"
-          autocomplete="email"
-          [id]="fieldId + '-g-email'"
-          [value]="guestEmail()"
-          [attr.aria-invalid]="guestEmail() && !guestEmailValid() ? 'true' : null"
-          (input)="bind(guestEmail.set)($event)"
-        />
+  <!-- ═══ ESTADÍAS: SH-8 results-map (lista ↔ mapa con geo) ════════════════ -->
+  @if (view() === 'stays') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Estadías disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
       </div>
 
-      <div class="travel-shell__actions">
-        <button
-          type="button"
-          class="travel-shell__btn travel-shell__btn--ghost"
-          [disabled]="loading()"
-          (click)="backToShop()"
-        >
-          Volver
-        </button>
-        <button
-          type="button"
-          class="travel-shell__btn travel-shell__btn--primary"
-          [disabled]="!guestValid() || loading()"
-          (click)="pay()"
-        >
-          {{ loading() ? 'Procesando…' : 'Pagar ' + cartTotalLabel() }}
-        </button>
-      </div>
-    </div>
-  }
+      <syn-results-map
+        [items]="stayOffers()"
+        [loading]="loading()"
+        [geoOf]="stayGeoOf"
+        [pinLabelOf]="stayPinLabelOf"
+        [itemTemplate]="stayCard"
+        [config]="{
+          layout: 'split',
+          listLabel: 'Lista',
+          splitLabel: 'Lista y mapa',
+          mapLabel: 'Mapa',
+          mapAriaLabel: 'Mapa de estadías',
+          searchAreaLabel: 'Buscar en esta zona',
+          searchAsIMoveLabel: 'Buscar al mover el mapa',
+          emptyMessage: 'No encontramos estadías en esta zona.',
+          loadingMessage: 'Cargando estadías…'
+        }"
+        (pinselect)="openStay($event)"
+        (boundschange)="onStayBoundsChange($event)"
+      />
 
-  <!-- ═══ CONFIRMATION phase ═══════════════════════════════════════════════ -->
-  @if (phase() === 'confirmation') {
-    <div class="travel-shell__confirmation" role="status" aria-live="polite">
-      <p class="travel-shell__confirm-badge">Viaje confirmado</p>
-      <h2 class="travel-shell__confirm-code">{{ confirmationCode() }}</h2>
-      <p class="travel-shell__confirm-order">Orden {{ orderRef() }}</p>
-      <ul class="travel-shell__vouchers" role="list">
-        @for (voucher of confirmedVouchers(); track voucher.reference) {
-          <li class="travel-shell__voucher">
-            <span class="travel-shell__voucher-title">{{ voucher.title }}</span>
-            <span class="travel-shell__voucher-ref">{{ voucher.reference }}</span>
-          </li>
-        }
-      </ul>
-      <div class="travel-shell__actions">
-        <button
-          type="button"
-          class="travel-shell__btn travel-shell__btn--primary"
-          (click)="startOver()"
-        >
-          Planear otro viaje
-        </button>
-      </div>
-    </div>
-  }
-
-  <!-- ─── Unified cart panel ─────────────────────────────────────────────── -->
-  @if (cartOpen()) {
-    <aside class="travel-shell__cart" [id]="fieldId + '-cart'" aria-label="Carrito de viaje">
-      <header class="travel-shell__cart-head">
-        <h2 class="travel-shell__cart-title">Tu viaje</h2>
-        <button
-          type="button"
-          class="travel-shell__cart-close"
-          aria-label="Cerrar carrito"
-          (click)="toggleCart()"
-        >
-          ✕
-        </button>
-      </header>
-
-      @if (!hasCart()) {
-        <p class="travel-shell__empty">Tu carrito está vacío. Agrega hoteles, vuelos o autos.</p>
-      } @else {
-        <ul class="travel-shell__cart-items" role="list">
-          @for (item of cartItems(); track item.id) {
-            <li class="travel-shell__cart-item">
-              <span class="travel-shell__cart-icon" aria-hidden="true">{{ productIcon(itemProduct(item)) }}</span>
-              <div class="travel-shell__cart-main">
-                <span class="travel-shell__cart-name">{{ itemLabel(item) }}</span>
-                @if (itemSubtitle(item)) {
-                  <span class="travel-shell__cart-sub">{{ itemSubtitle(item) }}</span>
+      <ng-template #stayCard let-offer let-select="select">
+        <article class="travel__stay-card">
+          <div class="travel__stay-media" aria-hidden="true">🏨</div>
+          <div class="travel__stay-body">
+            <h3 class="travel__stay-title">
+              <button type="button" class="travel__card-link" (click)="select()">{{ offer.title }}</button>
+            </h3>
+            <p class="travel__stay-sub">{{ offer.subtitle }}</p>
+            @if (offer.rating) {
+              <p class="travel__stay-rating">★ {{ offer.rating }} / 5</p>
+            }
+            @if (offer.badges.length > 0) {
+              <ul class="travel__chips">
+                @for (badge of offer.badges; track badge) {
+                  <li class="travel__chip">{{ badge }}</li>
                 }
-              </div>
-              <span class="travel-shell__cart-price">{{ itemPriceLabel(item) }}</span>
-              <button
-                type="button"
-                class="travel-shell__cart-remove"
-                [attr.aria-label]="'Quitar ' + itemLabel(item)"
-                (click)="removeFromCart(item.id)"
-              >
-                ✕
+              </ul>
+            }
+            <div class="travel__stay-foot">
+              <span class="travel__stay-price">
+                <span class="travel__flight-from">desde</span>
+                <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+              </span>
+              <button type="button" class="travel__btn travel__btn--sm travel__btn--primary" (click)="select()">
+                Ver detalle
               </button>
+            </div>
+          </div>
+        </article>
+      </ng-template>
+    </div>
+  }
+
+  <!-- ═══ ESTADÍA (ficha): SH-2 detail-shell (galería + amenities + specs) ═ -->
+  @if (view() === 'stay') {
+    @if (stay(); as detail) {
+      <syn-detail-shell
+        [eyebrow]="detail.rating ? ('★ ' + detail.rating + ' · ' + detail.reviewCount + ' opiniones') : ''"
+        [title]="detail.title"
+        [subtitle]="detail.subtitle"
+        [media]="stayMedia()"
+        [specs]="staySpecs()"
+        [config]="{
+          backLabel: 'Volver a resultados',
+          specsHeading: 'Información del alojamiento',
+          relatedHeading: 'Amenidades',
+          galleryLabel: 'Fotos de ' + detail.title,
+          mediaPlaceholder: '🏨'
+        }"
+        [bodyTemplate]="stayBody"
+        [ctaTemplate]="stayCta"
+        [relatedTemplate]="stayAmenities"
+        (back)="backToStays()"
+      />
+
+      <ng-template #stayBody>
+        <p class="travel__stay-desc">{{ detail.description }}</p>
+        @if (detail.address) {
+          <p class="travel__stay-address">📍 {{ detail.address }}</p>
+        }
+      </ng-template>
+
+      <ng-template #stayCta>
+        <p class="travel__pdp-price">{{ stayPriceLabel() }}</p>
+        <p class="travel__pdp-hint">Precio por la estadía completa</p>
+
+        <div class="travel__rates" role="group" aria-label="Habitación y tarifa">
+          @for (rate of detail.rates; track rate.id) {
+            <button
+              type="button"
+              class="travel__rate"
+              [class.is-active]="selectedRate()?.id === rate.id"
+              [attr.aria-pressed]="selectedRate()?.id === rate.id"
+              (click)="selectRate(rate)"
+            >
+              <span class="travel__rate-room">{{ rate.roomLabel }}</span>
+              <span class="travel__rate-plan">{{ rate.rateLabel }}</span>
+              <span class="travel__rate-tags">
+                <span class="travel__chip" [class.travel__chip--ok]="rate.refundable">
+                  {{ rate.refundable ? 'Reembolsable' : 'No reembolsable' }}
+                </span>
+              </span>
+              <span class="travel__rate-price">{{ ratePriceLabel(rate) }}</span>
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="travel__btn travel__btn--primary travel__btn--block"
+          [disabled]="!selectedRate()"
+          (click)="addStayToCart()"
+        >
+          Agregar estadía al viaje
+        </button>
+      </ng-template>
+
+      <ng-template #stayAmenities>
+        <ul class="travel__amenities">
+          @for (amenity of detail.amenities; track amenity) {
+            <li class="travel__amenity">✓ {{ amenity }}</li>
+          }
+        </ul>
+      </ng-template>
+    } @else {
+      <p class="travel__empty" role="status">Cargando alojamiento…</p>
+    }
+  }
+
+  <!-- ═══ CART: carrito de viaje multi-ítem (hotel + vuelo + auto) ═════════ -->
+  @if (view() === 'cart') {
+    <div class="travel__cart-page">
+      <h1 class="travel__heading">Tu viaje</h1>
+      @if (!hasCart()) {
+        <p class="travel__empty">Todavía no has agregado nada a tu viaje.</p>
+        <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Empezar a buscar</button>
+      } @else {
+        <ul class="travel__cart-lines">
+          @for (item of cartItems(); track item.id) {
+            <li class="travel__cart-line">
+              <span class="travel__cart-icon" aria-hidden="true">{{ itemProductIcon(item) }}</span>
+              <div class="travel__cart-main">
+                <p class="travel__cart-name">{{ item.label }}</p>
+                <p class="travel__cart-sub">{{ itemSubtitle(item) }}</p>
+              </div>
+              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
+              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">✕</button>
             </li>
           }
         </ul>
 
-        <footer class="travel-shell__cart-foot">
-          <p class="travel-shell__cart-total">
+        @if (crossSell()) {
+          <div class="travel__crosssell" role="note">
+            <span>{{ crossSellLabel() }}</span>
+            <button type="button" class="travel__btn travel__btn--sm travel__btn--ghost" (click)="addCrossSell()">Agregar</button>
+          </div>
+        }
+
+        <div class="travel__cart-foot">
+          <p class="travel__cart-total">
+            <span>Total del viaje</span>
+            <span>{{ cartTotalLabel() }}</span>
+          </p>
+          <div class="travel__actions">
+            <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Seguir buscando</button>
+            <button type="button" class="travel__btn travel__btn--primary" (click)="goToCheckout()">Ir a pagar</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ═══ CHECKOUT: SH-3 checkout-wizard (viajeros → pago → revisar) ═══════ -->
+  @if (view() === 'checkout') {
+    <syn-checkout-wizard
+      [config]="checkoutConfig"
+      [stepTemplate]="checkoutStep"
+      [validity]="checkoutValidity()"
+      [instrument]="checkoutInstrument()"
+      (completed)="onCheckoutCompleted($event)"
+      (failed)="onCheckoutFailed($event)"
+      (exit)="goToCart()"
+    />
+
+    <ng-template #checkoutStep let-step>
+      @switch (step.id) {
+        @case ('viajeros') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Datos del viajero</legend>
+            <label class="travel__field-lg">
+              <span class="travel__label">Nombre completo</span>
+              <input class="travel__input" type="text" [value]="guestName()" (input)="bind(guestName.set)($event)"
+                [attr.aria-invalid]="guestName() && !guestNameValid() ? 'true' : null" />
+            </label>
+            <label class="travel__field-lg">
+              <span class="travel__label">Correo electrónico</span>
+              <input class="travel__input" type="email" [value]="guestEmail()" (input)="bind(guestEmail.set)($event)"
+                [attr.aria-invalid]="guestEmail() && !guestEmailValid() ? 'true' : null" />
+            </label>
+          </fieldset>
+        }
+        @case ('pago') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Método de pago</legend>
+            <label class="travel__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
+              <span>Tarjeta de crédito / débito</span>
+            </label>
+            <label class="travel__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
+              <span>PSE — débito desde tu banco</span>
+            </label>
+            <p class="travel__notice">Demostración: no se realiza un cobro real. Un solo pago para todo el viaje.</p>
+          </fieldset>
+        }
+        @case ('revisar') {
+          <div class="travel__review">
+            <h2 class="travel__heading">Revisa tu viaje</h2>
+            <dl class="travel__summary">
+              @for (item of cartItems(); track item.id) {
+                <div class="travel__summary-row">
+                  <dt>{{ itemProductIcon(item) }} {{ item.label }}</dt>
+                  <dd>{{ itemPriceLabel(item) }}</dd>
+                </div>
+              }
+              <div class="travel__summary-row travel__summary-row--total">
+                <dt>Total</dt>
+                <dd>{{ cartTotalLabel() }}</dd>
+              </div>
+            </dl>
+            <p class="travel__ship-to">Viajero: {{ guestName() }} · {{ guestEmail() }}</p>
+          </div>
+        }
+      }
+    </ng-template>
+  }
+
+  <!-- ═══ CONFIRMATION: SH-10 credential-wallet (voucher + PNR) ════════════ -->
+  @if (view() === 'confirmation') {
+    <div class="travel__confirmation">
+      <p class="travel__confirm-badge">Reserva confirmada</p>
+      <p class="travel__confirm-code">{{ confirmationCode() }}</p>
+      <p class="travel__confirm-order">Guarda tus credenciales para el check-in.</p>
+
+      <syn-credential-wallet
+        [config]="walletConfig"
+        [credentials]="confirmationCredentials()"
+      />
+
+      <div class="travel__actions">
+        <button type="button" class="travel__btn travel__btn--ghost" (click)="goToAccount()">Ver mis viajes</button>
+        <button type="button" class="travel__btn travel__btn--primary" (click)="startOver()">Planear otro viaje</button>
+      </div>
+    </div>
+  }
+
+  <!-- ═══ ACCOUNT: SH-4 account-shell (mis viajes + timeline + cancelar) ═══ -->
+  @if (view() === 'account') {
+    <syn-account-shell
+      [config]="accountConfig()"
+      [items]="trips()"
+      [loading]="tripsLoading()"
+      [section]="accountSection()"
+      [itemTemplate]="tripRow"
+      [detailTemplate]="tripDetail"
+      [sectionTemplate]="accountSectionTpl"
+      (sectionchange)="onAccountSectionChange($event)"
+      (itemselect)="onTripSelect($event)"
+    />
+
+    <ng-template #tripRow let-trip>
+      <span class="travel__trip-head">
+        <span class="travel__trip-title">{{ trip.title }}</span>
+        <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
+      </span>
+      <span class="travel__trip-dates">{{ trip.startDate }} → {{ trip.endDate }} · {{ tripTotalLabel(trip) }}</span>
+    </ng-template>
+
+    <ng-template #tripDetail let-trip>
+      <div class="travel__trip-detail">
+        <div class="travel__trip-head">
+          <span class="travel__trip-title">{{ trip.title }}</span>
+          <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
+        </div>
+        <p class="travel__trip-meta">{{ trip.destination }} · {{ tripTotalLabel(trip) }}</p>
+
+        <syn-tracking-timeline
+          heading="Estado del viaje"
+          [stages]="tripStages(trip)"
+          emptyMessage="Sin información de seguimiento."
+        />
+
+        <h3 class="travel__subheading">Credenciales del viaje</h3>
+        <syn-credential-wallet
+          [config]="{ referenceLabel: 'Reserva', expandLabel: 'Ver QR', collapseLabel: 'Ocultar' }"
+          [credentials]="tripCredentials(trip)"
+        />
+
+        <div class="travel__trip-actions">
+          @if (canCancel(trip)) {
+            <button type="button" class="travel__btn travel__btn--ghost travel__btn--sm" (click)="cancelTrip(trip)">
+              Cancelar reserva
+            </button>
+          }
+          @if (cancelReceipt(trip.ref); as receipt) {
+            <p class="travel__cancel-note" role="status">
+              Reserva cancelada@if (receipt.refundLabel) { · {{ receipt.refundLabel }} }
+            </p>
+          }
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #accountSectionTpl let-section>
+      @switch (section.id) {
+        @case ('credenciales') {
+          <syn-credential-wallet
+            [config]="{ heading: 'Todas tus credenciales', referenceLabel: 'Reserva', expandLabel: 'Ver QR y detalle', collapseLabel: 'Ocultar detalle', emptyMessage: 'Aún no tienes credenciales de viaje.' }"
+            [credentials]="walletCredentials()"
+          />
+        }
+        @case ('perfil') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Mis datos</legend>
+            <p class="travel__notice">Estos datos prellenan el checkout.</p>
+            <label class="travel__field-lg">
+              <span class="travel__label">Nombre completo</span>
+              <input class="travel__input" type="text" [value]="guestName()" (input)="bind(guestName.set)($event)" />
+            </label>
+            <label class="travel__field-lg">
+              <span class="travel__label">Correo electrónico</span>
+              <input class="travel__input" type="email" [value]="guestEmail()" (input)="bind(guestEmail.set)($event)" />
+            </label>
+          </fieldset>
+        }
+      }
+    </ng-template>
+  }
+
+  <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->
+  @if (cartOpen()) {
+    <div class="travel__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Tu viaje">
+      <div class="travel__drawer-head">
+        <h2 class="travel__drawer-title">Tu viaje ({{ cartCount() }})</h2>
+        <button type="button" class="travel__cart-close" (click)="toggleCart()" aria-label="Cerrar">✕</button>
+      </div>
+      @if (!hasCart()) {
+        <p class="travel__empty">Todavía no has agregado nada.</p>
+      } @else {
+        <ul class="travel__drawer-items">
+          @for (item of cartItems(); track item.id) {
+            <li class="travel__drawer-item">
+              <span class="travel__cart-icon" aria-hidden="true">{{ itemProductIcon(item) }}</span>
+              <div class="travel__cart-main">
+                <span class="travel__cart-name">{{ item.label }}</span>
+                <span class="travel__cart-sub">{{ itemSubtitle(item) }}</span>
+              </div>
+              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
+              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">✕</button>
+            </li>
+          }
+        </ul>
+        <div class="travel__cart-foot">
+          <p class="travel__cart-total">
             <span>Total</span>
             <span>{{ cartTotalLabel() }}</span>
           </p>
-          <button
-            type="button"
-            class="travel-shell__btn travel-shell__btn--primary travel-shell__btn--block"
-            [disabled]="phase() === 'checkout'"
-            (click)="goToCheckout()"
-          >
-            Ir a pagar
-          </button>
-        </footer>
+          <button type="button" class="travel__btn travel__btn--ghost travel__btn--block" (click)="goToCart()">Ver tu viaje</button>
+          <button type="button" class="travel__btn travel__btn--primary travel__btn--block" (click)="goToCheckout()">Ir a pagar</button>
+        </div>
       }
-    </aside>
+    </div>
   }
 </section>
