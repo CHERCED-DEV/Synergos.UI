@@ -1,0 +1,263 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shm-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shm-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shm-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shm-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shm-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shm-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shm-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shm-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shm-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --shm-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shm-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --shm-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shm-text);
+}
+
+.syn-rmap {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+
+  // ─── Toolbar / layout toggle ────────────────────────────────────────────────
+  &__toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__toggle {
+    display: inline-flex;
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-full;
+    background: var(--shm-surface-muted);
+    overflow: hidden;
+  }
+
+  &__toggle-btn {
+    padding: syn.$space-1 syn.$space-3;
+    border: none;
+    background: transparent;
+    color: var(--shm-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &.is-active {
+      background: var(--shm-brand);
+      color: var(--shm-brand-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  // ─── Body: list ↔ map ──────────────────────────────────────────────────────
+  &__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: syn.$space-3;
+    align-items: start;
+  }
+
+  &[data-layout='split'] &__body {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+
+    @media (max-width: #{syn.px-to-rem(760)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__list-pane {
+    min-width: 0;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__list-item {
+    border-radius: syn.$radius-md;
+
+    &.is-hovered {
+      outline: syn.px-to-rem(2) solid var(--shm-brand);
+      outline-offset: syn.px-to-rem(2);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) dashed var(--shm-border);
+    border-radius: syn.$radius-md;
+    color: var(--shm-muted);
+    text-align: center;
+  }
+
+  // ─── Map frame ─────────────────────────────────────────────────────────────
+  &__map {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  &__canvas {
+    position: relative;
+    min-height: syn.px-to-rem(320);
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-lg;
+    background:
+      linear-gradient(160deg, var(--shm-brand-soft) 0%, var(--shm-surface-muted) 55%, var(--shm-surface) 100%);
+    box-shadow: var(--shm-shadow);
+    overflow: hidden;
+  }
+
+  &[data-layout='map'] &__canvas {
+    min-height: syn.px-to-rem(420);
+  }
+
+  &__grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--shm-border-subtle) syn.px-to-rem(1), transparent syn.px-to-rem(1)),
+      linear-gradient(90deg, var(--shm-border-subtle) syn.px-to-rem(1), transparent syn.px-to-rem(1));
+    background-size: syn.px-to-rem(48) syn.px-to-rem(48);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  &__pin {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-full;
+    background: var(--shm-surface);
+    color: var(--shm-text);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: var(--shm-shadow);
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: syn.px-to-rem(-4);
+      width: syn.px-to-rem(8);
+      height: syn.px-to-rem(8);
+      transform: translateX(-50%) rotate(45deg);
+      background: inherit;
+      border-right: syn.px-to-rem(1) solid var(--shm-border);
+      border-bottom: syn.px-to-rem(1) solid var(--shm-border);
+    }
+
+    &.is-hovered,
+    &:hover {
+      z-index: 2;
+      background: var(--shm-brand);
+      border-color: var(--shm-brand);
+      color: var(--shm-brand-text);
+    }
+  }
+
+  // ─── Map controls ──────────────────────────────────────────────────────────
+  &__zoom {
+    position: absolute;
+    top: syn.$space-2;
+    right: syn.$space-2;
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__pan {
+    position: absolute;
+    bottom: syn.$space-2;
+    right: syn.$space-2;
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    gap: syn.px-to-rem(2);
+  }
+
+  &__zoom-btn,
+  &__pan-btn {
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: syn.px-to-rem(1) solid var(--shm-border);
+    border-radius: syn.$radius-sm;
+    background: var(--shm-surface);
+    color: var(--shm-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &:hover {
+      background: var(--shm-surface-muted);
+    }
+  }
+
+  &__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__check {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    color: var(--shm-text-secondary);
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+  }
+
+  &__area-btn {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shm-brand);
+    border-radius: syn.$radius-full;
+    background: var(--shm-surface);
+    color: var(--shm-brand);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shm-focus-ring));
+
+    &:hover {
+      background: var(--shm-brand-soft);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-rmap *,
+  .syn-rmap *::before,
+  .syn-rmap *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

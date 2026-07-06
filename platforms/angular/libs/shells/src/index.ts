@@ -87,3 +87,24 @@ export {
   type MessageSendEvent,
   type MessageThreadContext,
 } from './messaging/message-center';
+
+// ─── SH-8 Results map ────────────────────────────────────────────────────────
+export {
+  ResultsMapComponent,
+  type GeoBounds,
+  type GeoPoint,
+  type ResultsMapConfig,
+  type ResultsMapItemContext,
+  type ResultsMapLayout,
+} from './map/results-map';
+
+// ─── SH-10 Credential wallet ─────────────────────────────────────────────────
+export {
+  CredentialWalletComponent,
+  type CredentialField,
+  type CredentialStatus,
+  type CredentialTone,
+  type CredentialWalletConfig,
+  type CredentialWalletContext,
+  type WalletCredential,
+} from './credentials/credential-wallet';
