@@ -9,6 +9,9 @@ import {
   type CheckoutItem,
   type CheckoutResult,
   type ConfirmResult,
+  type CreateEventRequest,
+  type CreateEventResult,
+  type EventArtist,
   type EventDetail,
   type EventMode,
   type EventStatus,
@@ -16,9 +19,14 @@ import {
   type ETicket,
   type ManageResult,
   type ManagedAttendee,
+  type PortfolioEvent,
   type SeatMapPayload,
   type TicketTier,
+  type TransferResult,
   type VenueZone,
+  type WalletResult,
+  type WalletTicket,
+  type WalletTicketStatus,
 } from './eventos.model';
 
 /**
@@ -50,6 +58,8 @@ export class EventosApiClient {
   #lastTickets: readonly ETicket[] = [];
   /** Codes already used in this mock session (for the "ya usado" path). */
   readonly #usedCodes = new Set<string>();
+  /** In-memory wallet, so a mock purchase surfaces in "mis tickets" + transfer. */
+  #walletTickets: readonly WalletTicket[] = [];
 
   get degraded(): boolean {
     return this.#degraded;
@@ -129,6 +139,7 @@ export class EventosApiClient {
     orderRef: string,
     attendees: readonly Attendee[],
     items: readonly CheckoutItem[],
+    context?: ConfirmContext,
   ): Promise<ConfirmResult> {
     const url = `${apiBase}/confirm`;
     try {
@@ -136,6 +147,7 @@ export class EventosApiClient {
       const confirmation = normalizeConfirm(data);
       if (confirmation) {
         this.#lastTickets = confirmation.tickets;
+        this.seedWallet(confirmation.tickets, attendees, orderRef, context);
         return confirmation;
       }
       throw new Error('confirm-shape');
@@ -143,7 +155,98 @@ export class EventosApiClient {
       this.markDegraded('POST /api/eventos/confirm', error);
       const tickets = mockTickets(orderRef, attendees, items);
       this.#lastTickets = tickets;
+      this.seedWallet(tickets, attendees, orderRef, context);
       return { status: 'confirmed', tickets };
+    }
+  }
+
+  /** Append the issued tickets to the in-memory wallet ("mis tickets"). */
+  private seedWallet(
+    tickets: readonly ETicket[],
+    attendees: readonly Attendee[],
+    orderRef: string,
+    context?: ConfirmContext,
+  ): void {
+    const holder = attendees[0]?.email || context?.buyer?.email || 'invitado@synergos';
+    const seeded: WalletTicket[] = tickets.map((ticket, index) => ({
+      id: ticket.id,
+      qr: ticket.qr,
+      eventId: context?.eventId ?? '',
+      eventTitle: context?.eventTitle ?? ticket.tier ?? 'Evento',
+      venueName: context?.venueName ?? '',
+      startsAt: context?.startsAt ?? '',
+      tier: ticket.tier ?? '',
+      seat: ticket.seat ?? '',
+      holder: attendees[index]?.name || holder,
+      orderRef,
+      status: 'valid',
+    }));
+    this.#walletTickets = [...seeded, ...this.#walletTickets];
+  }
+
+  // ─── Wallet ("mis tickets", holder-scoped) ────────────────────────────────────
+
+  async tickets(apiBase: string, holder: string): Promise<WalletResult> {
+    const query = holder ? `?holder=${encodeURIComponent(holder)}` : '';
+    const url = `${apiBase}/tickets${query}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeWallet(data);
+      if (result) {
+        this.#walletTickets = result.tickets;
+        return result;
+      }
+      throw new Error('tickets-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/eventos/tickets', error);
+      // Prefer the in-session wallet (a mock purchase just happened); else seed.
+      const tickets = this.#walletTickets.length > 0 ? this.#walletTickets : mockWallet(holder);
+      this.#walletTickets = tickets;
+      return { tickets };
+    }
+  }
+
+  // ─── Transfer a ticket (invalidate origin) ────────────────────────────────────
+
+  async transfer(apiBase: string, ticketId: string, to: string): Promise<TransferResult> {
+    const url = `${apiBase}/ticket/${encodeURIComponent(ticketId)}/transfer`;
+    try {
+      const data = await this.postJson(url, { to });
+      const result = normalizeTransfer(data, ticketId, to);
+      if (result) {
+        this.applyTransfer(ticketId);
+        return result;
+      }
+      throw new Error('transfer-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/eventos/ticket/{id}/transfer', error);
+      this.applyTransfer(ticketId);
+      return { status: 'transferred', to, ticketId };
+    }
+  }
+
+  /** Mark the source ticket transferred in the in-memory wallet. */
+  private applyTransfer(ticketId: string): void {
+    this.#walletTickets = this.#walletTickets.map((ticket) =>
+      ticket.id === ticketId ? { ...ticket, status: 'transferred' as WalletTicketStatus } : ticket,
+    );
+  }
+
+  // ─── Create event (organizer authoring) ───────────────────────────────────────
+
+  async createEvent(apiBase: string, request: CreateEventRequest): Promise<CreateEventResult> {
+    const url = `${apiBase}/event`;
+    try {
+      const data = await this.postJson(url, request);
+      const result = normalizeCreate(data, request);
+      if (result) {
+        return result;
+      }
+      throw new Error('create-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/eventos/event', error);
+      const slug = slugify(request.title);
+      return { id: `EVT-${Date.now().toString(36).toUpperCase()}`, slug, status: 'draft' };
     }
   }
 
@@ -249,6 +352,15 @@ export class EventosApiClient {
     // TODO(backend): remove the mock fallback once the Eventos API responds.
     this.#logger.warn(`Eventos API "${endpoint}" unavailable — using mock data.`, error);
   }
+}
+
+/** Event context threaded into `confirm` so the mock wallet reads meaningfully. */
+export interface ConfirmContext {
+  readonly eventId?: string;
+  readonly eventTitle?: string;
+  readonly venueName?: string;
+  readonly startsAt?: string;
+  readonly buyer?: Buyer;
 }
 
 // ─── Normalisers (defensive — tolerate partial/loose API shapes) ───────────────
@@ -432,6 +544,7 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): EventDetail 
   const rawVenue = isRecord(value['venue']) ? value['venue'] : {};
   const rawZones = Array.isArray(rawVenue['zones']) ? rawVenue['zones'] : [];
   const organizer = isRecord(value['organizer']) ? value['organizer'] : {};
+  const artist = isRecord(value['artist']) ? value['artist'] : {};
   return {
     event,
     description: readString(value['description']).trim() || event.subtitle,
@@ -452,6 +565,11 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): EventDetail 
       name: readString(organizer['name']).trim() || 'Organizador Synergos',
       headline: readString(organizer['headline']).trim(),
       avatar: readString(organizer['avatar']).trim(),
+    },
+    artist: {
+      name: readString(artist['name']).trim() || event.title,
+      headline: readString(artist['headline']).trim(),
+      followers: Math.trunc(readNumber(artist['followers'])),
     },
     venue: {
       name: readString(rawVenue['name']).trim() || event.venueName || 'Venue',
@@ -535,17 +653,123 @@ function normalizeAttendee(value: unknown): ManagedAttendee | null {
   };
 }
 
+function normalizePortfolioEvent(value: unknown): PortfolioEvent | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const title = readString(value['title']).trim();
+  if (!id && !title) {
+    return null;
+  }
+  return {
+    id: id || title,
+    title: title || 'Evento',
+    startsAt: readString(value['startsAt'] ?? value['date']).trim(),
+    city: readString(value['city']).trim(),
+    capacity: Math.trunc(readNumber(value['capacity'])),
+    sold: Math.trunc(readNumber(value['sold'])),
+    revenue: readNumber(value['revenue']),
+    status: readStatus(value['status']),
+  };
+}
+
 function normalizeManage(value: unknown): ManageResult | null {
   if (!isRecord(value) || !Array.isArray(value['attendees'])) {
     return null;
   }
+  const rawPortfolio = Array.isArray(value['portfolio']) ? value['portfolio'] : [];
   return {
     attendees: value['attendees']
       .map((entry) => normalizeAttendee(entry))
       .filter((attendee): attendee is ManagedAttendee => attendee !== null),
     capacity: Math.trunc(readNumber(value['capacity'])),
     sold: Math.trunc(readNumber(value['sold'])),
+    revenue: readNumber(value['revenue']),
+    portfolio: rawPortfolio
+      .map((entry) => normalizePortfolioEvent(entry))
+      .filter((entry): entry is PortfolioEvent => entry !== null),
   };
+}
+
+function normalizeWalletTicket(value: unknown): WalletTicket | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id'] ?? value['ticketId']).trim();
+  if (!id) {
+    return null;
+  }
+  const rawStatus = readString(value['status']).toLowerCase();
+  const status: WalletTicketStatus =
+    rawStatus === 'transferred' || rawStatus === 'used' || rawStatus === 'past'
+      ? rawStatus
+      : 'valid';
+  return {
+    id,
+    qr: readString(value['qr']).trim() || id,
+    eventId: readString(value['eventId']).trim(),
+    eventTitle: readString(value['eventTitle'] ?? value['event']).trim() || 'Evento',
+    venueName: readString(value['venueName'] ?? value['venue']).trim(),
+    startsAt: readString(value['startsAt'] ?? value['date']).trim(),
+    tier: readString(value['tier']).trim(),
+    seat: readString(value['seat']).trim(),
+    holder: readString(value['holder']).trim(),
+    orderRef: readString(value['orderRef']).trim(),
+    status,
+  };
+}
+
+function normalizeWallet(value: unknown): WalletResult | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['tickets'])
+      ? value['tickets']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return {
+    tickets: list
+      .map((entry) => normalizeWalletTicket(entry))
+      .filter((ticket): ticket is WalletTicket => ticket !== null),
+  };
+}
+
+function normalizeTransfer(value: unknown, ticketId: string, to: string): TransferResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  return {
+    status: readString(value['status']).trim() || 'transferred',
+    to: readString(value['to']).trim() || to,
+    ticketId: readString(value['ticketId']).trim() || ticketId,
+  };
+}
+
+function normalizeCreate(value: unknown, request: CreateEventRequest): CreateEventResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    slug: readString(value['slug']).trim() || slugify(request.title),
+    status: readString(value['status']).trim() || 'draft',
+  };
+}
+
+function slugify(value: string): string {
+  return (
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 60) || `evento-${Date.now().toString(36)}`
+  );
 }
 
 function normalizeCheckin(value: unknown): CheckInResult | null {
@@ -816,6 +1040,7 @@ function mockDetail(id: string, currency: string): EventDetail {
       ],
       sessions: mockSessions(),
       organizer: mockOrganizer(),
+      artist: mockArtist(event),
       venue: { name: event.venueName, address: 'Cra. 0 # 0-00', city: event.city, zones: [] },
     };
   }
@@ -826,6 +1051,7 @@ function mockDetail(id: string, currency: string): EventDetail {
     tiers,
     sessions: mockSessions(),
     organizer: mockOrganizer(),
+    artist: mockArtist(event),
     venue: {
       name: event.venueName,
       address: 'Cra. 0 # 0-00',
@@ -881,6 +1107,14 @@ function mockOrganizer(): EventOrganizer {
     name: 'Synergos Live',
     headline: 'Productora de eventos · +120 eventos realizados',
     avatar: '',
+  };
+}
+
+function mockArtist(event: EventSummary): EventArtist {
+  return {
+    name: event.title.split('·')[0].trim() || event.title,
+    headline: `Artista destacado · ${event.category}`,
+    followers: 12_400 + Math.round(event.soldPercent * 380),
   };
 }
 
@@ -953,5 +1187,43 @@ function mockManage(eventId: string): ManageResult {
     seat: index % 4 === 3 ? `A${index + 1}` : '',
     state: index < 3 ? 'checked-in' : 'pending',
   }));
-  return { attendees, capacity: 500, sold: 312 };
+  const portfolio: PortfolioEvent[] = [
+    { id: eventId, title: 'Cumbre Tech Bogotá 2026', startsAt: '2026-08-14T09:00:00', city: 'Bogotá', capacity: 500, sold: 312, revenue: 56_160_000, status: 'on-sale' },
+    { id: 'EVT-2', title: 'Noche Sinfónica · Teatro Colón', startsAt: '2026-07-20T19:30:00', city: 'Bogotá', capacity: 320, sold: 250, revenue: 23_750_000, status: 'on-sale' },
+    { id: 'EVT-5', title: 'Taller intensivo de UX & Producto', startsAt: '2026-08-28T08:30:00', city: 'Cartagena', capacity: 80, sold: 20, revenue: 6_400_000, status: 'on-sale' },
+  ];
+  return { attendees, capacity: 500, sold: 312, revenue: 56_160_000, portfolio };
+}
+
+/** A seeded wallet ("mis tickets") when there is no live purchase yet. */
+function mockWallet(holder: string): readonly WalletTicket[] {
+  const name = holder && holder.includes('@') ? holder.split('@')[0] : holder || 'Invitado';
+  return [
+    {
+      id: 'TKT-DEMO-1',
+      qr: 'SYN1|TKT-DEMO-1|ORD-DEMO|A1B2C3',
+      eventId: 'EVT-1',
+      eventTitle: 'Cumbre Tech Bogotá 2026',
+      venueName: 'Centro de Convenciones Ágora',
+      startsAt: '2026-08-14T09:00:00',
+      tier: 'General',
+      seat: '',
+      holder: name,
+      orderRef: 'ORD-DEMO',
+      status: 'valid',
+    },
+    {
+      id: 'TKT-DEMO-2',
+      qr: 'SYN1|TKT-DEMO-2|ORD-DEMO|D4E5F6',
+      eventId: 'EVT-2',
+      eventTitle: 'Noche Sinfónica · Teatro Colón',
+      venueName: 'Teatro Colón',
+      startsAt: '2026-07-20T19:30:00',
+      tier: 'Platea',
+      seat: 'A12',
+      holder: name,
+      orderRef: 'ORD-DEMO',
+      status: 'valid',
+    },
+  ];
 }

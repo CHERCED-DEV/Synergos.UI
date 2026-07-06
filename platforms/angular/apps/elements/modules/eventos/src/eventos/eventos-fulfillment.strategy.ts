@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
   FulfillmentStrategyBase,
+  SessionStore,
   type FulfillmentConfirmation,
   type FulfillmentPayRequest,
   type FulfillmentPayResult,
@@ -9,8 +10,9 @@ import {
   type FulfillmentSelection,
   type SessionData,
   type SessionItem,
+  type SessionParty,
 } from '@synergos/transaction-engine';
-import { EventosApiClient } from './eventos-api.client';
+import { EventosApiClient, type ConfirmContext } from './eventos-api.client';
 import {
   EVENTOS_FLOW,
   EVENTOS_KIND,
@@ -28,12 +30,16 @@ interface EventosSearchCriteria {
   readonly criteria: CatalogCriteria;
 }
 
-/** PSP instrument the shell hands the strategy on `pay`. */
+/** PSP instrument the SH-3 wizard hands the strategy on `pay`. */
 interface EventosPayInstrument {
   readonly apiBase: string;
   readonly eventId: string;
   readonly attendees: readonly Attendee[];
   readonly buyer: Buyer;
+  /** Event context threaded to `confirm` for the wallet ("mis tickets"). */
+  readonly eventTitle?: string;
+  readonly venueName?: string;
+  readonly startsAt?: string;
 }
 
 /**
@@ -54,6 +60,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   protected readonly flow = EVENTOS_FLOW;
 
   readonly #api = inject(EventosApiClient);
+  readonly #store = inject(SessionStore);
+
+  /** Event context captured on `pay`, threaded into `confirm` for the wallet. */
+  #confirmContext: ConfirmContext = {};
 
   /** Step 1 — catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
@@ -120,6 +130,24 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     const fallbackAmount = request.session.pricing.totalAmount / 100;
     const currency = request.session.pricing.currency;
 
+    // The SH-3 wizard drives pay→confirm off the store; persist the attendees as
+    // parties + stash the event context so `confirm` issues one e-ticket per
+    // attendee and the wallet reads meaningfully (no shell coupling).
+    const parties: SessionParty[] = attendees.map((attendee, index) => ({
+      id: `att-${index + 1}`,
+      fullName: attendee.name,
+      email: attendee.email,
+      details: { document: attendee.document },
+    }));
+    this.#store.setSession({ ...this.#store.getValidSession(), parties });
+    this.#confirmContext = {
+      eventId,
+      eventTitle: instrument.eventTitle ?? eventSelectionTitle(request.session),
+      venueName: instrument.venueName ?? '',
+      startsAt: instrument.startsAt ?? '',
+      buyer,
+    };
+
     const checkout = await this.#api.checkout(
       apiBase,
       eventId,
@@ -143,7 +171,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       }),
     );
     const items = toCheckoutItems(session);
-    const confirmation = await this.#api.confirm('/api/eventos', orderRef, attendees, items);
+    const confirmation = await this.#api.confirm(
+      '/api/eventos',
+      orderRef,
+      attendees,
+      items,
+      this.#confirmContext,
+    );
     return {
       confirmed:
         confirmation.status.toLowerCase() === 'confirmed' ||
@@ -184,6 +218,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       },
     };
   }
+}
+
+/** Read the event title from the first cart line's selection (best-effort). */
+function eventSelectionTitle(session: SessionData): string {
+  const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+  const title = selection?.['eventTitle'];
+  return typeof title === 'string' ? title : (session.items[0]?.label ?? '');
 }
 
 /** Expand the cart into the checkout contract's `items` (one per seat, else qty). */

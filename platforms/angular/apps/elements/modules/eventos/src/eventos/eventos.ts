@@ -16,6 +16,33 @@ import {
   TransactionEventBusService,
 } from '@synergos/transaction-engine';
 import {
+  AccountShellComponent,
+  AuthoringWizardComponent,
+  CheckoutWizardComponent,
+  ConsoleShellComponent,
+  CredentialWalletComponent,
+  DetailShellComponent,
+  DiscoveryShellComponent,
+  TrackingTimelineComponent,
+  type AccountShellConfig,
+  type AuthoringWizardConfig,
+  type CheckoutWizardConfig,
+  type CheckoutWizardResult,
+  type ConsoleColumn,
+  type ConsoleKpi,
+  type ConsoleRowAction,
+  type ConsoleRowActionEvent,
+  type ConsoleShellConfig,
+  type CredentialWalletConfig,
+  type DetailMedia,
+  type DetailSpec,
+  type DiscoveryCriteria,
+  type DiscoveryFacet,
+  type DiscoverySortOption,
+  type TrackingStage,
+  type WalletCredential,
+} from '@synergos/shells';
+import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -29,7 +56,11 @@ import {
   type CatalogCriteria,
   type CheckInOutcome,
   type CheckInResult,
+  type CreateEventRequest,
+  type CreateTierDraft,
   type EventDetail,
+  type EventMode,
+  type EventStatus,
   type EventSummary,
   type EventosRole,
   type EventosSortKey,
@@ -38,21 +69,34 @@ import {
   type ManageResult,
   type ManagedAttendee,
   type ManagerView,
+  type PortfolioEvent,
   type ScanRecord,
   type TicketTier,
   type TierSelectionPayload,
   type VenueZone,
+  type WalletTicket,
 } from './eventos.model';
 
 /**
  * Runtime config for the CMS element <c>elementSynEventos</c>.
  *
- * The Eventos vertical as a real enterprise events platform with two caras —
- * ASISTENTE (catálogo · ficha · selección tier/asiento · checkout · e-ticket QR)
- * and ORGANIZADOR (dashboard · asistentes · check-in por QR · aforo) — reusing the
- * shared <c>@synergos/transaction-engine</c> for the unified ticket checkout and
- * cross-island coordination, plus the published <c>&lt;synergos-seat-map&gt;</c>
- * (reserved seating) and <c>&lt;synergos-qr-code&gt;</c> (e-ticket / scan target).
+ * Eventos **v2** — the enterprise events platform (Ticketmaster + Eventbrite,
+ * doc 21 §2.6) rebuilt as a **hash-routed multi-page SPA** and the Ola-3 consumer
+ * of the reusable shell catalogue `@synergos/shells`:
+ *
+ *  - **ASISTENTE:** SH-1 `syn-discovery-shell` (catálogo+categorías+geo+fecha) →
+ *    SH-2 `syn-detail-shell` (hero+countdown+tiers, perfil artista/venue) →
+ *    selección (`<synergos-seat-map>` con price-levels / GA) → carrito+fees →
+ *    SH-3 `syn-checkout-wizard` → SH-10 `syn-credential-wallet` (e-ticket QR +
+ *    transferir) → SH-4 `syn-account-shell` ("mis tickets" + tracking).
+ *  - **ORGANIZADOR (role-switch):** SH-5 `syn-console-shell` (cartera, KPIs
+ *    vendidos/aforo/ingresos, asistentes, check-in scan Válido/Ya-usado/Inválido,
+ *    payout) + SH-6 `syn-authoring-wizard` (crear evento: tiers/aforo → publicar).
+ *
+ * 100% composable: no business is hardcoded; every knob comes from CMS props
+ * (`apiBase`/`currency`/`config` JSON) and the data always comes from the API
+ * with visible mock degradation. The shells stay domain-free (contrato D3) — the
+ * module only feeds data, templates and its `EventosFulfillmentStrategy`.
  */
 export interface EventosRuntimeConfig {
   /** Base URL of the eventos API. Default `/api/eventos`. */
@@ -65,6 +109,8 @@ export interface EventosRuntimeConfig {
   readonly role?: EventosRole;
   /** Optional event id/slug to deep-link the organizer dashboard to. */
   readonly eventId?: string;
+  /** Service-fee percentage applied on the ticket subtotal. Default 12. */
+  readonly feePercent?: number;
 }
 
 /** Typed event map for the transaction bus (eventos ↔ checkout ↔ check-in ↔ IA). */
@@ -77,6 +123,7 @@ const DEFAULT_API_BASE = '/api/eventos';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'eventos';
 const DEFAULT_ROLE: EventosRole = 'attendee';
+const DEFAULT_FEE_PERCENT = 12;
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EventosRole; label: string }[] = [
@@ -84,12 +131,23 @@ const ROLES: readonly { key: EventosRole; label: string }[] = [
   { key: 'organizer', label: 'Organizador' },
 ];
 
-const SORT_OPTIONS: readonly { key: EventosSortKey; label: string }[] = [
+const SORT_OPTIONS: readonly DiscoverySortOption[] = [
   { key: 'relevance', label: 'Más relevantes' },
   { key: 'date-asc', label: 'Próximos primero' },
   { key: 'popular', label: 'Más populares' },
   { key: 'price-asc', label: 'Menor precio' },
   { key: 'price-desc', label: 'Mayor precio' },
+];
+
+const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevance', page: 1 };
+
+/** The manager sections addressable inside the SH-5 console (order = sidebar). */
+const MANAGER_SECTIONS: readonly ManagerView[] = [
+  'portfolio',
+  'dashboard',
+  'attendees',
+  'checkin',
+  'payout',
 ];
 
 function sanitizeConfig(value: Partial<EventosRuntimeConfig>): EventosRuntimeConfig {
@@ -99,6 +157,7 @@ function sanitizeConfig(value: Partial<EventosRuntimeConfig>): EventosRuntimeCon
     scope: coerceTrimmedStringInput(value.scope),
     role: normalizeRole(value.role),
     eventId: coerceTrimmedStringInput(value.eventId),
+    feePercent: normalizeFee(value.feePercent),
   });
 }
 
@@ -106,16 +165,31 @@ function normalizeRole(value: unknown): EventosRole | undefined {
   return value === 'organizer' || value === 'attendee' ? value : undefined;
 }
 
+function normalizeFee(value: unknown): number | undefined {
+  const num = typeof value === 'string' ? Number(value) : value;
+  return typeof num === 'number' && Number.isFinite(num) && num >= 0 && num <= 100 ? num : undefined;
+}
+
 let eventosInstanceId = 0;
 
 @Component({
   selector: 'sg-eventos',
   standalone: true,
-  imports: [],
+  imports: [
+    DiscoveryShellComponent,
+    DetailShellComponent,
+    CheckoutWizardComponent,
+    AccountShellComponent,
+    TrackingTimelineComponent,
+    ConsoleShellComponent,
+    AuthoringWizardComponent,
+    CredentialWalletComponent,
+  ],
   templateUrl: './eventos.html',
   styleUrl: './eventos.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // Embedded published custom elements (<synergos-seat-map>, <synergos-qr-code>).
+  // Embedded published custom elements (<synergos-seat-map>, <synergos-qr-code>,
+  // <synergos-countdown-clock>).
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-eventos' },
 })
@@ -136,6 +210,7 @@ export class EventosElementComponent {
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly eventIdInput = input<string | undefined>(undefined, { alias: 'eventId' });
+  readonly feePercentInput = input<string | number | undefined>(undefined, { alias: 'feePercent' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -164,6 +239,9 @@ export class EventosElementComponent {
   readonly deepLinkEventId = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.eventIdInput()), this.config()?.eventId, ''),
   );
+  readonly feePercent = computed(() =>
+    resolveConfigValue(normalizeFee(this.feePercentInput()), this.config()?.feePercent, DEFAULT_FEE_PERCENT),
+  );
 
   readonly instanceId = (eventosInstanceId += 1);
   readonly fieldId = `syn-eventos-${this.instanceId}`;
@@ -178,19 +256,17 @@ export class EventosElementComponent {
   readonly role = signal<EventosRole>(DEFAULT_ROLE);
   readonly loading = signal(false);
   readonly errorMessage = signal('');
+  #suppressedHash = '';
 
   // ─── ASISTENTE state ─────────────────────────────────────────────────────────
   readonly view = signal<EventosView>('catalog');
 
-  // Catalogue
-  readonly searchTerm = signal('');
-  readonly activeCategory = signal('');
-  readonly activeCity = signal('');
-  readonly sort = signal<EventosSortKey>('relevance');
+  // Catalogue (SH-1 discovery)
+  readonly criteria = signal<DiscoveryCriteria>(CLEAN_CRITERIA);
   readonly events = signal<readonly EventSummary[]>([]);
   readonly searched = signal(false);
 
-  // Event PDP
+  // Event PDP (SH-2 detail)
   readonly detail = signal<EventDetail | null>(null);
 
   // Selection
@@ -198,7 +274,7 @@ export class EventosElementComponent {
   readonly quantity = signal(1);
   readonly selectedSeats = signal<readonly string[]>([]);
 
-  // Attendees / buyer
+  // Attendees / buyer (SH-3 checkout steps)
   readonly attendees = signal<readonly Attendee[]>([]);
   readonly buyerName = signal('');
   readonly buyerEmail = signal('');
@@ -208,8 +284,16 @@ export class EventosElementComponent {
   readonly orderRef = signal('');
   readonly tickets = signal<readonly ETicket[]>([]);
 
+  // Wallet ("mis tickets" — SH-10 + SH-4)
+  readonly wallet = signal<readonly WalletTicket[]>([]);
+  readonly walletLoaded = signal(false);
+  readonly accountSection = signal<'tickets' | 'perfil'>('tickets');
+  readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
+  readonly transferTo = signal('');
+  readonly transferTicketId = signal('');
+
   // ─── ORGANIZADOR state ─────────────────────────────────────────────────────────
-  readonly managerView = signal<ManagerView>('dashboard');
+  readonly managerView = signal<ManagerView>('portfolio');
   readonly manageEventId = signal('');
   readonly manage = signal<ManageResult | null>(null);
   readonly attendeeFilter = signal('');
@@ -217,6 +301,7 @@ export class EventosElementComponent {
   readonly lastScan = signal<CheckInResult | null>(null);
   readonly scanLog = signal<readonly ScanRecord[]>([]);
   readonly checkedInCount = signal(0);
+  readonly createResultSlug = signal('');
 
   // ─── Engine-derived state ────────────────────────────────────────────────────
   readonly liveConflict = this.#store.liveSessionConflict;
@@ -226,16 +311,32 @@ export class EventosElementComponent {
     void this.detail();
     void this.manage();
     void this.lastScan();
+    void this.wallet();
     return this.#api.degraded;
   });
 
-  // ─── Catalogue derived ───────────────────────────────────────────────────────
-  readonly categories = computed(() => this.facet((event) => event.category));
-  readonly cities = computed(() => this.facet((event) => event.city));
+  // ─── Catalogue derived (SH-1 facets) ─────────────────────────────────────────
+  readonly discoveryFacets = computed<readonly DiscoveryFacet[]>(() => {
+    const categories = this.facetValues((event) => event.category);
+    const cities = this.facetValues((event) => event.city);
+    const facets: DiscoveryFacet[] = [];
+    if (categories.length > 0) {
+      facets.push({ key: 'category', label: 'Categoría', values: categories });
+    }
+    if (cities.length > 0) {
+      facets.push({ key: 'city', label: 'Ciudad', values: cities });
+    }
+    return facets;
+  });
 
-  readonly hasActiveFilters = computed(
-    () => !!this.activeCategory() || !!this.activeCity() || !!this.searchTerm().trim(),
+  readonly homeCategories = computed(
+    () => this.discoveryFacets().find((facet) => facet.key === 'category')?.values ?? [],
   );
+
+  readonly hasActiveFilters = computed(() => {
+    const active = this.criteria();
+    return active.term.trim() !== '' || Object.values(active.facets).some((v) => v.length > 0);
+  });
 
   // ─── PDP / selection derived ─────────────────────────────────────────────────
   readonly tiers = computed<readonly TicketTier[]>(() => this.detail()?.tiers ?? []);
@@ -252,8 +353,32 @@ export class EventosElementComponent {
   });
 
   readonly isReserved = computed(() => this.detail()?.event.mode === 'reserved');
-
   readonly isFreeEvent = computed(() => (this.detail()?.event.fromAmount ?? 0) <= 0);
+
+  readonly pdpMedia = computed<readonly DetailMedia[]>(() => {
+    const detail = this.detail();
+    if (!detail || !detail.event.cover) {
+      return [];
+    }
+    return [{ url: detail.event.cover, alt: detail.event.title }];
+  });
+
+  readonly pdpSpecs = computed<readonly DetailSpec[]>(() => {
+    const detail = this.detail();
+    if (!detail) {
+      return [];
+    }
+    const event = detail.event;
+    const specs: DetailSpec[] = [
+      { label: 'Fecha', value: this.formatDate(event.startsAt) || '—' },
+      { label: 'Lugar', value: detail.venue.name || event.venueName || '—' },
+      { label: 'Ciudad', value: event.city || '—' },
+      { label: 'Categoría', value: event.category || '—' },
+      { label: 'Modalidad', value: event.mode === 'reserved' ? 'Asientos numerados' : 'Admisión general' },
+      { label: 'Organizador', value: detail.organizer.name },
+    ];
+    return specs;
+  });
 
   /** The venue zone bound to the selected tier (reserved seating). */
   readonly selectedZone = computed<VenueZone | null>(() => {
@@ -278,10 +403,7 @@ export class EventosElementComponent {
 
   readonly selectionAmount = computed(() => {
     const tier = this.selectedTier();
-    if (!tier) {
-      return 0;
-    }
-    return tier.amount * Math.max(0, this.ticketCount());
+    return tier ? tier.amount * Math.max(0, this.ticketCount()) : 0;
   });
 
   readonly selectionAmountLabel = computed(() =>
@@ -296,21 +418,131 @@ export class EventosElementComponent {
     return this.ticketCount() >= 1 && this.ticketCount() <= tier.maxPerOrder;
   });
 
-  // ─── Attendees derived ───────────────────────────────────────────────────────
-  readonly attendeesValid = computed(() =>
-    this.attendees().length > 0 &&
-    this.attendees().every(
-      (attendee) => attendee.name.trim().length >= 2 && /.+@.+\..+/.test(attendee.email.trim()),
-    ),
+  // ─── Cart + fees (engine) ────────────────────────────────────────────────────
+  readonly cartItems = this.#store.items;
+  readonly hasCart = this.#store.hasItems;
+  readonly cartSubtotalMinor = computed(() =>
+    this.#store.items().reduce((sum, item) => sum + item.amount * item.quantity, 0),
+  );
+  readonly feesMinor = computed(() => Math.round((this.cartSubtotalMinor() * this.feePercent()) / 100));
+  readonly cartTotalMinor = computed(() => this.cartSubtotalMinor() + this.feesMinor());
+  readonly cartSubtotalLabel = computed(() =>
+    this.formatPrice(this.cartSubtotalMinor() / 100, this.currency()),
+  );
+  readonly feesLabel = computed(() => this.formatPrice(this.feesMinor() / 100, this.currency()));
+  readonly cartTotalLabel = computed(() => this.formatPrice(this.cartTotalMinor() / 100, this.currency()));
+
+  // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
+  readonly attendeesValid = computed(
+    () =>
+      this.attendees().length > 0 &&
+      this.attendees().every(
+        (attendee) => attendee.name.trim().length >= 2 && /.+@.+\..+/.test(attendee.email.trim()),
+      ),
   );
 
   readonly buyerValid = computed(
     () => this.buyerName().trim().length >= 2 && /.+@.+\..+/.test(this.buyerEmail().trim()),
   );
 
-  readonly checkoutValid = computed(() => this.attendeesValid() && this.buyerValid());
+  /** Pasos apagables por config: asistentes → [pago] → revisar. Pago OFF si gratis. */
+  readonly checkoutConfig = computed<CheckoutWizardConfig>(() => {
+    const steps = [
+      { id: 'asistentes', label: 'Asistentes' },
+      ...(this.isFreeEvent() ? [] : [{ id: 'pago', label: 'Pago' }]),
+      { id: 'revisar', label: 'Confirmar' },
+    ];
+    return {
+      steps,
+      summaryHeading: 'Tu orden',
+      submitLabel: this.isFreeEvent() ? 'Confirmar registro' : 'Pagar y confirmar',
+      processingLabel: 'Procesando…',
+      nextLabel: 'Continuar',
+      backLabel: 'Atrás',
+    };
+  });
 
-  // ─── Organizer derived ───────────────────────────────────────────────────────
+  readonly checkoutValidity = computed<Readonly<Record<string, boolean>>>(() => ({
+    asistentes: this.attendeesValid() && this.buyerValid(),
+    pago: true,
+    revisar: true,
+  }));
+
+  readonly checkoutInstrument = computed<Readonly<Record<string, unknown>>>(() => {
+    const detail = this.detail();
+    return {
+      apiBase: this.apiBase(),
+      eventId: detail?.event.id ?? '',
+      eventTitle: detail?.event.title ?? '',
+      venueName: detail?.venue.name ?? detail?.event.venueName ?? '',
+      startsAt: detail?.event.startsAt ?? '',
+      attendees: this.attendees().map((a) => ({
+        name: a.name.trim(),
+        email: a.email.trim(),
+        document: a.document.trim(),
+      })),
+      buyer: { name: this.buyerName().trim(), email: this.buyerEmail().trim() } as Buyer,
+      provider: this.isFreeEvent()
+        ? 'eventos-free'
+        : this.paymentMethod() === 'pse'
+          ? 'eventos-pse'
+          : 'eventos-card',
+    };
+  });
+
+  // ─── Account (SH-4 inputs) ──────────────────────────────────────────────────
+  readonly upcomingTickets = computed(() =>
+    this.wallet().filter((ticket) => ticket.status === 'valid'),
+  );
+  readonly pastTickets = computed(() =>
+    this.wallet().filter((ticket) => ticket.status !== 'valid'),
+  );
+
+  readonly accountConfig = computed<AccountShellConfig>(() => ({
+    heading: 'Mi cuenta',
+    navLabel: 'Secciones de la cuenta',
+    inboxEmptyMessage: 'Todavía no tienes tickets. Explora eventos y compra tu entrada.',
+    inboxLoadingMessage: 'Cargando tus tickets…',
+    detailPlaceholder: 'Selecciona un ticket para ver el detalle y su seguimiento.',
+    sections: [
+      { id: 'tickets', label: 'Mis tickets', kind: 'inbox', badge: this.wallet().length || undefined },
+      { id: 'perfil', label: 'Mis datos' },
+    ],
+  }));
+
+  // ─── Wallet (SH-10 inputs) ──────────────────────────────────────────────────
+  readonly walletConfig = computed<CredentialWalletConfig>(() => ({
+    heading: 'Mis tickets',
+    emptyMessage: 'Todavía no tienes tickets. Explora eventos y compra tu entrada.',
+    listLabel: 'Mis tickets',
+    referenceLabel: 'Código',
+    expandLabel: 'Ver e-ticket (QR)',
+    collapseLabel: 'Ocultar e-ticket',
+    qrSize: 160,
+  }));
+
+  readonly walletCredentials = computed<readonly WalletCredential[]>(() =>
+    this.wallet().map((ticket) => ({
+      id: ticket.id,
+      kind: 'E-ticket',
+      title: ticket.eventTitle,
+      subtitle: [ticket.venueName, this.formatDateShort(ticket.startsAt)].filter(Boolean).join(' · '),
+      reference: ticket.id,
+      qrData: ticket.qr,
+      issuedAt: ticket.orderRef ? `Orden ${ticket.orderRef}` : '',
+      status: {
+        label: this.walletStatusLabel(ticket.status),
+        tone: ticket.status === 'valid' ? 'positive' : 'neutral',
+      },
+      fields: [
+        { label: 'Tier', value: ticket.tier || 'General' },
+        ...(ticket.seat ? [{ label: 'Asiento', value: ticket.seat }] : []),
+        { label: 'Titular', value: ticket.holder || '—' },
+      ],
+    })),
+  );
+
+  // ─── Organizer console (SH-5 inputs) ────────────────────────────────────────
   readonly soldPercent = computed(() => {
     const data = this.manage();
     if (!data || data.capacity <= 0) {
@@ -324,22 +556,87 @@ export class EventosElementComponent {
     return data ? Math.max(0, data.capacity - data.sold) : 0;
   });
 
-  readonly revenueEstimate = computed(() => {
-    const data = this.manage();
-    if (!data) {
-      return 0;
-    }
-    // Rough estimate from attendee tier mix (mock-friendly); real KPI comes from API.
-    return data.attendees.reduce((sum) => sum + 120_000, 0);
-  });
-
   readonly checkinRate = computed(() => {
     const data = this.manage();
     if (!data || data.attendees.length === 0) {
       return 0;
     }
-    const checkedIn = data.attendees.filter((attendee) => attendee.state === 'checked-in').length;
+    const checkedIn = data.attendees.filter((a) => a.state === 'checked-in').length;
     return Math.round((checkedIn / data.attendees.length) * 100);
+  });
+
+  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() => {
+    const data = this.manage();
+    if (!data) {
+      return [];
+    }
+    return [
+      { id: 'sold', label: 'Vendidos', value: this.formatCount(data.sold), hint: `${this.soldPercent()}% del aforo` },
+      { id: 'capacity', label: 'Aforo disponible', value: this.formatCount(this.availableCapacity()), hint: `Capacidad ${this.formatCount(data.capacity)}` },
+      { id: 'revenue', label: 'Ingresos', value: this.formatPrice(data.revenue, this.currency()), trend: 'up', delta: '+8%' },
+      { id: 'checkin', label: 'Check-in', value: `${this.checkinRate()}%`, hint: `${this.checkedInCount()} ingresaron` },
+    ];
+  });
+
+  readonly consoleConfig = computed<ConsoleShellConfig>(() => ({
+    heading: 'Consola del organizador',
+    navLabel: 'Secciones del organizador',
+    kpisLabel: 'Indicadores del evento',
+    filtersLabel: 'Filtros',
+    actionsLabel: 'Acciones',
+    emptyMessage: 'No hay filas en esta sección.',
+    loadingMessage: 'Cargando…',
+    sections: [
+      { id: 'portfolio', label: 'Cartera', kind: 'table' },
+      { id: 'dashboard', label: 'Dashboard', kind: 'custom' },
+      { id: 'attendees', label: 'Asistentes', kind: 'table', badge: this.manage()?.attendees.length || undefined },
+      { id: 'checkin', label: 'Check-in', kind: 'custom' },
+      { id: 'payout', label: 'Payout', kind: 'custom' },
+    ],
+  }));
+
+  readonly portfolioColumns: readonly ConsoleColumn[] = [
+    { key: 'title', label: 'Evento' },
+    { key: 'when', label: 'Fecha' },
+    { key: 'sold', label: 'Vendidos', align: 'end' },
+    { key: 'revenue', label: 'Ingresos', align: 'end' },
+    { key: 'status', label: 'Estado' },
+  ];
+
+  readonly attendeeColumns: readonly ConsoleColumn[] = [
+    { key: 'name', label: 'Asistente' },
+    { key: 'tier', label: 'Tier' },
+    { key: 'seat', label: 'Asiento' },
+    { key: 'state', label: 'Estado' },
+  ];
+
+  readonly portfolioActions: readonly ConsoleRowAction[] = [
+    { id: 'open', label: 'Abrir', kind: 'primary' },
+  ];
+  readonly attendeeActions: readonly ConsoleRowAction[] = [
+    { id: 'checkin', label: 'Check-in', kind: 'default' },
+  ];
+  readonly noActions: readonly ConsoleRowAction[] = [];
+
+  readonly portfolioRows = computed<readonly PortfolioEvent[]>(() => this.manage()?.portfolio ?? []);
+
+  /** Union row type so the generic SH-5 console unifies `TRow` across sections. */
+  readonly consoleRows = computed<readonly (PortfolioEvent | ManagedAttendee)[]>(() =>
+    this.managerView() === 'attendees' ? this.filteredAttendees() : this.portfolioRows(),
+  );
+
+  readonly consoleColumns = computed<readonly ConsoleColumn[]>(() =>
+    this.managerView() === 'attendees' ? this.attendeeColumns : this.portfolioColumns,
+  );
+
+  readonly consoleActions = computed<readonly ConsoleRowAction[]>(() => {
+    if (this.managerView() === 'portfolio') {
+      return this.portfolioActions;
+    }
+    if (this.managerView() === 'attendees') {
+      return this.attendeeActions;
+    }
+    return this.noActions;
   });
 
   readonly filteredAttendees = computed<readonly ManagedAttendee[]>(() => {
@@ -349,12 +646,46 @@ export class EventosElementComponent {
       return list;
     }
     return list.filter(
-      (attendee) =>
-        attendee.name.toLowerCase().includes(term) ||
-        attendee.email.toLowerCase().includes(term) ||
-        attendee.tier.toLowerCase().includes(term) ||
-        attendee.ticketId.toLowerCase().includes(term),
+      (a) =>
+        a.name.toLowerCase().includes(term) ||
+        a.email.toLowerCase().includes(term) ||
+        a.tier.toLowerCase().includes(term) ||
+        a.ticketId.toLowerCase().includes(term),
     );
+  });
+
+  // ─── Create event (SH-6 authoring) ──────────────────────────────────────────
+  readonly createConfig: AuthoringWizardConfig = {
+    heading: 'Crear evento',
+    steps: [
+      { id: 'basicos', label: 'Básicos' },
+      { id: 'tiers', label: 'Tiers y aforo' },
+      { id: 'publicar', label: 'Publicar' },
+    ],
+    stepsLabel: 'Pasos para crear el evento',
+    backLabel: 'Atrás',
+    nextLabel: 'Continuar',
+    publishLabel: 'Publicar evento',
+    publishingLabel: 'Publicando…',
+    draftScope: `eventos-create.${this.instanceId}`,
+  };
+
+  readonly createDraft = signal<Readonly<Record<string, unknown>>>({});
+  readonly createPublishing = signal(false);
+
+  readonly createValidity = computed<Readonly<Record<string, boolean>>>(() => {
+    const draft = this.createDraft();
+    const title = this.draftString(draft, 'title');
+    const city = this.draftString(draft, 'city');
+    const startsAt = this.draftString(draft, 'startsAt');
+    const tierName = this.draftString(draft, 'tierName');
+    const tierAmount = this.draftString(draft, 'tierAmount');
+    const capacity = this.draftString(draft, 'capacity');
+    return {
+      basicos: title.trim().length >= 3 && city.trim().length >= 2 && startsAt.trim().length > 0,
+      tiers: tierName.trim().length >= 2 && Number(tierAmount) >= 0 && Number(capacity) >= 1,
+      publicar: true,
+    };
   });
 
   constructor() {
@@ -373,17 +704,26 @@ export class EventosElementComponent {
     const widget = this.#orchestrator.register('eventos-catalog', { order: 0 });
     this.#orchestrator.setStatus(widget, 'ready');
 
+    // Hash router: deep-linkable views (#/<scope>/e/<id>, #/<scope>/mis-tickets…).
+    const onHashChange = (): void => this.applyHash();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', onHashChange);
+    }
+
     this.#destroyRef.onDestroy(() => {
       this.#orchestrator.unregister(widget);
       this.#bus.destroy();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('hashchange', onHashChange);
+      }
     });
 
-    // Open the right cara: attendee → catalogue; organizer → dashboard.
+    // Open the right cara, then honour a deep link.
     if (this.role() === 'organizer') {
       this.manageEventId.set(this.deepLinkEventId());
-      void this.loadManage();
+      void this.loadManage().then(() => this.applyHash());
     } else {
-      void this.runSearch();
+      void this.runSearch().then(() => this.applyHash());
     }
   }
 
@@ -398,8 +738,12 @@ export class EventosElementComponent {
       if (!this.manage()) {
         void this.loadManage();
       }
-    } else if (this.events().length === 0) {
-      void this.runSearch();
+      this.writeHash('organizer', this.managerView());
+    } else {
+      if (this.events().length === 0) {
+        void this.runSearch();
+      }
+      this.navigate('catalog');
     }
   }
 
@@ -408,64 +752,181 @@ export class EventosElementComponent {
     return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
   }
 
-  /** Read the current value of a native `<select>`/`<input>` change/input event. */
   private eventValue(event: Event): string {
     return (event.target as HTMLSelectElement | HTMLInputElement | null)?.value ?? '';
   }
 
-  // ─── Catalogue ───────────────────────────────────────────────────────────────
-  submitSearch(): void {
+  // ─── Router (signals + hash deep-links) ─────────────────────────────────────
+  navigate(view: EventosView, param = ''): void {
+    if (view === 'checkout' && !this.hasCart()) {
+      view = 'cart';
+    }
+    this.applyRoute(view, param);
+    this.writeHash(view, param);
+  }
+
+  goToCatalog(): void {
+    this.detail.set(null);
+    this.navigate('catalog');
+  }
+
+  goToWallet(): void {
+    this.navigate('wallet');
+  }
+
+  goToAccount(): void {
+    this.navigate('account');
+  }
+
+  private applyRoute(view: EventosView, param: string): void {
+    this.errorMessage.set('');
+    switch (view) {
+      case 'event':
+        if (param && param !== this.detail()?.event.slug && param !== this.detail()?.event.id) {
+          void this.loadEvent(param);
+        } else {
+          this.view.set('event');
+        }
+        return;
+      case 'wallet':
+        this.view.set('wallet');
+        this.loadWallet();
+        return;
+      case 'account':
+        this.accountSection.set('tickets');
+        this.view.set('account');
+        this.loadWallet();
+        return;
+      case 'confirmed':
+        if (!this.orderRef()) {
+          this.view.set('catalog');
+          return;
+        }
+        this.view.set('confirmed');
+        return;
+      default:
+        this.view.set(view);
+    }
+  }
+
+  private routeHash(view: EventosView, param: string): string {
+    const base = `#/${this.scope()}`;
+    switch (view) {
+      case 'catalog':
+        return base;
+      case 'event':
+        return `${base}/e/${encodeURIComponent(param)}`;
+      case 'select':
+        return `${base}/asientos`;
+      case 'cart':
+        return `${base}/carrito`;
+      case 'checkout':
+        return `${base}/checkout`;
+      case 'confirmed':
+        return `${base}/confirmacion`;
+      case 'wallet':
+        return `${base}/mis-tickets`;
+      case 'account':
+        return `${base}/cuenta`;
+      default:
+        return base;
+    }
+  }
+
+  private writeHash(view: EventosView | 'organizer', param: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const base = `#/${this.scope()}`;
+    const hash =
+      view === 'organizer'
+        ? `${base}/organizador${param ? `/${param}` : ''}`
+        : this.routeHash(view as EventosView, param);
+    if (window.location.hash !== hash) {
+      this.#suppressedHash = hash;
+      window.location.hash = hash;
+    }
+  }
+
+  private applyHash(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hash = window.location.hash;
+    if (hash === this.#suppressedHash) {
+      this.#suppressedHash = '';
+      return;
+    }
+    const base = `#/${this.scope()}`;
+    if (hash !== base && !hash.startsWith(`${base}/`)) {
+      return;
+    }
+    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
+    const [head = '', tail = ''] = segments;
+    switch (head) {
+      case '':
+        this.role.set('attendee');
+        this.applyRoute('catalog', '');
+        return;
+      case 'e':
+        this.role.set('attendee');
+        this.applyRoute('event', decodeURIComponent(tail));
+        return;
+      case 'asientos':
+        this.applyRoute(this.detail() ? 'select' : 'catalog', '');
+        return;
+      case 'carrito':
+        this.applyRoute('cart', '');
+        return;
+      case 'checkout':
+        this.applyRoute(this.hasCart() ? 'checkout' : 'cart', '');
+        return;
+      case 'confirmacion':
+        this.applyRoute('confirmed', '');
+        return;
+      case 'mis-tickets':
+        this.role.set('attendee');
+        this.applyRoute('wallet', '');
+        return;
+      case 'cuenta':
+        this.role.set('attendee');
+        this.applyRoute('account', '');
+        return;
+      case 'organizador':
+        this.role.set('organizer');
+        if ((MANAGER_SECTIONS as readonly string[]).includes(tail)) {
+          this.managerView.set(tail as ManagerView);
+        }
+        if (!this.manage()) {
+          void this.loadManage();
+        }
+        return;
+      default:
+        this.applyRoute('catalog', '');
+    }
+  }
+
+  // ─── Catalogue (SH-1 discovery wiring) ───────────────────────────────────────
+  onCriteriaChange(criteria: DiscoveryCriteria): void {
+    this.criteria.set(criteria);
     void this.runSearch();
   }
 
-  setSort(value: string): void {
-    const next = SORT_OPTIONS.find((option) => option.key === value)?.key ?? 'relevance';
-    this.sort.set(next);
-    void this.runSearch();
-  }
-
-  onSortChange(event: Event): void {
-    this.setSort(this.eventValue(event));
-  }
-
-  onCityChange(event: Event): void {
-    this.setCity(this.eventValue(event));
-  }
-
-  onCheckinInput(event: Event): void {
-    this.setCheckinCode(this.eventValue(event));
-  }
-
-  selectCategory(category: string): void {
-    this.activeCategory.set(this.activeCategory() === category ? '' : category);
-    void this.runSearch();
-  }
-
-  setCity(value: string): void {
-    this.activeCity.set(value);
-    void this.runSearch();
-  }
-
-  clearFilters(): void {
-    this.activeCategory.set('');
-    this.activeCity.set('');
-    this.searchTerm.set('');
+  openCategory(category: string): void {
+    this.criteria.set({ ...CLEAN_CRITERIA, facets: { category: [category] } });
     void this.runSearch();
   }
 
   private async runSearch(): Promise<void> {
-    if (this.loading()) {
-      return;
-    }
+    const active = this.criteria();
     const criteria: CatalogCriteria = {
-      q: this.searchTerm().trim(),
-      category: this.activeCategory(),
-      city: this.activeCity(),
-      sort: this.sort(),
+      q: active.term,
+      category: (active.facets['category'] ?? [])[0] ?? '',
+      city: (active.facets['city'] ?? [])[0] ?? '',
+      sort: (active.sort as EventosSortKey) || 'relevance',
     };
     this.loading.set(true);
     this.errorMessage.set('');
-    this.view.set('catalog');
     const requestId = `events:${JSON.stringify(criteria)}`;
     try {
       const result = await this.#orchestrator.callApi(requestId, () =>
@@ -481,15 +942,15 @@ export class EventosElementComponent {
     }
   }
 
-  // ─── Event PDP ───────────────────────────────────────────────────────────────
-  openEvent(event: EventSummary): void {
-    void this.loadEvent(event.slug || event.id);
+  eventFromAmountLabel(event: EventSummary): string {
+    return event.fromAmount <= 0
+      ? 'Gratis'
+      : `Desde ${this.formatPrice(event.fromAmount, event.currency || this.currency())}`;
   }
 
-  backToCatalog(): void {
-    this.view.set('catalog');
-    this.detail.set(null);
-    this.errorMessage.set('');
+  // ─── Event PDP (SH-2 wiring) ─────────────────────────────────────────────────
+  openEvent(event: EventSummary): void {
+    this.navigate('event', event.slug || event.id);
   }
 
   private async loadEvent(id: string): Promise<void> {
@@ -524,13 +985,11 @@ export class EventosElementComponent {
     return tier.amount <= 0 ? 'Gratis' : this.formatPrice(tier.amount, tier.currency || this.currency());
   }
 
-  /** CTA on the PDP → open the selección step for the chosen tier. */
   startSelection(): void {
     if (!this.selectedTier()) {
       return;
     }
-    this.errorMessage.set('');
-    this.view.set('select');
+    this.navigate('select');
   }
 
   incrementQty(): void {
@@ -550,27 +1009,22 @@ export class EventosElementComponent {
   }
 
   backToEvent(): void {
-    this.view.set('event');
-    this.errorMessage.set('');
+    this.navigate('event', this.detail()?.event.slug || this.detail()?.event.id || '');
   }
 
-  /** Selección confirmed → seed attendee rows + cart line, go to attendee data. */
-  proceedToAttendees(): void {
+  /** Selección confirmed → seed attendee rows + cart line, go to cart. */
+  proceedToCart(): void {
     if (!this.canProceedSelection()) {
       return;
     }
     const count = this.ticketCount();
-    // Seed one attendee row per ticket, preserving any already-entered data.
     const previous = this.attendees();
     const rows: Attendee[] = Array.from({ length: count }, (_unused, index) =>
       previous[index] ?? { name: '', email: '', document: '' },
     );
     this.attendees.set(rows);
-    if (!this.buyerName() && rows[0]?.name) {
-      this.buyerName.set(rows[0].name);
-    }
     void this.selectIntoCart();
-    this.view.set('attendees');
+    this.navigate('cart');
   }
 
   private async selectIntoCart(): Promise<void> {
@@ -607,7 +1061,14 @@ export class EventosElementComponent {
     this.reprice();
   }
 
-  // ─── Attendee data ─────────────────────────────────────────────────────────────
+  goToCheckout(): void {
+    if (!this.hasCart()) {
+      return;
+    }
+    this.navigate('checkout');
+  }
+
+  // ─── Attendee data (SH-3 step content) ───────────────────────────────────────
   setAttendeeField(index: number, field: keyof Attendee, value: string): void {
     this.attendees.update((rows) =>
       rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)),
@@ -619,129 +1080,37 @@ export class EventosElementComponent {
       this.setAttendeeField(index, field, (event.target as HTMLInputElement | null)?.value ?? '');
   }
 
-  backToSelection(): void {
-    this.view.set('select');
-    this.errorMessage.set('');
-  }
-
-  proceedToCheckout(): void {
-    if (!this.attendeesValid()) {
-      return;
-    }
-    this.view.set('checkout');
-  }
-
-  // ─── Checkout / payment ─────────────────────────────────────────────────────────
   setPaymentMethod(method: 'card' | 'pse'): void {
     this.paymentMethod.set(method);
   }
 
-  backToAttendees(): void {
-    this.view.set('attendees');
-    this.errorMessage.set('');
-  }
-
-  /** Confirm CTA — single payment + confirm for the order; issues e-tickets. */
-  confirmPurchase(): void {
-    if (!this.checkoutValid()) {
-      return;
-    }
-    void this.placeOrder();
-  }
-
-  private async placeOrder(): Promise<void> {
-    if (this.loading() || !this.#store.hasItems()) {
-      return;
-    }
-    const detail = this.detail();
-    if (!detail) {
-      return;
-    }
-    const attendees = this.attendees().map((attendee) => ({
-      name: attendee.name.trim(),
-      email: attendee.email.trim(),
-      document: attendee.document.trim(),
+  // ─── Checkout (SH-3 wizard callbacks) ────────────────────────────────────────
+  onCheckoutCompleted(result: CheckoutWizardResult): void {
+    this.orderRef.set(result.reference);
+    const issued: ETicket[] = result.vouchers.map((voucher) => ({
+      id: voucher.itemId,
+      qr: voucher.reference,
+      attendee: typeof voucher.detail?.['attendee'] === 'string' ? voucher.detail['attendee'] : undefined,
+      tier: typeof voucher.detail?.['tier'] === 'string' ? voucher.detail['tier'] : undefined,
+      seat: typeof voucher.detail?.['seat'] === 'string' ? voucher.detail['seat'] : undefined,
     }));
-    const buyer: Buyer = { name: this.buyerName().trim(), email: this.buyerEmail().trim() };
+    this.tickets.set(issued);
+    this.walletLoaded.set(false);
+    this.navigate('confirmed');
 
-    this.loading.set(true);
-    this.errorMessage.set('');
-    this.#store.setStatus('paying');
+    const detail = this.detail();
+    const payload = {
+      eventId: detail?.event.id ?? '',
+      orderRef: result.reference,
+      tickets: issued.length,
+    };
+    this.purchased.emit(payload);
+    this.#bus.publish('purchased', payload);
+  }
 
-    try {
-      // Record parties once so confirm() can issue one e-ticket per attendee.
-      const session = {
-        ...this.#store.getValidSession(),
-        parties: attendees.map((attendee, index) => ({
-          id: `att-${index + 1}`,
-          fullName: attendee.name,
-          email: attendee.email,
-          details: { document: attendee.document },
-        })),
-      };
-      this.#store.setSession(session);
-
-      // FulfillmentContext routes pay → confirm to the eventos strategy.
-      const payResult = await this.#fulfillment.pay({
-        session: this.#store.getValidSession(),
-        instrument: {
-          apiBase: this.apiBase(),
-          eventId: detail.event.id,
-          attendees,
-          buyer,
-        },
-      });
-      if (!payResult.accepted || !payResult.reference) {
-        throw new Error('payment-rejected');
-      }
-
-      const paid = {
-        ...this.#store.getValidSession(),
-        payments: [
-          {
-            id: `pay-${Date.now().toString(36)}`,
-            amount: this.#store.pricing().totalAmount,
-            provider: this.isFreeEvent()
-              ? 'eventos-free'
-              : this.paymentMethod() === 'pse'
-                ? 'eventos-pse'
-                : 'eventos-card',
-            status: 'captured' as const,
-            reference: payResult.reference,
-          },
-        ],
-        status: 'paying' as const,
-      };
-      this.#store.setSession(paid);
-
-      const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession());
-      if (!confirmation.confirmed) {
-        throw new Error('not-confirmed');
-      }
-
-      const issued: ETicket[] = confirmation.vouchers.map((voucher) => ({
-        id: voucher.itemId,
-        qr: voucher.reference,
-        attendee: typeof voucher.detail?.['attendee'] === 'string' ? voucher.detail['attendee'] : undefined,
-        tier: typeof voucher.detail?.['tier'] === 'string' ? voucher.detail['tier'] : undefined,
-        seat: typeof voucher.detail?.['seat'] === 'string' ? voucher.detail['seat'] : undefined,
-      }));
-
-      this.orderRef.set(payResult.reference);
-      this.tickets.set(issued);
-      this.#store.setStatus('confirmed');
-      this.loading.set(false);
-      this.view.set('confirmed');
-
-      const payload = { eventId: detail.event.id, orderRef: payResult.reference, tickets: issued.length };
-      this.purchased.emit(payload);
-      this.#bus.publish('purchased', payload);
-    } catch (error) {
-      this.loading.set(false);
-      this.errorMessage.set('No pudimos completar la compra. Intenta de nuevo.');
-      this.#store.setStatus('building');
-      void error;
-    }
+  onCheckoutFailed(reason: string): void {
+    void reason;
+    this.errorMessage.set('No pudimos completar la compra. Intenta de nuevo.');
   }
 
   /** Print the e-tickets (browser print → PDF). */
@@ -763,12 +1132,119 @@ export class EventosElementComponent {
     this.orderRef.set('');
     this.tickets.set([]);
     this.errorMessage.set('');
-    this.view.set('catalog');
+    this.navigate('catalog');
   }
 
-  // ─── ORGANIZADOR ─────────────────────────────────────────────────────────────
-  setManagerView(view: ManagerView): void {
-    this.managerView.set(view);
+  // ─── Wallet ("mis tickets" — SH-10 + SH-4) ───────────────────────────────────
+  private loadWallet(): void {
+    if (this.walletLoaded()) {
+      return;
+    }
+    const holder = this.buyerEmail().trim() || this.attendees()[0]?.email.trim() || '';
+    void this.#api.tickets(this.apiBase(), holder).then((result) => {
+      this.wallet.set(result.tickets);
+      this.walletLoaded.set(true);
+    });
+  }
+
+  reloadWallet(): void {
+    this.walletLoaded.set(false);
+    this.loadWallet();
+  }
+
+  onTicketSelect(ticket: WalletTicket): void {
+    if (this.trackingByRef()[ticket.id]) {
+      return;
+    }
+    const stages: TrackingStage[] = [
+      { id: 'purchased', label: 'Compra confirmada', state: 'done' },
+      { id: 'issued', label: 'E-ticket emitido', state: 'done' },
+      {
+        id: 'checkin',
+        label: 'Check-in en el evento',
+        state: ticket.status === 'used' ? 'done' : 'pending',
+      },
+    ];
+    this.trackingByRef.update((map) => ({ ...map, [ticket.id]: stages }));
+  }
+
+  trackingStages(ticketId: string): readonly TrackingStage[] {
+    return this.trackingByRef()[ticketId] ?? [];
+  }
+
+  openTransfer(ticketId: string): void {
+    this.transferTicketId.set(ticketId);
+    this.transferTo.set('');
+    this.errorMessage.set('');
+  }
+
+  cancelTransfer(): void {
+    this.transferTicketId.set('');
+    this.transferTo.set('');
+  }
+
+  confirmTransfer(): void {
+    const ticketId = this.transferTicketId();
+    const to = this.transferTo().trim();
+    if (!ticketId || !/.+@.+\..+/.test(to)) {
+      return;
+    }
+    void this.#api.transfer(this.apiBase(), ticketId, to).then(() => {
+      this.wallet.update((list) =>
+        list.map((ticket) =>
+          ticket.id === ticketId ? { ...ticket, status: 'transferred' } : ticket,
+        ),
+      );
+      this.transferTicketId.set('');
+      this.transferTo.set('');
+    });
+  }
+
+  walletStatusLabel(status: WalletTicket['status']): string {
+    switch (status) {
+      case 'valid':
+        return 'Válido';
+      case 'transferred':
+        return 'Transferido';
+      case 'used':
+        return 'Usado';
+      case 'past':
+        return 'Pasado';
+    }
+  }
+
+  // ─── ORGANIZADOR console (SH-5) ──────────────────────────────────────────────
+  onManagerSectionChange(sectionId: string): void {
+    if ((MANAGER_SECTIONS as readonly string[]).includes(sectionId)) {
+      this.managerView.set(sectionId as ManagerView);
+      this.writeHash('organizer', sectionId);
+    }
+  }
+
+  /**
+   * Single row-action dispatcher for the SH-5 console. The console shell is
+   * generic over `TRow`; because the module swaps `rows`/`columns` per section,
+   * a section discriminator on the event keeps the handler type-safe.
+   */
+  onConsoleAction(event: ConsoleRowActionEvent<PortfolioEvent | ManagedAttendee>): void {
+    if (event.sectionId === 'portfolio' && event.actionId === 'open') {
+      const row = event.row as PortfolioEvent;
+      this.manageEventId.set(row.id);
+      this.walletLoaded.set(false);
+      void this.loadManage();
+      this.managerView.set('dashboard');
+      this.writeHash('organizer', 'dashboard');
+      return;
+    }
+    if (event.sectionId === 'attendees' && event.actionId === 'checkin') {
+      void this.runCheckin((event.row as ManagedAttendee).ticketId);
+    }
+  }
+
+  openCreateEvent(): void {
+    this.managerView.set('create');
+    this.createResultSlug.set('');
+    this.writeHash('organizer', 'create');
   }
 
   private async loadManage(): Promise<void> {
@@ -785,7 +1261,7 @@ export class EventosElementComponent {
       );
       this.manage.set(result);
       this.checkedInCount.set(
-        result.attendees.filter((attendee) => attendee.state === 'checked-in').length,
+        result.attendees.filter((a) => a.state === 'checked-in').length,
       );
     } catch (error) {
       this.errorMessage.set('No pudimos cargar el panel del evento. Intenta de nuevo.');
@@ -799,22 +1275,21 @@ export class EventosElementComponent {
     void this.loadManage();
   }
 
-  setCheckinCode(value: string): void {
-    this.checkinCode.set(value);
+  setAttendeeFilter(event: Event): void {
+    this.attendeeFilter.set(this.eventValue(event));
   }
 
-  /** Validate the scanned/typed code against the ticket validation seam. */
+  // ─── Check-in ────────────────────────────────────────────────────────────────
+  onCheckinInput(event: Event): void {
+    this.checkinCode.set(this.eventValue(event));
+  }
+
   submitCheckin(): void {
     const code = this.checkinCode().trim();
     if (!code) {
       return;
     }
     void this.runCheckin(code);
-  }
-
-  /** Convenience: scan a known attendee row directly from the table. */
-  checkinAttendee(attendee: ManagedAttendee): void {
-    void this.runCheckin(attendee.ticketId);
   }
 
   private async runCheckin(code: string): Promise<void> {
@@ -824,30 +1299,22 @@ export class EventosElementComponent {
       this.lastScan.set(result);
       const attendeeName =
         result.attendee ??
-        this.manage()?.attendees.find((attendee) => attendee.ticketId === result.ticketId)?.name ??
+        this.manage()?.attendees.find((a) => a.ticketId === result.ticketId)?.name ??
         '';
       this.scanLog.update((log) =>
         [
-          {
-            code,
-            outcome: result.status,
-            attendee: attendeeName,
-            at: new Date().toISOString(),
-          },
+          { code, outcome: result.status, attendee: attendeeName, at: new Date().toISOString() },
           ...log,
         ].slice(0, 12),
       );
 
       if (result.status === 'valid' && result.ticketId) {
-        // Mark the attendee checked-in + bump the live aforo counter.
         this.manage.update((data) =>
           data
             ? {
                 ...data,
-                attendees: data.attendees.map((attendee) =>
-                  attendee.ticketId === result.ticketId
-                    ? { ...attendee, state: 'checked-in' }
-                    : attendee,
+                attendees: data.attendees.map((a) =>
+                  a.ticketId === result.ticketId ? { ...a, state: 'checked-in' } : a,
                 ),
               }
             : data,
@@ -877,30 +1344,88 @@ export class EventosElementComponent {
     }
   }
 
+  // ─── Create event (SH-6 authoring wizard) ────────────────────────────────────
+  onCreateDraftChange(draft: Readonly<Record<string, unknown>>): void {
+    this.createDraft.set(draft);
+  }
+
+  onCreateExit(): void {
+    this.managerView.set('portfolio');
+    this.writeHash('organizer', 'portfolio');
+  }
+
+  onCreatePublished(draft: Readonly<Record<string, unknown>>): void {
+    const tier: CreateTierDraft = {
+      name: this.draftString(draft, 'tierName') || 'General',
+      amount: Number(this.draftString(draft, 'tierAmount')) || 0,
+      capacity: Number(this.draftString(draft, 'capacity')) || 100,
+    };
+    const request: CreateEventRequest = {
+      title: this.draftString(draft, 'title'),
+      category: this.draftString(draft, 'category') || 'Conferencia',
+      city: this.draftString(draft, 'city'),
+      venueName: this.draftString(draft, 'venueName'),
+      startsAt: this.draftString(draft, 'startsAt'),
+      mode: (this.draftString(draft, 'mode') as EventMode) === 'reserved' ? 'reserved' : 'general',
+      capacity: tier.capacity,
+      tiers: [tier],
+    };
+    this.createPublishing.set(true);
+    void this.#api
+      .createEvent(this.apiBase(), request)
+      .then((result) => {
+        this.createResultSlug.set(result.slug);
+        this.createPublishing.set(false);
+        // Reflect the new event in the cartera + refresh the catalogue.
+        this.walletLoaded.set(false);
+        void this.runSearch();
+      })
+      .catch(() => this.createPublishing.set(false));
+  }
+
+  private draftString(draft: Readonly<Record<string, unknown>>, key: string): string {
+    const value = draft[key];
+    return typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '';
+  }
+
+  draftPatchHandler(
+    patch: (values: Readonly<Record<string, unknown>>) => void,
+    field: string,
+  ): (event: Event) => void {
+    return (event: Event) => patch({ [field]: (event.target as HTMLInputElement | null)?.value ?? '' });
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────────
-  private facet(pick: (event: EventSummary) => string): readonly string[] {
-    const set = new Set<string>();
+  private facetValues(pick: (event: EventSummary) => string) {
+    const counts = new Map<string, number>();
     for (const event of this.events()) {
       const value = pick(event);
       if (value) {
-        set.add(value);
+        counts.set(value, (counts.get(value) ?? 0) + 1);
       }
     }
-    return [...set].sort((a, b) => a.localeCompare(b, 'es-CO'));
+    return [...counts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], 'es-CO'))
+      .map(([value, count]) => ({ value, label: value, count }));
   }
 
   private reprice(): void {
     const items = this.#store.items();
-    const total = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    const fees = Math.round((subtotal * this.feePercent()) / 100);
+    const total = subtotal + fees;
     this.#store.setPricing({
       currency: this.currency(),
       totalAmount: total,
       balanceDue: total,
-      breakdown: items.map((item) => ({
-        code: `line:${item.id}`,
-        label: item.label,
-        amount: item.amount * item.quantity,
-      })),
+      breakdown: [
+        ...items.map((item) => ({
+          code: `line:${item.id}`,
+          label: item.label,
+          amount: item.amount * item.quantity,
+        })),
+        ...(fees > 0 ? [{ code: 'fees', label: 'Cargos por servicio', amount: fees }] : []),
+      ],
     });
   }
 

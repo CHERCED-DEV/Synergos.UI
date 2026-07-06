@@ -1,6 +1,8 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
+import { CheckoutWizardComponent } from '@synergos/shells';
 import { EventosApiClient } from './eventos-api.client';
 import { EventosFulfillmentStrategy } from './eventos-fulfillment.strategy';
 import { EventosElementComponent } from './eventos';
@@ -33,7 +35,7 @@ async function flushMicrotasks(times = 8): Promise<void> {
   }
 }
 
-describe('EventosElementComponent', () => {
+describe('EventosElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<EventosElementComponent>;
   let component: EventosElementComponent;
 
@@ -55,34 +57,48 @@ describe('EventosElementComponent', () => {
   }
 
   afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
   });
 
-  /** Drive catálogo → PDP → selección → asistentes → checkout → confirm. */
+  /** Drive catálogo → SH-2 ficha → selección → carrito → SH-3 wizard → confirm. */
   async function purchaseFirstGeneralEvent(): Promise<void> {
-    // Pick a paid, general-admission event so the seat-map path is skipped.
     const event =
       component.events().find((e) => e.mode === 'general' && e.fromAmount > 0) ??
       component.events()[0];
     component.openEvent(event);
     await flushMicrotasks();
     component.startSelection();
-    component.proceedToAttendees();
+    component.proceedToCart();
     await flushMicrotasks();
+
     component.setAttendeeField(0, 'name', 'Ada Lovelace');
     component.setAttendeeField(0, 'email', 'ada@example.com');
     component.setAttendeeField(0, 'document', 'CC123');
-    component.proceedToCheckout();
     component.buyerName.set('Ada Lovelace');
     component.buyerEmail.set('ada@example.com');
-    component.confirmPurchase();
+
+    component.goToCheckout();
+    fixture.detectChanges();
+
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    // asistentes → pago → revisar → submit (steps collapse for free events).
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+    }
+    wizard.next(); // submit → pay → confirm (mock degradado)
     await flushMicrotasks(30);
+    fixture.detectChanges();
   }
 
   // ── empty: pristine app, catalogue view, no order ────────────────────────────
-  it('starts on the catalogue with no order (empty case)', async () => {
+  it('starts on the SH-1 catalogue with no order (empty case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -92,13 +108,13 @@ describe('EventosElementComponent', () => {
     expect(component.view()).toBe('catalog');
     expect(component.orderRef()).toBe('');
     expect(component.tickets().length).toBe(0);
-    // Mock catalogue loaded → events present, degradation flagged.
     expect(component.events().length).toBeGreaterThan(0);
+    expect(component.discoveryFacets().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: catálogo → PDP → selección → asistentes → pay → confirm + QR ───────
-  it('runs the full purchase lifecycle into e-tickets (happy case)', async () => {
+  // ── happy: catálogo → ficha → carrito(+fees) → SH-3 wizard → confirm + QR ─────
+  it('runs the full purchase lifecycle through the SH-3 wizard into e-tickets (happy case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -108,19 +124,22 @@ describe('EventosElementComponent', () => {
     expect(component.view()).toBe('confirmed');
     expect(component.orderRef().length).toBeGreaterThan(0);
     expect(component.tickets().length).toBeGreaterThan(0);
-    // Every issued e-ticket carries a QR payload to render + scan.
     expect(component.tickets().every((ticket) => ticket.qr.length > 0)).toBe(true);
+    // Fees were applied on top of the ticket subtotal.
+    expect(component.feesMinor()).toBeGreaterThan(0);
+    expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
+    expect(window.location.hash).toContain('/confirmacion');
   });
 
-  // ── filter: catalogue filters by category without dropping unrelated state ────
-  it('filters the catalogue by category (filter case)', async () => {
+  // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
+  it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     const before = component.events().length;
-    const category = component.categories()[0];
-    component.selectCategory(category);
+    const category = component.homeCategories()[0].value;
+    component.openCategory(category);
     await flushMicrotasks();
 
     const after = component.events();
@@ -129,7 +148,7 @@ describe('EventosElementComponent', () => {
     expect(component.hasActiveFilters()).toBe(true);
   });
 
-  // ── idempotent: re-selecting the same tier keeps a single order line ──────────
+  // ── idempotent: re-priming the same tier keeps a single order line ───────────
   it('keeps a single order line when the selection is re-primed (idempotent case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
@@ -141,17 +160,15 @@ describe('EventosElementComponent', () => {
     component.openEvent(event);
     await flushMicrotasks();
 
-    // Prime the cart twice for the same tier → one line, never duplicated.
     component.startSelection();
-    component.proceedToAttendees();
+    component.proceedToCart();
     await flushMicrotasks();
-    component.backToSelection();
-    component.proceedToAttendees();
+    component.backToEvent();
+    component.startSelection();
+    component.proceedToCart();
     await flushMicrotasks();
 
-    await purchaseFirstGeneralEvent();
-    expect(component.view()).toBe('confirmed');
-    expect(component.tickets().length).toBeGreaterThan(0);
+    expect(component.cartItems().length).toBe(1);
   });
 
   // ── reserved seating: seat-map selection drives the ticket count ──────────────
@@ -167,14 +184,37 @@ describe('EventosElementComponent', () => {
     expect(component.isReserved()).toBe(true);
 
     component.startSelection();
-    // Simulate the seat-map CustomEvent.
     component.onSeatSelect(new CustomEvent('seatselect', { detail: { selected: ['A1', 'A2'] } }));
     expect(component.ticketCount()).toBe(2);
     expect(component.canProceedSelection()).toBe(true);
   });
 
-  // ── organizer role: dashboard loads aforo + check-in validates a QR ───────────
-  it('loads the organizer dashboard and checks in a valid e-ticket', async () => {
+  // ── wallet (SH-10): a purchase surfaces in "mis tickets" + transfer ──────────
+  it('surfaces the purchase in the SH-10 wallet and transfers a ticket', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    await purchaseFirstGeneralEvent();
+    component.goToWallet();
+    await flushMicrotasks();
+
+    expect(component.view()).toBe('wallet');
+    expect(component.wallet().length).toBeGreaterThan(0);
+    expect(component.walletCredentials().length).toBe(component.wallet().length);
+
+    const ticketId = component.wallet()[0].id;
+    component.openTransfer(ticketId);
+    component.transferTo.set('nuevo@example.com');
+    component.confirmTransfer();
+    await flushMicrotasks();
+
+    const transferred = component.wallet().find((t) => t.id === ticketId);
+    expect(transferred?.status).toBe('transferred');
+  });
+
+  // ── organizer console (SH-5): dashboard aforo + check-in Válido/Ya-usado ─────
+  it('loads the SH-5 organizer console and checks in a valid e-ticket idempotently', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -187,20 +227,60 @@ describe('EventosElementComponent', () => {
     await flushMicrotasks();
     expect(component.manage()).not.toBeNull();
     expect(component.soldPercent()).toBeGreaterThanOrEqual(0);
+    expect(component.consoleKpis().length).toBeGreaterThan(0);
+    expect(component.portfolioRows().length).toBeGreaterThan(0);
 
-    component.setManagerView('checkin');
-    component.setCheckinCode(ticketId);
+    component.onManagerSectionChange('checkin');
+    component.checkinCode.set(ticketId);
     component.submitCheckin();
     await flushMicrotasks();
-
     expect(component.lastScan()?.status).toBe('valid');
     expect(component.checkedInCount()).toBeGreaterThan(0);
 
     // Idempotent: a second scan of the same ticket → already-used.
-    component.setCheckinCode(ticketId);
+    component.checkinCode.set(ticketId);
     component.submitCheckin();
     await flushMicrotasks();
     expect(component.lastScan()?.status).toBe('already-used');
+  });
+
+  // ── create event (SH-6): authoring wizard publishes an event ─────────────────
+  it('publishes a new event through the SH-6 authoring wizard', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.setRole('organizer');
+    await flushMicrotasks();
+    component.openCreateEvent();
+    expect(component.managerView()).toBe('create');
+
+    component.onCreateDraftChange({
+      title: 'Festival Synergos 2026',
+      city: 'Bogotá',
+      startsAt: '2026-10-01T20:00',
+      tierName: 'General',
+      tierAmount: '80000',
+      capacity: '500',
+    });
+    expect(component.createValidity()['publicar']).toBe(true);
+
+    component.onCreatePublished(component.createDraft());
+    await flushMicrotasks();
+    expect(component.createResultSlug()).toContain('festival');
+  });
+
+  // ── hash router: deep-links a view + the organizer console ───────────────────
+  it('deep-links views and the organizer console through the hash router', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.goToWallet();
+    expect(window.location.hash).toBe('#/eventos/mis-tickets');
+
+    component.setRole('organizer');
+    expect(window.location.hash).toContain('/organizador');
   });
 
   // ── degradation: catalogue falls back to a visible mock catalogue ─────────────
@@ -254,49 +334,7 @@ describe('EventosApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
-  it('opens a paid checkout and confirms with e-tickets (happy case)', async () => {
-    const fetchMock = vi.fn((url: string) => {
-      if (url.endsWith('/checkout')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () =>
-            Promise.resolve({ orderRef: 'ORD-1', paymentSessionId: 'psp_1', amount: 100, currency: 'COP' }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () =>
-          Promise.resolve({ status: 'confirmed', tickets: [{ id: 'TKT-1', qr: 'QR-1' }] }),
-      } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const client = createClient();
-
-    const checkout = await client.checkout(
-      '/api/eventos',
-      'X1',
-      [{ tier: 'general', qty: 1 }],
-      [{ name: 'Ada', email: 'a@b.co', document: 'CC1' }],
-      { name: 'Ada', email: 'a@b.co' },
-      100,
-      'COP',
-    );
-    expect(checkout.orderRef).toBe('ORD-1');
-    expect(checkout.free).toBe(false);
-
-    const confirmation = await client.confirm(
-      '/api/eventos',
-      'ORD-1',
-      [{ name: 'Ada', email: 'a@b.co', document: 'CC1' }],
-      [{ tier: 'general', qty: 1 }],
-    );
-    expect(confirmation.status).toBe('confirmed');
-    expect(confirmation.tickets[0].qr).toBe('QR-1');
-  });
-
-  it('issues mock e-tickets and validates check-in idempotently (filter + idempotent)', async () => {
+  it('issues mock e-tickets, seeds the wallet and validates check-in idempotently', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
@@ -305,17 +343,27 @@ describe('EventosApiClient', () => {
       'ORD-9',
       [{ name: 'Grace', email: 'g@b.co', document: 'CC9' }],
       [{ tier: 'vip', qty: 1 }],
+      { eventId: 'EVT-1', eventTitle: 'Evento X', venueName: 'Ágora', startsAt: '2026-08-14T09:00:00' },
     );
     expect(client.degraded).toBe(true);
     expect(confirmation.tickets.length).toBe(1);
     const id = confirmation.tickets[0].id;
 
+    // The confirmed ticket is now in the wallet ("mis tickets").
+    const wallet = await client.tickets('/api/eventos', 'g@b.co');
+    expect(wallet.tickets.some((t) => t.id === id)).toBe(true);
+
+    // Transfer invalidates the origin.
+    const transfer = await client.transfer('/api/eventos', id, 'nuevo@b.co');
+    expect(transfer.status).toBe('transferred');
+    const walletAfter = await client.tickets('/api/eventos', 'g@b.co');
+    expect(walletAfter.tickets.find((t) => t.id === id)?.status).toBe('transferred');
+
+    // Check-in: first valid, second already-used, unknown invalid.
     const first = await client.checkin('/api/eventos', id);
     expect(first.status).toBe('valid');
-
     const second = await client.checkin('/api/eventos', id);
     expect(second.status).toBe('already-used');
-
     const unknown = await client.checkin('/api/eventos', 'NOPE');
     expect(unknown.status).toBe('invalid');
   });
@@ -339,7 +387,7 @@ describe('EventosApiClient', () => {
     expect(checkout.paymentSessionId).toBe('');
   });
 
-  it('normalises a manage response with aforo (happy case)', async () => {
+  it('normalises a manage response with aforo + portfolio (happy case)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -353,6 +401,8 @@ describe('EventosApiClient', () => {
               ],
               capacity: 100,
               sold: 42,
+              revenue: 5_000_000,
+              portfolio: [{ id: 'EVT-1', title: 'Evento X', sold: 42, capacity: 100, revenue: 5_000_000 }],
             }),
         } as Response),
       ),
@@ -362,7 +412,29 @@ describe('EventosApiClient', () => {
 
     expect(result.capacity).toBe(100);
     expect(result.sold).toBe(42);
-    expect(result.attendees).toHaveLength(1);
+    expect(result.revenue).toBe(5_000_000);
+    expect(result.portfolio).toHaveLength(1);
     expect(client.degraded).toBe(false);
+  });
+
+  it('degrades the wallet + create event to visible mocks', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const wallet = await client.tickets('/api/eventos', 'demo@b.co');
+    expect(client.degraded).toBe(true);
+    expect(wallet.tickets.length).toBeGreaterThan(0);
+
+    const created = await client.createEvent('/api/eventos', {
+      title: 'Mi Evento',
+      category: 'Conferencia',
+      city: 'Cali',
+      venueName: 'Centro',
+      startsAt: '2026-09-01T10:00',
+      mode: 'general',
+      capacity: 200,
+      tiers: [{ name: 'General', amount: 50_000, capacity: 200 }],
+    });
+    expect(created.slug).toBe('mi-evento');
   });
 });

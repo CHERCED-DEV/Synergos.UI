@@ -29,7 +29,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: syn.$space-md;
+  gap: syn.$space-lg;
   padding: syn.$space-lg;
   border: syn.px-to-rem(1) solid var(--ev-border);
   border-radius: syn.$radius-xl;
@@ -41,130 +41,551 @@
     position: absolute;
     width: syn.px-to-rem(1);
     height: syn.px-to-rem(1);
-    margin: syn.px-to-rem(-1);
     padding: 0;
+    margin: syn.px-to-rem(-1);
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
   }
 
-  // ─── Top bar / role switch ───────────────────────────────────────────────────
+  // ─── Top bar ────────────────────────────────────────────────────────────────
   &__bar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: syn.$space-3;
-    padding-bottom: syn.$space-3;
+    gap: syn.$space-md;
+    padding-bottom: syn.$space-md;
     border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
   }
 
   &__brand {
     display: inline-flex;
-    align-items: baseline;
-    gap: syn.$space-2;
-    margin: 0;
+    align-items: center;
+    gap: syn.$space-xs;
+    padding: 0;
+    font-size: syn.px-to-rem(18);
+    font-weight: 700;
+    color: var(--ev-text);
+    background: none;
+    border: 0;
+    cursor: pointer;
   }
 
   &__brand-mark {
     color: var(--ev-brand);
-    font-size: syn.$font-size-lg;
-  }
-
-  &__brand-text {
-    color: var(--ev-text);
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-    letter-spacing: syn.$letter-spacing-tight;
+    font-size: syn.px-to-rem(20);
   }
 
   &__roles {
     display: inline-flex;
     gap: syn.px-to-rem(2);
-    margin-left: auto;
-    padding: syn.px-to-rem(4);
-    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(2);
     background: var(--ev-surface-muted);
-    border: syn.px-to-rem(1) solid var(--ev-border-subtle);
+    border-radius: syn.$radius-lg;
   }
 
   &__role {
-    appearance: none;
+    padding: syn.$space-xxs syn.$space-md;
+    font-size: syn.px-to-rem(13);
+    font-weight: 600;
+    color: var(--ev-text-secondary);
+    background: none;
+    border: 0;
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+
+    &.is-active {
+      color: var(--ev-brand-text);
+      background: var(--ev-brand);
+    }
+  }
+
+  &__nav {
+    display: inline-flex;
+    gap: syn.$space-xs;
+    margin-inline-start: auto;
+  }
+
+  &__nav-btn {
+    padding: syn.$space-xxs syn.$space-sm;
+    font-size: syn.px-to-rem(14);
+    font-weight: 600;
+    color: var(--ev-text-secondary);
+    background: none;
+    border: 0;
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+
+    &.is-active {
+      color: var(--ev-brand);
+      background: var(--ev-brand-soft);
+    }
+  }
+
+  // ─── Notices / errors ────────────────────────────────────────────────────────
+  &__notice {
+    margin: 0;
+    padding: syn.$space-sm syn.$space-md;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+
+    &--warn {
+      color: var(--ev-warn);
+      background: var(--ev-warn-soft);
+    }
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-sm syn.$space-md;
+    font-size: syn.px-to-rem(14);
+    color: var(--ev-danger);
+    background: var(--ev-danger-soft);
+    border-radius: syn.$radius-md;
+  }
+
+  // ─── Hero ────────────────────────────────────────────────────────────────────
+  &__hero {
+    padding: syn.$space-xl syn.$space-lg;
+    text-align: center;
+    background: linear-gradient(135deg, var(--ev-brand-soft), var(--ev-surface-muted));
+    border-radius: syn.$radius-lg;
+  }
+
+  &__hero-title {
+    margin: 0 0 syn.$space-xs;
+    font-size: syn.px-to-rem(28);
+    font-weight: 700;
+  }
+
+  &__hero-sub {
+    margin: 0;
+    color: var(--ev-text-secondary);
+  }
+
+  &__heading {
+    margin: 0 0 syn.$space-sm;
+    font-size: syn.px-to-rem(20);
+    font-weight: 700;
+  }
+
+  &__empty {
+    padding: syn.$space-lg;
+    color: var(--ev-muted);
+    text-align: center;
+  }
+
+  &__link {
+    padding: 0;
+    font-size: syn.px-to-rem(14);
+    color: var(--ev-brand);
+    text-decoration: underline;
+    background: none;
     border: 0;
     cursor: pointer;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-full;
-    background: transparent;
-    color: var(--ev-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-
-    &[aria-pressed='true'] {
-      background: var(--ev-brand);
-      color: var(--ev-brand-text);
-      box-shadow: var(--ev-shadow);
-    }
-  }
-}
-
-// ─── Generic UI atoms (shared by both caras) ───────────────────────────────────
-.ev {
-  &-banner {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-md;
-    font-size: syn.$font-size-sm;
-
-    &--degraded {
-      background: var(--ev-warn-soft);
-      color: var(--ev-text);
-    }
-
-    &--error {
-      background: var(--ev-danger-soft);
-      color: var(--ev-text);
-    }
   }
 
-  &-btn {
-    appearance: none;
+  &__back {
+    align-self: flex-start;
+    padding: syn.$space-xxs 0;
+    font-size: syn.px-to-rem(14);
+    color: var(--ev-brand);
+    background: none;
+    border: 0;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: syn.$space-2;
-    padding: syn.$space-3 syn.$space-4;
+  }
+
+  // ─── Buttons ─────────────────────────────────────────────────────────────────
+  &__btn {
+    padding: syn.$space-sm syn.$space-lg;
+    font-size: syn.px-to-rem(15);
+    font-weight: 600;
+    color: var(--ev-text);
+    background: var(--ev-surface);
+    border: syn.px-to-rem(1) solid var(--ev-border);
     border-radius: syn.$radius-md;
-    border: syn.px-to-rem(1) solid transparent;
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    transition: background-color syn.$duration-fast syn.$easing-smooth,
-      border-color syn.$duration-fast syn.$easing-smooth,
-      transform syn.$duration-fast syn.$easing-smooth;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     &--primary {
-      background: var(--ev-brand);
       color: var(--ev-brand-text);
+      background: var(--ev-brand);
+      border-color: var(--ev-brand);
     }
 
     &--ghost {
       background: transparent;
-      color: var(--ev-text-secondary);
-      border-color: var(--ev-border);
     }
 
-    &--soft {
+    &--block {
+      display: block;
+      width: 100%;
+    }
+
+    &--sm {
+      padding: syn.$space-xxs syn.$space-sm;
+      font-size: syn.px-to-rem(13);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  // ─── Catalogue cards (SH-1 item template) ────────────────────────────────────
+  &__card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--ev-surface);
+    border: syn.px-to-rem(1) solid var(--ev-border-subtle);
+    border-radius: syn.$radius-lg;
+    box-shadow: var(--ev-shadow);
+  }
+
+  &__card-media {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    padding: 0;
+    background: var(--ev-surface-muted);
+    border: 0;
+    cursor: pointer;
+  }
+
+  &__card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__card-placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: syn.px-to-rem(40);
+  }
+
+  &__card-flag {
+    position: absolute;
+    inset-block-end: syn.$space-xs;
+    inset-inline-start: syn.$space-xs;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.px-to-rem(11);
+    font-weight: 700;
+    color: var(--ev-brand-text);
+    background: var(--ev-danger);
+    border-radius: syn.$radius-sm;
+  }
+
+  &__card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    padding: syn.$space-md;
+  }
+
+  &__card-eyebrow {
+    margin: 0;
+    font-size: syn.px-to-rem(12);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ev-brand);
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: syn.px-to-rem(16);
+    font-weight: 700;
+  }
+
+  &__card-link {
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: start;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  &__card-date,
+  &__card-venue {
+    margin: 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+  }
+
+  &__card-price {
+    margin: syn.$space-xxs 0 0;
+    font-size: syn.px-to-rem(15);
+    font-weight: 700;
+    color: var(--ev-brand);
+  }
+
+  &__card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xxs;
+    margin: syn.$space-xxs 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__chip {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.px-to-rem(11);
+    color: var(--ev-text-secondary);
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-sm;
+  }
+
+  // ─── Event PDP (SH-2 slots) ──────────────────────────────────────────────────
+  &__pdp-countdown {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-sm syn.$space-md;
+    margin-bottom: syn.$space-md;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+  }
+
+  &__pdp-countdown-label {
+    font-size: syn.px-to-rem(13);
+    font-weight: 600;
+    color: var(--ev-text-secondary);
+  }
+
+  &__pdp-desc {
+    margin: 0 0 syn.$space-md;
+    color: var(--ev-text-secondary);
+    line-height: 1.6;
+  }
+
+  &__pdp-highlights {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0 0 syn.$space-md;
+    padding-inline-start: syn.$space-lg;
+    color: var(--ev-text-secondary);
+  }
+
+  &__pdp-profiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(180)}, 1fr));
+    gap: syn.$space-md;
+    margin-bottom: syn.$space-md;
+  }
+
+  &__profile {
+    padding: syn.$space-md;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+  }
+
+  &__profile-label {
+    margin: 0 0 syn.$space-xxs;
+    font-size: syn.px-to-rem(11);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ev-muted);
+  }
+
+  &__profile-name {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  &__profile-meta,
+  &__profile-followers {
+    margin: syn.$space-xxs 0 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+  }
+
+  &__pdp-from {
+    margin: 0 0 syn.$space-sm;
+    font-size: syn.px-to-rem(20);
+    font-weight: 700;
+    color: var(--ev-brand);
+  }
+
+  // ─── Agenda ──────────────────────────────────────────────────────────────────
+  &__agenda {
+    margin-top: syn.$space-md;
+  }
+
+  &__agenda-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__agenda-item {
+    display: flex;
+    gap: syn.$space-md;
+    padding-bottom: syn.$space-sm;
+    border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
+  }
+
+  &__agenda-time {
+    flex-shrink: 0;
+    width: syn.px-to-rem(56);
+    font-weight: 700;
+    color: var(--ev-brand);
+  }
+
+  &__agenda-body {
+    color: var(--ev-text-secondary);
+  }
+
+  // ─── Tiers (SH-2 CTA) ────────────────────────────────────────────────────────
+  &__tiers {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0 0 syn.$space-md;
+    padding: 0;
+    border: 0;
+  }
+
+  &__tier {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    padding: syn.$space-md;
+    background: var(--ev-surface);
+    border: syn.px-to-rem(1) solid var(--ev-border);
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: var(--ev-brand);
+      box-shadow: 0 0 0 syn.px-to-rem(1) var(--ev-brand);
+    }
+
+    &.is-featured {
       background: var(--ev-brand-soft);
+    }
+  }
+
+  &__tier-head {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    font-weight: 700;
+  }
+
+  &__tier-price {
+    color: var(--ev-brand);
+  }
+
+  &__tier-desc {
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+  }
+
+  &__tier-perks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xxs;
+  }
+
+  &__tier-perk {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.px-to-rem(11);
+    color: var(--ev-text-secondary);
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-sm;
+  }
+
+  &__tier-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+    font-size: syn.px-to-rem(12);
+    color: var(--ev-muted);
+  }
+
+  // ─── Selection (seat-map / quantity) ─────────────────────────────────────────
+  &__select {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__select-tier {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ev-text-secondary);
+  }
+
+  &__seatmap {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__select-hint {
+    margin: 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-muted);
+  }
+
+  &__select-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+    padding-top: syn.$space-md;
+    border-top: syn.px-to-rem(1) solid var(--ev-border-subtle);
+  }
+
+  &__select-total {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+
+    strong {
+      font-size: syn.px-to-rem(20);
       color: var(--ev-brand);
     }
+  }
 
-    &:hover:not(:disabled) {
-      transform: translateY(syn.px-to-rem(-1));
-    }
+  &__qty {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__qty-btn {
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    font-size: syn.px-to-rem(18);
+    background: var(--ev-surface-muted);
+    border: syn.px-to-rem(1) solid var(--ev-border);
+    border-radius: syn.$radius-md;
+    cursor: pointer;
 
     &:disabled {
       opacity: 0.5;
@@ -172,17 +593,129 @@
     }
   }
 
-  &-input,
-  &-select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: syn.$space-3;
+  &__qty-value {
+    min-width: syn.px-to-rem(32);
+    font-size: syn.px-to-rem(18);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  // ─── Cart ────────────────────────────────────────────────────────────────────
+  &__cart {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__cart-lines {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__cart-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+    padding: syn.$space-sm 0;
+    border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
+  }
+
+  &__cart-line-name {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  &__cart-line-qty {
+    margin: syn.$space-xxs 0 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-muted);
+  }
+
+  &__cart-line-total {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  &__cart-summary {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+    padding: syn.$space-md;
+    background: var(--ev-surface-muted);
     border-radius: syn.$radius-md;
-    border: syn.px-to-rem(1) solid var(--ev-border);
-    background: var(--ev-surface);
+  }
+
+  &__cart-row {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-md;
+
+    dt,
+    dd {
+      margin: 0;
+    }
+
+    &--total {
+      padding-top: syn.$space-xxs;
+      margin-top: syn.$space-xxs;
+      font-size: syn.px-to-rem(18);
+      font-weight: 700;
+      border-top: syn.px-to-rem(1) solid var(--ev-border);
+    }
+  }
+
+  // ─── Forms (checkout / create / profile) ─────────────────────────────────────
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  &__attendee,
+  &__buyer {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    padding: syn.$space-md;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+  }
+
+  &__attendee-num {
+    margin: 0;
+    font-size: syn.px-to-rem(13);
+    font-weight: 700;
+    color: var(--ev-brand);
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+  }
+
+  &__label {
+    font-size: syn.px-to-rem(13);
+    font-weight: 600;
+    color: var(--ev-text-secondary);
+  }
+
+  &__input {
+    padding: syn.$space-sm;
+    font-size: syn.px-to-rem(15);
     color: var(--ev-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
+    background: var(--ev-surface);
+    border: syn.px-to-rem(1) solid var(--ev-border);
+    border-radius: syn.$radius-md;
 
     &:focus-visible {
       outline: syn.px-to-rem(2) solid var(--ev-focus-ring);
@@ -190,689 +723,331 @@
     }
   }
 
-  &-field {
+  &__radio {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    font-size: syn.px-to-rem(14);
+  }
+
+  &__review-buyer {
+    margin: syn.$space-sm 0 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+  }
+
+  // ─── Confirmation + e-tickets ────────────────────────────────────────────────
+  &__confirmation {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-1;
-
-    &__label {
-      font-size: syn.$font-size-xs;
-      font-weight: syn.$font-weight-medium;
-      color: var(--ev-text-secondary);
-    }
-  }
-
-  &-chip {
-    appearance: none;
-    cursor: pointer;
-    padding: syn.$space-1 syn.$space-3;
-    border-radius: syn.$radius-full;
-    border: syn.px-to-rem(1) solid var(--ev-border);
-    background: var(--ev-surface);
-    color: var(--ev-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-medium;
-
-    &[aria-pressed='true'] {
-      background: var(--ev-brand);
-      color: var(--ev-brand-text);
-      border-color: var(--ev-brand);
-    }
-  }
-
-  &-badge {
-    display: inline-flex;
     align-items: center;
-    padding: syn.px-to-rem(2) syn.$space-2;
-    border-radius: syn.$radius-sm;
-    background: var(--ev-surface-muted);
-    color: var(--ev-text-secondary);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-medium;
-  }
-}
-
-// ─── Catalogue ─────────────────────────────────────────────────────────────────
-.catalog {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-md;
-
-  &__searchbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-    align-items: flex-end;
-  }
-
-  &__search {
-    flex: 1 1 syn.px-to-rem(220);
-  }
-
-  &__filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-    align-items: center;
-  }
-
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(260), 1fr));
-    gap: syn.$space-md;
-  }
-
-  &__empty {
+    gap: syn.$space-sm;
     padding: syn.$space-xl;
     text-align: center;
-    color: var(--ev-muted);
-  }
-}
-
-.event-card {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-  cursor: pointer;
-  appearance: none;
-  border: syn.px-to-rem(1) solid var(--ev-border);
-  border-radius: syn.$radius-lg;
-  background: var(--ev-surface);
-  overflow: hidden;
-  font: inherit;
-  color: inherit;
-  transition: box-shadow syn.$duration-fast syn.$easing-smooth,
-    transform syn.$duration-fast syn.$easing-smooth;
-
-  &:hover {
-    box-shadow: var(--ev-shadow-pop);
-    transform: translateY(syn.px-to-rem(-2));
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--ev-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
-
-  &__cover {
-    aspect-ratio: 16 / 9;
-    background: linear-gradient(135deg, var(--ev-brand-soft), var(--ev-surface-muted));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--ev-brand);
-    font-size: syn.$font-size-2xl;
-  }
-
-  &__body {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
-  }
-
-  &__title {
-    margin: 0;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-    font-size: syn.$font-size-xs;
-    color: var(--ev-text-secondary);
-  }
-
-  &__badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.px-to-rem(4);
-  }
-
-  &__foot {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: syn.$space-2;
-    margin-top: syn.$space-1;
-  }
-
-  &__price {
-    font-weight: syn.$font-weight-bold;
-    color: var(--ev-brand);
-  }
-}
-
-// ─── Sold meter (catalogue + dashboard) ────────────────────────────────────────
-.meter {
-  height: syn.px-to-rem(6);
-  border-radius: syn.$radius-full;
-  background: var(--ev-surface-muted);
-  overflow: hidden;
-
-  &__fill {
-    height: 100%;
-    border-radius: inherit;
-    background: var(--ev-brand);
-    transition: width syn.$duration-base syn.$easing-smooth;
-  }
-
-  &--warn &__fill {
-    background: var(--ev-warn);
-  }
-}
-
-// ─── Event PDP ─────────────────────────────────────────────────────────────────
-.pdp {
-  display: grid;
-  gap: syn.$space-md;
-  grid-template-columns: minmax(0, 1.6fr) minmax(syn.px-to-rem(260), 1fr);
-
-  @media (max-width: 56rem) {
-    grid-template-columns: 1fr;
-  }
-
-  &__main {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-md;
-  }
-
-  &__hero {
-    border-radius: syn.$radius-lg;
-    overflow: hidden;
-    border: syn.px-to-rem(1) solid var(--ev-border);
-  }
-
-  &__hero-cover {
-    aspect-ratio: 21 / 9;
-    background: linear-gradient(135deg, var(--ev-brand), var(--ev-brand-soft));
-    display: flex;
-    align-items: flex-end;
-    padding: syn.$space-md;
-    color: var(--ev-brand-text);
-  }
-
-  &__hero-title {
-    margin: 0;
-    font-size: syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
-    text-shadow: 0 syn.px-to-rem(1) syn.px-to-rem(8) rgba(0, 0, 0, 0.35);
-  }
-
-  &__section {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-  }
-
-  &__section-title {
-    margin: 0;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__list {
-    margin: 0;
-    padding-left: syn.$space-4;
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-    color: var(--ev-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__agenda {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-  }
-
-  &__agenda-row {
-    display: flex;
-    gap: syn.$space-3;
-    padding: syn.$space-2 0;
-    border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__agenda-time {
-    font-variant-numeric: tabular-nums;
-    color: var(--ev-brand);
-    font-weight: syn.$font-weight-semibold;
-    min-width: syn.px-to-rem(48);
-  }
-
-  &__aside {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    align-self: start;
-    position: sticky;
-    top: syn.$space-3;
-  }
-}
-
-.tier-card {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-2;
-  text-align: left;
-  cursor: pointer;
-  appearance: none;
-  padding: syn.$space-3;
-  border-radius: syn.$radius-md;
-  border: syn.px-to-rem(2) solid var(--ev-border);
-  background: var(--ev-surface);
-  font: inherit;
-  color: inherit;
-
-  &[aria-pressed='true'] {
-    border-color: var(--ev-brand);
-    box-shadow: var(--ev-shadow);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--ev-focus-ring);
-    outline-offset: syn.px-to-rem(2);
-  }
-
-  &__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: syn.$space-2;
-  }
-
-  &__name {
-    margin: 0;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__price {
-    font-weight: syn.$font-weight-bold;
-    color: var(--ev-brand);
-  }
-
-  &__desc {
-    margin: 0;
-    font-size: syn.$font-size-xs;
-    color: var(--ev-text-secondary);
-  }
-
-  &__remaining {
-    font-size: syn.$font-size-xs;
-    color: var(--ev-warn);
-    font-weight: syn.$font-weight-medium;
-  }
-
-  &__perks {
-    margin: 0;
-    padding-left: syn.$space-4;
-    font-size: syn.$font-size-xs;
-    color: var(--ev-text-secondary);
-    display: flex;
-    flex-direction: column;
-    gap: syn.px-to-rem(2);
-  }
-}
-
-// ─── Selection (qty / seat) ────────────────────────────────────────────────────
-.select {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-md;
-
-  &__qty {
-    display: inline-flex;
-    align-items: center;
-    gap: syn.$space-3;
-  }
-
-  &__qty-btn {
-    appearance: none;
-    cursor: pointer;
-    width: syn.px-to-rem(40);
-    height: syn.px-to-rem(40);
-    border-radius: syn.$radius-md;
-    border: syn.px-to-rem(1) solid var(--ev-border);
-    background: var(--ev-surface);
-    color: var(--ev-text);
-    font-size: syn.$font-size-lg;
-
-    &:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-  }
-
-  &__qty-value {
-    min-width: syn.px-to-rem(40);
-    text-align: center;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-    font-variant-numeric: tabular-nums;
-  }
-
-  &__seatmap {
-    border: syn.px-to-rem(1) solid var(--ev-border-subtle);
-    border-radius: syn.$radius-md;
-    padding: syn.$space-2;
-  }
-}
-
-// ─── Attendees / checkout / confirmation ───────────────────────────────────────
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-md;
-
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(200), 1fr));
-    gap: syn.$space-2;
-  }
-
-  &__attendee {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ev-border-subtle);
-    border-radius: syn.$radius-md;
-  }
-
-  &__attendee-title {
-    margin: 0;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__actions {
-    display: flex;
-    gap: syn.$space-2;
-    flex-wrap: wrap;
-  }
-
-  &__pay-methods {
-    display: flex;
-    gap: syn.$space-2;
-  }
-}
-
-.summary {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-2;
-  padding: syn.$space-3;
-  border-radius: syn.$radius-md;
-  background: var(--ev-surface-muted);
-
-  &__row {
-    display: flex;
-    justify-content: space-between;
-    gap: syn.$space-2;
-    font-size: syn.$font-size-sm;
-  }
-
-  &__total {
-    font-weight: syn.$font-weight-bold;
-    font-size: syn.$font-size-base;
-    padding-top: syn.$space-2;
-    border-top: syn.px-to-rem(1) solid var(--ev-border);
-  }
-}
-
-.confirmed {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-md;
-  align-items: center;
-  text-align: center;
-
-  &__icon {
-    width: syn.px-to-rem(56);
-    height: syn.px-to-rem(56);
-    border-radius: syn.$radius-full;
     background: var(--ev-success-soft);
-    color: var(--ev-success);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: syn.$font-size-2xl;
+    border-radius: syn.$radius-lg;
+  }
+
+  &__confirm-badge {
+    margin: 0;
+    padding: syn.$space-xxs syn.$space-md;
+    font-weight: 700;
+    color: var(--ev-brand-text);
+    background: var(--ev-success);
+    border-radius: syn.$radius-full;
+  }
+
+  &__confirm-code {
+    margin: 0;
+    font-size: syn.px-to-rem(20);
+    font-weight: 700;
+  }
+
+  &__confirm-order {
+    margin: 0;
+    color: var(--ev-text-secondary);
   }
 
   &__tickets {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(220), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(200)}, 1fr));
     gap: syn.$space-md;
     width: 100%;
-  }
-}
-
-.ticket {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-2;
-  align-items: center;
-  padding: syn.$space-md;
-  border: syn.px-to-rem(1) solid var(--ev-border);
-  border-radius: syn.$radius-lg;
-  background: var(--ev-surface);
-
-  &__attendee {
-    font-weight: syn.$font-weight-semibold;
+    margin: syn.$space-md 0 0;
+    padding: 0;
+    list-style: none;
   }
 
-  &__meta {
-    font-size: syn.$font-size-xs;
+  &__ticket {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-md;
+    padding: syn.$space-md;
+    background: var(--ev-surface);
+    border: syn.px-to-rem(1) solid var(--ev-border);
+    border-radius: syn.$radius-md;
+    text-align: start;
+  }
+
+  &__ticket-qr {
+    flex-shrink: 0;
+  }
+
+  &__ticket-name {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  &__ticket-tier,
+  &__ticket-seat {
+    margin: syn.$space-xxs 0 0;
+    font-size: syn.px-to-rem(13);
     color: var(--ev-text-secondary);
   }
 
-  &__code {
-    font-family: monospace;
-    font-size: syn.$font-size-xs;
-    color: var(--ev-muted);
-    word-break: break-all;
-  }
-}
-
-// ─── Organizer dashboard ───────────────────────────────────────────────────────
-.manager {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-md;
-
-  &__tabs {
-    display: inline-flex;
-    gap: syn.px-to-rem(2);
-    padding: syn.px-to-rem(4);
-    border-radius: syn.$radius-full;
-    background: var(--ev-surface-muted);
-    align-self: flex-start;
-  }
-
-  &__tab {
-    appearance: none;
-    border: 0;
-    cursor: pointer;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-full;
-    background: transparent;
-    color: var(--ev-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-
-    &[aria-pressed='true'] {
-      background: var(--ev-surface);
-      color: var(--ev-text);
-      box-shadow: var(--ev-shadow);
-    }
-  }
-
-  &__kpis {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(160), 1fr));
+  // ─── Wallet (SH-10) + transfer ───────────────────────────────────────────────
+  &__wallet {
+    display: flex;
+    flex-direction: column;
     gap: syn.$space-md;
   }
-}
 
-.kpi {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-1;
-  padding: syn.$space-md;
-  border: syn.px-to-rem(1) solid var(--ev-border);
-  border-radius: syn.$radius-lg;
-  background: var(--ev-surface);
+  &__wallet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+  }
 
-  &__label {
-    font-size: syn.$font-size-xs;
+  &__transfer {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin-top: syn.$space-sm;
+    padding: syn.$space-md;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-md;
+  }
+
+  // ─── Account (SH-4 detail) ───────────────────────────────────────────────────
+  &__order-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__order-number {
+    font-weight: 700;
+  }
+
+  &__order-status {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.px-to-rem(12);
+    font-weight: 600;
     color: var(--ev-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: syn.$letter-spacing-wide;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-sm;
+
+    &[data-status='valid'] {
+      color: var(--ev-success);
+      background: var(--ev-success-soft);
+    }
   }
 
-  &__value {
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-    font-variant-numeric: tabular-nums;
+  &__order-date,
+  &__order-meta {
+    display: block;
+    margin-top: syn.$space-xxs;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
   }
 
-  &__hint {
-    font-size: syn.$font-size-xs;
+  &__order-detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  // ─── Organizer console (SH-5) ────────────────────────────────────────────────
+  &__console-head {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-md;
+  }
+
+  &__attendee-filter {
+    margin-top: syn.$space-sm;
+  }
+
+  &__cell-main {
+    display: block;
+    font-weight: 600;
+  }
+
+  &__cell-sub {
+    display: block;
+    font-size: syn.px-to-rem(12);
     color: var(--ev-muted);
   }
-}
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: syn.$font-size-sm;
-
-  th,
-  td {
-    text-align: left;
-    padding: syn.$space-2 syn.$space-3;
-    border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
-  }
-
-  th {
+  &__pill {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    font-size: syn.px-to-rem(12);
+    font-weight: 600;
     color: var(--ev-text-secondary);
-    font-weight: syn.$font-weight-semibold;
-    font-size: syn.$font-size-xs;
-    text-transform: uppercase;
-    letter-spacing: syn.$letter-spacing-wide;
-  }
-
-  &__state {
-    display: inline-flex;
-    align-items: center;
-    padding: syn.px-to-rem(2) syn.$space-2;
+    background: var(--ev-surface-muted);
     border-radius: syn.$radius-sm;
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-medium;
 
-    &--checked-in {
-      background: var(--ev-success-soft);
+    &[data-state='checked-in'] {
       color: var(--ev-success);
-    }
-
-    &--pending {
-      background: var(--ev-surface-muted);
-      color: var(--ev-text-secondary);
+      background: var(--ev-success-soft);
     }
   }
-}
 
-// ─── Check-in scanner ──────────────────────────────────────────────────────────
-.checkin {
-  display: grid;
-  gap: syn.$space-md;
-  grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), 0.9fr);
-
-  @media (max-width: 48rem) {
-    grid-template-columns: 1fr;
-  }
-
-  &__scanner {
+  &__dashboard,
+  &__checkin,
+  &__payout {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--ev-border);
-    border-radius: syn.$radius-lg;
+    gap: syn.$space-md;
   }
 
-  &__result {
+  &__meter {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-1;
-    padding: syn.$space-md;
+    gap: syn.$space-xxs;
+  }
+
+  &__meter-bar {
+    height: syn.px-to-rem(10);
+    overflow: hidden;
+    background: var(--ev-surface-muted);
+    border-radius: syn.$radius-full;
+  }
+
+  &__meter-fill {
+    display: block;
+    height: 100%;
+    background: var(--ev-brand);
+    transition: width 0.3s ease;
+  }
+
+  &__meter-label {
+    margin: 0;
+    font-size: syn.px-to-rem(13);
+    color: var(--ev-text-secondary);
+  }
+
+  &__checkin-form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    max-width: syn.px-to-rem(420);
+  }
+
+  &__scan-result {
+    margin: 0;
+    padding: syn.$space-sm syn.$space-md;
+    font-weight: 700;
     border-radius: syn.$radius-md;
-    border: syn.px-to-rem(2) solid var(--ev-border);
 
-    &--valid {
-      border-color: var(--ev-success);
+    &[data-outcome='valid'] {
+      color: var(--ev-success);
       background: var(--ev-success-soft);
     }
 
-    &--already-used {
-      border-color: var(--ev-warn);
+    &[data-outcome='already-used'] {
+      color: var(--ev-warn);
       background: var(--ev-warn-soft);
     }
 
-    &--invalid {
-      border-color: var(--ev-danger);
+    &[data-outcome='invalid'] {
+      color: var(--ev-danger);
       background: var(--ev-danger-soft);
     }
   }
 
-  &__result-title {
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__log {
+  &__scan-log {
     display: flex;
     flex-direction: column;
-    gap: syn.px-to-rem(2);
+    gap: syn.$space-xxs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
-  &__log-row {
+  &__scan-entry {
     display: flex;
-    justify-content: space-between;
-    gap: syn.$space-2;
-    padding: syn.$space-2;
-    border-radius: syn.$radius-sm;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    padding: syn.$space-xxs syn.$space-sm;
+    font-size: syn.px-to-rem(13);
     background: var(--ev-surface-muted);
-    font-size: syn.$font-size-xs;
+    border-radius: syn.$radius-sm;
+    border-inline-start: syn.px-to-rem(3) solid var(--ev-border);
+
+    &[data-outcome='valid'] {
+      border-inline-start-color: var(--ev-success);
+    }
+
+    &[data-outcome='already-used'] {
+      border-inline-start-color: var(--ev-warn);
+    }
+
+    &[data-outcome='invalid'] {
+      border-inline-start-color: var(--ev-danger);
+    }
+  }
+
+  &__scan-code {
+    font-family: monospace;
+  }
+
+  &__scan-outcome {
+    font-weight: 600;
+  }
+
+  &__scan-name {
+    color: var(--ev-text-secondary);
+  }
+
+  // ─── Create event (SH-6) ─────────────────────────────────────────────────────
+  &__create {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__create-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-xl;
+    text-align: center;
+    background: var(--ev-success-soft);
+    border-radius: syn.$radius-lg;
+
+    code {
+      font-family: monospace;
+      color: var(--ev-brand);
+    }
+  }
+
+  &__review {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
   }
 }
 
-// ─── Loading / states ──────────────────────────────────────────────────────────
-.eventos__loading {
-  padding: syn.$space-lg;
-  text-align: center;
-  color: var(--ev-muted);
-  font-size: syn.$font-size-sm;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ev-btn,
-  .event-card,
-  .meter__fill {
-    transition: none !important;
-  }
-
-  .ev-btn:hover:not(:disabled),
-  .event-card:hover {
-    transform: none;
+// ─── Print (e-tickets) ─────────────────────────────────────────────────────────
+@media print {
+  .eventos__bar,
+  .eventos__actions,
+  .eventos__notice {
+    display: none;
   }
 }

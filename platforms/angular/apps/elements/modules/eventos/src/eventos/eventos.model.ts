@@ -1,8 +1,15 @@
 /**
  * Domain model for the Eventos vertical's <c>&lt;synergos-eventos&gt;</c> — a real
- * enterprise events platform (catálogo/agenda · ficha del evento · selección de
- * tier + zona/asiento · checkout · e-ticket QR), Eventbrite/Cvent-style, with two
- * caras: ASISTENTE (transacciona) and ORGANIZADOR (operacional, gated por rol).
+ * enterprise events platform (Ticketmaster + Eventbrite, doc 21 §2.6 +
+ * `deep-research/eventos.md`) rebuilt **v2** as a hash-routed multi-page SPA that
+ * consumes the reusable shell catalogue `@synergos/shells`:
+ *
+ *  - **ASISTENTE:** SH-1 discovery (catálogo+categorías+geo+fecha) → SH-2 ficha
+ *    (hero+countdown+tiers, perfil artista/venue) → selección (seat-map con
+ *    price-levels / GA) → carrito+fees → SH-3 checkout → SH-10 wallet (e-ticket
+ *    QR + transferir) → SH-4 "mis tickets".
+ *  - **ORGANIZADOR (role-switch):** SH-5 console (cartera, KPIs, asistentes,
+ *    check-in scan Válido/Ya-usado/Inválido, payout) + SH-6 crear evento.
  *
  * The asistente cara funnels the chosen Event × Tier (× Seat) into the engine's
  * vertical-agnostic <c>SessionItem[]</c> cart behind a single <c>Pricing</c>, then
@@ -25,20 +32,32 @@ export const EVENTOS_KIND: SessionItemKind = 'ticket';
 /** Which cara of the app the user is on (role-switch). */
 export type EventosRole = 'attendee' | 'organizer';
 
-/** The high-level phase / route within the ASISTENTE cara. */
+/**
+ * The high-level phase / route within the ASISTENTE cara (drives the hash router
+ * `#/eventos/...`). `wallet` renders SH-10 (mis tickets + e-ticket QR + transfer);
+ * `account` renders SH-4 ("mis tickets" bandeja + tracking).
+ */
 export type EventosView =
-  | 'catalog' // search + filters + agenda listing
-  | 'event' // event PDP (hero, tiers, zonas, agenda)
+  | 'catalog' // SH-1 discovery: search + facets + grid
+  | 'event' // SH-2 detail: hero, countdown, tiers, artist/venue
   | 'select' // tier/quantity (general) or seat-map (reserved)
-  | 'attendees' // per-ticket attendee data + buyer
-  | 'checkout' // review + pay
-  | 'confirmed'; // order + e-ticket QR per attendee
+  | 'cart' // carrito + fees + hold countdown
+  | 'checkout' // SH-3 wizard: attendees → pago → revisar
+  | 'confirmed' // order + e-ticket QR per attendee
+  | 'wallet' // SH-10 credential-wallet: e-tickets + transfer/resell
+  | 'account'; // SH-4 account-shell: mis tickets bandeja + tracking
 
-/** The high-level phase / route within the ORGANIZADOR cara. */
+/**
+ * The high-level phase / route within the ORGANIZADOR cara. Rendered inside the
+ * SH-5 console-shell as its active section; `create` swaps to the SH-6 wizard.
+ */
 export type ManagerView =
-  | 'dashboard' // KPIs (vendidos/aforo/ingresos/check-ins) + sale by tier
+  | 'portfolio' // cartera multi-evento (KPIs + tabla de eventos)
+  | 'dashboard' // KPIs de un evento (vendidos/aforo/ingresos/check-ins)
   | 'attendees' // filterable attendee table
-  | 'checkin'; // QR scan / manual code → Válido | Ya usado | Inválido
+  | 'checkin' // QR scan / manual code → Válido | Ya usado | Inválido
+  | 'payout' // settlement / liquidación
+  | 'create'; // SH-6 authoring wizard: crear evento
 
 /** How the event sells tickets — drives the selección mode. */
 export type EventMode = 'general' | 'reserved';
@@ -116,6 +135,13 @@ export interface EventOrganizer {
   readonly avatar: string;
 }
 
+/** The performing artist / act profile (perfil artista de la ficha SH-2). */
+export interface EventArtist {
+  readonly name: string;
+  readonly headline: string;
+  readonly followers: number;
+}
+
 /** The venue, with optional reserved-seating zones. */
 export interface EventVenue {
   readonly name: string;
@@ -162,6 +188,7 @@ export interface EventDetail {
   readonly tiers: readonly TicketTier[];
   readonly sessions: readonly EventSession[];
   readonly organizer: EventOrganizer;
+  readonly artist: EventArtist;
   readonly venue: EventVenue;
 }
 
@@ -253,6 +280,45 @@ export interface ConfirmResult {
   readonly tickets: readonly ETicket[];
 }
 
+// ─── Wallet / mis tickets (SH-10 + SH-4) ─────────────────────────────────────
+
+/** Lifecycle status of a wallet ticket (drives the SH-10 status pill tone). */
+export type WalletTicketStatus = 'valid' | 'transferred' | 'used' | 'past';
+
+/**
+ * A ticket held by the current user (`GET /api/eventos/tickets?holder=`). One
+ * per attendee/seat; the wallet renders each as a SH-10 credential card with a
+ * scannable QR and a transfer action.
+ */
+export interface WalletTicket {
+  readonly id: string;
+  readonly qr: string;
+  readonly eventId: string;
+  readonly eventTitle: string;
+  readonly venueName: string;
+  /** ISO start date-time of the event. */
+  readonly startsAt: string;
+  readonly tier: string;
+  readonly seat: string;
+  readonly holder: string;
+  readonly orderRef: string;
+  readonly status: WalletTicketStatus;
+}
+
+/** `GET /api/eventos/tickets?holder=` response. */
+export interface WalletResult {
+  readonly tickets: readonly WalletTicket[];
+}
+
+/** `POST /api/eventos/ticket/{id}/transfer` response — origin invalidated. */
+export interface TransferResult {
+  readonly status: string;
+  /** The account/email the ticket was transferred to. */
+  readonly to: string;
+  /** The (invalidated) source ticket id. */
+  readonly ticketId: string;
+}
+
 // ─── Organizer (manage) contract (API) ───────────────────────────────────────
 
 /** Check-in state of an attendee's e-ticket. */
@@ -268,11 +334,32 @@ export interface ManagedAttendee {
   readonly state: CheckInState;
 }
 
-/** `GET /api/eventos/manage/{eventId}` response — operational view of an event. */
+/**
+ * `GET /api/eventos/manage/{eventId}` response — operational view of an event
+ * (asistentes + aforo + a small portfolio of the organizer's other events for
+ * the SH-5 cartera view).
+ */
 export interface ManageResult {
   readonly attendees: readonly ManagedAttendee[];
   readonly capacity: number;
   readonly sold: number;
+  /** Gross revenue in major units (mock estimate until the reporting seam lands). */
+  readonly revenue: number;
+  /** The organizer's event portfolio (cartera) for the SH-5 dashboard. */
+  readonly portfolio: readonly PortfolioEvent[];
+}
+
+/** One event in the organizer's cartera (SH-5 portfolio table). */
+export interface PortfolioEvent {
+  readonly id: string;
+  readonly title: string;
+  readonly startsAt: string;
+  readonly city: string;
+  readonly capacity: number;
+  readonly sold: number;
+  /** Gross revenue in major units. */
+  readonly revenue: number;
+  readonly status: EventStatus;
 }
 
 /** The validation outcome of a check-in scan. */
@@ -293,4 +380,33 @@ export interface ScanRecord {
   readonly outcome: CheckInOutcome;
   readonly attendee: string;
   readonly at: string;
+}
+
+// ─── Create event (SH-6 authoring) contract (API) ────────────────────────────
+
+/** `POST /api/eventos/event` request body (the SH-6 wizard's published draft). */
+export interface CreateEventRequest {
+  readonly title: string;
+  readonly category: string;
+  readonly city: string;
+  readonly venueName: string;
+  readonly startsAt: string;
+  readonly mode: EventMode;
+  readonly capacity: number;
+  /** Tiers to seed (name + price + cupo). */
+  readonly tiers: readonly CreateTierDraft[];
+}
+
+/** One tier row captured in the SH-6 create-event wizard. */
+export interface CreateTierDraft {
+  readonly name: string;
+  readonly amount: number;
+  readonly capacity: number;
+}
+
+/** `POST /api/eventos/event` response — the created event's id + public slug. */
+export interface CreateEventResult {
+  readonly id: string;
+  readonly slug: string;
+  readonly status: string;
 }
