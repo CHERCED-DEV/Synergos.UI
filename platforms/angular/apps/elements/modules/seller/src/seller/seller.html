@@ -1,0 +1,356 @@
+<section class="seller" aria-label="Consola del vendedor">
+  <!-- ─── Top bar: heading + seller chip + view tabs ─────────────────────── -->
+  <header class="seller__bar">
+    <div class="seller__brand">
+      <span class="seller__brand-mark" aria-hidden="true">◈</span>
+      <h1 class="seller__brand-text">{{ heading() }}</h1>
+      @if (sellerName()) {
+        <span class="seller__seller-chip">{{ sellerName() }}</span>
+      }
+    </div>
+
+    <nav class="seller__nav" aria-label="Vistas de la consola">
+      <button
+        type="button"
+        class="seller__nav-btn"
+        [class.is-active]="view() === 'panel'"
+        (click)="goTo('panel')"
+      >
+        Panel
+      </button>
+      <button
+        type="button"
+        class="seller__nav-btn"
+        [class.is-active]="view() === 'publicar'"
+        (click)="goTo('publicar')"
+      >
+        Publicar
+      </button>
+      <button
+        type="button"
+        class="seller__nav-btn"
+        [class.is-active]="view() === 'mensajes'"
+        (click)="goTo('mensajes')"
+      >
+        Mensajes
+        @if (unreadCount() > 0) {
+          <span class="seller__nav-badge">{{ unreadCount() }}</span>
+        }
+      </button>
+    </nav>
+  </header>
+
+  <!-- Mock-data degradation notice -->
+  @if (degraded()) {
+    <p class="seller__notice seller__notice--warn" role="status">
+      Mostrando datos de ejemplo: el motor de la tienda aún no responde.
+    </p>
+  }
+
+  <!-- ═══ PANEL: SH-5 console (KPIs + Ventas/Publicaciones/Devoluciones/Reputación) ═══ -->
+  @if (view() === 'panel') {
+    <syn-console-shell
+      [config]="consoleConfig()"
+      [kpis]="consoleKpis()"
+      [rows]="consoleRows()"
+      [columns]="consoleColumns()"
+      [filters]="consoleFilters()"
+      [actionsFor]="rowActionsFor"
+      [loading]="sectionLoading()"
+      [cellTemplate]="sellerCell"
+      [sectionTemplate]="sellerSection"
+      (sectionchange)="onSectionChange($event)"
+      (filterchange)="onFilterChange($event)"
+      (rowaction)="onRowAction($event)"
+    />
+
+    <!-- One cell renderer for every queue: text cells + a status chip. -->
+    <ng-template #sellerCell let-row let-column="column">
+      @if (column.key === 'estado') {
+        <span class="seller__status" [class]="'seller__status--' + row.tone">
+          {{ row.cells[column.key] }}
+        </span>
+      } @else {
+        <span
+          class="seller__cell"
+          [class.seller__cell--strong]="column.key === consoleColumns()[0].key"
+        >
+          {{ row.cells[column.key] }}
+        </span>
+      }
+    </ng-template>
+
+    <!-- Reputación: custom section fed by GET /seller/summary. -->
+    <ng-template #sellerSection>
+      @if (reputation(); as rep) {
+        <div class="seller__rep" aria-label="Reputación del vendedor">
+          <article class="seller__rep-card seller__rep-card--hero">
+            <p class="seller__rep-score">{{ formatRating(rep.score) }}</p>
+            @if (rep.level) {
+              <p class="seller__rep-level">{{ rep.level }}</p>
+            }
+          </article>
+          <article class="seller__rep-card">
+            <p class="seller__rep-value">{{ formatPercent(rep.onTimeRate) }}</p>
+            <p class="seller__rep-label">Entregas a tiempo</p>
+          </article>
+          <article class="seller__rep-card">
+            <p class="seller__rep-value">{{ formatPercent(rep.claimRate) }}</p>
+            <p class="seller__rep-label">Órdenes con reclamo</p>
+          </article>
+          <article class="seller__rep-card">
+            <p class="seller__rep-value">{{ formatPercent(rep.responseRate) }}</p>
+            <p class="seller__rep-label">Preguntas respondidas</p>
+          </article>
+        </div>
+      } @else {
+        <p class="seller__rep-empty" role="status">Cargando reputación…</p>
+      }
+    </ng-template>
+  }
+
+  <!-- ═══ PUBLICAR: SH-6 authoring wizard (borrador persistente) ═══════════ -->
+  @if (view() === 'publicar') {
+    @if (publishReceipt(); as receipt) {
+      <div class="seller__receipt" role="status">
+        <p class="seller__receipt-icon" aria-hidden="true">✓</p>
+        <h2 class="seller__receipt-title">Publicación creada</h2>
+        <p class="seller__receipt-detail">
+          Referencia <strong>{{ receipt.productId }}</strong> · estado {{ receipt.status }}.
+        </p>
+        <div class="seller__receipt-actions">
+          <button type="button" class="seller__btn seller__btn--primary" (click)="publishAnother()">
+            Publicar otro producto
+          </button>
+          <button type="button" class="seller__btn" (click)="goTo('panel')">Ir al panel</button>
+        </div>
+      </div>
+    } @else {
+      <syn-authoring-wizard
+        [config]="wizardConfig"
+        [validity]="wizardValidity()"
+        [publishing]="publishing()"
+        [stepTemplate]="publishStep"
+        (draftchange)="onDraftChange($event)"
+        (published)="onPublish($event)"
+        (exit)="onWizardExit()"
+      />
+
+      <ng-template #publishStep let-step let-draft="draft" let-patch="patch">
+        @switch (step.id) {
+          <!-- Paso 1: datos del producto -->
+          @case ('datos') {
+            <div class="seller__form">
+              <label class="seller__field">
+                <span class="seller__field-label">Título de la publicación</span>
+                <input
+                  class="seller__input"
+                  type="text"
+                  [value]="draftString(draft, 'title')"
+                  (input)="patchField(patch, 'title', $event)"
+                />
+              </label>
+              <div class="seller__form-row">
+                <label class="seller__field">
+                  <span class="seller__field-label">Marca</span>
+                  <input
+                    class="seller__input"
+                    type="text"
+                    [value]="draftString(draft, 'brand')"
+                    (input)="patchField(patch, 'brand', $event)"
+                  />
+                </label>
+                <label class="seller__field">
+                  <span class="seller__field-label">Categoría</span>
+                  <input
+                    class="seller__input"
+                    type="text"
+                    [value]="draftString(draft, 'category')"
+                    (input)="patchField(patch, 'category', $event)"
+                  />
+                </label>
+              </div>
+              <label class="seller__field">
+                <span class="seller__field-label">Descripción</span>
+                <textarea
+                  class="seller__input seller__input--area"
+                  rows="4"
+                  [value]="draftString(draft, 'description')"
+                  (input)="patchField(patch, 'description', $event)"
+                ></textarea>
+              </label>
+            </div>
+          }
+          <!-- Paso 2: fotos por URL -->
+          @case ('media') {
+            <div class="seller__form">
+              <div class="seller__media-add">
+                <label class="seller__field seller__field--grow">
+                  <span class="seller__field-label">URL de la imagen</span>
+                  <input
+                    class="seller__input"
+                    type="url"
+                    placeholder="https://…"
+                    [value]="mediaUrl()"
+                    (input)="onMediaUrlInput($event)"
+                  />
+                </label>
+                <button
+                  type="button"
+                  class="seller__btn"
+                  [disabled]="!mediaUrl().trim()"
+                  (click)="addImage(patch, draft)"
+                >
+                  Agregar foto
+                </button>
+              </div>
+              @if (draftImages(draft).length > 0) {
+                <ul class="seller__media-list">
+                  @for (url of draftImages(draft); track url) {
+                    <li class="seller__media-item">
+                      <span class="seller__media-url">{{ url }}</span>
+                      <button
+                        type="button"
+                        class="seller__media-remove"
+                        [attr.aria-label]="'Quitar ' + url"
+                        (click)="removeImage(patch, draft, url)"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="seller__hint">Sin fotos todavía — la publicación mostrará un marcador.</p>
+              }
+            </div>
+          }
+          <!-- Paso 3: precio, stock y condición -->
+          @case ('precio') {
+            <div class="seller__form">
+              <div class="seller__form-row">
+                <label class="seller__field">
+                  <span class="seller__field-label">Precio ({{ currency() }})</span>
+                  <input
+                    class="seller__input"
+                    type="number"
+                    min="0"
+                    [value]="draftNumber(draft, 'amount') || ''"
+                    (input)="patchField(patch, 'amount', $event)"
+                  />
+                </label>
+                <label class="seller__field">
+                  <span class="seller__field-label">Stock disponible</span>
+                  <input
+                    class="seller__input"
+                    type="number"
+                    min="0"
+                    [value]="draftNumber(draft, 'stock') || ''"
+                    (input)="patchField(patch, 'stock', $event)"
+                  />
+                </label>
+              </div>
+              <label class="seller__field">
+                <span class="seller__field-label">Condición</span>
+                <select
+                  class="seller__input"
+                  [value]="draftCondition(draft)"
+                  (change)="patchField(patch, 'condition', $event)"
+                >
+                  <option value="new">Nuevo</option>
+                  <option value="used">Usado</option>
+                  <option value="refurbished">Reacondicionado</option>
+                </select>
+              </label>
+            </div>
+          }
+          <!-- Paso 4: preview antes de publicar -->
+          @case ('preview') {
+            <div class="seller__preview">
+              <h3 class="seller__preview-title">
+                {{ draftString(draft, 'title') || 'Sin título' }}
+              </h3>
+              <p class="seller__preview-price">{{ draftPriceLabel(draft) }}</p>
+              <dl class="seller__preview-specs">
+                <div class="seller__preview-spec">
+                  <dt>Marca</dt>
+                  <dd>{{ draftString(draft, 'brand') || '—' }}</dd>
+                </div>
+                <div class="seller__preview-spec">
+                  <dt>Categoría</dt>
+                  <dd>{{ draftString(draft, 'category') || '—' }}</dd>
+                </div>
+                <div class="seller__preview-spec">
+                  <dt>Condición</dt>
+                  <dd>{{ conditionLabel(draftCondition(draft)) }}</dd>
+                </div>
+                <div class="seller__preview-spec">
+                  <dt>Stock</dt>
+                  <dd>{{ draftNumber(draft, 'stock') }}</dd>
+                </div>
+                <div class="seller__preview-spec">
+                  <dt>Fotos</dt>
+                  <dd>{{ draftImages(draft).length }}</dd>
+                </div>
+              </dl>
+              @if (draftString(draft, 'description')) {
+                <p class="seller__preview-desc">{{ draftString(draft, 'description') }}</p>
+              }
+              <p class="seller__hint">Revisa los datos: al publicar quedará visible en la tienda.</p>
+            </div>
+          }
+        }
+      </ng-template>
+    }
+  }
+
+  <!-- ═══ MENSAJES: SH-7 message center (preguntas de compradores) ═════════ -->
+  @if (view() === 'mensajes') {
+    <syn-message-center
+      [config]="messagesConfig"
+      [threads]="threads()"
+      [activeThread]="activeThread()"
+      [loading]="threadsLoading()"
+      [sending]="sending()"
+      [threadTemplate]="threadRow"
+      [detailTemplate]="threadDetail"
+      (threadselect)="onThreadSelect($event)"
+      (send)="onSendReply($event)"
+    />
+
+    <ng-template #threadRow let-thread>
+      <span class="seller__thread-row" [class.is-unread]="thread.unread">
+        <span class="seller__thread-subject">{{ thread.subject }}</span>
+        <span class="seller__thread-meta">
+          {{ thread.counterpart }}@if (thread.date) {<span> · {{ thread.date }}</span>}
+        </span>
+      </span>
+      @if (thread.unread) {
+        <span class="seller__thread-dot" aria-hidden="true"></span>
+      }
+    </ng-template>
+
+    <ng-template #threadDetail let-thread>
+      <header class="seller__thread-head">
+        <h2 class="seller__thread-title">{{ thread.subject }}</h2>
+        <p class="seller__thread-sub">{{ thread.counterpart }}</p>
+      </header>
+      <ul class="seller__msgs">
+        @for (message of thread.messages; track message.id) {
+          <li
+            class="seller__msg"
+            [class.seller__msg--own]="message.from === 'seller'"
+          >
+            <p class="seller__msg-body">{{ message.body }}</p>
+            <p class="seller__msg-meta">
+              {{ message.from === 'seller' ? 'Tú' : thread.counterpart }}
+              @if (message.date) {
+                <span> · {{ message.date }}</span>
+              }
+            </p>
+          </li>
+        }
+      </ul>
+    </ng-template>
+  }
+</section>

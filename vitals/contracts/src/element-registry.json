@@ -135,6 +135,7 @@
   { "name": "search-box",             "alias": "elementSynSearchBox",          "tag": "synergos-search-box",        "tier": "composition" },
   { "name": "seat-map",               "alias": "elementSynSeatMap",            "tag": "synergos-seat-map",          "tier": "composition" },
   { "name": "select-multi",           "alias": "elementSynSelectMulti",        "tag": "synergos-select-multi",      "tier": "composition" },
+  { "name": "seller",                 "alias": "elementSynSeller",             "tag": "synergos-seller",            "tier": "module" },
   { "name": "separator",              "alias": "elementSynSeparator",          "tag": "synergos-separator",         "tier": "primitive" },
   { "name": "share-bar",              "alias": "elementSynShareBar",           "tag": "synergos-share-bar",         "tier": "composition" },
   { "name": "signature-pad",          "alias": "elementSynSignaturePad",       "tag": "synergos-signature-pad",     "tier": "composition" },
