@@ -1,29 +1,64 @@
 /**
  * Domain model for the Propiedades vertical's <c>&lt;synergos-realty&gt;</c> — a real
- * estate marketplace portal (Zillow / Idealista / Metrocuadrado-style), the demand
- * side: search + map → property detail → mortgage → schedule visit / contact agent →
- * favorites.
+ * estate marketplace portal (Zillow + Idealista + Metrocuadrado, doc 21 §2.7 +
+ * `deep-research/propiedades.md`) rebuilt **v2** as a role-switch, hash-routed
+ * multi-page SPA that consumes the reusable shell catalogue `@synergos/shells`:
  *
- * Caso especial del marco (propiedades-app-spec §1): la transacción central NO es un
- * pago. El "checkout" es **agendar una visita** (slot reservable del agente) y
- * **generar un lead** (captura de intención). Por eso este módulo no enruta por la
- * transaction-engine — persiste intención vía <c>RealtyApiClient</c> y calcula la
- * hipoteca puro en cliente.
+ *  - **DEMANDA (público):** SH-1 discovery + **SH-8 lista↔mapa** (facetas es-CO:
+ *    operación · tipo · precio · habitaciones · ciudad/estrato; geo del API) →
+ *    SH-2 ficha (galería/lightbox · specs · mapa · vecindario · **calculadora de
+ *    hipoteca** en el slot del CTA) → **agendar visita** (motor, recurso reservable
+ *    con hold, **SIN pago**) + **contactar/lead** → SH-4 cuenta (favoritos+comparar,
+ *    búsquedas guardadas+alertas, mis visitas, mensajes SH-7).
+ *  - **AGENTE (role-switch):** SH-5 consola (cartera KPIs, listados, leads mini-CRM,
+ *    agenda de visitas, analítica) + SH-6 publicar inmueble (datos→fotos→precio→
+ *    ubicación/pin→publicar).
  *
- * Pure TS (no Angular imports) so it can be shared, serialised, and unit-tested.
+ * Caso especial del marco (spec §1): la transacción central NO es un pago. El
+ * "checkout" es **agendar una visita** (slot reservable del agente vía el motor,
+ * con el paso de pago APAGADO — valida la generalidad del engine) y **generar un
+ * lead** (captura de intención, confirm degenerado sin slot). La hipoteca se
+ * calcula puro en cliente, determinista.
+ *
+ * Pure TS (no Angular imports besides the engine's `SessionItemKind` type) so it
+ * can be shared, serialised, and unit-tested.
  */
 
-/** The high-level phase / route the portal is in. */
-export type RealtyView =
-  | 'search' // split list + map (home del dominio)
-  | 'pdp' // property detail
-  | 'mortgage' // standalone mortgage calculator
-  | 'favorites' // shortlist + compare
-  | 'visit' // schedule-a-visit wizard
-  | 'confirmation' // visit / lead confirmed
-  | 'account'; // mis visitas / mis leads
+import type { SessionItemKind } from '@synergos/transaction-engine';
 
-/** Layout of the search results: list-only, map-only, or split. */
+/** The flow id the engine routes on — one strategy owns it. */
+export const REALTY_FLOW = 'realty';
+
+/** Every realty cart line is a `visit` (a reservable agent slot). */
+export const REALTY_KIND: SessionItemKind = 'visit';
+
+/** Which cara of the app the user is on (role-switch). */
+export type RealtyRole = 'demand' | 'agent';
+
+/**
+ * The high-level phase / route within the DEMANDA cara (drives the hash router
+ * `#/realty/...`).
+ */
+export type RealtyView =
+  | 'search' // SH-1 + SH-8 split list↔map (home del dominio)
+  | 'pdp' // SH-2 property detail (gallery · specs · map · neighborhood · mortgage)
+  | 'mortgage' // standalone mortgage calculator
+  | 'visit' // schedule-a-visit wizard (motor, pago OFF)
+  | 'confirmation' // visit / lead confirmed
+  | 'account'; // SH-4: favoritos+comparar · búsquedas guardadas · mis visitas · mensajes
+
+/**
+ * The section within the AGENTE cara. Rendered inside the SH-5 console-shell as
+ * its active section; `publish` swaps to the SH-6 authoring wizard.
+ */
+export type AgentView =
+  | 'portfolio' // cartera: listados publicados (tabla + KPIs)
+  | 'leads' // mini-CRM: leads entrantes (tabla + estado)
+  | 'agenda' // agenda de visitas próximas
+  | 'analytics' // analítica del embudo (KPIs + reporte)
+  | 'publish'; // SH-6 authoring wizard: publicar inmueble
+
+/** Layout of the search results: list-only, map-only, or split (SH-8). */
 export type ResultsLayout = 'split' | 'list' | 'map';
 
 /** Operation: venta (sale) vs arriendo (rent). */
@@ -46,6 +81,9 @@ export type VisitStatus = 'held' | 'confirmed' | 'cancelled' | 'done' | 'no-show
 
 /** The schedule-a-visit wizard step. */
 export type VisitStep = 'mode' | 'slot' | 'contact' | 'review';
+
+/** Lead lifecycle in the agent mini-CRM (kanban-lite). */
+export type LeadStatus = 'new' | 'contacted' | 'visit' | 'won' | 'lost';
 
 // ─── Geo ──────────────────────────────────────────────────────────────────────
 
@@ -134,6 +172,12 @@ export interface Agent {
   readonly listingsCount: number;
 }
 
+/** One point of interest / stat of the neighborhood (SH-2 vecindario block). */
+export interface NeighborhoodPoint {
+  readonly label: string;
+  readonly value: string;
+}
+
 /** The full PDP payload as returned by `GET /api/realty/listing/{id}`. */
 export interface ListingDetail {
   readonly listing: Listing;
@@ -144,6 +188,8 @@ export interface ListingDetail {
   readonly gallery: readonly string[];
   readonly location: GeoPoint;
   readonly agent: Agent;
+  /** Neighborhood stats/points (colegios, transporte, walk-score…). */
+  readonly neighborhood: readonly NeighborhoodPoint[];
 }
 
 // ─── Faceted search ──────────────────────────────────────────────────────────
@@ -184,7 +230,7 @@ export interface SearchCriteria {
   readonly bounds?: MapBounds;
 }
 
-// ─── Visit (scheduling — reusable resource/hold of the motor) ───────────────────
+// ─── Visit (scheduling — reusable resource/hold of the motor, pago OFF) ──────────
 
 /** Contact captured for a visit / lead. */
 export interface ContactInfo {
@@ -199,6 +245,15 @@ export interface VisitSlot {
   readonly date: string;
   /** HH:mm 24h. */
   readonly time: string;
+}
+
+/** The buyer's chosen visit before it becomes a cart `SessionItem`. */
+export interface VisitSelectionPayload {
+  readonly listingId: string;
+  readonly listingTitle: string;
+  readonly slot: VisitSlot;
+  readonly mode: VisitMode;
+  readonly contact: ContactInfo;
 }
 
 /** `POST /api/realty/visit` request body. */
@@ -271,4 +326,116 @@ export interface MortgageResult {
   readonly totalPaid: number;
   /** Optional amortization schedule (first N rows for display). */
   readonly schedule?: readonly AmortizationRow[];
+}
+
+// ─── Saved searches + alerts (P11 — SH-4 cuenta) ────────────────────────────────
+
+/**
+ * A saved search with an optional alert. `GET /api/realty/saved?user=` returns
+ * these; `POST /api/realty/saved-search` creates one. `newMatches` is the count of
+ * listings that matched since the alert was last seen (scheduled `Match` seam).
+ */
+export interface SavedSearch {
+  readonly id: string;
+  /** Human summary of the criteria ("Apartamentos en Chicó, venta, 3+ hab"). */
+  readonly label: string;
+  readonly operation: Operation;
+  /** New matches since last seen (drives the alert badge). */
+  readonly newMatches: number;
+  /** ISO date the search was saved. */
+  readonly createdAt: string;
+  /** Whether an email/push alert is on. */
+  readonly alert: boolean;
+}
+
+/** `GET /api/realty/saved?user=` response. */
+export interface SavedResult {
+  readonly searches: readonly SavedSearch[];
+}
+
+/** `POST /api/realty/saved-search` request body. */
+export interface SavedSearchRequest {
+  readonly label: string;
+  readonly operation: Operation;
+  readonly criteria: SearchCriteria;
+  readonly alert: boolean;
+}
+
+// ─── Agent cara (SH-5 console + SH-6 authoring) ─────────────────────────────────
+
+/** One listing row in the agent's cartera (SH-5 portfolio table). */
+export interface PortfolioListing {
+  readonly id: string;
+  readonly title: string;
+  readonly operation: Operation;
+  readonly price: number;
+  readonly currency: string;
+  readonly status: ListingStatus;
+  /** Detail-page views (embudo). */
+  readonly views: number;
+  /** Leads generated by this listing. */
+  readonly leads: number;
+  readonly publishedAt: string;
+}
+
+/** One lead row in the agent mini-CRM (SH-5 leads table). */
+export interface AgentLead {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly listingId: string;
+  readonly listingTitle: string;
+  readonly message: string;
+  readonly status: LeadStatus;
+  /** ISO date the lead came in. */
+  readonly createdAt: string;
+}
+
+/** One upcoming visit in the agent agenda (SH-5 agenda section). */
+export interface AgendaVisit {
+  readonly id: string;
+  readonly listingTitle: string;
+  readonly contactName: string;
+  readonly slot: VisitSlot;
+  readonly mode: VisitMode;
+  readonly status: VisitStatus;
+}
+
+/**
+ * `GET /api/realty/agent/leads?agent=` response — the agent's operational view
+ * (cartera + leads + agenda) for the SH-5 console.
+ */
+export interface AgentDeskResult {
+  readonly portfolio: readonly PortfolioListing[];
+  readonly leads: readonly AgentLead[];
+  readonly agenda: readonly AgendaVisit[];
+  /** Aggregate funnel metrics for the analytics KPIs. */
+  readonly totalViews: number;
+  readonly totalLeads: number;
+  readonly totalRevenue: number;
+}
+
+/** `POST /api/realty/listing` request body (the SH-6 wizard's published draft). */
+export interface PublishListingRequest {
+  readonly title: string;
+  readonly operation: Operation;
+  readonly type: PropertyType;
+  readonly price: number;
+  readonly city: string;
+  readonly neighborhood: string;
+  readonly address: string;
+  /** Pin dropped on the map (SH-6 ubicación step). */
+  readonly lat: number;
+  readonly lng: number;
+  readonly beds: number;
+  readonly baths: number;
+  readonly areaBuilt: number;
+  readonly stratum: number;
+}
+
+/** `POST /api/realty/listing` response — the created listing's id + status. */
+export interface PublishListingResult {
+  readonly id: string;
+  readonly status: ListingStatus | 'draft';
 }

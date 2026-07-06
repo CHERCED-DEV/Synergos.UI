@@ -3,19 +3,30 @@ import { LoggerService } from '@synergos/core';
 import { calculateMortgage } from './mortgage.calc';
 import {
   type Agent,
+  type AgendaVisit,
+  type AgentDeskResult,
+  type AgentLead,
   type Amenity,
   type Facet,
   type GeoPoint,
   type LeadRequest,
   type LeadResult,
+  type LeadStatus,
   type Listing,
   type ListingDetail,
   type ListingStatus,
   type MortgageRequest,
   type MortgageResult,
+  type NeighborhoodPoint,
   type Operation,
+  type PortfolioListing,
   type PropertySpecs,
   type PropertyType,
+  type PublishListingRequest,
+  type PublishListingResult,
+  type SavedResult,
+  type SavedSearch,
+  type SavedSearchRequest,
   type SearchCriteria,
   type SearchResult,
   type Visit,
@@ -26,13 +37,17 @@ import {
 
 /**
  * Thin HTTP client over the Propiedades backend contract (provided by the backend
- * agent in parallel). Programs against:
+ * agent in parallel). Programs against the existing + new contract:
  *
- *  - `GET  /api/realty/listings?q=&type=&minPrice=&maxPrice=&beds=&location=` → `{ listings }`
- *  - `GET  /api/realty/listing/{id}`                                          → `{ listing, specs, gallery, location }`
- *  - `POST /api/realty/visit`    `{ listingId, slot, contact }`               → `{ visit }`
- *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRate }` → `{ monthly, totalInterest, schedule? }`
- *  - `POST /api/realty/lead`     `{ listingId, contact, message }`            → `{ leadId }`
+ *  - `GET  /api/realty/listings?…`  (incluye geo+facetas)   → `{ listings, facets, total }`
+ *  - `GET  /api/realty/listing/{id}`                         → `{ listing, gallery, location, neighborhood }`
+ *  - `POST /api/realty/visit`    `{ listingId, slot, contact, mode }` → `{ visit }`
+ *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRate }` → `{ monthly, … }`
+ *  - `POST /api/realty/lead`     `{ listingId, contact, message }`  → `{ leadId }`
+ *  - `GET  /api/realty/saved?user=`                          → `{ searches }`
+ *  - `POST /api/realty/saved-search` `{ label, criteria, alert }` → `{ id }`
+ *  - `GET  /api/realty/agent/leads?agent=`                   → `{ portfolio, leads, agenda }`
+ *  - `POST /api/realty/listing`  `{ …publish… }`             → `{ id, status }`
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **seeded demo data** (con geo) and logs a `TODO`,
@@ -49,6 +64,13 @@ export class RealtyApiClient {
 
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
+
+  /** In-memory saved searches so a mock "guardar búsqueda" surfaces in the cuenta. */
+  #savedSearches: readonly SavedSearch[] = [];
+  /** In-memory agent leads so a mock lead surfaces in the agent CRM. */
+  #agentLeads: readonly AgentLead[] = [];
+  /** In-memory freshly-published listings so they show up in the cartera. */
+  #publishedListings: readonly PortfolioListing[] = [];
 
   get degraded(): boolean {
     return this.#degraded;
@@ -124,23 +146,38 @@ export class RealtyApiClient {
 
   // ─── Lead to the agent (degenerate confirm — intent, NO payment) ──────────────
 
-  async submitLead(apiBase: string, body: LeadRequest): Promise<LeadResult> {
+  async submitLead(apiBase: string, body: LeadRequest, listingTitle: string): Promise<LeadResult> {
     const url = `${apiBase}/lead`;
     try {
       const data = await this.postJson(url, body);
       const lead = normalizeLead(pluck(data, 'lead') ?? data, body);
       if (lead) {
+        this.seedAgentLead(lead.leadId, body, listingTitle);
         return lead;
       }
       throw new Error('lead-shape');
     } catch (error) {
       this.markDegraded('POST /api/realty/lead', error);
-      return {
-        leadId: `LEAD-${Date.now().toString(36).toUpperCase()}`,
-        listingId: body.listingId,
-        status: 'new',
-      };
+      const leadId = `LEAD-${Date.now().toString(36).toUpperCase()}`;
+      this.seedAgentLead(leadId, body, listingTitle);
+      return { leadId, listingId: body.listingId, status: 'new' };
     }
+  }
+
+  /** Reflect a submitted lead in the in-memory agent CRM. */
+  private seedAgentLead(leadId: string, body: LeadRequest, listingTitle: string): void {
+    const lead: AgentLead = {
+      id: leadId,
+      name: body.contact.name,
+      email: body.contact.email,
+      phone: body.contact.phone,
+      listingId: body.listingId,
+      listingTitle,
+      message: body.message,
+      status: 'new',
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+    this.#agentLeads = [lead, ...this.#agentLeads];
   }
 
   // ─── Mortgage (server seam optional; client calc is the recommended source) ───
@@ -160,6 +197,122 @@ export class RealtyApiClient {
       this.markDegraded('POST /api/realty/mortgage', error);
       return clientResult;
     }
+  }
+
+  // ─── Saved searches + alerts (P11) ────────────────────────────────────────────
+
+  async savedSearches(apiBase: string, user: string): Promise<SavedResult> {
+    const query = user ? `?user=${encodeURIComponent(user)}` : '';
+    const url = `${apiBase}/saved${query}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeSaved(data);
+      if (result) {
+        this.#savedSearches = result.searches;
+        return result;
+      }
+      throw new Error('saved-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/realty/saved', error);
+      const searches = this.#savedSearches.length > 0 ? this.#savedSearches : mockSaved();
+      this.#savedSearches = searches;
+      return { searches };
+    }
+  }
+
+  async saveSearch(apiBase: string, body: SavedSearchRequest): Promise<SavedSearch> {
+    const url = `${apiBase}/saved-search`;
+    try {
+      const data = await this.postJson(url, body);
+      const saved = normalizeSavedSearch(pluck(data, 'search') ?? data, body);
+      if (saved) {
+        this.#savedSearches = [saved, ...this.#savedSearches];
+        return saved;
+      }
+      throw new Error('saved-search-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/realty/saved-search', error);
+      const saved: SavedSearch = {
+        id: `SS-${Date.now().toString(36).toUpperCase()}`,
+        label: body.label,
+        operation: body.operation,
+        newMatches: 0,
+        createdAt: new Date().toISOString().slice(0, 10),
+        alert: body.alert,
+      };
+      this.#savedSearches = [saved, ...this.#savedSearches];
+      return saved;
+    }
+  }
+
+  // ─── Agent desk (cartera + leads + agenda) ────────────────────────────────────
+
+  async agentDesk(apiBase: string, agent: string): Promise<AgentDeskResult> {
+    const query = agent ? `?agent=${encodeURIComponent(agent)}` : '';
+    const url = `${apiBase}/agent/leads${query}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeAgentDesk(data);
+      if (result) {
+        return this.mergeAgentDesk(result);
+      }
+      throw new Error('agent-desk-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/realty/agent/leads', error);
+      return this.mergeAgentDesk(mockAgentDesk());
+    }
+  }
+
+  /** Fold any in-session leads / published listings into the desk view. */
+  private mergeAgentDesk(base: AgentDeskResult): AgentDeskResult {
+    const leads = [...this.#agentLeads, ...base.leads];
+    const portfolio = [...this.#publishedListings, ...base.portfolio];
+    return {
+      ...base,
+      leads,
+      portfolio,
+      totalLeads: leads.length,
+    };
+  }
+
+  // ─── Publish a listing (SH-6 authoring) ───────────────────────────────────────
+
+  async publishListing(
+    apiBase: string,
+    body: PublishListingRequest,
+    currency: string,
+  ): Promise<PublishListingResult> {
+    const url = `${apiBase}/listing`;
+    try {
+      const data = await this.postJson(url, body);
+      const result = normalizePublish(data);
+      if (result) {
+        this.seedPublished(result.id, body, currency);
+        return result;
+      }
+      throw new Error('publish-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/realty/listing', error);
+      const id = `L-${Date.now().toString(36).toUpperCase()}`;
+      this.seedPublished(id, body, currency);
+      return { id, status: 'active' };
+    }
+  }
+
+  /** Reflect a freshly-published listing in the in-memory cartera. */
+  private seedPublished(id: string, body: PublishListingRequest, currency: string): void {
+    const listing: PortfolioListing = {
+      id,
+      title: body.title,
+      operation: body.operation,
+      price: body.price,
+      currency,
+      status: 'active',
+      views: 0,
+      leads: 0,
+      publishedAt: new Date().toISOString().slice(0, 10),
+    };
+    this.#publishedListings = [listing, ...this.#publishedListings];
   }
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
@@ -288,14 +441,14 @@ function readStatus(value: unknown): ListingStatus {
 
 function readVisitStatus(value: unknown): VisitStatus {
   const raw = readString(value).toLowerCase();
-  const known: readonly VisitStatus[] = [
-    'held',
-    'confirmed',
-    'cancelled',
-    'done',
-    'no-show',
-  ];
+  const known: readonly VisitStatus[] = ['held', 'confirmed', 'cancelled', 'done', 'no-show'];
   return known.includes(raw as VisitStatus) ? (raw as VisitStatus) : 'confirmed';
+}
+
+function readLeadStatus(value: unknown): LeadStatus {
+  const raw = readString(value).toLowerCase();
+  const known: readonly LeadStatus[] = ['new', 'contacted', 'visit', 'won', 'lost'];
+  return known.includes(raw as LeadStatus) ? (raw as LeadStatus) : 'new';
 }
 
 function normalizeGeo(value: unknown): GeoPoint {
@@ -429,6 +582,25 @@ function normalizeAmenities(value: unknown): readonly Amenity[] {
     .filter((amenity): amenity is Amenity => amenity !== null);
 }
 
+function normalizeNeighborhood(value: unknown): readonly NeighborhoodPoint[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): NeighborhoodPoint | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const label = readString(entry['label']).trim();
+      const val = readString(entry['value']).trim();
+      if (!label || !val) {
+        return null;
+      }
+      return { label, value: val };
+    })
+    .filter((point): point is NeighborhoodPoint => point !== null);
+}
+
 function normalizeAgent(value: unknown): Agent {
   const a = isRecord(value) ? value : {};
   return {
@@ -460,6 +632,7 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): ListingDetai
     gallery: readStringArray(value['gallery']),
     location: normalizeGeo(value['location'] ?? listing.geo),
     agent: normalizeAgent(value['agent']),
+    neighborhood: normalizeNeighborhood(value['neighborhood']),
   };
 }
 
@@ -538,35 +711,161 @@ function normalizeMortgage(value: unknown, fallback: MortgageResult): MortgageRe
   };
 }
 
+function normalizeSavedSearch(value: unknown, request?: SavedSearchRequest): SavedSearch | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    label: readString(value['label']).trim() || request?.label || 'Búsqueda guardada',
+    operation: readOperation(value['operation'] ?? request?.operation),
+    newMatches: Math.max(0, Math.trunc(readNumber(value['newMatches']))),
+    createdAt: readString(value['createdAt']).trim() || new Date().toISOString().slice(0, 10),
+    alert: readBoolean(value['alert'], request?.alert ?? false),
+  };
+}
+
+function normalizeSaved(value: unknown): SavedResult | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['searches'])
+      ? value['searches']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return {
+    searches: list
+      .map((entry) => normalizeSavedSearch(entry))
+      .filter((search): search is SavedSearch => search !== null),
+  };
+}
+
+function normalizePortfolio(value: unknown, fallbackCurrency: string): PortfolioListing | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const title = readString(value['title']).trim();
+  if (!id || !title) {
+    return null;
+  }
+  return {
+    id,
+    title,
+    operation: readOperation(value['operation']),
+    price: readNumber(value['price']),
+    currency: readString(value['currency']).trim() || fallbackCurrency,
+    status: readStatus(value['status']),
+    views: Math.max(0, Math.trunc(readNumber(value['views']))),
+    leads: Math.max(0, Math.trunc(readNumber(value['leads']))),
+    publishedAt: readString(value['publishedAt']).trim(),
+  };
+}
+
+function normalizeAgentLead(value: unknown): AgentLead | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id'] ?? value['leadId']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    name: readString(value['name']).trim() || 'Prospecto',
+    email: readString(value['email']).trim(),
+    phone: readString(value['phone']).trim(),
+    listingId: readString(value['listingId']).trim(),
+    listingTitle: readString(value['listingTitle']).trim() || 'Inmueble',
+    message: readString(value['message']).trim(),
+    status: readLeadStatus(value['status']),
+    createdAt: readString(value['createdAt']).trim(),
+  };
+}
+
+function normalizeAgendaVisit(value: unknown): AgendaVisit | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  const slot = isRecord(value['slot']) ? value['slot'] : {};
+  return {
+    id,
+    listingTitle: readString(value['listingTitle']).trim() || 'Inmueble',
+    contactName: readString(value['contactName'] ?? value['contact']).trim() || 'Prospecto',
+    slot: { date: readString(slot['date']).trim(), time: readString(slot['time']).trim() },
+    mode: readString(value['mode']).trim() === 'video' ? 'video' : 'in-person',
+    status: readVisitStatus(value['status']),
+  };
+}
+
+function normalizeAgentDesk(value: unknown): AgentDeskResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawPortfolio = Array.isArray(value['portfolio']) ? value['portfolio'] : [];
+  const rawLeads = Array.isArray(value['leads']) ? value['leads'] : [];
+  const rawAgenda = Array.isArray(value['agenda']) ? value['agenda'] : [];
+  if (rawPortfolio.length === 0 && rawLeads.length === 0 && rawAgenda.length === 0) {
+    return null;
+  }
+  const portfolio = rawPortfolio
+    .map((entry) => normalizePortfolio(entry, 'COP'))
+    .filter((entry): entry is PortfolioListing => entry !== null);
+  const leads = rawLeads
+    .map((entry) => normalizeAgentLead(entry))
+    .filter((entry): entry is AgentLead => entry !== null);
+  const agenda = rawAgenda
+    .map((entry) => normalizeAgendaVisit(entry))
+    .filter((entry): entry is AgendaVisit => entry !== null);
+  return {
+    portfolio,
+    leads,
+    agenda,
+    totalViews: Math.trunc(readNumber(value['totalViews'])) || portfolio.reduce((s, p) => s + p.views, 0),
+    totalLeads: Math.trunc(readNumber(value['totalLeads'])) || leads.length,
+    totalRevenue: readNumber(value['totalRevenue']),
+  };
+}
+
+function normalizePublish(value: unknown): PublishListingResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  const rawStatus = readString(value['status']).toLowerCase();
+  const status: PublishListingResult['status'] =
+    rawStatus === 'reserved' || rawStatus === 'sold' || rawStatus === 'draft'
+      ? (rawStatus as PublishListingResult['status'])
+      : 'active';
+  return { id, status };
+}
+
 // ─── Mock data (visible degradation when the backend is not yet wired) ─────────
 
 /** Seeded Bogotá-area listings with real geo so the map demo works offline. */
 const MOCK_LISTINGS: readonly Listing[] = [
   {
     id: 'L-1',
-    title: 'Apartamento en Chicó Reservado',
+    title: 'Apartamento en Chicó',
     subtitle: '3 hab · 2 baños · 98 m² · Estrato 6',
     operation: 'sale',
     type: 'apartamento',
     price: 850_000_000,
     currency: 'COP',
-    geo: {
-      lat: 4.6736,
-      lng: -74.0556,
-      address: 'Cra 11 #93-45',
-      neighborhood: 'Chicó',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 3,
-      baths: 2,
-      areaBuilt: 98,
-      areaPrivate: 88,
-      parking: 2,
-      stratum: 6,
-      ageYears: 4,
-      floor: 7,
-    },
+    geo: { lat: 4.6736, lng: -74.0556, address: 'Cra 11 #93-45', neighborhood: 'Chicó', city: 'Bogotá' },
+    specs: { beds: 3, baths: 2, areaBuilt: 98, areaPrivate: 88, parking: 2, stratum: 6, ageYears: 4, floor: 7 },
     status: 'active',
     featured: true,
     publishedAt: '2026-06-20',
@@ -581,23 +880,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'casa',
     price: 1_250_000_000,
     currency: 'COP',
-    geo: {
-      lat: 4.7211,
-      lng: -73.9697,
-      address: 'Vía La Calera Km 4',
-      neighborhood: 'El Salitre',
-      city: 'La Calera',
-    },
-    specs: {
-      beds: 4,
-      baths: 3,
-      areaBuilt: 220,
-      areaPrivate: 200,
-      parking: 3,
-      stratum: 4,
-      ageYears: 8,
-      floor: 1,
-    },
+    geo: { lat: 4.7211, lng: -73.9697, address: 'Vía La Calera Km 4', neighborhood: 'El Salitre', city: 'La Calera' },
+    specs: { beds: 4, baths: 3, areaBuilt: 220, areaPrivate: 200, parking: 3, stratum: 4, ageYears: 8, floor: 1 },
     status: 'active',
     featured: false,
     publishedAt: '2026-06-12',
@@ -612,23 +896,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'apartamento',
     price: 2_300_000,
     currency: 'COP',
-    geo: {
-      lat: 4.7253,
-      lng: -74.0312,
-      address: 'Cl 140 #11-20',
-      neighborhood: 'Cedritos',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 1,
-      baths: 1,
-      areaBuilt: 42,
-      areaPrivate: 40,
-      parking: 1,
-      stratum: 4,
-      ageYears: 2,
-      floor: 5,
-    },
+    geo: { lat: 4.7253, lng: -74.0312, address: 'Cl 140 #11-20', neighborhood: 'Cedritos', city: 'Bogotá' },
+    specs: { beds: 1, baths: 1, areaBuilt: 42, areaPrivate: 40, parking: 1, stratum: 4, ageYears: 2, floor: 5 },
     status: 'active',
     featured: false,
     publishedAt: '2026-06-25',
@@ -643,23 +912,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'oficina',
     price: 6_500_000,
     currency: 'COP',
-    geo: {
-      lat: 4.6182,
-      lng: -74.0705,
-      address: 'Cra 7 #26-20',
-      neighborhood: 'Centro Internacional',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 0,
-      baths: 2,
-      areaBuilt: 130,
-      areaPrivate: 130,
-      parking: 2,
-      stratum: 5,
-      ageYears: 15,
-      floor: 12,
-    },
+    geo: { lat: 4.6182, lng: -74.0705, address: 'Cra 7 #26-20', neighborhood: 'Centro Internacional', city: 'Bogotá' },
+    specs: { beds: 0, baths: 2, areaBuilt: 130, areaPrivate: 130, parking: 2, stratum: 5, ageYears: 15, floor: 12 },
     status: 'active',
     featured: true,
     publishedAt: '2026-06-08',
@@ -674,23 +928,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'casa',
     price: 1_490_000_000,
     currency: 'COP',
-    geo: {
-      lat: 4.7039,
-      lng: -74.0728,
-      address: 'Cl 127 #58-30',
-      neighborhood: 'Niza',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 5,
-      baths: 4,
-      areaBuilt: 280,
-      areaPrivate: 250,
-      parking: 3,
-      stratum: 5,
-      ageYears: 20,
-      floor: 1,
-    },
+    geo: { lat: 4.7039, lng: -74.0728, address: 'Cl 127 #58-30', neighborhood: 'Niza', city: 'Bogotá' },
+    specs: { beds: 5, baths: 4, areaBuilt: 280, areaPrivate: 250, parking: 3, stratum: 5, ageYears: 20, floor: 1 },
     status: 'reserved',
     featured: false,
     publishedAt: '2026-05-30',
@@ -705,23 +944,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'local',
     price: 9_800_000,
     currency: 'COP',
-    geo: {
-      lat: 4.6671,
-      lng: -74.0533,
-      address: 'Cl 82 #12-18',
-      neighborhood: 'Zona T',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 0,
-      baths: 1,
-      areaBuilt: 65,
-      areaPrivate: 65,
-      parking: 0,
-      stratum: 6,
-      ageYears: 10,
-      floor: 1,
-    },
+    geo: { lat: 4.6671, lng: -74.0533, address: 'Cl 82 #12-18', neighborhood: 'Zona T', city: 'Bogotá' },
+    specs: { beds: 0, baths: 1, areaBuilt: 65, areaPrivate: 65, parking: 0, stratum: 6, ageYears: 10, floor: 1 },
     status: 'active',
     featured: false,
     publishedAt: '2026-06-18',
@@ -736,23 +960,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'lote',
     price: 480_000_000,
     currency: 'COP',
-    geo: {
-      lat: 4.7569,
-      lng: -74.0836,
-      address: 'Cl 145 #90-10',
-      neighborhood: 'Suba',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 0,
-      baths: 0,
-      areaBuilt: 0,
-      areaPrivate: 600,
-      parking: 0,
-      stratum: 3,
-      ageYears: 0,
-      floor: 0,
-    },
+    geo: { lat: 4.7569, lng: -74.0836, address: 'Cl 145 #90-10', neighborhood: 'Suba', city: 'Bogotá' },
+    specs: { beds: 0, baths: 0, areaBuilt: 0, areaPrivate: 600, parking: 0, stratum: 3, ageYears: 0, floor: 0 },
     status: 'active',
     featured: false,
     publishedAt: '2026-06-02',
@@ -767,23 +976,8 @@ const MOCK_LISTINGS: readonly Listing[] = [
     type: 'apartamento',
     price: 620_000_000,
     currency: 'COP',
-    geo: {
-      lat: 4.6951,
-      lng: -74.0308,
-      address: 'Cra 6 #117-40',
-      neighborhood: 'Usaquén',
-      city: 'Bogotá',
-    },
-    specs: {
-      beds: 2,
-      baths: 2,
-      areaBuilt: 76,
-      areaPrivate: 70,
-      parking: 1,
-      stratum: 5,
-      ageYears: 1,
-      floor: 9,
-    },
+    geo: { lat: 4.6951, lng: -74.0308, address: 'Cra 6 #117-40', neighborhood: 'Usaquén', city: 'Bogotá' },
+    specs: { beds: 2, baths: 2, areaBuilt: 76, areaPrivate: 70, parking: 1, stratum: 5, ageYears: 1, floor: 9 },
     status: 'active',
     featured: true,
     publishedAt: '2026-06-26',
@@ -859,8 +1053,7 @@ function sortMock(listings: readonly Listing[], sort: SearchCriteria['sort']): L
 
 function mockFacets(listings: readonly Listing[], operation: Operation): readonly Facet[] {
   const scoped = listings.filter((listing) => listing.operation === operation);
-  const count = (predicate: (listing: Listing) => boolean): number =>
-    scoped.filter(predicate).length;
+  const count = (predicate: (listing: Listing) => boolean): number => scoped.filter(predicate).length;
   const types: readonly { value: PropertyType; label: string }[] = [
     { value: 'apartamento', label: 'Apartamento' },
     { value: 'casa', label: 'Casa' },
@@ -868,6 +1061,7 @@ function mockFacets(listings: readonly Listing[], operation: Operation): readonl
     { value: 'local', label: 'Local' },
     { value: 'lote', label: 'Lote' },
   ];
+  const cities = [...new Set(scoped.map((listing) => listing.geo.city))].filter(Boolean).sort();
   return [
     {
       key: 'type',
@@ -885,6 +1079,15 @@ function mockFacets(listings: readonly Listing[], operation: Operation): readonl
         value: String(beds),
         label: beds === 4 ? '4+' : `${beds}+`,
         count: count((listing) => listing.specs.beds >= beds),
+      })),
+    },
+    {
+      key: 'city',
+      label: 'Ciudad',
+      values: cities.map((city) => ({
+        value: city,
+        label: city,
+        count: count((listing) => listing.geo.city === city),
       })),
     },
     {
@@ -919,7 +1122,8 @@ function mockDetail(id: string, currency: string): ListingDetail {
       'Inmueble de demostración. La descripción real, las fotos de alta resolución y ' +
       'la ubicación exacta se cargan desde el catálogo del CMS cuando el motor de ' +
       'propiedades responde. Este espacio muestra el flujo completo del portal: ' +
-      'galería, especificaciones, mapa, calculadora de hipoteca y agendamiento de visita.',
+      'galería, especificaciones, mapa, vecindario, calculadora de hipoteca y ' +
+      'agendamiento de visita.',
     specs: listing.specs,
     amenities: [
       { key: 'gym', label: 'Gimnasio' },
@@ -932,5 +1136,62 @@ function mockDetail(id: string, currency: string): ListingDetail {
     gallery: [],
     location: listing.geo,
     agent,
+    neighborhood: [
+      { label: 'Barrio', value: listing.geo.neighborhood || 'Chicó' },
+      { label: 'Walk score', value: '88 / 100' },
+      { label: 'Colegios cercanos', value: '6' },
+      { label: 'Transporte', value: 'TransMilenio a 400 m' },
+      { label: 'Zonas verdes', value: 'Parque a 2 cuadras' },
+    ],
+  };
+}
+
+function mockSaved(): readonly SavedSearch[] {
+  return [
+    {
+      id: 'SS-DEMO-1',
+      label: 'Apartamentos en Chicó · venta · 3+ hab',
+      operation: 'sale',
+      newMatches: 3,
+      createdAt: '2026-06-15',
+      alert: true,
+    },
+    {
+      id: 'SS-DEMO-2',
+      label: 'Arriendo en Cedritos · 1+ hab · hasta $3M',
+      operation: 'rent',
+      newMatches: 0,
+      createdAt: '2026-06-22',
+      alert: false,
+    },
+  ];
+}
+
+/** A seeded operational view for the agent cara (cartera + leads + agenda). */
+function mockAgentDesk(): AgentDeskResult {
+  const portfolio: readonly PortfolioListing[] = [
+    { id: 'L-1', title: 'Apartamento en Chicó', operation: 'sale', price: 850_000_000, currency: 'COP', status: 'active', views: 1_240, leads: 18, publishedAt: '2026-06-20' },
+    { id: 'L-4', title: 'Oficina en Centro Internacional', operation: 'rent', price: 6_500_000, currency: 'COP', status: 'active', views: 640, leads: 9, publishedAt: '2026-06-08' },
+    { id: 'L-5', title: 'Casa en Niza con rebaja', operation: 'sale', price: 1_490_000_000, currency: 'COP', status: 'reserved', views: 980, leads: 22, publishedAt: '2026-05-30' },
+    { id: 'L-8', title: 'Apartamento nuevo en Usaquén', operation: 'sale', price: 620_000_000, currency: 'COP', status: 'active', views: 1_510, leads: 27, publishedAt: '2026-06-26' },
+  ];
+  const leads: readonly AgentLead[] = [
+    { id: 'LEAD-1', name: 'María González', email: 'maria@example.com', phone: '+57 300 111 2233', listingId: 'L-1', listingTitle: 'Apartamento en Chicó', message: 'Me interesa agendar una visita este fin de semana.', status: 'new', createdAt: '2026-07-04' },
+    { id: 'LEAD-2', name: 'Julián Pérez', email: 'julian@example.com', phone: '+57 301 222 3344', listingId: 'L-8', listingTitle: 'Apartamento nuevo en Usaquén', message: '¿Está disponible sobre planos? ¿Qué financiación tienen?', status: 'contacted', createdAt: '2026-07-03' },
+    { id: 'LEAD-3', name: 'Camila Rodríguez', email: 'camila@example.com', phone: '+57 302 333 4455', listingId: 'L-4', listingTitle: 'Oficina en Centro Internacional', message: 'Necesito la oficina para 8 personas, ¿negociable el canon?', status: 'visit', createdAt: '2026-07-02' },
+    { id: 'LEAD-4', name: 'Andrés Gómez', email: 'andres@example.com', phone: '+57 303 444 5566', listingId: 'L-5', listingTitle: 'Casa en Niza con rebaja', message: 'Quedó reservada — cerramos negocio, gracias.', status: 'won', createdAt: '2026-06-28' },
+  ];
+  const agenda: readonly AgendaVisit[] = [
+    { id: 'VIS-1', listingTitle: 'Apartamento en Chicó', contactName: 'María González', slot: { date: '2026-07-08', time: '11:00' }, mode: 'in-person', status: 'confirmed' },
+    { id: 'VIS-2', listingTitle: 'Apartamento nuevo en Usaquén', contactName: 'Laura Méndez', slot: { date: '2026-07-09', time: '14:00' }, mode: 'video', status: 'confirmed' },
+    { id: 'VIS-3', listingTitle: 'Oficina en Centro Internacional', contactName: 'Camila Rodríguez', slot: { date: '2026-07-10', time: '09:00' }, mode: 'in-person', status: 'held' },
+  ];
+  return {
+    portfolio,
+    leads,
+    agenda,
+    totalViews: portfolio.reduce((sum, listing) => sum + listing.views, 0),
+    totalLeads: leads.length,
+    totalRevenue: 2_340_000_000,
   };
 }

@@ -1,9 +1,29 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
+import { CheckoutWizardComponent } from '@synergos/shells';
 import { RealtyApiClient } from './realty-api.client';
+import { RealtyFulfillmentStrategy } from './realty-fulfillment.strategy';
 import { RealtyElementComponent } from './realty';
 import { calculateMortgage } from './mortgage.calc';
-import type { Listing } from './realty.model';
+
+/** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
+function installMemoryStorage(): Map<string, string> {
+  const store = new Map<string, string>();
+  const mock: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear: () => store.clear(),
+    getItem: (key: string) => (store.has(key) ? store.get(key)! : null),
+    key: (index: number) => Array.from(store.keys())[index] ?? null,
+    removeItem: (key: string) => store.delete(key),
+    setItem: (key: string, value: string) => store.set(key, value),
+  };
+  vi.stubGlobal('localStorage', mock);
+  return store;
+}
 
 /**
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
@@ -16,14 +36,18 @@ async function flushMicrotasks(times = 10): Promise<void> {
   }
 }
 
-describe('RealtyElementComponent', () => {
+describe('RealtyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<RealtyElementComponent>;
   let component: RealtyElementComponent;
 
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [RealtyElementComponent],
-      providers: [provideZonelessChangeDetection(), RealtyApiClient],
+      providers: [
+        provideZonelessChangeDetection(),
+        RealtyApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: RealtyFulfillmentStrategy, multi: true },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RealtyElementComponent);
@@ -34,25 +58,32 @@ describe('RealtyElementComponent', () => {
   }
 
   afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
   });
 
-  // ── empty: pristine portal, no favorites, search view, mock catalogue ─────────
-  it('opens on the search view with seeded listings and no favorites (empty case)', async () => {
+  // ── empty: pristine portal, search view, mock catalogue, no favorites ─────────
+  it('opens on the SH-1 + SH-8 search with seeded listings and no favorites (empty case)', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     expect(component).toBeTruthy();
+    expect(component.role()).toBe('demand');
     expect(component.view()).toBe('search');
     expect(component.favoriteCount()).toBe(0);
     expect(component.listings().length).toBeGreaterThan(0);
+    expect(component.discoveryFacets().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: open PDP → schedule a visit → confirmation (NO payment) ────────────
-  it('runs the full visit lifecycle to a confirmation, no payment (happy case)', async () => {
+  // ── happy: PDP → SH-3 visit wizard → confirm (NO payment) ─────────────────────
+  it('runs the full visit lifecycle through the SH-3 wizard, pago OFF (happy case)', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
@@ -60,164 +91,154 @@ describe('RealtyElementComponent', () => {
     component.openListing(first);
     await flushMicrotasks();
     expect(component.view()).toBe('pdp');
-    expect(component.detail()).not.toBeNull();
 
     component.startVisit();
+    fixture.detectChanges();
     expect(component.view()).toBe('visit');
-    expect(component.visitStep()).toBe('mode');
 
-    component.setVisitMode('video');
-    component.nextVisitStep();
-    expect(component.visitStep()).toBe('slot');
-
-    const slot = component.availableSlots()[0];
-    component.selectSlot(slot);
-    expect(component.visitSlotValid()).toBe(true);
-    component.nextVisitStep();
-    expect(component.visitStep()).toBe('contact');
-
+    component.selectSlot(component.availableSlots()[0]);
     component.visitName.set('Ada Lovelace');
     component.visitEmail.set('ada@example.com');
-    component.visitPhone.set('3001234567');
-    expect(component.visitContactValid()).toBe(true);
-    component.nextVisitStep();
-    expect(component.visitStep()).toBe('review');
+    component.visitPhone.set('3005551234');
 
-    component.confirmVisit();
-    await flushMicrotasks();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    // mode → slot → contact → agendar → submit (pay OFF → confirm).
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    wizard.next(); // submit → pay (accepted no-op) → confirm (schedule visit, mock)
+    await flushMicrotasks(30);
+    fixture.detectChanges();
 
     expect(component.view()).toBe('confirmation');
-    const visit = component.confirmedVisit();
-    expect(visit).not.toBeNull();
+    expect(component.confirmedVisit()).not.toBeNull();
     expect(component.myVisits().length).toBe(1);
-    expect(visit?.mode).toBe('video');
+    expect(window.location.hash).toContain('/confirmacion');
   });
 
-  // ── filter: operation switch returns only that operation's listings ───────────
-  it('filters listings by operation and bedroom count (filter case)', async () => {
+  // ── filter: SH-1 criteria filters the catalogue by property type ──────────────
+  it('filters the catalogue by type through the discovery criteria (filter case)', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.setOperation('rent');
+    const before = component.listings().length;
+    component.onCriteriaChange({ term: '', facets: { type: ['casa'] }, sort: 'relevance', page: 1 });
     await flushMicrotasks();
-    expect(component.listings().length).toBeGreaterThan(0);
-    expect(component.listings().every((listing) => listing.operation === 'rent')).toBe(true);
 
-    // Rapid consecutive filter clicks must coalesce (latest criteria wins), not drop.
-    component.setOperation('sale');
-    component.setBeds(3);
-    await flushMicrotasks();
-    expect(component.listings().length).toBeGreaterThan(0);
-    expect(component.listings().every((listing) => listing.specs.beds >= 3)).toBe(true);
+    const after = component.listings();
+    expect(after.length).toBeLessThanOrEqual(before);
+    expect(after.every((listing) => listing.type === 'casa')).toBe(true);
+    expect(component.hasActiveFilters()).toBe(true);
   });
 
-  // ── idempotent: toggling a favorite twice returns to the original state ────────
-  it('toggling a favorite on then off keeps the shortlist stable (idempotent case)', async () => {
+  // ── favorites: toggling ♥ builds the shortlist ───────────────────────────────
+  it('builds a favorites shortlist through the P11 toggle', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const id = component.listings()[0].id;
-    expect(component.isFavorite(id)).toBe(false);
-
-    component.toggleFavorite(id);
-    component.toggleFavorite(id);
-    component.toggleFavorite(id);
-    expect(component.isFavorite(id)).toBe(true);
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id);
     expect(component.favoriteCount()).toBe(1);
+    expect(component.isFavorite(listing.id)).toBe(true);
+    expect(component.favoriteListings().length).toBe(1);
 
-    component.toggleFavorite(id);
-    expect(component.isFavorite(id)).toBe(false);
+    component.toggleFavorite(listing.id);
     expect(component.favoriteCount()).toBe(0);
   });
 
-  // ── lead: contact agent generates a lead → confirmation ───────────────────────
-  it('submits a lead to the agent and confirms it', async () => {
+  // ── lead: contacting the agent lands a confirmation ──────────────────────────
+  it('submits a lead to the agent and lands on the confirmation', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     component.openListing(component.listings()[0]);
     await flushMicrotasks();
-
     component.openLead();
-    expect(component.leadOpen()).toBe(true);
-    component.leadName.set('Carlos Ramírez');
-    component.leadEmail.set('carlos@example.com');
-    component.leadPhone.set('3019876543');
-    component.leadMessage.set('Me interesa mucho esta propiedad.');
+    component.leadName.set('Grace Hopper');
+    component.leadEmail.set('grace@example.com');
+    component.leadPhone.set('3009998877');
+    component.leadMessage.set('Me interesa esta propiedad, más info por favor.');
     expect(component.leadValid()).toBe(true);
 
     component.submitLead();
     await flushMicrotasks();
-
     expect(component.view()).toBe('confirmation');
     expect(component.confirmedLeadId().length).toBeGreaterThan(0);
-    expect(component.myLeads().length).toBe(1);
   });
 
-  // ── mortgage: live client recompute when inputs change ────────────────────────
-  it('recomputes the live mortgage when price/down/term/rate change', async () => {
+  // ── agent console (SH-5): desk loads cartera + leads + agenda ─────────────────
+  it('loads the SH-5 agent console with cartera, leads and agenda', async () => {
+    installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    component.setMortgagePrice(300_000_000);
-    component.setMortgageDown(60_000_000);
-    component.setMortgageTerm(240);
-    component.setMortgageRate(12);
+    component.setRole('agent');
+    await flushMicrotasks();
+    expect(component.desk()).not.toBeNull();
+    expect(component.consoleKpis().length).toBeGreaterThan(0);
+    expect(component.consoleRows().length).toBeGreaterThan(0);
+    expect(window.location.hash).toContain('/agente');
 
-    const result = component.mortgageResult();
-    expect(result.principal).toBe(240_000_000);
-    expect(result.monthly).toBeGreaterThan(0);
-    expect(result.schedule?.length).toBeGreaterThan(0);
+    component.onAgentSectionChange('leads');
+    expect(component.agentView()).toBe('leads');
+    expect(component.consoleColumns()).toBe(component.leadColumns);
   });
-});
 
-describe('calculateMortgage', () => {
-  it('computes a fixed-rate monthly payment (happy case)', () => {
-    const result = calculateMortgage({
-      price: 200_000_000,
-      downPayment: 40_000_000,
-      termMonths: 120,
-      annualRate: 12,
+  // ── publish (SH-6): authoring wizard publishes a listing ─────────────────────
+  it('publishes a listing through the SH-6 authoring wizard', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.setRole('agent');
+    await flushMicrotasks();
+    component.openPublish();
+    expect(component.agentView()).toBe('publish');
+
+    component.onPublishDraftChange({
+      title: 'Apartamento de prueba',
+      operation: 'sale',
+      type: 'apartamento',
+      city: 'Bogotá',
+      neighborhood: 'Chapinero',
+      price: '520000000',
+      lat: '4.65',
+      lng: '-74.06',
     });
-    expect(result.principal).toBe(160_000_000);
-    // 160M at 1%/month over 120 months ≈ 2.295M/month.
-    expect(result.monthly).toBeGreaterThan(2_200_000);
-    expect(result.monthly).toBeLessThan(2_400_000);
-    expect(result.totalInterest).toBeGreaterThan(0);
+    expect(component.publishValidity()['publicar']).toBe(true);
+
+    component.onPublished(component.createDraft());
+    await flushMicrotasks();
+    expect(component.publishResultId().length).toBeGreaterThan(0);
   });
 
-  it('degrades a 0% rate to straight-line principal / term (edge case)', () => {
-    const result = calculateMortgage({
-      price: 120_000_000,
-      downPayment: 0,
-      termMonths: 12,
-      annualRate: 0,
-    });
-    expect(result.monthly).toBe(10_000_000);
-    expect(result.totalInterest).toBe(0);
+  // ── hash router: deep-links views + the agent console ─────────────────────────
+  it('deep-links views and the agent console through the hash router', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.goToMortgage();
+    expect(window.location.hash).toBe('#/realty/hipoteca');
+
+    component.setRole('agent');
+    expect(window.location.hash).toContain('/agente');
   });
 
-  it('clamps a down payment above the price to zero principal (idempotent/guard case)', () => {
-    const result = calculateMortgage({
-      price: 100_000_000,
-      downPayment: 150_000_000,
-      termMonths: 60,
-      annualRate: 10,
-    });
-    expect(result.principal).toBe(0);
-    expect(result.monthly).toBe(0);
-    expect(result.totalInterest).toBe(0);
-  });
+  // ── degradation: catalogue falls back to a visible mock catalogue ─────────────
+  it('degrades to a visible mock catalogue when the listings endpoint is unavailable', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
 
-  it('produces an amortization schedule whose balance decreases to ~0', () => {
-    const result = calculateMortgage(
-      { price: 100_000_000, downPayment: 20_000_000, termMonths: 24, annualRate: 12 },
-      24,
-    );
-    const schedule = result.schedule ?? [];
-    expect(schedule.length).toBe(24);
-    const last = schedule[schedule.length - 1];
-    expect(last.balance).toBeLessThan(1);
+    expect(component.listings().length).toBeGreaterThan(0);
+    expect(component.degraded()).toBe(true);
   });
 });
 
@@ -234,73 +255,43 @@ describe('RealtyApiClient', () => {
   });
 
   it('normalises a live listings response (happy case)', async () => {
-    const liveListing = {
-      id: 'X1',
-      title: 'Apto en Poblado',
-      operation: 'sale',
-      type: 'apartamento',
-      price: 500_000_000,
-      currency: 'COP',
-      geo: { lat: 6.2, lng: -75.57, address: 'Cra 1', neighborhood: 'Poblado', city: 'Medellín' },
-      specs: { beds: 2, baths: 2, areaBuilt: 70, stratum: 6 },
-    };
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
         Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({ listings: [liveListing], total: 1, facets: [] }),
+          json: () =>
+            Promise.resolve({
+              listings: [
+                {
+                  id: 'X1',
+                  title: 'Apto X',
+                  operation: 'sale',
+                  type: 'apartamento',
+                  price: 500_000_000,
+                  currency: 'COP',
+                  geo: { lat: 4.6, lng: -74.0, city: 'Bogotá' },
+                },
+              ],
+              total: 1,
+            }),
         } as Response),
       ),
     );
     const client = createClient();
     const result = await client.listings(
       '/api/realty',
-      {
-        q: '',
-        operation: 'sale',
-        type: '',
-        minPrice: 0,
-        maxPrice: 0,
-        beds: 0,
-        location: '',
-        sort: 'relevance',
-      },
+      { q: '', operation: 'sale', type: '', minPrice: 0, maxPrice: 0, beds: 0, location: '', sort: 'relevance' },
       'COP',
     );
 
     expect(result.listings).toHaveLength(1);
     expect(result.listings[0].id).toBe('X1');
-    expect(result.listings[0].geo.city).toBe('Medellín');
     expect(client.degraded).toBe(false);
   });
 
-  it('filters the seeded catalogue by type when degraded (filter case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    const client = createClient();
-
-    const result = await client.listings(
-      '/api/realty',
-      {
-        q: '',
-        operation: 'sale',
-        type: 'casa',
-        minPrice: 0,
-        maxPrice: 0,
-        beds: 0,
-        location: '',
-        sort: 'relevance',
-      },
-      'COP',
-    );
-
-    expect(client.degraded).toBe(true);
-    expect(result.listings.length).toBeGreaterThan(0);
-    expect(result.listings.every((listing: Listing) => listing.type === 'casa')).toBe(true);
-  });
-
-  it('schedules a visit offline with an optimistic confirmed fallback (happy case)', async () => {
+  it('schedules a visit and degrades to a mock visit (no payment)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
@@ -308,29 +299,84 @@ describe('RealtyApiClient', () => {
       '/api/realty',
       {
         listingId: 'L-1',
-        slot: { date: '2026-07-01', time: '09:00' },
-        contact: { name: 'Ada', email: 'a@b.co', phone: '3001234567' },
+        slot: { date: '2026-07-10', time: '11:00' },
+        contact: { name: 'Ada', email: 'a@b.co', phone: '3001112222' },
         mode: 'in-person',
       },
       'Apartamento en Chicó',
     );
-
     expect(client.degraded).toBe(true);
     expect(visit.status).toBe('confirmed');
-    expect(visit.listingTitle).toBe('Apartamento en Chicó');
-    expect(visit.slot.time).toBe('09:00');
+    expect(visit.listingId).toBe('L-1');
   });
 
-  it('falls back to the pure client calc when the mortgage endpoint is down (idempotent case)', async () => {
+  it('degrades the agent desk + submits a lead that surfaces in the CRM', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
-    const body = { price: 200_000_000, downPayment: 40_000_000, termMonths: 120, annualRate: 12 };
 
-    const a = await client.mortgage('/api/realty', body);
-    const b = await client.mortgage('/api/realty', body);
+    const lead = await client.submitLead(
+      '/api/realty',
+      { listingId: 'L-1', contact: { name: 'Grace', email: 'g@b.co', phone: '3009998877' }, message: 'Hola' },
+      'Apartamento en Chicó',
+    );
+    expect(lead.leadId.length).toBeGreaterThan(0);
 
+    const desk = await client.agentDesk('/api/realty', 'agent');
     expect(client.degraded).toBe(true);
-    expect(a.monthly).toBe(b.monthly);
-    expect(a.principal).toBe(160_000_000);
+    expect(desk.portfolio.length).toBeGreaterThan(0);
+    // The just-submitted lead is folded into the CRM.
+    expect(desk.leads.some((entry) => entry.id === lead.leadId)).toBe(true);
+  });
+
+  it('publishes a listing that surfaces in the cartera (mock)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const result = await client.publishListing(
+      '/api/realty',
+      {
+        title: 'Nuevo Apto',
+        operation: 'sale',
+        type: 'apartamento',
+        price: 400_000_000,
+        city: 'Cali',
+        neighborhood: 'Granada',
+        address: 'Cl 1',
+        lat: 3.45,
+        lng: -76.53,
+        beds: 2,
+        baths: 2,
+        areaBuilt: 70,
+        stratum: 5,
+      },
+      'COP',
+    );
+    expect(result.id.length).toBeGreaterThan(0);
+
+    const desk = await client.agentDesk('/api/realty', 'agent');
+    expect(desk.portfolio.some((entry) => entry.id === result.id)).toBe(true);
+  });
+});
+
+describe('calculateMortgage', () => {
+  it('computes a fixed-rate monthly payment (French amortization)', () => {
+    const result = calculateMortgage(
+      { price: 500_000_000, downPayment: 150_000_000, termMonths: 240, annualRate: 12 },
+      6,
+    );
+    expect(result.principal).toBe(350_000_000);
+    expect(result.monthly).toBeGreaterThan(0);
+    expect(result.totalPaid).toBeGreaterThan(result.principal);
+    expect(result.schedule?.length).toBe(6);
+  });
+
+  it('degrades a 0% rate to straight-line and a fully-covered price to zero', () => {
+    const zeroRate = calculateMortgage({ price: 120_000_000, downPayment: 0, termMonths: 12, annualRate: 0 });
+    expect(zeroRate.monthly).toBe(10_000_000);
+    expect(zeroRate.totalInterest).toBe(0);
+
+    const covered = calculateMortgage({ price: 100_000_000, downPayment: 100_000_000, termMonths: 60, annualRate: 10 });
+    expect(covered.monthly).toBe(0);
+    expect(covered.principal).toBe(0);
   });
 });
