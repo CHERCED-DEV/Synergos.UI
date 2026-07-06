@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
   type AcademyCourse,
+  type AcademyFacet,
   type AcademyInstructor,
   type AcademyLesson,
   type AcademyPlan,
@@ -13,22 +14,36 @@ import {
   type CourseDetail,
   type CourseLevel,
   type CourseProgress,
+  type CourseStatus,
+  type CreateCourseRequest,
+  type CreateCourseResult,
   type EnrollConfirmation,
   type EnrollResult,
+  type EnrolledCourse,
+  type InstructorCourse,
+  type InstructorDeskResult,
+  type InstructorQuestion,
+  type InstructorStudent,
+  type LearningPath,
+  type LearningResult,
   type LessonResource,
   type ProgressUpdate,
 } from './academy.model';
 
 /**
  * Thin HTTP client over the Educación / LMS backend contract (provided by the
- * backend agent in parallel). Programs against:
+ * backend agent in parallel). Programs against the existing + new contract:
  *
- *  - `GET  /api/academy/courses?q=&category=&level=`        → `{ courses }`
+ *  - `GET  /api/academy/courses?q=&category=&level=&price=`  → `{ courses, facets, total }`
  *  - `GET  /api/academy/course/{id}`                        → `{ course, modules:[{lessons}], instructor }`
  *  - `POST /api/academy/enroll`  `{ courseId, student }`    → `{ orderRef, paymentSessionId, amount, currency }` | `{ enrolled:true }`
  *  - `POST /api/academy/confirm` `{ orderRef }`             → `{ status, enrollmentId }`
- *  - `GET  /api/academy/progress?courseId=&student=`        → `{ completedLessonIds, percent }`
- *  - `POST /api/academy/progress` `{ courseId, lessonId, student }` → `{ percent }`
+ *  - `GET  /api/academy/progress?student=&course=`          → `{ completedLessonIds, percent }`
+ *  - `POST /api/academy/progress` `{ course, lessonId, student }` → `{ percent }`
+ *  - `GET  /api/academy/certificate?student=&course=`       → `{ id, studentName, courseTitle, verifyUrl }`
+ *  - `GET  /api/academy/learning?student=`                  → `{ enrollments, paths }`
+ *  - `GET  /api/academy/instructor/courses?instructor=`     → `{ courses, students, questions }`
+ *  - `POST /api/academy/course`  `{ …create… }`             → `{ id, status }`
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
@@ -44,11 +59,16 @@ export class AcademyApiClient {
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
 
+  /** In-memory learning progress so a mock enrolment surfaces in "mi aprendizaje". */
+  #enrollments: readonly EnrolledCourse[] = [];
+  /** In-memory freshly-created courses so they show up in the instructor console. */
+  #createdCourses: readonly InstructorCourse[] = [];
+
   get degraded(): boolean {
     return this.#degraded;
   }
 
-  // ─── Catalogue search ────────────────────────────────────────────────────────
+  // ─── Catalogue search (faceted) ───────────────────────────────────────────────
 
   async courses(
     apiBase: string,
@@ -155,11 +175,11 @@ export class AcademyApiClient {
     student: string,
   ): Promise<CourseProgress> {
     const params = new URLSearchParams();
-    if (courseId) {
-      params.set('courseId', courseId);
-    }
     if (student) {
       params.set('student', student);
+    }
+    if (courseId) {
+      params.set('course', courseId);
     }
     const query = params.toString();
     const url = `${apiBase}/progress${query ? `?${query}` : ''}`;
@@ -188,7 +208,7 @@ export class AcademyApiClient {
   ): Promise<ProgressUpdate> {
     const url = `${apiBase}/progress`;
     try {
-      const data = await this.postJson(url, { courseId, lessonId, student });
+      const data = await this.postJson(url, { course: courseId, lessonId, student });
       const update = normalizeProgressUpdate(data);
       if (update) {
         return update;
@@ -198,6 +218,157 @@ export class AcademyApiClient {
       this.markDegraded('POST /api/academy/progress', error);
       return { percent: fallbackPercent };
     }
+  }
+
+  // ─── Certificate (verifiable credential) ─────────────────────────────────────
+
+  async certificate(
+    apiBase: string,
+    courseId: string,
+    student: string,
+    studentName: string,
+    courseTitle: string,
+  ): Promise<Certificate> {
+    const params = new URLSearchParams();
+    if (student) {
+      params.set('student', student);
+    }
+    if (courseId) {
+      params.set('course', courseId);
+    }
+    const query = params.toString();
+    const url = `${apiBase}/certificate${query ? `?${query}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const certificate = normalizeCertificate(data);
+      if (certificate) {
+        return certificate;
+      }
+      throw new Error('certificate-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/academy/certificate', error);
+      return buildMockCertificate(studentName, courseTitle);
+    }
+  }
+
+  // ─── Mi aprendizaje (enrolled courses + paths) ───────────────────────────────
+
+  async learning(apiBase: string, student: string, currency: string): Promise<LearningResult> {
+    const query = student ? `?student=${encodeURIComponent(student)}` : '';
+    const url = `${apiBase}/learning${query}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeLearning(data, currency);
+      if (result) {
+        return this.mergeLearning(result);
+      }
+      throw new Error('learning-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/academy/learning', error);
+      return this.mergeLearning(mockLearning(currency));
+    }
+  }
+
+  /** Reflect an in-session enrolment in "mi aprendizaje". */
+  recordEnrollment(enrollment: EnrolledCourse): void {
+    this.#enrollments = [
+      enrollment,
+      ...this.#enrollments.filter((entry) => entry.course.id !== enrollment.course.id),
+    ];
+  }
+
+  /** Keep the in-session enrolment's live progress in sync with the classroom. */
+  updateEnrollmentProgress(courseId: string, percent: number, completedCount: number): void {
+    this.#enrollments = this.#enrollments.map((entry) =>
+      entry.course.id === courseId
+        ? {
+            ...entry,
+            percent,
+            completedCount,
+            completed: percent >= 100,
+            lastActivityAt: new Date().toISOString().slice(0, 10),
+          }
+        : entry,
+    );
+  }
+
+  private mergeLearning(base: LearningResult): LearningResult {
+    if (this.#enrollments.length === 0) {
+      return base;
+    }
+    const inSessionIds = new Set(this.#enrollments.map((entry) => entry.course.id));
+    const rest = base.enrollments.filter((entry) => !inSessionIds.has(entry.course.id));
+    return { ...base, enrollments: [...this.#enrollments, ...rest] };
+  }
+
+  // ─── Instructor desk (cursos + alumnos + Q&A) ────────────────────────────────
+
+  async instructorDesk(apiBase: string, instructor: string): Promise<InstructorDeskResult> {
+    const query = instructor ? `?instructor=${encodeURIComponent(instructor)}` : '';
+    const url = `${apiBase}/instructor/courses${query}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeInstructorDesk(data);
+      if (result) {
+        return this.mergeInstructorDesk(result);
+      }
+      throw new Error('instructor-desk-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/academy/instructor/courses', error);
+      return this.mergeInstructorDesk(mockInstructorDesk());
+    }
+  }
+
+  private mergeInstructorDesk(base: InstructorDeskResult): InstructorDeskResult {
+    if (this.#createdCourses.length === 0) {
+      return base;
+    }
+    return { ...base, courses: [...this.#createdCourses, ...base.courses] };
+  }
+
+  // ─── Create a course (SH-6 authoring) ─────────────────────────────────────────
+
+  async createCourse(
+    apiBase: string,
+    body: CreateCourseRequest,
+    currency: string,
+  ): Promise<CreateCourseResult> {
+    const url = `${apiBase}/course`;
+    try {
+      const data = await this.postJson(url, body);
+      const result = normalizeCreate(data);
+      if (result) {
+        this.seedCreated(result.id, body, currency, result.status);
+        return result;
+      }
+      throw new Error('create-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/academy/course', error);
+      const id = `C-${Date.now().toString(36).toUpperCase()}`;
+      this.seedCreated(id, body, currency, 'published');
+      return { id, status: 'published' };
+    }
+  }
+
+  /** Reflect a freshly-created course in the in-memory instructor console. */
+  private seedCreated(
+    id: string,
+    body: CreateCourseRequest,
+    currency: string,
+    status: CourseStatus,
+  ): void {
+    const course: InstructorCourse = {
+      id,
+      title: body.title,
+      status,
+      price: body.price,
+      currency,
+      studentCount: 0,
+      rating: 0,
+      revenue: 0,
+      publishedAt: new Date().toISOString().slice(0, 10),
+    };
+    this.#createdCourses = [course, ...this.#createdCourses];
   }
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
@@ -236,6 +407,9 @@ export class AcademyApiClient {
     }
     if (criteria.level) {
       params.set('level', criteria.level);
+    }
+    if (criteria.price) {
+      params.set('price', criteria.price);
     }
     if (criteria.sort && criteria.sort !== 'relevance') {
       params.set('sort', criteria.sort);
@@ -296,6 +470,11 @@ function readLevel(value: unknown): CourseLevel {
   return raw === 'intermediate' || raw === 'advanced' ? raw : 'beginner';
 }
 
+function readCourseStatus(value: unknown): CourseStatus {
+  const raw = readString(value).toLowerCase();
+  return raw === 'draft' || raw === 'review' ? raw : 'published';
+}
+
 function normalizeCourse(value: unknown, fallbackCurrency: string): AcademyCourse | null {
   if (!isRecord(value)) {
     return null;
@@ -326,6 +505,44 @@ function normalizeCourse(value: unknown, fallbackCurrency: string): AcademyCours
   };
 }
 
+function normalizeFacets(value: unknown): readonly AcademyFacet[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): AcademyFacet | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const key = readString(entry['key']).trim();
+      if (!key) {
+        return null;
+      }
+      const rawValues = Array.isArray(entry['values']) ? entry['values'] : [];
+      return {
+        key,
+        label: readString(entry['label']).trim() || key,
+        values: rawValues
+          .map((facetValue) => {
+            if (!isRecord(facetValue)) {
+              return null;
+            }
+            const facetRaw = readString(facetValue['value']).trim();
+            if (!facetRaw) {
+              return null;
+            }
+            return {
+              value: facetRaw,
+              label: readString(facetValue['label']).trim() || facetRaw,
+              count: Math.trunc(readNumber(facetValue['count'])),
+            };
+          })
+          .filter((facetValue): facetValue is AcademyFacet['values'][number] => facetValue !== null),
+      };
+    })
+    .filter((facet): facet is AcademyFacet => facet !== null);
+}
+
 function normalizeCatalog(value: unknown, fallbackCurrency: string): CatalogResult | null {
   const list = Array.isArray(value)
     ? value
@@ -337,10 +554,15 @@ function normalizeCatalog(value: unknown, fallbackCurrency: string): CatalogResu
   if (!list) {
     return null;
   }
+  const courses = list
+    .map((entry) => normalizeCourse(entry, fallbackCurrency))
+    .filter((course): course is AcademyCourse => course !== null);
+  const facets = isRecord(value) ? normalizeFacets(value['facets']) : [];
+  const total = isRecord(value) ? Math.trunc(readNumber(value['total'])) : 0;
   return {
-    courses: list
-      .map((entry) => normalizeCourse(entry, fallbackCurrency))
-      .filter((course): course is AcademyCourse => course !== null),
+    courses,
+    facets: facets.length > 0 ? facets : deriveFacets(courses),
+    total: total || courses.length,
   };
 }
 
@@ -539,6 +761,191 @@ function normalizeProgressUpdate(value: unknown): ProgressUpdate | null {
   return { percent: clampPercent(readNumber(value['percent'])) };
 }
 
+function normalizeCertificate(value: unknown): Certificate | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim() || readString(value['certificateId']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    studentName: readString(value['studentName']).trim() || 'Estudiante',
+    courseTitle: readString(value['courseTitle']).trim() || 'Curso',
+    issuedAt: readString(value['issuedAt']).trim() || new Date().toISOString(),
+    verifyUrl:
+      readString(value['verifyUrl']).trim() || `${ACADEMY_MOCK_CERTIFICATE_BASE}/${id}`,
+    credentialLine: readString(value['credentialLine']).trim() || undefined,
+  };
+}
+
+function normalizeEnrolledCourse(value: unknown, fallbackCurrency: string): EnrolledCourse | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const course = normalizeCourse(value['course'] ?? value, fallbackCurrency);
+  if (!course) {
+    return null;
+  }
+  const percent = clampPercent(readNumber(value['percent']));
+  const lessonCount = Math.max(course.lessonCount, Math.trunc(readNumber(value['lessonCount'])));
+  const completedCount = Math.trunc(readNumber(value['completedCount']));
+  return {
+    enrollmentId: readString(value['enrollmentId']).trim() || `ENR-${course.id}`,
+    course,
+    percent,
+    lessonCount,
+    completedCount: completedCount || Math.round((percent / 100) * lessonCount),
+    lastActivityAt: readString(value['lastActivityAt']).trim() || new Date().toISOString().slice(0, 10),
+    completed: percent >= 100,
+  };
+}
+
+function normalizePath(value: unknown): LearningPath | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const title = readString(value['title']).trim();
+  if (!id || !title) {
+    return null;
+  }
+  return {
+    id,
+    title,
+    description: readString(value['description']).trim(),
+    courseIds: readStringArray(value['courseIds']),
+    percent: clampPercent(readNumber(value['percent'])),
+  };
+}
+
+function normalizeLearning(value: unknown, fallbackCurrency: string): LearningResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawEnrollments = Array.isArray(value['enrollments']) ? value['enrollments'] : [];
+  const rawPaths = Array.isArray(value['paths']) ? value['paths'] : [];
+  if (rawEnrollments.length === 0 && rawPaths.length === 0) {
+    return null;
+  }
+  return {
+    enrollments: rawEnrollments
+      .map((entry) => normalizeEnrolledCourse(entry, fallbackCurrency))
+      .filter((entry): entry is EnrolledCourse => entry !== null),
+    paths: rawPaths
+      .map((entry) => normalizePath(entry))
+      .filter((entry): entry is LearningPath => entry !== null),
+  };
+}
+
+function normalizeInstructorCourse(value: unknown, fallbackCurrency: string): InstructorCourse | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const title = readString(value['title']).trim();
+  if (!id || !title) {
+    return null;
+  }
+  return {
+    id,
+    title,
+    status: readCourseStatus(value['status']),
+    price: readNumber(value['price'] ?? value['amount']),
+    currency: readString(value['currency']).trim() || fallbackCurrency,
+    studentCount: Math.trunc(readNumber(value['studentCount'])),
+    rating: readNumber(value['rating']),
+    revenue: readNumber(value['revenue']),
+    publishedAt: readString(value['publishedAt']).trim(),
+  };
+}
+
+function normalizeInstructorStudent(value: unknown): InstructorStudent | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    name: readString(value['name']).trim() || 'Estudiante',
+    email: readString(value['email']).trim(),
+    courseId: readString(value['courseId']).trim(),
+    courseTitle: readString(value['courseTitle']).trim() || 'Curso',
+    percent: clampPercent(readNumber(value['percent'])),
+    enrolledAt: readString(value['enrolledAt']).trim(),
+  };
+}
+
+function normalizeInstructorQuestion(value: unknown): InstructorQuestion | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    studentName: readString(value['studentName']).trim() || 'Estudiante',
+    courseTitle: readString(value['courseTitle']).trim() || 'Curso',
+    lessonTitle: readString(value['lessonTitle']).trim(),
+    question: readString(value['question']).trim(),
+    answered: readBoolean(value['answered']),
+    createdAt: readString(value['createdAt']).trim(),
+  };
+}
+
+function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawCourses = Array.isArray(value['courses']) ? value['courses'] : [];
+  const rawStudents = Array.isArray(value['students']) ? value['students'] : [];
+  const rawQuestions = Array.isArray(value['questions']) ? value['questions'] : [];
+  if (rawCourses.length === 0 && rawStudents.length === 0 && rawQuestions.length === 0) {
+    return null;
+  }
+  const courses = rawCourses
+    .map((entry) => normalizeInstructorCourse(entry, 'COP'))
+    .filter((entry): entry is InstructorCourse => entry !== null);
+  const students = rawStudents
+    .map((entry) => normalizeInstructorStudent(entry))
+    .filter((entry): entry is InstructorStudent => entry !== null);
+  const questions = rawQuestions
+    .map((entry) => normalizeInstructorQuestion(entry))
+    .filter((entry): entry is InstructorQuestion => entry !== null);
+  return {
+    courses,
+    students,
+    questions,
+    totalStudents:
+      Math.trunc(readNumber(value['totalStudents'])) ||
+      courses.reduce((sum, course) => sum + course.studentCount, 0),
+    totalRevenue:
+      readNumber(value['totalRevenue']) || courses.reduce((sum, course) => sum + course.revenue, 0),
+    averageRating:
+      readNumber(value['averageRating']) ||
+      (courses.length > 0
+        ? courses.reduce((sum, course) => sum + course.rating, 0) / courses.length
+        : 0),
+  };
+}
+
+function normalizeCreate(value: unknown): CreateCourseResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return { id, status: readCourseStatus(value['status']) };
+}
+
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
@@ -564,7 +971,58 @@ function mockCatalog(criteria: CatalogCriteria, currency: string): CatalogResult
   if (criteria.level) {
     courses = courses.filter((course) => course.level === criteria.level);
   }
-  return { courses: sortMock(courses, criteria.sort) };
+  if (criteria.price) {
+    courses = courses.filter((course) => priceBracket(course.amount) === criteria.price);
+  }
+  const sorted = sortMock(courses, criteria.sort);
+  return { courses: sorted, facets: deriveFacets(all), total: sorted.length };
+}
+
+/** Coarse price bracket for the precio facet (free / mid / premium). */
+function priceBracket(amount: number): string {
+  if (amount <= 0) {
+    return 'free';
+  }
+  return amount <= 450_000 ? 'mid' : 'premium';
+}
+
+/** Build the SH-1 facets (escuela/categoría · nivel · precio) from a course list. */
+function deriveFacets(courses: readonly AcademyCourse[]): readonly AcademyFacet[] {
+  const count = (predicate: (course: AcademyCourse) => boolean): number =>
+    courses.filter(predicate).length;
+  const categories = [...new Set(courses.map((course) => course.category))].filter(Boolean).sort();
+  return [
+    {
+      key: 'category',
+      label: 'Escuela',
+      values: categories.map((category) => ({
+        value: category,
+        label: category,
+        count: count((course) => course.category === category),
+      })),
+    },
+    {
+      key: 'level',
+      label: 'Nivel',
+      values: [
+        { value: 'beginner', label: 'Principiante' },
+        { value: 'intermediate', label: 'Intermedio' },
+        { value: 'advanced', label: 'Avanzado' },
+      ].map((level) => ({ ...level, count: count((course) => course.level === level.value) })),
+    },
+    {
+      key: 'price',
+      label: 'Precio',
+      values: [
+        { value: 'free', label: 'Gratis' },
+        { value: 'mid', label: 'Hasta $450.000' },
+        { value: 'premium', label: 'Premium' },
+      ].map((bracket) => ({
+        ...bracket,
+        count: count((course) => priceBracket(course.amount) === bracket.value),
+      })),
+    },
+  ];
 }
 
 function sortMock(
@@ -862,6 +1320,88 @@ function mockDetail(id: string, currency: string): CourseDetail {
   };
 }
 
+/** Seeded "mi aprendizaje" so the SH-4 dashboard works offline. */
+function mockLearning(currency: string): LearningResult {
+  const catalogue = mockCourses(currency);
+  const pick = (id: string): AcademyCourse =>
+    catalogue.find((course) => course.id === id) ?? catalogue[0];
+  const enrollments: readonly EnrolledCourse[] = [
+    {
+      enrollmentId: 'ENR-DEMO-1',
+      course: pick('CMOCK-3'),
+      percent: 64,
+      lessonCount: 55,
+      completedCount: 35,
+      lastActivityAt: '2026-07-03',
+      completed: false,
+    },
+    {
+      enrollmentId: 'ENR-DEMO-2',
+      course: pick('CMOCK-4'),
+      percent: 100,
+      lessonCount: 12,
+      completedCount: 12,
+      lastActivityAt: '2026-06-28',
+      completed: true,
+    },
+    {
+      enrollmentId: 'ENR-DEMO-3',
+      course: pick('CMOCK-1'),
+      percent: 22,
+      lessonCount: 42,
+      completedCount: 9,
+      lastActivityAt: '2026-07-05',
+      completed: false,
+    },
+  ];
+  const paths: readonly LearningPath[] = [
+    {
+      id: 'PATH-1',
+      title: 'Ruta Full-Stack Developer',
+      description: 'De los fundamentos a la arquitectura: Angular, datos y Clean/SOLID.',
+      courseIds: ['CMOCK-4', 'CMOCK-1', 'CMOCK-6'],
+      percent: 41,
+    },
+    {
+      id: 'PATH-2',
+      title: 'Ruta Product & Growth',
+      description: 'Diseño de producto y marketing para lanzar y crecer.',
+      courseIds: ['CMOCK-2', 'CMOCK-5'],
+      percent: 0,
+    },
+  ];
+  return { enrollments, paths };
+}
+
+/** A seeded operational view for the instructor cara (cursos + alumnos + Q&A). */
+function mockInstructorDesk(): InstructorDeskResult {
+  const courses: readonly InstructorCourse[] = [
+    { id: 'CMOCK-1', title: 'Angular moderno: signals, zoneless y Web Components', status: 'published', price: 480_000, currency: 'COP', studentCount: 3_240, rating: 4.8, revenue: 1_555_200_000, publishedAt: '2026-05-10' },
+    { id: 'CMOCK-4', title: 'Introducción gratuita a la programación', status: 'published', price: 0, currency: 'COP', studentCount: 12_400, rating: 4.6, revenue: 0, publishedAt: '2026-03-02' },
+    { id: 'CMOCK-6', title: 'Arquitectura de software: Clean & SOLID en práctica', status: 'published', price: 650_000, currency: 'COP', studentCount: 2_640, rating: 4.9, revenue: 1_716_000_000, publishedAt: '2026-06-01' },
+    { id: 'CDRAFT-1', title: 'RxJS avanzado y patrones reactivos', status: 'draft', price: 520_000, currency: 'COP', studentCount: 0, rating: 0, revenue: 0, publishedAt: '' },
+  ];
+  const students: readonly InstructorStudent[] = [
+    { id: 'S-1', name: 'María González', email: 'maria@example.com', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 78, enrolledAt: '2026-06-20' },
+    { id: 'S-2', name: 'Julián Pérez', email: 'julian@example.com', courseId: 'CMOCK-6', courseTitle: 'Clean & SOLID', percent: 34, enrolledAt: '2026-06-25' },
+    { id: 'S-3', name: 'Camila Rodríguez', email: 'camila@example.com', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 100, enrolledAt: '2026-05-30' },
+    { id: 'S-4', name: 'Andrés Gómez', email: 'andres@example.com', courseId: 'CMOCK-4', courseTitle: 'Introducción a la programación', percent: 55, enrolledAt: '2026-07-01' },
+  ];
+  const questions: readonly InstructorQuestion[] = [
+    { id: 'Q-1', studentName: 'María González', courseTitle: 'Angular moderno', lessonTitle: 'Signals a fondo', question: '¿Cuándo conviene linkedSignal en vez de computed?', answered: false, createdAt: '2026-07-05' },
+    { id: 'Q-2', studentName: 'Julián Pérez', courseTitle: 'Clean & SOLID', lessonTitle: 'Inversión de dependencias', question: '¿La DIP aplica igual en un front zoneless?', answered: false, createdAt: '2026-07-04' },
+    { id: 'Q-3', studentName: 'Camila Rodríguez', courseTitle: 'Angular moderno', lessonTitle: 'Web Components', question: '¿Cómo hidrato un custom element dentro del CMS?', answered: true, createdAt: '2026-07-02' },
+  ];
+  return {
+    courses,
+    students,
+    questions,
+    totalStudents: courses.reduce((sum, course) => sum + course.studentCount, 0),
+    totalRevenue: courses.reduce((sum, course) => sum + course.revenue, 0),
+    averageRating: 4.77,
+  };
+}
+
 export const ACADEMY_MOCK_CERTIFICATE_BASE = 'https://verify.synergos.academy/c';
 
 export function buildMockCertificate(
@@ -875,5 +1415,6 @@ export function buildMockCertificate(
     courseTitle,
     issuedAt: new Date().toISOString(),
     verifyUrl: `${ACADEMY_MOCK_CERTIFICATE_BASE}/${id}`,
+    credentialLine: 'Curso completado · Synergos Academy',
   };
 }

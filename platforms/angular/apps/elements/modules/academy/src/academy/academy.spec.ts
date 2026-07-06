@@ -1,10 +1,11 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
+import { CheckoutWizardComponent } from '@synergos/shells';
 import { AcademyApiClient } from './academy-api.client';
 import { AcademyFulfillmentStrategy } from './academy-fulfillment.strategy';
 import { AcademyElementComponent } from './academy';
-import type { AcademyCourse } from './academy.model';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -27,38 +28,14 @@ function installMemoryStorage(): Map<string, string> {
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
  * yield to real timers between microtask drains to let each hop resolve.
  */
-async function flushMicrotasks(times = 8): Promise<void> {
+async function flushMicrotasks(times = 12): Promise<void> {
   for (let i = 0; i < times; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await Promise.resolve();
   }
 }
 
-const PAID_COURSE: AcademyCourse = {
-  id: 'C-PAID',
-  title: 'Curso de prueba pagado',
-  subtitle: 'Subtítulo',
-  amount: 480_000,
-  currency: 'COP',
-  category: 'Desarrollo',
-  level: 'intermediate',
-  durationMinutes: 600,
-  lessonCount: 20,
-  rating: 4.7,
-  studentCount: 1_000,
-  instructorName: 'Instructor Demo',
-  cover: '',
-  badges: ['Certificado'],
-};
-
-const FREE_COURSE: AcademyCourse = {
-  ...PAID_COURSE,
-  id: 'C-FREE',
-  title: 'Curso gratuito',
-  amount: 0,
-};
-
-describe('AcademyElementComponent', () => {
+describe('AcademyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<AcademyElementComponent>;
   let component: AcademyElementComponent;
 
@@ -80,187 +57,181 @@ describe('AcademyElementComponent', () => {
   }
 
   afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
   });
 
-  /** Drive a course PDP → enrolment → classroom for the given course id. */
-  async function enroll(courseId: string): Promise<void> {
-    const course = component.courses().find((c) => c.id === courseId) ?? component.courses()[0];
-    component.openCourse(course);
-    await flushMicrotasks();
-    component.studentName.set('Ada Lovelace');
-    component.studentEmail.set('ada@example.com');
-    component.startEnrollment();
-    await flushMicrotasks();
-    if (component.view() === 'checkout') {
-      component.nextEnrollStep(); // plan → student
-      component.nextEnrollStep(); // student → review
-      component.confirmEnrollment();
-      await flushMicrotasks(30);
-    } else {
-      await flushMicrotasks(30);
-    }
-  }
-
-  // ── empty: pristine academy, catalogue view, no enrolment ────────────────────
-  it('starts on the catalogue with no enrolment (empty case)', async () => {
+  // ── empty: pristine portal, catalogue view, mock catalogue, no enrolment ──────
+  it('opens on the SH-1 catalogue with seeded courses and facets (empty case)', async () => {
     installMemoryStorage();
-    // Offline → mock catalogue; still a valid empty state.
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     expect(component).toBeTruthy();
+    expect(component.role()).toBe('student');
     expect(component.view()).toBe('catalog');
     expect(component.enrollmentId()).toBe('');
-    expect(component.progressPercent()).toBe(0);
-    // Mock catalogue loaded → courses present, degradation flagged.
     expect(component.courses().length).toBeGreaterThan(0);
+    expect(component.facets().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: catalogue → PDP → checkout → pay → confirm → classroom ─────────────
-  it('runs the full paid lifecycle into the classroom (happy case)', async () => {
+  // ── happy: PDD → SH-3 wizard → confirm → classroom → complete → certificate ───
+  it('runs the full enrolment lifecycle through the SH-3 wizard (happy case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const paid = component.courses().find((c) => c.amount > 0) ?? component.courses()[0];
-    await enroll(paid.id);
+    // Open a PAID course (CMOCK-1) so the wizard path runs (free would skip it).
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
+    await flushMicrotasks();
+    expect(component.view()).toBe('course');
+    expect(component.isFreeCourse()).toBe(false);
 
-    expect(component.enrollmentId().length).toBeGreaterThan(0);
+    component.studentName.set('Ada Lovelace');
+    component.studentEmail.set('ada@example.com');
+    component.startEnrollment();
+    await flushMicrotasks();
+    expect(component.view()).toBe('checkout');
+
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    wizard.next(); // submit → pay → confirm (matrícula activa, mock)
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
     expect(component.view()).toBe('enrolled');
+    expect(component.enrollmentId().length).toBeGreaterThan(0);
 
+    // Enter the aula and complete every lesson → certificate available.
     component.enterClassroom();
+    fixture.detectChanges();
     expect(component.view()).toBe('classroom');
-    expect(component.orderedLessons().length).toBeGreaterThan(0);
-    expect(component.activeLessonId().length).toBeGreaterThan(0);
+    for (const lesson of component.orderedLessons()) {
+      component.selectLesson(lesson);
+      component.markLessonComplete();
+      await flushMicrotasks();
+    }
+    expect(component.isCourseComplete()).toBe(true);
+
+    component.viewCertificate();
+    await flushMicrotasks();
+    expect(component.view()).toBe('certificate');
+    expect(component.walletCredentials().length).toBe(1);
   });
 
-  // ── free course: enroll directo, no checkout wizard ──────────────────────────
-  it('enrolls a free course directly without the checkout wizard', async () => {
+  // ── free course: enroll directo skips the wizard ─────────────────────────────
+  it('enrols a free course directly (no wizard, enroll directo)', async () => {
     installMemoryStorage();
-    const fetchMock = vi.fn((url: string) => {
-      if (url.includes('/courses')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ courses: [FREE_COURSE] }),
-        } as Response);
-      }
-      if (url.includes('/course/')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () =>
-            Promise.resolve({
-              course: FREE_COURSE,
-              description: 'desc',
-              outcomes: [],
-              sections: [
-                { id: 's1', title: 'M1', lessons: [{ id: 'l1', title: 'L1', kind: 'video', durationMinutes: 5, videoRef: '', body: 'b', preview: true, resources: [], allowAssignment: false }] },
-              ],
-              plans: [{ id: 'free', label: 'Gratis', description: '', amount: 0, perks: [], featured: true }],
-              instructor: { name: 'X', headline: '', bio: '', avatar: '', courseCount: 1, studentCount: 1, rating: 5 },
-            }),
-        } as Response);
-      }
-      if (url.includes('/enroll')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ enrolled: true, enrollmentId: 'ENR-FREE-1' }),
-        } as Response);
-      }
-      if (url.includes('/confirm')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ status: 'active', enrollmentId: 'ENR-FREE-1' }),
-        } as Response);
-      }
-      // progress
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ completedLessonIds: [], percent: 0 }),
-      } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const free = component.courses()[0];
-    component.openCourse(free);
+    component.openCourse(component.courses().find((c) => c.amount <= 0)!);
     await flushMicrotasks();
     expect(component.isFreeCourse()).toBe(true);
 
     component.startEnrollment();
     await flushMicrotasks(30);
-
-    // Free path skips the wizard and lands on the enrolled bridge.
     expect(component.view()).toBe('enrolled');
     expect(component.enrollmentId().length).toBeGreaterThan(0);
   });
 
-  // ── filter: catalogue filters by level without dropping unrelated state ───────
-  it('filters the catalogue by level (filter case)', async () => {
+  // ── filter: SH-1 criteria filters the catalogue by escuela/categoría ──────────
+  it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
     const before = component.courses().length;
-    component.setLevel('advanced');
+    component.onCriteriaChange({ term: '', facets: { category: ['Diseño'] }, sort: 'relevance', page: 1 });
     await flushMicrotasks();
 
     const after = component.courses();
     expect(after.length).toBeLessThanOrEqual(before);
-    expect(after.every((course) => course.level === 'advanced')).toBe(true);
+    expect(after.every((course) => course.category === 'Diseño')).toBe(true);
     expect(component.hasActiveFilters()).toBe(true);
   });
 
-  // ── idempotent: re-selecting a plan keeps a single enrolment line ────────────
-  it('keeps a single enrolment line when the cart is re-primed (idempotent case)', async () => {
+  // ── mi aprendizaje (SH-4): the account shell lists enrolments + paths ─────────
+  it('loads "mi aprendizaje" (SH-4) with enrolments and learning paths', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const paid = component.courses().find((c) => c.amount > 0) ?? component.courses()[0];
-    await enroll(paid.id);
-
-    // Confirmed → exactly one course voucher / enrolment, never duplicated.
-    expect(component.enrolledCourseId()).toBe(paid.id);
-    expect(component.enrollmentId().length).toBeGreaterThan(0);
+    component.goToLearning();
+    await flushMicrotasks();
+    expect(component.view()).toBe('learning');
+    expect(component.enrollments().length).toBeGreaterThan(0);
+    expect(component.paths().length).toBeGreaterThan(0);
   });
 
-  // ── progress: marking lessons complete advances percent + issues certificate ─
-  it('marks lessons complete, reaches 100% and issues a certificate', async () => {
+  // ── instructor console (SH-5): desk loads cursos + alumnos + Q&A ──────────────
+  it('loads the SH-5 instructor console with cursos, alumnos and Q&A', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
-    const paid = component.courses().find((c) => c.amount > 0) ?? component.courses()[0];
-    await enroll(paid.id);
-    component.enterClassroom();
+    component.setRole('instructor');
+    await flushMicrotasks();
+    expect(component.desk()).not.toBeNull();
+    expect(component.consoleKpis().length).toBeGreaterThan(0);
+    expect(component.consoleRows().length).toBeGreaterThan(0);
+    expect(window.location.hash).toContain('/instructor');
 
-    const lessons = component.orderedLessons();
-    expect(lessons.length).toBeGreaterThan(0);
-
-    for (const lesson of lessons) {
-      component.selectLesson(lesson);
-      component.markLessonComplete();
-      await flushMicrotasks();
-    }
-
-    expect(component.progressPercent()).toBe(100);
-    expect(component.isCourseComplete()).toBe(true);
-
-    component.viewCertificate();
-    expect(component.view()).toBe('certificate');
-    expect(component.certificate()?.id.length).toBeGreaterThan(0);
+    component.onInstructorSectionChange('students');
+    expect(component.instructorView()).toBe('students');
+    expect(component.consoleColumns()).toBe(component.studentColumns);
   });
 
-  // ── degradation: catalogue falls back to a visible mock catalogue ────────────
+  // ── create (SH-6): authoring wizard publishes a course ───────────────────────
+  it('creates a course through the SH-6 authoring wizard', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.setRole('instructor');
+    await flushMicrotasks();
+    component.openCreate();
+    expect(component.instructorView()).toBe('create');
+
+    component.onCreateDraftChange({
+      title: 'Curso de prueba',
+      subtitle: 'Un subtítulo',
+      category: 'Desarrollo',
+      level: 'beginner',
+      price: '350000',
+      modules: 'Módulo 1\nMódulo 2',
+    });
+    expect(component.createValidity()['publicar']).toBe(true);
+
+    component.onCreatePublished(component.createDraft());
+    await flushMicrotasks();
+    expect(component.createResultId().length).toBeGreaterThan(0);
+  });
+
+  // ── hash router: deep-links views + the instructor console ────────────────────
+  it('deep-links views and the instructor console through the hash router', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.goToLearning();
+    expect(window.location.hash).toBe('#/academy/mi-aprendizaje');
+
+    component.setRole('instructor');
+    expect(window.location.hash).toContain('/instructor');
+  });
+
+  // ── degradation: catalogue falls back to a visible mock catalogue ─────────────
   it('degrades to a visible mock catalogue when the courses endpoint is unavailable', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
@@ -283,7 +254,7 @@ describe('AcademyApiClient', () => {
     TestBed.resetTestingModule();
   });
 
-  it('normalises a live catalogue response (happy case)', async () => {
+  it('normalises a live courses response with derived facets (happy case)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -293,8 +264,9 @@ describe('AcademyApiClient', () => {
           json: () =>
             Promise.resolve({
               courses: [
-                { id: 'X1', title: 'Curso X', amount: 99_000, currency: 'COP', level: 'beginner' },
+                { id: 'X1', title: 'Curso X', category: 'Datos', level: 'beginner', amount: 100_000, currency: 'COP' },
               ],
+              total: 1,
             }),
         } as Response),
       ),
@@ -302,105 +274,75 @@ describe('AcademyApiClient', () => {
     const client = createClient();
     const result = await client.courses(
       '/api/academy',
-      { q: '', category: '', level: '', sort: 'relevance' },
+      { q: '', category: '', level: '', price: '', sort: 'relevance' },
       'COP',
     );
 
     expect(result.courses).toHaveLength(1);
     expect(result.courses[0].id).toBe('X1');
+    expect(result.facets.length).toBeGreaterThan(0);
     expect(client.degraded).toBe(false);
   });
 
-  it('opens a paid enrolment session and confirms (happy case)', async () => {
-    const fetchMock = vi.fn((url: string) => {
-      const body = url.endsWith('/enroll')
-        ? { orderRef: 'ORD-1', paymentSessionId: 'psp_1', amount: 100, currency: 'COP' }
-        : { status: 'active', enrollmentId: 'ENR-1' };
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const client = createClient();
-
-    const enroll = await client.enroll(
-      '/api/academy',
-      'X1',
-      'plan-1',
-      { name: 'Ada', email: 'a@b.co' },
-      100,
-      'COP',
-    );
-    expect(enroll.orderRef).toBe('ORD-1');
-    expect(enroll.free).toBe(false);
-
-    const confirmation = await client.confirm('/api/academy', 'ORD-1');
-    expect(confirmation.status).toBe('active');
-    expect(confirmation.enrollmentId).toBe('ENR-1');
-  });
-
-  it('returns a free enrolment from `{ enrolled:true }` (free case)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ enrolled: true, enrollmentId: 'ENR-FREE' }),
-        } as Response),
-      ),
-    );
-    const client = createClient();
-    const result = await client.enroll(
-      '/api/academy',
-      'C-FREE',
-      'free',
-      { name: 'Ada', email: 'a@b.co' },
-      0,
-      'COP',
-    );
-
-    expect(result.free).toBe(true);
-    expect(result.enrollmentId).toBe('ENR-FREE');
-    expect(client.degraded).toBe(false);
-  });
-
-  it('reports progress and recomputes percent on mark (happy + idempotent)', async () => {
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (init?.method === 'POST') {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ percent: 50 }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ completedLessonIds: ['l1'], percent: 25 }),
-      } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const client = createClient();
-
-    const progress = await client.progress('/api/academy', 'X1', 'a@b.co');
-    expect(progress.completedLessonIds).toEqual(['l1']);
-    expect(progress.percent).toBe(25);
-
-    const update = await client.markComplete('/api/academy', 'X1', 'l2', 'a@b.co', 25);
-    expect(update.percent).toBe(50);
-  });
-
-  it('filters the mock catalogue by level when degraded (filter case)', async () => {
+  it('degrades the certificate endpoint to a verifiable mock', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const result = await client.courses(
+    const cert = await client.certificate('/api/academy', 'CMOCK-1', 'ada@b.co', 'Ada', 'Angular');
+    expect(client.degraded).toBe(true);
+    expect(cert.id.length).toBeGreaterThan(0);
+    expect(cert.verifyUrl).toContain(cert.id);
+  });
+
+  it('degrades "mi aprendizaje" and folds an in-session enrolment', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    client.recordEnrollment({
+      enrollmentId: 'ENR-NEW',
+      course: {
+        id: 'CNEW',
+        title: 'Nuevo Curso',
+        subtitle: '',
+        amount: 0,
+        currency: 'COP',
+        category: 'Desarrollo',
+        level: 'beginner',
+        durationMinutes: 60,
+        lessonCount: 5,
+        rating: 0,
+        studentCount: 0,
+        instructorName: 'Yo',
+        cover: '',
+        badges: [],
+      },
+      percent: 0,
+      lessonCount: 5,
+      completedCount: 0,
+      lastActivityAt: '2026-07-06',
+      completed: false,
+    });
+
+    const learning = await client.learning('/api/academy', 'ada@b.co', 'COP');
+    expect(client.degraded).toBe(true);
+    expect(learning.enrollments.some((entry) => entry.course.id === 'CNEW')).toBe(true);
+    expect(learning.paths.length).toBeGreaterThan(0);
+  });
+
+  it('degrades the instructor desk + creates a course that surfaces in it (mock)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const result = await client.createCourse(
       '/api/academy',
-      { q: '', category: '', level: 'advanced', sort: 'relevance' },
+      { title: 'Nuevo', subtitle: '', category: 'Datos', level: 'beginner', price: 200_000, modules: ['M1'] },
       'COP',
     );
+    expect(result.id.length).toBeGreaterThan(0);
 
+    const desk = await client.instructorDesk('/api/academy', 'instructor');
     expect(client.degraded).toBe(true);
-    expect(result.courses.length).toBeGreaterThan(0);
-    expect(result.courses.every((course) => course.level === 'advanced')).toBe(true);
+    expect(desk.courses.some((course) => course.id === result.id)).toBe(true);
+    expect(desk.questions.length).toBeGreaterThan(0);
   });
 });

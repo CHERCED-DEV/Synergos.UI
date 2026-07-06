@@ -70,6 +70,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
       q: '',
       category: '',
       level: '',
+      price: '',
       sort: 'relevance',
     };
     const result = await this.#api.courses(apiBase, catalogCriteria, query.currency ?? 'COP');

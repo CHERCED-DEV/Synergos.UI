@@ -35,249 +35,202 @@
   background: var(--ac-surface);
   box-shadow: var(--ac-shadow);
   color: var(--ac-text);
+  font-family: var(--syn-font-family-base, 'Manrope', system-ui, sans-serif);
 
-  &__sr-only {
-    position: absolute;
-    width: syn.px-to-rem(1);
-    height: syn.px-to-rem(1);
-    margin: syn.px-to-rem(-1);
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  // ─── Top bar ───────────────────────────────────────────────────────────────
-  &__bar {
+  // ─── Topbar + role switch ─────────────────────────────────────────────────
+  &__topbar {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: syn.$space-3;
-    padding-bottom: syn.$space-3;
+    flex-wrap: wrap;
+    gap: syn.$space-md;
+    padding-bottom: syn.$space-sm;
     border-bottom: syn.px-to-rem(1) solid var(--ac-border-subtle);
   }
 
   &__brand {
     display: inline-flex;
     align-items: center;
-    gap: syn.$space-2;
-    margin: 0;
+    gap: syn.$space-xs;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+    color: var(--ac-text);
   }
 
   &__brand-mark {
-    color: var(--ac-brand);
-    font-size: syn.$font-size-lg;
+    font-size: syn.$font-size-xl;
   }
 
-  &__brand-text {
-    color: var(--ac-text);
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-    letter-spacing: syn.$letter-spacing-tight;
-  }
-
-  &__searchbar {
-    display: flex;
-    flex: 1 1 syn.px-to-rem(280);
-    min-width: syn.px-to-rem(200);
-    border: syn.px-to-rem(1) solid var(--ac-border);
+  &__roles {
+    display: inline-flex;
+    gap: syn.px-to-rem(4);
+    padding: syn.px-to-rem(4);
     border-radius: syn.$radius-full;
     background: var(--ac-surface-muted);
-    overflow: hidden;
-
-    &:focus-within {
-      border-color: var(--ac-brand);
-    }
   }
 
-  &__searchbar-input {
-    flex: 1 1 auto;
-    min-width: 0;
-    padding: syn.$space-2 syn.$space-4;
+  &__role {
+    padding: syn.$space-xxs syn.$space-md;
     border: none;
-    background: transparent;
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-base;
-
-    &:focus-visible {
-      outline: none;
-    }
-  }
-
-  &__searchbar-btn {
-    flex: 0 0 auto;
-    padding: syn.$space-2 syn.$space-4;
-    border: none;
-    background: var(--ac-brand);
-    color: var(--ac-brand-text);
+    border-radius: syn.$radius-full;
+    background: none;
     cursor: pointer;
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
 
-    @include syn.focus-visible(var(--ac-focus-ring));
+    &.is-active {
+      background: var(--ac-surface);
+      color: var(--ac-brand);
+      box-shadow: var(--ac-shadow);
+    }
   }
 
-  // ─── Degraded banner ─────────────────────────────────────────────────────────
-  &__degraded {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-warn);
+  &__nav {
+    display: inline-flex;
+    gap: syn.$space-xs;
+    margin-inline-start: auto;
+  }
+
+  &__nav-btn {
+    padding: syn.$space-xxs syn.$space-sm;
+    border: none;
     border-radius: syn.$radius-md;
+    background: none;
+    cursor: pointer;
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+
+    &.is-active {
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
+  }
+
+  // ─── Notices ──────────────────────────────────────────────────────────────
+  &__degraded,
+  &__error {
+    margin: 0;
+    padding: syn.$space-xs syn.$space-sm;
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__degraded {
     background: var(--ac-warn-soft);
     color: var(--ac-text);
-    font-size: syn.$font-size-sm;
   }
 
   &__error {
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-danger);
-    border-radius: syn.$radius-md;
+    background: color-mix(in srgb, var(--ac-danger) 12%, transparent);
     color: var(--ac-danger);
-    font-size: syn.$font-size-sm;
   }
 
-  // ─── Toolbar (filters + sort) ─────────────────────────────────────────────────
-  &__toolbar {
+  // ─── Hero ─────────────────────────────────────────────────────────────────
+  &__hero {
+    padding: syn.$space-lg;
+    border-radius: syn.$radius-lg;
+    background: linear-gradient(135deg, var(--ac-brand) 0%, color-mix(in srgb, var(--ac-brand) 65%, #1e1b4b) 100%);
+    color: var(--ac-brand-text);
+  }
+
+  &__hero-title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: 800;
+  }
+
+  &__hero-sub {
+    margin: syn.$space-xxs 0 0;
+    opacity: 0.92;
+  }
+
+  &__catalog,
+  &__checkout,
+  &__learning,
+  &__certificate,
+  &__create,
+  &__console {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: syn.$space-3;
-  }
-
-  &__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-  }
-
-  &__chip {
-    padding: syn.$space-1 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-full;
-    background: var(--ac-surface);
-    color: var(--ac-text-secondary);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    cursor: pointer;
-    transition: background syn.$duration-fast syn.$easing-smooth,
-      border-color syn.$duration-fast syn.$easing-smooth;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &:hover {
-      border-color: var(--ac-brand);
-    }
-
-    &[aria-pressed='true'] {
-      border-color: var(--ac-brand);
-      background: var(--ac-brand-soft);
-      color: var(--ac-text);
-    }
-  }
-
-  &__select {
-    margin-left: auto;
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-  }
-
-  &__clear {
-    padding: syn.$space-1 syn.$space-3;
-    border: none;
-    border-radius: syn.$radius-md;
-    background: transparent;
-    color: var(--ac-brand);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-  }
-
-  // ─── Catalogue grid ───────────────────────────────────────────────────────────
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(syn.px-to-rem(260), 1fr));
+    flex-direction: column;
     gap: syn.$space-md;
   }
 
-  &__empty {
-    padding: syn.$space-lg;
-    text-align: center;
-    color: var(--ac-muted);
-    font-size: syn.$font-size-sm;
-  }
-
-  // ─── Course card ────────────────────────────────────────────────────────────
+  // ─── Course card (SH-1 item template) ─────────────────────────────────────
   &__card {
     display: flex;
     flex-direction: column;
+    height: 100%;
     border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-lg;
     background: var(--ac-surface);
     overflow: hidden;
-    text-align: left;
     cursor: pointer;
-    transition: transform syn.$duration-fast syn.$easing-smooth,
-      box-shadow syn.$duration-fast syn.$easing-smooth;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
 
     &:hover {
-      transform: translateY(syn.px-to-rem(-2));
       box-shadow: var(--ac-shadow-pop);
+      transform: translateY(#{syn.px-to-rem(-2)});
     }
   }
 
   &__card-cover {
-    aspect-ratio: 16 / 9;
-    background: linear-gradient(135deg, var(--ac-brand-soft), var(--ac-surface-muted));
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--ac-brand);
+    aspect-ratio: 16 / 9;
+    background: var(--ac-surface-muted);
     font-size: syn.$font-size-2xl;
   }
 
-  &__card-cover-img {
+  &__card-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
+  &__card-free {
+    position: absolute;
+    inset-block-start: syn.$space-xs;
+    inset-inline-start: syn.$space-xs;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--ac-success);
+    color: var(--ac-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
   &__card-body {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
+    gap: syn.px-to-rem(4);
+    padding: syn.$space-sm;
   }
 
   &__card-cat {
+    margin: 0;
     font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    letter-spacing: syn.$letter-spacing-wide;
+    font-weight: 600;
     text-transform: uppercase;
-    color: var(--ac-brand);
+    letter-spacing: 0.04em;
+    color: var(--ac-muted);
   }
 
   &__card-title {
     margin: 0;
     font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-    line-height: syn.$line-height-snug;
-    color: var(--ac-text);
+    font-weight: 700;
+    line-height: 1.3;
   }
 
   &__card-instructor {
+    margin: 0;
     font-size: syn.$font-size-sm;
     color: var(--ac-text-secondary);
   }
@@ -285,245 +238,220 @@
   &__card-meta {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: syn.$space-2;
+    gap: syn.$space-xs;
     font-size: syn.$font-size-xs;
-    color: var(--ac-muted);
+    color: var(--ac-text-secondary);
   }
 
   &__card-rating {
     color: var(--ac-warn);
-    font-weight: syn.$font-weight-semibold;
+    font-weight: 700;
   }
 
-  &__card-foot {
+  &__card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.px-to-rem(4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__badge {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+  }
+
+  &__card-price {
     display: flex;
     align-items: baseline;
-    gap: syn.$space-2;
-    margin-top: auto;
-    padding-top: syn.$space-2;
+    gap: syn.$space-xs;
+    margin-block-start: syn.px-to-rem(4);
   }
 
   &__price {
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
+    font-size: syn.$font-size-lg;
+    font-weight: 800;
     color: var(--ac-text);
   }
 
-  &__price--free {
-    color: var(--ac-success);
-  }
-
   &__price-list {
-    font-size: syn.$font-size-xs;
+    font-size: syn.$font-size-sm;
     color: var(--ac-muted);
     text-decoration: line-through;
   }
 
-  &__badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-1;
-  }
-
-  &__badge {
-    padding: syn.px-to-rem(2) syn.$space-2;
-    border-radius: syn.$radius-full;
-    background: var(--ac-surface-muted);
-    color: var(--ac-text-secondary);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-medium;
-  }
-
-  // ─── Generic buttons ──────────────────────────────────────────────────────────
-  &__btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: syn.$space-2;
-    padding: syn.$space-2 syn.$space-4;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    cursor: pointer;
-    transition: background syn.$duration-fast syn.$easing-smooth;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
-  &__btn--primary {
-    border-color: var(--ac-brand);
-    background: var(--ac-brand);
-    color: var(--ac-brand-text);
-  }
-
-  &__btn--ghost {
-    border-color: transparent;
-    background: transparent;
-    color: var(--ac-brand);
-  }
-
-  &__btn--block {
-    width: 100%;
-  }
-
-  &__back {
-    align-self: flex-start;
-    padding: syn.$space-1 syn.$space-2;
-    border: none;
-    background: transparent;
-    color: var(--ac-brand);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-  }
-
-  // ─── Course PDP ───────────────────────────────────────────────────────────────
-  &__pdp {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: syn.$space-md;
-
-    @include syn.respond-to(md) {
-      grid-template-columns: 2fr 1fr;
-      align-items: start;
-    }
-  }
-
-  &__pdp-main {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-md;
-    min-width: 0;
-  }
-
-  &__pdp-aside {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-
-    @include syn.respond-to(md) {
-      position: sticky;
-      top: syn.$space-md;
-    }
-  }
-
-  &__hero {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-  }
-
-  &__hero-cat {
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    letter-spacing: syn.$letter-spacing-wide;
-    text-transform: uppercase;
-    color: var(--ac-brand);
-  }
-
-  &__hero-title {
+  // ─── PDD body / outcomes / instructor / curriculum ────────────────────────
+  &__desc {
     margin: 0;
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-    line-height: syn.$line-height-snug;
-  }
-
-  &__hero-sub {
-    margin: 0;
-    font-size: syn.$font-size-base;
     color: var(--ac-text-secondary);
-  }
-
-  &__hero-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-3;
-    font-size: syn.$font-size-sm;
-    color: var(--ac-muted);
+    line-height: 1.6;
   }
 
   &__section-title {
-    margin: 0 0 syn.$space-2;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
+    margin: 0 0 syn.$space-xs;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
   }
 
   &__outcomes {
+    margin-block-start: syn.$space-md;
+  }
+
+  &__outcomes-list {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: syn.$space-2;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(220)}, 1fr));
+    gap: syn.$space-xxs syn.$space-md;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__outcome {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Buybox (sticky CTA) ──────────────────────────────────────────────────
+  &__buybox {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__buybox-price {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: 800;
+  }
+
+  &__buybox-note {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+    text-align: center;
+  }
+
+  // ─── Plans ────────────────────────────────────────────────────────────────
+  &__plans {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
     margin: 0;
     padding: 0;
     list-style: none;
 
-    @include syn.respond-to(sm) {
-      grid-template-columns: 1fr 1fr;
+    &--wizard {
+      gap: syn.$space-sm;
     }
   }
 
-  &__outcome {
+  &__plan {
+    position: relative;
     display: flex;
-    gap: syn.$space-2;
-    font-size: syn.$font-size-sm;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    width: 100%;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    cursor: pointer;
+    text-align: start;
+
+    &.is-selected {
+      border-color: var(--ac-brand);
+      box-shadow: 0 0 0 #{syn.px-to-rem(1)} var(--ac-brand);
+    }
+  }
+
+  &__plan-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-xs;
+  }
+
+  &__plan-label {
+    font-weight: 700;
+  }
+
+  &__plan-price {
+    font-weight: 800;
+    color: var(--ac-brand);
+  }
+
+  &__plan-inst,
+  &__plan-desc {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__plan-tag {
+    align-self: flex-start;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  &__plan-perks {
+    margin: syn.px-to-rem(4) 0 0;
+    padding-inline-start: syn.$space-md;
+    font-size: syn.$font-size-xs;
     color: var(--ac-text-secondary);
   }
 
-  &__outcome-mark {
-    color: var(--ac-success);
-    font-weight: syn.$font-weight-bold;
-  }
-
-  // ─── Curriculum (accordion + lesson rows) ─────────────────────────────────────
+  // ─── Curriculum accordion ─────────────────────────────────────────────────
   &__curriculum {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
+    gap: syn.$space-xs;
+  }
+
+  &__curriculum-summary {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-muted);
+  }
+
+  &__module {
     border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-lg;
+    border-radius: syn.$radius-md;
     overflow: hidden;
   }
 
-  &__sec {
-    border-bottom: syn.px-to-rem(1) solid var(--ac-border-subtle);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-
-  &__sec-head {
+  &__module-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-2;
+    gap: syn.$space-xs;
     width: 100%;
-    padding: syn.$space-3;
+    padding: syn.$space-sm;
     border: none;
     background: var(--ac-surface-muted);
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    text-align: left;
     cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
+    text-align: start;
   }
 
-  &__sec-toggle {
+  &__module-title {
+    flex: 1;
+    font-weight: 700;
+  }
+
+  &__module-count {
+    font-size: syn.$font-size-xs;
     color: var(--ac-muted);
+  }
+
+  &__module-chevron {
+    font-size: syn.$font-size-lg;
+    color: var(--ac-brand);
   }
 
   &__lessons {
@@ -532,788 +460,801 @@
     list-style: none;
   }
 
-  &__lesson {
+  &__lesson-row {
     display: flex;
     align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-2 syn.$space-3;
-    border-top: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    gap: syn.$space-xs;
+    padding: syn.$space-xs syn.$space-sm;
+    border-block-start: syn.px-to-rem(1) solid var(--ac-border-subtle);
     font-size: syn.$font-size-sm;
-    color: var(--ac-text-secondary);
   }
 
   &__lesson-icon {
-    flex: 0 0 auto;
     color: var(--ac-brand);
   }
 
   &__lesson-title {
-    flex: 1 1 auto;
-    min-width: 0;
-    color: var(--ac-text);
-  }
-
-  &__lesson-dur {
-    flex: 0 0 auto;
-    color: var(--ac-muted);
-    font-size: syn.$font-size-xs;
+    flex: 1;
   }
 
   &__lesson-preview {
-    flex: 0 0 auto;
-    padding: syn.px-to-rem(1) syn.$space-2;
-    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(1) syn.$space-xxs;
+    border-radius: syn.$radius-sm;
     background: var(--ac-brand-soft);
     color: var(--ac-brand);
     font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-medium;
+    font-weight: 600;
   }
 
-  // ─── Instructor card ──────────────────────────────────────────────────────────
+  &__lesson-dur {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  // ─── Instructor card ──────────────────────────────────────────────────────
   &__instructor {
     display: flex;
-    gap: syn.$space-3;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-lg;
+    flex-direction: column;
+    gap: syn.$space-sm;
   }
 
-  &__instructor-avatar {
-    flex: 0 0 auto;
+  &__instructor-head {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__instructor-avatar,
+  &__instructor-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: syn.px-to-rem(56);
     height: syn.px-to-rem(56);
     border-radius: syn.$radius-full;
     background: var(--ac-brand-soft);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: var(--ac-brand);
     font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-    overflow: hidden;
-  }
-
-  &__instructor-img {
-    width: 100%;
-    height: 100%;
+    font-weight: 800;
     object-fit: cover;
-  }
-
-  &__instructor-body {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-    min-width: 0;
   }
 
   &__instructor-name {
     margin: 0;
     font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
+    font-weight: 700;
   }
 
   &__instructor-headline {
+    margin: 0;
     font-size: syn.$font-size-sm;
-    color: var(--ac-brand);
+    color: var(--ac-text-secondary);
   }
 
   &__instructor-bio {
     margin: 0;
-    font-size: syn.$font-size-sm;
     color: var(--ac-text-secondary);
-    line-height: syn.$line-height-relaxed;
+    line-height: 1.6;
   }
 
-  // ─── Enrollment panel (PDP aside) ─────────────────────────────────────────────
-  &__panel {
+  &__instructor-stats {
     display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding: syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-lg;
-    background: var(--ac-surface);
-    box-shadow: var(--ac-shadow);
-  }
-
-  &__panel-price {
-    display: flex;
-    align-items: baseline;
-    gap: syn.$space-2;
-  }
-
-  &__panel-price-main {
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  // ─── Plans ────────────────────────────────────────────────────────────────────
-  &__plans {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-  }
-
-  &__plan {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    text-align: left;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &[aria-pressed='true'] {
-      border-color: var(--ac-brand);
-      box-shadow: 0 0 0 syn.px-to-rem(1) var(--ac-brand);
-    }
-  }
-
-  &__plan-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-2;
-  }
-
-  &__plan-label {
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__plan-featured {
-    padding: syn.px-to-rem(1) syn.$space-2;
-    border-radius: syn.$radius-full;
-    background: var(--ac-brand);
-    color: var(--ac-brand-text);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__plan-price {
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__plan-installments {
-    font-size: syn.$font-size-xs;
-    color: var(--ac-muted);
-  }
-
-  &__plan-perks {
-    margin: 0;
-    padding-left: syn.$space-4;
-    font-size: syn.$font-size-sm;
-    color: var(--ac-text-secondary);
-
-    li {
-      margin-bottom: syn.$space-1;
-    }
-  }
-
-  // ─── Wizard (checkout) ──────────────────────────────────────────────────────
-  &__wizard {
-    display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: syn.$space-md;
-    max-width: syn.px-to-rem(640);
-    margin: 0 auto;
-    width: 100%;
-  }
-
-  &__steps {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-  }
-
-  &__step {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
     font-size: syn.$font-size-sm;
-    color: var(--ac-muted);
-
-    &[data-active='true'] {
-      color: var(--ac-text);
-      font-weight: syn.$font-weight-semibold;
-    }
+    color: var(--ac-text-secondary);
   }
 
-  &__step-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: syn.px-to-rem(24);
-    height: syn.px-to-rem(24);
-    border-radius: syn.$radius-full;
-    background: var(--ac-surface-muted);
-    color: var(--ac-text-secondary);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-bold;
-
-    .academy__step[data-active='true'] & {
-      background: var(--ac-brand);
-      color: var(--ac-brand-text);
-    }
+  // ─── Forms ────────────────────────────────────────────────────────────────
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    border: none;
   }
 
   &__field {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-1;
+    gap: syn.px-to-rem(4);
   }
 
   &__label {
     font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    color: var(--ac-text);
-  }
-
-  &__input {
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &[aria-invalid='true'] {
-      border-color: var(--ac-danger);
-    }
+    font-weight: 600;
+    color: var(--ac-text-secondary);
   }
 
   &__hint {
+    margin: 0;
     font-size: syn.$font-size-xs;
-    color: var(--ac-danger);
+    color: var(--ac-muted);
   }
 
-  &__pay-methods {
-    display: flex;
-    gap: syn.$space-2;
-  }
-
-  &__pay-method {
-    flex: 1 1 0;
-    padding: syn.$space-3;
+  &__input {
+    width: 100%;
+    padding: syn.$space-xs syn.$space-sm;
     border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-md;
     background: var(--ac-surface);
     color: var(--ac-text);
     font: inherit;
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
 
-    @include syn.focus-visible(var(--ac-focus-ring));
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--ac-focus-ring);
+      outline-offset: syn.px-to-rem(1);
+    }
 
-    &[aria-pressed='true'] {
-      border-color: var(--ac-brand);
-      background: var(--ac-brand-soft);
+    &--search {
+      max-width: syn.px-to-rem(280);
     }
   }
 
-  &__review {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
+  &__textarea {
+    resize: vertical;
+  }
+
+  &__pay-methods {
+    display: inline-flex;
+    gap: syn.$space-xs;
+  }
+
+  &__pay {
+    padding: syn.$space-xs syn.$space-md;
     border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-md;
-    background: var(--ac-surface-muted);
+    background: var(--ac-surface);
+    cursor: pointer;
+    font-weight: 600;
+
+    &.is-selected {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
   }
 
-  &__review-row {
+  // ─── Summary / review ─────────────────────────────────────────────────────
+  &__summary {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: syn.$space-2;
-    font-size: syn.$font-size-sm;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
   }
 
-  &__review-total {
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__wizard-actions {
+  &__summary-row {
     display: flex;
     justify-content: space-between;
-    gap: syn.$space-2;
+    gap: syn.$space-md;
+    padding: syn.$space-xxs 0;
+    border-block-end: syn.px-to-rem(1) solid var(--ac-border-subtle);
+
+    dt {
+      color: var(--ac-muted);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      text-align: end;
+    }
   }
 
-  // ─── Confirmation / enrolled bridge ───────────────────────────────────────────
-  &__confirm {
+  // ─── Enrolled bridge ──────────────────────────────────────────────────────
+  &__enrolled {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-lg;
+    gap: syn.$space-sm;
+    padding: syn.$space-2xl syn.$space-lg;
     text-align: center;
   }
 
-  &__confirm-mark {
-    width: syn.px-to-rem(64);
-    height: syn.px-to-rem(64);
+  &__enrolled-badge {
+    margin: 0;
+    padding: syn.$space-xxs syn.$space-md;
     border-radius: syn.$radius-full;
     background: var(--ac-success-soft);
     color: var(--ac-success);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: syn.$font-size-2xl;
+    font-weight: 700;
   }
 
-  &__confirm-title {
+  &__enrolled-title {
     margin: 0;
-    font-size: syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
+    font-size: syn.$font-size-2xl;
+    font-weight: 800;
   }
 
-  &__confirm-meta {
-    font-size: syn.$font-size-sm;
+  &__enrolled-ref {
+    margin: 0;
     color: var(--ac-text-secondary);
+
+    code {
+      font-weight: 700;
+      color: var(--ac-text);
+    }
   }
 
-  // ─── Classroom (aula) ─────────────────────────────────────────────────────────
+  // ─── Classroom / aula ─────────────────────────────────────────────────────
   &__classroom {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: syn.$space-md;
 
-    @include syn.respond-to(md) {
-      grid-template-columns: 2fr 1fr;
-      align-items: start;
+    @media (min-width: 60rem) {
+      grid-template-columns: #{syn.px-to-rem(320)} minmax(0, 1fr);
     }
   }
 
-  &__player-col {
+  &__syllabus {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-3;
-    min-width: 0;
-  }
-
-  &__player {
-    aspect-ratio: 16 / 9;
+    gap: syn.$space-sm;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-lg;
-    background: #{syn.$color-neutral-900};
-    color: #{syn.$color-neutral-0};
+    background: var(--ac-surface-muted);
+    max-height: syn.px-to-rem(640);
+    overflow-y: auto;
+  }
+
+  &__progress {
     display: flex;
-    align-items: center;
-    justify-content: center;
     flex-direction: column;
-    gap: syn.$space-2;
-    text-align: center;
+    gap: syn.px-to-rem(4);
+  }
+
+  &__progress-bar {
+    display: block;
+    height: syn.px-to-rem(8);
+    border-radius: syn.$radius-full;
+    background: var(--ac-border);
     overflow: hidden;
-  }
 
-  &__player-icon {
-    font-size: syn.$font-size-2xl;
-  }
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--ac-brand);
+      transition: width 0.2s ease;
+    }
 
-  &__player-label {
-    font-size: syn.$font-size-sm;
-    opacity: 0.85;
-  }
-
-  &__lesson-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-2;
-  }
-
-  &__lesson-name {
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__nav {
-    display: flex;
-    justify-content: space-between;
-    gap: syn.$space-2;
-  }
-
-  // ─── Tabs ────────────────────────────────────────────────────────────────────
-  &__tabs {
-    display: flex;
-    gap: syn.$space-1;
-    border-bottom: syn.px-to-rem(1) solid var(--ac-border);
-  }
-
-  &__tab {
-    padding: syn.$space-2 syn.$space-3;
-    border: none;
-    border-bottom: syn.px-to-rem(2) solid transparent;
-    background: transparent;
-    color: var(--ac-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &[aria-selected='true'] {
-      color: var(--ac-brand);
-      border-bottom-color: var(--ac-brand);
+    &--sm {
+      height: syn.px-to-rem(6);
     }
   }
 
-  &__tabpanel {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding-top: syn.$space-3;
-    font-size: syn.$font-size-sm;
+  &__progress-label {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
     color: var(--ac-text-secondary);
-    line-height: syn.$line-height-relaxed;
   }
 
-  // ─── Resources ────────────────────────────────────────────────────────────────
-  &__resources {
+  &__syllabus-module {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
+    gap: syn.px-to-rem(4);
+  }
+
+  &__syllabus-title {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ac-muted);
+  }
+
+  &__syllabus-lessons {
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  &__resource {
+  &__syllabus-lesson {
     display: flex;
     align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
+    gap: syn.$space-xs;
+    width: 100%;
+    padding: syn.$space-xs;
+    border: none;
     border-radius: syn.$radius-md;
-    color: var(--ac-text);
-    text-decoration: none;
+    background: none;
+    cursor: pointer;
+    text-align: start;
     font-size: syn.$font-size-sm;
 
-    @include syn.focus-visible(var(--ac-focus-ring));
+    &.is-active {
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
 
-    &:hover {
-      border-color: var(--ac-brand);
+    &.is-done .academy__syllabus-lesson-title {
+      color: var(--ac-muted);
+      text-decoration: line-through;
     }
   }
 
-  &__resource-type {
-    flex: 0 0 auto;
-    padding: syn.px-to-rem(1) syn.$space-2;
+  &__syllabus-check {
+    accent-color: var(--ac-brand);
+  }
+
+  &__syllabus-lesson-title {
+    flex: 1;
+  }
+
+  &__stage {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    min-width: 0;
+  }
+
+  &__player {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: syn.$radius-lg;
+    background: #0f172a;
+    overflow: hidden;
+
+    synergos-video-player {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__player-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xs;
+    color: color-mix(in srgb, #fff 78%, transparent);
+    text-align: center;
+
+    p {
+      margin: 0;
+      max-width: 70%;
+      font-size: syn.$font-size-sm;
+    }
+  }
+
+  &__player-glyph {
+    font-size: syn.$font-size-3xl;
+  }
+
+  &__lesson-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    justify-content: space-between;
+  }
+
+  &__lesson-heading {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__lesson-actions {
+    display: inline-flex;
+    gap: syn.$space-xs;
+  }
+
+  &__tabs {
+    display: inline-flex;
+    gap: syn.px-to-rem(4);
+    border-block-end: syn.px-to-rem(1) solid var(--ac-border);
+  }
+
+  &__tab {
+    padding: syn.$space-xs syn.$space-sm;
+    border: none;
+    border-block-end: syn.px-to-rem(2) solid transparent;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+
+    &.is-active {
+      border-block-end-color: var(--ac-brand);
+      color: var(--ac-brand);
+    }
+  }
+
+  &__tab-panel {
+    padding-block-start: syn.$space-xs;
+  }
+
+  &__lesson-body {
+    margin: 0;
+    color: var(--ac-text-secondary);
+    line-height: 1.6;
+  }
+
+  // ─── Resources ────────────────────────────────────────────────────────────
+  &__resources {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__resource-link {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-md;
+    text-decoration: none;
+    color: var(--ac-text);
+  }
+
+  &__resource-type {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
     background: var(--ac-brand-soft);
     color: var(--ac-brand);
     font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-bold;
+    font-weight: 700;
   }
 
-  &__resource-name {
-    flex: 1 1 auto;
+  &__resource-title {
+    flex: 1;
+    font-weight: 600;
   }
 
   &__resource-size {
-    flex: 0 0 auto;
-    color: var(--ac-muted);
     font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
   }
 
-  // ─── Q&A ──────────────────────────────────────────────────────────────────────
+  // ─── Q&A + assignment ─────────────────────────────────────────────────────
+  &__qa,
+  &__assignment {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
   &__qa-form {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
-  }
-
-  &__textarea {
-    min-height: syn.px-to-rem(72);
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    color: var(--ac-text);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    resize: vertical;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
+    gap: syn.$space-xs;
+    align-items: flex-start;
   }
 
   &__qa-list {
     display: flex;
     flex-direction: column;
-    gap: syn.$space-2;
+    gap: syn.$space-xs;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
   &__qa-item {
-    padding: syn.$space-3;
+    padding: syn.$space-xs syn.$space-sm;
     border: syn.px-to-rem(1) solid var(--ac-border-subtle);
     border-radius: syn.$radius-md;
-    background: var(--ac-surface);
+    background: var(--ac-surface-muted);
   }
 
-  &__qa-author {
+  &__qa-q,
+  &__qa-a {
+    margin: 0;
     font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    color: var(--ac-text);
   }
 
-  &__qa-date {
-    font-size: syn.$font-size-xs;
-    color: var(--ac-muted);
-  }
-
-  &__qa-question {
-    margin: syn.$space-1 0 0;
-    font-size: syn.$font-size-sm;
-    color: var(--ac-text);
-  }
-
-  &__qa-answer {
-    margin: syn.$space-2 0 0;
-    padding-left: syn.$space-3;
-    border-left: syn.px-to-rem(2) solid var(--ac-brand);
-    font-size: syn.$font-size-sm;
+  &__qa-a {
+    margin-block-start: syn.px-to-rem(4);
     color: var(--ac-text-secondary);
   }
 
-  // ─── Assignment ─────────────────────────────────────────────────────────────
-  &__dropzone {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: syn.$space-2;
-    padding: syn.$space-lg;
-    border: syn.px-to-rem(2) dashed var(--ac-border);
-    border-radius: syn.$radius-lg;
-    text-align: center;
+  &__assignment-done {
+    margin: 0;
+    color: var(--ac-success);
+    font-weight: 600;
   }
 
-  &__file-input {
-    font: inherit;
-    font-size: syn.$font-size-sm;
-  }
-
-  &__submission {
+  // ─── Mi aprendizaje (SH-4) ────────────────────────────────────────────────
+  &__learning-head {
     display: flex;
     align-items: center;
-    gap: syn.$space-2;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-md;
-    background: var(--ac-success-soft);
-    color: var(--ac-text);
-    font-size: syn.$font-size-sm;
+    justify-content: space-between;
+    gap: syn.$space-md;
   }
 
-  // ─── Curriculum aside (classroom right column) ────────────────────────────────
-  &__aside {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-lg;
-    background: var(--ac-surface);
-
-    @include syn.respond-to(md) {
-      position: sticky;
-      top: syn.$space-md;
-    }
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: 800;
   }
 
-  &__progress {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-  }
-
-  &__progress-label {
+  &__enroll-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
+    gap: syn.$space-xs;
   }
 
-  &__progress-track {
-    height: syn.px-to-rem(8);
-    border-radius: syn.$radius-full;
-    background: var(--ac-surface-muted);
-    overflow: hidden;
+  &__enroll-title {
+    font-weight: 700;
   }
 
-  &__progress-fill {
-    height: 100%;
-    border-radius: syn.$radius-full;
-    background: var(--ac-brand);
-    transition: width syn.$duration-fast syn.$easing-smooth;
-  }
-
-  &__tree {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    max-height: syn.px-to-rem(420);
-    overflow-y: auto;
-  }
-
-  &__tree-sec {
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-bold;
-    letter-spacing: syn.$letter-spacing-wide;
-    text-transform: uppercase;
-    color: var(--ac-muted);
-    margin-top: syn.$space-2;
-  }
-
-  &__tree-lesson {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-    width: 100%;
-    padding: syn.$space-2;
-    border: none;
-    border-radius: syn.$radius-md;
-    background: transparent;
-    color: var(--ac-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    text-align: left;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--ac-focus-ring));
-
-    &:hover {
-      background: var(--ac-surface-muted);
-    }
-
-    &[aria-current='true'] {
-      background: var(--ac-brand-soft);
-      color: var(--ac-text);
-      font-weight: syn.$font-weight-semibold;
-    }
-  }
-
-  &__tree-check {
-    flex: 0 0 auto;
-    width: syn.px-to-rem(18);
-    height: syn.px-to-rem(18);
-    border-radius: syn.$radius-full;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: syn.$font-size-xs;
-    color: transparent;
-
-    &[data-done='true'] {
-      background: var(--ac-success);
-      border-color: var(--ac-success);
-      color: #{syn.$color-neutral-0};
-    }
-  }
-
-  &__tree-title {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  // ─── Certificate ────────────────────────────────────────────────────────────
-  &__certificate {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-md;
-    align-items: center;
-  }
-
-  &__cert-card {
-    width: 100%;
-    max-width: syn.px-to-rem(720);
-    padding: syn.$space-lg;
-    border: syn.px-to-rem(2) solid var(--ac-brand);
-    border-radius: syn.$radius-lg;
-    background: linear-gradient(135deg, var(--ac-surface), var(--ac-brand-soft));
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-  }
-
-  &__cert-eyebrow {
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-bold;
-    letter-spacing: syn.$letter-spacing-wide;
-    text-transform: uppercase;
+  &__enroll-pct {
+    font-weight: 800;
     color: var(--ac-brand);
   }
 
-  &__cert-student {
-    margin: 0;
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__cert-course {
-    font-size: syn.$font-size-base;
-    color: var(--ac-text-secondary);
-  }
-
-  &__cert-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: syn.$space-3;
+  &__enroll-meta {
+    display: block;
     font-size: syn.$font-size-xs;
     color: var(--ac-muted);
   }
 
-  // ─── Skeleton ───────────────────────────────────────────────────────────────
-  &__skeleton {
-    height: syn.px-to-rem(220);
+  &__enroll-detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__enroll-detail-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__enroll-detail-meta {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Learning paths ───────────────────────────────────────────────────────
+  &__paths {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__path {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
     border-radius: syn.$radius-lg;
-    background: linear-gradient(
-      90deg,
-      var(--ac-surface-muted) 25%,
-      var(--ac-border-subtle) 37%,
-      var(--ac-surface-muted) 63%
-    );
-    background-size: 400% 100%;
-    animation: academy-shimmer 1.4s ease infinite;
+    background: var(--ac-surface);
   }
-}
 
-@keyframes academy-shimmer {
-  0% {
-    background-position: 100% 0;
+  &__path-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
   }
-  100% {
-    background-position: 0 0;
-  }
-}
 
-// Respect the user's motion preference (premium + a11y).
-@media (prefers-reduced-motion: reduce) {
-  .academy *,
-  .academy *::before,
-  .academy *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  &__path-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
+  }
+
+  &__path-pct {
+    font-weight: 800;
+    color: var(--ac-brand);
+  }
+
+  &__path-desc {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__path-courses {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    margin: syn.$space-xxs 0 0;
+    padding-inline-start: syn.$space-md;
+  }
+
+  &__path-course {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font: inherit;
+    text-align: start;
+    text-decoration: underline;
+  }
+
+  // ─── Instructor console (SH-5) ────────────────────────────────────────────
+  &__console-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    margin-block-end: syn.$space-xs;
+  }
+
+  &__cell-strong {
+    display: block;
+    font-weight: 700;
+  }
+
+  &__cell-sub {
+    display: block;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__cell-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__pill {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+
+    &[data-status='published'],
+    &[data-status='done'] {
+      background: var(--ac-success-soft);
+      color: var(--ac-success);
+    }
+
+    &[data-status='draft'],
+    &[data-status='pending'] {
+      background: var(--ac-warn-soft);
+      color: var(--ac-warn);
+    }
+  }
+
+  &__performance {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__perf-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__perf-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    border-radius: syn.$radius-md;
+  }
+
+  &__perf-title {
+    flex: 1;
+    min-width: syn.px-to-rem(160);
+    font-weight: 600;
+  }
+
+  &__perf-stat {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Create result / certificate ──────────────────────────────────────────
+  &__create-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-xl;
+    text-align: center;
+  }
+
+  // ─── Shared bits ──────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+  }
+
+  &__back {
+    align-self: flex-start;
+    padding: syn.$space-xxs syn.$space-xs;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font-weight: 600;
+  }
+
+  &__link {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-md;
+    color: var(--ac-muted);
+    text-align: center;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-xs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ac-text);
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand);
+      color: var(--ac-brand-text);
+    }
+
+    &--ghost {
+      background: none;
+    }
+
+    &--done {
+      border-color: var(--ac-success);
+      background: var(--ac-success-soft);
+      color: var(--ac-success);
+    }
+
+    &--block {
+      width: 100%;
+    }
+
+    &--sm {
+      padding: syn.$space-xxs syn.$space-sm;
+      font-size: syn.$font-size-sm;
+    }
   }
 }

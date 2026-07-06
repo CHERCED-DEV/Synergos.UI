@@ -1,34 +1,40 @@
-<section class="academy" [attr.aria-busy]="loading()">
-  <!-- ─── Top bar ─────────────────────────────────────────────────────────── -->
-  <header class="academy__bar">
-    <h2 class="academy__brand">
-      <span class="academy__brand-mark" aria-hidden="true">🎓</span>
-      <span class="academy__brand-text">Synergos Academy</span>
-    </h2>
+<!--
+  Educación v2 — <synergos-academy> LMS portal (doc 21 §2.4).
+  Role-switch, hash-routed multi-page SPA over @synergos/shells.
+-->
+<div class="academy">
+  <!-- ═══════════════════════════ TOPBAR + role switch ═══════════════════════ -->
+  <header class="academy__topbar">
+    <button type="button" class="academy__brand" (click)="goToCatalog()">
+      <span class="academy__brand-mark">🎓</span>
+      <span class="academy__brand-name">Synergos Academy</span>
+    </button>
 
-    @if (view() === 'catalog') {
-      <div class="academy__searchbar" role="search">
-        <label class="academy__sr-only" [attr.for]="fieldId + '-q'">Buscar cursos</label>
-        <input
-          class="academy__searchbar-input"
-          [id]="fieldId + '-q'"
-          type="search"
-          placeholder="¿Qué quieres aprender hoy?"
-          [value]="searchTerm()"
-          (input)="bind(searchTerm.set)($event)"
-          (keydown.enter)="submitSearch()"
-        />
-        <button class="academy__searchbar-btn" type="button" (click)="submitSearch()">
-          Buscar
+    <div class="academy__roles" role="tablist" aria-label="Cambiar de rol">
+      @for (roleOption of roles; track roleOption.key) {
+        <button
+          type="button"
+          role="tab"
+          class="academy__role"
+          [class.is-active]="role() === roleOption.key"
+          [attr.aria-selected]="role() === roleOption.key"
+          (click)="setRole(roleOption.key)"
+        >
+          {{ roleOption.label }}
         </button>
-      </div>
+      }
+    </div>
+
+    @if (role() === 'student') {
+      <nav class="academy__nav" aria-label="Navegación del alumno">
+        <button type="button" class="academy__nav-btn" [class.is-active]="view() === 'catalog'" (click)="goToCatalog()">Explorar</button>
+        <button type="button" class="academy__nav-btn" [class.is-active]="view() === 'learning'" (click)="goToLearning()">Mi aprendizaje</button>
+      </nav>
     }
   </header>
 
-  <!-- ─── Degraded / error notices ────────────────────────────────────────── -->
   @if (degraded()) {
     <p class="academy__degraded" role="status">
-      <span aria-hidden="true">⚠️</span>
       Mostrando datos de ejemplo — el motor de la academia aún no responde.
     </p>
   }
@@ -36,675 +42,748 @@
     <p class="academy__error" role="alert">{{ errorMessage() }}</p>
   }
 
-  <!-- ═══════════════════════ CATÁLOGO ════════════════════════════════════════ -->
-  @if (view() === 'catalog') {
-    <div class="academy__toolbar">
-      <div class="academy__chips" role="group" aria-label="Filtrar por categoría">
-        @for (category of categories(); track category) {
-          <button
-            class="academy__chip"
-            type="button"
-            [attr.aria-pressed]="activeCategory() === category"
-            (click)="selectCategory(category)"
-          >
-            {{ category }}
-          </button>
-        }
-      </div>
-
-      <label class="academy__sr-only" [attr.for]="fieldId + '-level'">Nivel</label>
-      <select
-        class="academy__select"
-        [id]="fieldId + '-level'"
-        [value]="activeLevel()"
-        (change)="setLevel($any($event.target).value)"
-      >
-        @for (option of levelOptions; track option.key) {
-          <option [value]="option.key">{{ option.label }}</option>
-        }
-      </select>
-
-      <label class="academy__sr-only" [attr.for]="fieldId + '-sort'">Ordenar</label>
-      <select
-        class="academy__select"
-        [id]="fieldId + '-sort'"
-        [value]="sort()"
-        (change)="setSort($any($event.target).value)"
-      >
-        @for (option of sortOptions; track option.key) {
-          <option [value]="option.key">{{ option.label }}</option>
-        }
-      </select>
-
-      @if (hasActiveFilters()) {
-        <button class="academy__clear" type="button" (click)="clearFilters()">
-          Limpiar filtros
-        </button>
-      }
-    </div>
-
-    @if (loading() && courses().length === 0) {
-      <div class="academy__skeleton" aria-hidden="true"></div>
-    } @else if (courses().length === 0) {
-      <p class="academy__empty">No encontramos cursos con esos criterios.</p>
-    } @else {
-      <ul class="academy__grid" role="list">
-        @for (course of courses(); track course.id) {
-          <li>
-            <button class="academy__card" type="button" (click)="openCourse(course)">
-              <span class="academy__card-cover" aria-hidden="true">
-                @if (course.cover) {
-                  <img class="academy__card-cover-img" [src]="course.cover" [alt]="''" />
-                } @else {
-                  🎓
-                }
-              </span>
-              <span class="academy__card-body">
-                <span class="academy__card-cat">{{ course.category }}</span>
-                <span class="academy__card-title">{{ course.title }}</span>
-                <span class="academy__card-instructor">{{ course.instructorName }}</span>
-                <span class="academy__card-meta">
-                  <span class="academy__card-rating">★ {{ course.rating }}</span>
-                  <span>·</span>
-                  <span>{{ formatCount(course.studentCount) }} estudiantes</span>
-                  <span>·</span>
-                  <span>{{ levelLabel(course.level) }}</span>
-                </span>
-                @if (course.badges.length) {
-                  <span class="academy__badges">
-                    @for (badge of course.badges; track badge) {
-                      <span class="academy__badge">{{ badge }}</span>
-                    }
-                  </span>
-                }
-                <span class="academy__card-foot">
-                  <span
-                    class="academy__price"
-                    [class.academy__price--free]="course.amount <= 0"
-                  >{{ coursePriceLabel(course) }}</span>
-                  @if (courseListPriceLabel(course)) {
-                    <span class="academy__price-list">{{ courseListPriceLabel(course) }}</span>
-                  }
-                </span>
-              </span>
-            </button>
-          </li>
-        }
-      </ul>
-    }
-  }
-
-  <!-- ═══════════════════════ CURSO (PDP) ══════════════════════════════════════ -->
-  @if (view() === 'course' && detail(); as d) {
-    <button class="academy__back" type="button" (click)="backToCatalog()">← Volver al catálogo</button>
-
-    <div class="academy__pdp">
-      <div class="academy__pdp-main">
+  <!-- ═══════════════════════════════ ALUMNO ═══════════════════════════════════ -->
+  @if (role() === 'student') {
+    <!-- ─── CATÁLOGO: SH-1 discovery (facetas escuela · nivel · precio) ──────── -->
+    @if (view() === 'catalog') {
+      <section class="academy__catalog">
         <div class="academy__hero">
-          <span class="academy__hero-cat">{{ d.course.category }} · {{ levelLabel(d.course.level) }}</span>
-          <h3 class="academy__hero-title">{{ d.course.title }}</h3>
-          <p class="academy__hero-sub">{{ d.course.subtitle }}</p>
-          <div class="academy__hero-meta">
-            <span class="academy__card-rating">★ {{ d.course.rating }}</span>
-            <span>{{ formatCount(d.course.studentCount) }} estudiantes</span>
-            <span>{{ totalLessons() }} lecciones</span>
-            <span>{{ durationLabel(d.course.durationMinutes) }}</span>
-          </div>
+          <h1 class="academy__hero-title">Aprende de verdad, a tu ritmo</h1>
+          <p class="academy__hero-sub">Cursos con proyectos reales, mentoría y certificado verificable.</p>
         </div>
 
-        <p>{{ d.description }}</p>
+        <syn-discovery-shell
+          [config]="{
+            searchLabel: 'Buscar cursos',
+            searchPlaceholder: 'Busca por tema, instructor o escuela…',
+            searchButtonLabel: 'Buscar',
+            filtersHeading: 'Filtros',
+            clearLabel: 'Limpiar',
+            sortLabel: 'Ordenar por',
+            emptyMessage: 'No encontramos cursos con esos filtros.',
+            loadingMessage: 'Cargando cursos…',
+            resultsNoun: { one: 'curso', many: 'cursos' },
+            pageSize: 12
+          }"
+          [items]="courses()"
+          [facets]="facets()"
+          [sortOptions]="sortOptions"
+          [total]="total()"
+          [loading]="loading()"
+          [initialCriteria]="criteria()"
+          [itemTemplate]="courseCard"
+          (criteriachange)="onCriteriaChange($event)"
+          (itemselect)="openCourse($event)"
+        />
 
-        @if (d.outcomes.length) {
-          <div>
-            <h4 class="academy__section-title">Lo que aprenderás</h4>
-            <ul class="academy__outcomes" role="list">
-              @for (outcome of d.outcomes; track outcome) {
-                <li class="academy__outcome">
-                  <span class="academy__outcome-mark" aria-hidden="true">✓</span>
-                  <span>{{ outcome }}</span>
-                </li>
+        <ng-template #courseCard let-course let-select="select">
+          <article class="academy__card" (click)="select()">
+            <div class="academy__card-cover">
+              @if (course.cover) {
+                <img class="academy__card-img" [src]="course.cover" [alt]="course.title" />
+              } @else {
+                <span class="academy__card-glyph" aria-hidden="true">📘</span>
+              }
+              @if (course.amount <= 0) {
+                <span class="academy__card-free">Gratis</span>
+              }
+            </div>
+            <div class="academy__card-body">
+              <p class="academy__card-cat">{{ course.category }} · {{ levelLabel(course.level) }}</p>
+              <h3 class="academy__card-title">{{ course.title }}</h3>
+              <p class="academy__card-instructor">{{ course.instructorName }}</p>
+              <div class="academy__card-meta">
+                <span class="academy__card-rating">★ {{ course.rating.toFixed(1) }}</span>
+                <span class="academy__card-count">{{ formatCount(course.studentCount) }} alumnos</span>
+                @if (durationLabel(course.durationMinutes)) {
+                  <span class="academy__card-dur">{{ durationLabel(course.durationMinutes) }}</span>
+                }
+              </div>
+              @if (course.badges.length > 0) {
+                <ul class="academy__card-badges">
+                  @for (badge of course.badges; track badge) {
+                    <li class="academy__badge">{{ badge }}</li>
+                  }
+                </ul>
+              }
+              <div class="academy__card-price">
+                <span class="academy__price">{{ coursePriceLabel(course) }}</span>
+                @if (courseListPriceLabel(course)) {
+                  <span class="academy__price-list">{{ courseListPriceLabel(course) }}</span>
+                }
+              </div>
+            </div>
+          </article>
+        </ng-template>
+      </section>
+    }
+
+    <!-- ─── CURSO: SH-2 detail (currículum acordeón · instructor · planes) ───── -->
+    @if (view() === 'course' && detail(); as detail) {
+      <syn-detail-shell
+        [config]="{
+          backLabel: 'Volver al catálogo',
+          specsHeading: 'Detalles del curso',
+          reviewsLabel: 'Instructor',
+          qaLabel: 'Currículum',
+          galleryLabel: 'Portada del curso'
+        }"
+        [eyebrow]="detail.course.category + ' · ' + levelLabel(detail.course.level)"
+        [title]="detail.course.title"
+        [subtitle]="detail.course.subtitle"
+        [media]="pdpMedia()"
+        [specs]="pdpSpecs()"
+        [bodyTemplate]="courseBody"
+        [ctaTemplate]="courseCta"
+        [qaTemplate]="courseCurriculum"
+        [reviewsTemplate]="courseInstructor"
+        (back)="goToCatalog()"
+      />
+
+      <!-- Body: descripción + "lo que aprenderás" -->
+      <ng-template #courseBody>
+        <p class="academy__desc">{{ detail.description }}</p>
+        @if (detail.outcomes.length > 0) {
+          <div class="academy__outcomes">
+            <h3 class="academy__section-title">Lo que aprenderás</h3>
+            <ul class="academy__outcomes-list">
+              @for (outcome of detail.outcomes; track outcome) {
+                <li class="academy__outcome">✓ {{ outcome }}</li>
               }
             </ul>
           </div>
         }
+      </ng-template>
 
-        <div>
-          <h4 class="academy__section-title">Contenido del curso</h4>
-          <div class="academy__curriculum">
-            @for (section of d.sections; track section.id) {
-              <div class="academy__sec">
-                <button
-                  class="academy__sec-head"
-                  type="button"
-                  [attr.aria-expanded]="isSectionExpanded(section.id)"
-                  (click)="toggleSection(section.id)"
-                >
-                  <span>{{ section.title }}</span>
-                  <span class="academy__sec-toggle" aria-hidden="true">
-                    {{ isSectionExpanded(section.id) ? '▾' : '▸' }} {{ section.lessons.length }} lecciones
-                  </span>
-                </button>
-                @if (isSectionExpanded(section.id)) {
-                  <ul class="academy__lessons" role="list">
-                    @for (lesson of section.lessons; track lesson.id) {
-                      <li class="academy__lesson">
-                        <span class="academy__lesson-icon" aria-hidden="true">{{ lessonIcon(lesson) }}</span>
-                        <span class="academy__lesson-title">{{ lesson.title }}</span>
-                        @if (lesson.preview) {
-                          <span class="academy__lesson-preview">Vista previa</span>
+      <!-- CTA (sticky): precio + planes + inscribirse -->
+      <ng-template #courseCta>
+        <div class="academy__buybox">
+          <p class="academy__buybox-price">{{ pdpPriceLabel() }}</p>
+          @if (!isFreeCourse() && detail.plans.length > 0) {
+            <ul class="academy__plans" role="radiogroup" aria-label="Planes">
+              @for (plan of detail.plans; track plan.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="academy__plan"
+                    role="radio"
+                    [class.is-selected]="selectedPlan()?.id === plan.id"
+                    [attr.aria-checked]="selectedPlan()?.id === plan.id"
+                    (click)="selectPlan(plan)"
+                  >
+                    <span class="academy__plan-head">
+                      <span class="academy__plan-label">{{ plan.label }}</span>
+                      <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
+                    </span>
+                    @if (plan.installments) {
+                      <span class="academy__plan-inst">o {{ plan.installments }}</span>
+                    }
+                    @if (plan.featured) {
+                      <span class="academy__plan-tag">Recomendado</span>
+                    }
+                    @if (plan.perks.length > 0) {
+                      <ul class="academy__plan-perks">
+                        @for (perk of plan.perks; track perk) {
+                          <li>{{ perk }}</li>
                         }
+                      </ul>
+                    }
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="startEnrollment()">
+            {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme' }}
+          </button>
+          <p class="academy__buybox-note">
+            {{ totalLessons() }} lecciones · {{ durationLabel(detail.course.durationMinutes) }} · Certificado
+          </p>
+        </div>
+      </ng-template>
+
+      <!-- Q&A tab slot → reused as the currículum acordeón (módulos → lecciones) -->
+      <ng-template #courseCurriculum>
+        <div class="academy__curriculum">
+          <p class="academy__curriculum-summary">
+            {{ detail.sections.length }} módulos · {{ totalLessons() }} lecciones
+          </p>
+          @for (section of detail.sections; track section.id) {
+            <div class="academy__module" [class.is-open]="isSectionExpanded(section.id)">
+              <button
+                type="button"
+                class="academy__module-head"
+                [attr.aria-expanded]="isSectionExpanded(section.id)"
+                (click)="toggleSection(section.id)"
+              >
+                <span class="academy__module-title">{{ section.title }}</span>
+                <span class="academy__module-count">{{ section.lessons.length }} lecciones</span>
+                <span class="academy__module-chevron" aria-hidden="true">{{ isSectionExpanded(section.id) ? '−' : '+' }}</span>
+              </button>
+              @if (isSectionExpanded(section.id)) {
+                <ul class="academy__lessons">
+                  @for (lesson of section.lessons; track lesson.id) {
+                    <li class="academy__lesson-row">
+                      <span class="academy__lesson-icon" aria-hidden="true">{{ lessonIcon(lesson) }}</span>
+                      <span class="academy__lesson-title">{{ lesson.title }}</span>
+                      @if (lesson.preview) {
+                        <span class="academy__lesson-preview">Vista previa</span>
+                      }
+                      @if (durationLabel(lesson.durationMinutes)) {
                         <span class="academy__lesson-dur">{{ durationLabel(lesson.durationMinutes) }}</span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </div>
+      </ng-template>
+
+      <!-- Reviews tab slot → reused as the instructor card -->
+      <ng-template #courseInstructor>
+        <div class="academy__instructor">
+          <div class="academy__instructor-head">
+            @if (detail.instructor.avatar) {
+              <img class="academy__instructor-avatar" [src]="detail.instructor.avatar" [alt]="detail.instructor.name" />
+            } @else {
+              <span class="academy__instructor-initials" aria-hidden="true">{{ detail.instructor.name.charAt(0) }}</span>
+            }
+            <div>
+              <h3 class="academy__instructor-name">{{ detail.instructor.name }}</h3>
+              <p class="academy__instructor-headline">{{ detail.instructor.headline }}</p>
+            </div>
+          </div>
+          <p class="academy__instructor-bio">{{ detail.instructor.bio }}</p>
+          <ul class="academy__instructor-stats">
+            <li>★ {{ detail.instructor.rating.toFixed(1) }} valoración</li>
+            <li>{{ formatCount(detail.instructor.studentCount) }} estudiantes</li>
+            <li>{{ detail.instructor.courseCount }} cursos</li>
+          </ul>
+        </div>
+      </ng-template>
+    }
+
+    <!-- ─── CHECKOUT: SH-3 wizard (inscripción sobre el motor) ───────────────── -->
+    @if (view() === 'checkout' && detail(); as detail) {
+      <section class="academy__checkout">
+        <button type="button" class="academy__back" (click)="onEnrollExit()">← Volver al curso</button>
+        <syn-checkout-wizard
+          [config]="enrollSteps()"
+          [stepTemplate]="enrollStep"
+          [validity]="enrollValidity()"
+          [instrument]="enrollInstrument()"
+          (stepchange)="onEnrollStepChange($event)"
+          (completed)="onEnrollCompleted($event)"
+          (failed)="onEnrollFailed($event)"
+          (exit)="onEnrollExit()"
+        />
+
+        <ng-template #enrollStep let-step>
+          @switch (step.id) {
+            @case ('plan') {
+              <fieldset class="academy__form">
+                <legend class="academy__section-title">Elige tu plan</legend>
+                <ul class="academy__plans academy__plans--wizard" role="radiogroup" aria-label="Planes">
+                  @for (plan of detail.plans; track plan.id) {
+                    <li>
+                      <button
+                        type="button"
+                        class="academy__plan"
+                        role="radio"
+                        [class.is-selected]="selectedPlan()?.id === plan.id"
+                        [attr.aria-checked]="selectedPlan()?.id === plan.id"
+                        (click)="selectPlan(plan)"
+                      >
+                        <span class="academy__plan-head">
+                          <span class="academy__plan-label">{{ plan.label }}</span>
+                          <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
+                        </span>
+                        <span class="academy__plan-desc">{{ plan.description }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </fieldset>
+            }
+            @case ('student') {
+              <fieldset class="academy__form">
+                <legend class="academy__section-title">Tus datos</legend>
+                <label class="academy__field">
+                  <span class="academy__label">Nombre completo</span>
+                  <input class="academy__input" type="text" [value]="studentName()" (input)="bind(studentName.set)($event)" />
+                </label>
+                <label class="academy__field">
+                  <span class="academy__label">Correo electrónico</span>
+                  <input class="academy__input" type="email" [value]="studentEmail()" (input)="bind(studentEmail.set)($event)" />
+                </label>
+                <div class="academy__pay-methods" role="radiogroup" aria-label="Método de pago">
+                  <button type="button" class="academy__pay" [class.is-selected]="paymentMethod() === 'card'" (click)="setPaymentMethod('card')">Tarjeta</button>
+                  <button type="button" class="academy__pay" [class.is-selected]="paymentMethod() === 'pse'" (click)="setPaymentMethod('pse')">PSE</button>
+                </div>
+              </fieldset>
+            }
+            @case ('review') {
+              <div class="academy__review">
+                <h2 class="academy__section-title">Revisa tu inscripción</h2>
+                <dl class="academy__summary">
+                  <div class="academy__summary-row"><dt>Curso</dt><dd>{{ detail.course.title }}</dd></div>
+                  <div class="academy__summary-row"><dt>Plan</dt><dd>{{ selectedPlan()?.label || '—' }}</dd></div>
+                  <div class="academy__summary-row"><dt>Estudiante</dt><dd>{{ studentName() || '—' }}</dd></div>
+                  <div class="academy__summary-row"><dt>Correo</dt><dd>{{ studentEmail() || '—' }}</dd></div>
+                  <div class="academy__summary-row"><dt>Método</dt><dd>{{ paymentMethod() === 'pse' ? 'PSE' : 'Tarjeta' }}</dd></div>
+                </dl>
+              </div>
+            }
+          }
+        </ng-template>
+      </section>
+    }
+
+    <!-- ─── ENROLLED: bridge → aula ──────────────────────────────────────────── -->
+    @if (view() === 'enrolled') {
+      <section class="academy__enrolled">
+        <p class="academy__enrolled-badge">Matrícula activa 🎉</p>
+        <h1 class="academy__enrolled-title">¡Ya estás inscrito!</h1>
+        <p class="academy__enrolled-ref">Inscripción <code>{{ enrollmentId() }}</code></p>
+        <div class="academy__actions">
+          <button type="button" class="academy__btn academy__btn--primary" (click)="enterClassroom()">Ir al aula</button>
+          <button type="button" class="academy__btn academy__btn--ghost" (click)="goToLearning()">Mi aprendizaje</button>
+        </div>
+      </section>
+    }
+
+    <!-- ─── AULA: player + currículum + progreso + Q&A + recursos + tarea ────── -->
+    @if (view() === 'classroom' && detail(); as detail) {
+      <section class="academy__classroom">
+        <aside class="academy__syllabus" aria-label="Currículum del curso">
+          <div class="academy__progress">
+            <div class="academy__progress-bar"><span [style.width.%]="progressPercent()"></span></div>
+            <p class="academy__progress-label">{{ progressPercent() }}% completado</p>
+          </div>
+          @for (section of detail.sections; track section.id) {
+            <div class="academy__syllabus-module">
+              <p class="academy__syllabus-title">{{ section.title }}</p>
+              <ul class="academy__syllabus-lessons">
+                @for (lesson of section.lessons; track lesson.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="academy__syllabus-lesson"
+                      [class.is-active]="activeLessonId() === lesson.id"
+                      [class.is-done]="isLessonComplete(lesson.id)"
+                      (click)="selectLesson(lesson)"
+                    >
+                      <input
+                        type="checkbox"
+                        class="academy__syllabus-check"
+                        [checked]="isLessonComplete(lesson.id)"
+                        (click)="$event.stopPropagation()"
+                        (change)="toggleLessonCompleteFor(lesson)"
+                        [attr.aria-label]="'Marcar ' + lesson.title + ' como completa'"
+                      />
+                      <span class="academy__lesson-icon" aria-hidden="true">{{ lessonIcon(lesson) }}</span>
+                      <span class="academy__syllabus-lesson-title">{{ lesson.title }}</span>
+                      @if (durationLabel(lesson.durationMinutes)) {
+                        <span class="academy__lesson-dur">{{ durationLabel(lesson.durationMinutes) }}</span>
+                      }
+                    </button>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+          @if (isCourseComplete()) {
+            <button type="button" class="academy__btn academy__btn--primary academy__btn--block" (click)="viewCertificate()">
+              Ver mi certificado
+            </button>
+          }
+        </aside>
+
+        <div class="academy__stage">
+          @if (activeLesson(); as lesson) {
+            <div class="academy__player">
+              @if (lesson.kind === 'video') {
+                <synergos-video-player
+                  [attr.src]="lesson.videoRef"
+                  [attr.title]="lesson.title"
+                  [attr.poster]="detail.course.cover"
+                ></synergos-video-player>
+                @if (!lesson.videoRef) {
+                  <div class="academy__player-fallback" aria-hidden="true">
+                    <span class="academy__player-glyph">▶</span>
+                    <p>Reproductor del curso · el video real se carga desde el CMS.</p>
+                  </div>
+                }
+              } @else {
+                <div class="academy__player-fallback">
+                  <span class="academy__player-glyph">{{ lessonIcon(lesson) }}</span>
+                  <p>{{ lesson.title }}</p>
+                </div>
+              }
+            </div>
+
+            <div class="academy__lesson-bar">
+              <h2 class="academy__lesson-heading">{{ lesson.title }}</h2>
+              <div class="academy__lesson-actions">
+                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasPrevLesson()" (click)="previousLesson()">← Anterior</button>
+                <button
+                  type="button"
+                  class="academy__btn"
+                  [class.academy__btn--primary]="!isLessonComplete(lesson.id)"
+                  [class.academy__btn--done]="isLessonComplete(lesson.id)"
+                  (click)="markLessonComplete()"
+                >
+                  {{ isLessonComplete(lesson.id) ? '✓ Completada' : 'Marcar completa' }}
+                </button>
+                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasNextLesson()" (click)="nextLesson()">Siguiente →</button>
+              </div>
+            </div>
+
+            <div class="academy__tabs" role="tablist" aria-label="Contenido de la lección">
+              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'overview'" (click)="setClassroomTab('overview')">Resumen</button>
+              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'resources'" (click)="setClassroomTab('resources')">Recursos</button>
+              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'qa'" (click)="setClassroomTab('qa')">Q&amp;A</button>
+              @if (lesson.allowAssignment) {
+                <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'assignment'" (click)="setClassroomTab('assignment')">Tarea</button>
+              }
+            </div>
+
+            <div class="academy__tab-panel">
+              @switch (classroomTab()) {
+                @case ('overview') {
+                  <p class="academy__lesson-body">{{ lesson.body }}</p>
+                }
+                @case ('resources') {
+                  @if (lesson.resources.length > 0) {
+                    <ul class="academy__resources">
+                      @for (resource of lesson.resources; track resource.id) {
+                        <li class="academy__resource">
+                          <a class="academy__resource-link" [href]="resource.url" download>
+                            <span class="academy__resource-type">{{ resource.fileType }}</span>
+                            <span class="academy__resource-title">{{ resource.title }}</span>
+                            @if (resource.size) {
+                              <span class="academy__resource-size">{{ resource.size }}</span>
+                            }
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  } @else {
+                    <p class="academy__empty">Esta lección no tiene recursos descargables.</p>
+                  }
+                }
+                @case ('qa') {
+                  <div class="academy__qa">
+                    <!-- Polymorphic comments: the lesson IS the node. -->
+                    <synergos-comments-widget
+                      [attr.node-key]="qaNodeKey()"
+                      [attr.title]="'Preguntas de esta lección'"
+                    ></synergos-comments-widget>
+                    <!-- Visible fallback list so the tab is never empty offline. -->
+                    <form class="academy__qa-form" (submit)="$event.preventDefault(); postQuestion()">
+                      <label class="academy__field">
+                        <span class="academy__label">Haz una pregunta</span>
+                        <textarea class="academy__input academy__textarea" rows="2" [value]="questionDraft()" (input)="bind(questionDraft.set)($event)"></textarea>
+                      </label>
+                      <button type="submit" class="academy__btn academy__btn--primary academy__btn--sm" [disabled]="questionDraft().trim().length < 3">Publicar</button>
+                    </form>
+                    <ul class="academy__qa-list">
+                      @for (question of questions(); track question.id) {
+                        <li class="academy__qa-item">
+                          <p class="academy__qa-q"><strong>{{ question.author }}</strong> · {{ question.question }}</p>
+                          @if (question.answer) {
+                            <p class="academy__qa-a">↳ {{ question.answer }}</p>
+                          }
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+                @case ('assignment') {
+                  <div class="academy__assignment">
+                    <p class="academy__lesson-body">Sube tu entrega para recibir retroalimentación del instructor.</p>
+                    @if (activeSubmission(); as submission) {
+                      <p class="academy__assignment-done">✓ Entregado: {{ submission.fileName }}</p>
+                    }
+                    <label class="academy__field">
+                      <span class="academy__label">Archivo de la tarea</span>
+                      <input class="academy__input" type="file" (change)="onAssignmentFile($event)" />
+                    </label>
+                  </div>
+                }
+              }
+            </div>
+          } @else {
+            <p class="academy__empty">Selecciona una lección para empezar.</p>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- ─── MI APRENDIZAJE: SH-4 account (cursos · progreso · rutas) ─────────── -->
+    @if (view() === 'learning') {
+      <section class="academy__learning">
+        <div class="academy__learning-head">
+          <h1 class="academy__heading">Mi aprendizaje</h1>
+          <button type="button" class="academy__link" (click)="reloadLearning()">Actualizar</button>
+        </div>
+        <syn-account-shell
+          [config]="accountConfig()"
+          [items]="enrollments()"
+          [loading]="loading()"
+          [section]="accountSection()"
+          [itemTemplate]="enrollmentRow"
+          [detailTemplate]="enrollmentDetail"
+          [sectionTemplate]="learningSection"
+          (sectionchange)="onAccountSectionChange($event)"
+          (itemselect)="onEnrollmentSelect($event)"
+        />
+
+        <ng-template #enrollmentRow let-enrollment>
+          <span class="academy__enroll-head">
+            <span class="academy__enroll-title">{{ enrollment.course.title }}</span>
+            <span class="academy__enroll-pct">{{ enrollment.percent }}%</span>
+          </span>
+          <span class="academy__enroll-meta">
+            {{ enrollment.completedCount }}/{{ enrollment.lessonCount }} lecciones · {{ enrollment.completed ? 'Completado' : 'En progreso' }}
+          </span>
+          <span class="academy__progress-bar academy__progress-bar--sm"><span [style.width.%]="enrollment.percent"></span></span>
+        </ng-template>
+
+        <ng-template #enrollmentDetail let-enrollment>
+          <div class="academy__enroll-detail">
+            <h2 class="academy__enroll-detail-title">{{ enrollment.course.title }}</h2>
+            <p class="academy__enroll-detail-meta">
+              {{ enrollment.course.instructorName }} · {{ levelLabel(enrollment.course.level) }}
+            </p>
+            <div class="academy__progress">
+              <div class="academy__progress-bar"><span [style.width.%]="enrollment.percent"></span></div>
+              <p class="academy__progress-label">{{ enrollment.percent }}% · última actividad {{ formatDate(enrollment.lastActivityAt) }}</p>
+            </div>
+            <syn-tracking-timeline
+              heading="Estado del curso"
+              [stages]="trackingStages(enrollment.course.id)"
+              emptyMessage="Consultando el estado…"
+            />
+            <div class="academy__actions">
+              <button type="button" class="academy__btn academy__btn--primary academy__btn--sm" (click)="continueLearning(enrollment)">
+                {{ enrollment.completed ? 'Repasar' : 'Continuar' }}
+              </button>
+            </div>
+          </div>
+        </ng-template>
+
+        <ng-template #learningSection let-section>
+          @switch (section.id) {
+            @case ('paths') {
+              @if (paths().length === 0) {
+                <p class="academy__empty">Todavía no sigues ninguna ruta de aprendizaje.</p>
+              } @else {
+                <ul class="academy__paths">
+                  @for (path of paths(); track path.id) {
+                    <li class="academy__path">
+                      <div class="academy__path-head">
+                        <h3 class="academy__path-title">{{ path.title }}</h3>
+                        <span class="academy__path-pct">{{ path.percent }}%</span>
+                      </div>
+                      <p class="academy__path-desc">{{ path.description }}</p>
+                      <div class="academy__progress-bar academy__progress-bar--sm"><span [style.width.%]="path.percent"></span></div>
+                      <ol class="academy__path-courses">
+                        @for (course of coursesOfPath(path); track course.id) {
+                          <li>
+                            <button type="button" class="academy__path-course" (click)="openCourse(course)">{{ course.title }}</button>
+                          </li>
+                        }
+                      </ol>
+                    </li>
+                  }
+                </ul>
+              }
+            }
+          }
+        </ng-template>
+      </section>
+    }
+
+    <!-- ─── CERTIFICADO: SH-10 credential-wallet (verificable) ───────────────── -->
+    @if (view() === 'certificate') {
+      <section class="academy__certificate">
+        <button type="button" class="academy__back" (click)="backToClassroom()">← Volver al aula</button>
+        <syn-credential-wallet
+          [config]="walletConfig"
+          [credentials]="walletCredentials()"
+          [actionsTemplate]="certActions"
+        />
+        <ng-template #certActions>
+          <button type="button" class="academy__btn academy__btn--ghost academy__btn--sm" (click)="printCertificate()">Imprimir / Descargar</button>
+        </ng-template>
+      </section>
+    }
+  }
+
+  <!-- ═══════════════════════════════ INSTRUCTOR ═══════════════════════════════ -->
+  @if (role() === 'instructor') {
+    @if (instructorView() === 'create') {
+      <section class="academy__create">
+        <button type="button" class="academy__back" (click)="onCreateExit()">← Volver a la consola</button>
+        @if (createResultId()) {
+          <div class="academy__create-done">
+            <p class="academy__enrolled-badge">Curso publicado</p>
+            <p class="academy__enrolled-ref">Id del curso: <code>{{ createResultId() }}</code></p>
+            <button type="button" class="academy__btn academy__btn--primary" (click)="onCreateExit()">Volver a mis cursos</button>
+          </div>
+        } @else {
+          <syn-authoring-wizard
+            [config]="createConfig"
+            [stepTemplate]="createStep"
+            [validity]="createValidity()"
+            [publishing]="publishing()"
+            (draftchange)="onCreateDraftChange($event)"
+            (published)="onCreatePublished($event)"
+            (exit)="onCreateExit()"
+          />
+
+          <ng-template #createStep let-step let-draft="draft" let-patch="patch">
+            @switch (step.id) {
+              @case ('datos') {
+                <fieldset class="academy__form">
+                  <legend class="academy__section-title">Datos del curso</legend>
+                  <label class="academy__field">
+                    <span class="academy__label">Título</span>
+                    <input class="academy__input" type="text" [value]="$any(draft).title || ''" (input)="draftPatchHandler(patch, 'title')($event)" />
+                  </label>
+                  <label class="academy__field">
+                    <span class="academy__label">Subtítulo</span>
+                    <input class="academy__input" type="text" [value]="$any(draft).subtitle || ''" (input)="draftPatchHandler(patch, 'subtitle')($event)" />
+                  </label>
+                  <label class="academy__field">
+                    <span class="academy__label">Escuela / categoría</span>
+                    <input class="academy__input" type="text" [value]="$any(draft).category || ''" (input)="draftPatchHandler(patch, 'category')($event)" placeholder="Desarrollo, Diseño…" />
+                  </label>
+                  <label class="academy__field">
+                    <span class="academy__label">Nivel</span>
+                    <select class="academy__input" [value]="$any(draft).level || 'beginner'" (change)="draftPatchHandler(patch, 'level')($event)">
+                      <option value="beginner">Principiante</option>
+                      <option value="intermediate">Intermedio</option>
+                      <option value="advanced">Avanzado</option>
+                    </select>
+                  </label>
+                </fieldset>
+              }
+              @case ('curriculum') {
+                <fieldset class="academy__form">
+                  <legend class="academy__section-title">Currículum</legend>
+                  <p class="academy__hint">Un módulo por línea. Podrás detallar las lecciones después de publicar.</p>
+                  <label class="academy__field">
+                    <span class="academy__label">Módulos del curso</span>
+                    <textarea class="academy__input academy__textarea" rows="6" [value]="$any(draft).modules || ''" (input)="draftPatchHandler(patch, 'modules')($event)" placeholder="Módulo 1 · Fundamentos&#10;Módulo 2 · Práctica&#10;Módulo 3 · Proyecto final"></textarea>
+                  </label>
+                </fieldset>
+              }
+              @case ('precio') {
+                <fieldset class="academy__form">
+                  <legend class="academy__section-title">Precio</legend>
+                  <p class="academy__hint">Deja 0 para publicar el curso como gratuito.</p>
+                  <label class="academy__field">
+                    <span class="academy__label">Precio (COP)</span>
+                    <input class="academy__input" type="number" min="0" [value]="$any(draft).price || ''" (input)="draftPatchHandler(patch, 'price')($event)" />
+                  </label>
+                </fieldset>
+              }
+              @case ('publicar') {
+                <div class="academy__review">
+                  <h2 class="academy__section-title">Revisa y publica</h2>
+                  <dl class="academy__summary">
+                    <div class="academy__summary-row"><dt>Título</dt><dd>{{ $any(draft).title || '—' }}</dd></div>
+                    <div class="academy__summary-row"><dt>Escuela</dt><dd>{{ $any(draft).category || '—' }}</dd></div>
+                    <div class="academy__summary-row"><dt>Nivel</dt><dd>{{ $any(draft).level || 'beginner' }}</dd></div>
+                    <div class="academy__summary-row"><dt>Precio</dt><dd>{{ ($any(draft).price || 0) > 0 ? formatPrice($any(draft).price, currency()) : 'Gratis' }}</dd></div>
+                  </dl>
+                </div>
+              }
+            }
+          </ng-template>
+        }
+      </section>
+    } @else {
+      <section class="academy__console">
+        <syn-console-shell
+          [config]="consoleConfig()"
+          [kpis]="consoleKpis()"
+          [rows]="consoleRows()"
+          [columns]="consoleColumns()"
+          [actions]="consoleActions()"
+          [loading]="loading()"
+          [section]="instructorView()"
+          [cellTemplate]="consoleCell"
+          [sectionTemplate]="consoleSection"
+          [reportsTemplate]="consoleReports"
+          (sectionchange)="onInstructorSectionChange($event)"
+          (rowaction)="onConsoleAction($event)"
+        />
+
+        <!-- Cell renderer: switches on column key across cursos/alumnos/Q&A -->
+        <ng-template #consoleCell let-row let-column="column">
+          @switch (column.key) {
+            @case ('title') { <span class="academy__cell-strong">{{ row.title }}</span> }
+            @case ('status') {
+              @if (row.answered !== undefined) {
+                <span class="academy__pill" [attr.data-status]="row.answered ? 'done' : 'pending'">{{ row.answered ? 'Respondida' : 'Pendiente' }}</span>
+              } @else {
+                <span class="academy__pill" [attr.data-status]="row.status">{{ courseStatusLabel(row.status) }}</span>
+              }
+            }
+            @case ('price') { {{ row.price > 0 ? formatPrice(row.price, currency()) : 'Gratis' }} }
+            @case ('students') { {{ formatCount(row.studentCount) }} }
+            @case ('rating') { {{ row.rating > 0 ? (row.rating.toFixed(1) + ' ★') : '—' }} }
+            @case ('revenue') { {{ formatPrice(row.revenue, currency()) }} }
+            @case ('name') { <span class="academy__cell-strong">{{ row.name }}</span><span class="academy__cell-sub">{{ row.email }}</span> }
+            @case ('course') { {{ row.courseTitle }}@if (row.lessonTitle) { <span class="academy__cell-sub">{{ row.lessonTitle }}</span> } }
+            @case ('progress') { {{ row.percent }}% }
+            @case ('enrolledAt') { {{ row.enrolledAt }} }
+            @case ('question') { <span class="academy__cell-clamp">{{ row.question }}</span> }
+          }
+        </ng-template>
+
+        <!-- Custom section: performance report -->
+        <ng-template #consoleSection let-section>
+          @switch (section.id) {
+            @case ('performance') {
+              <div class="academy__performance">
+                <h2 class="academy__section-title">Performance</h2>
+                <p class="academy__hint">Resumen del portafolio. El detalle por curso se carga desde el motor de analítica.</p>
+                @if (desk(); as desk) {
+                  <ul class="academy__perf-list">
+                    @for (course of desk.courses; track course.id) {
+                      <li class="academy__perf-row">
+                        <span class="academy__perf-title">{{ course.title }}</span>
+                        <span class="academy__perf-stat">{{ formatCount(course.studentCount) }} alumnos</span>
+                        <span class="academy__perf-stat">★ {{ course.rating > 0 ? course.rating.toFixed(1) : '—' }}</span>
+                        <span class="academy__perf-stat">{{ formatPrice(course.revenue, currency()) }}</span>
                       </li>
                     }
                   </ul>
                 }
               </div>
             }
-          </div>
-        </div>
+          }
+        </ng-template>
 
-        <div class="academy__instructor">
-          <span class="academy__instructor-avatar" aria-hidden="true">
-            @if (d.instructor.avatar) {
-              <img class="academy__instructor-img" [src]="d.instructor.avatar" [alt]="''" />
-            } @else {
-              {{ d.instructor.name.charAt(0) }}
+        <!-- Reports slot under the KPI band: filter + create CTA -->
+        <ng-template #consoleReports let-sectionId>
+          <div class="academy__console-toolbar">
+            @if (sectionId === 'students') {
+              <input class="academy__input academy__input--search" type="search" placeholder="Filtrar alumnos…" [value]="studentFilter()" (input)="setStudentFilter($event)" />
             }
-          </span>
-          <span class="academy__instructor-body">
-            <h4 class="academy__instructor-name">{{ d.instructor.name }}</h4>
-            <span class="academy__instructor-headline">{{ d.instructor.headline }}</span>
-            <p class="academy__instructor-bio">{{ d.instructor.bio }}</p>
-            <span class="academy__card-meta">
-              <span class="academy__card-rating">★ {{ d.instructor.rating }}</span>
-              <span>{{ formatCount(d.instructor.studentCount) }} estudiantes</span>
-              <span>{{ d.instructor.courseCount }} cursos</span>
-            </span>
-          </span>
-        </div>
-      </div>
-
-      <!-- Enrollment panel -->
-      <aside class="academy__pdp-aside">
-        <div class="academy__panel">
-          <div class="academy__panel-price">
-            <span
-              class="academy__panel-price-main"
-              [class.academy__price--free]="isFreeCourse()"
-            >{{ pdpPriceLabel() }}</span>
-            @if (courseListPriceLabel(d.course)) {
-              <span class="academy__price-list">{{ courseListPriceLabel(d.course) }}</span>
+            @if (sectionId === 'courses') {
+              <button type="button" class="academy__btn academy__btn--primary academy__btn--sm" (click)="openCreate()">+ Crear curso</button>
             }
+            <button type="button" class="academy__link" (click)="reloadDesk()">Actualizar</button>
           </div>
-
-          @if (!isFreeCourse() && d.plans.length > 1) {
-            <div class="academy__plans" role="group" aria-label="Planes del curso">
-              @for (plan of d.plans; track plan.id) {
-                <button
-                  class="academy__plan"
-                  type="button"
-                  [attr.aria-pressed]="selectedPlan()?.id === plan.id"
-                  (click)="selectPlan(plan)"
-                >
-                  <span class="academy__plan-head">
-                    <span class="academy__plan-label">{{ plan.label }}</span>
-                    @if (plan.featured) {
-                      <span class="academy__plan-featured">Recomendado</span>
-                    }
-                  </span>
-                  <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
-                  @if (plan.installments) {
-                    <span class="academy__plan-installments">o {{ plan.installments }}</span>
-                  }
-                  @if (plan.perks.length) {
-                    <ul class="academy__plan-perks">
-                      @for (perk of plan.perks; track perk) {
-                        <li>{{ perk }}</li>
-                      }
-                    </ul>
-                  }
-                </button>
-              }
-            </div>
-          }
-
-          <button
-            class="academy__btn academy__btn--primary academy__btn--block"
-            type="button"
-            [disabled]="loading()"
-            (click)="startEnrollment()"
-          >
-            {{ isFreeCourse() ? 'Inscribirme gratis' : 'Inscribirme ahora' }}
-          </button>
-          @if (d.course.badges.length) {
-            <div class="academy__badges">
-              @for (badge of d.course.badges; track badge) {
-                <span class="academy__badge">{{ badge }}</span>
-              }
-            </div>
-          }
-        </div>
-      </aside>
-    </div>
+        </ng-template>
+      </section>
+    }
   }
-
-  <!-- ═══════════════════════ CHECKOUT (inscripción) ═══════════════════════════ -->
-  @if (view() === 'checkout' && detail(); as d) {
-    <div class="academy__wizard">
-      <button class="academy__back" type="button" (click)="cancelEnrollment()">← Volver al curso</button>
-
-      <ol class="academy__steps" aria-label="Pasos de inscripción">
-        <li class="academy__step" [attr.data-active]="enrollStep() === 'plan'">
-          <span class="academy__step-num">1</span> Plan
-        </li>
-        <li class="academy__step" [attr.data-active]="enrollStep() === 'student'">
-          <span class="academy__step-num">2</span> Tus datos
-        </li>
-        <li class="academy__step" [attr.data-active]="enrollStep() === 'review'">
-          <span class="academy__step-num">3</span> Pago
-        </li>
-      </ol>
-
-      @if (enrollStep() === 'plan') {
-        <div class="academy__plans" role="radiogroup" aria-label="Elige tu plan">
-          @for (plan of d.plans; track plan.id) {
-            <button
-              class="academy__plan"
-              type="button"
-              [attr.aria-pressed]="selectedPlan()?.id === plan.id"
-              (click)="selectPlan(plan)"
-            >
-              <span class="academy__plan-head">
-                <span class="academy__plan-label">{{ plan.label }}</span>
-                @if (plan.featured) {
-                  <span class="academy__plan-featured">Recomendado</span>
-                }
-              </span>
-              <span class="academy__plan-price">{{ planPriceLabel(plan) }}</span>
-              @if (plan.installments) {
-                <span class="academy__plan-installments">o {{ plan.installments }}</span>
-              }
-              <span>{{ plan.description }}</span>
-            </button>
-          }
-        </div>
-        <div class="academy__wizard-actions">
-          <button class="academy__btn academy__btn--ghost" type="button" (click)="cancelEnrollment()">
-            Cancelar
-          </button>
-          <button class="academy__btn academy__btn--primary" type="button" (click)="nextEnrollStep()">
-            Continuar
-          </button>
-        </div>
-      }
-
-      @if (enrollStep() === 'student') {
-        <div class="academy__field">
-          <label class="academy__label" [attr.for]="fieldId + '-name'">Nombre completo</label>
-          <input
-            class="academy__input"
-            [id]="fieldId + '-name'"
-            type="text"
-            autocomplete="name"
-            [value]="studentName()"
-            [attr.aria-invalid]="studentName().length > 0 && !studentNameValid()"
-            (input)="bind(studentName.set)($event)"
-          />
-          @if (studentName().length > 0 && !studentNameValid()) {
-            <span class="academy__hint">Ingresa tu nombre completo.</span>
-          }
-        </div>
-        <div class="academy__field">
-          <label class="academy__label" [attr.for]="fieldId + '-email'">Correo electrónico</label>
-          <input
-            class="academy__input"
-            [id]="fieldId + '-email'"
-            type="email"
-            autocomplete="email"
-            [value]="studentEmail()"
-            [attr.aria-invalid]="studentEmail().length > 0 && !studentEmailValid()"
-            (input)="bind(studentEmail.set)($event)"
-          />
-          @if (studentEmail().length > 0 && !studentEmailValid()) {
-            <span class="academy__hint">Ingresa un correo válido.</span>
-          }
-        </div>
-        <div class="academy__wizard-actions">
-          <button class="academy__btn academy__btn--ghost" type="button" (click)="previousEnrollStep()">
-            Atrás
-          </button>
-          <button
-            class="academy__btn academy__btn--primary"
-            type="button"
-            [disabled]="!studentValid()"
-            (click)="nextEnrollStep()"
-          >
-            Continuar
-          </button>
-        </div>
-      }
-
-      @if (enrollStep() === 'review') {
-        <div class="academy__pay-methods" role="group" aria-label="Método de pago">
-          <button
-            class="academy__pay-method"
-            type="button"
-            [attr.aria-pressed]="paymentMethod() === 'card'"
-            (click)="setPaymentMethod('card')"
-          >
-            💳 Tarjeta
-          </button>
-          <button
-            class="academy__pay-method"
-            type="button"
-            [attr.aria-pressed]="paymentMethod() === 'pse'"
-            (click)="setPaymentMethod('pse')"
-          >
-            🏦 PSE
-          </button>
-        </div>
-
-        <div class="academy__review">
-          <div class="academy__review-row">
-            <span>{{ d.course.title }}</span>
-            <span>{{ selectedPlan()?.label }}</span>
-          </div>
-          <div class="academy__review-row">
-            <span>Estudiante</span>
-            <span>{{ studentName() }}</span>
-          </div>
-          <div class="academy__review-row academy__review-total">
-            <span>Total</span>
-            <span>{{ planPriceLabel(selectedPlan()!) }}</span>
-          </div>
-        </div>
-
-        <div class="academy__wizard-actions">
-          <button class="academy__btn academy__btn--ghost" type="button" (click)="previousEnrollStep()">
-            Atrás
-          </button>
-          <button
-            class="academy__btn academy__btn--primary"
-            type="button"
-            [disabled]="loading()"
-            (click)="confirmEnrollment()"
-          >
-            {{ loading() ? 'Procesando…' : 'Pagar e inscribirme' }}
-          </button>
-        </div>
-      }
-    </div>
-  }
-
-  <!-- ═══════════════════════ ENROLLED (bridge) ════════════════════════════════ -->
-  @if (view() === 'enrolled') {
-    <div class="academy__confirm">
-      <span class="academy__confirm-mark" aria-hidden="true">✓</span>
-      <h3 class="academy__confirm-title">¡Matrícula activa!</h3>
-      <p class="academy__confirm-meta">
-        Inscripción <strong>{{ enrollmentId() }}</strong> · {{ detail()?.course?.title }}
-      </p>
-      <button class="academy__btn academy__btn--primary" type="button" (click)="enterClassroom()">
-        Ir al aula
-      </button>
-    </div>
-  }
-
-  <!-- ═══════════════════════ AULA / PLAYER (gated) ════════════════════════════ -->
-  @if (view() === 'classroom' && detail(); as d) {
-    <div class="academy__classroom">
-      <div class="academy__player-col">
-        @if (activeLesson(); as lesson) {
-          <div class="academy__player">
-            <span class="academy__player-icon" aria-hidden="true">▶</span>
-            <span class="academy__player-label">
-              @if (lesson.videoRef) {
-                Reproduciendo: {{ lesson.title }}
-              } @else {
-                Reproductor de video · {{ lesson.title }}
-              }
-            </span>
-          </div>
-
-          <div class="academy__lesson-head">
-            <h3 class="academy__lesson-name">{{ lesson.title }}</h3>
-            <button
-              class="academy__btn academy__btn--primary"
-              type="button"
-              [disabled]="isLessonComplete(lesson.id)"
-              (click)="markLessonComplete()"
-            >
-              {{ isLessonComplete(lesson.id) ? '✓ Completada' : 'Marcar como completada' }}
-            </button>
-          </div>
-
-          <div class="academy__nav">
-            <button
-              class="academy__btn"
-              type="button"
-              [disabled]="!hasPrevLesson()"
-              (click)="previousLesson()"
-            >
-              ← Anterior
-            </button>
-            <button
-              class="academy__btn"
-              type="button"
-              [disabled]="!hasNextLesson()"
-              (click)="nextLesson()"
-            >
-              Siguiente →
-            </button>
-          </div>
-
-          <!-- Tabs: overview / resources / Q&A / assignment -->
-          <div class="academy__tabs" role="tablist" aria-label="Detalle de la lección">
-            <button
-              class="academy__tab"
-              type="button"
-              role="tab"
-              [attr.aria-selected]="classroomTab() === 'overview'"
-              (click)="setClassroomTab('overview')"
-            >
-              Descripción
-            </button>
-            <button
-              class="academy__tab"
-              type="button"
-              role="tab"
-              [attr.aria-selected]="classroomTab() === 'resources'"
-              (click)="setClassroomTab('resources')"
-            >
-              Recursos
-            </button>
-            <button
-              class="academy__tab"
-              type="button"
-              role="tab"
-              [attr.aria-selected]="classroomTab() === 'qa'"
-              (click)="setClassroomTab('qa')"
-            >
-              Preguntas
-            </button>
-            @if (lesson.allowAssignment) {
-              <button
-                class="academy__tab"
-                type="button"
-                role="tab"
-                [attr.aria-selected]="classroomTab() === 'assignment'"
-                (click)="setClassroomTab('assignment')"
-              >
-                Tarea
-              </button>
-            }
-          </div>
-
-          <div class="academy__tabpanel" role="tabpanel">
-            @switch (classroomTab()) {
-              @case ('overview') {
-                <p>{{ lesson.body }}</p>
-              }
-              @case ('resources') {
-                @if (lesson.resources.length) {
-                  <ul class="academy__resources" role="list">
-                    @for (resource of lesson.resources; track resource.id) {
-                      <a
-                        class="academy__resource"
-                        [href]="resource.url"
-                        [attr.download]="resource.title"
-                        rel="noopener"
-                      >
-                        <span class="academy__resource-type">{{ resource.fileType }}</span>
-                        <span class="academy__resource-name">{{ resource.title }}</span>
-                        @if (resource.size) {
-                          <span class="academy__resource-size">{{ resource.size }}</span>
-                        }
-                      </a>
-                    }
-                  </ul>
-                } @else {
-                  <p>Esta lección no tiene recursos descargables.</p>
-                }
-              }
-              @case ('qa') {
-                <form class="academy__qa-form" (submit)="$event.preventDefault(); postQuestion()">
-                  <label class="academy__sr-only" [attr.for]="fieldId + '-q-draft'">Tu pregunta</label>
-                  <textarea
-                    class="academy__textarea"
-                    [id]="fieldId + '-q-draft'"
-                    placeholder="¿Tienes una duda sobre esta lección?"
-                    [value]="questionDraft()"
-                    (input)="bind(questionDraft.set)($event)"
-                  ></textarea>
-                  <button
-                    class="academy__btn academy__btn--primary"
-                    type="submit"
-                    [disabled]="questionDraft().trim().length < 3"
-                  >
-                    Publicar pregunta
-                  </button>
-                </form>
-                <ul class="academy__qa-list" role="list">
-                  @for (q of questions(); track q.id) {
-                    <li class="academy__qa-item">
-                      <span class="academy__qa-author">{{ q.author }}</span>
-                      <span class="academy__qa-date"> · {{ q.date }}</span>
-                      <p class="academy__qa-question">{{ q.question }}</p>
-                      @if (q.answer) {
-                        <p class="academy__qa-answer">{{ q.answer }}</p>
-                      }
-                    </li>
-                  }
-                </ul>
-              }
-              @case ('assignment') {
-                @if (activeSubmission(); as submission) {
-                  <div class="academy__submission">
-                    <span aria-hidden="true">✓</span>
-                    Entregado: {{ submission.fileName }}
-                    @if (submission.status === 'graded' && submission.grade) {
-                      · Calificación: {{ submission.grade }}
-                    }
-                  </div>
-                  @if (submission.feedback) {
-                    <p>{{ submission.feedback }}</p>
-                  }
-                } @else {
-                  <div class="academy__dropzone">
-                    <span aria-hidden="true">📎</span>
-                    <p>Sube tu trabajo para esta lección.</p>
-                    <label class="academy__sr-only" [attr.for]="fieldId + '-file'">Archivo de la tarea</label>
-                    <input
-                      class="academy__file-input"
-                      [id]="fieldId + '-file'"
-                      type="file"
-                      (change)="onAssignmentFile($event)"
-                    />
-                  </div>
-                }
-              }
-            }
-          </div>
-        }
-      </div>
-
-      <!-- Curriculum + progress aside -->
-      <aside class="academy__aside" aria-label="Tu progreso">
-        <div class="academy__progress">
-          <span class="academy__progress-label">
-            <span>Tu progreso</span>
-            <span>{{ progressPercent() }}%</span>
-          </span>
-          <div
-            class="academy__progress-track"
-            role="progressbar"
-            [attr.aria-valuenow]="progressPercent()"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <div class="academy__progress-fill" [style.width.%]="progressPercent()"></div>
-          </div>
-        </div>
-
-        @if (isCourseComplete()) {
-          <button
-            class="academy__btn academy__btn--primary academy__btn--block"
-            type="button"
-            (click)="viewCertificate()"
-          >
-            🏆 Ver mi certificado
-          </button>
-        }
-
-        <ul class="academy__tree" role="list">
-          @for (section of d.sections; track section.id) {
-            <li class="academy__tree-sec">{{ section.title }}</li>
-            @for (lesson of section.lessons; track lesson.id) {
-              <li>
-                <button
-                  class="academy__tree-lesson"
-                  type="button"
-                  [attr.aria-current]="activeLessonId() === lesson.id"
-                  (click)="selectLesson(lesson)"
-                >
-                  <span class="academy__tree-check" [attr.data-done]="isLessonComplete(lesson.id)" aria-hidden="true">✓</span>
-                  <span class="academy__tree-title">{{ lesson.title }}</span>
-                  <span class="academy__lesson-dur">{{ durationLabel(lesson.durationMinutes) }}</span>
-                </button>
-              </li>
-            }
-          }
-        </ul>
-      </aside>
-    </div>
-  }
-
-  <!-- ═══════════════════════ CERTIFICADO ══════════════════════════════════════ -->
-  @if (view() === 'certificate' && certificate(); as cert) {
-    <div class="academy__certificate">
-      <button class="academy__back" type="button" (click)="backToClassroom()">← Volver al aula</button>
-
-      <div class="academy__cert-card">
-        <span class="academy__cert-eyebrow">Certificado de finalización</span>
-        <span>Otorgado a</span>
-        <h3 class="academy__cert-student">{{ cert.studentName }}</h3>
-        <span>por completar exitosamente</span>
-        <p class="academy__cert-course">{{ cert.courseTitle }}</p>
-        <div class="academy__cert-foot">
-          <span>Emitido el {{ formatDate(cert.issuedAt) }}</span>
-          <span>·</span>
-          <span>ID: {{ cert.id }}</span>
-          <span>·</span>
-          <span>Verifica en {{ cert.verifyUrl }}</span>
-        </div>
-      </div>
-
-      <div class="academy__wizard-actions">
-        <button class="academy__btn" type="button" (click)="printCertificate()">Imprimir / Descargar</button>
-        <button class="academy__btn academy__btn--ghost" type="button" (click)="startOver()">
-          Explorar más cursos
-        </button>
-      </div>
-    </div>
-  }
-</section>
+</div>
