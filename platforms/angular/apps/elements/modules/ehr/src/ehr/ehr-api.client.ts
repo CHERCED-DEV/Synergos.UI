@@ -75,6 +75,17 @@ export class EhrApiClient {
     return this.#degraded;
   }
 
+  /**
+   * Clear the degradation latch before a fresh load round. The flag is a permanent
+   * latch within a round so any single mock fallback surfaces the "datos de ejemplo"
+   * notice; the consumer resets it when it re-fetches for a NEW identity so a stale
+   * first-tick default (`P-1`) 404 does not keep the banner up once the real
+   * `config.patient` data lands successfully.
+   */
+  resetDegraded(): void {
+    this.#degraded = false;
+  }
+
   // ─── Patients ──────────────────────────────────────────────────────────────
 
   async patients(apiBase: string, query: string): Promise<readonly Patient[]> {

@@ -4,10 +4,12 @@ import {
   Component,
   DestroyRef,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -292,6 +294,15 @@ export class EhrElementComponent {
   readonly navOpen = signal(false);
   readonly liveConflict = this.#store.liveSessionConflict;
   #suppressedHash = '';
+  /**
+   * The patient identity the portal data was last loaded for. In Angular Elements
+   * the `config`/`patient` attribute→input lands AFTER the constructor runs, so the
+   * first `patientId()` read is the default (`P-1`). The identity `effect()` below
+   * reacts once the real id arrives, invalidates the per-view `*Loaded` flags and
+   * reloads the CURRENT view — so deep-links (`#/ehr/resultados`) rehydrate too.
+   * Sentinel `''` means "nothing loaded yet" (never equals a resolved id).
+   */
+  #lastLoadedPatient = '';
 
   /** Only clinicians (doctor / nurse) may author encounters, e-Rx and release results. */
   readonly canClinicalWrite = computed(() => this.role() === 'doctor' || this.role() === 'nurse');
@@ -717,12 +728,56 @@ export class EhrElementComponent {
       }
     });
 
-    if (portalOf(initialRole) === 'patient') {
-      void this.loadHome();
-    } else {
-      void this.loadBoard();
-    }
+    // Resolve the initial route from the hash (deep-link) BEFORE any data loads so
+    // the identity effect reloads the RIGHT view (not just home).
     this.applyHash();
+
+    // Identity effect: reacts to the resolved `patientId()`. In Angular Elements the
+    // real id lands AFTER construction, so this fires first with the default and then
+    // again with the CMS-supplied id (`config.patient`), re-fetching against the true
+    // identity. Guarded by `#lastLoadedPatient` so it never loops or re-loads when the
+    // id is unchanged (e.g. an unrelated signal read elsewhere).
+    effect(() => {
+      const patient = this.patientId();
+      if (patient === this.#lastLoadedPatient) {
+        return;
+      }
+      this.#lastLoadedPatient = patient;
+      // Only `patientId()` is a dependency — the reload reads/writes many other
+      // signals, so keep them out of this effect's dependency graph.
+      untracked(() => this.reloadForIdentity());
+    });
+  }
+
+  /**
+   * Invalidate every patient-scoped `*Loaded` flag and reload the CURRENT view for the
+   * resolved identity. Clinician board data (patients/schedule/inbox from the provider,
+   * not the patient scope) is only reset when we're actually in the clinician portal.
+   */
+  private reloadForIdentity(): void {
+    // Fresh round for the new identity: clear the degradation latch so a stale
+    // first-tick default 404 does not keep the "datos de ejemplo" banner up once the
+    // real `config.patient` data lands (the flag re-latches only if THIS load degrades).
+    this.#api.resetDegraded();
+    // Patient-scoped caches — always stale when the identity changes.
+    this.homeLoaded.set(false);
+    this.appointmentsLoaded.set(false);
+    this.resultsLoaded.set(false);
+    this.medsLoaded.set(false);
+    this.healthLoaded.set(false);
+    this.billingLoaded.set(false);
+    this.threadsLoaded.set(false);
+    this.home.set(null);
+    this.activeResult.set(null);
+    this.activeThread.set(null);
+    if (this.portal() === 'clinician') {
+      // Provider-scoped caches (schedule/patients/inbox) — refresh the cockpit too.
+      this.boardLoaded.set(false);
+      this.patientsLoaded.set(false);
+      this.inboxLoaded.set(false);
+    }
+    // Reload whatever view is currently active (respects deep-links + dispatch by view).
+    this.applyRoute(this.view(), this.chart()?.patient.id ?? '');
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────

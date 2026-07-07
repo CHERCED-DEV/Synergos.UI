@@ -152,6 +152,66 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.view()).toBe('visits');
   });
 
+  // ── reactive identity: patient input landing AFTER construction re-fetches ───
+  // Pins the Angular Elements bug: the `patient` attr→input lands after the ctor, so
+  // the effect must react to the resolved id and reload the current view (not stay on P-1).
+  it('re-fetches the home feed when the patient input lands after construction', async () => {
+    // Backend "alive": home for the CMS-supplied id resolves; the default P-1 404s.
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('portal/home') && url.includes('pat-jorge-medina')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              patient: { id: 'pat-jorge-medina', name: 'Jorge Medina', age: 60, sex: 'M' },
+              cards: [{ id: 'c1', kind: 'appointment', title: 'Próxima cita', detail: 'Mañana 9am', tone: 'brand' }],
+              nextAppointment: null,
+              balanceMinor: 0,
+              currency: 'COP',
+              unreadMessages: 0,
+              pendingCheckins: 0,
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    // Reset any hash left by a previous test so we start clean on the home view.
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [EhrElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        EhrApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: EhrFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(EhrElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+    // First tick: home view for the default P-1 → 404 → mock (degraded).
+    expect(component.view()).toBe('home');
+    expect(component.degraded()).toBe(true);
+
+    // The CMS mount sets `patient` AFTER construction (Angular Elements lifecycle).
+    fixture.componentRef.setInput('patient', 'pat-jorge-medina');
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // The effect re-fetched against the real identity: live data, banner cleared.
+    expect(component.patientId()).toBe('pat-jorge-medina');
+    expect(component.home()?.patient.name).toBe('Jorge Medina');
+    expect(component.degraded()).toBe(false);
+    // And the home call for the new id was made.
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('pat-jorge-medina'))).toBe(true);
+  });
+
   // ── drug interaction flag against the patient's allergies ────────────────────
   it('flags a prescription item that clashes with a recorded allergy', async () => {
     await createComponent();
