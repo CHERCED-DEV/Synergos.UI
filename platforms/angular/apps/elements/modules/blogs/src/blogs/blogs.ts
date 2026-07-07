@@ -95,6 +95,10 @@ export interface BlogsRuntimeConfig {
   readonly scope?: string;
   /** The viewer handle used to scope inbox/saved/studio queries. Default `me`. */
   readonly user?: string;
+  /** The current viewer's public @handle (nav identity). Default `tu`. */
+  readonly viewerHandle?: string;
+  /** The current viewer's display name (nav identity). Default `Tú`. */
+  readonly viewerName?: string;
   /** Initial view. Default `feed`. */
   readonly view?: BlogsView;
 }
@@ -150,6 +154,8 @@ function sanitizeConfig(value: Partial<BlogsRuntimeConfig>): BlogsRuntimeConfig 
     apiBase: coerceTrimmedStringInput(value.apiBase),
     scope: coerceTrimmedStringInput(value.scope),
     user: coerceTrimmedStringInput(value.user),
+    viewerHandle: coerceTrimmedStringInput(value.viewerHandle),
+    viewerName: coerceTrimmedStringInput(value.viewerName),
     view: coerceView(value.view),
   });
 }
@@ -195,6 +201,8 @@ export class BlogsElementComponent {
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly userInput = input<string | undefined>(undefined, { alias: 'user' });
+  readonly viewerHandleInput = input<string | undefined>(undefined, { alias: 'viewerHandle' });
+  readonly viewerNameInput = input<string | undefined>(undefined, { alias: 'viewerName' });
   readonly viewInput = input<string | undefined>(undefined, { alias: 'view' });
 
   readonly apiBase = computed(() =>
@@ -220,8 +228,29 @@ export class BlogsElementComponent {
   readonly searchTabs = SEARCH_TABS;
   readonly searchSort = SEARCH_SORT;
 
-  /** The viewer's projected social identity (used for optimistic publishes). */
-  readonly viewer: Author = mockViewer();
+  /**
+   * The viewer's projected social identity (nav "me" card + optimistic publishes).
+   * Composable from CMS props (`viewerHandle`/`viewerName`) — falls back to the mock
+   * identity so the shell is complete before a real session/member is wired. Never a
+   * fetch, so it can never trip the `degraded` banner.
+   */
+  readonly #viewerHandle = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.viewerHandleInput()),
+      this.config()?.viewerHandle,
+      mockViewer().handle,
+    ),
+  );
+  readonly #viewerName = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.viewerNameInput()),
+      this.config()?.viewerName,
+      mockViewer().displayName,
+    ),
+  );
+  get viewer(): Author {
+    return { ...mockViewer(), handle: this.#viewerHandle(), displayName: this.#viewerName() };
+  }
 
   // ─── Outputs (CustomEvents) ────────────────────────────────────────────────
   readonly postpublished = output<{ id: string }>();

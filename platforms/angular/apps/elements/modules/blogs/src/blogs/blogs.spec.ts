@@ -418,4 +418,15 @@ describe('BlogsApiClient', () => {
       ),
     ).toBe(true);
   });
+
+  // ── auxiliary degradation: an unwired trending sidebar must NOT trip the shell banner ──
+  it('falls back to mock trending WITHOUT flagging degraded (auxiliary case)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const tags = await client.trending('/api/blogs');
+    expect(tags.length).toBeGreaterThan(0);
+    // Trending is auxiliary: its absence must not brand the shell as offline.
+    expect(client.degraded).toBe(false);
+  });
 });

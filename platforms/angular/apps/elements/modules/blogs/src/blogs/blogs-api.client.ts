@@ -52,8 +52,11 @@ import {
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
- * flow is complete end-to-end before the backend lands. Every mock path flips the
- * `degraded` flag so the shell surfaces a "datos de ejemplo" notice.
+ * flow is complete end-to-end before the backend lands. A **core content** mock path
+ * (feed/post/profile/search/notifications/DMs/saved/studio) flips the `degraded` flag
+ * so the shell surfaces a "datos de ejemplo" notice. **Auxiliary** widgets (e.g. the
+ * trending sidebar) degrade *silently* — their absence must not brand the whole shell
+ * as offline while the primary content is real.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -234,7 +237,10 @@ export class BlogsApiClient {
       }
       throw new Error('trending-shape');
     } catch (error) {
-      this.markDegraded('GET /api/blogs/trending', error);
+      // Trending is an auxiliary discovery widget — degrade it silently so a
+      // still-unwired `/trending` never trips the shell-wide "datos de ejemplo"
+      // banner while the feed (core content) is real.
+      this.markDegraded('GET /api/blogs/trending', error, 'auxiliary');
       return buildMockTrending();
     }
   }
@@ -422,8 +428,19 @@ export class BlogsApiClient {
     );
   }
 
-  private markDegraded(endpoint: string, error: unknown): void {
-    this.#degraded = true;
+  /**
+   * Flag a mock fallback. `core` content flips the user-facing `degraded` banner;
+   * `auxiliary` widgets (trending sidebar) only log, so a still-unwired auxiliary
+   * endpoint never brands the shell as offline while the primary content is real.
+   */
+  private markDegraded(
+    endpoint: string,
+    error: unknown,
+    severity: 'core' | 'auxiliary' = 'core',
+  ): void {
+    if (severity === 'core') {
+      this.#degraded = true;
+    }
     // TODO(backend): remove the mock fallback once the Blogs API responds.
     this.#logger.warn(`Blogs API "${endpoint}" unavailable — using mock data.`, error);
   }

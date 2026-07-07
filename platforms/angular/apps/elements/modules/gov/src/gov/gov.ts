@@ -227,9 +227,9 @@ export class GovElementComponent {
    * The identity (`citizen`/`agency`) the current data was last loaded for. In
    * Angular Elements the attr→input lands AFTER the constructor, so the first read
    * is the default; the identity `effect()` re-loads the CURRENT view once the real
-   * config arrives. `' '` = "nothing loaded yet" (never equals a real value).
+   * config arrives. `''` = "nothing loaded yet" (never equals a real value).
    */
-  #lastIdentity = ' ';
+  #lastIdentity = '';
 
   // ─── Catálogo (CIUDADANO — SH-1 discovery) ─────────────────────────────────
   readonly searchTerm = signal('');
@@ -950,7 +950,23 @@ export class GovElementComponent {
     if (feeMinor <= 0) {
       return 'Gratuito';
     }
-    return this.formatMoney(feeMinor / 100, currency);
+    return this.formatFee(feeMinor, currency);
+  }
+
+  // Divide los minor units por el factor REAL de la moneda: COP tiene 0 decimales
+  // (1 minor = 1 peso), así 189000 → $189.000 y no $1.890. USD/EUR (2 decimales) → /100.
+  formatFee(feeMinor: number, currency: string): string {
+    return this.formatMoney(feeMinor / this.minorUnitFactor(currency), currency);
+  }
+
+  private minorUnitFactor(currency: string): number {
+    try {
+      const digits = new Intl.NumberFormat('es-CO', { style: 'currency', currency })
+        .resolvedOptions().maximumFractionDigits ?? 2;
+      return 10 ** digits;
+    } catch {
+      return 100;
+    }
   }
 
   formatMoney(amount: number, currency: string): string {

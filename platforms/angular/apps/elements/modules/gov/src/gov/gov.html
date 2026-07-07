@@ -194,7 +194,7 @@
           <section class="ficha__section" aria-labelledby="{{ fieldId }}-cuesta">
             <h2 class="ficha__section-title" id="{{ fieldId }}-cuesta">¿Cuánto cuesta?</h2>
             @if (hasFee()) {
-              <p class="ficha__text"><strong>{{ formatMoney(svc.feeMinor / 100, svc.currency) }}</strong>. La tasa se paga en línea al radicar.</p>
+              <p class="ficha__text"><strong>{{ formatFee(svc.feeMinor, svc.currency) }}</strong>. La tasa se paga en línea al radicar.</p>
             } @else {
               <p class="ficha__text"><strong>Nada.</strong> Este trámite es gratuito.</p>
             }
