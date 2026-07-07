@@ -2,12 +2,35 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
+import {
+  AccountShellComponent,
+  ConsoleShellComponent,
+  DiscoveryShellComponent,
+  DynamicFormShellComponent,
+  MessageCenterComponent,
+  TrackingTimelineComponent,
+  type AccountShellConfig,
+  type DiscoveryCriteria,
+  type ConsoleColumn,
+  type ConsoleKpi,
+  type ConsoleRowAction,
+  type ConsoleRowActionEvent,
+  type ConsoleShellConfig,
+  type DynamicFormConfig,
+  type DynamicFormSubmit,
+  type FormSchema,
+  type MessageCenterConfig,
+  type TrackingStage,
+} from '@synergos/shells';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -16,53 +39,74 @@ import {
 } from '@synergos/shared';
 import { GovApiClient } from './gov-api.client';
 import {
-  CASE_STATUS_HINTS,
-  CASE_STATUS_LABELS,
-  CASE_TRANSITIONS,
-  ONCE_ONLY_PROFILE,
-  TRANSITION_ACTION_LABELS,
-  canTransition,
-  isTerminal,
-  type ApplyStep,
-  type CaseStatus,
-  type DocRef,
-  type FormFieldDef,
+  OUTCOME_LABELS,
+  STATUS_HINTS,
+  STATUS_LABELS,
+  isClosedStatus,
+  type ApplicationDetail,
+  type ApplicationStatus,
+  type ApplicationSummary,
+  type DecisionOutcome,
   type GovCase,
+  type GovForm,
   type GovRole,
+  type GovService,
+  type GovServiceDetail,
   type GovView,
-  type TramiteCategory,
-  type TramiteDetail,
-  type TramiteSummary,
+  type QueueCase,
 } from './gov.model';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
  *
- * El dominio Gobierno/Trámites como portal de servicios al ciudadano — catálogo de
- * trámites (búsqueda + categorías) → ficha en lenguaje claro → radicación (wizard
- * **data-driven** desde la `formDefinition` del trámite + documentos + check-answers
- * GOV.UK + tasa opcional) → radicado + QR → mi carpeta / seguimiento del expediente,
- * y la consola de funcionario (bandeja + expediente + **transiciones legales** +
- * nota) tras el role-switch de demo. WCAG + lenguaje claro son de primera clase:
- * cada cambio de estado se anuncia en una región `role="status"` sin recarga.
+ * Gobierno **v2** — the GOV.CO/GOV.UK dual-face app (doc 21 §2.8 +
+ * `deep-research/gobierno.md`) rebuilt as a **role-switch, hash-routed SPA**
+ * (`#/gov/...`) and the Ola-8 consumer of the reusable shell catalogue
+ * `@synergos/shells`:
+ *
+ *  - **CIUDADANO:** home discovery (SH-1) → ficha del trámite (task-list: pasos,
+ *    elegibilidad, requisitos, fee) → iniciar solicitud (**SH-9** dynamic form +
+ *    check-answers) → mis solicitudes (**SH-4** + timeline) → detalle de la
+ *    solicitud (timeline + documentos + correspondencia **SH-7**) → subir doc.
+ *  - **FUNCIONARIO:** cola de casos (**SH-5**: filtros por agencia/estado, SLA,
+ *    prioridad) → revisar caso → decisión (aprobar/rechazar/pedir info + nota).
+ *
+ * 100% composable: no business is hardcoded; every knob comes from CMS props
+ * (`apiBase`/`role`/`citizen`/`agency`/`config` JSON, patrón createConfigInputTransform/
+ * resolveConfigValue) and data always comes from the API with visible mock
+ * degradation. Shells stay domain-free (contrato D3) — the module only feeds
+ * data + templates. WCAG AA + lenguaje claro GOV.UK are first-class (state
+ * changes announced in a `role="status"` region without a reload).
+ *
+ * **Angular Elements lesson:** the initial fetch is NOT fired from the constructor
+ * (inputs land AFTER construction); it fires from an `effect()` reactive to the
+ * resolved identity/role, so a CMS-supplied `citizen`/`agency`/`role` re-fetches.
  */
 export interface GovRuntimeConfig {
   /** Base URL of the gov API. Default `/api/gov`. */
   readonly apiBase?: string;
-  /** ISO currency for fee display. Default `COP`. */
-  readonly currency?: string;
-  /** Initial demo role: `citizen` or `officer`. Default `citizen`. */
+  /** Initial demo role. Default `citizen`. */
   readonly role?: GovRole;
-  /** Demo actor id for the inbox (e.g. `CC-52841903`). */
-  readonly actor?: string;
+  /** Demo citizen id used to scope "mis solicitudes". Default `CC-52841903`. */
+  readonly citizen?: string;
+  /** Agency scope for the officer queue (empty = all). Default `''`. */
+  readonly agency?: string;
+  /** Storage / hash-route scope. Default `gov`. */
+  readonly scope?: string;
 }
 
 const DEFAULT_API_BASE = '/api/gov';
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_ROLE: GovRole = 'citizen';
-const DEFAULT_ACTOR = 'CC-52841903';
+const DEFAULT_CITIZEN = 'CC-52841903';
+const DEFAULT_AGENCY = '';
+const DEFAULT_SCOPE = 'gov';
 
-const CATEGORIES: readonly { key: TramiteCategory | ''; label: string }[] = [
+const ROLES: readonly { key: GovRole; label: string }[] = [
+  { key: 'citizen', label: 'Ciudadano' },
+  { key: 'officer', label: 'Funcionario' },
+];
+
+const CATEGORIES: readonly { key: string; label: string }[] = [
   { key: '', label: 'Todos' },
   { key: 'identidad', label: 'Identidad' },
   { key: 'salud', label: 'Salud' },
@@ -71,29 +115,19 @@ const CATEGORIES: readonly { key: TramiteCategory | ''; label: string }[] = [
   { key: 'empresa', label: 'Empresa' },
 ];
 
-const ROLES: readonly { key: GovRole; label: string }[] = [
-  { key: 'citizen', label: 'Ciudadano' },
-  { key: 'officer', label: 'Funcionario' },
-];
-
-const APPLY_STEP_LABELS: Readonly<Record<ApplyStep, string>> = {
-  applicant: 'Sus datos',
-  form: 'Datos del trámite',
-  documents: 'Documentos',
-  review: 'Revisar y enviar',
-  payment: 'Pagar la tasa',
-};
-
-const QUEUE_FILTERS: readonly { key: CaseStatus | ''; label: string }[] = [
+const QUEUE_FILTERS: readonly { key: string; label: string }[] = [
   { key: '', label: 'Todos' },
-  { key: 'radicado', label: 'Radicados' },
-  { key: 'en-revision', label: 'En revisión' },
-  { key: 'subsanacion', label: 'Subsanación' },
-  { key: 'resuelto', label: 'Resueltos' },
-  { key: 'rechazado', label: 'Rechazados' },
+  { key: 'submitted', label: 'Radicadas' },
+  { key: 'in-review', label: 'En revisión' },
+  { key: 'info-requested', label: 'Requieren info' },
+  { key: 'approved', label: 'Aprobadas' },
+  { key: 'rejected', label: 'Rechazadas' },
 ];
 
-function normalizeRole(value: unknown): GovRole | undefined {
+/** Views that belong to the officer face (used to align role on deep-link). */
+const OFFICER_VIEWS: readonly GovView[] = ['queue', 'case'];
+
+function coerceRole(value: unknown): GovRole | undefined {
   const raw = coerceTrimmedStringInput(value)?.toLowerCase();
   return raw === 'citizen' || raw === 'officer' ? raw : undefined;
 }
@@ -101,9 +135,10 @@ function normalizeRole(value: unknown): GovRole | undefined {
 function sanitizeConfig(value: Partial<GovRuntimeConfig>): GovRuntimeConfig {
   return omitUndefinedProperties<GovRuntimeConfig>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    role: normalizeRole(value.role),
-    actor: coerceTrimmedStringInput(value.actor),
+    role: coerceRole(value.role),
+    citizen: coerceTrimmedStringInput(value.citizen),
+    agency: coerceTrimmedStringInput(value.agency),
+    scope: coerceTrimmedStringInput(value.scope),
   });
 }
 
@@ -112,26 +147,34 @@ let govInstanceId = 0;
 @Component({
   selector: 'sg-gov',
   standalone: true,
-  imports: [],
+  imports: [
+    AccountShellComponent,
+    ConsoleShellComponent,
+    DiscoveryShellComponent,
+    DynamicFormShellComponent,
+    MessageCenterComponent,
+    TrackingTimelineComponent,
+  ],
   templateUrl: './gov.html',
   styleUrl: './gov.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // Reuses published registry elements (qr-code, dropzone, timeline, alert-bar)
-  // hydrated by the CMS shell.
+  // Reuses published registry elements (qr-code) hydrated by the CMS shell.
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-gov' },
 })
 export class GovElementComponent {
   readonly #api = inject(GovApiClient);
+  readonly #destroyRef = inject(DestroyRef);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<GovRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<GovRuntimeConfig>(sanitizeConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
-  readonly actorInput = input<string | undefined>(undefined, { alias: 'actor' });
+  readonly citizenInput = input<string | undefined>(undefined, { alias: 'citizen' });
+  readonly agencyInput = input<string | undefined>(undefined, { alias: 'agency' });
+  readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -140,32 +183,37 @@ export class GovElementComponent {
       DEFAULT_API_BASE,
     ).replace(/\/+$/, ''),
   );
-  readonly currency = computed(() =>
+  readonly initialRole = computed<GovRole>(() =>
+    resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+  );
+  readonly citizen = computed(() =>
     resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
+      coerceTrimmedStringInput(this.citizenInput()),
+      this.config()?.citizen,
+      DEFAULT_CITIZEN,
     ),
   );
-  readonly actor = computed(() =>
+  readonly agency = computed(() =>
     resolveConfigValue(
-      coerceTrimmedStringInput(this.actorInput()),
-      this.config()?.actor,
-      DEFAULT_ACTOR,
+      coerceTrimmedStringInput(this.agencyInput()),
+      this.config()?.agency,
+      DEFAULT_AGENCY,
     ),
+  );
+  readonly scope = computed(() =>
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
   );
 
   readonly instanceId = (govInstanceId += 1);
   readonly fieldId = `syn-gov-${this.instanceId}`;
-  readonly categories = CATEGORIES;
   readonly roles = ROLES;
-  readonly queueFilters = QUEUE_FILTERS;
+  readonly categories = CATEGORIES;
 
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly viewchange = output<GovView>();
   readonly rolechange = output<GovRole>();
-  readonly applicationsubmitted = output<{ caseId: string; radicado: string }>();
-  readonly casetransition = output<{ caseId: string; to: CaseStatus }>();
+  readonly applicationsubmitted = output<{ id: string; reference: string }>();
+  readonly casedecided = output<{ caseId: string; outcome: DecisionOutcome }>();
 
   // ─── Shell state ───────────────────────────────────────────────────────────
   readonly role = signal<GovRole>(DEFAULT_ROLE);
@@ -174,149 +222,236 @@ export class GovElementComponent {
   readonly errorMessage = signal('');
   /** Announced via role="status" — WCAG: state changes without a reload. */
   readonly announcement = signal('');
+  #suppressedHash = '';
+  /**
+   * The identity (`citizen`/`agency`) the current data was last loaded for. In
+   * Angular Elements the attr→input lands AFTER the constructor, so the first read
+   * is the default; the identity `effect()` re-loads the CURRENT view once the real
+   * config arrives. `' '` = "nothing loaded yet" (never equals a real value).
+   */
+  #lastIdentity = ' ';
 
-  // ─── Catálogo ──────────────────────────────────────────────────────────────
+  // ─── Catálogo (CIUDADANO — SH-1 discovery) ─────────────────────────────────
   readonly searchTerm = signal('');
   readonly category = signal('');
-  readonly tramites = signal<readonly TramiteSummary[]>([]);
-  readonly total = signal(0);
-  readonly searched = signal(false);
+  readonly services = signal<readonly GovService[]>([]);
+  readonly servicesLoaded = signal(false);
 
-  // ─── Ficha + wizard de radicación (data-driven) ────────────────────────────
-  readonly detail = signal<TramiteDetail | null>(null);
-  readonly applyStep = signal<ApplyStep>('applicant');
-  readonly answers = signal<Readonly<Record<string, string>>>({});
-  readonly docs = signal<readonly DocRef[]>([]);
-  readonly paid = signal(false);
+  // ─── Ficha del trámite ──────────────────────────────────────────────────────
+  readonly service = signal<GovServiceDetail | null>(null);
 
-  // Applicant (prefilled once-only, editable).
-  readonly applicantName = signal(ONCE_ONLY_PROFILE.name);
-  readonly applicantDocType = signal(ONCE_ONLY_PROFILE.docType);
-  readonly applicantDocNumber = signal(ONCE_ONLY_PROFILE.docNumber);
-  readonly applicantEmail = signal(ONCE_ONLY_PROFILE.email);
-  readonly applicantPhone = signal(ONCE_ONLY_PROFILE.phone);
+  // ─── Iniciar solicitud (SH-9 dynamic form) ──────────────────────────────────
+  readonly form = signal<GovForm | null>(null);
+  readonly submitting = signal(false);
+  readonly confirmedApplication = signal<ApplicationSummary | null>(null);
 
-  // ─── Radicado / carpeta / expediente ───────────────────────────────────────
-  readonly confirmedCase = signal<GovCase | null>(null);
-  readonly myCases = signal<readonly GovCase[]>([]);
-  readonly activeCase = signal<GovCase | null>(null);
-  readonly subsanacionNote = signal('');
+  // ─── Mis solicitudes (SH-4) + detalle ───────────────────────────────────────
+  readonly applications = signal<readonly ApplicationSummary[]>([]);
+  readonly applicationsLoaded = signal(false);
+  readonly activeApplication = signal<ApplicationDetail | null>(null);
+  readonly uploadName = signal('');
+  // SH-7 correspondence (from the active application/case).
+  readonly activeThreadId = signal<string | null>(null);
+  readonly sendingMessage = signal(false);
 
-  // ─── Funcionario ───────────────────────────────────────────────────────────
-  readonly queueCases = signal<readonly GovCase[]>([]);
+  // ─── Funcionario (SH-5 console) ─────────────────────────────────────────────
+  readonly queueCases = signal<readonly QueueCase[]>([]);
+  readonly queueLoaded = signal(false);
   readonly queueFilter = signal('');
-  readonly officerNote = signal('');
+  readonly activeCase = signal<GovCase | null>(null);
+  readonly decisionNote = signal('');
 
-  // ─── Derived ───────────────────────────────────────────────────────────────
+  // ─── Derived ────────────────────────────────────────────────────────────────
   readonly degraded = computed(() => {
-    void this.searched();
-    void this.view();
-    void this.detail();
-    void this.confirmedCase();
-    void this.myCases();
-    void this.queueCases();
+    void this.servicesLoaded();
+    void this.service();
+    void this.confirmedApplication();
+    void this.applicationsLoaded();
+    void this.activeApplication();
+    void this.queueLoaded();
+    void this.activeCase();
     return this.#api.degraded;
   });
 
-  /** Wizard steps — the payment step exists only when the trámite has a fee. */
-  readonly applySteps = computed<readonly ApplyStep[]>(() => {
-    const base: readonly ApplyStep[] = ['applicant', 'form', 'documents', 'review'];
-    return this.hasFee() ? [...base, 'payment'] : base;
+  readonly hasFee = computed(() => (this.service()?.feeMinor ?? 0) > 0);
+
+  // ─── SH-9 dynamic-form schema + config ──────────────────────────────────────
+  readonly formSchema = computed<FormSchema>(() => {
+    const form = this.form();
+    return form ? { title: form.title, sections: form.sections } : { sections: [] };
   });
 
-  readonly hasFee = computed(() => {
-    const fee = this.detail()?.fee;
-    return !!fee && fee.amount > 0 && !fee.exempt;
+  readonly formConfig: DynamicFormConfig = {
+    submitLabel: 'Radicar solicitud',
+    submittingLabel: 'Radicando…',
+    reviewLabel: 'Revisar y enviar',
+    checkAnswersTitle: 'Revise sus respuestas antes de radicar',
+  };
+
+  // ─── SH-4 account config (mis solicitudes) ──────────────────────────────────
+  readonly accountConfig = computed<AccountShellConfig>(() => ({
+    heading: 'Mis solicitudes',
+    navLabel: 'Secciones de mi carpeta',
+    inboxEmptyMessage: 'Aún no tiene solicitudes radicadas. Empiece por el catálogo.',
+    inboxLoadingMessage: 'Cargando sus solicitudes…',
+    detailPlaceholder: 'Seleccione una solicitud para ver su seguimiento.',
+    sections: [
+      { id: 'all', label: 'Todas', kind: 'inbox', badge: this.applications().length || undefined },
+    ],
+  }));
+
+  /** Tracking-timeline stages for the active application (SH-4 detail). */
+  readonly applicationStages = computed<readonly TrackingStage[]>(() =>
+    (this.activeApplication()?.timeline ?? []).map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      date: entry.date ? this.formatDate(entry.date) : undefined,
+      description: entry.note,
+      state: entry.state,
+    })),
+  );
+
+  // ─── SH-7 message config ─────────────────────────────────────────────────────
+  readonly messageConfig: MessageCenterConfig = {
+    heading: 'Correspondencia',
+    listLabel: 'Mensajes de la solicitud',
+    emptyMessage: 'No hay mensajes en esta solicitud.',
+    detailPlaceholder: 'Seleccione un mensaje para leerlo.',
+    composerLabel: 'Escribir a la agencia',
+    composerPlaceholder: 'Escriba un mensaje a la agencia…',
+    sendLabel: 'Enviar',
+    sendingLabel: 'Enviando…',
+  };
+
+  /** Correspondence messages of the active application (SH-7 threads). */
+  readonly correspondence = computed(() => this.activeApplication()?.messages ?? []);
+  readonly activeMessage = computed(() => {
+    const id = this.activeThreadId();
+    return id ? (this.correspondence().find((msg) => msg.id === id) ?? null) : null;
   });
 
-  /** The dynamic fields the current trámite's definition dictates. */
-  readonly formFields = computed<readonly FormFieldDef[]>(
-    () => this.detail()?.formDefinition ?? [],
-  );
+  // ─── SH-5 console config (cola del funcionario) ─────────────────────────────
+  readonly consoleConfig = computed<ConsoleShellConfig>(() => ({
+    heading: 'Cola de casos',
+    navLabel: 'Secciones de la consola',
+    kpisLabel: 'Indicadores de la cola',
+    filtersLabel: 'Filtrar por estado',
+    actionsLabel: 'Acciones',
+    emptyMessage: 'No hay casos con ese filtro.',
+    loadingMessage: 'Cargando la cola…',
+    sections: [
+      { id: 'queue', label: 'Casos asignados', kind: 'table', badge: this.queueCases().length || undefined },
+    ],
+  }));
 
-  readonly applicantValid = computed(
-    () =>
-      this.applicantName().trim().length >= 3 &&
-      this.applicantDocNumber().trim().length >= 5 &&
-      /.+@.+\..+/.test(this.applicantEmail().trim()),
-  );
-
-  /** Every required field of the data-driven form has an answer. */
-  readonly formValid = computed(() => {
-    const current = this.answers();
-    return this.formFields().every(
-      (field) => !field.required || (current[field.key] ?? '').trim() !== '',
-    );
-  });
-
-  /** At least one document when the trámite lists required documents. */
-  readonly documentsValid = computed(
-    () => (this.detail()?.requirements.length ?? 0) === 0 || this.docs().length > 0,
-  );
-
-  readonly canSubmit = computed(
-    () =>
-      this.applicantValid() &&
-      this.formValid() &&
-      this.documentsValid() &&
-      (!this.hasFee() || this.paid()),
-  );
-
-  /** Legal next states for the open expediente (officer actions). */
-  readonly nextStatuses = computed<readonly CaseStatus[]>(() => {
-    const kase = this.activeCase();
-    return kase ? CASE_TRANSITIONS[kase.status] : [];
-  });
-
-  readonly filteredQueue = computed(() => {
-    const filter = this.queueFilter();
+  readonly consoleKpis = computed<readonly ConsoleKpi[]>(() => {
     const cases = this.queueCases();
-    return filter ? cases.filter((kase) => kase.status === filter) : cases;
-  });
-
-  readonly queueKpis = computed(() => {
-    const cases = this.queueCases();
-    const count = (status: CaseStatus): number =>
+    const count = (status: ApplicationStatus): number =>
       cases.filter((kase) => kase.status === status).length;
-    return {
-      pending: count('radicado'),
-      reviewing: count('en-revision'),
-      subsanacion: count('subsanacion'),
-      closed: count('resuelto') + count('rechazado'),
-    };
+    const overdue = cases.filter((kase) => kase.slaDaysLeft < 0 && !isClosedStatus(kase.status)).length;
+    return [
+      { id: 'pending', label: 'Por revisar', value: String(count('submitted')) },
+      { id: 'reviewing', label: 'En revisión', value: String(count('in-review')) },
+      { id: 'info', label: 'Requieren info', value: String(count('info-requested')) },
+      { id: 'overdue', label: 'Vencidos', value: String(overdue) },
+    ];
   });
 
-  /** `eventsJson` for the published <synergos-timeline> element (citizen tracking). */
-  readonly timelineJson = computed(() => {
+  readonly consoleColumns: readonly ConsoleColumn[] = [
+    { key: 'reference', label: 'Radicado' },
+    { key: 'serviceName', label: 'Trámite' },
+    { key: 'citizenName', label: 'Solicitante' },
+    { key: 'status', label: 'Estado' },
+    { key: 'priority', label: 'Prioridad' },
+    { key: 'sla', label: 'SLA', align: 'end' },
+  ];
+
+  readonly consoleActions: readonly ConsoleRowAction[] = [
+    { id: 'open', label: 'Revisar', kind: 'primary' },
+  ];
+
+  readonly consoleFilters = computed(() => QUEUE_FILTERS.map((f) => ({ key: f.key, label: f.label })));
+
+  /** Legal officer decisions for the open case (closed cases → none). */
+  readonly caseOutcomes = computed<readonly DecisionOutcome[]>(() => {
     const kase = this.activeCase();
-    if (!kase) {
-      return '[]';
+    if (!kase || isClosedStatus(kase.application.status)) {
+      return [];
     }
-    return JSON.stringify(
-      kase.timeline.map((entry) => ({
-        date: entry.date,
-        title: CASE_STATUS_LABELS[entry.status],
-        body: entry.note ? `${entry.note} — ${entry.actor}` : entry.actor,
-      })),
-    );
+    return ['approve', 'request-info', 'reject'];
   });
+
+  /** Officer case timeline as SH-4 tracking stages (reused in the case view). */
+  readonly caseStages = computed<readonly TrackingStage[]>(() =>
+    (this.activeCase()?.timeline ?? []).map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      date: entry.date ? this.formatDate(entry.date) : undefined,
+      description: entry.note,
+      state: entry.state,
+    })),
+  );
 
   constructor() {
-    const cfg = this.config();
-    this.role.set(normalizeRole(this.roleInput()) ?? cfg?.role ?? DEFAULT_ROLE);
-    if (this.role() === 'officer') {
-      void this.loadQueue();
-    } else {
-      void this.runSearch();
+    const initialRole = this.initialRole();
+    this.role.set(initialRole);
+    this.view.set(initialRole === 'officer' ? 'queue' : 'catalog');
+
+    const onHashChange = (): void => this.applyHash();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', onHashChange);
     }
+    this.#destroyRef.onDestroy(() => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('hashchange', onHashChange);
+      }
+    });
+
+    // Resolve the initial route from the hash (deep-link) BEFORE any data loads so
+    // the identity effect reloads the RIGHT view.
+    this.applyHash();
+
+    // Identity effect: fires with the default first, then again once the CMS-supplied
+    // `citizen`/`agency`/`role` land after construction (Angular Elements lifecycle),
+    // re-fetching against the real identity. Guarded by `#lastIdentity` so it never
+    // loops. This is the fix that avoids the constructor-fetch anti-pattern.
+    effect(() => {
+      const identity = `${this.initialRole()}|${this.citizen()}|${this.agency()}|${this.apiBase()}`;
+      if (identity === this.#lastIdentity) {
+        return;
+      }
+      this.#lastIdentity = identity;
+      untracked(() => this.reloadForIdentity());
+    });
+  }
+
+  /** Reset caches for the new identity and reload the current view. */
+  private reloadForIdentity(): void {
+    this.#api.resetDegraded();
+    // Align the role to the CMS-supplied one if it changed.
+    if (this.role() !== this.initialRole()) {
+      this.role.set(this.initialRole());
+      if (!OFFICER_VIEWS.includes(this.view()) && this.initialRole() === 'officer') {
+        this.view.set('queue');
+      } else if (OFFICER_VIEWS.includes(this.view()) && this.initialRole() === 'citizen') {
+        this.view.set('catalog');
+      }
+    }
+    this.servicesLoaded.set(false);
+    this.applicationsLoaded.set(false);
+    this.queueLoaded.set(false);
+    this.activeApplication.set(null);
+    this.activeCase.set(null);
+    this.loadForView(this.view());
   }
 
   // ─── Native input bindings ─────────────────────────────────────────────────
   bind(setter: (value: string) => void): (event: Event) => void {
-    return (event: Event) => setter((event.target as HTMLInputElement | null)?.value ?? '');
+    return (event: Event) =>
+      setter((event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value ?? '');
   }
 
-  // ─── Role switch (demo: citizen ↔ officer) ────────────────────────────────
+  // ─── Role switch (demo: citizen ↔ officer) ─────────────────────────────────
   setRole(role: GovRole): void {
     if (this.role() === role) {
       return;
@@ -324,44 +459,163 @@ export class GovElementComponent {
     this.role.set(role);
     this.errorMessage.set('');
     this.rolechange.emit(role);
-    if (role === 'officer') {
-      void this.loadQueue();
-    } else {
-      this.view.set('catalog');
-      this.emitViewChange();
-      void this.runSearch();
+    this.navigate(role === 'officer' ? 'queue' : 'catalog');
+  }
+
+  // ─── Router (signals + hash deep-links) ────────────────────────────────────
+  navigate(view: GovView, param = ''): void {
+    this.applyRoute(view, param);
+    this.writeHash(view, param);
+  }
+
+  private applyRoute(view: GovView, param: string): void {
+    this.view.set(view);
+    this.errorMessage.set('');
+    this.viewchange.emit(view);
+    this.loadForView(view, param);
+  }
+
+  /** Data dispatch by view (respects deep-links; cached views skip re-fetch). */
+  private loadForView(view: GovView, param = ''): void {
+    switch (view) {
+      case 'catalog':
+        if (!this.servicesLoaded()) {
+          void this.runSearch();
+        }
+        return;
+      case 'service':
+        if (param && this.service()?.id !== param) {
+          void this.loadService(param);
+        }
+        return;
+      case 'applications':
+        if (!this.applicationsLoaded()) {
+          void this.loadApplications();
+        }
+        return;
+      case 'application':
+        if (param) {
+          void this.loadApplication(param);
+        }
+        return;
+      case 'queue':
+        if (!this.queueLoaded()) {
+          void this.loadQueue();
+        }
+        return;
+      case 'case':
+        if (param) {
+          void this.loadCase(param);
+        }
+        return;
+      default:
+        return;
     }
   }
 
-  // ─── Catálogo ──────────────────────────────────────────────────────────────
-  submitSearch(): void {
-    void this.runSearch();
+  private routeHash(view: GovView, param: string): string {
+    const base = `#/${this.scope()}`;
+    switch (view) {
+      case 'catalog':
+        return base;
+      case 'service':
+        return `${base}/tramite/${encodeURIComponent(param)}`;
+      case 'apply':
+        return `${base}/tramite/${encodeURIComponent(param || this.service()?.id || '')}/radicar`;
+      case 'receipt':
+        return `${base}/radicado`;
+      case 'applications':
+        return `${base}/mis-solicitudes`;
+      case 'application':
+        return `${base}/solicitud/${encodeURIComponent(param)}`;
+      case 'queue':
+        return `${base}/gestion`;
+      case 'case':
+        return `${base}/gestion/${encodeURIComponent(param)}`;
+      default:
+        return base;
+    }
   }
 
-  setCategory(category: string): void {
-    this.category.set(category);
-    void this.runSearch();
+  private writeHash(view: GovView, param: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hash = this.routeHash(view, param);
+    if (window.location.hash !== hash) {
+      this.#suppressedHash = hash;
+      window.location.hash = hash;
+    }
   }
 
-  clearSearch(): void {
-    this.searchTerm.set('');
-    this.category.set('');
+  private applyHash(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const hash = window.location.hash;
+    if (hash === this.#suppressedHash) {
+      this.#suppressedHash = '';
+      return;
+    }
+    const base = `#/${this.scope()}`;
+    if (hash !== base && !hash.startsWith(`${base}/`)) {
+      return;
+    }
+    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
+    const [head = '', tail = '', sub = ''] = segments;
+    let target: GovView = this.role() === 'officer' ? 'queue' : 'catalog';
+    let param = '';
+    switch (head) {
+      case '':
+        target = 'catalog';
+        break;
+      case 'tramite':
+        target = sub === 'radicar' ? 'apply' : 'service';
+        param = tail;
+        break;
+      case 'mis-solicitudes':
+        target = 'applications';
+        break;
+      case 'solicitud':
+        target = 'application';
+        param = tail;
+        break;
+      case 'gestion':
+        target = tail ? 'case' : 'queue';
+        param = tail;
+        break;
+      default:
+        break;
+    }
+    // Align the role with the face the target belongs to.
+    if (OFFICER_VIEWS.includes(target) && this.role() !== 'officer') {
+      this.role.set('officer');
+    } else if (!OFFICER_VIEWS.includes(target) && this.role() === 'officer') {
+      this.role.set('citizen');
+    }
+    // For `apply` we need the service loaded first; route to service if missing.
+    if (target === 'apply' && this.service()?.id !== param) {
+      void this.loadService(param, true);
+      return;
+    }
+    this.applyRoute(target, param);
+  }
+
+  // ─── Catálogo (SH-1 discovery) ──────────────────────────────────────────────
+  /** SH-1 `criteriachange`: re-query with the term + the `category` facet. */
+  onDiscoveryChange(criteria: DiscoveryCriteria): void {
+    this.searchTerm.set(criteria.term);
+    this.category.set(criteria.facets['category']?.[0] ?? '');
     void this.runSearch();
   }
 
   private async runSearch(): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
-    this.view.set('catalog');
     try {
-      const result = await this.#api.tramites(
-        this.apiBase(),
-        this.searchTerm().trim(),
-        this.category(),
-      );
-      this.tramites.set(result.tramites);
-      this.total.set(result.total);
-      this.searched.set(true);
+      const services = await this.#api.services(this.apiBase(), this.searchTerm().trim(), this.category());
+      this.services.set(services);
+      this.servicesLoaded.set(true);
     } catch (error) {
       this.errorMessage.set('No pudimos cargar los trámites. Intente de nuevo.');
       void error;
@@ -370,26 +624,26 @@ export class GovElementComponent {
     }
   }
 
-  // ─── Ficha ─────────────────────────────────────────────────────────────────
-  openTramite(tramite: TramiteSummary): void {
-    void this.loadTramite(tramite.id);
+  // ─── Ficha ──────────────────────────────────────────────────────────────────
+  openService(service: GovService): void {
+    this.navigate('service', service.id);
   }
 
   backToCatalog(): void {
-    this.view.set('catalog');
-    this.detail.set(null);
-    this.errorMessage.set('');
-    this.emitViewChange();
+    this.navigate('catalog');
   }
 
-  private async loadTramite(id: string): Promise<void> {
+  private async loadService(id: string, thenApply = false): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const detail = await this.#api.tramite(this.apiBase(), id);
-      this.detail.set(detail);
-      this.view.set('detail');
-      this.emitViewChange();
+      const detail = await this.#api.service(this.apiBase(), id);
+      this.service.set(detail);
+      if (thenApply) {
+        await this.ensureForm(id);
+        this.navigate('apply', id);
+      }
+      // Non-apply: the view was already set by `applyRoute` before dispatch.
     } catch (error) {
       this.errorMessage.set('No pudimos abrir el trámite. Intente de nuevo.');
       void error;
@@ -398,369 +652,305 @@ export class GovElementComponent {
     }
   }
 
-  // ─── Wizard de radicación ──────────────────────────────────────────────────
+  // ─── Iniciar solicitud (SH-9) ───────────────────────────────────────────────
   startApplication(): void {
-    if (!this.detail()) {
+    const service = this.service();
+    if (!service) {
       return;
     }
-    // Fresh draft; applicant stays prefilled (once-only) and editable.
-    this.answers.set({});
-    this.docs.set([]);
-    this.paid.set(false);
-    this.applyStep.set('applicant');
-    this.view.set('apply');
-    this.errorMessage.set('');
-    this.announce('Inició la radicación. Paso 1: sus datos.');
-    this.emitViewChange();
+    void this.beginApplication(service.id);
   }
 
-  setAnswer(key: string, value: string): void {
-    this.answers.update((current) => ({ ...current, [key]: value }));
-  }
-
-  bindAnswer(key: string): (event: Event) => void {
-    return (event: Event) =>
-      this.setAnswer(key, (event.target as HTMLInputElement | null)?.value ?? '');
-  }
-
-  toggleAnswer(key: string): (event: Event) => void {
-    return (event: Event) =>
-      this.setAnswer(key, (event.target as HTMLInputElement | null)?.checked ? 'true' : '');
-  }
-
-  answerOf(key: string): string {
-    return this.answers()[key] ?? '';
-  }
-
-  /** Display value for check-answers: select answers show their option label. */
-  answerLabel(field: FormFieldDef): string {
-    const raw = this.answerOf(field.key);
-    if (field.type === 'checkbox') {
-      return raw === 'true' ? 'Sí' : 'No';
-    }
-    if (field.type === 'select') {
-      return field.options.find((option) => option.value === raw)?.label ?? raw;
-    }
-    return raw;
-  }
-
-  stepLabel(step: ApplyStep): string {
-    return APPLY_STEP_LABELS[step];
-  }
-
-  stepIndex(step: ApplyStep): number {
-    return this.applySteps().indexOf(step);
-  }
-
-  isStepDone(step: ApplyStep): boolean {
-    return this.stepIndex(step) < this.stepIndex(this.applyStep());
-  }
-
-  stepValid(step: ApplyStep): boolean {
-    switch (step) {
-      case 'applicant':
-        return this.applicantValid();
-      case 'form':
-        return this.formValid();
-      case 'documents':
-        return this.documentsValid();
-      default:
-        return true;
-    }
-  }
-
-  /** Jump back to a step from check-answers ("Cambiar", GOV.UK pattern). */
-  goToStep(step: ApplyStep): void {
-    if (this.applySteps().includes(step)) {
-      this.applyStep.set(step);
-      this.announce(`Paso: ${APPLY_STEP_LABELS[step]}.`);
-    }
-  }
-
-  nextStep(): void {
-    const steps = this.applySteps();
-    const index = steps.indexOf(this.applyStep());
-    if (!this.stepValid(this.applyStep()) || index < 0 || index >= steps.length - 1) {
+  private async ensureForm(serviceId: string): Promise<void> {
+    if (this.form()?.id && this.service()?.id === serviceId && this.form()) {
       return;
     }
-    const next = steps[index + 1];
-    this.applyStep.set(next);
-    this.announce(`Paso: ${APPLY_STEP_LABELS[next]}.`);
+    const form = await this.#api.form(this.apiBase(), serviceId);
+    this.form.set(form);
   }
 
-  previousStep(): void {
-    const steps = this.applySteps();
-    const index = steps.indexOf(this.applyStep());
-    if (index <= 0) {
-      this.view.set('detail');
-      this.emitViewChange();
-      return;
-    }
-    this.applyStep.set(steps[index - 1]);
-  }
-
-  // ─── Documentos (dropzone reuse + native fallback) ─────────────────────────
-  onDropzoneFiles(event: Event): void {
-    const detail = (event as CustomEvent<{ accepted?: readonly { name?: string; size?: number }[] }>)
-      .detail;
-    const accepted = detail?.accepted ?? [];
-    this.addDocuments(
-      accepted.map((file) => ({ name: file.name ?? 'documento', size: file.size ?? 0 })),
-    );
-  }
-
-  onNativeFiles(event: Event): void {
-    const files = (event.target as HTMLInputElement | null)?.files;
-    if (!files) {
-      return;
-    }
-    this.addDocuments(Array.from(files).map((file) => ({ name: file.name, size: file.size })));
-    (event.target as HTMLInputElement).value = '';
-  }
-
-  private addDocuments(files: readonly { name: string; size: number }[]): void {
-    if (files.length === 0) {
-      return;
-    }
-    this.docs.update((current) => [
-      ...current,
-      ...files
-        .filter((file) => !current.some((doc) => doc.name === file.name))
-        .map((file, index) => ({
-          id: `DOC-${Date.now().toString(36)}-${current.length + index}`,
-          name: file.name,
-          size: file.size,
-        })),
-    ]);
-    this.announce(`${files.length} documento(s) agregado(s).`);
-  }
-
-  removeDocument(id: string): void {
-    this.docs.update((current) => current.filter((doc) => doc.id !== id));
-  }
-
-  // ─── Pago de tasa (stub visible — PSE simulado) ────────────────────────────
-  payFee(): void {
-    if (!this.hasFee() || this.paid()) {
-      return;
-    }
-    this.paid.set(true);
-    this.announce('Pago de la tasa aprobado (simulado).');
-  }
-
-  // ─── Radicar ───────────────────────────────────────────────────────────────
-  submitApplication(): void {
-    const detail = this.detail();
-    if (!detail || !this.canSubmit() || this.loading()) {
-      return;
-    }
+  private async beginApplication(serviceId: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
-    void this.#submit(detail);
+    try {
+      await this.ensureForm(serviceId);
+      this.navigate('apply', serviceId);
+      this.announce('Empezó la solicitud. Complete las tareas del formulario.');
+    } catch (error) {
+      this.errorMessage.set('No pudimos abrir el formulario. Intente de nuevo.');
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  async #submit(detail: TramiteDetail): Promise<void> {
+  /** SH-9 (submit) — radica la solicitud contra el contrato. */
+  onFormSubmit(event: DynamicFormSubmit): void {
+    const service = this.service();
+    if (!service || this.submitting()) {
+      return;
+    }
+    this.submitting.set(true);
+    this.errorMessage.set('');
+    void this.#radicar(service, event.answers);
+  }
+
+  async #radicar(service: GovServiceDetail, answers: Readonly<Record<string, string>>): Promise<void> {
     try {
-      const result = await this.#api.submitApplication(this.apiBase(), {
-        tramiteId: detail.tramite.id,
-        applicant: {
-          name: this.applicantName().trim(),
-          docType: this.applicantDocType(),
-          docNumber: this.applicantDocNumber().trim(),
-          email: this.applicantEmail().trim(),
-          phone: this.applicantPhone().trim(),
-        },
-        answers: this.answers(),
-        paid: this.paid(),
+      const summary = await this.#api.createApplication(this.apiBase(), {
+        serviceId: service.id,
+        answers,
       });
-      for (const doc of this.docs()) {
-        await this.#api.uploadDocument(this.apiBase(), result.caseId, doc);
-      }
-      const caseDetail = await this.#api.getCase(this.apiBase(), result.caseId);
-      this.confirmedCase.set(caseDetail.case);
-      this.view.set('receipt');
-      this.announce(`Su solicitud quedó radicada con el número ${result.radicado}.`);
-      this.applicationsubmitted.emit({ caseId: result.caseId, radicado: result.radicado });
-      this.emitViewChange();
+      this.confirmedApplication.set(summary);
+      this.applicationsLoaded.set(false); // folder must refetch to include the new one
+      this.navigate('receipt');
+      this.announce(`Su solicitud quedó radicada con el número ${summary.reference}.`);
+      this.applicationsubmitted.emit({ id: summary.id, reference: summary.reference });
     } catch (error) {
       this.errorMessage.set('No pudimos radicar la solicitud. Intente de nuevo.');
       void error;
     } finally {
-      this.loading.set(false);
+      this.submitting.set(false);
     }
   }
 
-  // ─── Mi carpeta (bandeja del ciudadano) ────────────────────────────────────
-  goToFolder(): void {
-    this.view.set('folder');
-    this.errorMessage.set('');
-    this.emitViewChange();
-    void this.loadFolder();
+  // ─── Mis solicitudes (SH-4) ─────────────────────────────────────────────────
+  goToApplications(): void {
+    this.navigate('applications');
   }
 
-  private async loadFolder(): Promise<void> {
+  private async loadApplications(): Promise<void> {
     this.loading.set(true);
     try {
-      const cases = await this.#api.inbox(this.apiBase(), this.actor(), 'citizen');
-      this.myCases.set(cases);
+      const apps = await this.#api.applications(this.apiBase(), this.citizen());
+      this.applications.set(apps);
+      this.applicationsLoaded.set(true);
     } catch (error) {
-      this.errorMessage.set('No pudimos cargar su carpeta. Intente de nuevo.');
+      this.errorMessage.set('No pudimos cargar sus solicitudes. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
   }
 
-  // ─── Seguimiento del expediente ────────────────────────────────────────────
-  openCase(caseId: string): void {
-    void this.loadCase(caseId, this.role() === 'officer' ? 'officer-case' : 'case');
+  openApplication(app: ApplicationSummary): void {
+    this.navigate('application', app.id);
   }
 
-  backFromCase(): void {
-    if (this.role() === 'officer') {
-      this.view.set('queue');
-      void this.loadQueue();
-    } else {
-      this.goToFolder();
-      return;
-    }
-    this.activeCase.set(null);
-    this.emitViewChange();
-  }
-
-  private async loadCase(caseId: string, target: GovView): Promise<void> {
+  private async loadApplication(id: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const result = await this.#api.getCase(this.apiBase(), caseId);
-      this.activeCase.set(result.case);
-      this.subsanacionNote.set('');
-      this.officerNote.set('');
-      this.view.set(target);
-      this.emitViewChange();
+      const detail = await this.#api.application(this.apiBase(), id);
+      this.activeApplication.set(detail);
+      this.activeThreadId.set(null);
+      // View was already set by `applyRoute` before dispatch — do not re-route.
     } catch (error) {
-      this.errorMessage.set('No pudimos abrir el expediente. Intente de nuevo.');
+      this.errorMessage.set('No pudimos abrir su solicitud. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
   }
 
-  /** Citizen answers a subsanación → the expediente legally returns to review. */
-  respondSubsanacion(): void {
-    const kase = this.activeCase();
-    if (!kase || kase.status !== 'subsanacion' || this.subsanacionNote().trim() === '') {
+  // ─── Subir documento ────────────────────────────────────────────────────────
+  onDocumentFile(event: Event): void {
+    const files = (event.target as HTMLInputElement | null)?.files;
+    if (files && files.length > 0) {
+      this.uploadName.set(files[0].name);
+    }
+  }
+
+  uploadDocument(): void {
+    const app = this.activeApplication();
+    const name = this.uploadName().trim();
+    if (!app || name === '' || this.loading()) {
       return;
     }
-    void this.#transition(
-      kase,
-      'en-revision',
-      `Respuesta del ciudadano: ${this.subsanacionNote().trim()}`,
-      kase.applicant.name,
+    void this.#upload(app.id, name);
+  }
+
+  async #upload(applicationId: string, name: string): Promise<void> {
+    this.loading.set(true);
+    try {
+      const doc = await this.#api.uploadDocument(this.apiBase(), { applicationId, name });
+      // Reflect the new document in the open detail (optimistic reconcile).
+      this.activeApplication.update((current) =>
+        current ? { ...current, documents: [...current.documents, doc] } : current,
+      );
+      this.uploadName.set('');
+      this.announce(`Documento "${doc.name}" adjuntado.`);
+    } catch (error) {
+      this.errorMessage.set('No pudimos subir el documento. Intente de nuevo.');
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // ─── Correspondencia (SH-7) ─────────────────────────────────────────────────
+  onThreadSelect(message: { id: string }): void {
+    this.activeThreadId.set(message.id);
+  }
+
+  onSendMessage(event: { body: string }): void {
+    const app = this.activeApplication();
+    const body = event.body.trim();
+    if (!app || body === '' || this.sendingMessage()) {
+      return;
+    }
+    // Optimistic local append (no message-send endpoint in the contract; the
+    // correspondence graph is server-driven via decisions, so we reflect locally).
+    const local = {
+      id: `local-${Date.now().toString(36)}`,
+      author: 'Usted',
+      body,
+      createdAtUtc: new Date().toISOString(),
+      outgoing: true,
+    };
+    this.activeApplication.update((current) =>
+      current ? { ...current, messages: [...current.messages, local] } : current,
     );
+    this.activeThreadId.set(local.id);
+    this.announce('Mensaje enviado a la agencia.');
   }
 
-  // ─── Funcionario: bandeja + transiciones legales ───────────────────────────
+  // ─── Funcionario: cola (SH-5) ───────────────────────────────────────────────
   goToQueue(): void {
-    this.view.set('queue');
-    this.errorMessage.set('');
-    this.emitViewChange();
-    void this.loadQueue();
+    this.navigate('queue');
   }
 
-  setQueueFilter(filter: string): void {
+  onConsoleFilterChange(filter: string): void {
     this.queueFilter.set(filter);
+    this.queueLoaded.set(false);
+    void this.loadQueue();
   }
 
   private async loadQueue(): Promise<void> {
     this.loading.set(true);
     try {
-      const cases = await this.#api.inbox(this.apiBase(), this.actor(), 'officer');
+      const cases = await this.#api.queue(this.apiBase(), this.agency(), this.queueFilter());
       this.queueCases.set(cases);
-      if (this.view() !== 'officer-case') {
-        this.view.set('queue');
-        this.emitViewChange();
-      }
+      this.queueLoaded.set(true);
     } catch (error) {
-      this.errorMessage.set('No pudimos cargar la bandeja. Intente de nuevo.');
+      this.errorMessage.set('No pudimos cargar la cola de casos. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
   }
 
-  /** Officer moves the expediente along a LEGAL transition (illegal = ignored). */
-  transitionCase(to: CaseStatus): void {
-    const kase = this.activeCase();
-    if (!kase || !canTransition(kase.status, to) || this.loading()) {
-      return;
+  onConsoleRowAction(event: ConsoleRowActionEvent<QueueCase>): void {
+    if (event.actionId === 'open') {
+      this.openCase(event.row.id);
     }
-    void this.#transition(kase, to, this.officerNote().trim(), 'Funcionario de demo');
   }
 
-  async #transition(kase: GovCase, to: CaseStatus, note: string, actor: string): Promise<void> {
+  openCase(caseId: string): void {
+    this.navigate('case', caseId);
+  }
+
+  private async loadCase(caseId: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const result = await this.#api.transition(this.apiBase(), kase.caseId, to, note, actor);
-      const refreshed = await this.#api.getCase(this.apiBase(), kase.caseId);
-      this.activeCase.set(refreshed.case);
-      this.subsanacionNote.set('');
-      this.officerNote.set('');
-      this.announce(`El expediente pasó a: ${CASE_STATUS_LABELS[result.status]}.`);
-      this.casetransition.emit({ caseId: kase.caseId, to: result.status });
-      if (this.role() === 'officer') {
-        const cases = await this.#api.inbox(this.apiBase(), this.actor(), 'officer');
-        this.queueCases.set(cases);
-      } else {
-        const cases = await this.#api.inbox(this.apiBase(), this.actor(), 'citizen');
-        this.myCases.set(cases);
-      }
+      const kase = await this.#api.case(this.apiBase(), caseId);
+      this.activeCase.set(kase);
+      this.decisionNote.set('');
+      // View was already set by `applyRoute` before dispatch — do not re-route.
     } catch (error) {
-      this.errorMessage.set('No pudimos actualizar el expediente. Intente de nuevo.');
+      this.errorMessage.set('No pudimos abrir el caso. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
   }
 
-  // ─── Labels / helpers (lenguaje claro) ─────────────────────────────────────
-  statusLabel(status: CaseStatus): string {
-    return CASE_STATUS_LABELS[status];
+  backToQueue(): void {
+    this.queueLoaded.set(false);
+    this.navigate('queue');
   }
 
-  statusHint(status: CaseStatus): string {
-    return CASE_STATUS_HINTS[status];
+  // ─── Decisión (aprobar/rechazar/pedir info + nota) ──────────────────────────
+  decide(outcome: DecisionOutcome): void {
+    const kase = this.activeCase();
+    if (!kase || isClosedStatus(kase.application.status) || this.loading()) {
+      return;
+    }
+    void this.#decide(kase.application.id, outcome);
   }
 
-  transitionLabel(to: CaseStatus): string {
-    return TRANSITION_ACTION_LABELS[to];
+  async #decide(caseId: string, outcome: DecisionOutcome): Promise<void> {
+    this.loading.set(true);
+    this.errorMessage.set('');
+    try {
+      const kase = await this.#api.decide(this.apiBase(), {
+        caseId,
+        outcome,
+        note: this.decisionNote().trim(),
+      });
+      this.activeCase.set(kase);
+      this.decisionNote.set('');
+      this.queueLoaded.set(false); // queue must refetch to reflect the new status
+      this.announce(`El caso pasó a: ${STATUS_LABELS[kase.application.status]}.`);
+      this.casedecided.emit({ caseId, outcome });
+    } catch (error) {
+      this.errorMessage.set('No pudimos registrar la decisión. Intente de nuevo.');
+      void error;
+    } finally {
+      this.loading.set(false);
+    }
   }
 
-  isClosed(status: CaseStatus): boolean {
-    return isTerminal(status);
+  // ─── Labels / helpers (lenguaje claro) ──────────────────────────────────────
+  statusLabel(status: ApplicationStatus): string {
+    return STATUS_LABELS[status];
+  }
+
+  statusHint(status: ApplicationStatus): string {
+    return STATUS_HINTS[status];
+  }
+
+  outcomeLabel(outcome: DecisionOutcome): string {
+    return OUTCOME_LABELS[outcome];
+  }
+
+  isClosed(status: ApplicationStatus): boolean {
+    return isClosedStatus(status);
   }
 
   categoryLabel(category: string): string {
     return CATEGORIES.find((entry) => entry.key === category)?.label ?? category;
   }
 
-  channelLabel(channel: TramiteSummary['channel']): string {
-    switch (channel) {
-      case 'presencial':
-        return 'Presencial';
-      case 'mixto':
-        return 'En línea y presencial';
+  priorityLabel(priority: string): string {
+    switch (priority) {
+      case 'urgent':
+        return 'Urgente';
+      case 'high':
+        return 'Alta';
+      case 'low':
+        return 'Baja';
       default:
-        return '100% en línea';
+        return 'Normal';
     }
   }
 
-  feeLabel(amount: number, currency?: string): string {
-    if (amount <= 0) {
+  slaLabel(daysLeft: number): string {
+    if (daysLeft < 0) {
+      return `Vencido hace ${Math.abs(daysLeft)} día(s)`;
+    }
+    if (daysLeft === 0) {
+      return 'Vence hoy';
+    }
+    return daysLeft === 1 ? '1 día restante' : `${daysLeft} días restantes`;
+  }
+
+  feeLabel(feeMinor: number, currency: string): string {
+    if (feeMinor <= 0) {
       return 'Gratuito';
     }
-    return this.formatMoney(amount, currency || this.currency());
+    return this.formatMoney(feeMinor / 100, currency);
   }
 
   formatMoney(amount: number, currency: string): string {
@@ -779,42 +969,19 @@ export class GovElementComponent {
     if (!iso) {
       return '';
     }
+    const value = iso.length <= 10 ? `${iso}T00:00:00` : iso;
     try {
       return new Intl.DateTimeFormat('es-CO', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
-      }).format(new Date(`${iso}T00:00:00`));
+      }).format(new Date(value));
     } catch {
       return iso;
     }
   }
 
-  formatSize(bytes: number): string {
-    if (bytes <= 0) {
-      return '';
-    }
-    const kb = bytes / 1024;
-    return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(kb))} KB`;
-  }
-
-  /** Answers of a case as rows for the officer's expediente view. */
-  caseAnswers(kase: GovCase): readonly { key: string; value: string }[] {
-    return Object.entries(kase.answers).map(([key, value]) => ({ key, value }));
-  }
-
-  daysLeftLabel(kase: GovCase): string {
-    if (this.isClosed(kase.status)) {
-      return 'Cerrado';
-    }
-    return kase.daysLeft === 1 ? '1 día restante' : `${kase.daysLeft} días restantes`;
-  }
-
   private announce(message: string): void {
     this.announcement.set(message);
-  }
-
-  private emitViewChange(): void {
-    this.viewchange.emit(this.view());
   }
 }

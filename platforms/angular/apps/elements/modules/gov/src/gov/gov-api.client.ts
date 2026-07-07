@@ -1,72 +1,76 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
-  CASE_STATUS_LABELS,
-  canTransition,
-  type ApplicantInfo,
-  type ApplicationRequest,
-  type ApplicationResult,
-  type CaseDetailResult,
-  type CaseStatus,
-  type DocRef,
-  type Fee,
-  type FormFieldDef,
-  type FormFieldType,
+  OUTCOME_TO_STATUS,
+  STATUS_LABELS,
+  type AnswerPair,
+  type ApplicationDetail,
+  type ApplicationStatus,
+  type ApplicationSummary,
+  type CaseDecision,
+  type CreateApplicationRequest,
+  type DecisionOutcome,
+  type DecisionRequest,
   type GovCase,
-  type GovRole,
+  type GovDocument,
+  type GovForm,
+  type GovMessage,
+  type GovService,
+  type GovServiceDetail,
+  type QueueCase,
   type TimelineEntry,
-  type TramiteCategory,
-  type TramiteChannel,
-  type TramiteDetail,
-  type TramiteSearchResult,
-  type TramiteSummary,
-  type TransitionResult,
+  type UploadDocumentRequest,
 } from './gov.model';
+import {
+  MOCK_FORMS,
+  MOCK_SERVICES,
+  SEED_APPLICATIONS,
+  type MockServiceDetail,
+  type SeedApplication,
+} from './gov.mock';
 
 /**
- * Thin HTTP client over the Gobierno backend contract (provided by the backend
- * agent in parallel). Programs against:
+ * Thin HTTP client over the EXACT Gobierno backend contract (Ola 8). Programs
+ * against — and only against — these endpoints/keys (never invents others):
  *
- *  - `GET  /api/gov/tramites?q=&category=`            → `{ tramites, total }`
- *  - `GET  /api/gov/tramite/{id}`                     → `{ tramite, formDefinition, requirements, fee }`
- *  - `POST /api/gov/application`                      → `{ caseId, radicado, fee? }`
- *  - `POST /api/gov/application/{id}/documents`       → `{ id, name, size }`
- *  - `GET  /api/gov/case/{id}`                        → `{ case, status, timeline }`
- *  - `GET  /api/gov/inbox?actor=&role=`               → `{ cases }`
- *  - `POST /api/gov/case/{id}/transition` `{to,note}` → `{ status }`
+ *  - `GET  /api/gov/services?q=&category=`      → `{ services }`
+ *  - `GET  /api/gov/service/{id}`               → `{ service }`
+ *  - `GET  /api/gov/form/{serviceId}`           → `{ form }`
+ *  - `POST /api/gov/application`                → `{ application }`   (summary)
+ *  - `GET  /api/gov/applications?citizen=`      → `{ applications }`
+ *  - `GET  /api/gov/application/{id}`           → `{ application }`   (detail)
+ *  - `POST /api/gov/document`                   → `{ document }`
+ *  - `GET  /api/gov/queue?agency=&status=`      → `{ cases }`
+ *  - `GET  /api/gov/case/{id}`                  → `{ case }`
+ *  - `POST /api/gov/decision`                   → `{ case }`
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error /
- * non-OK), the client falls back to a visible **seeded demo store** (catálogo de
- * trámites + expedientes en varios estados) and logs a `TODO`, so the full case
- * lifecycle — radicar → revisar → subsanar → resolver — demos end-to-end before
- * the backend lands. Every mock path flips the `degraded` flag so the shell can
- * surface a "datos de ejemplo" notice.
- *
- * The mock transition path enforces the **legal state machine** (`canTransition`):
- * an illegal or repeated transition is a no-op that returns the current status —
- * the idempotence the spec calls central for this domain.
- *
- * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
+ * **Graceful degradation:** any 404 / network error / bad shape falls back to a
+ * visible **seeded demo store** (catálogo + solicitudes en varios estados + una
+ * cola de casos) and latches `degraded` so the shell can show a "datos de ejemplo"
+ * notice. The full lifecycle — radicar → revisar → decidir → subsanar — demos
+ * end-to-end offline before the backend lands. No RxJS: native `fetch` + Promise.
  */
 @Injectable()
 export class GovApiClient {
   readonly #logger = inject(LoggerService);
 
-  /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
-
-  /** Seeded case store (mock) — shared by both faces so the demo state advances. */
-  #cases: Map<string, GovCase> | null = null;
-
-  #radicadoSeq = 0;
+  /** Seeded application store (mock) — shared across both faces so state advances. */
+  #store: Map<string, SeedApplication> | null = null;
+  #refSeq = 0;
 
   get degraded(): boolean {
     return this.#degraded;
   }
 
-  // ─── Catálogo de trámites (search + categoría) ───────────────────────────────
+  /** Clear the latch for a fresh identity round (the ehr fix pattern). */
+  resetDegraded(): void {
+    this.#degraded = false;
+  }
 
-  async tramites(apiBase: string, q: string, category: string): Promise<TramiteSearchResult> {
+  // ─── Catálogo ────────────────────────────────────────────────────────────────
+
+  async services(apiBase: string, q: string, category: string): Promise<readonly GovService[]> {
     const params = new URLSearchParams();
     if (q) {
       params.set('q', q);
@@ -75,133 +79,169 @@ export class GovApiClient {
       params.set('category', category);
     }
     const query = params.toString();
-    const url = `${apiBase}/tramites${query ? `?${query}` : ''}`;
+    const url = `${apiBase}/services${query ? `?${query}` : ''}`;
     try {
       const data = await this.getJson(url);
-      const result = normalizeSearch(data);
-      if (result) {
-        return result;
+      const services = normalizeServices(data);
+      if (services) {
+        return services;
       }
-      throw new Error('tramites-shape');
+      throw new Error('services-shape');
     } catch (error) {
-      this.markDegraded('GET /api/gov/tramites', error);
-      return mockSearch(q, category);
+      this.markDegraded('GET /api/gov/services', error);
+      return mockServices(q, category);
     }
   }
 
-  // ─── Ficha del trámite (definition drives the wizard) ────────────────────────
-
-  async tramite(apiBase: string, id: string): Promise<TramiteDetail> {
-    const url = `${apiBase}/tramite/${encodeURIComponent(id)}`;
+  async service(apiBase: string, id: string): Promise<GovServiceDetail> {
+    const url = `${apiBase}/service/${encodeURIComponent(id)}`;
     try {
       const data = await this.getJson(url);
-      const detail = normalizeDetail(data);
+      const detail = normalizeServiceDetail(data);
       if (detail) {
         return detail;
       }
-      throw new Error('tramite-shape');
+      throw new Error('service-shape');
     } catch (error) {
-      this.markDegraded('GET /api/gov/tramite/{id}', error);
-      return mockDetail(id);
+      this.markDegraded('GET /api/gov/service/{id}', error);
+      return mockServiceDetail(id);
     }
   }
 
-  // ─── Radicar la solicitud (creates the expediente) ───────────────────────────
+  async form(apiBase: string, serviceId: string): Promise<GovForm> {
+    const url = `${apiBase}/form/${encodeURIComponent(serviceId)}`;
+    try {
+      const data = await this.getJson(url);
+      const form = normalizeForm(data);
+      if (form) {
+        return form;
+      }
+      throw new Error('form-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/gov/form/{serviceId}', error);
+      return mockForm(serviceId);
+    }
+  }
 
-  async submitApplication(apiBase: string, body: ApplicationRequest): Promise<ApplicationResult> {
+  // ─── Solicitud ──────────────────────────────────────────────────────────────
+
+  async createApplication(
+    apiBase: string,
+    body: CreateApplicationRequest,
+  ): Promise<ApplicationSummary> {
     const url = `${apiBase}/application`;
     try {
       const data = await this.postJson(url, body);
-      const result = normalizeApplication(data);
-      if (result) {
-        return result;
+      const summary = normalizeSummary(isRecord(data) ? data['application'] : data);
+      if (summary) {
+        return summary;
       }
       throw new Error('application-shape');
     } catch (error) {
       this.markDegraded('POST /api/gov/application', error);
-      return this.mockSubmit(body);
+      return this.mockCreate(body);
     }
   }
 
-  // ─── Adjuntar documentos al expediente ───────────────────────────────────────
-
-  async uploadDocument(apiBase: string, applicationId: string, doc: DocRef): Promise<DocRef> {
-    const url = `${apiBase}/application/${encodeURIComponent(applicationId)}/documents`;
+  async applications(apiBase: string, citizen: string): Promise<readonly ApplicationSummary[]> {
+    const url = `${apiBase}/applications?citizen=${encodeURIComponent(citizen)}`;
     try {
-      const data = await this.postJson(url, { name: doc.name, size: doc.size });
-      const ref = normalizeDoc(data);
-      if (ref) {
-        return ref;
+      const data = await this.getJson(url);
+      const list = normalizeSummaries(data);
+      if (list) {
+        return list;
+      }
+      throw new Error('applications-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/gov/applications', error);
+      return [...this.mockStore().values()].map(toSummary);
+    }
+  }
+
+  async application(apiBase: string, id: string): Promise<ApplicationDetail> {
+    const url = `${apiBase}/application/${encodeURIComponent(id)}`;
+    try {
+      const data = await this.getJson(url);
+      const detail = normalizeDetail(isRecord(data) ? data['application'] : data);
+      if (detail) {
+        return detail;
+      }
+      throw new Error('application-detail-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/gov/application/{id}', error);
+      const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
+      return toDetail(seed);
+    }
+  }
+
+  async uploadDocument(apiBase: string, body: UploadDocumentRequest): Promise<GovDocument> {
+    const url = `${apiBase}/document`;
+    try {
+      const data = await this.postJson(url, body);
+      const doc = normalizeDocument(isRecord(data) ? data['document'] : data);
+      if (doc) {
+        return doc;
       }
       throw new Error('document-shape');
     } catch (error) {
-      this.markDegraded('POST /api/gov/application/{id}/documents', error);
-      this.mockAttachDocument(applicationId, doc);
-      return doc;
+      this.markDegraded('POST /api/gov/document', error);
+      return this.mockUpload(body);
     }
   }
 
-  // ─── Seguimiento del expediente ──────────────────────────────────────────────
+  // ─── Funcionario ──────────────────────────────────────────────────────────────
 
-  async getCase(apiBase: string, id: string): Promise<CaseDetailResult> {
+  async queue(apiBase: string, agency: string, status: string): Promise<readonly QueueCase[]> {
+    const params = new URLSearchParams();
+    if (agency) {
+      params.set('agency', agency);
+    }
+    if (status) {
+      params.set('status', status);
+    }
+    const query = params.toString();
+    const url = `${apiBase}/queue${query ? `?${query}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const cases = normalizeQueue(data);
+      if (cases) {
+        return cases;
+      }
+      throw new Error('queue-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/gov/queue', error);
+      return this.mockQueue(agency, status);
+    }
+  }
+
+  async case(apiBase: string, id: string): Promise<GovCase> {
     const url = `${apiBase}/case/${encodeURIComponent(id)}`;
     try {
       const data = await this.getJson(url);
-      const result = normalizeCaseDetail(data);
-      if (result) {
-        return result;
+      const kase = normalizeCase(isRecord(data) ? data['case'] : data);
+      if (kase) {
+        return kase;
       }
       throw new Error('case-shape');
     } catch (error) {
       this.markDegraded('GET /api/gov/case/{id}', error);
-      const kase = this.mockStore().get(id);
-      const fallback = kase ?? [...this.mockStore().values()][0];
-      return { case: fallback, status: fallback.status, timeline: fallback.timeline };
+      const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
+      return toCase(seed);
     }
   }
 
-  // ─── Bandeja (mi carpeta del ciudadano / cola del funcionario) ────────────────
-
-  async inbox(apiBase: string, actor: string, role: GovRole): Promise<readonly GovCase[]> {
-    const params = new URLSearchParams({ actor, role });
-    const url = `${apiBase}/inbox?${params.toString()}`;
+  async decide(apiBase: string, body: DecisionRequest): Promise<GovCase> {
+    const url = `${apiBase}/decision`;
     try {
-      const data = await this.getJson(url);
-      const cases = normalizeCases(data);
-      if (cases) {
-        return cases;
+      const data = await this.postJson(url, body);
+      const kase = normalizeCase(isRecord(data) ? data['case'] : data);
+      if (kase) {
+        return kase;
       }
-      throw new Error('inbox-shape');
+      throw new Error('decision-shape');
     } catch (error) {
-      this.markDegraded('GET /api/gov/inbox', error);
-      const all = [...this.mockStore().values()];
-      // Citizen sees own cases; officer sees the whole queue.
-      return role === 'officer'
-        ? all
-        : all.filter((kase) => kase.applicant.docNumber === actorDocNumber(actor));
-    }
-  }
-
-  // ─── Transición de estado (máquina legal — auditada) ─────────────────────────
-
-  async transition(
-    apiBase: string,
-    caseId: string,
-    to: CaseStatus,
-    note: string,
-    actor: string,
-  ): Promise<TransitionResult> {
-    const url = `${apiBase}/case/${encodeURIComponent(caseId)}/transition`;
-    try {
-      const data = await this.postJson(url, { to, note });
-      const result = normalizeTransition(data);
-      if (result) {
-        return result;
-      }
-      throw new Error('transition-shape');
-    } catch (error) {
-      this.markDegraded('POST /api/gov/case/{id}/transition', error);
-      return this.mockTransition(caseId, to, note, actor);
+      this.markDegraded('POST /api/gov/decision', error);
+      return this.mockDecide(body);
     }
   }
 
@@ -237,89 +277,172 @@ export class GovApiClient {
     this.#logger.warn(`Gov API "${endpoint}" unavailable — using seeded demo data.`, error);
   }
 
-  // ─── Mock store (seeded expedientes across the whole lifecycle) ──────────────
+  // ─── Mock store (seeded solicitudes across the lifecycle) ─────────────────────
 
-  private mockStore(): Map<string, GovCase> {
-    if (!this.#cases) {
-      this.#cases = new Map(SEED_CASES.map((kase) => [kase.caseId, kase]));
+  private mockStore(): Map<string, SeedApplication> {
+    if (!this.#store) {
+      this.#store = new Map(SEED_APPLICATIONS.map((app) => [app.id, structuredCloneSafe(app)]));
     }
-    return this.#cases;
+    return this.#store;
   }
 
-  private mockSubmit(body: ApplicationRequest): ApplicationResult {
-    const seq = (this.#radicadoSeq += 1);
-    const caseId = `CASE-${Date.now().toString(36).toUpperCase()}-${seq}`;
-    const radicado = `GOV-2026-${String(10000 + this.mockStore().size + seq)}`;
-    const detail = mockDetail(body.tramiteId);
-    const today = isoToday();
-    const kase: GovCase = {
-      caseId,
-      radicado,
-      tramiteId: detail.tramite.id,
-      tramiteName: detail.tramite.name,
-      entity: detail.tramite.entity,
-      applicant: body.applicant,
-      answers: body.answers,
+  private mockCreate(body: CreateApplicationRequest): ApplicationSummary {
+    const seq = (this.#refSeq += 1);
+    const id = `APP-${Date.now().toString(36).toUpperCase()}-${seq}`;
+    const reference = `GOV-2026-${String(10000 + this.mockStore().size + seq)}`;
+    const service = mockServiceDetail(body.serviceId);
+    const nowIso = new Date().toISOString();
+    const app: SeedApplication = {
+      id,
+      reference,
+      serviceId: service.id,
+      serviceName: service.name,
+      citizenName: 'Carolina Pérez García',
+      status: 'submitted',
+      submittedAt: nowIso,
+      currentStage: 'Radicada',
+      answers: Object.entries(body.answers).map(([label, value]) => ({ label, value })),
       documents: [],
-      fee: detail.fee,
-      paid: body.paid,
-      status: 'radicado',
+      messages: [],
       timeline: [
-        {
-          status: 'radicado',
-          date: today,
-          actor: body.applicant.name,
-          note: 'Solicitud radicada en línea.',
-        },
+        { id: 'tl-1', label: 'Radicada', date: nowIso.slice(0, 10), state: 'current', note: 'Solicitud radicada en línea.' },
+        { id: 'tl-2', label: 'En revisión', date: '', state: 'pending' },
+        { id: 'tl-3', label: 'Resultado', date: '', state: 'pending' },
       ],
-      submittedAt: today,
-      slaDays: detail.tramite.estimatedDays,
-      daysLeft: detail.tramite.estimatedDays,
+      priority: 'normal',
+      slaDaysLeft: service.estimatedDays,
     };
-    this.mockStore().set(caseId, kase);
-    return { caseId, radicado, fee: detail.fee };
+    this.mockStore().set(id, app);
+    return toSummary(app);
   }
 
-  private mockAttachDocument(applicationId: string, doc: DocRef): void {
-    const kase = this.mockStore().get(applicationId);
-    if (!kase || kase.documents.some((existing) => existing.id === doc.id)) {
-      return;
+  private mockUpload(body: UploadDocumentRequest): GovDocument {
+    const nowIso = new Date().toISOString();
+    const doc: GovDocument = {
+      id: `DOC-${Date.now().toString(36)}`,
+      name: body.name,
+      status: 'received',
+      uploadedAt: nowIso,
+    };
+    const app = this.mockStore().get(body.applicationId);
+    if (app && !app.documents.some((d) => d.name === body.name)) {
+      app.documents = [...app.documents, doc];
     }
-    this.mockStore().set(applicationId, { ...kase, documents: [...kase.documents, doc] });
+    return doc;
   }
 
-  private mockTransition(
-    caseId: string,
-    to: CaseStatus,
-    note: string,
-    actor: string,
-  ): TransitionResult {
-    const kase = this.mockStore().get(caseId);
-    if (!kase) {
-      return { status: to };
+  private mockQueue(agency: string, status: string): readonly QueueCase[] {
+    let cases = [...this.mockStore().values()];
+    if (agency) {
+      cases = cases.filter((app) => mockServiceDetail(app.serviceId).agency === agency);
     }
-    // Legal state machine: illegal or repeated transitions are a NO-OP (idempotent).
-    if (!canTransition(kase.status, to)) {
-      return { status: kase.status };
+    if (status) {
+      cases = cases.filter((app) => app.status === status);
     }
-    const closed = to === 'resuelto' || to === 'rechazado';
-    const next: GovCase = {
-      ...kase,
-      status: to,
-      daysLeft: closed ? 0 : kase.daysLeft,
-      timeline: [
-        ...kase.timeline,
-        {
-          status: to,
-          date: isoToday(),
-          actor,
-          note: note.trim() || CASE_STATUS_LABELS[to],
-        },
-      ],
-    };
-    this.mockStore().set(caseId, next);
-    return { status: to };
+    return cases.map(toQueueCase);
   }
+
+  private mockDecide(body: DecisionRequest): GovCase {
+    const app = this.mockStore().get(body.caseId);
+    if (!app) {
+      // Unknown case: synthesise a minimal decided case (idempotent-ish).
+      const fallback = [...this.mockStore().values()][0];
+      return toCase(fallback);
+    }
+    const nowIso = new Date().toISOString();
+    const nextStatus: ApplicationStatus = OUTCOME_TO_STATUS[body.outcome];
+    const stageLabel = STATUS_LABELS[nextStatus];
+    app.status = nextStatus;
+    app.currentStage = stageLabel;
+    app.decision = { outcome: body.outcome, note: body.note, decidedAtUtc: nowIso };
+    app.slaDaysLeft = nextStatus === 'approved' || nextStatus === 'rejected' ? 0 : app.slaDaysLeft;
+    // Advance the timeline: current → done, add the decision node as current.
+    app.timeline = [
+      ...app.timeline.map((entry) => (entry.state === 'current' ? { ...entry, state: 'done' as const } : entry)),
+      { id: `tl-${app.timeline.length + 1}`, label: stageLabel, date: nowIso.slice(0, 10), state: 'current' as const, note: body.note || undefined },
+    ];
+    // Correspondence: officer note lands as an incoming message for the citizen.
+    if (body.note) {
+      app.messages = [
+        ...app.messages,
+        {
+          id: `msg-${Date.now().toString(36)}`,
+          author: 'Funcionario de la agencia',
+          body: body.note,
+          createdAtUtc: nowIso,
+          outgoing: false,
+        },
+      ];
+    }
+    return toCase(app);
+  }
+}
+
+// ─── Mock projections (SeedApplication → contract shapes) ───────────────────────
+
+function toSummary(app: SeedApplication): ApplicationSummary {
+  return {
+    id: app.id,
+    reference: app.reference,
+    serviceId: app.serviceId,
+    serviceName: app.serviceName,
+    status: app.status,
+    submittedAt: app.submittedAt,
+    currentStage: app.currentStage,
+  };
+}
+
+function toDetail(app: SeedApplication): ApplicationDetail {
+  return {
+    id: app.id,
+    reference: app.reference,
+    serviceId: app.serviceId,
+    serviceName: app.serviceName,
+    status: app.status,
+    submittedAt: app.submittedAt,
+    currentStage: app.currentStage,
+    timeline: app.timeline,
+    documents: app.documents,
+    messages: app.messages,
+  };
+}
+
+function toQueueCase(app: SeedApplication): QueueCase {
+  return {
+    id: app.id,
+    reference: app.reference,
+    serviceName: app.serviceName,
+    citizenName: app.citizenName,
+    status: app.status,
+    submittedAt: app.submittedAt,
+    priority: app.priority,
+    slaDaysLeft: app.slaDaysLeft,
+  };
+}
+
+function toCase(app: SeedApplication): GovCase {
+  return {
+    application: {
+      id: app.id,
+      reference: app.reference,
+      serviceName: app.serviceName,
+      citizenName: app.citizenName,
+      status: app.status,
+      submittedAt: app.submittedAt,
+      currentStage: app.currentStage,
+    },
+    answers: app.answers,
+    documents: app.documents,
+    timeline: app.timeline,
+    decision: app.decision,
+  };
+}
+
+function structuredCloneSafe(app: SeedApplication): SeedApplication {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(app);
+  }
+  return JSON.parse(JSON.stringify(app)) as SeedApplication;
 }
 
 // ─── Normalisers (defensive — tolerate partial/loose API shapes) ────────────────
@@ -349,182 +472,44 @@ function readNumber(value: unknown): number {
   return 0;
 }
 
-function readBoolean(value: unknown, fallback = false): boolean {
+function readBoolean(value: unknown): boolean {
   if (typeof value === 'boolean') {
     return value;
   }
   if (typeof value === 'string') {
     return value.trim().toLowerCase() === 'true';
   }
-  return fallback;
+  return false;
 }
 
 function readStringArray(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map(readString).filter((entry) => entry !== '') : [];
 }
 
-function readCategory(value: unknown): TramiteCategory {
+function readStatus(value: unknown): ApplicationStatus {
   const raw = readString(value).toLowerCase();
-  const known: readonly TramiteCategory[] = [
-    'identidad',
-    'salud',
-    'tributario',
-    'vehiculos',
-    'empresa',
+  const known: readonly ApplicationStatus[] = [
+    'submitted',
+    'in-review',
+    'info-requested',
+    'approved',
+    'rejected',
   ];
-  return known.includes(raw as TramiteCategory) ? (raw as TramiteCategory) : 'identidad';
+  return (known as readonly string[]).includes(raw) ? (raw as ApplicationStatus) : 'submitted';
 }
 
-function readChannel(value: unknown): TramiteChannel {
+function readTimelineState(value: unknown): TimelineEntry['state'] {
   const raw = readString(value).toLowerCase();
-  return raw === 'presencial' || raw === 'mixto' ? raw : 'en-linea';
+  return raw === 'done' || raw === 'current' ? raw : 'pending';
 }
 
-function readStatus(value: unknown): CaseStatus {
+function readFieldType(value: unknown): GovForm['sections'][number]['fields'][number]['type'] {
   const raw = readString(value).toLowerCase();
-  const known: readonly CaseStatus[] = [
-    'radicado',
-    'en-revision',
-    'subsanacion',
-    'resuelto',
-    'rechazado',
-  ];
-  return known.includes(raw as CaseStatus) ? (raw as CaseStatus) : 'radicado';
+  const known = ['text', 'textarea', 'number', 'date', 'select', 'radio', 'checkbox', 'file', 'email', 'tel'];
+  return (known.includes(raw) ? raw : 'text') as GovForm['sections'][number]['fields'][number]['type'];
 }
 
-function readFieldType(value: unknown): FormFieldType {
-  const raw = readString(value).toLowerCase();
-  const known: readonly FormFieldType[] = [
-    'text',
-    'email',
-    'tel',
-    'number',
-    'date',
-    'select',
-    'textarea',
-    'checkbox',
-  ];
-  return known.includes(raw as FormFieldType) ? (raw as FormFieldType) : 'text';
-}
-
-function normalizeTramite(value: unknown): TramiteSummary | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const id = readString(value['id']).trim();
-  const name = readString(value['name']).trim() || readString(value['title']).trim();
-  if (!id || !name) {
-    return null;
-  }
-  return {
-    id,
-    name,
-    entity: readString(value['entity']).trim(),
-    category: readCategory(value['category']),
-    channel: readChannel(value['channel']),
-    summary: readString(value['summary']).trim() || readString(value['description']).trim(),
-    estimatedDays: Math.max(0, Math.trunc(readNumber(value['estimatedDays']))),
-    feeAmount: Math.max(0, readNumber(value['feeAmount'] ?? value['fee'])),
-    currency: readString(value['currency']).trim() || 'COP',
-  };
-}
-
-function normalizeSearch(value: unknown): TramiteSearchResult | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const raw = Array.isArray(value['tramites'])
-    ? value['tramites']
-    : Array.isArray(value['items'])
-      ? value['items']
-      : [];
-  const tramites = raw
-    .map((entry) => normalizeTramite(entry))
-    .filter((tramite): tramite is TramiteSummary => tramite !== null);
-  return { tramites, total: Math.trunc(readNumber(value['total'])) || tramites.length };
-}
-
-function normalizeField(value: unknown): FormFieldDef | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const key = readString(value['key']).trim() || readString(value['name']).trim();
-  const label = readString(value['label']).trim();
-  if (!key || !label) {
-    return null;
-  }
-  const rawOptions = Array.isArray(value['options']) ? value['options'] : [];
-  return {
-    key,
-    label,
-    type: readFieldType(value['type']),
-    required: readBoolean(value['required']),
-    hint: readString(value['hint']).trim(),
-    placeholder: readString(value['placeholder']).trim(),
-    options: rawOptions
-      .map((option): FormFieldDef['options'][number] | null => {
-        if (typeof option === 'string') {
-          const trimmed = option.trim();
-          return trimmed ? { value: trimmed, label: trimmed } : null;
-        }
-        if (!isRecord(option)) {
-          return null;
-        }
-        const optionValue = readString(option['value']).trim();
-        if (!optionValue) {
-          return null;
-        }
-        return { value: optionValue, label: readString(option['label']).trim() || optionValue };
-      })
-      .filter((option): option is FormFieldDef['options'][number] => option !== null),
-  };
-}
-
-function normalizeFee(value: unknown, currency: string): Fee {
-  const f = isRecord(value) ? value : {};
-  return {
-    amount: Math.max(0, readNumber(f['amount'])),
-    currency: readString(f['currency']).trim() || currency,
-    exempt: readBoolean(f['exempt']),
-  };
-}
-
-function normalizeDetail(value: unknown): TramiteDetail | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const tramite = normalizeTramite(value['tramite'] ?? value);
-  if (!tramite) {
-    return null;
-  }
-  const rawFields = Array.isArray(value['formDefinition']) ? value['formDefinition'] : [];
-  return {
-    tramite,
-    formDefinition: rawFields
-      .map((field) => normalizeField(field))
-      .filter((field): field is FormFieldDef => field !== null),
-    requirements: readStringArray(value['requirements']),
-    fee: normalizeFee(value['fee'], tramite.currency),
-  };
-}
-
-function normalizeApplication(value: unknown): ApplicationResult | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const caseId = readString(value['caseId']).trim() || readString(value['id']).trim();
-  const radicado = readString(value['radicado']).trim();
-  if (!caseId || !radicado) {
-    return null;
-  }
-  return {
-    caseId,
-    radicado,
-    fee: isRecord(value['fee']) ? normalizeFee(value['fee'], 'COP') : undefined,
-  };
-}
-
-function normalizeDoc(value: unknown): DocRef | null {
+function normalizeService(value: unknown): GovService | null {
   if (!isRecord(value)) {
     return null;
   }
@@ -533,7 +518,147 @@ function normalizeDoc(value: unknown): DocRef | null {
   if (!id || !name) {
     return null;
   }
-  return { id, name, size: Math.max(0, Math.trunc(readNumber(value['size']))) };
+  return {
+    id,
+    name,
+    summary: readString(value['summary']).trim(),
+    category: readString(value['category']).trim(),
+    agency: readString(value['agency']).trim(),
+    estimatedDays: Math.max(0, Math.trunc(readNumber(value['estimatedDays']))),
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    currency: readString(value['currency']).trim() || 'COP',
+  };
+}
+
+function normalizeServices(value: unknown): readonly GovService[] | null {
+  if (!isRecord(value) || !Array.isArray(value['services'])) {
+    return null;
+  }
+  return value['services']
+    .map((entry) => normalizeService(entry))
+    .filter((service): service is GovService => service !== null);
+}
+
+function normalizeServiceDetail(value: unknown): GovServiceDetail | null {
+  const root = isRecord(value) && isRecord(value['service']) ? value['service'] : value;
+  if (!isRecord(root)) {
+    return null;
+  }
+  const id = readString(root['id']).trim();
+  const name = readString(root['name']).trim();
+  if (!id || !name) {
+    return null;
+  }
+  const rawSteps = Array.isArray(root['steps']) ? root['steps'] : [];
+  return {
+    id,
+    name,
+    summary: readString(root['summary']).trim(),
+    category: readString(root['category']).trim(),
+    agency: readString(root['agency']).trim(),
+    steps: rawSteps
+      .map((step): GovServiceDetail['steps'][number] | null => {
+        if (!isRecord(step)) {
+          return null;
+        }
+        const stepId = readString(step['id']).trim();
+        const title = readString(step['title']).trim();
+        return stepId && title ? { id: stepId, title, detail: readString(step['detail']).trim() } : null;
+      })
+      .filter((step): step is GovServiceDetail['steps'][number] => step !== null),
+    eligibility: readStringArray(root['eligibility']),
+    required: readStringArray(root['required']),
+    feeMinor: Math.max(0, Math.trunc(readNumber(root['feeMinor']))),
+    currency: readString(root['currency']).trim() || 'COP',
+  };
+}
+
+function normalizeForm(value: unknown): GovForm | null {
+  const root = isRecord(value) && isRecord(value['form']) ? value['form'] : value;
+  if (!isRecord(root)) {
+    return null;
+  }
+  const id = readString(root['id']).trim();
+  const rawSections = Array.isArray(root['sections']) ? root['sections'] : [];
+  const sections = rawSections
+    .map((section): GovForm['sections'][number] | null => {
+      if (!isRecord(section)) {
+        return null;
+      }
+      const sectionId = readString(section['id']).trim();
+      const title = readString(section['title']).trim();
+      if (!sectionId || !title) {
+        return null;
+      }
+      const rawFields = Array.isArray(section['fields']) ? section['fields'] : [];
+      return {
+        id: sectionId,
+        title,
+        fields: rawFields
+          .map((field): GovForm['sections'][number]['fields'][number] | null => {
+            if (!isRecord(field)) {
+              return null;
+            }
+            const fieldId = readString(field['id']).trim();
+            const label = readString(field['label']).trim();
+            if (!fieldId || !label) {
+              return null;
+            }
+            const rawOptions = Array.isArray(field['options']) ? field['options'] : [];
+            return {
+              id: fieldId,
+              label,
+              type: readFieldType(field['type']),
+              required: readBoolean(field['required']),
+              help: readString(field['help']).trim() || undefined,
+              pattern: readString(field['pattern']).trim() || undefined,
+              options: rawOptions
+                .map((opt): { value: string; label: string } | null => {
+                  if (!isRecord(opt)) {
+                    return null;
+                  }
+                  const optValue = readString(opt['value']).trim();
+                  return optValue
+                    ? { value: optValue, label: readString(opt['label']).trim() || optValue }
+                    : null;
+                })
+                .filter((opt): opt is { value: string; label: string } => opt !== null),
+            };
+          })
+          .filter((field): field is GovForm['sections'][number]['fields'][number] => field !== null),
+      };
+    })
+    .filter((section): section is GovForm['sections'][number] => section !== null);
+  return { id: id || 'form', title: readString(root['title']).trim(), sections };
+}
+
+function normalizeSummary(value: unknown): ApplicationSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const reference = readString(value['reference']).trim();
+  if (!id || !reference) {
+    return null;
+  }
+  return {
+    id,
+    reference,
+    serviceId: readString(value['serviceId']).trim() || undefined,
+    serviceName: readString(value['serviceName']).trim(),
+    status: readStatus(value['status']),
+    submittedAt: readString(value['submittedAt']).trim(),
+    currentStage: readString(value['currentStage']).trim(),
+  };
+}
+
+function normalizeSummaries(value: unknown): readonly ApplicationSummary[] | null {
+  if (!isRecord(value) || !Array.isArray(value['applications'])) {
+    return null;
+  }
+  return value['applications']
+    .map((entry) => normalizeSummary(entry))
+    .filter((summary): summary is ApplicationSummary => summary !== null);
 }
 
 function normalizeTimeline(value: unknown): readonly TimelineEntry[] {
@@ -541,568 +666,222 @@ function normalizeTimeline(value: unknown): readonly TimelineEntry[] {
     return [];
   }
   return value
-    .map((entry): TimelineEntry | null => {
+    .map((entry, index): TimelineEntry | null => {
       if (!isRecord(entry)) {
         return null;
       }
+      const label = readString(entry['label']).trim();
+      if (!label) {
+        return null;
+      }
       return {
-        status: readStatus(entry['status']),
+        id: readString(entry['id']).trim() || `tl-${index}`,
+        label,
         date: readString(entry['date']).trim(),
-        actor: readString(entry['actor']).trim(),
-        note: readString(entry['note']).trim(),
+        state: readTimelineState(entry['state']),
+        note: readString(entry['note']).trim() || undefined,
       };
     })
     .filter((entry): entry is TimelineEntry => entry !== null);
 }
 
-function normalizeApplicant(value: unknown): ApplicantInfo {
-  const a = isRecord(value) ? value : {};
-  return {
-    name: readString(a['name']).trim(),
-    docType: readString(a['docType']).trim() || 'CC',
-    docNumber: readString(a['docNumber']).trim(),
-    email: readString(a['email']).trim(),
-    phone: readString(a['phone']).trim(),
-  };
-}
-
-function normalizeTransition(value: unknown): TransitionResult | null {
+function normalizeDocument(value: unknown): GovDocument | null {
   if (!isRecord(value)) {
     return null;
   }
-  const raw = readString(value['status']).trim();
-  if (!raw) {
+  const id = readString(value['id']).trim();
+  const name = readString(value['name']).trim();
+  if (!id || !name) {
     return null;
   }
-  return { status: readStatus(raw) };
+  return {
+    id,
+    name,
+    status: readString(value['status']).trim() || 'received',
+    uploadedAt: readString(value['uploadedAt']).trim(),
+  };
+}
+
+function normalizeDocuments(value: unknown): readonly GovDocument[] {
+  return Array.isArray(value)
+    ? value.map((entry) => normalizeDocument(entry)).filter((doc): doc is GovDocument => doc !== null)
+    : [];
+}
+
+function normalizeMessages(value: unknown): readonly GovMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index): GovMessage | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const body = readString(entry['body']).trim();
+      if (!body) {
+        return null;
+      }
+      return {
+        id: readString(entry['id']).trim() || `msg-${index}`,
+        author: readString(entry['author']).trim(),
+        body,
+        createdAtUtc: readString(entry['createdAtUtc']).trim(),
+        outgoing: readBoolean(entry['outgoing']),
+      };
+    })
+    .filter((msg): msg is GovMessage => msg !== null);
+}
+
+function normalizeDetail(value: unknown): ApplicationDetail | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const reference = readString(value['reference']).trim();
+  if (!id || !reference) {
+    return null;
+  }
+  return {
+    id,
+    reference,
+    serviceId: readString(value['serviceId']).trim(),
+    serviceName: readString(value['serviceName']).trim(),
+    status: readStatus(value['status']),
+    submittedAt: readString(value['submittedAt']).trim(),
+    currentStage: readString(value['currentStage']).trim(),
+    timeline: normalizeTimeline(value['timeline']),
+    documents: normalizeDocuments(value['documents']),
+    messages: normalizeMessages(value['messages']),
+  };
+}
+
+function normalizeQueueCase(value: unknown): QueueCase | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const reference = readString(value['reference']).trim();
+  if (!id || !reference) {
+    return null;
+  }
+  return {
+    id,
+    reference,
+    serviceName: readString(value['serviceName']).trim(),
+    citizenName: readString(value['citizenName']).trim(),
+    status: readStatus(value['status']),
+    submittedAt: readString(value['submittedAt']).trim(),
+    priority: readString(value['priority']).trim() || 'normal',
+    slaDaysLeft: Math.trunc(readNumber(value['slaDaysLeft'])),
+  };
+}
+
+function normalizeQueue(value: unknown): readonly QueueCase[] | null {
+  if (!isRecord(value) || !Array.isArray(value['cases'])) {
+    return null;
+  }
+  return value['cases']
+    .map((entry) => normalizeQueueCase(entry))
+    .filter((kase): kase is QueueCase => kase !== null);
+}
+
+function normalizeAnswers(value: unknown): readonly AnswerPair[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): AnswerPair | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const label = readString(entry['label']).trim();
+      return label ? { label, value: readString(entry['value']).trim() } : null;
+    })
+    .filter((pair): pair is AnswerPair => pair !== null);
+}
+
+function normalizeDecision(value: unknown): CaseDecision | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const raw = readString(value['outcome']).trim().toLowerCase();
+  const known: readonly DecisionOutcome[] = ['approve', 'reject', 'request-info'];
+  if (!(known as readonly string[]).includes(raw)) {
+    return undefined;
+  }
+  return {
+    outcome: raw as DecisionOutcome,
+    note: readString(value['note']).trim(),
+    decidedAtUtc: readString(value['decidedAtUtc']).trim() || undefined,
+  };
 }
 
 function normalizeCase(value: unknown): GovCase | null {
   if (!isRecord(value)) {
     return null;
   }
-  const caseId = readString(value['caseId']).trim() || readString(value['id']).trim();
-  const radicado = readString(value['radicado']).trim();
-  if (!caseId || !radicado) {
+  const app = value['application'];
+  if (!isRecord(app)) {
     return null;
   }
-  const answers = isRecord(value['answers'])
-    ? Object.fromEntries(
-        Object.entries(value['answers']).map(([key, raw]) => [key, readString(raw)]),
-      )
-    : {};
-  const rawDocs = Array.isArray(value['documents']) ? value['documents'] : [];
+  const id = readString(app['id']).trim();
+  const reference = readString(app['reference']).trim();
+  if (!id || !reference) {
+    return null;
+  }
   return {
-    caseId,
-    radicado,
-    tramiteId: readString(value['tramiteId']).trim(),
-    tramiteName: readString(value['tramiteName']).trim(),
-    entity: readString(value['entity']).trim(),
-    applicant: normalizeApplicant(value['applicant']),
-    answers,
-    documents: rawDocs
-      .map((doc) => normalizeDoc(doc))
-      .filter((doc): doc is DocRef => doc !== null),
-    fee: normalizeFee(value['fee'], 'COP'),
-    paid: readBoolean(value['paid']),
-    status: readStatus(value['status']),
+    application: {
+      id,
+      reference,
+      serviceName: readString(app['serviceName']).trim(),
+      citizenName: readString(app['citizenName']).trim(),
+      status: readStatus(app['status']),
+      submittedAt: readString(app['submittedAt']).trim(),
+      currentStage: readString(app['currentStage']).trim(),
+    },
+    answers: normalizeAnswers(value['answers']),
+    documents: normalizeDocuments(value['documents']),
     timeline: normalizeTimeline(value['timeline']),
-    submittedAt: readString(value['submittedAt']).trim(),
-    slaDays: Math.max(0, Math.trunc(readNumber(value['slaDays']))),
-    daysLeft: Math.max(0, Math.trunc(readNumber(value['daysLeft']))),
+    decision: normalizeDecision(value['decision']),
   };
 }
 
-function normalizeCases(value: unknown): readonly GovCase[] | null {
-  const raw = isRecord(value) && Array.isArray(value['cases'])
-    ? value['cases']
-    : Array.isArray(value)
-      ? value
-      : null;
-  if (!raw) {
-    return null;
-  }
-  return raw.map((entry) => normalizeCase(entry)).filter((kase): kase is GovCase => kase !== null);
-}
+// ─── Mock catálogo/form helpers (delegate to the seeded catalogue) ──────────────
 
-function normalizeCaseDetail(value: unknown): CaseDetailResult | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const kase = normalizeCase(value['case'] ?? value);
-  if (!kase) {
-    return null;
-  }
-  const timeline = normalizeTimeline(value['timeline']);
-  return {
-    case: timeline.length > 0 ? { ...kase, timeline } : kase,
-    status: readStatus(value['status'] ?? kase.status),
-    timeline: timeline.length > 0 ? timeline : kase.timeline,
-  };
-}
-
-function actorDocNumber(actor: string): string {
-  // Demo actor ids look like "CC-52841903"; fall back to the raw value.
-  const parts = actor.split('-');
-  return parts.length > 1 ? parts[parts.length - 1] : actor;
-}
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// ─── Mock data (visible degradation when the backend is not yet wired) ──────────
-
-/**
- * Seeded catálogo — each trámite carries its own `formDefinition` so the wizard
- * demonstrably renders from data (a new trámite = new definition, zero code).
- */
-const MOCK_TRAMITES: readonly TramiteDetail[] = [
-  {
-    tramite: {
-      id: 'T-PASAPORTE',
-      name: 'Expedición de pasaporte',
-      entity: 'Cancillería',
-      category: 'identidad',
-      channel: 'mixto',
-      summary:
-        'Obtenga su pasaporte para viajar fuera del país. Se solicita en línea y se recoge en la sede.',
-      estimatedDays: 8,
-      feeAmount: 190000,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'tipoPasaporte',
-        label: 'Tipo de pasaporte',
-        type: 'select',
-        required: true,
-        hint: 'El ordinario sirve para la mayoría de los viajes.',
-        placeholder: '',
-        options: [
-          { value: 'ordinario', label: 'Ordinario (32 páginas)' },
-          { value: 'ejecutivo', label: 'Ejecutivo (48 páginas)' },
-        ],
-      },
-      {
-        key: 'fechaNacimiento',
-        label: 'Fecha de nacimiento',
-        type: 'date',
-        required: true,
-        hint: 'Como aparece en su documento de identidad.',
-        placeholder: '',
-        options: [],
-      },
-      {
-        key: 'ciudadExpedicion',
-        label: 'Ciudad donde recogerá el pasaporte',
-        type: 'select',
-        required: true,
-        hint: '',
-        placeholder: '',
-        options: [
-          { value: 'bogota', label: 'Bogotá' },
-          { value: 'medellin', label: 'Medellín' },
-          { value: 'cali', label: 'Cali' },
-        ],
-      },
-    ],
-    requirements: [
-      'Cédula de ciudadanía escaneada por ambas caras (PDF)',
-      'Pasaporte anterior, si lo tiene (PDF)',
-    ],
-    fee: { amount: 190000, currency: 'COP', exempt: false },
-  },
-  {
-    tramite: {
-      id: 'T-ANTECEDENTES',
-      name: 'Certificado de antecedentes judiciales',
-      entity: 'Policía Nacional',
-      category: 'identidad',
-      channel: 'en-linea',
-      summary:
-        'Descargue el certificado que dice si tiene o no antecedentes judiciales. Es gratis e inmediato.',
-      estimatedDays: 1,
-      feeAmount: 0,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'motivoConsulta',
-        label: 'Motivo de la consulta',
-        type: 'select',
-        required: true,
-        hint: 'Solo se usa con fines estadísticos.',
-        placeholder: '',
-        options: [
-          { value: 'laboral', label: 'Requisito laboral' },
-          { value: 'personal', label: 'Uso personal' },
-          { value: 'visa', label: 'Solicitud de visa' },
-        ],
-      },
-      {
-        key: 'aceptaTratamiento',
-        label: 'Autorizo el tratamiento de mis datos personales',
-        type: 'checkbox',
-        required: true,
-        hint: 'Ley 1581 de 2012.',
-        placeholder: '',
-        options: [],
-      },
-    ],
-    requirements: [],
-    fee: { amount: 0, currency: 'COP', exempt: false },
-  },
-  {
-    tramite: {
-      id: 'T-LICENCIA-DUP',
-      name: 'Duplicado de licencia de conducción',
-      entity: 'Ministerio de Transporte',
-      category: 'vehiculos',
-      channel: 'en-linea',
-      summary:
-        'Pida una copia de su licencia si la perdió o se la robaron. Llega a su casa en pocos días.',
-      estimatedDays: 5,
-      feeAmount: 267000,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'categoriaLicencia',
-        label: 'Categoría de la licencia',
-        type: 'select',
-        required: true,
-        hint: '',
-        placeholder: '',
-        options: [
-          { value: 'a2', label: 'A2 — Motocicletas' },
-          { value: 'b1', label: 'B1 — Automóviles particulares' },
-          { value: 'c1', label: 'C1 — Automóviles de servicio público' },
-        ],
-      },
-      {
-        key: 'motivoDuplicado',
-        label: '¿Por qué necesita el duplicado?',
-        type: 'select',
-        required: true,
-        hint: '',
-        placeholder: '',
-        options: [
-          { value: 'perdida', label: 'Pérdida' },
-          { value: 'hurto', label: 'Hurto' },
-          { value: 'deterioro', label: 'Deterioro' },
-        ],
-      },
-      {
-        key: 'direccionEntrega',
-        label: 'Dirección de entrega',
-        type: 'text',
-        required: true,
-        hint: 'Donde quiere recibir la licencia.',
-        placeholder: 'Calle 12 #34-56, Bogotá',
-        options: [],
-      },
-    ],
-    requirements: ['Denuncia de pérdida o hurto, si aplica (PDF)'],
-    fee: { amount: 267000, currency: 'COP', exempt: false },
-  },
-  {
-    tramite: {
-      id: 'T-SISBEN',
-      name: 'Actualización de datos en el Sisbén',
-      entity: 'Departamento Nacional de Planeación',
-      category: 'salud',
-      channel: 'en-linea',
-      summary:
-        'Actualice la información de su hogar para que su clasificación del Sisbén refleje su situación real.',
-      estimatedDays: 15,
-      feeAmount: 0,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'personasHogar',
-        label: 'Personas que viven en el hogar',
-        type: 'number',
-        required: true,
-        hint: 'Incluya niños y adultos mayores.',
-        placeholder: '3',
-        options: [],
-      },
-      {
-        key: 'cambioReportado',
-        label: '¿Qué cambió en su hogar?',
-        type: 'textarea',
-        required: true,
-        hint: 'Cuéntenos en sus palabras. Por ejemplo: cambio de vivienda o de ingresos.',
-        placeholder: '',
-        options: [],
-      },
-    ],
-    requirements: ['Recibo de un servicio público reciente (PDF o foto)'],
-    fee: { amount: 0, currency: 'COP', exempt: false },
-  },
-  {
-    tramite: {
-      id: 'T-MATRICULA',
-      name: 'Renovación de matrícula mercantil',
-      entity: 'Cámara de Comercio',
-      category: 'empresa',
-      channel: 'en-linea',
-      summary:
-        'Renueve cada año la matrícula de su negocio para mantenerlo activo y al día ante la ley.',
-      estimatedDays: 3,
-      feeAmount: 45000,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'nit',
-        label: 'NIT del negocio',
-        type: 'text',
-        required: true,
-        hint: 'Sin dígito de verificación.',
-        placeholder: '901234567',
-        options: [],
-      },
-      {
-        key: 'activosTotales',
-        label: 'Activos totales del último año (COP)',
-        type: 'number',
-        required: true,
-        hint: 'El valor define la tarifa de la renovación.',
-        placeholder: '25000000',
-        options: [],
-      },
-      {
-        key: 'correoNotificaciones',
-        label: 'Correo para notificaciones judiciales',
-        type: 'email',
-        required: true,
-        hint: '',
-        placeholder: 'negocio@example.com',
-        options: [],
-      },
-    ],
-    requirements: ['Estados financieros del último año (PDF)'],
-    fee: { amount: 45000, currency: 'COP', exempt: false },
-  },
-  {
-    tramite: {
-      id: 'T-PREDIAL',
-      name: 'Certificado de paz y salvo predial',
-      entity: 'Secretaría de Hacienda',
-      category: 'tributario',
-      channel: 'en-linea',
-      summary:
-        'Certifique que su predio no debe impuesto predial. Lo necesita para vender o hipotecar.',
-      estimatedDays: 2,
-      feeAmount: 0,
-      currency: 'COP',
-    },
-    formDefinition: [
-      {
-        key: 'chip',
-        label: 'CHIP o matrícula inmobiliaria del predio',
-        type: 'text',
-        required: true,
-        hint: 'Lo encuentra en el recibo del predial.',
-        placeholder: 'AAA0123XYZ',
-        options: [],
-      },
-      {
-        key: 'usoCertificado',
-        label: 'Para qué necesita el certificado',
-        type: 'select',
-        required: false,
-        hint: '',
-        placeholder: '',
-        options: [
-          { value: 'venta', label: 'Venta del predio' },
-          { value: 'credito', label: 'Crédito o hipoteca' },
-          { value: 'otro', label: 'Otro' },
-        ],
-      },
-    ],
-    requirements: [],
-    fee: { amount: 0, currency: 'COP', exempt: false },
-  },
-];
-
-/**
- * Seeded expedientes across the lifecycle so both bandejas demo the full cycle
- * (radicado / en revisión / subsanación / resuelto) without touching the backend.
- */
-const SEED_CASES: readonly GovCase[] = [
-  {
-    caseId: 'CASE-SEED-1',
-    radicado: 'GOV-2026-10001',
-    tramiteId: 'T-PASAPORTE',
-    tramiteName: 'Expedición de pasaporte',
-    entity: 'Cancillería',
-    applicant: {
-      name: 'Carolina Pérez García',
-      docType: 'CC',
-      docNumber: '52841903',
-      email: 'carolina.perez@example.com',
-      phone: '3005550187',
-    },
-    answers: { tipoPasaporte: 'ordinario', ciudadExpedicion: 'bogota' },
-    documents: [{ id: 'D-1', name: 'cedula.pdf', size: 245760 }],
-    fee: { amount: 190000, currency: 'COP', exempt: false },
-    paid: true,
-    status: 'en-revision',
-    timeline: [
-      {
-        status: 'radicado',
-        date: '2026-06-24',
-        actor: 'Carolina Pérez García',
-        note: 'Solicitud radicada en línea.',
-      },
-      {
-        status: 'en-revision',
-        date: '2026-06-26',
-        actor: 'Funcionario J. Mora',
-        note: 'Expediente asignado para revisión.',
-      },
-    ],
-    submittedAt: '2026-06-24',
-    slaDays: 8,
-    daysLeft: 4,
-  },
-  {
-    caseId: 'CASE-SEED-2',
-    radicado: 'GOV-2026-10002',
-    tramiteId: 'T-SISBEN',
-    tramiteName: 'Actualización de datos en el Sisbén',
-    entity: 'Departamento Nacional de Planeación',
-    applicant: {
-      name: 'Carolina Pérez García',
-      docType: 'CC',
-      docNumber: '52841903',
-      email: 'carolina.perez@example.com',
-      phone: '3005550187',
-    },
-    answers: { personasHogar: '4', cambioReportado: 'Nos mudamos de vivienda en mayo.' },
-    documents: [],
-    fee: { amount: 0, currency: 'COP', exempt: false },
-    paid: false,
-    status: 'subsanacion',
-    timeline: [
-      {
-        status: 'radicado',
-        date: '2026-06-18',
-        actor: 'Carolina Pérez García',
-        note: 'Solicitud radicada en línea.',
-      },
-      {
-        status: 'en-revision',
-        date: '2026-06-20',
-        actor: 'Funcionaria L. Ríos',
-        note: 'Expediente asignado para revisión.',
-      },
-      {
-        status: 'subsanacion',
-        date: '2026-06-27',
-        actor: 'Funcionaria L. Ríos',
-        note: 'Falta el recibo de un servicio público de la nueva vivienda.',
-      },
-    ],
-    submittedAt: '2026-06-18',
-    slaDays: 15,
-    daysLeft: 6,
-  },
-  {
-    caseId: 'CASE-SEED-3',
-    radicado: 'GOV-2026-10003',
-    tramiteId: 'T-ANTECEDENTES',
-    tramiteName: 'Certificado de antecedentes judiciales',
-    entity: 'Policía Nacional',
-    applicant: {
-      name: 'Carolina Pérez García',
-      docType: 'CC',
-      docNumber: '52841903',
-      email: 'carolina.perez@example.com',
-      phone: '3005550187',
-    },
-    answers: { motivoConsulta: 'laboral', aceptaTratamiento: 'true' },
-    documents: [],
-    fee: { amount: 0, currency: 'COP', exempt: false },
-    paid: false,
-    status: 'resuelto',
-    timeline: [
-      {
-        status: 'radicado',
-        date: '2026-06-30',
-        actor: 'Carolina Pérez García',
-        note: 'Solicitud radicada en línea.',
-      },
-      {
-        status: 'en-revision',
-        date: '2026-06-30',
-        actor: 'Sistema',
-        note: 'Verificación automática de antecedentes.',
-      },
-      {
-        status: 'resuelto',
-        date: '2026-06-30',
-        actor: 'Sistema',
-        note: 'Certificado generado. Disponible para descarga.',
-      },
-    ],
-    submittedAt: '2026-06-30',
-    slaDays: 1,
-    daysLeft: 0,
-  },
-  {
-    caseId: 'CASE-SEED-4',
-    radicado: 'GOV-2026-10004',
-    tramiteId: 'T-MATRICULA',
-    tramiteName: 'Renovación de matrícula mercantil',
-    entity: 'Cámara de Comercio',
-    applicant: {
-      name: 'Andrés Felipe Castro',
-      docType: 'CC',
-      docNumber: '80123456',
-      email: 'andres.castro@example.com',
-      phone: '3012223344',
-    },
-    answers: { nit: '901234567', activosTotales: '25000000' },
-    documents: [{ id: 'D-2', name: 'estados-financieros.pdf', size: 512000 }],
-    fee: { amount: 45000, currency: 'COP', exempt: false },
-    paid: true,
-    status: 'radicado',
-    timeline: [
-      {
-        status: 'radicado',
-        date: '2026-07-02',
-        actor: 'Andrés Felipe Castro',
-        note: 'Solicitud radicada en línea.',
-      },
-    ],
-    submittedAt: '2026-07-02',
-    slaDays: 3,
-    daysLeft: 3,
-  },
-];
-
-function mockSearch(q: string, category: string): TramiteSearchResult {
+function mockServices(q: string, category: string): readonly GovService[] {
   const term = q.trim().toLowerCase();
-  let tramites = MOCK_TRAMITES.map((detail) => detail.tramite);
+  let services = MOCK_SERVICES.map((detail) => toServiceSummary(detail));
   if (category) {
-    tramites = tramites.filter((tramite) => tramite.category === category);
+    services = services.filter((service) => service.category === category);
   }
   if (term) {
-    tramites = tramites.filter(
-      (tramite) =>
-        tramite.name.toLowerCase().includes(term) ||
-        tramite.entity.toLowerCase().includes(term) ||
-        tramite.summary.toLowerCase().includes(term),
+    services = services.filter(
+      (service) =>
+        service.name.toLowerCase().includes(term) ||
+        service.agency.toLowerCase().includes(term) ||
+        service.summary.toLowerCase().includes(term),
     );
   }
-  return { tramites, total: tramites.length };
+  return services;
 }
 
-function mockDetail(id: string): TramiteDetail {
-  return MOCK_TRAMITES.find((detail) => detail.tramite.id === id) ?? MOCK_TRAMITES[0];
+function toServiceSummary(detail: MockServiceDetail): GovService {
+  return {
+    id: detail.id,
+    name: detail.name,
+    summary: detail.summary,
+    category: detail.category,
+    agency: detail.agency,
+    estimatedDays: detail.estimatedDays,
+    feeMinor: detail.feeMinor,
+    currency: detail.currency,
+  };
+}
+
+function mockServiceDetail(id: string): MockServiceDetail {
+  return MOCK_SERVICES.find((detail) => detail.id === id) ?? MOCK_SERVICES[0];
+}
+
+function mockForm(serviceId: string): GovForm {
+  return MOCK_FORMS[serviceId] ?? MOCK_FORMS[MOCK_SERVICES[0].id];
 }

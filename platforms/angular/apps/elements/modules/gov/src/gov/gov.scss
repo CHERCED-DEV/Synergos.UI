@@ -305,29 +305,54 @@
   font-weight: syn.$font-weight-bold;
   white-space: nowrap;
 
-  &--radicado {
+  &--submitted {
     background: var(--gv-brand-soft);
     color: var(--gv-text);
   }
 
-  &--en-revision {
+  &--in-review {
     background: var(--gv-brand);
     color: var(--gv-brand-text);
   }
 
-  &--subsanacion {
+  &--info-requested {
     background: var(--gv-warn-soft);
     color: var(--gv-text);
   }
 
-  &--resuelto {
+  &--approved {
     background: var(--gv-success-soft);
     color: var(--gv-success);
   }
 
-  &--rechazado {
+  &--rejected {
     background: var(--gv-danger-soft);
     color: var(--gv-danger);
+  }
+}
+
+// ─── Priority + SLA chips (officer queue cells) ───────────────────────────────
+.prio {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  background: var(--gv-surface-muted);
+  color: var(--gv-text-secondary);
+
+  &--high { background: var(--gv-warn-soft); color: var(--gv-text); }
+  &--urgent { background: var(--gv-danger-soft); color: var(--gv-danger); }
+}
+
+.sla {
+  font-size: syn.$font-size-sm;
+  white-space: nowrap;
+
+  &--overdue {
+    color: var(--gv-danger);
+    font-weight: syn.$font-weight-bold;
   }
 }
 
@@ -1192,6 +1217,263 @@
     color: var(--gv-text-secondary);
     font-size: syn.$font-size-xs;
   }
+}
+
+// ─── SH-1 discovery result card ───────────────────────────────────────────────
+.svc-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface);
+
+  &__body {
+    flex: 1 1 syn.px-to-rem(320);
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__agency {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__title { margin: 0; font-size: syn.$font-size-lg; }
+
+  &__link {
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text);
+    font: inherit;
+    font-weight: syn.$font-weight-bold;
+    text-align: left;
+
+    &:hover { color: var(--gv-brand); }
+  }
+
+  &__summary { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+    margin: syn.$space-1 0 0;
+    padding: 0;
+  }
+}
+
+// ─── Ficha: task-list de pasos + agency/summary ───────────────────────────────
+.ficha {
+  &__agency {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__summary { margin: 0; color: var(--gv-text-secondary); line-height: 1.6; }
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item { display: flex; gap: syn.$space-3; }
+
+  &__num {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: syn.$radius-full;
+    background: var(--gv-brand-soft);
+    color: var(--gv-brand);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__body { display: flex; flex-direction: column; gap: syn.px-to-rem(2); }
+  &__title { margin: 0; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__detail { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+}
+
+// ─── Iniciar solicitud (SH-9 host) ────────────────────────────────────────────
+.apply {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__subject { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+}
+
+// ─── SH-4 rows / detail ───────────────────────────────────────────────────────
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-2;
+  width: 100%;
+
+  &__ref {
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: 0.03em;
+  }
+
+  &__name { flex: 1; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; overflow-wrap: anywhere; }
+}
+
+.app-detail {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+
+  &__title { margin: 0; font-size: syn.$font-size-lg; font-weight: syn.$font-weight-bold; }
+  &__ref { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
+  &__hint { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+  .gv-btn { align-self: flex-start; }
+}
+
+// ─── Detalle de solicitud: layout + correspondencia + upload ──────────────────
+.tracking {
+  &__ref {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: 0.04em;
+  }
+
+  &__stage { color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(syn.px-to-rem(260), 1fr);
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(820)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main { display: flex; flex-direction: column; gap: syn.$space-3; }
+
+  &__aside {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+}
+
+.doc-list__status {
+  color: var(--gv-muted);
+  font-size: syn.$font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) dashed var(--gv-border);
+  border-radius: syn.$radius-md;
+
+  &__pending { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+  .gv-btn { align-self: flex-start; }
+}
+
+.msg-row {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  width: 100%;
+
+  &__author { font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__preview {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-xs;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.msg-detail {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+
+  &__author { margin: 0; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__body { margin: 0; color: var(--gv-text); font-size: syn.$font-size-sm; line-height: 1.5; }
+}
+
+// ─── Revisar caso (funcionario) ───────────────────────────────────────────────
+.case {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(240), syn.px-to-rem(320));
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(820)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main { display: flex; flex-direction: column; gap: syn.$space-3; }
+
+  &__actions {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+
+  &__buttons { display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__decided {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-surface);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__decided-note { display: block; color: var(--gv-text-secondary); font-style: italic; }
+  &__closed { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
 }
 
 // ─── Focus + motion ───────────────────────────────────────────────────────────

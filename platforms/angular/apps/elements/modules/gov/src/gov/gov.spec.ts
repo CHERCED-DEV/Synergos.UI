@@ -2,24 +2,34 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GovApiClient } from './gov-api.client';
 import { GovElementComponent } from './gov';
-import { CASE_TRANSITIONS, canTransition, isTerminal } from './gov.model';
+import { OUTCOME_TO_STATUS, isClosedStatus } from './gov.model';
 
 /**
- * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
- * yield to real timers between microtask drains to let each hop resolve.
+ * Smoke tests (directiva: tests solo smoke) for the Gobierno v2 dual-face SPA.
+ * The 4 canonical shapes (empty / happy / filter / idempotent) over the offline
+ * (mock-degraded) graph, plus the api-client degradation + reactive-identity
+ * contracts.
+ *
+ * fetch rejection is a macrotask in jsdom, so we yield to real timers between
+ * microtask drains to let each fetch().then() hop resolve.
  */
-async function flushMicrotasks(times = 10): Promise<void> {
+async function flushMicrotasks(times = 12): Promise<void> {
   for (let i = 0; i < times; i += 1) {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await Promise.resolve();
   }
 }
 
-describe('GovElementComponent', () => {
+describe('GovElementComponent (v2 dual face)', () => {
   let fixture: ComponentFixture<GovElementComponent>;
   let component: GovElementComponent;
 
   async function createComponent(): Promise<void> {
+    // Offline → seeded demo data across both faces.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
     await TestBed.configureTestingModule({
       imports: [GovElementComponent],
       providers: [provideZonelessChangeDetection(), GovApiClient],
@@ -28,7 +38,6 @@ describe('GovElementComponent', () => {
     fixture = TestBed.createComponent(GovElementComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
-    // Initial catalogue search runs in the constructor; let it settle.
     await flushMicrotasks();
   }
 
@@ -38,289 +47,186 @@ describe('GovElementComponent', () => {
     TestBed.resetTestingModule();
   });
 
-  // ── empty: pristine portal, citizen face, seeded catalogue, no draft ──────────
-  it('opens on the catalogue with seeded trámites and a clean draft (empty case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  // ── empty: pristine portal, citizen face, seeded catalogue, no active state ───
+  it('opens on the catalogue with seeded services (empty case)', async () => {
     await createComponent();
 
     expect(component).toBeTruthy();
     expect(component.role()).toBe('citizen');
     expect(component.view()).toBe('catalog');
-    expect(component.tramites().length).toBeGreaterThan(0);
-    expect(component.docs().length).toBe(0);
-    expect(component.confirmedCase()).toBeNull();
+    expect(component.services().length).toBeGreaterThan(0);
+    expect(component.confirmedApplication()).toBeNull();
+    expect(component.activeApplication()).toBeNull();
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: ficha → wizard data-driven → docs → check-answers → pagar → radicar ─
-  it('radica una solicitud con tasa end-to-end hasta el radicado (happy case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  // ── happy: discovery → ficha → SH-9 form radica → receipt → mis solicitudes ───
+  it('opens a service, radica the SH-9 form and lands the receipt (happy case)', async () => {
     await createComponent();
 
-    const pasaporte = component.tramites().find((t) => t.id === 'T-PASAPORTE');
-    expect(pasaporte).toBeTruthy();
-    component.openTramite(pasaporte!);
+    const service = component.services().find((s) => s.id === 'svc-antecedentes');
+    expect(service).toBeTruthy();
+    component.openService(service!);
     await flushMicrotasks();
-    expect(component.view()).toBe('detail');
-    expect(component.hasFee()).toBe(true);
+    expect(component.view()).toBe('service');
+    expect(component.service()?.id).toBe('svc-antecedentes');
 
     component.startApplication();
+    await flushMicrotasks();
     expect(component.view()).toBe('apply');
-    expect(component.applyStep()).toBe('applicant');
-    // Once-only: applicant llega prellenado y válido.
-    expect(component.applicantName().length).toBeGreaterThan(0);
-    expect(component.applicantValid()).toBe(true);
+    // The SH-9 schema came from the contract form endpoint (mock).
+    expect(component.formSchema().sections.length).toBeGreaterThan(0);
 
-    component.nextStep();
-    expect(component.applyStep()).toBe('form');
-    expect(component.formValid()).toBe(false);
-    component.setAnswer('tipoPasaporte', 'ordinario');
-    component.setAnswer('fechaNacimiento', '1990-04-12');
-    component.setAnswer('ciudadExpedicion', 'bogota');
-    expect(component.formValid()).toBe(true);
-
-    component.nextStep();
-    expect(component.applyStep()).toBe('documents');
-    // El trámite exige documentos → no se puede continuar sin adjuntar.
-    expect(component.documentsValid()).toBe(false);
-    component.onDropzoneFiles(
-      new CustomEvent('filesaccepted', {
-        detail: { accepted: [{ name: 'cedula.pdf', size: 120000 }] },
-      }),
-    );
-    expect(component.docs().length).toBe(1);
-    expect(component.documentsValid()).toBe(true);
-
-    component.nextStep();
-    expect(component.applyStep()).toBe('review');
-    // Con tasa: el paso de pago existe y el envío está bloqueado hasta pagar.
-    expect(component.applySteps()).toContain('payment');
-    expect(component.canSubmit()).toBe(false);
-
-    component.nextStep();
-    expect(component.applyStep()).toBe('payment');
-    component.payFee();
-    expect(component.paid()).toBe(true);
-    expect(component.canSubmit()).toBe(true);
-
-    component.submitApplication();
+    // Radicar directly through the SH-9 submit output (shell owns validation).
+    component.onFormSubmit({ answers: { motivoConsulta: 'laboral', aceptaTratamiento: 'true' } });
     await flushMicrotasks();
 
     expect(component.view()).toBe('receipt');
-    const kase = component.confirmedCase();
-    expect(kase).not.toBeNull();
-    expect(kase?.radicado).toMatch(/^GOV-2026-/);
-    expect(kase?.status).toBe('radicado');
-    expect(kase?.documents.length).toBe(1);
+    const app = component.confirmedApplication();
+    expect(app).not.toBeNull();
+    expect(app?.reference).toMatch(/^GOV-2026-/);
+    expect(app?.status).toBe('submitted');
 
-    // El radicado queda en mi carpeta.
-    component.goToFolder();
+    // The new application shows up in "mis solicitudes".
+    component.goToApplications();
     await flushMicrotasks();
-    expect(component.myCases().some((entry) => entry.caseId === kase?.caseId)).toBe(true);
+    expect(component.applications().some((a) => a.id === app?.id)).toBe(true);
   });
 
-  // ── happy (gratuito): sin tasa no existe el paso de pago ──────────────────────
-  it('un trámite gratuito radica directo sin paso de pago', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
-    const gratuito = component.tramites().find((t) => t.id === 'T-ANTECEDENTES');
-    component.openTramite(gratuito!);
-    await flushMicrotasks();
-    expect(component.hasFee()).toBe(false);
-
-    component.startApplication();
-    expect(component.applySteps()).not.toContain('payment');
-
-    component.nextStep(); // → form
-    component.setAnswer('motivoConsulta', 'laboral');
-    component.setAnswer('aceptaTratamiento', 'true');
-    component.nextStep(); // → documents (sin requisitos → válido vacío)
-    expect(component.documentsValid()).toBe(true);
-    component.nextStep(); // → review
-    expect(component.applyStep()).toBe('review');
-    expect(component.canSubmit()).toBe(true);
-
-    component.submitApplication();
-    await flushMicrotasks();
-    expect(component.view()).toBe('receipt');
-    expect(component.confirmedCase()?.fee.amount).toBe(0);
-  });
-
-  // ── filter: búsqueda + categoría sobre el catálogo ────────────────────────────
-  it('filtra el catálogo por texto y por categoría (filter case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
-    const all = component.total();
-    expect(all).toBeGreaterThan(1);
-
-    component.setCategory('identidad');
-    await flushMicrotasks();
-    expect(component.tramites().length).toBeGreaterThan(0);
-    expect(component.tramites().every((t) => t.category === 'identidad')).toBe(true);
-
-    component.searchTerm.set('pasaporte');
-    component.submitSearch();
-    await flushMicrotasks();
-    expect(component.tramites().length).toBe(1);
-    expect(component.tramites()[0].id).toBe('T-PASAPORTE');
-
-    component.clearSearch();
-    await flushMicrotasks();
-    expect(component.total()).toBe(all);
-  });
-
-  // ── data-driven: el wizard renderiza los campos de la formDefinition ──────────
-  it('renderiza el formulario desde la formDefinition del trámite (data-driven)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
-    // Trámite A: select + date + select.
-    component.openTramite(component.tramites().find((t) => t.id === 'T-PASAPORTE')!);
-    await flushMicrotasks();
-    let fields = component.formFields();
-    expect(fields.map((f) => f.key)).toEqual([
-      'tipoPasaporte',
-      'fechaNacimiento',
-      'ciudadExpedicion',
-    ]);
-    expect(fields[0].type).toBe('select');
-    expect(fields[0].options.length).toBeGreaterThan(0);
-    expect(fields[1].type).toBe('date');
-
-    // Trámite B: OTRA definición → OTROS campos, sin tocar código del módulo.
-    component.backToCatalog();
-    await flushMicrotasks();
-    component.openTramite(component.tramites().find((t) => t.id === 'T-SISBEN')!);
-    await flushMicrotasks();
-    fields = component.formFields();
-    expect(fields.map((f) => f.key)).toEqual(['personasHogar', 'cambioReportado']);
-    expect(fields[0].type).toBe('number');
-    expect(fields[1].type).toBe('textarea');
-
-    // check-answers muestra el label de la opción, no el value crudo.
-    component.startApplication();
-    component.setAnswer('personasHogar', '4');
-    expect(component.answerLabel(fields[0])).toBe('4');
-  });
-
-  // ── transición: role-switch + máquina de estados legal del expediente ─────────
-  it('el funcionario avanza el expediente solo por transiciones legales', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  // ── filter: officer queue narrows by status (contract ?status=) ───────────────
+  it('switches to the officer queue and filters by status (filter case)', async () => {
     await createComponent();
 
     component.setRole('officer');
     await flushMicrotasks();
+    expect(component.role()).toBe('officer');
     expect(component.view()).toBe('queue');
+    const all = component.queueCases().length;
+    expect(all).toBeGreaterThan(0);
+
+    component.onConsoleFilterChange('approved');
+    await flushMicrotasks();
     expect(component.queueCases().length).toBeGreaterThan(0);
-
-    // Expediente sembrado en 'radicado' → única transición legal: en-revision.
-    const radicado = component.queueCases().find((kase) => kase.status === 'radicado');
-    expect(radicado).toBeTruthy();
-    component.openCase(radicado!.caseId);
-    await flushMicrotasks();
-    expect(component.view()).toBe('officer-case');
-    expect(component.nextStatuses()).toEqual(['en-revision']);
-
-    // Ilegal: saltar directo a resuelto — se ignora.
-    component.transitionCase('resuelto');
-    await flushMicrotasks();
-    expect(component.activeCase()?.status).toBe('radicado');
-
-    // Legal: pasar a revisión.
-    component.officerNote.set('Documentación completa.');
-    component.transitionCase('en-revision');
-    await flushMicrotasks();
-    expect(component.activeCase()?.status).toBe('en-revision');
-    expect(component.nextStatuses()).toEqual(['subsanacion', 'resuelto', 'rechazado']);
-
-    // Legal: aprobar → terminal, sin más acciones.
-    component.transitionCase('resuelto');
-    await flushMicrotasks();
-    expect(component.activeCase()?.status).toBe('resuelto');
-    expect(component.nextStatuses()).toEqual([]);
-    expect(component.isClosed('resuelto')).toBe(true);
+    expect(component.queueCases().every((c) => c.status === 'approved')).toBe(true);
+    expect(component.queueCases().length).toBeLessThanOrEqual(all);
   });
 
-  // ── idempotent: repetir la misma transición no duplica historial ──────────────
-  it('re-transicionar al mismo estado es un no-op (idempotent case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  // ── happy (officer): open a case → decide → status advances + queue refetch ───
+  it('opens a case and records an approve decision (officer happy case)', async () => {
     await createComponent();
 
     component.setRole('officer');
     await flushMicrotasks();
-    const enRevision = component.queueCases().find((kase) => kase.status === 'en-revision');
-    component.openCase(enRevision!.caseId);
-    await flushMicrotasks();
+    const pending = component.queueCases().find((c) => c.status === 'submitted');
+    expect(pending).toBeTruthy();
 
-    const before = component.activeCase()!.timeline.length;
-
-    // Repetir el estado actual es ilegal (no está en CASE_TRANSITIONS) → no-op.
-    component.transitionCase('en-revision');
-    await flushMicrotasks();
-    component.transitionCase('en-revision');
-    await flushMicrotasks();
-
-    expect(component.activeCase()?.status).toBe('en-revision');
-    expect(component.activeCase()?.timeline.length).toBe(before);
-  });
-
-  // ── subsanación: ciclo bidireccional ciudadano ⇄ funcionario ──────────────────
-  it('el ciudadano responde la subsanación y el expediente vuelve a revisión', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
-    component.goToFolder();
-    await flushMicrotasks();
-    const pendiente = component.myCases().find((kase) => kase.status === 'subsanacion');
-    expect(pendiente).toBeTruthy();
-
-    component.openCase(pendiente!.caseId);
+    component.openCase(pending!.id);
     await flushMicrotasks();
     expect(component.view()).toBe('case');
+    expect(component.activeCase()?.application.id).toBe(pending!.id);
+    expect(component.caseOutcomes().length).toBeGreaterThan(0);
 
-    // Sin respuesta escrita no se envía.
-    component.respondSubsanacion();
-    await flushMicrotasks();
-    expect(component.activeCase()?.status).toBe('subsanacion');
-
-    component.subsanacionNote.set('Adjunto el recibo de la nueva vivienda.');
-    component.respondSubsanacion();
+    component.decisionNote.set('Documentación completa.');
+    component.decide('approve');
     await flushMicrotasks();
 
-    const updated = component.activeCase();
-    expect(updated?.status).toBe('en-revision');
-    const last = updated?.timeline[updated.timeline.length - 1];
-    expect(last?.note).toContain('Respuesta del ciudadano');
+    expect(component.activeCase()?.application.status).toBe('approved');
+    expect(component.activeCase()?.decision?.outcome).toBe('approve');
+    // Closed → no further decisions offered.
+    expect(component.caseOutcomes()).toEqual([]);
+  });
+
+  // ── idempotent: deciding on a closed case is a no-op ──────────────────────────
+  it('ignores a decision on an already-closed case (idempotent case)', async () => {
+    await createComponent();
+
+    component.setRole('officer');
+    await flushMicrotasks();
+    const closed = component.queueCases().find((c) => c.status === 'approved');
+    expect(closed).toBeTruthy();
+
+    component.openCase(closed!.id);
+    await flushMicrotasks();
+    const before = component.activeCase()?.application.status;
+    expect(isClosedStatus(before!)).toBe(true);
+    expect(component.caseOutcomes()).toEqual([]);
+
+    // decide() must bail because the case is closed.
+    component.decide('reject');
+    await flushMicrotasks();
+    expect(component.activeCase()?.application.status).toBe(before);
+  });
+
+  // ── reactive identity: citizen input landing AFTER construction re-fetches ────
+  it('re-fetches when the citizen/agency input lands after construction', async () => {
+    // Backend "alive" for the CMS-supplied citizen; the default 404s to mock.
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/applications') && url.includes('CC-99999999')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              applications: [
+                {
+                  id: 'app-live-1',
+                  reference: 'GOV-2026-77777',
+                  serviceName: 'Trámite en vivo',
+                  status: 'in-review',
+                  submittedAt: '2026-07-05T10:00:00Z',
+                  currentStage: 'En revisión',
+                },
+              ],
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/mis-solicitudes';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+    expect(component.view()).toBe('applications');
+    expect(component.degraded()).toBe(true); // default CC-52841903 → mock
+
+    // The CMS mount sets `citizen` AFTER construction (Angular Elements lifecycle).
+    fixture.componentRef.setInput('citizen', 'CC-99999999');
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expect(component.citizen()).toBe('CC-99999999');
+    expect(component.applications().some((a) => a.reference === 'GOV-2026-77777')).toBe(true);
+    expect(component.degraded()).toBe(false);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('CC-99999999'))).toBe(true);
   });
 });
 
-describe('case state machine (model)', () => {
-  it('declares the legal lifecycle as data', () => {
-    expect(CASE_TRANSITIONS['radicado']).toEqual(['en-revision']);
-    expect(CASE_TRANSITIONS['en-revision']).toEqual(['subsanacion', 'resuelto', 'rechazado']);
-    expect(CASE_TRANSITIONS['subsanacion']).toEqual(['en-revision']);
-    expect(CASE_TRANSITIONS['resuelto']).toEqual([]);
-    expect(CASE_TRANSITIONS['rechazado']).toEqual([]);
+describe('OUTCOME_TO_STATUS (model)', () => {
+  it('maps each officer outcome to a status', () => {
+    expect(OUTCOME_TO_STATUS.approve).toBe('approved');
+    expect(OUTCOME_TO_STATUS.reject).toBe('rejected');
+    expect(OUTCOME_TO_STATUS['request-info']).toBe('info-requested');
   });
 
-  it('rejects illegal and self transitions', () => {
-    expect(canTransition('radicado', 'resuelto')).toBe(false);
-    expect(canTransition('radicado', 'radicado')).toBe(false);
-    expect(canTransition('resuelto', 'en-revision')).toBe(false);
-    expect(canTransition('en-revision', 'subsanacion')).toBe(true);
-    expect(canTransition('subsanacion', 'en-revision')).toBe(true);
-  });
-
-  it('marks resolved/rejected as terminal', () => {
-    expect(isTerminal('resuelto')).toBe(true);
-    expect(isTerminal('rechazado')).toBe(true);
-    expect(isTerminal('en-revision')).toBe(false);
+  it('marks approved/rejected as closed', () => {
+    expect(isClosedStatus('approved')).toBe(true);
+    expect(isClosedStatus('rejected')).toBe(true);
+    expect(isClosedStatus('in-review')).toBe(false);
+    expect(isClosedStatus('info-requested')).toBe(false);
   });
 });
 
-describe('GovApiClient', () => {
+describe('GovApiClient (v2 contract)', () => {
   function createClient(): GovApiClient {
     TestBed.configureTestingModule({ providers: [GovApiClient] });
     return TestBed.inject(GovApiClient);
@@ -332,100 +238,104 @@ describe('GovApiClient', () => {
     TestBed.resetTestingModule();
   });
 
-  it('normalises a live tramites response (happy case)', async () => {
-    const liveTramite = {
-      id: 'X1',
-      name: 'Registro de marca',
-      entity: 'SIC',
-      category: 'empresa',
-      channel: 'en-linea',
-      summary: 'Proteja el nombre de su negocio.',
-      estimatedDays: 20,
-      feeAmount: 1000000,
-      currency: 'COP',
-    };
+  it('normalises a live services response (happy case)', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
         Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({ tramites: [liveTramite], total: 1 }),
+          json: () =>
+            Promise.resolve({
+              services: [
+                {
+                  id: 'svc-x',
+                  name: 'Registro de marca',
+                  summary: 'Proteja el nombre de su negocio.',
+                  category: 'empresa',
+                  agency: 'SIC',
+                  estimatedDays: 20,
+                  feeMinor: 100000000,
+                  currency: 'COP',
+                },
+              ],
+            }),
         } as Response),
       ),
     );
     const client = createClient();
-    const result = await client.tramites('/api/gov', '', '');
+    const services = await client.services('/api/gov', '', '');
 
-    expect(result.tramites).toHaveLength(1);
-    expect(result.tramites[0].id).toBe('X1');
-    expect(result.tramites[0].category).toBe('empresa');
+    expect(services).toHaveLength(1);
+    expect(services[0].id).toBe('svc-x');
+    expect(services[0].feeMinor).toBe(100000000);
     expect(client.degraded).toBe(false);
   });
 
-  it('filters the seeded catalogue by category when degraded (filter case)', async () => {
+  it('filters the seeded catalogue by category when offline (filter case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const result = await client.tramites('/api/gov', '', 'vehiculos');
-
+    const services = await client.services('/api/gov', '', 'vehiculos');
     expect(client.degraded).toBe(true);
-    expect(result.tramites.length).toBeGreaterThan(0);
-    expect(result.tramites.every((t) => t.category === 'vehiculos')).toBe(true);
+    expect(services.length).toBeGreaterThan(0);
+    expect(services.every((s) => s.category === 'vehiculos')).toBe(true);
   });
 
-  it('creates a mock expediente with radicado + first timeline entry (happy case)', async () => {
+  it('creates a mock application with a radicado on the exact contract (happy case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const result = await client.submitApplication('/api/gov', {
-      tramiteId: 'T-SISBEN',
-      applicant: {
-        name: 'Ada Lovelace',
-        docType: 'CC',
-        docNumber: '12345678',
-        email: 'ada@example.com',
-        phone: '3000000000',
-      },
-      answers: { personasHogar: '2' },
-      paid: false,
+    const summary = await client.createApplication('/api/gov', {
+      serviceId: 'svc-sisben',
+      answers: { personasHogar: '3' },
     });
+    expect(summary.reference).toMatch(/^GOV-2026-/);
+    expect(summary.status).toBe('submitted');
 
-    expect(result.radicado).toMatch(/^GOV-2026-/);
-    const detail = await client.getCase('/api/gov', result.caseId);
-    expect(detail.case.status).toBe('radicado');
-    expect(detail.timeline).toHaveLength(1);
-    expect(detail.timeline[0].status).toBe('radicado');
+    const detail = await client.application('/api/gov', summary.id);
+    expect(detail.reference).toBe(summary.reference);
+    expect(detail.timeline.length).toBeGreaterThan(0);
   });
 
-  it('rejects an illegal transition as a no-op on the mock store (idempotent case)', async () => {
+  it('records a decision and advances the case status (happy case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    // Seeded CASE-SEED-4 está en 'radicado'.
-    const first = await client.transition('/api/gov', 'CASE-SEED-4', 'resuelto', '', 'Test');
-    expect(first.status).toBe('radicado');
-
-    const legal = await client.transition('/api/gov', 'CASE-SEED-4', 'en-revision', 'ok', 'Test');
-    expect(legal.status).toBe('en-revision');
-
-    // Repetirla es no-op: mismo estado, sin entrada duplicada en el historial.
-    const repeat = await client.transition('/api/gov', 'CASE-SEED-4', 'en-revision', 'ok', 'Test');
-    expect(repeat.status).toBe('en-revision');
-    const detail = await client.getCase('/api/gov', 'CASE-SEED-4');
-    expect(detail.timeline.filter((entry) => entry.status === 'en-revision')).toHaveLength(1);
+    // Seeded app-seed-4 is 'submitted'.
+    const kase = await client.decide('/api/gov', {
+      caseId: 'app-seed-4',
+      outcome: 'request-info',
+      note: 'Falta un documento.',
+    });
+    expect(kase.application.status).toBe('info-requested');
+    expect(kase.decision?.outcome).toBe('request-info');
+    // The officer note landed as an incoming correspondence entry for the citizen.
+    const detail = await client.application('/api/gov', 'app-seed-4');
+    expect(detail.status).toBe('info-requested');
   });
 
-  it('scopes the inbox by role: citizen sees own cases, officer sees the queue', async () => {
+  it('scopes the queue by status when offline (filter case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const citizen = await client.inbox('/api/gov', 'CC-52841903', 'citizen');
-    const officer = await client.inbox('/api/gov', 'OF-1', 'officer');
+    const approved = await client.queue('/api/gov', '', 'approved');
+    expect(client.degraded).toBe(true);
+    expect(approved.length).toBeGreaterThan(0);
+    expect(approved.every((c) => c.status === 'approved')).toBe(true);
+  });
 
-    expect(citizen.length).toBeGreaterThan(0);
-    expect(citizen.every((kase) => kase.applicant.docNumber === '52841903')).toBe(true);
-    expect(officer.length).toBeGreaterThan(citizen.length - 1);
-    expect(officer.some((kase) => kase.applicant.docNumber !== '52841903')).toBe(true);
+  it('degrades a bad-shape services payload to seeded data (degradation case)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ foo: 'bar' }) } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const services = await client.services('/api/gov', '', '');
+    expect(services.length).toBeGreaterThan(0);
+    expect(client.degraded).toBe(true);
   });
 });

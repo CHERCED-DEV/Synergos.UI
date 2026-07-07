@@ -12,6 +12,9 @@
 //  - SH-5 `syn-console-shell`    — cara B: KPI dashboard + sectioned data-table/queue + reports
 //  - SH-6 `syn-authoring-wizard` — publicar/crear entidad: form stepper + persistent draft
 //  - SH-7 `syn-message-center`   — v1: conversation-list + thread + reply composer
+//  - SH-8 `syn-results-map`      — geo tiles + clustering + viewport sync
+//  - SH-9 `syn-dynamic-form`     — schema-driven task-list + multi-step + check-answers + error summary
+//  - SH-10 `syn-credential-wallet` — signed QR credential + public verify + transfer
 
 // ─── SH-1 Discovery ──────────────────────────────────────────────────────────
 export {
@@ -97,6 +100,21 @@ export {
   type ResultsMapItemContext,
   type ResultsMapLayout,
 } from './map/results-map';
+
+// ─── SH-9 Dynamic form ───────────────────────────────────────────────────────
+export {
+  DynamicFormShellComponent,
+  type DynamicFieldOption,
+  type DynamicFieldType,
+  type DynamicFormAnswers,
+  type DynamicFormChange,
+  type DynamicFormConfig,
+  type DynamicFormField,
+  type DynamicFormSection,
+  type DynamicFormSubmit,
+  type FormSchema,
+  type TaskStatus,
+} from './forms/dynamic-form-shell';
 
 // ─── SH-10 Credential wallet ─────────────────────────────────────────────────
 export {
