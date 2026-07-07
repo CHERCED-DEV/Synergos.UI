@@ -5,15 +5,24 @@ import {
   buildMockFeed,
   buildMockNotifications,
   buildMockProfile,
+  buildMockSaved,
   buildMockSearch,
+  buildMockStudio,
+  buildMockThread,
+  buildMockThreads,
   buildMockTrending,
   reactionStateFor,
 } from './blogs.mock';
 import {
   type Author,
   type Comment,
+  type CreatorTier,
+  type DirectMessage,
   type FeedPage,
   type FeedScope,
+  type MessageThread,
+  type NewArticle,
+  type NewMessage,
   type NewPost,
   type Notification,
   type Post,
@@ -24,6 +33,9 @@ import {
   type ReactionState,
   type ReactionType,
   type SearchResult,
+  type StudioPayload,
+  type StudioPostStat,
+  type StudioSeriesPoint,
   type TrendingTag,
 } from './blogs.model';
 
@@ -224,6 +236,163 @@ export class BlogsApiClient {
     } catch (error) {
       this.markDegraded('GET /api/blogs/trending', error);
       return buildMockTrending();
+    }
+  }
+
+  /** `GET /api/blogs/explore?q=&tag=` — the SH-1 explore/search/hashtag provider. */
+  async explore(apiBase: string, query: string, tag: string): Promise<SearchResult> {
+    const params = new URLSearchParams();
+    if (query.trim()) {
+      params.set('q', query.trim());
+    }
+    if (tag.trim()) {
+      params.set('tag', tag.trim().replace(/^#/, ''));
+    }
+    const qs = params.toString();
+    const url = `${apiBase}/explore${qs ? `?${qs}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const result = normalizeSearch(data);
+      if (result) {
+        return result;
+      }
+      throw new Error('explore-shape');
+    } catch (error) {
+      // TODO(backend): `/explore` is part of the new OLA 6 contract (in parallel).
+      this.markDegraded('GET /api/blogs/explore', error);
+      return buildMockSearch(tag.trim() ? `#${tag.trim()}` : query);
+    }
+  }
+
+  // ─── Direct messages (SH-7 message-center) ──────────────────────────────────
+
+  /** `GET /api/blogs/messages?user=` — inbox conversation-list. */
+  async messages(apiBase: string, user: string): Promise<readonly MessageThread[]> {
+    const params = new URLSearchParams();
+    if (user.trim()) {
+      params.set('user', user.trim());
+    }
+    const qs = params.toString();
+    const url = `${apiBase}/messages${qs ? `?${qs}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const list = normalizeThreads(data);
+      if (list) {
+        return list;
+      }
+      throw new Error('messages-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/messages', error);
+      return buildMockThreads();
+    }
+  }
+
+  /** `GET /api/blogs/thread/{id}` — the open conversation + materialised messages. */
+  async thread(apiBase: string, threadId: string): Promise<MessageThread> {
+    const url = `${apiBase}/thread/${encodeURIComponent(threadId)}`;
+    try {
+      const data = await this.getJson(url);
+      const thread = normalizeThread(
+        isRecord(data) && isRecord(data['thread']) ? data['thread'] : data,
+      );
+      if (thread) {
+        return thread;
+      }
+      throw new Error('thread-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/thread/{id}', error);
+      return buildMockThread(threadId);
+    }
+  }
+
+  /** `POST /api/blogs/message` `{ threadId, body }` → the persisted message. */
+  async sendMessage(
+    apiBase: string,
+    draft: NewMessage,
+    author: Author,
+  ): Promise<DirectMessage> {
+    const url = `${apiBase}/message`;
+    try {
+      const data = await this.postJson(url, draft);
+      const message = normalizeMessage(
+        isRecord(data) && isRecord(data['message']) ? data['message'] : data,
+        draft.threadId,
+      );
+      if (message) {
+        return message;
+      }
+      throw new Error('message-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/blogs/message', error);
+      return synthesizeMessage(draft, author);
+    }
+  }
+
+  // ─── Guardados / listas ──────────────────────────────────────────────────────
+
+  /** `GET /api/blogs/saved?user=` — the viewer's bookmarked posts. */
+  async saved(apiBase: string, user: string): Promise<readonly Post[]> {
+    const params = new URLSearchParams();
+    if (user.trim()) {
+      params.set('user', user.trim());
+    }
+    const qs = params.toString();
+    const url = `${apiBase}/saved${qs ? `?${qs}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const rawPosts = Array.isArray(data)
+        ? data
+        : isRecord(data) && Array.isArray(data['posts'])
+          ? data['posts']
+          : null;
+      if (rawPosts) {
+        return rawPosts.map(normalizePost).filter((post): post is Post => post !== null);
+      }
+      throw new Error('saved-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/saved', error);
+      return buildMockSaved();
+    }
+  }
+
+  // ─── Long-form article (`/write`) ────────────────────────────────────────────
+
+  /** `POST /api/blogs/article` — publish a long-form post (`objectKind='postPage'`). */
+  async publishArticle(apiBase: string, draft: NewArticle, author: Author): Promise<Post> {
+    const url = `${apiBase}/article`;
+    try {
+      const data = await this.postJson(url, draft);
+      const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
+      if (post) {
+        return post;
+      }
+      throw new Error('article-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/blogs/article', error);
+      return synthesizeArticle(draft, author);
+    }
+  }
+
+  // ─── Creator studio (SH-5 analytics + monetización) ──────────────────────────
+
+  /** `GET /api/blogs/studio?user=` — the creator dashboard aggregate. */
+  async studio(apiBase: string, user: string): Promise<StudioPayload> {
+    const params = new URLSearchParams();
+    if (user.trim()) {
+      params.set('user', user.trim());
+    }
+    const qs = params.toString();
+    const url = `${apiBase}/studio${qs ? `?${qs}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const payload = normalizeStudio(data);
+      if (payload) {
+        return payload;
+      }
+      throw new Error('studio-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/blogs/studio', error);
+      return buildMockStudio();
     }
   }
 
@@ -557,7 +726,194 @@ function normalizeSearch(value: unknown): SearchResult | null {
   };
 }
 
+// ─── DM normalisers ─────────────────────────────────────────────────────────────
+
+function normalizeMessage(value: unknown, threadId: string): DirectMessage | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const author = normalizeAuthor(value['author']);
+  if (!id || !author) {
+    return null;
+  }
+  return {
+    id,
+    threadId: readString(value['threadId']).trim() || threadId,
+    author,
+    body: readString(value['body']).trim(),
+    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    outgoing: readBoolean(value['outgoing']),
+  };
+}
+
+function normalizeThread(value: unknown): MessageThread | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const participant = normalizeAuthor(value['participant'] ?? value['author']);
+  if (!id || !participant) {
+    return null;
+  }
+  const rawMessages = Array.isArray(value['messages']) ? value['messages'] : [];
+  const messages = rawMessages
+    .map((entry) => normalizeMessage(entry, id))
+    .filter((entry): entry is DirectMessage => entry !== null);
+  const last = messages[messages.length - 1];
+  return {
+    id,
+    participant,
+    lastMessage: readString(value['lastMessage']).trim() || last?.body || '',
+    lastAtUtc: readString(value['lastAtUtc']).trim() || last?.createdAtUtc || new Date().toISOString(),
+    unread: Math.trunc(readNumber(value['unread'])),
+    messages,
+  };
+}
+
+function normalizeThreads(value: unknown): readonly MessageThread[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : isRecord(value) && Array.isArray(value['threads'])
+      ? value['threads']
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeThread).filter((entry): entry is MessageThread => entry !== null);
+}
+
+// ─── Studio normalisers ─────────────────────────────────────────────────────────
+
+function normalizeSeries(value: unknown): readonly StudioSeriesPoint[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): StudioSeriesPoint | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const label = readString(entry['label']).trim();
+      if (!label) {
+        return null;
+      }
+      return { label, value: readNumber(entry['value']) };
+    })
+    .filter((entry): entry is StudioSeriesPoint => entry !== null);
+}
+
+function normalizeTopPosts(value: unknown): readonly StudioPostStat[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): StudioPostStat | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const postId = readString(entry['postId']).trim();
+      if (!postId) {
+        return null;
+      }
+      return {
+        postId,
+        excerpt: readString(entry['excerpt']).trim(),
+        impressions: Math.trunc(readNumber(entry['impressions'])),
+        engagements: Math.trunc(readNumber(entry['engagements'])),
+        reactions: Math.trunc(readNumber(entry['reactions'])),
+        comments: Math.trunc(readNumber(entry['comments'])),
+      };
+    })
+    .filter((entry): entry is StudioPostStat => entry !== null);
+}
+
+function normalizeTiers(value: unknown): readonly CreatorTier[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): CreatorTier | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const name = readString(entry['name']).trim();
+      if (!id || !name) {
+        return null;
+      }
+      return {
+        id,
+        name,
+        priceMinor: Math.trunc(readNumber(entry['priceMinor'])),
+        currency: readString(entry['currency']).trim() || 'COP',
+        perks: readStringArray(entry['perks']),
+        subscribers: Math.trunc(readNumber(entry['subscribers'])),
+      };
+    })
+    .filter((entry): entry is CreatorTier => entry !== null);
+}
+
+function normalizeStudio(value: unknown): StudioPayload | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  // A studio payload must carry at least a followers figure to be considered valid.
+  if (value['followers'] === undefined && value['reach'] === undefined) {
+    return null;
+  }
+  return {
+    followers: Math.trunc(readNumber(value['followers'])),
+    followersDelta: Math.trunc(readNumber(value['followersDelta'])),
+    reach: Math.trunc(readNumber(value['reach'])),
+    reachDelta: Math.trunc(readNumber(value['reachDelta'])),
+    engagementRate: readNumber(value['engagementRate']),
+    monthlyRevenueMinor: Math.trunc(readNumber(value['monthlyRevenueMinor'])),
+    currency: readString(value['currency']).trim() || 'COP',
+    audience: normalizeSeries(value['audience']),
+    topPosts: normalizeTopPosts(value['topPosts']),
+    tiers: normalizeTiers(value['tiers']),
+  };
+}
+
 // ─── Optimistic / synthesized fallbacks ────────────────────────────────────────
+
+/** Build a DM locally for the optimistic append when the message endpoint is down. */
+function synthesizeMessage(draft: NewMessage, author: Author): DirectMessage {
+  return {
+    id: `local-m-${Date.now().toString(36)}`,
+    threadId: draft.threadId,
+    author,
+    body: draft.body.trim(),
+    createdAtUtc: new Date().toISOString(),
+    outgoing: true,
+  };
+}
+
+/** Build a long-form Post locally for the optimistic insert when `/article` is down. */
+function synthesizeArticle(draft: NewArticle, author: Author): Post {
+  const body = draft.body.trim();
+  const hashtags = draft.hashtags && draft.hashtags.length > 0
+    ? [...draft.hashtags]
+    : Array.from(body.matchAll(/#(\w+)/g)).map((match) => match[1]);
+  const media = draft.coverUrl
+    ? [{ url: draft.coverUrl, kind: 'image' as const, alt: draft.coverAlt?.trim() || draft.title }]
+    : [];
+  return {
+    id: `local-art-${Date.now().toString(36)}`,
+    author,
+    objectKind: 'postPage',
+    body: draft.title.trim() ? `${draft.title.trim()}\n\n${body}` : body,
+    media,
+    hashtags,
+    mentions: Array.from(body.matchAll(/@(\w+)/g)).map((match) => match[1]),
+    createdAtUtc: new Date().toISOString(),
+    reactions: reactionStateFor(0, 0, 0, 0, null),
+    commentCount: 0,
+    repostCount: 0,
+    reposted: false,
+  };
+}
 
 /** Build a Post locally for the optimistic insert when the publish endpoint is down. */
 function synthesizePost(draft: NewPost, author: Author): Post {

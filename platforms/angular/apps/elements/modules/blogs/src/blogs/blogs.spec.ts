@@ -1,7 +1,15 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  FULFILLMENT_STRATEGIES,
+  FulfillmentContext,
+  OrchestratorService,
+  SessionStore,
+  TransactionEventBusService,
+} from '@synergos/transaction-engine';
 import { BlogsApiClient } from './blogs-api.client';
 import { BlogsElementComponent } from './blogs';
+import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from './blogs.model';
 
 /**
@@ -35,7 +43,16 @@ describe('BlogsElementComponent', () => {
   async function createComponent(): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [BlogsElementComponent],
-      providers: [provideZonelessChangeDetection(), BlogsApiClient],
+      providers: [
+        provideZonelessChangeDetection(),
+        BlogsApiClient,
+        // Engine services the v2 shell injects (monetization edge + orchestration).
+        SessionStore,
+        OrchestratorService,
+        TransactionEventBusService,
+        FulfillmentContext,
+        { provide: FULFILLMENT_STRATEGIES, useClass: BlogsFulfillmentStrategy, multi: true },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BlogsElementComponent);
@@ -200,6 +217,108 @@ describe('BlogsElementComponent', () => {
 
     component.draftMediaAlt.set('Una foto de ejemplo');
     expect(component.draftValid()).toBe(true);
+  });
+
+  // ── v2 DMs (SH-7): loading the inbox + optimistic send appends to the thread ──
+  it('loads the DM inbox and appends a sent message optimistically', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.go('messages');
+    await flushMicrotasks();
+    expect(component.view()).toBe('messages');
+    expect(component.threads().length).toBeGreaterThan(0);
+
+    const thread = component.threads()[0];
+    component.onThreadSelect(thread);
+    await flushMicrotasks();
+    const active = component.activeThread()!;
+    expect(active.id).toBe(thread.id);
+    const before = active.messages.length;
+
+    component.onSendMessage({ thread: active, body: '¡Hola desde el test!' });
+    await flushMicrotasks();
+    const after = component.activeThread()!;
+    expect(after.messages.length).toBe(before + 1);
+    expect(after.messages[after.messages.length - 1].body).toBe('¡Hola desde el test!');
+  });
+
+  // ── v2 explore (SH-1): hashtag facet drives the discovery criteria + results ──
+  it('runs an explore query via the SH-1 criteria and returns matching posts', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.onSearchCriteria({ term: '', facets: { hashtag: ['design'] }, sort: 'top', page: 1 });
+    await flushMicrotasks();
+    expect(component.searchTag()).toBe('design');
+    expect(component.searchResult()).not.toBeNull();
+    expect(component.searchResult()!.posts.length).toBeGreaterThan(0);
+  });
+
+  // ── v2 guardados: bookmarking a post adds it to the saved collection ─────────
+  it('bookmarks a post into guardados and toggles it off idempotently', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const post = component.posts()[0];
+    expect(component.isSaved(post.id)).toBe(false);
+
+    component.toggleSave(post);
+    expect(component.isSaved(post.id)).toBe(true);
+    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(true);
+
+    component.toggleSave(post);
+    expect(component.isSaved(post.id)).toBe(false);
+    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
+  });
+
+  // ── v2 long-form: publishing an article inserts a postPage at the top ────────
+  it('publishes a long-form article and inserts it at the top of the feed', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const before = component.posts().length;
+    component.articleTitle.set('Por qué el motor compartido escala');
+    component.articleBody.set('Un cuerpo suficientemente largo para pasar la validación del editor.');
+    expect(component.articleValid()).toBe(true);
+
+    component.publishArticle();
+    await flushMicrotasks();
+
+    expect(component.posts().length).toBe(before + 1);
+    expect(component.posts()[0].objectKind).toBe('postPage');
+  });
+
+  // ── v2 studio (SH-5): loading the creator dashboard aggregate + KPIs ─────────
+  it('loads the creator studio aggregate and derives KPI cards', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.go('studio');
+    await flushMicrotasks();
+    expect(component.view()).toBe('studio');
+    expect(component.studio()).not.toBeNull();
+    expect(component.studioKpis().length).toBeGreaterThan(0);
+    expect(component.studioRows().length).toBeGreaterThan(0);
+  });
+
+  // ── v2 monetization (SH-3): subscribe wizard runs pay→confirm over the engine ─
+  it('completes a subscription checkout over the engine and confirms membership', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    // Seed a tier from the studio, then open the subscribe wizard.
+    component.go('studio');
+    await flushMicrotasks();
+    const tier = component.studio()!.tiers[0];
+
+    component.startSubscribe(component.viewer, tier);
+    await flushMicrotasks();
+    expect(component.view()).toBe('subscribe');
+    expect(component.subscribeTier()!.id).toBe(tier.id);
+
+    component.onSubscribeCompleted({ reference: 'SUB-TEST', vouchers: [] });
+    expect(component.confirmedMembership()).toBe('SUB-TEST');
   });
 });
 

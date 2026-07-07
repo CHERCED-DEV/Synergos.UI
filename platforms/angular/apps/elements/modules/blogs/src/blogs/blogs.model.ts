@@ -17,13 +17,24 @@
 /** Feed scope the timeline is derived from. Maps 1:1 to the API `scope` param. */
 export type FeedScope = 'foryou' | 'following';
 
-/** The high-level view / internal route the SPA is in. */
+/**
+ * The high-level view / internal route the SPA is in — the hash router
+ * (`#/blogs/...`) deep-links each one. **v2** grows the v1 set (feed · post ·
+ * profile · notifications · search) with the DMs (SH-7), the long-form editor,
+ * guardados/listas, the creator studio (SH-5) and the monetization checkout
+ * (SH-3), turning the single-view v1 shell into the full red-social SPA.
+ */
 export type BlogsView =
   | 'feed'
   | 'post' // post detail + nested comment thread
   | 'profile'
   | 'notifications'
-  | 'search';
+  | 'search' // explore / search / hashtag (SH-1)
+  | 'messages' // DMs — SH-7 message-center (inbox + thread + composer)
+  | 'saved' // guardados / listas
+  | 'write' // long-form article editor (composer extendido)
+  | 'studio' // creator studio — SH-5 console (analytics + monetización)
+  | 'subscribe'; // suscripción / tip — SH-3 checkout over the engine (opcional)
 
 /** Reaction verbs the UI surfaces. `IReactionService` keys idempotently on this. */
 export type ReactionType = 'like' | 'love' | 'celebrate' | 'insightful';
@@ -198,3 +209,118 @@ export interface SearchResult {
 
 /** The active tab on the search/explore view. */
 export type SearchTab = 'top' | 'accounts' | 'posts' | 'hashtags';
+
+// ─── Direct messages (SH-7 message-center) ─────────────────────────────────────
+
+/**
+ * One message inside a DM thread. `outgoing` marks the viewer's own messages so
+ * the thread pane can align/side them without a parallel identity store.
+ */
+export interface DirectMessage {
+  readonly id: string;
+  readonly threadId: string;
+  readonly author: Author;
+  readonly body: string;
+  readonly createdAtUtc: string;
+  /** `true` when the viewer is the sender (right-aligned bubble). */
+  readonly outgoing: boolean;
+}
+
+/**
+ * A DM conversation shown in the SH-7 conversation-list. `unread` drives the
+ * inbox badge; `lastMessage`/`lastAtUtc` render the list-row preview. Threads
+ * are opaque `TThread`s to the shell — this is the blogs-shaped `TThread`.
+ */
+export interface MessageThread {
+  readonly id: string;
+  /** The other participant (a DM is 1:1 in v2). */
+  readonly participant: Author;
+  readonly lastMessage: string;
+  readonly lastAtUtc: string;
+  readonly unread: number;
+  /** Materialised messages for the open thread (empty in the list payload). */
+  readonly messages: readonly DirectMessage[];
+}
+
+/** `GET /api/blogs/messages?user=` response. */
+export interface InboxPayload {
+  readonly threads: readonly MessageThread[];
+}
+
+/** `GET /api/blogs/thread/{id}` response. */
+export interface ThreadPayload {
+  readonly thread: MessageThread;
+}
+
+/** Body for `POST /api/blogs/message`. */
+export interface NewMessage {
+  readonly threadId: string;
+  readonly body: string;
+}
+
+// ─── Long-form article (`/write`) ───────────────────────────────────────────────
+
+/** Body for `POST /api/blogs/article` — the long-form editor's publish payload. */
+export interface NewArticle {
+  readonly title: string;
+  readonly body: string;
+  readonly coverUrl?: string;
+  readonly coverAlt?: string;
+  readonly hashtags?: readonly string[];
+}
+
+// ─── Guardados / listas ─────────────────────────────────────────────────────────
+
+/** `GET /api/blogs/saved?user=` response — the viewer's bookmarked posts. */
+export interface SavedPayload {
+  readonly posts: readonly Post[];
+}
+
+// ─── Creator studio (SH-5 console — analytics + monetización) ────────────────────
+
+/** One point of a small time series (audience growth / reach over time). */
+export interface StudioSeriesPoint {
+  readonly label: string;
+  readonly value: number;
+}
+
+/** A monetization tier the creator offers (drives SH-3 subscribe). */
+export interface CreatorTier {
+  readonly id: string;
+  readonly name: string;
+  /** Monthly price in **minor units** (engine convention). */
+  readonly priceMinor: number;
+  readonly currency: string;
+  readonly perks: readonly string[];
+  readonly subscribers: number;
+}
+
+/** One row of the studio's top-content table. */
+export interface StudioPostStat {
+  readonly postId: string;
+  readonly excerpt: string;
+  readonly impressions: number;
+  readonly engagements: number;
+  readonly reactions: number;
+  readonly comments: number;
+}
+
+/**
+ * `GET /api/blogs/studio?user=` aggregate — the creator-studio dashboard
+ * (seguidores, alcance, engagement) + monetización (tiers + ingresos).
+ */
+export interface StudioPayload {
+  readonly followers: number;
+  readonly followersDelta: number;
+  readonly reach: number;
+  readonly reachDelta: number;
+  readonly engagementRate: number;
+  readonly monthlyRevenueMinor: number;
+  readonly currency: string;
+  readonly audience: readonly StudioSeriesPoint[];
+  readonly topPosts: readonly StudioPostStat[];
+  readonly tiers: readonly CreatorTier[];
+}
+
+/** The addressable sections inside the SH-5 creator studio. */
+export type StudioSection = 'overview' | 'content' | 'audience' | 'monetization';

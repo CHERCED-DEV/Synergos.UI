@@ -7,55 +7,58 @@
     </p>
     <ul class="blogs__nav">
       <li>
-        <button
-          type="button"
-          class="blogs__nav-btn"
-          [class.is-active]="view() === 'feed'"
-          [attr.aria-current]="view() === 'feed' ? 'page' : null"
-          (click)="go('feed')"
-        >
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'feed'"
+          [attr.aria-current]="view() === 'feed' ? 'page' : null" (click)="go('feed')">
           <span class="blogs__nav-glyph" aria-hidden="true">🏠</span> Inicio
         </button>
       </li>
       <li>
-        <button
-          type="button"
-          class="blogs__nav-btn"
-          [class.is-active]="view() === 'search'"
-          [attr.aria-current]="view() === 'search' ? 'page' : null"
-          (click)="go('search')"
-        >
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'search'"
+          [attr.aria-current]="view() === 'search' ? 'page' : null" (click)="go('search')">
           <span class="blogs__nav-glyph" aria-hidden="true">🔍</span> Explorar
         </button>
       </li>
       <li>
-        <button
-          type="button"
-          class="blogs__nav-btn"
-          [class.is-active]="view() === 'notifications'"
-          [attr.aria-current]="view() === 'notifications' ? 'page' : null"
-          (click)="go('notifications')"
-        >
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'notifications'"
+          [attr.aria-current]="view() === 'notifications' ? 'page' : null" (click)="go('notifications')">
           <span class="blogs__nav-glyph" aria-hidden="true">🔔</span> Notificaciones
           @if (unreadCount() > 0) {
-            <span class="blogs__nav-badge" [attr.aria-label]="unreadCount() + ' sin leer'">
-              {{ unreadCount() }}
-            </span>
+            <span class="blogs__nav-badge" [attr.aria-label]="unreadCount() + ' sin leer'">{{ unreadCount() }}</span>
           }
         </button>
       </li>
       <li>
-        <button
-          type="button"
-          class="blogs__nav-btn"
-          [class.is-active]="view() === 'profile'"
-          (click)="openProfile(viewer.handle)"
-        >
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'messages'"
+          [attr.aria-current]="view() === 'messages' ? 'page' : null" (click)="go('messages')">
+          <span class="blogs__nav-glyph" aria-hidden="true">✉️</span> Mensajes
+          @if (inboxUnread() > 0) {
+            <span class="blogs__nav-badge" [attr.aria-label]="inboxUnread() + ' sin leer'">{{ inboxUnread() }}</span>
+          }
+        </button>
+      </li>
+      <li>
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'saved'"
+          [attr.aria-current]="view() === 'saved' ? 'page' : null" (click)="go('saved')">
+          <span class="blogs__nav-glyph" aria-hidden="true">🔖</span> Guardados
+        </button>
+      </li>
+      <li>
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'studio'"
+          [attr.aria-current]="view() === 'studio' ? 'page' : null" (click)="go('studio')">
+          <span class="blogs__nav-glyph" aria-hidden="true">📊</span> Creator Studio
+        </button>
+      </li>
+      <li>
+        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'profile'"
+          (click)="openProfile(viewer.handle)">
           <span class="blogs__nav-glyph" aria-hidden="true">👤</span> Perfil
         </button>
       </li>
     </ul>
-    <button type="button" class="blogs__compose-cta" (click)="toggleComposer()">Publicar</button>
+    <div class="blogs__rail-cta">
+      <button type="button" class="blogs__compose-cta" (click)="go('feed'); toggleComposer()">Publicar</button>
+      <button type="button" class="blogs__compose-cta blogs__compose-cta--ghost" (click)="go('write')">✍️ Escribir artículo</button>
+    </div>
 
     <p class="blogs__rail-me">
       <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(viewer) }}</span>
@@ -68,6 +71,11 @@
 
   <!-- ─── Center column ──────────────────────────────────────────────────────── -->
   <div class="blogs__main">
+    <!-- Multi-tab live-session notice (monetization cart) -->
+    @if (liveConflict()) {
+      <p class="blogs__notice" role="status">Otra pestaña tomó esta sesión. Tu carrito se sincronizó.</p>
+    }
+
     <!-- Mock-data degradation notice -->
     @if (degraded()) {
       <p class="blogs__notice blogs__notice--warn" role="status">
@@ -83,34 +91,15 @@
     <!-- ═══ FEED ═══════════════════════════════════════════════════════════════ -->
     @if (view() === 'feed') {
       <header class="blogs__tabs" role="tablist" aria-label="Tipo de feed">
-        <button
-          type="button"
-          class="blogs__tab"
-          role="tab"
-          [class.is-active]="feedScope() === 'foryou'"
-          [attr.aria-selected]="feedScope() === 'foryou'"
-          (click)="setFeedScope('foryou')"
-        >
-          Para ti
-        </button>
-        <button
-          type="button"
-          class="blogs__tab"
-          role="tab"
-          [class.is-active]="feedScope() === 'following'"
-          [attr.aria-selected]="feedScope() === 'following'"
-          (click)="setFeedScope('following')"
-        >
-          Siguiendo
-        </button>
+        <button type="button" class="blogs__tab" role="tab" [class.is-active]="feedScope() === 'foryou'"
+          [attr.aria-selected]="feedScope() === 'foryou'" (click)="setFeedScope('foryou')">Para ti</button>
+        <button type="button" class="blogs__tab" role="tab" [class.is-active]="feedScope() === 'following'"
+          [attr.aria-selected]="feedScope() === 'following'" (click)="setFeedScope('following')">Siguiendo</button>
       </header>
 
-      <!-- Inline composer trigger -->
       <article class="blogs__composer-inline">
         <span class="blogs__avatar" aria-hidden="true">{{ initials(viewer) }}</span>
-        <button type="button" class="blogs__composer-open" (click)="toggleComposer()">
-          ¿Qué estás pensando?
-        </button>
+        <button type="button" class="blogs__composer-open" (click)="toggleComposer()">¿Qué estás pensando?</button>
       </article>
 
       @if (composerOpen()) {
@@ -120,21 +109,13 @@
       @if (loading() && posts().length === 0) {
         <p class="blogs__loading" role="status">Cargando feed…</p>
       } @else if (posts().length === 0) {
-        <p class="blogs__empty">
-          No hay publicaciones en este feed todavía. Sigue a más cuentas o publica algo.
-        </p>
+        <p class="blogs__empty">No hay publicaciones en este feed todavía. Sigue a más cuentas o publica algo.</p>
       } @else {
         <ul class="blogs__feed">
           @for (post of posts(); track trackPost($index, post)) {
-            <li>
-              <ng-container
-                [ngTemplateOutlet]="postCardTpl"
-                [ngTemplateOutletContext]="{ post }"
-              ></ng-container>
-            </li>
+            <li><ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container></li>
           }
         </ul>
-
         @if (nextCursor()) {
           <button type="button" class="blogs__more" [disabled]="loadingMore()" (click)="loadMore()">
             {{ loadingMore() ? 'Cargando…' : 'Cargar más' }}
@@ -148,28 +129,29 @@
       <button type="button" class="blogs__back" (click)="backToFeed()">← Volver al feed</button>
 
       @if (activePost(); as post) {
-        <ng-container
-          [ngTemplateOutlet]="postCardTpl"
-          [ngTemplateOutletContext]="{ post, detail: true }"
-        ></ng-container>
+        <ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post, detail: true }"></ng-container>
 
-        <!-- Top-level comment composer -->
-        <form
-          class="blogs__comment-form"
-          (submit)="$event.preventDefault(); submitComment()"
-        >
+        <!-- Reuse the published comments-widget custom element (progressive enhancement;
+             hydrates in the CMS via the CDN bundle, degrades to the native thread below). -->
+        <synergos-comments-widget
+          class="blogs__comments-embed"
+          provider="rest"
+          [attr.threadId]="post.id"
+          title="Comentarios"
+          submitLabel="Comentar"
+          replyLabel="Responder"
+          placeholder="Escribe un comentario…"
+          locale="es-CO"
+          [attr.commentsEndpoint]="apiBase() + '/post/' + post.id"
+        ></synergos-comments-widget>
+
+        <!-- Native optimistic thread (source of truth for this SPA's state) -->
+        <form class="blogs__comment-form" (submit)="$event.preventDefault(); submitComment()">
           <label class="blogs__sr-only" [attr.for]="fieldId + '-comment'">Escribe un comentario</label>
-          <textarea
-            class="blogs__comment-input"
-            [id]="fieldId + '-comment'"
-            rows="2"
-            placeholder="Escribe un comentario…"
-            [value]="commentDraft()"
-            (input)="bind(commentDraft.set)($event)"
-          ></textarea>
-          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!commentValid()">
-            Comentar
-          </button>
+          <textarea class="blogs__comment-input" [id]="fieldId + '-comment'" rows="2"
+            placeholder="Escribe un comentario…" [value]="commentDraft()"
+            (input)="bind(commentDraft.set)($event)"></textarea>
+          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!commentValid()">Comentar</button>
         </form>
 
         <h2 class="blogs__thread-title">Comentarios ({{ post.commentCount }})</h2>
@@ -180,12 +162,7 @@
         } @else {
           <ul class="blogs__thread">
             @for (comment of comments(); track trackComment($index, comment)) {
-              <li>
-                <ng-container
-                  [ngTemplateOutlet]="commentTpl"
-                  [ngTemplateOutletContext]="{ comment, depth: 0 }"
-                ></ng-container>
-              </li>
+              <li><ng-container [ngTemplateOutlet]="commentTpl" [ngTemplateOutletContext]="{ comment, depth: 0 }"></ng-container></li>
             }
           </ul>
         }
@@ -200,32 +177,24 @@
         <header class="blogs__profile">
           <div class="blogs__profile-banner" aria-hidden="true"></div>
           <div class="blogs__profile-head">
-            <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">
-              {{ initials(author) }}
-            </span>
+            <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">{{ initials(author) }}</span>
             @if (author.actorKey !== viewer.actorKey) {
-              <button
-                type="button"
-                class="blogs__btn"
-                [class.blogs__btn--brand]="!profileViewerFollows()"
-                [class.blogs__btn--ghost]="profileViewerFollows()"
-                [attr.aria-pressed]="profileViewerFollows()"
-                (click)="toggleFollow(author)"
-              >
-                {{ profileViewerFollows() ? 'Siguiendo' : 'Seguir' }}
-              </button>
+              <div class="blogs__profile-actions">
+                <button type="button" class="blogs__btn blogs__btn--ghost" (click)="messageAuthor(author)">Mensaje</button>
+                <button type="button" class="blogs__btn"
+                  [class.blogs__btn--brand]="!profileViewerFollows()" [class.blogs__btn--ghost]="profileViewerFollows()"
+                  [attr.aria-pressed]="profileViewerFollows()" (click)="toggleFollow(author)">
+                  {{ profileViewerFollows() ? 'Siguiendo' : 'Seguir' }}
+                </button>
+              </div>
             }
           </div>
           <h1 class="blogs__profile-name">
             {{ author.displayName }}
-            @if (author.verified) {
-              <span class="blogs__verified" title="Cuenta verificada" aria-label="Verificada">✓</span>
-            }
+            @if (author.verified) {<span class="blogs__verified" title="Cuenta verificada" aria-label="Verificada">✓</span>}
           </h1>
           <p class="blogs__profile-handle">&#64;{{ author.handle }}</p>
-          @if (author.bio) {
-            <p class="blogs__profile-bio">{{ author.bio }}</p>
-          }
+          @if (author.bio) {<p class="blogs__profile-bio">{{ author.bio }}</p>}
           <dl class="blogs__profile-stats">
             <div><dt>Publicaciones</dt><dd>{{ formatCount(author.postsCount) }}</dd></div>
             <div><dt>Seguidores</dt><dd>{{ formatCount(author.followersCount) }}</dd></div>
@@ -234,30 +203,9 @@
         </header>
 
         <nav class="blogs__profile-tabs" aria-label="Secciones del perfil">
-          <button
-            type="button"
-            class="blogs__tab"
-            [class.is-active]="profileTab() === 'posts'"
-            (click)="setProfileTab('posts')"
-          >
-            Publicaciones
-          </button>
-          <button
-            type="button"
-            class="blogs__tab"
-            [class.is-active]="profileTab() === 'replies'"
-            (click)="setProfileTab('replies')"
-          >
-            Respuestas
-          </button>
-          <button
-            type="button"
-            class="blogs__tab"
-            [class.is-active]="profileTab() === 'media'"
-            (click)="setProfileTab('media')"
-          >
-            Media
-          </button>
+          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'posts'" (click)="setProfileTab('posts')">Publicaciones</button>
+          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'replies'" (click)="setProfileTab('replies')">Respuestas</button>
+          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'media'" (click)="setProfileTab('media')">Media</button>
         </nav>
 
         @if (profileTab() === 'media') {
@@ -266,12 +214,7 @@
           } @else {
             <ul class="blogs__feed">
               @for (post of profileMediaPosts(); track trackPost($index, post)) {
-                <li>
-                  <ng-container
-                    [ngTemplateOutlet]="postCardTpl"
-                    [ngTemplateOutletContext]="{ post }"
-                  ></ng-container>
-                </li>
+                <li><ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container></li>
               }
             </ul>
           }
@@ -283,12 +226,7 @@
           } @else {
             <ul class="blogs__feed">
               @for (post of profilePosts(); track trackPost($index, post)) {
-                <li>
-                  <ng-container
-                    [ngTemplateOutlet]="postCardTpl"
-                    [ngTemplateOutletContext]="{ post }"
-                  ></ng-container>
-                </li>
+                <li><ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container></li>
               }
             </ul>
           }
@@ -300,27 +238,22 @@
     @if (view() === 'notifications') {
       <header class="blogs__view-head">
         <h1 class="blogs__view-title">Notificaciones</h1>
-        <button type="button" class="blogs__link-btn" (click)="markAllRead()">
-          Marcar todo como leído
-        </button>
+        <button type="button" class="blogs__link-btn" (click)="markAllRead()">Marcar todo como leído</button>
       </header>
+
+      <!-- Reuse the published notification-center custom element (progressive enhancement;
+           hydrates in the CMS via the CDN bundle, degrades to the native list below). -->
+      <synergos-notification-center
+        class="blogs__notif-embed"
+        title="Actividad reciente"
+        emptyLabel="No tienes notificaciones."
+        markAllLabel="Marcar todo como leído"
+        [attr.fetchEndpoint]="apiBase() + '/notifications'"
+      ></synergos-notification-center>
+
       <nav class="blogs__profile-tabs" aria-label="Filtro de notificaciones">
-        <button
-          type="button"
-          class="blogs__tab"
-          [class.is-active]="notificationFilter() === 'all'"
-          (click)="setNotificationFilter('all')"
-        >
-          Todas
-        </button>
-        <button
-          type="button"
-          class="blogs__tab"
-          [class.is-active]="notificationFilter() === 'mentions'"
-          (click)="setNotificationFilter('mentions')"
-        >
-          Menciones
-        </button>
+        <button type="button" class="blogs__tab" [class.is-active]="notificationFilter() === 'all'" (click)="setNotificationFilter('all')">Todas</button>
+        <button type="button" class="blogs__tab" [class.is-active]="notificationFilter() === 'mentions'" (click)="setNotificationFilter('mentions')">Menciones</button>
       </nav>
 
       @if (loading() && !notificationsLoaded()) {
@@ -331,24 +264,13 @@
         <ul class="blogs__notifs">
           @for (n of filteredNotifications(); track trackNotification($index, n)) {
             <li>
-              <button
-                type="button"
-                class="blogs__notif"
-                [class.is-unread]="!n.read"
-                (click)="openNotification(n)"
-              >
-                <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">
-                  {{ initials(n.actor) }}
-                </span>
+              <button type="button" class="blogs__notif" [class.is-unread]="!n.read" (click)="openNotification(n)">
+                <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(n.actor) }}</span>
                 <span class="blogs__notif-body">
-                  <span class="blogs__notif-text">
-                    <strong>{{ n.actor.displayName }}</strong> {{ n.summary }}
-                  </span>
+                  <span class="blogs__notif-text"><strong>{{ n.actor.displayName }}</strong> {{ n.summary }}</span>
                   <span class="blogs__meta-time">{{ relativeTime(n.createdAtUtc) }}</span>
                 </span>
-                @if (!n.read) {
-                  <span class="blogs__notif-dot" aria-label="Sin leer"></span>
-                }
+                @if (!n.read) {<span class="blogs__notif-dot" aria-label="Sin leer"></span>}
               </button>
             </li>
           }
@@ -356,31 +278,26 @@
       }
     }
 
-    <!-- ═══ SEARCH / EXPLORE ═══════════════════════════════════════════════════ -->
+    <!-- ═══ EXPLORE / SEARCH / HASHTAG — SH-1 discovery-shell ═══════════════════ -->
     @if (view() === 'search') {
-      <form class="blogs__searchbar" role="search" (submit)="$event.preventDefault(); submitSearch()">
-        <label class="blogs__sr-only" [attr.for]="fieldId + '-search'">Buscar en la red</label>
-        <input
-          class="blogs__searchbar-input"
-          type="search"
-          [id]="fieldId + '-search'"
-          placeholder="Busca cuentas, publicaciones y hashtags…"
-          [value]="searchTerm()"
-          (input)="bind(searchTerm.set)($event)"
-        />
-        <button type="submit" class="blogs__btn blogs__btn--brand">Buscar</button>
-      </form>
+      <header class="blogs__view-head">
+        <h1 class="blogs__view-title">Explorar</h1>
+      </header>
 
-      <nav class="blogs__profile-tabs" aria-label="Tipo de resultado">
-        <button type="button" class="blogs__tab" [class.is-active]="searchTab() === 'top'" (click)="setSearchTab('top')">Top</button>
-        <button type="button" class="blogs__tab" [class.is-active]="searchTab() === 'accounts'" (click)="setSearchTab('accounts')">Cuentas</button>
-        <button type="button" class="blogs__tab" [class.is-active]="searchTab() === 'posts'" (click)="setSearchTab('posts')">Publicaciones</button>
-        <button type="button" class="blogs__tab" [class.is-active]="searchTab() === 'hashtags'" (click)="setSearchTab('hashtags')">Hashtags</button>
-      </nav>
+      <syn-discovery-shell
+        [config]="searchConfig()"
+        [items]="searchItems()"
+        [facets]="discoveryFacets()"
+        [sortOptions]="searchSort"
+        [total]="searchItems().length"
+        [loading]="searching()"
+        [itemTemplate]="searchItemTpl"
+        (criteriachange)="onSearchCriteria($event)"
+        (itemselect)="openPost($event)"
+      ></syn-discovery-shell>
 
-      @if (searching()) {
-        <p class="blogs__loading" role="status">Buscando…</p>
-      } @else if (searchResult(); as result) {
+      <!-- Accounts + hashtags panes (shown on Top/Cuentas/Hashtags tabs) -->
+      @if (searchResult(); as result) {
         @if (searchTab() === 'accounts' || searchTab() === 'top') {
           @if (result.accounts.length > 0) {
             <ul class="blogs__accounts">
@@ -397,14 +314,9 @@
                     </span>
                   </button>
                   @if (account.actorKey !== viewer.actorKey) {
-                    <button
-                      type="button"
-                      class="blogs__btn blogs__btn--sm"
-                      [class.blogs__btn--brand]="!isFollowing(account.actorKey)"
-                      [class.blogs__btn--ghost]="isFollowing(account.actorKey)"
-                      [attr.aria-pressed]="isFollowing(account.actorKey)"
-                      (click)="toggleFollow(account)"
-                    >
+                    <button type="button" class="blogs__btn blogs__btn--sm"
+                      [class.blogs__btn--brand]="!isFollowing(account.actorKey)" [class.blogs__btn--ghost]="isFollowing(account.actorKey)"
+                      [attr.aria-pressed]="isFollowing(account.actorKey)" (click)="toggleFollow(account)">
                       {{ isFollowing(account.actorKey) ? 'Siguiendo' : 'Seguir' }}
                     </button>
                   }
@@ -413,7 +325,6 @@
             </ul>
           }
         }
-
         @if (searchTab() === 'hashtags' || searchTab() === 'top') {
           @if (result.hashtags.length > 0) {
             <ul class="blogs__hashtags">
@@ -428,22 +339,109 @@
             </ul>
           }
         }
+      }
+    }
 
-        @if (searchTab() === 'posts' || searchTab() === 'top') {
-          @if (result.posts.length > 0) {
-            <ul class="blogs__feed">
-              @for (post of result.posts; track trackPost($index, post)) {
-                <li>
-                  <ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container>
-                </li>
-              }
-            </ul>
-          }
+    <!-- ═══ DMs — SH-7 message-center ══════════════════════════════════════════ -->
+    @if (view() === 'messages') {
+      <syn-message-center
+        [config]="messageConfig"
+        [threads]="threads()"
+        [activeThread]="activeThread()"
+        [loading]="loading() && !threadsLoaded()"
+        [sending]="sendingMessage()"
+        [threadTemplate]="threadRowTpl"
+        [detailTemplate]="threadDetailTpl"
+        (threadselect)="onThreadSelect($event)"
+        (send)="onSendMessage($event)"
+      ></syn-message-center>
+    }
+
+    <!-- ═══ GUARDADOS / LISTAS — SH-4 account-shell ════════════════════════════ -->
+    @if (view() === 'saved') {
+      <syn-account-shell
+        [config]="savedConfig()"
+        [items]="savedPosts()"
+        [loading]="loading() && !savedLoaded()"
+        [itemTemplate]="savedRowTpl"
+        [detailTemplate]="savedDetailTpl"
+        [sectionTemplate]="savedSectionTpl"
+        (sectionchange)="onSavedSectionChange($event)"
+      ></syn-account-shell>
+    }
+
+    <!-- ═══ LONG-FORM EDITOR (`/write`) ════════════════════════════════════════ -->
+    @if (view() === 'write') {
+      <button type="button" class="blogs__back" (click)="go('feed')">← Volver</button>
+      <form class="blogs__editor" (submit)="$event.preventDefault(); publishArticle()">
+        <h1 class="blogs__view-title">Escribe un artículo</h1>
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-title'">Título</label>
+        <input class="blogs__editor-title" type="text" [id]="fieldId + '-art-title'"
+          placeholder="Un título que enganche" [value]="articleTitle()" (input)="bind(articleTitle.set)($event)" />
+
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-cover'">URL de portada (opcional)</label>
+        <input class="blogs__composer-field" type="url" [id]="fieldId + '-art-cover'"
+          placeholder="https://…" [value]="articleCover()" (input)="bind(articleCover.set)($event)" />
+        @if (articleCover().trim()) {
+          <label class="blogs__field-label" [attr.for]="fieldId + '-art-alt'">Texto alternativo (requerido)</label>
+          <input class="blogs__composer-field" type="text" [id]="fieldId + '-art-alt'"
+            placeholder="Describe la portada" [value]="articleCoverAlt()" (input)="bind(articleCoverAlt.set)($event)" />
         }
 
-        @if (result.accounts.length === 0 && result.posts.length === 0 && result.hashtags.length === 0) {
-          <p class="blogs__empty">Sin resultados para “{{ searchTerm() }}”.</p>
-        }
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-body'">Cuerpo</label>
+        <textarea class="blogs__editor-body" [id]="fieldId + '-art-body'" rows="12"
+          placeholder="Escribe tu historia… usa #hashtags y @menciones" [value]="articleBody()"
+          (input)="bind(articleBody.set)($event)"></textarea>
+
+        <div class="blogs__composer-foot">
+          <span class="blogs__editor-hint">{{ articleBody().length }} caracteres</span>
+          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!articleValid() || publishing()">
+            {{ publishing() ? 'Publicando…' : 'Publicar artículo' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    <!-- ═══ CREATOR STUDIO — SH-5 console-shell ════════════════════════════════ -->
+    @if (view() === 'studio') {
+      <syn-console-shell
+        [config]="studioConfig()"
+        [kpis]="studioKpis()"
+        [rows]="studioRows()"
+        [columns]="studioColumns"
+        [actions]="studioActions"
+        [loading]="loading() && !studioLoaded()"
+        [cellTemplate]="studioCellTpl"
+        [sectionTemplate]="studioSectionTpl"
+        (sectionchange)="onStudioSectionChange($event)"
+        (rowaction)="onStudioAction($event)"
+      ></syn-console-shell>
+    }
+
+    <!-- ═══ SUBSCRIBE / TIP — SH-3 checkout-wizard over the engine ═════════════ -->
+    @if (view() === 'subscribe') {
+      <button type="button" class="blogs__back" (click)="onSubscribeExit()">← Volver</button>
+      @if (confirmedMembership()) {
+        <div class="blogs__confirm" role="status">
+          <p class="blogs__confirm-glyph" aria-hidden="true">🎉</p>
+          <h1 class="blogs__view-title">¡Ya eres miembro!</h1>
+          <p class="blogs__confirm-text">
+            Tu suscripción {{ subscribeTier()?.name }} a &#64;{{ subscribeCreator()?.handle }} está activa.
+            Referencia <strong>{{ confirmedMembership() }}</strong>.
+          </p>
+          <button type="button" class="blogs__btn blogs__btn--brand" (click)="go('feed')">Ir al feed</button>
+        </div>
+      } @else {
+        <h1 class="blogs__view-title">Apoya a &#64;{{ subscribeCreator()?.handle }}</h1>
+        <syn-checkout-wizard
+          [config]="subscribeConfig"
+          [stepTemplate]="subscribeStepTpl"
+          [validity]="subscribeValidity()"
+          [instrument]="subscribeInstrument()"
+          (completed)="onSubscribeCompleted($event)"
+          (failed)="onSubscribeFailed($event)"
+          (exit)="onSubscribeExit()"
+        ></syn-checkout-wizard>
       }
     }
   </div>
@@ -478,48 +476,23 @@
     <div class="blogs__composer-row">
       <span class="blogs__avatar" aria-hidden="true">{{ initials(viewer) }}</span>
       <label class="blogs__sr-only" [attr.for]="fieldId + '-body'">Texto de la publicación</label>
-      <textarea
-        class="blogs__composer-input"
-        [id]="fieldId + '-body'"
-        rows="3"
-        placeholder="¿Qué estás pensando? Usa #hashtags y @menciones"
-        [attr.maxlength]="maxChars"
-        [value]="draftBody()"
-        (input)="bind(draftBody.set)($event)"
-      ></textarea>
+      <textarea class="blogs__composer-input" [id]="fieldId + '-body'" rows="3"
+        placeholder="¿Qué estás pensando? Usa #hashtags y @menciones" [attr.maxlength]="maxChars"
+        [value]="draftBody()" (input)="bind(draftBody.set)($event)"></textarea>
     </div>
-
     <div class="blogs__composer-media">
       <label class="blogs__field-label" [attr.for]="fieldId + '-media'">URL de imagen (opcional)</label>
-      <input
-        class="blogs__composer-field"
-        type="url"
-        [id]="fieldId + '-media'"
-        placeholder="https://…"
-        [value]="draftMediaUrl()"
-        (input)="bind(draftMediaUrl.set)($event)"
-      />
+      <input class="blogs__composer-field" type="url" [id]="fieldId + '-media'" placeholder="https://…"
+        [value]="draftMediaUrl()" (input)="bind(draftMediaUrl.set)($event)" />
       @if (draftMediaUrl().trim()) {
         <label class="blogs__field-label" [attr.for]="fieldId + '-alt'">Texto alternativo (requerido)</label>
-        <input
-          class="blogs__composer-field"
-          type="text"
-          [id]="fieldId + '-alt'"
-          placeholder="Describe la imagen para lectores de pantalla"
-          [value]="draftMediaAlt()"
-          (input)="bind(draftMediaAlt.set)($event)"
-        />
+        <input class="blogs__composer-field" type="text" [id]="fieldId + '-alt'"
+          placeholder="Describe la imagen para lectores de pantalla" [value]="draftMediaAlt()"
+          (input)="bind(draftMediaAlt.set)($event)" />
       }
     </div>
-
     <div class="blogs__composer-foot">
-      <span
-        class="blogs__char-count"
-        [class.is-over]="draftRemaining() < 0"
-        aria-live="polite"
-      >
-        {{ draftRemaining() }}
-      </span>
+      <span class="blogs__char-count" [class.is-over]="draftRemaining() < 0" aria-live="polite">{{ draftRemaining() }}</span>
       <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!draftValid() || publishing()">
         {{ publishing() ? 'Publicando…' : 'Publicar' }}
       </button>
@@ -536,22 +509,16 @@
         <span class="blogs__post-id">
           <span class="blogs__post-name">
             {{ post.author.displayName }}
-            @if (post.author.verified) {
-              <span class="blogs__verified" aria-label="Verificada">✓</span>
-            }
+            @if (post.author.verified) {<span class="blogs__verified" aria-label="Verificada">✓</span>}
           </span>
           <span class="blogs__post-handle">&#64;{{ post.author.handle }}</span>
         </span>
       </button>
-      <span class="blogs__meta-time" [attr.title]="post.createdAtUtc">
-        {{ relativeTime(post.createdAtUtc) }}
-      </span>
+      <span class="blogs__meta-time" [attr.title]="post.createdAtUtc">{{ relativeTime(post.createdAtUtc) }}</span>
     </header>
 
     @if (post.objectKind !== 'post') {
-      <span class="blogs__kind">
-        {{ post.objectKind === 'lesson' ? 'Lección' : 'Artículo' }}
-      </span>
+      <span class="blogs__kind">{{ post.objectKind === 'lesson' ? 'Lección' : 'Artículo' }}</span>
     }
 
     <p class="blogs__post-body">{{ post.body }}</p>
@@ -560,9 +527,7 @@
       <div class="blogs__post-media">
         @for (media of post.media; track media.url) {
           @if (media.kind === 'video') {
-            <video class="blogs__media-asset" controls [attr.aria-label]="media.alt">
-              <source [src]="media.url" />
-            </video>
+            <video class="blogs__media-asset" controls [attr.aria-label]="media.alt"><source [src]="media.url" /></video>
           } @else {
             <img class="blogs__media-asset" [src]="media.url" [alt]="media.alt" loading="lazy" />
           }
@@ -573,25 +538,18 @@
     @if (post.hashtags.length > 0) {
       <ul class="blogs__post-tags">
         @for (tag of post.hashtags; track tag) {
-          <li>
-            <button type="button" class="blogs__chip" (click)="searchHashtag(tag)">#{{ tag }}</button>
-          </li>
+          <li><button type="button" class="blogs__chip" (click)="searchHashtag(tag)">#{{ tag }}</button></li>
         }
       </ul>
     }
 
-    <!-- Reaction bar -->
     <footer class="blogs__actions">
       <div class="blogs__reactions" role="group" aria-label="Reacciones">
         @for (meta of reactionMeta; track meta.type) {
-          <button
-            type="button"
-            class="blogs__react"
-            [class.is-active]="isReacted(post, meta.type)"
+          <button type="button" class="blogs__react" [class.is-active]="isReacted(post, meta.type)"
             [attr.aria-pressed]="isReacted(post, meta.type)"
             [attr.aria-label]="meta.label + ' (' + reactionCount(post, meta.type) + ')'"
-            (click)="react(post, meta.type)"
-          >
+            (click)="react(post, meta.type)">
             <span aria-hidden="true">{{ meta.glyph }}</span>
             @if (reactionCount(post, meta.type) > 0) {
               <span class="blogs__react-count">{{ formatCount(reactionCount(post, meta.type)) }}</span>
@@ -600,24 +558,19 @@
         }
       </div>
 
-      <button
-        type="button"
-        class="blogs__action"
-        (click)="openPost(post)"
-        [attr.aria-label]="'Comentarios (' + post.commentCount + ')'"
-      >
+      <button type="button" class="blogs__action" (click)="openPost(post)"
+        [attr.aria-label]="'Comentarios (' + post.commentCount + ')'">
         <span aria-hidden="true">💬</span> {{ formatCount(post.commentCount) }}
       </button>
 
-      <button
-        type="button"
-        class="blogs__action"
-        [class.is-active]="post.reposted"
-        [attr.aria-pressed]="post.reposted"
-        (click)="toggleRepost(post)"
-        [attr.aria-label]="'Republicar (' + post.repostCount + ')'"
-      >
+      <button type="button" class="blogs__action" [class.is-active]="post.reposted" [attr.aria-pressed]="post.reposted"
+        (click)="toggleRepost(post)" [attr.aria-label]="'Republicar (' + post.repostCount + ')'">
         <span aria-hidden="true">🔁</span> {{ formatCount(post.repostCount) }}
+      </button>
+
+      <button type="button" class="blogs__action" [class.is-active]="isSaved(post.id)" [attr.aria-pressed]="isSaved(post.id)"
+        (click)="toggleSave(post)" [attr.aria-label]="isSaved(post.id) ? 'Quitar de guardados' : 'Guardar'">
+        <span aria-hidden="true">{{ isSaved(post.id) ? '🔖' : '📑' }}</span>
       </button>
     </footer>
   </article>
@@ -629,56 +582,211 @@
     <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(comment.author) }}</span>
     <div class="blogs__comment-body">
       <header class="blogs__comment-head">
-        <button type="button" class="blogs__comment-author" (click)="openProfile(comment.author.handle)">
-          {{ comment.author.displayName }}
-        </button>
+        <button type="button" class="blogs__comment-author" (click)="openProfile(comment.author.handle)">{{ comment.author.displayName }}</button>
         <span class="blogs__comment-handle">&#64;{{ comment.author.handle }}</span>
         <span class="blogs__meta-time">· {{ relativeTime(comment.createdAtUtc) }}</span>
       </header>
       <p class="blogs__comment-text">{{ comment.body }}</p>
       <div class="blogs__comment-actions">
-        <button
-          type="button"
-          class="blogs__comment-like"
-          [class.is-active]="comment.liked"
-          [attr.aria-pressed]="comment.liked"
-          (click)="toggleCommentLike(comment)"
-        >
+        <button type="button" class="blogs__comment-like" [class.is-active]="comment.liked"
+          [attr.aria-pressed]="comment.liked" (click)="toggleCommentLike(comment)">
           <span aria-hidden="true">👍</span> {{ formatCount(comment.likeCount) }}
         </button>
       </div>
-
-      <!-- Reply composer (only at top level — 2-level visible thread) -->
       @if (depth === 0) {
         <form class="blogs__reply-form" (submit)="$event.preventDefault(); submitReply(comment)">
           <label class="blogs__sr-only" [attr.for]="fieldId + '-reply-' + comment.id">Responder</label>
-          <input
-            class="blogs__reply-input"
-            type="text"
-            [id]="fieldId + '-reply-' + comment.id"
-            placeholder="Responder…"
-            [value]="commentDraftFor(comment.id)"
-            (input)="bind(setCommentDraftBound(comment.id))($event)"
-          />
-          <button type="submit" class="blogs__btn blogs__btn--sm blogs__btn--brand" [disabled]="!commentDraftFor(comment.id).trim()">
-            Responder
-          </button>
+          <input class="blogs__reply-input" type="text" [id]="fieldId + '-reply-' + comment.id" placeholder="Responder…"
+            [value]="commentDraftFor(comment.id)" (input)="bind(setCommentDraftBound(comment.id))($event)" />
+          <button type="submit" class="blogs__btn blogs__btn--sm blogs__btn--brand" [disabled]="!commentDraftFor(comment.id).trim()">Responder</button>
         </form>
       }
-
-      <!-- Nested replies (1 visible level) -->
       @if (comment.replies.length > 0) {
         <ul class="blogs__replies">
           @for (reply of comment.replies; track trackComment($index, reply)) {
-            <li>
-              <ng-container
-                [ngTemplateOutlet]="commentTpl"
-                [ngTemplateOutletContext]="{ comment: reply, depth: depth + 1 }"
-              ></ng-container>
-            </li>
+            <li><ng-container [ngTemplateOutlet]="commentTpl" [ngTemplateOutletContext]="{ comment: reply, depth: depth + 1 }"></ng-container></li>
           }
         </ul>
       }
     </div>
   </article>
+</ng-template>
+
+<!-- ─── SH-1 search result item ────────────────────────────────────────────────── -->
+<ng-template #searchItemTpl let-post let-select="select">
+  <div class="blogs__search-item" (click)="select()">
+    <ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container>
+  </div>
+</ng-template>
+
+<!-- ─── SH-7 conversation-list row + thread pane ───────────────────────────────── -->
+<ng-template #threadRowTpl let-thread let-selected="selected">
+  <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(thread.participant) }}</span>
+  <span class="blogs__thread-row">
+    <span class="blogs__thread-row-top">
+      <span class="blogs__thread-row-name">{{ thread.participant.displayName }}</span>
+      <span class="blogs__meta-time">{{ relativeTime(thread.lastAtUtc) }}</span>
+    </span>
+    <span class="blogs__thread-row-last">{{ thread.lastMessage || 'Nueva conversación' }}</span>
+  </span>
+  @if (thread.unread > 0) {
+    <span class="blogs__nav-badge" [attr.aria-label]="thread.unread + ' sin leer'">{{ thread.unread }}</span>
+  }
+</ng-template>
+
+<ng-template #threadDetailTpl let-thread>
+  <header class="blogs__dm-head">
+    <button type="button" class="blogs__dm-peer" (click)="openProfile(thread.participant.handle)">
+      <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(thread.participant) }}</span>
+      <span class="blogs__dm-peer-name">
+        {{ thread.participant.displayName }}
+        @if (thread.participant.verified) {<span class="blogs__verified" aria-label="Verificada">✓</span>}
+      </span>
+    </button>
+    <span class="blogs__dm-peer-handle">&#64;{{ thread.participant.handle }}</span>
+  </header>
+  <ol class="blogs__dm-messages">
+    @for (message of thread.messages; track trackMessage($index, message)) {
+      <li class="blogs__dm-bubble" [class.is-outgoing]="message.outgoing">
+        <span class="blogs__dm-text">{{ message.body }}</span>
+        <span class="blogs__dm-time">{{ relativeTime(message.createdAtUtc) }}</span>
+      </li>
+    }
+  </ol>
+</ng-template>
+
+<!-- ─── SH-4 guardados row + detail + list section ─────────────────────────────── -->
+<ng-template #savedRowTpl let-post>
+  <span class="blogs__saved-row">
+    <span class="blogs__saved-row-author">{{ post.author.displayName }}</span>
+    <span class="blogs__saved-row-excerpt">{{ post.body }}</span>
+  </span>
+</ng-template>
+
+<ng-template #savedDetailTpl let-post>
+  <ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post, detail: true }"></ng-container>
+</ng-template>
+
+<ng-template #savedSectionTpl let-section>
+  @if (section.id === 'lists') {
+    <div class="blogs__lists-empty">
+      <p class="blogs__empty">Crea listas para organizar cuentas y colecciones (próximamente).</p>
+    </div>
+  }
+</ng-template>
+
+<!-- ─── SH-5 studio cell + custom sections ─────────────────────────────────────── -->
+<ng-template #studioCellTpl let-row let-column="column">
+  @switch (column.key) {
+    @case ('excerpt') { <span class="blogs__studio-excerpt">{{ row.excerpt }}…</span> }
+    @case ('impressions') { {{ formatCount(row.impressions) }} }
+    @case ('engagements') { {{ formatCount(row.engagements) }} }
+    @case ('reactions') { {{ formatCount(row.reactions) }} }
+    @case ('comments') { {{ formatCount(row.comments) }} }
+    @default { {{ row[column.key] }} }
+  }
+</ng-template>
+
+<ng-template #studioSectionTpl let-section>
+  @if (studio(); as data) {
+    @switch (section.id) {
+      @case ('overview') {
+        <div class="blogs__studio-overview">
+          <p class="blogs__studio-lead">
+            Tu contenido llegó a <strong>{{ formatCount(data.reach) }}</strong> personas este mes,
+            con un engagement del <strong>{{ data.engagementRate.toFixed(1) }}%</strong>.
+          </p>
+          <ng-container [ngTemplateOutlet]="audienceChartTpl"></ng-container>
+        </div>
+      }
+      @case ('audience') {
+        <div class="blogs__studio-audience">
+          <h3 class="blogs__studio-sub">Crecimiento de seguidores (7 días)</h3>
+          <ng-container [ngTemplateOutlet]="audienceChartTpl"></ng-container>
+        </div>
+      }
+      @case ('monetization') {
+        <div class="blogs__studio-monetization">
+          <h3 class="blogs__studio-sub">Planes de membresía</h3>
+          <ul class="blogs__tiers">
+            @for (tier of data.tiers; track trackTier($index, tier)) {
+              <li class="blogs__tier">
+                <div class="blogs__tier-head">
+                  <span class="blogs__tier-name">{{ tier.name }}</span>
+                  <span class="blogs__tier-price">{{ formatMinor(tier.priceMinor, tier.currency) }}/mes</span>
+                </div>
+                <ul class="blogs__tier-perks">
+                  @for (perk of tier.perks; track perk) {<li>{{ perk }}</li>}
+                </ul>
+                <p class="blogs__tier-subs">{{ formatCount(tier.subscribers) }} suscriptores</p>
+                <button type="button" class="blogs__btn blogs__btn--brand blogs__btn--sm" (click)="startSubscribe(viewer, tier)">
+                  Probar suscripción
+                </button>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    }
+  }
+</ng-template>
+
+<!-- Tiny pure-CSS bar chart for the audience series -->
+<ng-template #audienceChartTpl>
+  @if (studio(); as data) {
+    <div class="blogs__chart" role="img" aria-label="Serie de audiencia de la semana">
+      @for (point of data.audience; track point.label) {
+        <div class="blogs__chart-col">
+          <span class="blogs__chart-bar" [style.height.%]="audiencePct(point.value)"></span>
+          <span class="blogs__chart-label">{{ point.label }}</span>
+        </div>
+      }
+    </div>
+  }
+</ng-template>
+
+<!-- ─── SH-3 subscribe wizard step ─────────────────────────────────────────────── -->
+<ng-template #subscribeStepTpl let-step>
+  @switch (step.id) {
+    @case ('plan') {
+      <div class="blogs__sub-plans">
+        <p class="blogs__sub-lead">Elige tu plan de apoyo a &#64;{{ subscribeCreator()?.handle }}.</p>
+        <ul class="blogs__tiers">
+          @for (tier of (studio()?.tiers ?? []); track trackTier($index, tier)) {
+            <li class="blogs__tier" [class.is-selected]="subscribeTier()?.id === tier.id">
+              <div class="blogs__tier-head">
+                <span class="blogs__tier-name">{{ tier.name }}</span>
+                <span class="blogs__tier-price">{{ formatMinor(tier.priceMinor, tier.currency) }}/mes</span>
+              </div>
+              <ul class="blogs__tier-perks">@for (perk of tier.perks; track perk) {<li>{{ perk }}</li>}</ul>
+              <button type="button" class="blogs__btn blogs__btn--sm"
+                [class.blogs__btn--brand]="subscribeTier()?.id !== tier.id" [class.blogs__btn--ghost]="subscribeTier()?.id === tier.id"
+                (click)="selectTier(tier)">
+                {{ subscribeTier()?.id === tier.id ? 'Seleccionado' : 'Elegir' }}
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+    @case ('pago') {
+      <div class="blogs__sub-pay">
+        <p class="blogs__sub-lead">Pago simulado (PSP stub). No se cobra nada real en esta demo.</p>
+        <p class="blogs__sub-total">
+          Plan <strong>{{ subscribeTier()?.name }}</strong> ·
+          {{ formatMinor(subscribeTier()?.priceMinor ?? 0, subscribeTier()?.currency ?? 'COP') }}/mes
+        </p>
+      </div>
+    }
+    @case ('revisar') {
+      <div class="blogs__sub-review">
+        <p class="blogs__sub-lead">Revisa tu membresía antes de confirmar.</p>
+        <dl class="blogs__sub-summary">
+          <div><dt>Creador</dt><dd>&#64;{{ subscribeCreator()?.handle }}</dd></div>
+          <div><dt>Plan</dt><dd>{{ subscribeTier()?.name }}</dd></div>
+          <div><dt>Precio mensual</dt><dd>{{ formatMinor(subscribeTier()?.priceMinor ?? 0, subscribeTier()?.currency ?? 'COP') }}</dd></div>
+        </dl>
+      </div>
+    }
+  }
 </ng-template>

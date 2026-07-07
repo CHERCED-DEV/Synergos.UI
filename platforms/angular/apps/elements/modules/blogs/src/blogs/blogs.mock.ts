@@ -10,14 +10,18 @@
 import {
   type Author,
   type Comment,
+  type CreatorTier,
+  type DirectMessage,
   type FeedPage,
   type FeedScope,
+  type MessageThread,
   type Notification,
   type Post,
   type ProfilePayload,
   type ReactionState,
   type ReactionType,
   type SearchResult,
+  type StudioPayload,
   type TrendingTag,
 } from './blogs.model';
 
@@ -347,5 +351,135 @@ export function buildMockSearch(query: string): SearchResult {
         post.hashtags.some((tag) => tag.toLowerCase().includes(term)),
     ),
     hashtags: buildMockTrending().filter((tag) => tag.tag.toLowerCase().includes(term)),
+  };
+}
+
+// ─── Seed DMs (SH-7 message-center) ────────────────────────────────────────────
+
+function threadMessages(threadId: string, other: Author): readonly DirectMessage[] {
+  return [
+    {
+      id: `${threadId}-m1`,
+      threadId,
+      author: other,
+      body: '¡Hola! Vi tu post sobre el motor compartido, quedó buenísimo.',
+      createdAtUtc: ago(180),
+      outgoing: false,
+    },
+    {
+      id: `${threadId}-m2`,
+      threadId,
+      author: VIEWER,
+      body: '¡Gracias! Sí, la idea es que cada dominio reuse los mismos shells.',
+      createdAtUtc: ago(174),
+      outgoing: true,
+    },
+    {
+      id: `${threadId}-m3`,
+      threadId,
+      author: other,
+      body: '¿Y los DMs también salen del catálogo? Se ve idéntico al message-center.',
+      createdAtUtc: ago(30),
+      outgoing: false,
+    },
+  ];
+}
+
+/** `GET /api/blogs/messages?user=` — the inbox conversation-list. */
+export function buildMockThreads(): readonly MessageThread[] {
+  return [
+    {
+      id: 't-valeria',
+      participant: actor('a-valeria'),
+      lastMessage: '¿Y los DMs también salen del catálogo?',
+      lastAtUtc: ago(30),
+      unread: 2,
+      messages: [],
+    },
+    {
+      id: 't-mateo',
+      participant: actor('a-mateo'),
+      lastMessage: 'Te paso el archivo de la grilla mañana 🙌',
+      lastAtUtc: ago(320),
+      unread: 0,
+      messages: [],
+    },
+    {
+      id: 't-lucia',
+      participant: actor('a-lucia'),
+      lastMessage: 'Perfecto, revisamos los seams el lunes.',
+      lastAtUtc: ago(1440),
+      unread: 0,
+      messages: [],
+    },
+  ];
+}
+
+/** `GET /api/blogs/thread/{id}` — the open conversation with materialised messages. */
+export function buildMockThread(threadId: string): MessageThread {
+  const thread = buildMockThreads().find((entry) => entry.id === threadId) ?? buildMockThreads()[0];
+  return { ...thread, unread: 0, messages: threadMessages(thread.id, thread.participant) };
+}
+
+// ─── Seed guardados / listas ────────────────────────────────────────────────────
+
+/** `GET /api/blogs/saved?user=` — the viewer's bookmarked posts. */
+export function buildMockSaved(): readonly Post[] {
+  const all = buildPosts();
+  return all.filter((post) => post.objectKind === 'postPage' || post.reactions.total > 200);
+}
+
+// ─── Seed creator studio (SH-5 analytics + monetización) ────────────────────────
+
+function buildMockTiers(): readonly CreatorTier[] {
+  return [
+    {
+      id: 'tier-fan',
+      name: 'Fan',
+      priceMinor: 990_000,
+      currency: 'COP',
+      perks: ['Acceso a posts exclusivos', 'Insignia de miembro'],
+      subscribers: 214,
+    },
+    {
+      id: 'tier-pro',
+      name: 'Pro',
+      priceMinor: 2_490_000,
+      currency: 'COP',
+      perks: ['Todo lo de Fan', 'DMs prioritarios', 'Sesiones mensuales en vivo'],
+      subscribers: 68,
+    },
+  ];
+}
+
+export function buildMockStudio(): StudioPayload {
+  return {
+    followers: 12_400,
+    followersDelta: 320,
+    reach: 184_500,
+    reachDelta: 12_800,
+    engagementRate: 6.4,
+    monthlyRevenueMinor: 38_900_000,
+    currency: 'COP',
+    audience: [
+      { label: 'Lun', value: 12_010 },
+      { label: 'Mar', value: 12_090 },
+      { label: 'Mié', value: 12_180 },
+      { label: 'Jue', value: 12_240 },
+      { label: 'Vie', value: 12_320 },
+      { label: 'Sáb', value: 12_360 },
+      { label: 'Dom', value: 12_400 },
+    ],
+    topPosts: buildPosts()
+      .slice(0, 4)
+      .map((post) => ({
+        postId: post.id,
+        excerpt: post.body.slice(0, 72),
+        impressions: post.reactions.total * 40 + post.commentCount * 120 + 1_200,
+        engagements: post.reactions.total + post.commentCount + post.repostCount,
+        reactions: post.reactions.total,
+        comments: post.commentCount,
+      })),
+    tiers: buildMockTiers(),
   };
 }
