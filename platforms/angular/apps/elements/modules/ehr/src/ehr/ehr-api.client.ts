@@ -3,16 +3,35 @@ import { LoggerService } from '@synergos/core';
 import {
   type Appointment,
   type AppointmentStatus,
+  type BillingStatement,
   type Doctor,
   type Encounter,
+  type HealthSummary,
+  type InboxItem,
+  type LabResult,
+  type Medication,
+  type MessageThread,
   type Patient,
   type PatientChart,
   type PatientSex,
+  type PortalHome,
   type Prescription,
   type PrescriptionItem,
+  type RefillStatus,
+  type ScheduleSlot,
   type SoapNote,
   type Vitals,
 } from './ehr.model';
+import {
+  mockBilling,
+  mockHealthSummary,
+  mockInbox,
+  mockMedications,
+  mockMessages,
+  mockPortalHome,
+  mockResults,
+  mockSchedule,
+} from './ehr.mock';
 
 /**
  * Thin HTTP client over the Healthcare EHR backend contract (provided by the backend
@@ -25,6 +44,18 @@ import {
  *  - `POST /api/ehr/appointment` `{ patientId, doctorId, slot }`  → `{ appointment }`
  *  - `POST /api/ehr/encounter`   `{ patientId, soap }`            → `{ encounter }`
  *  - `POST /api/ehr/prescription``{ patientId, items }`           → `{ prescription }`
+ *
+ * **v2 (dual-portal, backend in parallel — degrade to mock on 404):**
+ *  - `GET  /api/ehr/portal/home?patient=`   → `{ patient, cards, nextAppointment, … }`
+ *  - `GET  /api/ehr/results?patient=`       → `{ results }`
+ *  - `GET  /api/ehr/medications?patient=`   → `{ medications }`
+ *  - `POST /api/ehr/refill` `{ medicationId, patientId }` → `{ status }`
+ *  - `GET  /api/ehr/messages?user=`         → `{ threads }`
+ *  - `POST /api/ehr/message` `{ threadId, body }`        → `{ message }`
+ *  - `GET  /api/ehr/inbasket?provider=`     → `{ items }`
+ *  - `POST /api/ehr/order` `{ patientId, kind, detail }` → `{ ok }`  (stub)
+ *  - `GET  /api/ehr/billing?patient=`       → `{ statement }`
+ *  - `GET  /api/ehr/schedule?date=`         → `{ slots }` (falls back to appointments)
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **seeded demo data** and logs a `TODO`, so the
@@ -168,6 +199,190 @@ export class EhrApiClient {
     } catch (error) {
       this.markDegraded('POST /api/ehr/prescription', error);
       return fallback;
+    }
+  }
+
+  // ─── v2 · Patient portal (MyChart) ───────────────────────────────────────────
+
+  /** `GET /api/ehr/portal/home?patient=` — the patient home feed aggregate. */
+  async portalHome(apiBase: string, patientId: string): Promise<PortalHome> {
+    const url = `${apiBase}/portal/home?patient=${encodeURIComponent(patientId)}`;
+    try {
+      const data = await this.getJson(url);
+      const home = normalizePortalHome(data);
+      if (home) {
+        return home;
+      }
+      throw new Error('portal-home-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/portal/home', error);
+      return mockPortalHome(patientId);
+    }
+  }
+
+  /** `GET /api/ehr/results?patient=` — lab results (value + range + flag). */
+  async results(apiBase: string, patientId: string): Promise<readonly LabResult[]> {
+    const url = `${apiBase}/results?patient=${encodeURIComponent(patientId)}`;
+    try {
+      const data = await this.getJson(url);
+      const results = normalizeResults(data);
+      if (results) {
+        return results;
+      }
+      throw new Error('results-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/results', error);
+      return mockResults(patientId);
+    }
+  }
+
+  /** `GET /api/ehr/medications?patient=` — active medications + refill affordance. */
+  async medications(apiBase: string, patientId: string): Promise<readonly Medication[]> {
+    const url = `${apiBase}/medications?patient=${encodeURIComponent(patientId)}`;
+    try {
+      const data = await this.getJson(url);
+      const meds = normalizeMedications(data);
+      if (meds) {
+        return meds;
+      }
+      throw new Error('medications-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/medications', error);
+      return mockMedications(patientId);
+    }
+  }
+
+  /** `POST /api/ehr/refill` — request a refill; returns the new status (optimistic). */
+  async requestRefill(
+    apiBase: string,
+    body: { medicationId: string; patientId: string },
+    fallback: RefillStatus,
+  ): Promise<RefillStatus> {
+    const url = `${apiBase}/refill`;
+    try {
+      const data = await this.postJson(url, body);
+      const status = readString(pluck(data, 'status')).toLowerCase();
+      if (status === 'requested' || status === 'approved' || status === 'denied') {
+        return status;
+      }
+      throw new Error('refill-shape');
+    } catch (error) {
+      this.markDegraded('POST /api/ehr/refill', error);
+      return fallback;
+    }
+  }
+
+  /** `GET /api/ehr/health?patient=` — health summary (conditions/allergies/vaccines). */
+  async healthSummary(apiBase: string, patientId: string): Promise<HealthSummary> {
+    const url = `${apiBase}/health?patient=${encodeURIComponent(patientId)}`;
+    try {
+      const data = await this.getJson(url);
+      const summary = normalizeHealthSummary(data);
+      if (summary) {
+        return summary;
+      }
+      throw new Error('health-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/health', error);
+      return mockHealthSummary();
+    }
+  }
+
+  /** `GET /api/ehr/billing?patient=` — statement + payment plan state. */
+  async billing(apiBase: string, patientId: string): Promise<BillingStatement> {
+    const url = `${apiBase}/billing?patient=${encodeURIComponent(patientId)}`;
+    try {
+      const data = await this.getJson(url);
+      const statement = normalizeBilling(data);
+      if (statement) {
+        return statement;
+      }
+      throw new Error('billing-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/billing', error);
+      return mockBilling(patientId);
+    }
+  }
+
+  // ─── v2 · Messaging / In Basket (shared graph, SH-7) ──────────────────────────
+
+  /** `GET /api/ehr/messages?user=` — patient ↔ care-team threads. */
+  async messages(apiBase: string, user: string): Promise<readonly MessageThread[]> {
+    const url = `${apiBase}/messages?user=${encodeURIComponent(user)}`;
+    try {
+      const data = await this.getJson(url);
+      const threads = normalizeThreads(data);
+      if (threads) {
+        return threads;
+      }
+      throw new Error('messages-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/messages', error);
+      return mockMessages();
+    }
+  }
+
+  /** `POST /api/ehr/message` — send a message (fire-and-forget; optimistic caller). */
+  async sendMessage(
+    apiBase: string,
+    body: { threadId: string; body: string; user: string },
+  ): Promise<boolean> {
+    const url = `${apiBase}/message`;
+    try {
+      await this.postJson(url, body);
+      return true;
+    } catch (error) {
+      this.markDegraded('POST /api/ehr/message', error);
+      return false;
+    }
+  }
+
+  /** `GET /api/ehr/inbasket?provider=` — clinician In Basket (typed rows). */
+  async inbox(apiBase: string, provider: string): Promise<readonly InboxItem[]> {
+    const url = `${apiBase}/inbasket?provider=${encodeURIComponent(provider)}`;
+    try {
+      const data = await this.getJson(url);
+      const items = normalizeInbox(data);
+      if (items) {
+        return items;
+      }
+      throw new Error('inbasket-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/inbasket', error);
+      return mockInbox();
+    }
+  }
+
+  /** `POST /api/ehr/order` — place an order / e-Rx (stub; ok flag). */
+  async placeOrder(
+    apiBase: string,
+    body: { patientId: string; kind: string; detail: string },
+  ): Promise<boolean> {
+    const url = `${apiBase}/order`;
+    try {
+      await this.postJson(url, body);
+      return true;
+    } catch (error) {
+      this.markDegraded('POST /api/ehr/order', error);
+      return false;
+    }
+  }
+
+  // ─── v2 · Clinician schedule board ────────────────────────────────────────────
+
+  /** `GET /api/ehr/schedule?date=` — the day's board with arrival states. */
+  async schedule(apiBase: string, date: string): Promise<readonly ScheduleSlot[]> {
+    const url = `${apiBase}/schedule${date ? `?date=${encodeURIComponent(date)}` : ''}`;
+    try {
+      const data = await this.getJson(url);
+      const slots = normalizeSchedule(data);
+      if (slots) {
+        return slots;
+      }
+      throw new Error('schedule-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/ehr/schedule', error);
+      return mockSchedule(date);
     }
   }
 
@@ -485,6 +700,298 @@ function normalizeChart(value: unknown): PatientChart | null {
     prescriptions,
     appointments,
   };
+}
+
+// ─── v2 normalisers (defensive — tolerate partial/loose API shapes) ─────────────
+
+function readFlag(value: unknown): LabResult['flag'] {
+  const raw = readString(value).toLowerCase();
+  return raw === 'high' || raw === 'low' || raw === 'critical' ? raw : 'normal';
+}
+
+function normalizePortalHome(value: unknown): PortalHome | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const patient = normalizePatient(value['patient']);
+  if (!patient) {
+    return null;
+  }
+  const rawCards = Array.isArray(value['cards']) ? value['cards'] : [];
+  const cards = rawCards
+    .filter(isRecord)
+    .map((card) => ({
+      id: readString(card['id']).trim() || `card-${Math.random().toString(36).slice(2)}`,
+      kind: (readString(card['kind']).trim() || 'reminder') as PortalHome['cards'][number]['kind'],
+      title: readString(card['title']).trim(),
+      detail: readString(card['detail']).trim(),
+      action: readString(card['action']).trim() || undefined,
+      actionLabel: readString(card['actionLabel']).trim() || undefined,
+      tone: (readString(card['tone']).trim() || 'neutral') as PortalHome['cards'][number]['tone'],
+    }))
+    .filter((card) => card.title !== '') as PortalHome['cards'];
+  const next = normalizeAppointment(value['nextAppointment']);
+  return {
+    patient,
+    cards,
+    nextAppointment: next,
+    balanceMinor: Math.max(0, Math.trunc(readNumber(value['balanceMinor']))),
+    currency: readString(value['currency']).trim() || 'COP',
+    unreadMessages: Math.max(0, Math.trunc(readNumber(value['unreadMessages']))),
+    pendingCheckins: Math.max(0, Math.trunc(readNumber(value['pendingCheckins']))),
+  };
+}
+
+function normalizeResult(value: unknown): LabResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const name = readString(value['name']).trim();
+  if (!id || !name) {
+    return null;
+  }
+  return {
+    id,
+    patientId: readString(value['patientId']).trim(),
+    name,
+    panel: readString(value['panel']).trim(),
+    value: readNumber(value['value']),
+    unit: readString(value['unit']).trim(),
+    refLow: readNumber(value['refLow']),
+    refHigh: readNumber(value['refHigh']),
+    flag: readFlag(value['flag']),
+    date: readString(value['date']).trim(),
+    comment: readString(value['comment']).trim(),
+    released: readBoolean(value['released'], true),
+  };
+}
+
+function normalizeResults(value: unknown): readonly LabResult[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : Array.isArray(pluck(value, 'results'))
+      ? (pluck(value, 'results') as unknown[])
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeResult).filter((entry): entry is LabResult => entry !== null);
+}
+
+function normalizeMedication(value: unknown): Medication | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const drug = readString(value['drug']).trim();
+  if (!id || !drug) {
+    return null;
+  }
+  const status = readString(value['refillStatus']).toLowerCase();
+  return {
+    id,
+    patientId: readString(value['patientId']).trim(),
+    drug,
+    dose: readString(value['dose']).trim(),
+    frequency: readString(value['frequency']).trim(),
+    instructions: readString(value['instructions']).trim(),
+    pharmacy: readString(value['pharmacy']).trim(),
+    refillsLeft: Math.max(0, Math.trunc(readNumber(value['refillsLeft']))),
+    refillStatus:
+      status === 'requested' || status === 'approved' || status === 'denied' ? status : null,
+  };
+}
+
+function normalizeMedications(value: unknown): readonly Medication[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : Array.isArray(pluck(value, 'medications'))
+      ? (pluck(value, 'medications') as unknown[])
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeMedication).filter((entry): entry is Medication => entry !== null);
+}
+
+function normalizeHealthSummary(value: unknown): HealthSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawImm = Array.isArray(value['immunizations']) ? value['immunizations'] : [];
+  const rawMaint = Array.isArray(value['maintenance']) ? value['maintenance'] : [];
+  return {
+    conditions: readStringArray(value['conditions']),
+    allergies: readStringArray(value['allergies']),
+    immunizations: rawImm.filter(isRecord).map((item) => ({
+      id: readString(item['id']).trim() || readString(item['name']).trim(),
+      name: readString(item['name']).trim(),
+      date: readString(item['date']).trim(),
+      status: (readString(item['status']).trim() || 'due') as HealthSummary['immunizations'][number]['status'],
+    })),
+    maintenance: rawMaint.filter(isRecord).map((item) => ({
+      id: readString(item['id']).trim() || readString(item['name']).trim(),
+      name: readString(item['name']).trim(),
+      detail: readString(item['detail']).trim(),
+      status: (readString(item['status']).trim() || 'due') as HealthSummary['maintenance'][number]['status'],
+      dueDate: readString(item['dueDate']).trim(),
+    })),
+  };
+}
+
+function normalizeBilling(value: unknown): BillingStatement | null {
+  const record = isRecord(pluck(value, 'statement')) ? (pluck(value, 'statement') as Record<string, unknown>) : value;
+  if (!isRecord(record)) {
+    return null;
+  }
+  const rawLines = Array.isArray(record['lines']) ? record['lines'] : [];
+  return {
+    patientId: readString(record['patientId']).trim(),
+    currency: readString(record['currency']).trim() || 'COP',
+    balanceMinor: Math.max(0, Math.trunc(readNumber(record['balanceMinor']))),
+    planActive: readBoolean(record['planActive'], false),
+    lines: rawLines.filter(isRecord).map((line) => ({
+      id: readString(line['id']).trim() || `s-${Math.random().toString(36).slice(2)}`,
+      date: readString(line['date']).trim(),
+      description: readString(line['description']).trim(),
+      amountMinor: Math.max(0, Math.trunc(readNumber(line['amountMinor']))),
+    })),
+  };
+}
+
+function normalizeMessage(value: unknown, threadId: string): MessageThread['messages'][number] | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const body = readString(value['body']).trim();
+  if (!body) {
+    return null;
+  }
+  return {
+    id: readString(value['id']).trim() || `m-${Math.random().toString(36).slice(2)}`,
+    threadId,
+    author: readString(value['author']).trim(),
+    body,
+    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    outgoing: readBoolean(value['outgoing'], false),
+  };
+}
+
+function normalizeThread(value: unknown): MessageThread | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  const rawMessages = Array.isArray(value['messages']) ? value['messages'] : [];
+  return {
+    id,
+    participant: readString(value['participant']).trim(),
+    subject: readString(value['subject']).trim(),
+    lastMessage: readString(value['lastMessage']).trim(),
+    lastAtUtc: readString(value['lastAtUtc']).trim() || new Date().toISOString(),
+    unread: Math.max(0, Math.trunc(readNumber(value['unread']))),
+    messages: rawMessages
+      .map((message) => normalizeMessage(message, id))
+      .filter((entry): entry is MessageThread['messages'][number] => entry !== null),
+  };
+}
+
+function normalizeThreads(value: unknown): readonly MessageThread[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : Array.isArray(pluck(value, 'threads'))
+      ? (pluck(value, 'threads') as unknown[])
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeThread).filter((entry): entry is MessageThread => entry !== null);
+}
+
+function normalizeInboxItem(value: unknown): InboxItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  const title = readString(value['title']).trim();
+  if (!id || !title) {
+    return null;
+  }
+  const kind = readString(value['kind']).toLowerCase();
+  return {
+    id,
+    kind: (kind === 'result' || kind === 'refill' || kind === 'advice' || kind === 'cosign'
+      ? kind
+      : 'advice') as InboxItem['kind'],
+    patientId: readString(value['patientId']).trim(),
+    patientName: readString(value['patientName']).trim(),
+    title,
+    detail: readString(value['detail']).trim(),
+    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    priority: readString(value['priority']).toLowerCase() === 'high' ? 'high' : 'routine',
+    done: readBoolean(value['done'], false),
+  };
+}
+
+function normalizeInbox(value: unknown): readonly InboxItem[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : Array.isArray(pluck(value, 'items'))
+      ? (pluck(value, 'items') as unknown[])
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeInboxItem).filter((entry): entry is InboxItem => entry !== null);
+}
+
+function normalizeScheduleSlot(value: unknown): ScheduleSlot | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const appointmentId = readString(value['appointmentId'] ?? value['id']).trim();
+  const patientName = readString(value['patientName']).trim();
+  if (!appointmentId || !patientName) {
+    return null;
+  }
+  const state = readString(value['state']).toLowerCase();
+  const known: readonly ScheduleSlot['state'][] = [
+    'scheduled',
+    'arrived',
+    'roomed',
+    'in-visit',
+    'checked-out',
+    'no-show',
+  ];
+  return {
+    appointmentId,
+    patientId: readString(value['patientId']).trim(),
+    patientName,
+    doctorId: readString(value['doctorId']).trim(),
+    doctorName: readString(value['doctorName']).trim(),
+    time: readString(value['time']).trim(),
+    durationMin: Math.max(0, Math.trunc(readNumber(value['durationMin']))) || 30,
+    reason: readString(value['reason']).trim(),
+    type: readString(value['type']).toLowerCase() === 'video' ? 'video' : 'in-person',
+    state: known.includes(state as ScheduleSlot['state']) ? (state as ScheduleSlot['state']) : 'scheduled',
+    checkedInAhead: readBoolean(value['checkedInAhead'], false),
+  };
+}
+
+function normalizeSchedule(value: unknown): readonly ScheduleSlot[] | null {
+  const list = Array.isArray(value)
+    ? value
+    : Array.isArray(pluck(value, 'slots'))
+      ? (pluck(value, 'slots') as unknown[])
+      : null;
+  if (!list) {
+    return null;
+  }
+  return list.map(normalizeScheduleSlot).filter((entry): entry is ScheduleSlot => entry !== null);
 }
 
 // ─── Filtering helpers (shared by mock + live empty fallback) ───────────────────

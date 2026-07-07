@@ -1,664 +1,774 @@
-<section class="ehr" [attr.aria-busy]="loading()" [class.ehr--nav-open]="navOpen()">
-  <span class="ehr__sr-only" aria-live="polite">{{ loading() ? 'Cargando…' : '' }}</span>
-
-  <!-- ═══════════════════════ SIDEBAR ═════════════════════════════════════════ -->
-  <aside class="ehr__sidebar" aria-label="Navegación del panel clínico">
+<section class="ehr" [attr.data-portal]="portal()" aria-label="Portal clínico Synergos">
+  <!-- ─── Topbar: brand · role switch · nav ─────────────────────────────────── -->
+  <header class="ehr__topbar">
     <div class="ehr__brand">
       <span class="ehr__brand-mark" aria-hidden="true">✚</span>
       <span class="ehr__brand-text">{{ clinic() }}</span>
     </div>
-    <nav class="ehr__nav">
-      @for (item of navItems; track item.view) {
+
+    <button
+      type="button"
+      class="ehr__nav-toggle"
+      [attr.aria-expanded]="navOpen()"
+      aria-label="Menú"
+      (click)="toggleNav()"
+    >☰</button>
+
+    <div class="ehr__roles" role="group" aria-label="Cambiar de portal (demo)">
+      @for (r of roles; track r.key) {
         <button
-          class="ehr__nav-item"
           type="button"
-          [class.ehr__nav-item--active]="view() === item.view || (view() === 'chart' && item.view === 'patients') || (view() === 'encounter' && item.view === 'patients')"
-          [attr.aria-current]="view() === item.view ? 'page' : null"
-          (click)="go(item.view)"
-        >
-          <span class="ehr__nav-icon" aria-hidden="true">{{ item.icon }}</span>
-          <span class="ehr__nav-label">{{ item.label }}</span>
-        </button>
+          class="ehr__role-btn"
+          [class.is-active]="role() === r.key"
+          [attr.aria-pressed]="role() === r.key"
+          (click)="setRole(r.key)"
+        >{{ r.label }}</button>
+      }
+    </div>
+  </header>
+
+  <div class="ehr__layout">
+    <!-- ─── Sidebar nav (portal-specific) ───────────────────────────────────── -->
+    <nav class="ehr__sidebar" [class.is-open]="navOpen()" aria-label="Secciones del portal">
+      @if (portal() === 'patient') {
+        <p class="ehr__sidebar-title">Mi portal</p>
+        <ul class="ehr__nav">
+          @for (item of patientNav; track item.view) {
+            <li>
+              <button
+                type="button"
+                class="ehr__nav-btn"
+                [class.is-active]="view() === item.view"
+                [attr.aria-current]="view() === item.view ? 'page' : null"
+                (click)="go(item.view)"
+              >{{ item.label }}</button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="ehr__sidebar-title">Cockpit clínico</p>
+        <ul class="ehr__nav">
+          @for (item of clinicianNav; track item.view) {
+            <li>
+              <button
+                type="button"
+                class="ehr__nav-btn"
+                [class.is-active]="view() === item.view || (item.view === 'board' && view() === 'chart')"
+                (click)="go(item.view)"
+              >{{ item.label }}</button>
+            </li>
+          }
+        </ul>
       }
     </nav>
-    <p class="ehr__sidebar-foot">EHR-lite · demo</p>
-  </aside>
 
-  <!-- ═══════════════════════ MAIN ════════════════════════════════════════════ -->
-  <div class="ehr__main">
-    <!-- ─── Top bar ──────────────────────────────────────────────────────────── -->
-    <header class="ehr__topbar">
-      <button
-        class="ehr__hamburger"
-        type="button"
-        [attr.aria-expanded]="navOpen()"
-        aria-label="Mostrar navegación"
-        (click)="toggleNav()"
-      >
-        ☰
-      </button>
-
-      <form class="ehr__search" role="search" (submit)="$event.preventDefault(); submitGlobalSearch()">
-        <label class="ehr__sr-only" [attr.for]="fieldId + '-search'">Buscar pacientes</label>
-        <input
-          class="ehr__search-input"
-          [id]="fieldId + '-search'"
-          type="search"
-          placeholder="Buscar paciente por nombre o documento…"
-          [value]="globalSearch()"
-          (input)="bind(globalSearch.set)($event)"
-        />
-        <button class="ehr__search-btn" type="submit" aria-label="Buscar">🔍</button>
-      </form>
-
-      <div class="ehr__roleswitch" role="group" aria-label="Rol de demostración">
-        @for (item of roles; track item.key) {
-          <button
-            class="ehr__role"
-            type="button"
-            [class.ehr__role--active]="role() === item.key"
-            [attr.aria-pressed]="role() === item.key"
-            (click)="setRole(item.key)"
-          >
-            {{ item.label }}
-          </button>
-        }
-      </div>
-    </header>
-
-    <div class="ehr__content">
-      <!-- ─── Notices ────────────────────────────────────────────────────────── -->
+    <!-- ─── Main outlet ─────────────────────────────────────────────────────── -->
+    <main class="ehr__main">
+      @if (liveConflict()) {
+        <p class="ehr__notice" role="status">Otra pestaña tomó esta sesión. Tu agenda se sincronizó.</p>
+      }
       @if (degraded()) {
-        <p class="ehr__degraded" role="status">
-          <span aria-hidden="true">⚠️</span>
-          Mostrando datos de ejemplo — la API clínica aún no responde.
+        <p class="ehr__notice ehr__notice--warn" role="status">
+          Mostrando datos de ejemplo: el backend clínico aún no responde.
         </p>
       }
       @if (errorMessage()) {
-        <p class="ehr__error" role="alert">{{ errorMessage() }}</p>
+        <p class="ehr__notice ehr__notice--error" role="alert">{{ errorMessage() }}</p>
       }
 
-      <!-- ═══════════════════ DASHBOARD ═════════════════════════════════════════ -->
-      @if (view() === 'dashboard') {
-        <h1 class="ehr__title">Tablero clínico</h1>
+      <!-- ═══════════════════════ PATIENT PORTAL (MyChart) ═══════════════════════ -->
 
-        <div class="ehr__kpis">
-          @for (kpi of kpis(); track kpi.key) {
-            <article class="ehr__kpi" [attr.data-tone]="kpi.tone">
-              <p class="ehr__kpi-label">{{ kpi.label }}</p>
-              <p class="ehr__kpi-value">{{ kpi.value }}</p>
-              <p class="ehr__kpi-hint">{{ kpi.hint }}</p>
-            </article>
-          }
-        </div>
+      <!-- ─── HOME FEED ─── -->
+      @if (view() === 'home') {
+        @if (home(); as h) {
+          <h1 class="ehr__view-title">Hola, {{ h.patient.name }}</h1>
+          <p class="ehr__view-sub">Este es tu portal de salud. Aquí ves tus pendientes y novedades.</p>
 
-        <div class="ehr__dash-grid">
-          <section class="ehr__panel" aria-labelledby="ehr-agenda-h">
-            <header class="ehr__panel-head">
-              <h2 class="ehr__panel-title" id="ehr-agenda-h">Agenda de hoy</h2>
-              <button class="ehr__link" type="button" (click)="go('appointments')">Ver agenda</button>
-            </header>
-            @if (todaysAppointments().length === 0) {
-              <p class="ehr__empty">No hay citas programadas para hoy.</p>
-            } @else {
-              <ul class="ehr__agenda">
-                @for (appointment of todaysAppointments(); track appointment.id) {
-                  <li class="ehr__agenda-row">
-                    <span class="ehr__agenda-time">{{ appointment.time }}</span>
-                    <span class="ehr__agenda-main">
-                      <span class="ehr__agenda-patient">{{ appointment.patientName }}</span>
-                      <span class="ehr__agenda-reason">{{ appointment.reason }} · {{ appointment.doctorName }}</span>
-                    </span>
-                    <span class="ehr__chip" [attr.data-tone]="appointmentStatusTone(appointment.status)">
-                      {{ appointmentStatusLabel(appointment.status) }}
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
-          </section>
-
-          <section class="ehr__panel" aria-labelledby="ehr-alerts-h">
-            <header class="ehr__panel-head">
-              <h2 class="ehr__panel-title" id="ehr-alerts-h">Alertas</h2>
-            </header>
-            <ul class="ehr__alerts">
-              @for (alert of alerts(); track alert.id) {
-                <li class="ehr__alert" [attr.data-severity]="alert.severity">
-                  <span class="ehr__alert-dot" aria-hidden="true"></span>
-                  <span class="ehr__alert-body">
-                    <span class="ehr__alert-title">{{ alert.title }}</span>
-                    <span class="ehr__alert-detail">{{ alert.detail }}</span>
-                  </span>
-                </li>
-              }
-            </ul>
-          </section>
-
-          <section class="ehr__panel ehr__panel--wide" aria-labelledby="ehr-recent-h">
-            <header class="ehr__panel-head">
-              <h2 class="ehr__panel-title" id="ehr-recent-h">Pacientes recientes</h2>
-              <button class="ehr__link" type="button" (click)="go('patients')">Ver todos</button>
-            </header>
-            <ul class="ehr__recent">
-              @for (patient of patients().slice(0, 5); track patient.id) {
-                <li>
-                  <button class="ehr__recent-item" type="button" (click)="openPatient(patient)">
-                    <span class="ehr__avatar" aria-hidden="true">{{ initials(patient.name) }}</span>
-                    <span class="ehr__recent-main">
-                      <span class="ehr__recent-name">{{ patient.name }}</span>
-                      <span class="ehr__recent-meta">{{ patient.age }} años · {{ patient.document }}</span>
-                    </span>
-                    @if (patient.allergies.length > 0) {
-                      <span class="ehr__chip" data-tone="warning">Alergias</span>
-                    }
-                  </button>
-                </li>
-              }
-            </ul>
-          </section>
-        </div>
-      }
-
-      <!-- ═══════════════════ PACIENTES ═════════════════════════════════════════ -->
-      @if (view() === 'patients') {
-        <div class="ehr__view-head">
-          <h1 class="ehr__title">Pacientes</h1>
-          <form class="ehr__filter" role="search" (submit)="$event.preventDefault(); submitPatientSearch()">
-            <label class="ehr__sr-only" [attr.for]="fieldId + '-pq'">Filtrar pacientes</label>
-            <input
-              class="ehr__filter-input"
-              [id]="fieldId + '-pq'"
-              type="search"
-              placeholder="Nombre, documento o diagnóstico…"
-              [value]="patientQuery()"
-              (input)="bind(patientQuery.set)($event)"
-            />
-            <button class="ehr__btn" type="submit">Filtrar</button>
-          </form>
-        </div>
-
-        @if (patients().length === 0 && patientsLoaded()) {
-          <p class="ehr__empty">No se encontraron pacientes para “{{ patientQuery() }}”.</p>
-        } @else {
-          <div class="ehr__table-wrap" role="region" aria-label="Lista de pacientes" tabindex="0">
-            <table class="ehr__table">
-              <thead>
-                <tr>
-                  <th scope="col">Paciente</th>
-                  <th scope="col">Documento</th>
-                  <th scope="col">Edad</th>
-                  <th scope="col">Médico tratante</th>
-                  <th scope="col">Diagnósticos</th>
-                  <th scope="col">Estado</th>
-                  <th scope="col"><span class="ehr__sr-only">Acciones</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (patient of patients(); track patient.id) {
-                  <tr>
-                    <th scope="row" class="ehr__cell-patient">
-                      <span class="ehr__avatar ehr__avatar--sm" aria-hidden="true">{{ initials(patient.name) }}</span>
-                      {{ patient.name }}
-                    </th>
-                    <td>{{ patient.document }}</td>
-                    <td>{{ patient.age }}</td>
-                    <td>{{ doctorName(patient.primaryDoctorId) }}</td>
-                    <td>
-                      @if (patient.problems.length === 0) {
-                        <span class="ehr__muted">—</span>
-                      } @else {
-                        {{ patient.problems.join(', ') }}
-                      }
-                    </td>
-                    <td>
-                      <span class="ehr__chip" [attr.data-tone]="patient.active ? 'success' : 'neutral'">
-                        {{ patient.active ? 'Activo' : 'Inactivo' }}
-                      </span>
-                    </td>
-                    <td class="ehr__cell-actions">
-                      <button class="ehr__btn ehr__btn--ghost" type="button" (click)="openPatient(patient)">
-                        Abrir ficha
-                      </button>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-      }
-
-      <!-- ═══════════════════ FICHA / CHART ═════════════════════════════════════ -->
-      @if (view() === 'chart' && chart(); as data) {
-        <button class="ehr__back" type="button" (click)="backToPatients()">← Pacientes</button>
-
-        <header class="ehr__chart-head">
-          <span class="ehr__avatar ehr__avatar--lg" aria-hidden="true">{{ initials(data.patient.name) }}</span>
-          <div class="ehr__chart-id">
-            <h1 class="ehr__title">{{ data.patient.name }}</h1>
-            <p class="ehr__chart-demo">
-              {{ sexLabel(data.patient.sex) }} · {{ data.patient.age }} años · {{ data.patient.bloodType || 'Sin RH' }}
-              · {{ data.patient.document }}
-            </p>
-            @if (data.patient.allergies.length > 0) {
-              <p class="ehr__allergy-flag" role="note">
-                <span aria-hidden="true">⚠️</span> Alergias: {{ data.patient.allergies.join(', ') }}
-              </p>
-            }
-          </div>
-          <div class="ehr__chart-actions">
-            @if (canClinicalWrite()) {
-              <button class="ehr__btn" type="button" (click)="startEncounter()">+ Nuevo encuentro</button>
-            } @else {
-              <span class="ehr__hint">Cambia a rol Médico para documentar.</span>
-            }
-          </div>
-        </header>
-
-        <div class="ehr__tabs" role="tablist" aria-label="Secciones de la ficha">
-          <button class="ehr__tab" role="tab" type="button" [class.ehr__tab--active]="chartTab() === 'summary'" [attr.aria-selected]="chartTab() === 'summary'" (click)="setChartTab('summary')">Resumen</button>
-          <button class="ehr__tab" role="tab" type="button" [class.ehr__tab--active]="chartTab() === 'history'" [attr.aria-selected]="chartTab() === 'history'" (click)="setChartTab('history')">Historia</button>
-          <button class="ehr__tab" role="tab" type="button" [class.ehr__tab--active]="chartTab() === 'evolution'" [attr.aria-selected]="chartTab() === 'evolution'" (click)="setChartTab('evolution')">Evolución</button>
-          <button class="ehr__tab" role="tab" type="button" [class.ehr__tab--active]="chartTab() === 'prescriptions'" [attr.aria-selected]="chartTab() === 'prescriptions'" (click)="setChartTab('prescriptions')">Fórmulas</button>
-          <button class="ehr__tab" role="tab" type="button" [class.ehr__tab--active]="chartTab() === 'appointments'" [attr.aria-selected]="chartTab() === 'appointments'" (click)="setChartTab('appointments')">Citas</button>
-        </div>
-
-        <div class="ehr__tabpanel" role="tabpanel">
-          <!-- Resumen -->
-          @if (chartTab() === 'summary') {
-            <div class="ehr__summary-grid">
-              <section class="ehr__panel">
-                <h2 class="ehr__panel-title">Problemas activos</h2>
-                @if (data.patient.problems.length === 0) {
-                  <p class="ehr__empty">Sin problemas registrados.</p>
-                } @else {
-                  <ul class="ehr__chips">
-                    @for (problem of data.patient.problems; track problem) {
-                      <li class="ehr__chip" data-tone="brand">{{ problem }}</li>
-                    }
-                  </ul>
-                }
-              </section>
-
-              <section class="ehr__panel">
-                <h2 class="ehr__panel-title">Últimos signos vitales</h2>
-                @if (latestVitals(); as vitals) {
-                  <dl class="ehr__vitals">
-                    <div><dt>Presión</dt><dd>{{ bloodPressureLabel(vitals) }} mmHg</dd></div>
-                    <div><dt>FC</dt><dd>{{ vitals.heartRate }} bpm</dd></div>
-                    <div><dt>Temp.</dt><dd>{{ vitals.temperature }} °C</dd></div>
-                    <div><dt>Peso</dt><dd>{{ vitals.weight }} kg</dd></div>
-                    <div><dt>Talla</dt><dd>{{ vitals.height }} cm</dd></div>
-                    <div><dt>Glucosa</dt><dd>{{ vitals.glucose }} mg/dL</dd></div>
-                  </dl>
-                } @else {
-                  <p class="ehr__empty">Sin mediciones registradas.</p>
-                }
-              </section>
-
-              <section class="ehr__panel">
-                <h2 class="ehr__panel-title">Contacto</h2>
-                <dl class="ehr__keyvalue">
-                  <div><dt>Teléfono</dt><dd>{{ data.patient.phone || '—' }}</dd></div>
-                  <div><dt>Correo</dt><dd>{{ data.patient.email || '—' }}</dd></div>
-                  <div><dt>Médico</dt><dd>{{ doctorName(data.patient.primaryDoctorId) }}</dd></div>
-                </dl>
-              </section>
-            </div>
-          }
-
-          <!-- Historia (encounters / SOAP) -->
-          @if (chartTab() === 'history') {
-            @if (data.history.length === 0) {
-              <p class="ehr__empty">Sin encuentros registrados.</p>
-            } @else {
-              <ol class="ehr__timeline">
-                @for (encounter of data.history; track encounter.id) {
-                  <li class="ehr__tl-item">
-                    <span class="ehr__tl-marker" aria-hidden="true"></span>
-                    <article class="ehr__encounter">
-                      <header class="ehr__encounter-head">
-                        <span class="ehr__encounter-date">{{ encounter.date }}</span>
-                        <span class="ehr__encounter-doctor">{{ encounter.doctorName }}</span>
-                        @if (encounter.signature) {
-                          <span class="ehr__chip" data-tone="success">Firmada · {{ encounter.signature }}</span>
-                        }
-                      </header>
-                      <h3 class="ehr__encounter-reason">{{ encounter.reason }}</h3>
-                      <dl class="ehr__soap">
-                        <dt>S — Subjetivo</dt><dd>{{ encounter.soap.subjective || '—' }}</dd>
-                        <dt>O — Objetivo</dt>
-                        <dd>PA {{ bloodPressureLabel(encounter.soap.objective) }} · FC {{ encounter.soap.objective.heartRate }} · {{ encounter.soap.objective.temperature }}°C · {{ encounter.soap.objective.weight }} kg · Glu {{ encounter.soap.objective.glucose }}</dd>
-                        <dt>A — Análisis</dt><dd>{{ encounter.soap.assessment || '—' }}</dd>
-                        <dt>P — Plan</dt><dd>{{ encounter.soap.plan || '—' }}</dd>
-                      </dl>
-                    </article>
-                  </li>
-                }
-              </ol>
-            }
-          }
-
-          <!-- Evolución -->
-          @if (chartTab() === 'evolution') {
-            @if (evolutionSeries().length === 0) {
-              <p class="ehr__empty">Sin datos suficientes para graficar la evolución.</p>
-            } @else {
-              <div class="ehr__charts">
-                @for (series of evolutionSeries(); track series.key) {
-                  <section class="ehr__panel">
-                    <h2 class="ehr__panel-title">{{ series.label }} <span class="ehr__muted">({{ series.unit }})</span></h2>
-                    <div class="ehr__bars" role="img" [attr.aria-label]="series.label + ' en el tiempo'">
-                      @for (point of series.points; track point.date) {
-                        <div class="ehr__bar-col">
-                          <span class="ehr__bar-value">{{ point.value }}</span>
-                          <span class="ehr__bar" [style.height.%]="pointHeight(series, point.value)"></span>
-                          <span class="ehr__bar-date">{{ point.date.slice(5) }}</span>
-                        </div>
-                      }
-                    </div>
-                  </section>
-                }
-              </div>
-            }
-          }
-
-          <!-- Fórmulas / prescripciones -->
-          @if (chartTab() === 'prescriptions') {
-            @if (data.prescriptions.length === 0) {
-              <p class="ehr__empty">Sin fórmulas registradas.</p>
-            } @else {
-              <ul class="ehr__rx-list">
-                @for (rx of data.prescriptions; track rx.id) {
-                  <li class="ehr__rx">
-                    <header class="ehr__rx-head">
-                      <span class="ehr__rx-icon" aria-hidden="true">℞</span>
-                      <span class="ehr__rx-meta">{{ rx.date }} · {{ rx.doctorName }}</span>
-                    </header>
-                    @if (rx.interactions.length > 0) {
-                      <p class="ehr__rx-interaction" role="note">
-                        <span aria-hidden="true">⚠️</span> {{ rx.interactions.join(' ') }}
-                      </p>
-                    }
-                    <ul class="ehr__rx-items">
-                      @for (item of rx.items; track item.drug) {
-                        <li>
-                          <strong>{{ item.drug }}</strong> {{ item.dose }} — {{ item.frequency }}
-                          @if (item.durationDays > 0) { · {{ item.durationDays }} días }
-                        </li>
-                      }
-                    </ul>
-                  </li>
-                }
-              </ul>
-            }
-          }
-
-          <!-- Citas del paciente -->
-          @if (chartTab() === 'appointments') {
-            @if (data.appointments.length === 0) {
-              <p class="ehr__empty">Sin citas programadas.</p>
-            } @else {
-              <ul class="ehr__agenda">
-                @for (appointment of data.appointments; track appointment.id) {
-                  <li class="ehr__agenda-row">
-                    <span class="ehr__agenda-time">{{ appointment.date }} {{ appointment.time }}</span>
-                    <span class="ehr__agenda-main">
-                      <span class="ehr__agenda-patient">{{ appointment.reason }}</span>
-                      <span class="ehr__agenda-reason">{{ appointment.doctorName }}</span>
-                    </span>
-                    <span class="ehr__chip" [attr.data-tone]="appointmentStatusTone(appointment.status)">
-                      {{ appointmentStatusLabel(appointment.status) }}
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
-          }
-        </div>
-      }
-
-      <!-- ═══════════════════ ENCUENTRO / SOAP ══════════════════════════════════ -->
-      @if (view() === 'encounter' && chart(); as data) {
-        <button class="ehr__back" type="button" (click)="cancelEncounter()">← Ficha de {{ data.patient.name }}</button>
-        <h1 class="ehr__title">Nuevo encuentro · {{ data.patient.name }}</h1>
-
-        <div class="ehr__soap-editor">
-          <section class="ehr__panel">
-            <h2 class="ehr__panel-title">S — Subjetivo</h2>
-            <label class="ehr__sr-only" [attr.for]="fieldId + '-s'">Motivo y relato del paciente</label>
-            <textarea
-              class="ehr__textarea"
-              [id]="fieldId + '-s'"
-              rows="3"
-              placeholder="Motivo de consulta, síntomas referidos…"
-              [value]="soapSubjective()"
-              (input)="bind(soapSubjective.set)($event)"
-            ></textarea>
-          </section>
-
-          <section class="ehr__panel">
-            <h2 class="ehr__panel-title">O — Objetivo (signos vitales)</h2>
-            <div class="ehr__vitals-form">
-              <label>PA sistólica<input type="number" inputmode="numeric" [value]="vitalsSystolic()" (input)="bind(vitalsSystolic.set)($event)" /></label>
-              <label>PA diastólica<input type="number" inputmode="numeric" [value]="vitalsDiastolic()" (input)="bind(vitalsDiastolic.set)($event)" /></label>
-              <label>FC (bpm)<input type="number" inputmode="numeric" [value]="vitalsHeartRate()" (input)="bind(vitalsHeartRate.set)($event)" /></label>
-              <label>Temp (°C)<input type="number" inputmode="decimal" [value]="vitalsTemperature()" (input)="bind(vitalsTemperature.set)($event)" /></label>
-              <label>Peso (kg)<input type="number" inputmode="decimal" [value]="vitalsWeight()" (input)="bind(vitalsWeight.set)($event)" /></label>
-              <label>Talla (cm)<input type="number" inputmode="numeric" [value]="vitalsHeight()" (input)="bind(vitalsHeight.set)($event)" /></label>
-              <label>Glucosa<input type="number" inputmode="numeric" [value]="vitalsGlucose()" (input)="bind(vitalsGlucose.set)($event)" /></label>
-            </div>
-          </section>
-
-          <section class="ehr__panel">
-            <h2 class="ehr__panel-title">A — Análisis / diagnóstico</h2>
-            <label class="ehr__sr-only" [attr.for]="fieldId + '-a'">Análisis</label>
-            <textarea
-              class="ehr__textarea"
-              [id]="fieldId + '-a'"
-              rows="2"
-              placeholder="Impresión diagnóstica…"
-              [value]="soapAssessment()"
-              (input)="bind(soapAssessment.set)($event)"
-            ></textarea>
-          </section>
-
-          <section class="ehr__panel">
-            <h2 class="ehr__panel-title">P — Plan</h2>
-            <label class="ehr__sr-only" [attr.for]="fieldId + '-p'">Plan</label>
-            <textarea
-              class="ehr__textarea"
-              [id]="fieldId + '-p'"
-              rows="2"
-              placeholder="Tratamiento, órdenes, próximo control…"
-              [value]="soapPlan()"
-              (input)="bind(soapPlan.set)($event)"
-            ></textarea>
-          </section>
-
-          <!-- Prescripción asociada -->
-          <section class="ehr__panel ehr__panel--wide">
-            <h2 class="ehr__panel-title">Prescripción (opcional)</h2>
-            @if (rxInteractions().length > 0) {
-              <p class="ehr__rx-interaction" role="alert">
-                <span aria-hidden="true">⚠️</span> {{ rxInteractions().join(' ') }}
-              </p>
-            }
-            <div class="ehr__rx-form">
-              <input type="text" placeholder="Medicamento" [value]="rxDrug()" (input)="bind(rxDrug.set)($event)" aria-label="Medicamento" />
-              <input type="text" placeholder="Dosis" [value]="rxDose()" (input)="bind(rxDose.set)($event)" aria-label="Dosis" />
-              <input type="text" placeholder="Frecuencia" [value]="rxFrequency()" (input)="bind(rxFrequency.set)($event)" aria-label="Frecuencia" />
-              <input type="number" inputmode="numeric" placeholder="Días" [value]="rxDuration()" (input)="bind(rxDuration.set)($event)" aria-label="Duración en días" />
-              <button class="ehr__btn ehr__btn--ghost" type="button" [disabled]="!rxItemValid()" (click)="addRxItem()">Agregar</button>
-            </div>
-            @if (rxItems().length > 0) {
-              <ul class="ehr__rx-items">
-                @for (item of rxItems(); track $index) {
-                  <li class="ehr__rx-draft">
-                    <span><strong>{{ item.drug }}</strong> {{ item.dose }} — {{ item.frequency }} @if (item.durationDays > 0) { · {{ item.durationDays }} días }</span>
-                    <button class="ehr__icon-btn" type="button" aria-label="Quitar" (click)="removeRxItem($index)">✕</button>
-                  </li>
-                }
-              </ul>
-            }
-          </section>
-
-          <!-- Firma -->
-          <section class="ehr__panel">
-            <h2 class="ehr__panel-title">Firma del clínico</h2>
-            <label class="ehr__sr-only" [attr.for]="fieldId + '-sig'">Iniciales o firma</label>
-            <input
-              class="ehr__input"
-              [id]="fieldId + '-sig'"
-              type="text"
-              placeholder="Iniciales (p. ej. LM)"
-              [value]="soapSignature()"
-              (input)="bind(soapSignature.set)($event)"
-            />
-          </section>
-        </div>
-
-        <div class="ehr__encounter-actions">
-          <button class="ehr__btn ehr__btn--ghost" type="button" (click)="cancelEncounter()">Cancelar</button>
-          <button class="ehr__btn" type="button" [disabled]="!soapValid() || loading()" (click)="saveEncounter()">
-            Guardar y firmar
-          </button>
-        </div>
-      }
-
-      <!-- ═══════════════════ MÉDICOS ═══════════════════════════════════════════ -->
-      @if (view() === 'doctors') {
-        <h1 class="ehr__title">Médicos y staff</h1>
-        @if (doctors().length === 0) {
-          <p class="ehr__empty">Sin médicos en el directorio.</p>
-        } @else {
           <div class="ehr__cards">
-            @for (doctor of doctors(); track doctor.id) {
-              <article class="ehr__doctor">
-                <span class="ehr__avatar ehr__avatar--lg" aria-hidden="true">{{ initials(doctor.name) }}</span>
-                <h2 class="ehr__doctor-name">{{ doctor.name }}</h2>
-                <p class="ehr__doctor-spec">{{ doctor.specialty }}</p>
-                <p class="ehr__doctor-meta">{{ doctor.license }} · ★ {{ doctor.rating }}</p>
-                <p class="ehr__doctor-contact">{{ doctor.phone }}</p>
-                <span class="ehr__chip" [attr.data-tone]="doctor.acceptingPatients ? 'success' : 'neutral'">
-                  {{ doctor.acceptingPatients ? 'Recibe pacientes' : 'Agenda cerrada' }}
-                </span>
+            @for (card of h.cards; track trackCard($index, card)) {
+              <article class="ehr__card" [attr.data-tone]="card.tone">
+                <h2 class="ehr__card-title">{{ card.title }}</h2>
+                <p class="ehr__card-detail">{{ card.detail }}</p>
+                @if (card.action && card.actionLabel) {
+                  <button type="button" class="ehr__card-cta" (click)="openCard(card)">
+                    {{ card.actionLabel }}
+                  </button>
+                }
               </article>
             }
           </div>
+        } @else if (loading()) {
+          <p class="ehr__loading" role="status">Cargando tu portal…</p>
         }
       }
 
-      <!-- ═══════════════════ AGENDA / CITAS ════════════════════════════════════ -->
-      @if (view() === 'appointments') {
-        <h1 class="ehr__title">Agenda de citas</h1>
-
-        <div class="ehr__agenda-toolbar">
-          <label class="ehr__field">
-            <span>Fecha</span>
-            <input type="date" [value]="agendaDate()" (change)="setAgendaDate($any($event.target).value)" />
-          </label>
-          <label class="ehr__field">
-            <span>Médico</span>
-            <select [value]="agendaDoctorFilter()" (change)="setAgendaDoctorFilter($any($event.target).value)">
-              <option value="">Todos</option>
-              @for (doctor of doctors(); track doctor.id) {
-                <option [value]="doctor.id">{{ doctor.name }}</option>
-              }
-            </select>
-          </label>
-        </div>
-
-        <div class="ehr__agenda-cols">
-          <section class="ehr__panel ehr__panel--wide" aria-labelledby="ehr-board-h">
-            <h2 class="ehr__panel-title" id="ehr-board-h">Citas del día</h2>
-            @if (filteredAppointments().length === 0) {
-              <p class="ehr__empty">No hay citas para esta fecha/filtro.</p>
-            } @else {
-              <ul class="ehr__agenda">
-                @for (appointment of filteredAppointments(); track appointment.id) {
-                  <li class="ehr__agenda-row">
-                    <span class="ehr__agenda-time">{{ appointment.time }} <small>· {{ appointment.durationMin }}'</small></span>
-                    <span class="ehr__agenda-main">
-                      <span class="ehr__agenda-patient">{{ appointment.patientName }}</span>
-                      <span class="ehr__agenda-reason">{{ appointment.reason }} · {{ appointment.doctorName }}</span>
-                    </span>
-                    <span class="ehr__chip" [attr.data-tone]="appointmentStatusTone(appointment.status)">
-                      {{ appointmentStatusLabel(appointment.status) }}
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
-          </section>
-
-          <section class="ehr__panel" aria-labelledby="ehr-book-h">
-            <h2 class="ehr__panel-title" id="ehr-book-h">Reservar cita</h2>
-            @if (!canSchedule()) {
-              <p class="ehr__hint">Cambia a rol Administración o Médico para agendar.</p>
-            } @else {
-              <form class="ehr__book-form" (submit)="$event.preventDefault(); bookAppointment()">
-                <label class="ehr__field">
-                  <span>Paciente</span>
-                  <select [value]="bookPatientId()" (change)="bind(bookPatientId.set)($event)">
-                    <option value="">Selecciona…</option>
-                    @for (patient of patients(); track patient.id) {
-                      <option [value]="patient.id">{{ patient.name }}</option>
-                    }
-                  </select>
-                </label>
-                <label class="ehr__field">
-                  <span>Médico</span>
-                  <select [value]="bookDoctorId()" (change)="bind(bookDoctorId.set)($event)">
-                    <option value="">Selecciona…</option>
-                    @for (doctor of doctors(); track doctor.id) {
-                      <option [value]="doctor.id">{{ doctor.name }} · {{ doctor.specialty }}</option>
-                    }
-                  </select>
-                </label>
-                <div class="ehr__field-row">
-                  <label class="ehr__field">
-                    <span>Fecha</span>
-                    <input type="date" [value]="bookDate()" (change)="bind(bookDate.set)($event)" />
-                  </label>
-                  <label class="ehr__field">
-                    <span>Hora</span>
-                    <input type="time" [value]="bookTime()" (change)="bind(bookTime.set)($event)" />
-                  </label>
-                </div>
-                <label class="ehr__field">
-                  <span>Motivo</span>
-                  <input type="text" placeholder="Motivo de la cita" [value]="bookReason()" (input)="bind(bookReason.set)($event)" />
-                </label>
-                <button class="ehr__btn" type="submit" [disabled]="!bookValid() || loading()">Agendar cita</button>
-              </form>
-            }
-          </section>
-        </div>
+      <!-- ─── MY VISITS — SH-4 account-shell ─── -->
+      @if (view() === 'visits') {
+        <syn-account-shell
+          [config]="visitsConfig()"
+          [items]="myAppointments()"
+          [loading]="loading() && !appointmentsLoaded()"
+          [section]="visitsSection()"
+          [itemTemplate]="visitRowTpl"
+          [detailTemplate]="visitDetailTpl"
+          [sectionTemplate]="visitSectionTpl"
+          (sectionchange)="onVisitsSectionChange($event)"
+        ></syn-account-shell>
       }
 
-      <!-- ═══════════════════ FÓRMULAS (vista global) ═══════════════════════════ -->
-      @if (view() === 'prescriptions') {
-        <h1 class="ehr__title">Fórmulas / prescripciones</h1>
-        <p class="ehr__hint">Abre la ficha de un paciente para ver y crear sus fórmulas.</p>
-        @if (patients().length > 0) {
-          <ul class="ehr__recent">
-            @for (patient of patients(); track patient.id) {
-              <li>
-                <button class="ehr__recent-item" type="button" (click)="openPatient(patient)">
-                  <span class="ehr__avatar" aria-hidden="true">{{ initials(patient.name) }}</span>
-                  <span class="ehr__recent-main">
-                    <span class="ehr__recent-name">{{ patient.name }}</span>
-                    <span class="ehr__recent-meta">{{ doctorName(patient.primaryDoctorId) }}</span>
+      <!-- ─── SCHEDULE — SH-3 checkout-wizard over the engine ─── -->
+      @if (view() === 'schedule') {
+        <button type="button" class="ehr__back" (click)="onScheduleExit()">← Volver a mis citas</button>
+        <h1 class="ehr__view-title">Agendar una cita</h1>
+        <syn-checkout-wizard
+          [config]="scheduleConfig()"
+          [stepTemplate]="scheduleStepTpl"
+          [validity]="scheduleValidity()"
+          [instrument]="scheduleInstrument()"
+          [showSummary]="copayMinor() > 0"
+          (stepchange)="onScheduleStepChange($event)"
+          (completed)="onScheduleCompleted($event)"
+          (failed)="onScheduleFailed($event)"
+          (exit)="onScheduleExit()"
+        ></syn-checkout-wizard>
+      }
+
+      <!-- ─── e-CHECK-IN wizard ─── -->
+      @if (view() === 'echeckin') {
+        <button type="button" class="ehr__back" (click)="navigate('home')">← Volver al inicio</button>
+        <h1 class="ehr__view-title">e-Check-In</h1>
+        @if (checkinDone()) {
+          <div class="ehr__confirm" role="status">
+            <p class="ehr__confirm-glyph" aria-hidden="true">✓</p>
+            <h2 class="ehr__confirm-title">Listo para tu visita</h2>
+            <p class="ehr__confirm-text">Confirmamos tus datos. El equipo ya sabe que llegarás preparado.</p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="navigate('home')">Volver al inicio</button>
+          </div>
+        } @else {
+          <ol class="ehr__steps" aria-label="Pasos del e-Check-In">
+            @for (step of checkinSteps; track trackString($index, step); let i = $index) {
+              <li class="ehr__step" [class.is-active]="checkinStep() === i" [class.is-done]="checkinStep() > i">
+                {{ i + 1 }}. {{ step }}
+              </li>
+            }
+          </ol>
+
+          <div class="ehr__checkin-panel">
+            @switch (checkinStep()) {
+              @case (0) {
+                <h3 class="ehr__panel-title">Verifica tu demografía</h3>
+                <p class="ehr__panel-text">Nombre, documento, teléfono y correo registrados.</p>
+                <label class="ehr__check">
+                  <input type="checkbox" [checked]="checkinDemografia()" (change)="toggleCheckin('demografia')" />
+                  Mis datos personales están correctos
+                </label>
+              }
+              @case (1) {
+                <h3 class="ehr__panel-title">Verifica tu seguro</h3>
+                <p class="ehr__panel-text">Confirma tu póliza y cobertura antes de la cita.</p>
+                <label class="ehr__check">
+                  <input type="checkbox" [checked]="checkinSeguro()" (change)="toggleCheckin('seguro')" />
+                  Mi información de seguro está al día
+                </label>
+              }
+              @case (2) {
+                <h3 class="ehr__panel-title">Medicamentos y alergias</h3>
+                <p class="ehr__panel-text">Revisa tu lista activa de medicamentos y alergias registradas.</p>
+                <label class="ehr__check">
+                  <input type="checkbox" [checked]="checkinMeds()" (change)="toggleCheckin('medicamentos')" />
+                  Mi lista de medicamentos y alergias está correcta
+                </label>
+              }
+              @case (3) {
+                <h3 class="ehr__panel-title">Cuestionario previo</h3>
+                <p class="ehr__panel-text">Responde brevemente para preparar tu atención.</p>
+                <label class="ehr__field-label" [attr.for]="fieldId + '-checkin-q'">¿Cuál es el motivo principal de tu consulta?</label>
+                <textarea class="ehr__textarea" [id]="fieldId + '-checkin-q'" rows="3"
+                  placeholder="Describe tus síntomas o el motivo de la cita"></textarea>
+              }
+              @case (4) {
+                <h3 class="ehr__panel-title">Consentimiento</h3>
+                <p class="ehr__panel-text">Autoriza la atención y el tratamiento de tus datos clínicos.</p>
+                <label class="ehr__check">
+                  <input type="checkbox" [checked]="checkinConsent()" (change)="toggleCheckin('consent')" />
+                  Acepto el consentimiento informado y la política de datos
+                </label>
+              }
+            }
+          </div>
+
+          <div class="ehr__wizard-actions">
+            <button type="button" class="ehr__btn" (click)="prevCheckinStep()">Atrás</button>
+            <button
+              type="button"
+              class="ehr__btn ehr__btn--brand"
+              [disabled]="checkinStep() === checkinSteps.length - 1 && !checkinConsent()"
+              (click)="nextCheckinStep()"
+            >{{ checkinStep() === checkinSteps.length - 1 ? 'Finalizar' : 'Continuar' }}</button>
+          </div>
+        }
+      }
+
+      <!-- ─── MESSAGES — SH-7 message-center ─── -->
+      @if (view() === 'messages') {
+        <syn-message-center
+          [config]="messageConfig()"
+          [threads]="threads()"
+          [activeThread]="activeThread()"
+          [loading]="loading() && !threadsLoaded()"
+          [sending]="sendingMessage()"
+          [threadTemplate]="threadRowTpl"
+          [detailTemplate]="threadDetailTpl"
+          (threadselect)="onThreadSelect($event)"
+          (send)="onSendMessage($event)"
+        ></syn-message-center>
+      }
+
+      <!-- ─── RESULTS ─── -->
+      @if (view() === 'results') {
+        <h1 class="ehr__view-title">Resultados de laboratorio</h1>
+        <p class="ehr__view-sub">Tus resultados liberados con su rango de referencia y una nota de tu médico.</p>
+        @if (loading() && !resultsLoaded()) {
+          <p class="ehr__loading" role="status">Cargando resultados…</p>
+        } @else if (releasedResults().length === 0) {
+          <p class="ehr__empty">Aún no hay resultados liberados a tu portal.</p>
+        } @else {
+          <ul class="ehr__results">
+            @for (result of releasedResults(); track trackResult($index, result)) {
+              <li class="ehr__result" [attr.data-flag]="result.flag">
+                <button type="button" class="ehr__result-head" (click)="openResult(result)"
+                  [attr.aria-expanded]="activeResult()?.id === result.id">
+                  <span class="ehr__result-name">{{ result.name }}</span>
+                  <span class="ehr__result-value">
+                    {{ result.value }} {{ result.unit }}
+                    <span class="ehr__result-flag" [attr.data-flag]="result.flag">{{ resultFlagLabel(result.flag) }}</span>
                   </span>
-                  <span class="ehr__chip" data-tone="brand">℞</span>
                 </button>
+                <div class="ehr__result-gauge" aria-hidden="true">
+                  <span class="ehr__result-gauge-fill" [style.left.%]="resultGaugePct(result)"></span>
+                </div>
+                <p class="ehr__result-range">Rango: {{ result.refLow }}–{{ result.refHigh }} {{ result.unit }} · {{ formatDate(result.date) }}</p>
+                @if (activeResult()?.id === result.id) {
+                  <div class="ehr__result-detail">
+                    <p class="ehr__result-panel">Panel: {{ result.panel }}</p>
+                    @if (result.comment) {
+                      <p class="ehr__result-comment">“{{ result.comment }}”</p>
+                    }
+                    <button type="button" class="ehr__link" (click)="navigate('messages')">Preguntar sobre este resultado →</button>
+                  </div>
+                }
               </li>
             }
           </ul>
         }
       }
-    </div>
+
+      <!-- ─── MEDICATIONS + refill ─── -->
+      @if (view() === 'medications') {
+        <h1 class="ehr__view-title">Mis medicamentos</h1>
+        <p class="ehr__view-sub">Tu lista activa. Puedes solicitar renovación; tu médico la aprueba.</p>
+        @if (loading() && !medsLoaded()) {
+          <p class="ehr__loading" role="status">Cargando medicamentos…</p>
+        } @else if (medications().length === 0) {
+          <p class="ehr__empty">No tienes medicamentos activos.</p>
+        } @else {
+          <ul class="ehr__meds">
+            @for (med of medications(); track trackMed($index, med)) {
+              <li class="ehr__med">
+                <div class="ehr__med-info">
+                  <p class="ehr__med-name">{{ med.drug }} · {{ med.dose }}</p>
+                  <p class="ehr__med-freq">{{ med.frequency }}</p>
+                  <p class="ehr__med-inst">{{ med.instructions }}</p>
+                  <p class="ehr__med-meta">{{ med.pharmacy }} · {{ med.refillsLeft }} renovaciones restantes</p>
+                </div>
+                <div class="ehr__med-action">
+                  @if (med.refillStatus) {
+                    <span class="ehr__med-status" [attr.data-status]="med.refillStatus">
+                      {{ refillStatusLabel(med.refillStatus) }}
+                    </span>
+                  } @else {
+                    <button type="button" class="ehr__btn ehr__btn--sm" (click)="requestRefill(med)">
+                      Solicitar renovación
+                    </button>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      }
+
+      <!-- ─── HEALTH SUMMARY ─── -->
+      @if (view() === 'health') {
+        <h1 class="ehr__view-title">Resumen de salud</h1>
+        @if (healthSummary(); as hs) {
+          <div class="ehr__tabs" role="tablist" aria-label="Secciones de salud">
+            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'conditions'"
+              [attr.aria-selected]="healthTab() === 'conditions'" (click)="setHealthTab('conditions')">Condiciones</button>
+            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'allergies'"
+              [attr.aria-selected]="healthTab() === 'allergies'" (click)="setHealthTab('allergies')">Alergias</button>
+            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'immunizations'"
+              [attr.aria-selected]="healthTab() === 'immunizations'" (click)="setHealthTab('immunizations')">Vacunas</button>
+            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'maintenance'"
+              [attr.aria-selected]="healthTab() === 'maintenance'" (click)="setHealthTab('maintenance')">Cuidado preventivo</button>
+          </div>
+
+          @switch (healthTab()) {
+            @case ('conditions') {
+              <ul class="ehr__chips">
+                @for (c of hs.conditions; track trackString($index, c)) {
+                  <li class="ehr__chip">{{ c }}</li>
+                } @empty {
+                  <li class="ehr__empty">Sin condiciones registradas.</li>
+                }
+              </ul>
+            }
+            @case ('allergies') {
+              <ul class="ehr__chips">
+                @for (a of hs.allergies; track trackString($index, a)) {
+                  <li class="ehr__chip ehr__chip--warn">{{ a }}</li>
+                } @empty {
+                  <li class="ehr__empty">Sin alergias registradas.</li>
+                }
+              </ul>
+            }
+            @case ('immunizations') {
+              <syn-tracking-timeline
+                heading="Historial de vacunas"
+                ariaLabel="Vacunas"
+                [stages]="immunizationStages()"
+                emptyMessage="Sin vacunas registradas."
+              ></syn-tracking-timeline>
+            }
+            @case ('maintenance') {
+              <ul class="ehr__maint">
+                @for (m of hs.maintenance; track trackString($index, m.id)) {
+                  <li class="ehr__maint-item" [attr.data-status]="m.status">
+                    <div>
+                      <p class="ehr__maint-name">{{ m.name }}</p>
+                      <p class="ehr__maint-detail">{{ m.detail }}</p>
+                    </div>
+                    @if (m.status !== 'complete') {
+                      <button type="button" class="ehr__btn ehr__btn--sm" (click)="navigate('schedule')">Agendar</button>
+                    } @else {
+                      <span class="ehr__med-status" data-status="approved">Al día</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        } @else if (loading()) {
+          <p class="ehr__loading" role="status">Cargando resumen de salud…</p>
+        }
+      }
+
+      <!-- ─── BILLING ─── -->
+      @if (view() === 'billing') {
+        <h1 class="ehr__view-title">Facturación</h1>
+        @if (billing(); as b) {
+          <div class="ehr__balance">
+            <p class="ehr__balance-label">Saldo pendiente</p>
+            <p class="ehr__balance-value">{{ formatMinor(b.balanceMinor, b.currency) }}</p>
+            <div class="ehr__balance-actions">
+              <button type="button" class="ehr__btn ehr__btn--brand" [disabled]="b.balanceMinor === 0">Pagar ahora</button>
+              @if (b.planActive) {
+                <span class="ehr__med-status" data-status="approved">Plan de pago activo</span>
+              } @else {
+                <button type="button" class="ehr__btn" (click)="startPaymentPlan()">Crear plan de pago</button>
+              }
+            </div>
+          </div>
+          <table class="ehr__statement">
+            <caption class="ehr__sr-only">Detalle del estado de cuenta</caption>
+            <thead>
+              <tr><th scope="col">Fecha</th><th scope="col">Concepto</th><th scope="col" class="is-end">Valor</th></tr>
+            </thead>
+            <tbody>
+              @for (line of b.lines; track trackString($index, line.id)) {
+                <tr>
+                  <td>{{ formatDate(line.date) }}</td>
+                  <td>{{ line.description }}</td>
+                  <td class="is-end">{{ formatMinor(line.amountMinor, b.currency) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else if (loading()) {
+          <p class="ehr__loading" role="status">Cargando facturación…</p>
+        }
+      }
+
+      <!-- ═══════════════════════ CLINICIAN PORTAL (Hyperspace) ═══════════════════ -->
+
+      <!-- ─── COCKPIT (board · patients · in basket) — SH-5 console-shell ─── -->
+      @if (view() === 'board' || view() === 'patients' || view() === 'inbasket') {
+        @if (view() === 'patients') {
+          <form class="ehr__search" role="search" (submit)="$event.preventDefault(); submitPatientSearch()">
+            <label class="ehr__sr-only" [attr.for]="fieldId + '-psearch'">Buscar paciente</label>
+            <input class="ehr__search-input" type="search" [id]="fieldId + '-psearch'"
+              placeholder="Buscar por nombre, documento o condición"
+              [value]="patientQuery()" (input)="bind(patientQuery.set)($event)" />
+            <button type="submit" class="ehr__btn ehr__btn--brand">Buscar</button>
+          </form>
+        }
+        <syn-console-shell
+          [config]="consoleConfig()"
+          [kpis]="consoleKpis()"
+          [rows]="consoleRows()"
+          [columns]="consoleColumns()"
+          [actions]="consoleActions()"
+          [filters]="consoleFilters()"
+          [loading]="loading() && !boardLoaded()"
+          [section]="consoleSection()"
+          [cellTemplate]="consoleCellTpl"
+          (sectionchange)="onConsoleSectionChange($event)"
+          (filterchange)="onConsoleFilterChange($event)"
+          (rowaction)="onConsoleAction($event)"
+        ></syn-console-shell>
+      }
+
+      <!-- ─── PATIENT CHART WORKSPACE (Storyboard + activities) ─── -->
+      @if (view() === 'chart') {
+        @if (chart(); as c) {
+          <button type="button" class="ehr__back" (click)="backToBoard()">← Volver a la agenda</button>
+          <div class="ehr__chart">
+            <!-- Storyboard sidebar (always visible context) -->
+            <aside class="ehr__storyboard" aria-label="Storyboard del paciente">
+              <p class="ehr__story-avatar" aria-hidden="true">{{ initials(c.patient.name) }}</p>
+              <h2 class="ehr__story-name">{{ c.patient.name }}</h2>
+              <p class="ehr__story-meta">{{ sexLabel(c.patient.sex) }} · {{ c.patient.age }} años · {{ c.patient.bloodType }}</p>
+              <p class="ehr__story-doc">{{ c.patient.document }}</p>
+              @for (alert of storyboardAlerts(); track alert.id) {
+                <p class="ehr__story-alert" [attr.data-sev]="alert.severity">
+                  <strong>{{ alert.title }}:</strong> {{ alert.detail }}
+                </p>
+              }
+              @if (canClinicalWrite()) {
+                <button type="button" class="ehr__btn ehr__btn--brand ehr__story-cta" (click)="startEncounter()">
+                  Iniciar encuentro
+                </button>
+              }
+            </aside>
+
+            <!-- Chart activities -->
+            <div class="ehr__chart-main">
+              <div class="ehr__tabs" role="tablist" aria-label="Actividades del chart">
+                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'summary'"
+                  [attr.aria-selected]="chartTab() === 'summary'" (click)="setChartTab('summary')">SnapShot</button>
+                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'history'"
+                  [attr.aria-selected]="chartTab() === 'history'" (click)="setChartTab('history')">Notas</button>
+                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'results'"
+                  [attr.aria-selected]="chartTab() === 'results'" (click)="setChartTab('results')">Resultados</button>
+                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'medications'"
+                  [attr.aria-selected]="chartTab() === 'medications'" (click)="setChartTab('medications')">Fórmulas</button>
+                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'evolution'"
+                  [attr.aria-selected]="chartTab() === 'evolution'" (click)="setChartTab('evolution')">Evolución</button>
+              </div>
+
+              @if (closedAvs()) {
+                <p class="ehr__avs" role="status">AVS generado y compartido al portal del paciente: {{ closedAvs() }}</p>
+              }
+
+              @switch (chartTab()) {
+                @case ('summary') {
+                  @if (latestVitals(); as v) {
+                    <div class="ehr__vitals">
+                      <div class="ehr__vital"><span>PA</span><strong>{{ bloodPressureLabel(v) }}</strong> mmHg</div>
+                      <div class="ehr__vital"><span>FC</span><strong>{{ v.heartRate }}</strong> lpm</div>
+                      <div class="ehr__vital"><span>Temp</span><strong>{{ v.temperature }}</strong> °C</div>
+                      <div class="ehr__vital"><span>Peso</span><strong>{{ v.weight }}</strong> kg</div>
+                      <div class="ehr__vital"><span>Glucosa</span><strong>{{ v.glucose }}</strong> mg/dL</div>
+                    </div>
+                  }
+                  <h3 class="ehr__panel-title">Lista de problemas</h3>
+                  <ul class="ehr__chips">
+                    @for (p of c.patient.problems; track trackString($index, p)) {
+                      <li class="ehr__chip">{{ p }}</li>
+                    } @empty { <li class="ehr__empty">Sin problemas activos.</li> }
+                  </ul>
+                }
+                @case ('history') {
+                  <ul class="ehr__notes">
+                    @for (enc of c.history; track trackString($index, enc.id)) {
+                      <li class="ehr__note">
+                        <p class="ehr__note-head">{{ formatDate(enc.date) }} · {{ enc.doctorName }}</p>
+                        <p class="ehr__note-reason">{{ enc.reason }}</p>
+                        <p class="ehr__note-soap"><strong>S:</strong> {{ enc.soap.subjective }}</p>
+                        <p class="ehr__note-soap"><strong>A:</strong> {{ enc.soap.assessment }}</p>
+                        <p class="ehr__note-soap"><strong>P:</strong> {{ enc.soap.plan }}</p>
+                      </li>
+                    } @empty { <li class="ehr__empty">Sin notas registradas.</li> }
+                  </ul>
+                }
+                @case ('results') {
+                  <p class="ehr__panel-text">Resultados de laboratorio del paciente (vista clínica).</p>
+                  <button type="button" class="ehr__link" (click)="navigate('inbasket')">Ir al In Basket para liberar resultados →</button>
+                }
+                @case ('medications') {
+                  <ul class="ehr__notes">
+                    @for (rx of c.prescriptions; track trackString($index, rx.id)) {
+                      <li class="ehr__note">
+                        <p class="ehr__note-head">{{ formatDate(rx.date) }} · {{ rx.doctorName }}</p>
+                        @for (item of rx.items; track trackString($index, item.drug)) {
+                          <p class="ehr__note-rx">{{ item.drug }} {{ item.dose }} — {{ item.frequency }}</p>
+                        }
+                        @if (rx.interactions.length > 0) {
+                          <p class="ehr__note-warn">⚠ {{ rx.interactions.join(' · ') }}</p>
+                        }
+                      </li>
+                    } @empty { <li class="ehr__empty">Sin fórmulas registradas.</li> }
+                  </ul>
+                }
+                @case ('evolution') {
+                  @for (series of evolutionSeries(); track trackString($index, series.key)) {
+                    <div class="ehr__evo">
+                      <p class="ehr__evo-label">{{ series.label }} <span>({{ series.unit }})</span></p>
+                      <div class="ehr__evo-bars">
+                        @for (point of series.points; track trackString($index, point.date)) {
+                          <div class="ehr__evo-bar-wrap">
+                            <span class="ehr__evo-bar" [style.height.%]="pointHeight(series, point.value)"
+                              [attr.title]="point.value + ' — ' + point.date"></span>
+                            <span class="ehr__evo-val">{{ point.value }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  } @empty { <p class="ehr__empty">Sin datos de evolución.</p> }
+                }
+              }
+            </div>
+          </div>
+        } @else if (loading()) {
+          <p class="ehr__loading" role="status">Abriendo la ficha…</p>
+        }
+      }
+
+      <!-- ─── ENCOUNTER (SOAP + orders/e-Rx) ─── -->
+      @if (view() === 'encounter') {
+        @if (chart(); as c) {
+          <button type="button" class="ehr__back" (click)="cancelEncounter()">← Cancelar encuentro</button>
+          <h1 class="ehr__view-title">Encuentro · {{ c.patient.name }}</h1>
+          <form class="ehr__soap" (submit)="$event.preventDefault(); saveEncounter()">
+            <label class="ehr__field-label" [attr.for]="fieldId + '-s'">Subjetivo</label>
+            <textarea class="ehr__textarea" [id]="fieldId + '-s'" rows="3" placeholder="Motivo, síntomas, evolución referida"
+              [value]="soapSubjective()" (input)="bind(soapSubjective.set)($event)"></textarea>
+
+            <p class="ehr__field-label">Objetivo (signos vitales)</p>
+            <div class="ehr__vitals-form">
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="Sistólica"
+                [value]="vitalsSystolic()" (input)="bind(vitalsSystolic.set)($event)" aria-label="Presión sistólica" />
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="Diastólica"
+                [value]="vitalsDiastolic()" (input)="bind(vitalsDiastolic.set)($event)" aria-label="Presión diastólica" />
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="FC"
+                [value]="vitalsHeartRate()" (input)="bind(vitalsHeartRate.set)($event)" aria-label="Frecuencia cardíaca" />
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="Temp"
+                [value]="vitalsTemperature()" (input)="bind(vitalsTemperature.set)($event)" aria-label="Temperatura" />
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="Peso"
+                [value]="vitalsWeight()" (input)="bind(vitalsWeight.set)($event)" aria-label="Peso" />
+              <input class="ehr__num" type="text" inputmode="decimal" placeholder="Glucosa"
+                [value]="vitalsGlucose()" (input)="bind(vitalsGlucose.set)($event)" aria-label="Glucosa" />
+            </div>
+
+            <label class="ehr__field-label" [attr.for]="fieldId + '-a'">Análisis / diagnóstico</label>
+            <textarea class="ehr__textarea" [id]="fieldId + '-a'" rows="2" placeholder="Impresión diagnóstica"
+              [value]="soapAssessment()" (input)="bind(soapAssessment.set)($event)"></textarea>
+
+            <label class="ehr__field-label" [attr.for]="fieldId + '-p'">Plan</label>
+            <textarea class="ehr__textarea" [id]="fieldId + '-p'" rows="2" placeholder="Órdenes, seguimiento, educación"
+              [value]="soapPlan()" (input)="bind(soapPlan.set)($event)"></textarea>
+
+            <!-- e-Prescribing (orders) -->
+            <fieldset class="ehr__erx">
+              <legend class="ehr__field-label">Prescripción (e-Rx)</legend>
+              @if (rxInteractions().length > 0) {
+                <p class="ehr__note-warn" role="alert">⚠ {{ rxInteractions().join(' · ') }}</p>
+              }
+              <div class="ehr__erx-form">
+                <input class="ehr__input" type="text" placeholder="Medicamento" [value]="rxDrug()" (input)="bind(rxDrug.set)($event)" aria-label="Medicamento" />
+                <input class="ehr__input" type="text" placeholder="Dosis" [value]="rxDose()" (input)="bind(rxDose.set)($event)" aria-label="Dosis" />
+                <input class="ehr__input" type="text" placeholder="Frecuencia" [value]="rxFrequency()" (input)="bind(rxFrequency.set)($event)" aria-label="Frecuencia" />
+                <input class="ehr__input" type="text" inputmode="numeric" placeholder="Días" [value]="rxDuration()" (input)="bind(rxDuration.set)($event)" aria-label="Duración en días" />
+                <button type="button" class="ehr__btn ehr__btn--sm" [disabled]="!rxItemValid()" (click)="addRxItem()">Añadir</button>
+              </div>
+              @if (rxItems().length > 0) {
+                <ul class="ehr__erx-list">
+                  @for (item of rxItems(); track trackString($index, item.drug); let i = $index) {
+                    <li>
+                      {{ item.drug }} {{ item.dose }} — {{ item.frequency }} × {{ item.durationDays }} días
+                      <button type="button" class="ehr__link" (click)="removeRxItem(i)">Quitar</button>
+                    </li>
+                  }
+                </ul>
+              }
+            </fieldset>
+
+            <label class="ehr__field-label" [attr.for]="fieldId + '-sig'">Firma del clínico</label>
+            <input class="ehr__input" type="text" [id]="fieldId + '-sig'" placeholder="Iniciales o firma"
+              [value]="soapSignature()" (input)="bind(soapSignature.set)($event)" />
+
+            <div class="ehr__wizard-actions">
+              <button type="button" class="ehr__btn" (click)="cancelEncounter()">Cancelar</button>
+              <button type="submit" class="ehr__btn ehr__btn--brand" [disabled]="!soapValid() || loading()">
+                {{ loading() ? 'Guardando…' : 'Cerrar encuentro y generar AVS' }}
+              </button>
+            </div>
+          </form>
+        }
+      }
+    </main>
   </div>
 </section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     Reusable shell templates
+═════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ─── SH-4 visits: inbox row + detail + custom section ────────────────────── -->
+<ng-template #visitRowTpl let-appt>
+  <span class="ehr__visit-row">
+    <span class="ehr__visit-date">{{ formatDate(appt.date) }} · {{ appt.time }}</span>
+    <span class="ehr__visit-doctor">{{ appt.doctorName }}</span>
+    <span class="ehr__visit-reason">{{ appt.reason }}</span>
+  </span>
+</ng-template>
+
+<ng-template #visitDetailTpl let-appt>
+  <div class="ehr__visit-detail">
+    <h3 class="ehr__panel-title">{{ appt.reason }}</h3>
+    <p class="ehr__panel-text">{{ formatDate(appt.date) }} · {{ appt.time }} · {{ appt.doctorName }}</p>
+    <syn-tracking-timeline
+      heading="Seguimiento de la cita"
+      ariaLabel="Estado de la cita"
+      [stages]="appointmentTracking(appt)"
+    ></syn-tracking-timeline>
+    <button type="button" class="ehr__btn ehr__btn--sm" (click)="startCheckin()">Hacer e-Check-In</button>
+  </div>
+</ng-template>
+
+<ng-template #visitSectionTpl let-section>
+  @if (section.id === 'schedule') {
+    <div class="ehr__section-cta">
+      <p class="ehr__panel-text">Agenda una nueva cita con tu equipo de salud.</p>
+      <button type="button" class="ehr__btn ehr__btn--brand" (click)="navigate('schedule')">Agendar cita</button>
+    </div>
+  }
+</ng-template>
+
+<!-- ─── SH-7 message thread row + detail ────────────────────────────────────── -->
+<ng-template #threadRowTpl let-thread let-selected="selected">
+  <span class="ehr__thread-row" [class.is-selected]="selected">
+    <span class="ehr__thread-top">
+      <span class="ehr__thread-name">{{ thread.participant }}</span>
+      @if (thread.unread > 0) { <span class="ehr__thread-unread">{{ thread.unread }}</span> }
+    </span>
+    <span class="ehr__thread-subject">{{ thread.subject }}</span>
+    <span class="ehr__thread-last">{{ thread.lastMessage }}</span>
+  </span>
+</ng-template>
+
+<ng-template #threadDetailTpl let-thread>
+  <div class="ehr__thread-detail">
+    <h3 class="ehr__panel-title">{{ thread.subject }}</h3>
+    <p class="ehr__thread-with">con {{ thread.participant }}</p>
+    <ul class="ehr__thread-msgs">
+      @for (message of thread.messages; track trackString($index, message.id)) {
+        <li class="ehr__msg" [class.is-out]="message.outgoing">
+          <span class="ehr__msg-author">{{ message.author }}</span>
+          <span class="ehr__msg-body">{{ message.body }}</span>
+          <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
+        </li>
+      }
+    </ul>
+  </div>
+</ng-template>
+
+<!-- ─── SH-5 console cell (board / patients / in basket) ────────────────────── -->
+<ng-template #consoleCellTpl let-row let-column="column">
+  @switch (column.key) {
+    <!-- Board -->
+    @case ('time') { <span>{{ row.time }}</span> }
+    @case ('reason') { <span>{{ row.reason }}</span> }
+    @case ('type') { <span>{{ row.type === 'video' ? 'Video' : 'Presencial' }}</span> }
+    @case ('state') {
+      <span class="ehr__state-chip" [attr.data-tone]="scheduleStateTone(row.state)">{{ scheduleStateLabel(row.state) }}</span>
+    }
+    <!-- Patients -->
+    @case ('name') { <span>{{ row.name }}</span> }
+    @case ('document') { <span>{{ row.document }}</span> }
+    @case ('age') { <span>{{ row.age }}</span> }
+    @case ('problems') { <span>{{ row.problems?.join(', ') || '—' }}</span> }
+    @case ('flags') {
+      @if (row.allergies?.length) { <span class="ehr__state-chip" data-tone="warning">Alergia</span> } @else { <span>—</span> }
+    }
+    <!-- In Basket + shared "patient" column -->
+    @case ('patient') { <span>{{ row.patientName }}</span> }
+    @case ('kind') {
+      <span class="ehr__state-chip" [attr.data-kind]="row.kind">{{ inboxKindLabel(row.kind) }}</span>
+    }
+    @case ('title') {
+      <span>{{ row.title }} @if (row.done) { <span class="ehr__done">✓</span> }</span>
+    }
+    @case ('priority') {
+      <span class="ehr__state-chip" [attr.data-tone]="row.priority === 'high' ? 'danger' : 'neutral'">
+        {{ row.priority === 'high' ? 'Alta' : 'Rutina' }}
+      </span>
+    }
+    @default { <span>—</span> }
+  }
+</ng-template>
+
+<!-- ─── SH-3 schedule wizard step ───────────────────────────────────────────── -->
+<ng-template #scheduleStepTpl let-step>
+  @switch (step.id) {
+    @case ('proveedor') {
+      <label class="ehr__field-label" [attr.for]="fieldId + '-sch-doc'">Médico</label>
+      <select class="ehr__input" [id]="fieldId + '-sch-doc'" [value]="scheduleDoctorId()"
+        (change)="setScheduleDoctor($any($event.target).value)">
+        <option value="" disabled>Selecciona un médico</option>
+        @for (doc of doctors(); track doc.id) {
+          <option [value]="doc.id">{{ doc.name }} · {{ doc.specialty }}</option>
+        }
+      </select>
+
+      <p class="ehr__field-label">Modalidad</p>
+      <div class="ehr__mode-toggle" role="group" aria-label="Modalidad de la cita">
+        <button type="button" class="ehr__mode-btn" [class.is-active]="scheduleMode() === 'in-person'"
+          (click)="setScheduleMode('in-person')">Presencial</button>
+        <button type="button" class="ehr__mode-btn" [class.is-active]="scheduleMode() === 'video'"
+          (click)="setScheduleMode('video')">Video</button>
+      </div>
+
+      <label class="ehr__field-label" [attr.for]="fieldId + '-sch-reason'">Motivo de la consulta</label>
+      <input class="ehr__input" type="text" [id]="fieldId + '-sch-reason'" placeholder="Ej. control de hipertensión"
+        [value]="scheduleReason()" (input)="bind(scheduleReason.set)($event)" />
+    }
+    @case ('slot') {
+      <p class="ehr__field-label">Elige fecha y hora</p>
+      <div class="ehr__slots">
+        @for (day of availableDays(); track trackString($index, day)) {
+          <div class="ehr__slot-day">
+            <p class="ehr__slot-date">{{ formatDate(day) }}</p>
+            <div class="ehr__slot-times">
+              @for (slot of slotsForDay(day); track trackString($index, slot.time)) {
+                <button type="button" class="ehr__slot" [class.is-active]="isSlotSelected(slot)"
+                  (click)="selectSlot(slot)">{{ slot.time }}</button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+    @case ('copago') {
+      <p class="ehr__panel-text">Se aplicará un copago de {{ formatMinor(copayMinor()) }} para esta cita.</p>
+      <p class="ehr__panel-text">El pago se procesa de forma segura al confirmar (PSP de demostración).</p>
+    }
+    @case ('confirmar') {
+      <h3 class="ehr__panel-title">Revisa tu cita</h3>
+      <p class="ehr__panel-text">{{ doctorName(scheduleDoctorId()) }}</p>
+      <p class="ehr__panel-text">{{ formatDate(scheduleDate()) }} · {{ scheduleTime() }} · {{ scheduleMode() === 'video' ? 'Video' : 'Presencial' }}</p>
+      <p class="ehr__panel-text">Motivo: {{ scheduleReason() || 'Consulta' }}</p>
+      @if (copayMinor() > 0) { <p class="ehr__panel-text">Copago: {{ formatMinor(copayMinor()) }}</p> }
+    }
+  }
+</ng-template>
