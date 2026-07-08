@@ -90,12 +90,13 @@
 
     <!-- ═══ FEED ═══════════════════════════════════════════════════════════════ -->
     @if (view() === 'feed') {
-      <header class="blogs__tabs" role="tablist" aria-label="Tipo de feed">
-        <button type="button" class="blogs__tab" role="tab" [class.is-active]="feedScope() === 'foryou'"
-          [attr.aria-selected]="feedScope() === 'foryou'" (click)="setFeedScope('foryou')">Para ti</button>
-        <button type="button" class="blogs__tab" role="tab" [class.is-active]="feedScope() === 'following'"
-          [attr.aria-selected]="feedScope() === 'following'" (click)="setFeedScope('following')">Siguiendo</button>
-      </header>
+      <syn-tabs
+        class="blogs__tabctl"
+        [tabs]="feedTabs"
+        [activeId]="feedScope()"
+        ariaLabel="Tipo de feed"
+        (activeIdChange)="setFeedScope($any($event))"
+      />
 
       <article class="blogs__composer-inline">
         <span class="blogs__avatar" aria-hidden="true">{{ initials(viewer) }}</span>
@@ -202,11 +203,17 @@
           </dl>
         </header>
 
-        <nav class="blogs__profile-tabs" aria-label="Secciones del perfil">
-          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'posts'" (click)="setProfileTab('posts')">Publicaciones</button>
-          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'replies'" (click)="setProfileTab('replies')">Respuestas</button>
-          <button type="button" class="blogs__tab" [class.is-active]="profileTab() === 'media'" (click)="setProfileTab('media')">Media</button>
-        </nav>
+        <!-- Keyed by author so the primitive's internal selection resets when a
+             different profile loads (loadProfile resets profileTab to 'posts'). -->
+        @for (tabKey of [author.actorKey]; track tabKey) {
+          <syn-tabs
+            class="blogs__tabctl"
+            [tabs]="profileTabs"
+            [activeId]="profileTab()"
+            ariaLabel="Secciones del perfil"
+            (activeIdChange)="setProfileTab($any($event))"
+          />
+        }
 
         @if (profileTab() === 'media') {
           @if (profileMediaPosts().length === 0) {
@@ -251,10 +258,13 @@
         [attr.fetchEndpoint]="apiBase() + '/notifications'"
       ></synergos-notification-center>
 
-      <nav class="blogs__profile-tabs" aria-label="Filtro de notificaciones">
-        <button type="button" class="blogs__tab" [class.is-active]="notificationFilter() === 'all'" (click)="setNotificationFilter('all')">Todas</button>
-        <button type="button" class="blogs__tab" [class.is-active]="notificationFilter() === 'mentions'" (click)="setNotificationFilter('mentions')">Menciones</button>
-      </nav>
+      <syn-tabs
+        class="blogs__tabctl"
+        [tabs]="notificationTabs"
+        [activeId]="notificationFilter()"
+        ariaLabel="Filtro de notificaciones"
+        (activeIdChange)="setNotificationFilter($any($event))"
+      />
 
       @if (loading() && !notificationsLoaded()) {
         <p class="blogs__loading" role="status">Cargando…</p>

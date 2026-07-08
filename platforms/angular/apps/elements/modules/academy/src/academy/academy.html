@@ -10,20 +10,19 @@
       <span class="academy__brand-name">Synergos Academy</span>
     </button>
 
-    <div class="academy__roles" role="tablist" aria-label="Cambiar de rol">
+    <nav class="academy__roles" aria-label="Cambiar de rol">
       @for (roleOption of roles; track roleOption.key) {
         <button
           type="button"
-          role="tab"
           class="academy__role"
           [class.is-active]="role() === roleOption.key"
-          [attr.aria-selected]="role() === roleOption.key"
+          [attr.aria-current]="role() === roleOption.key ? 'page' : null"
           (click)="setRole(roleOption.key)"
         >
           {{ roleOption.label }}
         </button>
       }
-    </div>
+    </nav>
 
     @if (role() === 'student') {
       <nav class="academy__nav" aria-label="Navegación del alumno">
@@ -441,14 +440,17 @@
               </div>
             </div>
 
-            <div class="academy__tabs" role="tablist" aria-label="Contenido de la lección">
-              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'overview'" (click)="setClassroomTab('overview')">Resumen</button>
-              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'resources'" (click)="setClassroomTab('resources')">Recursos</button>
-              <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'qa'" (click)="setClassroomTab('qa')">Q&amp;A</button>
-              @if (lesson.allowAssignment) {
-                <button type="button" role="tab" class="academy__tab" [class.is-active]="classroomTab() === 'assignment'" (click)="setClassroomTab('assignment')">Tarea</button>
-              }
-            </div>
+            <!-- Accessible tablist from the shared primitive; keyed by lesson so its
+                 internal selection resets when the lesson (and classroomTab) changes. -->
+            @for (tabKey of [lesson.id]; track tabKey) {
+              <syn-tabs
+                class="academy__tabctl"
+                [tabs]="classroomTabs()"
+                [activeId]="classroomTab()"
+                ariaLabel="Contenido de la lección"
+                (activeIdChange)="setClassroomTab($any($event))"
+              />
+            }
 
             <div class="academy__tab-panel">
               @switch (classroomTab()) {

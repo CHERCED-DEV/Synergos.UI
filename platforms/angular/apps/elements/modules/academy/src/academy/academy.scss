@@ -851,24 +851,22 @@
     gap: syn.$space-xs;
   }
 
-  &__tabs {
-    display: inline-flex;
-    gap: syn.px-to-rem(4);
-    border-block-end: syn.px-to-rem(1) solid var(--ac-border);
-  }
+  // ─── Classroom content tabs → shared syn-tabs primitive (tablist only) ──────
+  &__tabctl {
+    display: block;
 
-  &__tab {
-    padding: syn.$space-xs syn.$space-sm;
-    border: none;
-    border-block-end: syn.px-to-rem(2) solid transparent;
-    background: none;
-    cursor: pointer;
-    font-weight: 600;
-    color: var(--ac-text-secondary);
+    // Active-tab chrome tracks the academy brand token (composable override).
+    --syn-tabs-tab-color-active: var(--ac-brand);
+    --syn-tabs-tab-border-active: var(--ac-brand);
 
-    &.is-active {
-      border-block-end-color: var(--ac-brand);
-      color: var(--ac-brand);
+    /*
+     * syn-tabs bundles a text tabpanel; this module renders its own rich @switch
+     * panels below in `&__tab-panel`, so hide the primitive's (empty) panel and
+     * keep only the accessible tablist — roving tabindex + Arrow/Home/End + focus
+     * are inherited. Styling comes from the primitive's own --syn-tabs-* tokens.
+     */
+    ::ng-deep .syn-tabs__panel {
+      display: none;
     }
   }
 

@@ -36,6 +36,7 @@ import {
   type MessageCenterConfig,
 } from '@synergos/shells';
 import {
+  TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -177,6 +178,7 @@ let blogsInstanceId = 0;
     AccountShellComponent,
     ConsoleShellComponent,
     CheckoutWizardComponent,
+    TabsComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',
@@ -227,6 +229,26 @@ export class BlogsElementComponent {
   readonly reactionMeta = REACTION_META;
   readonly searchTabs = SEARCH_TABS;
   readonly searchSort = SEARCH_SORT;
+
+  /**
+   * Content-tab descriptors fed to the shared `syn-tabs` primitive. We consume it as
+   * the accessible tablist only (roving tabindex + Arrow/Home/End + focus come for
+   * free); each view keeps its own rich content below, so `content` is intentionally
+   * empty and the primitive's own text panel is hidden in the SCSS.
+   */
+  readonly feedTabs: readonly { readonly id: FeedScope; readonly label: string; readonly content: string }[] = [
+    { id: 'foryou', label: 'Para ti', content: '' },
+    { id: 'following', label: 'Siguiendo', content: '' },
+  ];
+  readonly profileTabs: readonly { readonly id: 'posts' | 'replies' | 'media'; readonly label: string; readonly content: string }[] = [
+    { id: 'posts', label: 'Publicaciones', content: '' },
+    { id: 'replies', label: 'Respuestas', content: '' },
+    { id: 'media', label: 'Media', content: '' },
+  ];
+  readonly notificationTabs: readonly { readonly id: 'all' | 'mentions'; readonly label: string; readonly content: string }[] = [
+    { id: 'all', label: 'Todas', content: '' },
+    { id: 'mentions', label: 'Menciones', content: '' },
+  ];
 
   /**
    * The viewer's projected social identity (nav "me" card + optimistic publishes).

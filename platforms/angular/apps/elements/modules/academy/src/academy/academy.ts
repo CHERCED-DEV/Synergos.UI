@@ -43,6 +43,7 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -185,6 +186,7 @@ let academyInstanceId = 0;
     CredentialWalletComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
+    TabsComponent,
   ],
   templateUrl: './academy.html',
   styleUrl: './academy.scss',
@@ -406,6 +408,26 @@ export class AcademyElementComponent {
 
   /** Q&A node key for `<synergos-comments-widget>` — the lesson IS the node. */
   readonly qaNodeKey = computed(() => `academy:${this.enrolledCourseId()}:${this.activeLessonId()}`);
+
+  /**
+   * Classroom content-tab descriptors fed to the shared `syn-tabs` primitive. We
+   * consume it as the accessible tablist only (roving tabindex + Arrow/Home/End +
+   * focus come for free); the rich `@switch` panels stay in this module's template,
+   * so `content` is intentionally empty and the primitive's own text panel is hidden
+   * in the SCSS. "Tarea" only appears when the active lesson allows an assignment.
+   */
+  readonly classroomTabs = computed<
+    readonly { readonly id: ClassroomTab; readonly label: string; readonly content: string }[]
+  >(() => {
+    const tabs = [
+      { id: 'overview' as const, label: 'Resumen', content: '' },
+      { id: 'resources' as const, label: 'Recursos', content: '' },
+      { id: 'qa' as const, label: 'Q&A', content: '' },
+    ];
+    return this.activeLesson()?.allowAssignment
+      ? [...tabs, { id: 'assignment' as const, label: 'Tarea', content: '' }]
+      : tabs;
+  });
 
   // ─── Validity ──────────────────────────────────────────────────────────────
   readonly studentNameValid = computed(() => this.studentName().trim().length >= 2);

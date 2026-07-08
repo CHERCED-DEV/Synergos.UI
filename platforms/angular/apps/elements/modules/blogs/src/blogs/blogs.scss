@@ -344,41 +344,23 @@
   letter-spacing: syn.$letter-spacing-tight;
 }
 
-// ─── Tabs ───────────────────────────────────────────────────────────────────────
-.blogs__tabs,
-.blogs__profile-tabs {
-  display: flex;
-  gap: syn.$space-1;
+// ─── Content tabs → shared syn-tabs primitive (tablist only) ──────────────────────
+.blogs__tabctl {
+  display: block;
   margin-bottom: syn.$space-4;
-  border-bottom: syn.px-to-rem(1) solid var(--bl-border-subtle);
-}
 
-.blogs__tab {
-  flex: 0 0 auto;
-  padding: syn.$space-3 syn.$space-4;
-  border: 0;
-  border-bottom: syn.px-to-rem(2) solid transparent;
-  background: none;
-  color: var(--bl-text-secondary);
-  font: inherit;
-  font-size: syn.$font-size-sm;
-  font-weight: syn.$font-weight-semibold;
-  cursor: pointer;
-  transition: color syn.$duration-fast syn.$easing-smooth;
+  // Active-tab chrome tracks the blogs brand token (composable override).
+  --syn-tabs-tab-color-active: var(--bl-brand);
+  --syn-tabs-tab-border-active: var(--bl-brand);
 
-  &:hover {
-    color: var(--bl-text);
-  }
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: syn.px-to-rem(-2);
-    border-radius: syn.$radius-sm;
-  }
-
-  &.is-active {
-    color: var(--bl-brand);
-    border-bottom-color: var(--bl-brand);
+  /*
+   * syn-tabs bundles a text tabpanel; each blogs view (feed / profile / notifications)
+   * renders its own rich content below, so hide the primitive's (empty) panel and keep
+   * only the accessible tablist — roving tabindex + Arrow/Home/End + focus are
+   * inherited. Styling comes from the primitive's own --syn-tabs-* tokens.
+   */
+  ::ng-deep .syn-tabs__panel {
+    display: none;
   }
 }
 
