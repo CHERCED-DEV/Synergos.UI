@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  input,
+  output,
+  signal,
+  viewChildren,
+} from '@angular/core';
 
 export interface TabItem {
   readonly id: string;
@@ -6,6 +15,8 @@ export interface TabItem {
   readonly content: string;
   readonly disabled?: boolean;
 }
+
+export type TabsOrientation = 'horizontal' | 'vertical';
 
 let tabsInstanceSequence = 0;
 
@@ -20,23 +31,31 @@ function nextTabsInstanceId(): string {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="syn-tabs">
-      <div class="syn-tabs__list" role="tablist" [attr.aria-label]="ariaLabel()">
-        @for (tab of tabs(); track tab.id; let index = $index) {
-          <button
-            type="button"
-            class="syn-tabs__tab"
-            role="tab"
-            [id]="tabButtonId(tab.id)"
-            [attr.aria-controls]="tabPanelId(tab.id)"
-            [attr.aria-selected]="activeTabId() === tab.id"
-            [attr.tabindex]="activeTabId() === tab.id ? 0 : -1"
-            [disabled]="tab.disabled ?? false"
-            (click)="select(tab.id)"
-            (keydown)="onKeydown($event, index)"
-          >
-            {{ tab.label }}
-          </button>
-        }
+      <div class="syn-tabs__scroll" [attr.data-orientation]="orientation()">
+        <div
+          class="syn-tabs__list"
+          role="tablist"
+          [attr.aria-label]="ariaLabel()"
+          [attr.aria-orientation]="orientation()"
+        >
+          @for (tab of tabs(); track tab.id; let index = $index) {
+            <button
+              #tabButton
+              type="button"
+              class="syn-tabs__tab"
+              role="tab"
+              [id]="tabButtonId(tab.id)"
+              [attr.aria-controls]="tabPanelId(tab.id)"
+              [attr.aria-selected]="activeTabId() === tab.id"
+              [attr.tabindex]="activeTabId() === tab.id ? 0 : -1"
+              [disabled]="tab.disabled ?? false"
+              (click)="select(tab.id)"
+              (keydown)="onKeydown($event, index)"
+            >
+              {{ tab.label }}
+            </button>
+          }
+        </div>
       </div>
 
       @if (activeTab(); as tab) {
@@ -58,6 +77,10 @@ export class TabsComponent {
   readonly tabs = input<readonly TabItem[]>([]);
   readonly activeId = input('');
   readonly ariaLabel = input('Tabs');
+  readonly orientation = input<TabsOrientation>('horizontal');
+
+  /** Rendered tab buttons, in DOM (and `tabs()`) order — used for roving focus. */
+  private readonly tabButtons = viewChildren<ElementRef<HTMLButtonElement>>('tabButton');
 
   readonly #instanceId = nextTabsInstanceId();
   readonly #selectedId = signal('');
@@ -92,48 +115,90 @@ export class TabsComponent {
   }
 
   onKeydown(event: KeyboardEvent, currentIndex: number): void {
-    const enabled = this.tabs().filter((tab) => !tab.disabled);
-    if (enabled.length === 0) {
+    if (this.tabs().length === 0) {
       return;
     }
 
-    const currentId = this.tabs()[currentIndex]?.id;
-    const activeEnabledIndex = enabled.findIndex((tab) => tab.id === currentId);
+    const vertical = this.orientation() === 'vertical';
+    const nextKey = vertical ? 'ArrowDown' : 'ArrowRight';
+    const previousKey = vertical ? 'ArrowUp' : 'ArrowLeft';
 
-    if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      const next = enabled[(activeEnabledIndex + 1) % enabled.length];
-      if (next) {
-        this.select(next.id);
+    switch (event.key) {
+      case nextKey:
+        event.preventDefault();
+        this.#moveTo(this.#neighborIndex(currentIndex, 1));
+        return;
+      case previousKey:
+        event.preventDefault();
+        this.#moveTo(this.#neighborIndex(currentIndex, -1));
+        return;
+      case 'Home':
+        event.preventDefault();
+        this.#moveTo(this.#edgeIndex(1));
+        return;
+      case 'End':
+        event.preventDefault();
+        this.#moveTo(this.#edgeIndex(-1));
+        return;
+      default:
+        return;
+    }
+  }
+
+  /**
+   * Next enabled tab index in `direction`, wrapping around and skipping
+   * disabled tabs. Starting from a disabled tab still lands on the nearest
+   * enabled neighbour in that direction.
+   */
+  #neighborIndex(from: number, direction: 1 | -1): number {
+    const tabs = this.tabs();
+    const count = tabs.length;
+    for (let step = 1; step <= count; step += 1) {
+      const index = (((from + direction * step) % count) + count) % count;
+      if (!tabs[index]?.disabled) {
+        return index;
       }
+    }
+    return -1;
+  }
+
+  /** First (direction 1) or last (direction -1) enabled tab index. */
+  #edgeIndex(direction: 1 | -1): number {
+    const tabs = this.tabs();
+    if (direction === 1) {
+      return tabs.findIndex((tab) => !tab.disabled);
+    }
+    for (let index = tabs.length - 1; index >= 0; index -= 1) {
+      if (!tabs[index]?.disabled) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  /** Activate the tab at `index` (automatic mode) and move keyboard focus to it. */
+  #moveTo(index: number): void {
+    if (index < 0) {
       return;
     }
 
-    if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      const previous = enabled[(activeEnabledIndex - 1 + enabled.length) % enabled.length];
-      if (previous) {
-        this.select(previous.id);
-      }
+    const tab = this.tabs()[index];
+    if (!tab || tab.disabled) {
       return;
     }
 
-    if (event.key === 'Home') {
-      event.preventDefault();
-      const first = enabled[0];
-      if (first) {
-        this.select(first.id);
-      }
+    this.select(tab.id);
+    this.#focusTab(index);
+  }
+
+  #focusTab(index: number): void {
+    const button = this.tabButtons()[index]?.nativeElement;
+    if (!button) {
       return;
     }
 
-    if (event.key === 'End') {
-      event.preventDefault();
-      const last = enabled[enabled.length - 1];
-      if (last) {
-        this.select(last.id);
-      }
-    }
+    button.focus();
+    button.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   }
 
   tabButtonId(id: string): string {

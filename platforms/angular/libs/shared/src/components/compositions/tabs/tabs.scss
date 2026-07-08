@@ -14,9 +14,100 @@
   --syn-tabs-panel-border: var(--syn-color-border-default, #{syn.$color-border-default});
   --syn-tabs-panel-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
   --syn-tabs-panel-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-tabs-fade-size: #{syn.$space-xl};
+  --syn-tabs-fade-color: var(--syn-tabs-list-surface);
 
   display: grid;
   gap: syn.$space-md;
+}
+
+// Scroll container: owns the pill chrome + the overflow fade affordance so the
+// inner list stays a bare scroller and the fades can clip to the rounded edges.
+.syn-tabs__scroll {
+  position: relative;
+  padding: syn.$space-xxs;
+  border: syn.px-to-rem(1) solid var(--syn-tabs-list-border);
+  border-radius: syn.$radius-full;
+  background: var(--syn-tabs-list-surface);
+  overflow: hidden;
+
+  // Fade edges — signal that the tablist scrolls horizontally.
+  &[data-orientation='horizontal'] {
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: var(--syn-tabs-fade-size);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    &::before {
+      left: 0;
+      background: linear-gradient(to right, var(--syn-tabs-fade-color), transparent);
+    }
+
+    &::after {
+      right: 0;
+      background: linear-gradient(to left, var(--syn-tabs-fade-color), transparent);
+    }
+  }
+
+  // Progressive enhancement: reveal each fade only when there is more content in
+  // that direction, driven by the list's own scroll position.
+  @supports (animation-timeline: scroll()) {
+    &[data-orientation='horizontal'] {
+      timeline-scope: --syn-tabs-scroll;
+
+      .syn-tabs__list {
+        scroll-timeline: --syn-tabs-scroll inline;
+      }
+
+      &::before {
+        opacity: 0;
+        animation: syn-tabs-fade-start linear both;
+        animation-timeline: --syn-tabs-scroll;
+      }
+
+      &::after {
+        animation: syn-tabs-fade-end linear both;
+        animation-timeline: --syn-tabs-scroll;
+      }
+    }
+  }
+
+  &[data-orientation='vertical'] {
+    .syn-tabs__list {
+      flex-direction: column;
+      overflow-x: visible;
+      overflow-y: auto;
+      scroll-snap-type: y mandatory;
+    }
+  }
+}
+
+@keyframes syn-tabs-fade-start {
+  0% {
+    opacity: 0;
+  }
+
+  4%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes syn-tabs-fade-end {
+  0%,
+  96% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 .syn-tabs__list {
@@ -25,10 +116,6 @@
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
-  padding: syn.$space-xxs;
-  border: syn.px-to-rem(1) solid var(--syn-tabs-list-border);
-  border-radius: syn.$radius-full;
-  background: var(--syn-tabs-list-surface);
 
   &::-webkit-scrollbar {
     display: none;
