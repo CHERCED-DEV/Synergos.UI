@@ -29,3 +29,13 @@ $letter-spacing-tight:   -0.025em;
 $letter-spacing-normal:  0;
 $letter-spacing-wide:    0.025em;
 $letter-spacing-eyebrow: 0.08em;   // Uppercase labels, eyebrow text, overlines
+
+// ── Ola 0 — display tracking + peso (Manrope big & LIGHT · doc 23 · ADR 0094) ──
+// Espejo de --syn-tracking-*/--syn-font-weight-display/--syn-font-mono (CMS).
+// Rampa de tracking negativo SOLO para display ≥48px; nunca en body. Pesos
+// display 300–510: grande y LIGERO, nunca grande y bold (lee genérico).
+$tracking-tight:      -0.02em;   // display ≥48px
+$tracking-tighter:    -0.03em;   // display ≥72px
+$font-weight-display: 510;       // headings display (rango 300–510)
+// Mono "console marker" para eyebrows/labels (lidera ui-monospace).
+$font-family-mono-ui: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;

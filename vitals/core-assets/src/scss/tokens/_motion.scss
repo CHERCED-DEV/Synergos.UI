@@ -22,6 +22,17 @@ $easing-smooth:   ease;
 $easing-in:       cubic-bezier(0.4, 0, 1, 1);
 $easing-out:      cubic-bezier(0, 0, 0.2, 1);
 
+// ── Ola 0 — premium motion (best-in-class · doc 23 · ADR 0094) ─────────────────
+// Espejo de los tokens --syn-ease-*/--syn-dur-* (CMS syn-tokens.css). Capa SCSS
+// para mixins/componentes que compilan contra $vars. La escala dur premium
+// (150/220/320) es distinta de $duration-* (120/200/280): úsala para la línea
+// premium; reduced-motion colapsa --syn-dur-* en el bridge (misma query).
+$ease-out:        cubic-bezier(0.22, 1, 0.36, 1);   // lo que ENTRA
+$ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);   // sheets/drawers (curva iOS)
+$dur-fast: 150ms;
+$dur-base: 220ms;
+$dur-slow: 320ms;
+
 // Composed shorthands for common use
 $transition-colors:    background-color $duration-fast $easing-smooth,
                        border-color     $duration-fast $easing-smooth,

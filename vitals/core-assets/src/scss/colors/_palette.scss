@@ -21,11 +21,15 @@
   --syn-color-neutral-900: #{$color-neutral-900};
 
   // ── Brand ──────────────────────────────────────────────────────────────────
+  // BLINDAJE #4f6ef7 (Ola 0, doc 23) — vecino de Tailwind indigo-500 = "olor a
+  // IA". brand-500 SOLO como voltage puntual: CTA primario · foco · link ·
+  // borde-señal. PROHIBIDO en gradientes de fondo / fills grandes; apoyarlo en
+  // neutros ligeramente fríos (un acento por superficie). Espejo del CMS.
   --syn-color-brand-100: #{$color-brand-100};
   --syn-color-brand-200: #{$color-brand-200};
   --syn-color-brand-300: #{$color-brand-300};
   --syn-color-brand-400: #{$color-brand-400};
-  --syn-color-brand-500: #{$color-brand-500};
+  --syn-color-brand-500: #{$color-brand-500};   // voltage puntual — ver BLINDAJE
   --syn-color-brand-600: #{$color-brand-600};
 
   // ── Accent (violet) ────────────────────────────────────────────────────────
@@ -169,6 +173,55 @@
                          var(--syn-color-neutral-900) 0%,
                          var(--syn-color-neutral-800) 50%,
                          rgb(var(--syn-channel-brand) / 0.30) 100%);
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // OLA 0 — Cimientos de la línea premium (aditivo · doc 23 · ADR 0094).
+  // ESPEJO de syn-tokens.css :root (Synergos.CMS = SoT del contrato runtime).
+  // Tokens --syn-* como defaults heredables; NO cambia ningún color existente
+  // (el rewrite OKLCH de --syn-color-* es Ola 0b, pendiente). Casi todos alias
+  // sobre tokens ya theme-aware ⇒ heredan por-tema sin redeclarar.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Bordes hairline (profundidad por GEOMETRÍA, no por sombras) ──────────────
+  // PROHIBIDO "drop-shadow soup". shadow-as-border = anillo 0 0 0 1px (Vercel).
+  --syn-border-1: 1px solid var(--syn-color-border-subtle);          // barely
+  --syn-border-2: 1px solid var(--syn-color-border-default);         // standard
+  --syn-border-3: 1px solid var(--syn-color-border-strong);          // prominent
+  --syn-border-hairline: 0 0 0 1px var(--syn-color-border-default);  // box-shadow ring
+
+  // ── Escalera de superficie 1..4 (canvas→panel→raised→elevado) ───────────────
+  --syn-surface-1: var(--syn-color-surface-canvas);      // canvas / base
+  --syn-surface-2: var(--syn-color-surface-primary);     // panel
+  --syn-surface-3: var(--syn-color-surface-secondary);   // raised
+  --syn-surface-4: var(--syn-color-surface-elevated);    // elevado
+
+  // ── Tracking display + peso (Manrope big & LIGHT · Linear/Geist) ────────────
+  --syn-tracking-tight:      -0.02em;   // display ≥48px
+  --syn-tracking-tighter:    -0.03em;   // display ≥72px
+  --syn-font-weight-display: 510;       // headings display (rango 300–510)
+
+  // ── Mono — eyebrows / labels "console marker" (Supabase/Vercel/Resend) ──────
+  --syn-font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  // ── Radios — pill 9999 SOLO CTA primario; regla concéntrica hijo ≤ padre ────
+  --syn-radius-pill: 9999px;
+
+  // ── Focus ring (:focus-visible ≥3:1) — lo consume mixins/_focus.scss ────────
+  --syn-focus-ring-width:  2px;
+  --syn-focus-ring-offset: 2px;
+  --syn-focus-ring: 0 0 0 var(--syn-focus-ring-width) var(--syn-color-focus-ring);
+
+  // ── Motion tokenizado (CSS-first; solo transform/opacity, nunca "all") ──────
+  --syn-ease-out:        cubic-bezier(0.22, 1, 0.36, 1);
+  --syn-ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --syn-dur-fast: 150ms;
+  --syn-dur-base: 220ms;
+  --syn-dur-slow: 320ms;
+  --syn-motion-scale: 1;   // 0..1 override por-tema/vertical (Gov=0 crisp)
+
+  // ── Grano SVG opt-in — OFF por defecto (utilidad .syn-grain en _global.scss) ─
+  --syn-grain-opacity: 0;
+  --syn-grain-blend:   overlay;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

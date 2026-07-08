@@ -7,10 +7,13 @@
 // Uses brand-300 at full opacity — visible but not aggressive.
 // All interactive components MUST include this mixin.
 
+// Ola 0 — los defaults width/offset consumen los tokens --syn-focus-ring-*
+// (doc 23), con fallback px-to-rem(2) para uso standalone. El color sigue
+// theme-aware vía --syn-color-focus-ring. :focus-visible con contraste ≥3:1.
 @mixin focus-visible(
   $ring-color:  var(--syn-color-focus-ring, #{$color-brand-300}),
-  $ring-width:  px-to-rem(2),
-  $ring-offset: px-to-rem(2)
+  $ring-width:  var(--syn-focus-ring-width, #{px-to-rem(2)}),
+  $ring-offset: var(--syn-focus-ring-offset, #{px-to-rem(2)})
 ) {
   &:focus {
     outline: none;

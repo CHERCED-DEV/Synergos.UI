@@ -16,3 +16,7 @@ $radius-lg:   px-to-rem(14);
 $radius-xl:   px-to-rem(20);
 $radius-2xl:  px-to-rem(24);
 $radius-full: px-to-rem(9999);
+
+// Ola 0 — pill SOLO para el CTA primario / toggle track (doc 23). Regla
+// concéntrica: radio hijo ≤ radio padre. Espejo de --syn-radius-pill (CMS).
+$radius-pill: $radius-full;

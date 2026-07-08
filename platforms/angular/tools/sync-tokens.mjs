@@ -142,8 +142,10 @@ const trailer = `
 // =============================================================================
 //
 // Swap los tokens de duración REALES que los componentes consumen
-// (--syn-duration-*) a 0.01ms — NO a 0 — para colapsar la animación sin
-// perder el evento 'transitionend' del que dependen algunos handlers JS.
+// (--syn-duration-* + la escala premium Ola 0 --syn-dur-*) a 0.01ms — NO a 0 —
+// para colapsar la animación sin perder el evento 'transitionend' del que
+// dependen algunos handlers JS. --syn-motion-scale → 0 apaga el multiplicador
+// de motion por-vertical. UNA sola query (alineada, sin duplicar).
 
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -153,6 +155,10 @@ const trailer = `
     --syn-duration-xslow:   0.01ms;
     --syn-duration-loop:    0.01ms;
     --syn-duration-shimmer: 0.01ms;
+    --syn-dur-fast:         0.01ms;
+    --syn-dur-base:         0.01ms;
+    --syn-dur-slow:         0.01ms;
+    --syn-motion-scale:     0;
   }
 }
 `;
