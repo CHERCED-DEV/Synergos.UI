@@ -126,3 +126,13 @@ export {
   type CredentialWalletContext,
   type WalletCredential,
 } from './credentials/credential-wallet';
+
+// ─── State components ─────────────────────────────────────────────────────────
+// The ViewState contract (loading|ready|empty|error|degraded) + the four
+// tokenised state surfaces every data shell composes (doc 22 §6). Built once
+// here, framework-free of any domain; Fase 2 wires them into the shells above.
+export { type ViewState } from './states/view-state';
+export { SynSkeletonComponent, type SkeletonVariant } from './states/skeleton';
+export { SynEmptyStateComponent, type EmptyStateKind } from './states/empty-state';
+export { SynErrorStateComponent } from './states/error-state';
+export { SynStatusBannerComponent, type StatusBannerTone } from './states/status-banner';

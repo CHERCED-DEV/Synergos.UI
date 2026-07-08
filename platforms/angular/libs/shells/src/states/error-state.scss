@@ -1,0 +1,68 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --err-surface: var(--syn-color-state-danger-surface, #{syn.$color-danger-surface});
+  --err-border: var(--syn-color-state-danger-border, #{syn.$color-danger-border});
+  --err-text: var(--syn-color-state-danger-text, #{syn.$color-danger-text});
+  --err-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --err-action-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --err-action-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --err-focus-ring: var(--syn-color-focus-ring-danger, #{syn.$color-danger-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--err-text);
+}
+
+.syn-error {
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-3;
+  padding: syn.$space-4 syn.$space-5;
+  border: syn.px-to-rem(1) solid var(--err-border);
+  border-radius: syn.$radius-lg;
+  background: var(--err-surface);
+
+  &__icon {
+    flex: none;
+    font-size: syn.$font-size-lg;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--err-title);
+  }
+
+  &__message {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+  }
+
+  &__retry {
+    flex: none;
+    align-self: center;
+    padding: syn.$space-2 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--err-action-border);
+    border-radius: syn.$radius-md;
+    background: var(--err-action-surface);
+    color: inherit;
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--err-focus-ring));
+  }
+}

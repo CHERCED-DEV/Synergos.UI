@@ -1,0 +1,136 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --skn-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --skn-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+
+  display: block;
+  width: 100%;
+}
+
+.syn-skeleton {
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-md;
+    // Zero-CLS: bones carry intrinsic height so the mould matches the real
+    // content footprint before data arrives.
+    min-height: syn.$space-4;
+    background: linear-gradient(
+      90deg,
+      var(--skn-base) 0%,
+      var(--skn-highlight) 50%,
+      var(--skn-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: syn-skeleton-shimmer syn.$duration-shimmer syn.$easing-smooth infinite;
+
+    &--avatar {
+      flex: none;
+      width: syn.$space-10;
+      height: syn.$space-10;
+      border-radius: syn.$radius-full;
+    }
+
+    &--title {
+      height: syn.$space-5;
+      width: 60%;
+    }
+
+    &--text {
+      height: syn.$space-4;
+      width: 100%;
+
+      &:last-child {
+        width: 80%;
+      }
+    }
+
+    &--media {
+      height: syn.px-to-rem(140);
+      width: 100%;
+      border-radius: syn.$radius-lg;
+    }
+
+    &--cell {
+      height: syn.$space-4;
+      flex: 1;
+    }
+  }
+
+  // ── list ────────────────────────────────────────────────────────────────────
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-3 0;
+
+    & + & {
+      border-top: syn.px-to-rem(1) solid var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+    }
+  }
+
+  &__lines {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  // ── card ────────────────────────────────────────────────────────────────────
+  &__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(220)}, 1fr));
+    gap: syn.$space-4;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+    border-radius: syn.$radius-lg;
+  }
+
+  // ── table ───────────────────────────────────────────────────────────────────
+  &__table {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__tr {
+    display: flex;
+    gap: syn.$space-3;
+    padding: syn.$space-3 0;
+
+    &--head .syn-skeleton__bone {
+      opacity: 0.7;
+    }
+  }
+
+  // ── text (default) ──────────────────────────────────────────────────────────
+  &[data-variant='text'] {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+}
+
+@keyframes syn-skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+// Reduced motion: kill the shimmer, keep a calm static tinted surface.
+@media (prefers-reduced-motion: reduce) {
+  .syn-skeleton__bone {
+    animation: none;
+    background: var(--skn-base);
+  }
+}

@@ -1,0 +1,69 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --emp-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --emp-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --emp-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --emp-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --emp-icon: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --emp-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --emp-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --emp-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--emp-text);
+}
+
+.syn-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-10 syn.$space-6;
+  border: syn.px-to-rem(1) solid var(--emp-border);
+  border-radius: syn.$radius-lg;
+  background: var(--emp-surface);
+  text-align: center;
+
+  &__icon {
+    display: grid;
+    place-items: center;
+    width: syn.$space-12;
+    height: syn.$space-12;
+    font-size: syn.$font-size-2xl;
+    line-height: 1;
+    color: var(--emp-icon);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-tight;
+    color: var(--emp-title);
+  }
+
+  &__message {
+    margin: 0;
+    max-width: syn.px-to-rem(420);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+  }
+
+  &__action {
+    margin-top: syn.$space-2;
+    padding: syn.$space-2 syn.$space-5;
+    border: syn.px-to-rem(1) solid var(--emp-brand);
+    border-radius: syn.$radius-md;
+    background: var(--emp-brand);
+    color: var(--emp-brand-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    text-decoration: none;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--emp-focus-ring));
+  }
+}

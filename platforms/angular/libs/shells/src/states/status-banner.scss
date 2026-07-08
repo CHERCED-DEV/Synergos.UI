@@ -1,0 +1,77 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  // Degraded role — dedicated token (warning ~12% / 700), NOT raw warning.
+  --stb-degraded-surface: var(--syn-color-state-degraded-surface, #{syn.$color-state-degraded-surface});
+  --stb-degraded-border: var(--syn-color-state-degraded-border, #{syn.$color-state-degraded-border});
+  --stb-degraded-text: var(--syn-color-state-degraded-text, #{syn.$color-state-degraded-text});
+  // Info role — neutral notice.
+  --stb-info-surface: var(--syn-color-state-info-surface, #{syn.$color-info-surface});
+  --stb-info-border: var(--syn-color-state-info-border, #{syn.$color-info-border});
+  --stb-info-text: var(--syn-color-state-info-text, #{syn.$color-info-text});
+  --stb-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+}
+
+.syn-status {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-2 syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--stb-border);
+  border-radius: syn.$radius-md;
+  background: var(--stb-surface);
+  color: var(--stb-text);
+  font-size: syn.$font-size-sm;
+
+  // Tone resolution — one place maps data-tone to the role variables.
+  &[data-tone='degraded'] {
+    --stb-surface: var(--stb-degraded-surface);
+    --stb-border: var(--stb-degraded-border);
+    --stb-text: var(--stb-degraded-text);
+  }
+
+  &[data-tone='info'] {
+    --stb-surface: var(--stb-info-surface);
+    --stb-border: var(--stb-info-border);
+    --stb-text: var(--stb-info-text);
+  }
+
+  &__icon {
+    flex: none;
+    font-size: syn.$font-size-base;
+    line-height: 1;
+  }
+
+  &__message {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__dismiss {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: syn.$space-6;
+    height: syn.$space-6;
+    padding: 0;
+    border: 0;
+    border-radius: syn.$radius-sm;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: syn.$font-size-lg;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+    }
+
+    @include syn.focus-visible(var(--stb-focus-ring));
+  }
+}

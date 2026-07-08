@@ -62,6 +62,15 @@ $color-danger-border:  $color-danger-200;
 $color-danger-text:    $color-danger-600;
 $color-danger-strong:  $color-danger-600;
 
+// ── State: Degraded (datos de ejemplo / sample-data) ─────────────────────────
+// Persistent "running on sample/demo data" degradation role. NOT an alert — a
+// calm, non-intrusive banner. Derived from warning at ~12% surface / ~24% border
+// with a 700-ish text for AA on the tinted surface. Mirrors the CMS
+// --syn-color-state-degraded-* ramp (light/dark/silverGold) in syn-tokens.css.
+$color-state-degraded-surface: rgba($color-warning-600, 0.12);
+$color-state-degraded-border:  rgba($color-warning-600, 0.24);
+$color-state-degraded-text:    #9a5a04; // warning ~700 — AA on the tinted surface
+
 // ── Emphasis (brand strong) ──────────────────────────────────────────────────
 // The 600 step for emphasized brand text on light state surfaces.
 $color-brand-strong: $color-brand-600;
