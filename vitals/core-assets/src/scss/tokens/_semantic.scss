@@ -36,6 +36,35 @@ $color-info:         $color-info-600;   // Primary info color: icons, links, acc
 $color-info-surface: $color-info-100;   // Tinted background: info banners, callouts
 $color-info-border:  $color-info-200;   // Border on info surfaces
 $color-info-text:    $color-info-600;   // Text/icon on light info surfaces
+$color-info-strong:  $color-info-600;   // Emphasized info text (badge/chip labels)
+
+// ── State: Success ───────────────────────────────────────────────────────────
+// Positive/confirmation signal. Mirrors the CMS --syn-color-success* tokens.
+$color-success:         $color-success-600;   // Primary success color: icons, checks, accents
+$color-success-surface: $color-success-100;   // Tinted background: success banners, badges
+$color-success-border:  $color-success-200;   // Border on success surfaces
+$color-success-text:    $color-success-600;   // Text/icon on light success surfaces
+$color-success-strong:  $color-success-600;   // Emphasized success text (badge/chip labels)
+
+// ── State: Warning ───────────────────────────────────────────────────────────
+// Caution signal. Mirrors the CMS --syn-color-warning* tokens.
+$color-warning:         $color-warning-600;
+$color-warning-surface: $color-warning-100;
+$color-warning-border:  $color-warning-200;
+$color-warning-text:    $color-warning-600;
+$color-warning-strong:  $color-warning-600;
+
+// ── State: Danger ────────────────────────────────────────────────────────────
+// Error/destructive signal. Mirrors the CMS --syn-color-danger* tokens.
+$color-danger:         $color-danger-600;
+$color-danger-surface: $color-danger-100;
+$color-danger-border:  $color-danger-200;
+$color-danger-text:    $color-danger-600;
+$color-danger-strong:  $color-danger-600;
+
+// ── Emphasis (brand strong) ──────────────────────────────────────────────────
+// The 600 step for emphasized brand text on light state surfaces.
+$color-brand-strong: $color-brand-600;
 
 // ── Overlay ──────────────────────────────────────────────────────────────────
 // Semi-transparent values that can't be expressed as solid tokens.

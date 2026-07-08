@@ -180,6 +180,36 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
   --syn-color-state-danger-border: rgb(220 38 38 / 0.22);
   --syn-color-state-danger-text: #b42318;
 
+  /* State semantic aliases (paralelos) — chips/badges componibles theme-aware.
+     -strong (=600) es el texto enfatizado sobre -surface (=100). surface/border
+     se REDECLARAN en dark / silver-gold para contraste AA. Espejo de
+     syn-tokens.css :root (Synergos.CMS). */
+  --syn-color-brand-strong:   var(--syn-color-brand-600);
+
+  --syn-color-info:           var(--syn-color-info-600);
+  --syn-color-info-surface:   var(--syn-color-info-100);
+  --syn-color-info-border:    var(--syn-color-info-200);
+  --syn-color-info-text:      var(--syn-color-info-600);
+  --syn-color-info-strong:    var(--syn-color-info-600);
+
+  --syn-color-success:         var(--syn-color-success-600);
+  --syn-color-success-surface: var(--syn-color-success-100);
+  --syn-color-success-border:  var(--syn-color-success-200);
+  --syn-color-success-text:    var(--syn-color-success-600);
+  --syn-color-success-strong:  var(--syn-color-success-600);
+
+  --syn-color-warning:         var(--syn-color-warning-600);
+  --syn-color-warning-surface: var(--syn-color-warning-100);
+  --syn-color-warning-border:  var(--syn-color-warning-200);
+  --syn-color-warning-text:    var(--syn-color-warning-600);
+  --syn-color-warning-strong:  var(--syn-color-warning-600);
+
+  --syn-color-danger:          var(--syn-color-danger-600);
+  --syn-color-danger-surface:  var(--syn-color-danger-100);
+  --syn-color-danger-border:   var(--syn-color-danger-200);
+  --syn-color-danger-text:     var(--syn-color-danger-600);
+  --syn-color-danger-strong:   var(--syn-color-danger-600);
+
   --syn-shadow-card: #{elevation.$shadow-xs};
   --syn-shadow-card-hover: #{elevation.$shadow-lg};
   --syn-shadow-panel: #{elevation.$shadow-sm};
@@ -242,7 +272,9 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
 
   --syn-color-text-primary: var(--syn-color-neutral-0);
   --syn-color-text-secondary: var(--sg-color-text-secondary);
-  --syn-color-text-muted: var(--syn-color-neutral-400);
+  /* a11y — text-muted subido a neutral-300 (#cbd5e1, ~5.3:1) desde neutral-400
+     (~4.2:1) sobre canvas dark. Espejo de syn-tokens.css. */
+  --syn-color-text-muted: var(--syn-color-neutral-300);
   --syn-color-text-disabled: var(--syn-color-neutral-500);
   --syn-color-text-inverse: var(--syn-color-neutral-900);
   --syn-color-text-accent: var(--syn-color-brand-300);
@@ -308,6 +340,18 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
   --syn-color-state-danger-border: rgb(251 113 133 / 0.32);
   --syn-color-state-danger-text: #fecdd3;
 
+  /* State semantic — surface/border REDECLARADOS con tintes oscuros para
+     contraste AA sobre canvas dark (el default -100 casi-blanco fallaba).
+     Espejo de syn-tokens.css [data-theme="dark"]. */
+  --syn-color-info-surface: rgb(56 189 248 / 0.16);
+  --syn-color-info-border: rgb(56 189 248 / 0.28);
+  --syn-color-success-surface: rgb(34 197 94 / 0.16);
+  --syn-color-success-border: rgb(74 222 128 / 0.28);
+  --syn-color-warning-surface: rgb(245 158 11 / 0.16);
+  --syn-color-warning-border: rgb(252 211 77 / 0.3);
+  --syn-color-danger-surface: rgb(239 68 68 / 0.16);
+  --syn-color-danger-border: rgb(251 113 133 / 0.32);
+
   --syn-shadow-card: 0 10px 28px -18px rgb(2 6 23 / 0.78);
   --syn-shadow-card-hover: 0 24px 56px -28px rgb(2 6 23 / 0.86);
   --syn-shadow-panel: 0 8px 24px -18px rgb(2 6 23 / 0.74);
@@ -371,7 +415,10 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
   --syn-color-text-primary: #202734;
   --syn-color-text-secondary: var(--sg-color-text-secondary);
   --syn-color-text-muted: #6b6a63;
-  --syn-color-text-disabled: #9a9487;
+  /* a11y — text-disabled oscurecido de #9a9487 (~2.6:1) a #736e64 (~4.4:1)
+     sobre el canvas cálido; apenas por encima de muted para no invertir la
+     jerarquía. Espejo de syn-tokens.css. */
+  --syn-color-text-disabled: #736e64;
   --syn-color-text-inverse: #fcf7ee;
   --syn-color-text-accent: #8f7035;
   --syn-color-text-on-accent: var(--sg-color-action-primary-text);
@@ -435,6 +482,18 @@ $silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
   --syn-color-state-danger-surface: rgb(220 38 38 / 0.1);
   --syn-color-state-danger-border: rgb(220 38 38 / 0.22);
   --syn-color-state-danger-text: #b42318;
+
+  /* State semantic — surface/border REDECLARADOS con tintes translúcidos que
+     componen sobre el canvas cálido (el default -100 opaco lo blanqueaba).
+     Espejo de syn-tokens.css [data-theme="silverGold"]. */
+  --syn-color-info-surface: rgb(47 111 147 / 0.1);
+  --syn-color-info-border: rgb(47 111 147 / 0.2);
+  --syn-color-success-surface: rgb(22 163 74 / 0.1);
+  --syn-color-success-border: rgb(22 163 74 / 0.2);
+  --syn-color-warning-surface: rgb(217 119 6 / 0.12);
+  --syn-color-warning-border: rgb(217 119 6 / 0.22);
+  --syn-color-danger-surface: rgb(220 38 38 / 0.1);
+  --syn-color-danger-border: rgb(220 38 38 / 0.22);
 
   --syn-shadow-card: 0 10px 28px -20px rgb(71 54 26 / 0.24);
   --syn-shadow-card-hover: 0 24px 54px -32px rgb(71 54 26 / 0.28);

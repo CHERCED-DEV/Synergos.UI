@@ -83,9 +83,16 @@
   transform: translateY(syn.px-to-rem(-0.5)) rotate(45deg) scale(1);
 }
 
+/* Anillo de foco unificado con el mixin syn.focus-visible (input/select):
+   mismo color (--syn-color-focus-ring vía --syn-checkbox-focus-ring), grosor
+   2px, offset 2px y transición de outline-offset. El outline vive en el box
+   hermano porque el <input> nativo está oculto, así que se replican los
+   valores del mixin en lugar de @include-arlo (que apuntaría a un elemento
+   no enfocable y borraría el anillo visible). */
 .syn-checkbox__native:focus-visible + .syn-checkbox__box {
   outline: syn.px-to-rem(2) solid var(--syn-checkbox-focus-ring);
   outline-offset: syn.px-to-rem(2);
+  transition: outline-offset var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 }
 
 .syn-checkbox__native:disabled + .syn-checkbox__box {

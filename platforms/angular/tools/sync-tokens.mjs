@@ -140,12 +140,19 @@ const trailer = `
 // =============================================================================
 // Reduced motion respect (UI components opt-in con esta query)
 // =============================================================================
+//
+// Swap los tokens de duración REALES que los componentes consumen
+// (--syn-duration-*) a 0.01ms — NO a 0 — para colapsar la animación sin
+// perder el evento 'transitionend' del que dependen algunos handlers JS.
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --syn-motion-duration-instant:  0ms;
-    --syn-motion-duration-fast:     0ms;
-    --syn-motion-duration-default:  0ms;
+    --syn-duration-fast:    0.01ms;
+    --syn-duration-base:    0.01ms;
+    --syn-duration-slow:    0.01ms;
+    --syn-duration-xslow:   0.01ms;
+    --syn-duration-loop:    0.01ms;
+    --syn-duration-shimmer: 0.01ms;
   }
 }
 `;
