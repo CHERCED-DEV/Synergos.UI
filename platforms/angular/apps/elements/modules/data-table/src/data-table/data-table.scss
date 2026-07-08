@@ -13,6 +13,14 @@
   --dt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-400});
   --dt-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --dt-cell-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --dt-empty-title-color: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --dt-empty-action-bg: var(--syn-color-brand-500, #{syn.$color-brand-500});
+  --dt-empty-action-bg-hover: var(--syn-color-brand-600, #{syn.$color-brand-600});
+  --dt-empty-action-color: var(--syn-color-text-inverse, #{syn.$color-text-inverse});
+
+  // Anti-CLS: reserve a stable floor so loading → ready → empty share one height.
+  // 8pt-grid aligned (192px = 24 × 8); overridable per composition.
+  --dt-min-block-size: var(--syn-data-table-min-block-size, #{syn.px-to-rem(192)});
 
   display: block;
 }
@@ -31,9 +39,39 @@
   --syn-data-table-empty-color: var(--dt-empty-color);
   --syn-data-table-cell-label-color: var(--dt-cell-label-color);
 
-  display: block;
+  // Anti-CLS: keep a reserved minimum block-size and center the panel within it,
+  // so the empty/skeleton state does not collapse and shift surrounding content.
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--dt-min-block-size);
 
   &__table {
     display: block;
+    width: 100%;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__empty-title {
+    margin: 0;
+    color: var(--dt-empty-title-color);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__empty-action {
+    @include syn.button-base;
+    @include syn.button-variant(
+      var(--dt-empty-action-bg),
+      var(--dt-empty-action-color),
+      $hover-background: var(--dt-empty-action-bg-hover)
+    );
   }
 }

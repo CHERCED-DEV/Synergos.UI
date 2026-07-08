@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import type { DataTableElementConfig } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
@@ -15,6 +15,8 @@ import {
 type DataTableRecord = Record<string, unknown>;
 export type DataTableRuntimeConfig = Partial<DataTableElementConfig> & {
   readonly emptyLabel?: string;
+  readonly emptyActionLabel?: string;
+  readonly emptyActionHref?: string;
   readonly striped?: boolean;
   readonly bordered?: boolean;
   readonly hoverable?: boolean;
@@ -139,7 +141,10 @@ export function normalizeRowsFromMatrix(
 }
 
 export function sanitizeDataTableConfig(
-  value: Partial<DataTableElementConfig>,
+  value: Partial<DataTableElementConfig> & {
+    readonly emptyActionLabel?: string;
+    readonly emptyActionHref?: string;
+  },
 ): DataTableRuntimeConfig {
   const columns = normalizeColumns(value.columns);
   const headers = normalizeHeaders(value.headers);
@@ -150,6 +155,8 @@ export function sanitizeDataTableConfig(
   return omitUndefinedProperties<DataTableRuntimeConfig>({
     caption: coerceTrimmedStringInput(value.caption),
     emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
+    emptyActionLabel: coerceTrimmedStringInput(value.emptyActionLabel),
+    emptyActionHref: coerceTrimmedStringInput(value.emptyActionHref),
     striped: coerceOptionalBooleanInput(value.striped),
     bordered: coerceOptionalBooleanInput(value.bordered),
     hoverable: coerceOptionalBooleanInput(value.hoverable),
@@ -178,6 +185,8 @@ export class DataTableElementComponent {
   readonly columnsInput = input<string | undefined>(undefined, { alias: 'columns' });
   readonly rowsInput = input<string | undefined>(undefined, { alias: 'rows' });
   readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
+  readonly emptyActionLabelInput = input<string | undefined>(undefined, { alias: 'emptyActionLabel' });
+  readonly emptyActionHrefInput = input<string | undefined>(undefined, { alias: 'emptyActionHref' });
   readonly stripedInput = input<boolean | undefined, unknown>(undefined, {
     alias: 'striped',
     transform: coerceOptionalBooleanInput,
@@ -201,6 +210,20 @@ export class DataTableElementComponent {
   readonly emptyLabel = computed(() =>
     resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No data available.'),
   );
+  readonly emptyActionLabel = computed(() =>
+    resolveConfigValue(this.emptyActionLabelInput(), this.config()?.emptyActionLabel, ''),
+  );
+  readonly emptyActionHref = computed(() =>
+    resolveConfigValue(this.emptyActionHrefInput(), this.config()?.emptyActionHref, ''),
+  );
+
+  /** Emitted when the empty-state CTA button (no `emptyActionHref`) is activated. */
+  readonly emptyAction = output<void>();
+
+  onEmptyAction(): void {
+    this.emptyAction.emit();
+  }
+
   readonly striped = computed(() =>
     resolveConfigValue(this.stripedInput(), this.config()?.striped, true),
   );

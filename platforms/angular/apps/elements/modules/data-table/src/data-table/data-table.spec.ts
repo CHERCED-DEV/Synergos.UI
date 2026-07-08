@@ -97,4 +97,62 @@ describe('DataTableElementComponent', () => {
     expect(config.hoverable).toBe(true);
     expect(config.compact).toBe(false);
   });
+
+  it('should sanitize empty action fields from config', () => {
+    const config = sanitizeDataTableConfig({
+      emptyActionLabel: '  Add record  ',
+      emptyActionHref: '  /records/new  ',
+    });
+
+    expect(config.emptyActionLabel).toBe('Add record');
+    expect(config.emptyActionHref).toBe('/records/new');
+  });
+
+  it('should expose an accessible heading in the empty state', async () => {
+    fixture.componentRef.setInput('emptyLabel', 'No records yet');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const heading: HTMLElement | null = fixture.nativeElement.querySelector('.data-table__empty-title');
+    expect(heading).toBeTruthy();
+    expect(heading?.getAttribute('role')).toBe('heading');
+    expect(heading?.getAttribute('aria-level')).toBe('3');
+    expect(heading?.textContent?.trim()).toBe('No records yet');
+  });
+
+  it('should render a CTA button that emits emptyAction when no href is set', async () => {
+    fixture.componentRef.setInput('emptyActionLabel', 'Create record');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement | null = fixture.nativeElement.querySelector('.data-table__empty-action');
+    expect(button).toBeTruthy();
+    expect(button?.tagName).toBe('BUTTON');
+    expect(button?.textContent?.trim()).toBe('Create record');
+
+    let emitted = 0;
+    component.emptyAction.subscribe(() => (emitted += 1));
+    button?.click();
+    expect(emitted).toBe(1);
+  });
+
+  it('should render an anchor CTA when emptyActionHref is provided', async () => {
+    fixture.componentRef.setInput('emptyActionLabel', 'Import data');
+    fixture.componentRef.setInput('emptyActionHref', '/import');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const link: HTMLAnchorElement | null = fixture.nativeElement.querySelector('.data-table__empty-action');
+    expect(link?.tagName).toBe('A');
+    expect(link?.getAttribute('href')).toBe('/import');
+    expect(link?.textContent?.trim()).toBe('Import data');
+  });
+
+  it('should not render a CTA when emptyActionLabel is absent', () => {
+    const action: HTMLElement | null = fixture.nativeElement.querySelector('.data-table__empty-action');
+    expect(action).toBeNull();
+  });
 });

@@ -4,10 +4,24 @@
     [caption]="caption()"
     [columns]="parsedColumns()"
     [rows]="parsedRows()"
-    [emptyLabel]="emptyLabel()"
+    [emptyLabel]="''"
     [striped]="striped()"
     [bordered]="bordered()"
     [hoverable]="hoverable()"
     [compact]="compact()"
-  />
+  >
+    <div empty class="data-table__empty">
+      <p class="data-table__empty-title" role="heading" aria-level="3">{{ emptyLabel() }}</p>
+
+      @if (emptyActionLabel()) {
+        @if (emptyActionHref()) {
+          <a class="data-table__empty-action" [href]="emptyActionHref()">{{ emptyActionLabel() }}</a>
+        } @else {
+          <button type="button" class="data-table__empty-action" (click)="onEmptyAction()">
+            {{ emptyActionLabel() }}
+          </button>
+        }
+      }
+    </div>
+  </syn-data-table>
 </section>
