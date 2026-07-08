@@ -183,17 +183,21 @@
   // ══════════════════════════════════════════════════════════════════════════
 
   // ── Bordes hairline (profundidad por GEOMETRÍA, no por sombras) ──────────────
-  // PROHIBIDO "drop-shadow soup". shadow-as-border = anillo 0 0 0 1px (Vercel).
-  --syn-border-1: 1px solid var(--syn-color-border-subtle);          // barely
-  --syn-border-2: 1px solid var(--syn-color-border-default);         // standard
-  --syn-border-3: 1px solid var(--syn-color-border-strong);          // prominent
-  --syn-border-hairline: 0 0 0 1px var(--syn-color-border-default);  // box-shadow ring
+  // PROHIBIDO "drop-shadow soup". Hairline explícito por-tema (visible, NUNCA
+  // transparent); el bridge auto-gen (_tokens-bridge.scss) espeja los overrides
+  // por-tema del CMS (SoT). Aquí sólo el default light.
+  --syn-border-1: 1px solid rgb(15 23 42 / 0.06);        // barely   — tinta hairline
+  --syn-border-2: 1px solid rgb(15 23 42 / 0.10);        // standard — borde crisp
+  --syn-border-3: 1px solid rgb(15 23 42 / 0.16);        // prominent
+  --syn-border-hairline: 0 0 0 1px rgb(15 23 42 / 0.10); // box-shadow ring
 
   // ── Escalera de superficie 1..4 (canvas→panel→raised→elevado) ───────────────
-  --syn-surface-1: var(--syn-color-surface-canvas);      // canvas / base
-  --syn-surface-2: var(--syn-color-surface-primary);     // panel
-  --syn-surface-3: var(--syn-color-surface-secondary);   // raised
-  --syn-surface-4: var(--syn-color-surface-elevated);    // elevado
+  // Monotónica; light default = canvas más claro → 2/3/4 sutil más oscuros
+  // (card despega). Redeclarada explícita por-tema en el CMS SoT + bridge.
+  --syn-surface-1: #ffffff;   // canvas / base — el más claro
+  --syn-surface-2: #f4f7fb;   // panel  — card despega del canvas
+  --syn-surface-3: #eaeff6;   // raised
+  --syn-surface-4: #dfe6f0;   // elevado
 
   // ── Tracking display + peso (Manrope big & LIGHT · Linear/Geist) ────────────
   --syn-tracking-tight:      -0.02em;   // display ≥48px
