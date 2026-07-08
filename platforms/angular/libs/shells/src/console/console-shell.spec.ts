@@ -46,6 +46,8 @@ const KPIS: readonly ConsoleKpi[] = [
       [config]="config()"
       [kpis]="kpis()"
       [rows]="rows()"
+      [loading]="loading()"
+      [degradedMessage]="degraded()"
       [columns]="[
         { key: 'ref', label: 'Orden' },
         { key: 'status', label: 'Estado', align: 'end' }
@@ -61,6 +63,7 @@ const KPIS: readonly ConsoleKpi[] = [
       (sectionchange)="sectionLog.push($event)"
       (filterchange)="filterLog.push($event)"
       (rowaction)="actionLog.push($event)"
+      (retry)="retryCount = retryCount + 1"
     />
   `,
 })
@@ -68,6 +71,9 @@ class HostComponent {
   readonly config = signal<ConsoleShellConfig>(CONFIG);
   readonly kpis = signal<readonly ConsoleKpi[]>(KPIS);
   readonly rows = signal<readonly Order[]>([]);
+  readonly loading = signal(false);
+  readonly degraded = signal<string | undefined>(undefined);
+  retryCount = 0;
   readonly sectionLog: string[] = [];
   readonly filterLog: string[] = [];
   readonly actionLog: ConsoleRowActionEvent<Order>[] = [];
@@ -103,7 +109,7 @@ describe(ConsoleShellComponent.name, () => {
     expect(deltas[1].classList.contains('is-down')).toBe(true);
     // Reports slot receives the active section id.
     expect(element.querySelector('.reports-body')?.getAttribute('data-active')).toBe('ventas');
-    expect(element.querySelector('.syn-console__empty')?.textContent).toContain(
+    expect(element.querySelector('syn-empty-state')?.textContent).toContain(
       'Sin órdenes en la cola',
     );
     expect(element.querySelector('.syn-console__badge')?.textContent).toContain('3');
@@ -185,5 +191,47 @@ describe(ConsoleShellComponent.name, () => {
     element.querySelectorAll<HTMLButtonElement>('.syn-console__filter')[1].click();
     fixture.detectChanges();
     expect(host.filterLog).toEqual(['nuevas']);
+  });
+
+  // ── state surfaces (Fase 2): skeleton / error / degraded ────────────────────
+  it('renders a table skeleton on loading, error-state with retry, and the degraded banner', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    const element: HTMLElement = fixture.nativeElement;
+
+    // Loading → table skeleton; the empty queue is suppressed while resolving.
+    host.loading.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('syn-skeleton')?.getAttribute('data-variant')).toBe('table');
+    expect(element.querySelector('syn-empty-state')).toBeNull();
+
+    // Degraded → status banner above the console content.
+    host.degraded.set('Datos de ejemplo.');
+    fixture.detectChanges();
+    expect(element.querySelector('syn-status-banner')?.textContent).toContain('Datos de ejemplo');
+
+    // Error wins over loading; retry re-emits.
+    host.config.set({ ...CONFIG, errorMessage: 'No se pudo cargar la cola.' });
+    fixture.detectChanges();
+    expect(element.querySelector('syn-error-state')?.textContent).toContain(
+      'No se pudo cargar la cola.',
+    );
+    expect(element.querySelector('syn-skeleton')).toBeNull();
+    element.querySelector<HTMLButtonElement>('.syn-error__retry')!.click();
+    expect(host.retryCount).toBe(1);
+  });
+
+  // ── empty differentiation via the active chip filter ────────────────────────
+  it('flips the empty queue to no-results when a non-default filter is active', async () => {
+    const fixture = await createHost();
+    const element: HTMLElement = fixture.nativeElement;
+
+    // Default filter ("todas") active + no rows → first-use.
+    expect(element.querySelector('syn-empty-state')?.getAttribute('data-kind')).toBe('first-use');
+
+    // Selecting "nuevas" (non-default) with no rows → no-results.
+    element.querySelectorAll<HTMLButtonElement>('.syn-console__filter')[1].click();
+    fixture.detectChanges();
+    expect(element.querySelector('syn-empty-state')?.getAttribute('data-kind')).toBe('no-results');
   });
 });

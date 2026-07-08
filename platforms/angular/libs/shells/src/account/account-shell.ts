@@ -8,6 +8,10 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { SynSkeletonComponent } from '../states/skeleton';
+import { SynEmptyStateComponent } from '../states/empty-state';
+import { SynErrorStateComponent } from '../states/error-state';
+import { SynStatusBannerComponent } from '../states/status-banner';
 
 /**
  * SH-4 — `syn-account-shell` (catálogo §1.3 doc 21).
@@ -39,6 +43,14 @@ export interface AccountShellConfig {
   readonly inboxEmptyMessage?: string;
   readonly inboxLoadingMessage?: string;
   readonly detailPlaceholder?: string;
+  // ── State surfaces (Fase 2) — all optional, additive ─────────────────────────
+  /** Title + CTA for the `first-use` empty inbox ("aún no tienes X"). */
+  readonly inboxEmptyTitle?: string;
+  readonly inboxEmptyActionLabel?: string;
+  readonly inboxEmptyActionHref?: string;
+  /** When set, the inbox renders `syn-error-state` (with an inline retry). */
+  readonly errorMessage?: string;
+  readonly errorTitle?: string;
 }
 
 /** Template context for one inbox row. */
@@ -61,7 +73,13 @@ export interface AccountSectionContext {
 @Component({
   selector: 'syn-account-shell',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [
+    NgTemplateOutlet,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+    SynStatusBannerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'syn-account-shell' },
   styleUrl: './account-shell.scss',
@@ -69,6 +87,10 @@ export interface AccountSectionContext {
     <div class="syn-account">
       @if (config().heading) {
         <h1 class="syn-account__heading">{{ config().heading }}</h1>
+      }
+
+      @if (degradedMessage(); as degraded) {
+        <syn-status-banner class="syn-account__banner" [message]="degraded" />
       }
 
       <nav class="syn-account__nav" [attr.aria-label]="config().navLabel || 'Secciones de la cuenta'">
@@ -92,14 +114,34 @@ export interface AccountSectionContext {
         @if (isInbox(section)) {
           <div class="syn-account__inbox">
             <div class="syn-account__list-pane">
-              @if (loading()) {
-                <p class="syn-account__empty" role="status">
-                  {{ config().inboxLoadingMessage || 'Cargando…' }}
-                </p>
+              @if (config().errorMessage; as errorMessage) {
+                <syn-error-state
+                  class="syn-account__state"
+                  [title]="config().errorTitle || 'Algo salió mal'"
+                  [message]="errorMessage"
+                  (retry)="retry.emit()"
+                />
+              } @else if (loading()) {
+                @if (loadingTemplate(); as tpl) {
+                  <ng-container [ngTemplateOutlet]="tpl" />
+                } @else {
+                  <syn-skeleton
+                    class="syn-account__state"
+                    variant="list"
+                    [rows]="6"
+                    [ariaLabel]="config().inboxLoadingMessage || 'Cargando…'"
+                  />
+                }
               } @else if (items().length === 0) {
-                <p class="syn-account__empty">
-                  {{ config().inboxEmptyMessage || 'No hay elementos.' }}
-                </p>
+                <syn-empty-state
+                  class="syn-account__state"
+                  kind="first-use"
+                  [title]="resolvedInboxEmptyTitle()"
+                  [message]="resolvedInboxEmptyMessage()"
+                  [actionLabel]="config().inboxEmptyActionLabel"
+                  [actionHref]="config().inboxEmptyActionHref"
+                  (action)="emptyAction.emit()"
+                />
               } @else {
                 <ul class="syn-account__list">
                   @for (item of items(); track $index) {
@@ -160,10 +202,18 @@ export class AccountShellComponent<TItem> {
   readonly sectionTemplate = input<TemplateRef<AccountSectionContext> | null>(null);
   /** Optional controlled active section id. */
   readonly section = input<string | undefined>(undefined);
+  /** Optional custom loading surface; falls back to `syn-skeleton` (list). */
+  readonly loadingTemplate = input<TemplateRef<unknown> | null>(null);
+  /** When set, a persistent `syn-status-banner` ("datos de ejemplo") stacks on top. */
+  readonly degradedMessage = input<string | undefined>(undefined);
 
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly sectionchange = output<string>();
   readonly itemselect = output<TItem>();
+  /** Emitted when the inline error-state retry is pressed. */
+  readonly retry = output<void>();
+  /** Emitted when the empty-inbox CTA (button) is pressed. */
+  readonly emptyAction = output<void>();
 
   // ─── State ─────────────────────────────────────────────────────────────────
   readonly activeSectionId = linkedSignal(
@@ -184,6 +234,14 @@ export class AccountShellComponent<TItem> {
     const index = this.selectedIndex();
     return index >= 0 ? (this.items()[index] ?? null) : null;
   });
+
+  // ─── State surfaces (Fase 2) ────────────────────────────────────────────────
+  readonly resolvedInboxEmptyTitle = computed(
+    () => this.config().inboxEmptyTitle ?? 'Aún no hay nada aquí',
+  );
+  readonly resolvedInboxEmptyMessage = computed(
+    () => this.config().inboxEmptyMessage ?? 'No hay elementos.',
+  );
 
   // ─── Actions ───────────────────────────────────────────────────────────────
   isInbox(section: AccountSection): boolean {

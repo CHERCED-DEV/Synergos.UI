@@ -34,11 +34,13 @@ const CONFIG: AccountShellConfig = {
       [config]="config()"
       [items]="items()"
       [loading]="loading()"
+      [degradedMessage]="degraded()"
       [itemTemplate]="row"
       [detailTemplate]="detail"
       [sectionTemplate]="section"
       (sectionchange)="sectionLog.push($event)"
       (itemselect)="selectLog.push($event.ref)"
+      (retry)="retryCount = retryCount + 1"
     />
   `,
 })
@@ -46,6 +48,8 @@ class HostComponent {
   readonly config = signal<AccountShellConfig>(CONFIG);
   readonly items = signal<readonly Order[]>([]);
   readonly loading = signal(false);
+  readonly degraded = signal<string | undefined>(undefined);
+  retryCount = 0;
   readonly sectionLog: string[] = [];
   readonly selectLog: string[] = [];
 }
@@ -69,9 +73,7 @@ describe(AccountShellComponent.name, () => {
     const element: HTMLElement = fixture.nativeElement;
 
     expect(element.querySelector('.syn-account__heading')?.textContent).toContain('Mi cuenta');
-    expect(element.querySelector('.syn-account__empty')?.textContent).toContain(
-      'Sin compras todavía',
-    );
+    expect(element.querySelector('syn-empty-state')?.textContent).toContain('Sin compras todavía');
     expect(element.querySelector('.syn-account__placeholder')).toBeTruthy();
     expect(element.querySelectorAll('.syn-account__nav-btn')).toHaveLength(3);
   });
@@ -150,5 +152,30 @@ describe(AccountShellComponent.name, () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.detail-body')).toBeNull();
     expect(fixture.nativeElement.querySelector('.syn-account__placeholder')).toBeTruthy();
+  });
+
+  // ── state surfaces (Fase 2): skeleton / error / degraded ────────────────────
+  it('renders a list skeleton on loading, error-state with retry, and the degraded banner', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    const element: HTMLElement = fixture.nativeElement;
+
+    host.loading.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('syn-skeleton')?.getAttribute('data-variant')).toBe('list');
+    expect(element.querySelector('syn-empty-state')).toBeNull();
+
+    host.degraded.set('Estás viendo datos de ejemplo.');
+    fixture.detectChanges();
+    expect(element.querySelector('syn-status-banner')?.textContent).toContain('datos de ejemplo');
+
+    host.config.set({ ...CONFIG, errorMessage: 'No pudimos cargar tus compras.' });
+    fixture.detectChanges();
+    expect(element.querySelector('syn-error-state')?.textContent).toContain(
+      'No pudimos cargar tus compras.',
+    );
+    expect(element.querySelector('syn-skeleton')).toBeNull();
+    element.querySelector<HTMLButtonElement>('.syn-error__retry')!.click();
+    expect(host.retryCount).toBe(1);
   });
 });

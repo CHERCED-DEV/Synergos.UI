@@ -8,6 +8,10 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { SynSkeletonComponent } from '../states/skeleton';
+import { SynEmptyStateComponent } from '../states/empty-state';
+import { SynErrorStateComponent } from '../states/error-state';
+import { SynStatusBannerComponent } from '../states/status-banner';
 
 /**
  * SH-7 — `syn-message-center` **v1** (catálogo §1.3 doc 21).
@@ -30,6 +34,14 @@ export interface MessageCenterConfig {
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
   readonly detailPlaceholder?: string;
+  // ── State surfaces (Fase 2) — all optional, additive ─────────────────────────
+  /** Title + CTA for the `first-use` empty conversation list. */
+  readonly emptyTitle?: string;
+  readonly emptyActionLabel?: string;
+  readonly emptyActionHref?: string;
+  /** When set, the list renders `syn-error-state` (with an inline retry). */
+  readonly errorMessage?: string;
+  readonly errorTitle?: string;
   readonly composerLabel?: string;
   readonly composerPlaceholder?: string;
   readonly sendLabel?: string;
@@ -59,7 +71,13 @@ let messageCenterInstanceId = 0;
 @Component({
   selector: 'syn-message-center',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [
+    NgTemplateOutlet,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+    SynStatusBannerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'syn-message-center' },
   styleUrl: './message-center.scss',
@@ -69,16 +87,40 @@ let messageCenterInstanceId = 0;
         <h1 class="syn-messages__heading">{{ config().heading }}</h1>
       }
 
+      @if (degradedMessage(); as degraded) {
+        <syn-status-banner class="syn-messages__banner" [message]="degraded" />
+      }
+
       <div class="syn-messages__panes">
         <nav class="syn-messages__list-pane" [attr.aria-label]="config().listLabel || 'Conversaciones'">
-          @if (loading()) {
-            <p class="syn-messages__empty" role="status">
-              {{ config().loadingMessage || 'Cargando…' }}
-            </p>
+          @if (config().errorMessage; as errorMessage) {
+            <syn-error-state
+              class="syn-messages__state"
+              [title]="config().errorTitle || 'Algo salió mal'"
+              [message]="errorMessage"
+              (retry)="retry.emit()"
+            />
+          } @else if (loading()) {
+            @if (loadingTemplate(); as tpl) {
+              <ng-container [ngTemplateOutlet]="tpl" />
+            } @else {
+              <syn-skeleton
+                class="syn-messages__state"
+                variant="list"
+                [rows]="6"
+                [ariaLabel]="config().loadingMessage || 'Cargando…'"
+              />
+            }
           } @else if (threads().length === 0) {
-            <p class="syn-messages__empty">
-              {{ config().emptyMessage || 'No hay conversaciones.' }}
-            </p>
+            <syn-empty-state
+              class="syn-messages__state"
+              kind="first-use"
+              [title]="resolvedEmptyTitle()"
+              [message]="resolvedEmptyMessage()"
+              [actionLabel]="config().emptyActionLabel"
+              [actionHref]="config().emptyActionHref"
+              (action)="emptyAction.emit()"
+            />
           } @else {
             <ul class="syn-messages__list">
               @for (thread of threads(); track $index; let index = $index) {
@@ -154,10 +196,18 @@ export class MessageCenterComponent<TThread> {
   readonly threadTemplate = input.required<TemplateRef<MessageThreadContext<TThread>>>();
   /** How to render the active thread (header + messages). */
   readonly detailTemplate = input<TemplateRef<MessageDetailContext<TThread>> | null>(null);
+  /** Optional custom loading surface; falls back to `syn-skeleton` (list). */
+  readonly loadingTemplate = input<TemplateRef<unknown> | null>(null);
+  /** When set, a persistent `syn-status-banner` ("datos de ejemplo") stacks on top. */
+  readonly degradedMessage = input<string | undefined>(undefined);
 
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly threadselect = output<TThread>();
   readonly send = output<MessageSendEvent<TThread>>();
+  /** Emitted when the inline error-state retry is pressed. */
+  readonly retry = output<void>();
+  /** Emitted when the empty-list CTA (button) is pressed. */
+  readonly emptyAction = output<void>();
 
   readonly fieldId = `syn-messages-${(messageCenterInstanceId += 1)}`;
 
@@ -165,6 +215,12 @@ export class MessageCenterComponent<TThread> {
   readonly composerBody = signal('');
 
   readonly sendDisabled = computed(() => this.sending() || this.composerBody().trim() === '');
+
+  // ─── State surfaces (Fase 2) ────────────────────────────────────────────────
+  readonly resolvedEmptyTitle = computed(() => this.config().emptyTitle ?? 'Sin conversaciones');
+  readonly resolvedEmptyMessage = computed(
+    () => this.config().emptyMessage ?? 'No hay conversaciones.',
+  );
 
   // ─── Actions ───────────────────────────────────────────────────────────────
   isActive(thread: TThread): boolean {

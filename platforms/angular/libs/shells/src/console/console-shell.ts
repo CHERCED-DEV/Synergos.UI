@@ -8,6 +8,10 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { SynSkeletonComponent } from '../states/skeleton';
+import { SynEmptyStateComponent, type EmptyStateKind } from '../states/empty-state';
+import { SynErrorStateComponent } from '../states/error-state';
+import { SynStatusBannerComponent } from '../states/status-banner';
 
 /**
  * SH-5 — `syn-console-shell` (catálogo §1.3 doc 21).
@@ -78,6 +82,17 @@ export interface ConsoleShellConfig {
   readonly actionsLabel?: string;
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
+  // ── State surfaces (Fase 2) — all optional, additive ─────────────────────────
+  /** Title for the empty queue surface. */
+  readonly emptyTitle?: string;
+  /** CTA on the `first-use` empty queue (nothing exists yet). */
+  readonly emptyActionLabel?: string;
+  readonly emptyActionHref?: string;
+  /** Label for the `no-results` "clear filter" CTA (a chip filter is active). */
+  readonly clearFilterLabel?: string;
+  /** When set, the queue renders `syn-error-state` (with an inline retry). */
+  readonly errorMessage?: string;
+  readonly errorTitle?: string;
 }
 
 /** Template context for one table cell. */
@@ -107,7 +122,13 @@ export interface ConsoleRowActionEvent<TRow> {
 @Component({
   selector: 'syn-console-shell',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [
+    NgTemplateOutlet,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+    SynStatusBannerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'syn-console-shell' },
   styleUrl: './console-shell.scss',
@@ -134,6 +155,9 @@ export interface ConsoleRowActionEvent<TRow> {
       </nav>
 
       <div class="syn-console__main">
+        @if (degradedMessage(); as degraded) {
+          <syn-status-banner class="syn-console__banner" [message]="degraded" />
+        }
         @if (kpis().length > 0) {
           <section class="syn-console__kpis" [attr.aria-label]="config().kpisLabel || 'Indicadores'">
             @for (kpi of kpis(); track kpi.id) {
@@ -191,14 +215,35 @@ export interface ConsoleRowActionEvent<TRow> {
                 </div>
               }
 
-              @if (loading()) {
-                <p class="syn-console__empty" role="status">
-                  {{ config().loadingMessage || 'Cargando…' }}
-                </p>
+              @if (config().errorMessage; as errorMessage) {
+                <syn-error-state
+                  class="syn-console__state"
+                  [title]="config().errorTitle || 'Algo salió mal'"
+                  [message]="errorMessage"
+                  (retry)="retry.emit()"
+                />
+              } @else if (loading()) {
+                @if (loadingTemplate(); as tpl) {
+                  <ng-container [ngTemplateOutlet]="tpl" />
+                } @else {
+                  <syn-skeleton
+                    class="syn-console__state"
+                    variant="table"
+                    [rows]="6"
+                    [columns]="skeletonColumns()"
+                    [ariaLabel]="config().loadingMessage || 'Cargando…'"
+                  />
+                }
               } @else if (rows().length === 0) {
-                <p class="syn-console__empty">
-                  {{ config().emptyMessage || 'No hay elementos en esta cola.' }}
-                </p>
+                <syn-empty-state
+                  class="syn-console__state"
+                  [kind]="emptyKind()"
+                  [title]="resolvedEmptyTitle()"
+                  [message]="resolvedEmptyMessage()"
+                  [actionLabel]="resolvedEmptyActionLabel()"
+                  [actionHref]="resolvedEmptyActionHref()"
+                  (action)="onEmptyAction()"
+                />
               } @else {
                 <div class="syn-console__table-wrap">
                   <table class="syn-console__table" [attr.aria-label]="section.label">
@@ -290,11 +335,19 @@ export class ConsoleShellComponent<TRow> {
   readonly reportsTemplate = input<TemplateRef<ConsoleReportsContext> | null>(null);
   /** Optional controlled active section id. */
   readonly section = input<string | undefined>(undefined);
+  /** Optional custom loading surface; falls back to `syn-skeleton` (table). */
+  readonly loadingTemplate = input<TemplateRef<unknown> | null>(null);
+  /** When set, a persistent `syn-status-banner` ("datos de ejemplo") stacks on top. */
+  readonly degradedMessage = input<string | undefined>(undefined);
 
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly sectionchange = output<string>();
   readonly filterchange = output<string>();
   readonly rowaction = output<ConsoleRowActionEvent<TRow>>();
+  /** Emitted when the inline error-state retry is pressed. */
+  readonly retry = output<void>();
+  /** Emitted when the `first-use` empty CTA (button) is pressed. */
+  readonly emptyAction = output<void>();
 
   // ─── State ─────────────────────────────────────────────────────────────────
   readonly activeSectionId = linkedSignal(
@@ -315,9 +368,53 @@ export class ConsoleShellComponent<TRow> {
     return this.actions().length > 0;
   });
 
+  // ─── State surfaces (Fase 2) ────────────────────────────────────────────────
+  /** A non-default chip filter is applied → the emptiness is a `no-results`. */
+  readonly hasActiveFilter = computed(() => {
+    const first = this.filters()[0]?.key ?? '';
+    return this.filters().length > 0 && this.activeFilterKey() !== first;
+  });
+  readonly emptyKind = computed<EmptyStateKind>(() =>
+    this.hasActiveFilter() ? 'no-results' : 'first-use',
+  );
+  /** Skeleton table columns mirror the real columns (+ the actions column). */
+  readonly skeletonColumns = computed(() =>
+    Math.max(1, this.columns().length + (this.hasActions() ? 1 : 0)),
+  );
+
+  readonly resolvedEmptyTitle = computed(() => {
+    const cfg = this.config();
+    return cfg.emptyTitle ?? (this.hasActiveFilter() ? 'Sin resultados' : 'Nada por aquí');
+  });
+  readonly resolvedEmptyMessage = computed(() => {
+    const cfg = this.config();
+    return (
+      cfg.emptyMessage ??
+      (this.hasActiveFilter()
+        ? 'No hay elementos para este filtro.'
+        : 'No hay elementos en esta cola.')
+    );
+  });
+  readonly resolvedEmptyActionLabel = computed(() => {
+    const cfg = this.config();
+    return this.hasActiveFilter() ? (cfg.clearFilterLabel ?? 'Limpiar filtro') : cfg.emptyActionLabel;
+  });
+  readonly resolvedEmptyActionHref = computed(() =>
+    this.hasActiveFilter() ? undefined : this.config().emptyActionHref,
+  );
+
   // ─── Actions ───────────────────────────────────────────────────────────────
   isTable(section: ConsoleSection): boolean {
     return (section.kind ?? 'table') === 'table';
+  }
+
+  /** Empty CTA: resets to the first chip for `no-results`, else reports intent. */
+  onEmptyAction(): void {
+    if (this.hasActiveFilter()) {
+      this.selectFilter(this.filters()[0]?.key ?? '');
+    } else {
+      this.emptyAction.emit();
+    }
   }
 
   selectSection(id: string): void {

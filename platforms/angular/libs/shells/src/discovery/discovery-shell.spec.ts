@@ -4,6 +4,7 @@ import {
   DiscoveryShellComponent,
   type DiscoveryCriteria,
   type DiscoveryFacet,
+  type DiscoveryShellConfig,
 } from './discovery-shell';
 
 interface Row {
@@ -37,18 +38,27 @@ const FACETS: readonly DiscoveryFacet[] = [
         { key: 'price-asc', label: 'Menor precio' }
       ]"
       [total]="total()"
-      [config]="{ pageSize: 2, emptyMessage: 'Nada por aquí' }"
+      [config]="config()"
+      [loading]="loading()"
+      [degradedMessage]="degraded()"
       [itemTemplate]="row"
       (criteriachange)="onCriteria($event)"
       (itemselect)="onSelect($event)"
+      (retry)="retryCount = retryCount + 1"
+      (emptyAction)="emptyActionCount = emptyActionCount + 1"
     />
   `,
 })
 class HostComponent {
+  readonly config = signal<DiscoveryShellConfig>({ pageSize: 2, emptyMessage: 'Nada por aquí' });
   readonly items = signal<readonly Row[]>([]);
   readonly facets = signal<readonly DiscoveryFacet[]>([]);
   readonly total = signal<number | null>(null);
+  readonly loading = signal(false);
+  readonly degraded = signal<string | undefined>(undefined);
   readonly criteriaLog: DiscoveryCriteria[] = [];
+  retryCount = 0;
+  emptyActionCount = 0;
   selected: Row | null = null;
 
   onCriteria(criteria: DiscoveryCriteria): void {
@@ -78,7 +88,7 @@ describe(DiscoveryShellComponent.name, () => {
     const fixture = await createHost();
     const element: HTMLElement = fixture.nativeElement;
 
-    expect(element.querySelector('.syn-discovery__empty')?.textContent).toContain('Nada por aquí');
+    expect(element.querySelector('syn-empty-state')?.textContent).toContain('Nada por aquí');
     expect(element.querySelector('.syn-discovery__count')?.textContent).toContain('0');
     expect(element.querySelectorAll('.syn-discovery__item')).toHaveLength(0);
   });
@@ -172,5 +182,57 @@ describe(DiscoveryShellComponent.name, () => {
     expect(
       fixture.nativeElement.querySelector('.syn-discovery__page-info')?.textContent,
     ).toContain('2 / 3');
+  });
+
+  // ── state surfaces (Fase 2): skeleton / error / degraded ────────────────────
+  it('renders skeleton on loading, error-state with retry on errorMessage, and the degraded banner', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    const element: HTMLElement = fixture.nativeElement;
+
+    // Loading → skeleton; never the empty surface while resolving.
+    host.loading.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('syn-skeleton')).toBeTruthy();
+    expect(element.querySelector('syn-empty-state')).toBeNull();
+
+    // Degraded → persistent status banner alongside the content.
+    host.degraded.set('Estás viendo datos de ejemplo.');
+    fixture.detectChanges();
+    expect(element.querySelector('syn-status-banner')?.textContent).toContain('datos de ejemplo');
+
+    // Error wins over loading; retry re-emits to the consumer.
+    host.config.set({ pageSize: 2, errorMessage: 'No se pudo cargar el catálogo.' });
+    fixture.detectChanges();
+    expect(element.querySelector('syn-error-state')?.textContent).toContain(
+      'No se pudo cargar el catálogo.',
+    );
+    expect(element.querySelector('syn-skeleton')).toBeNull();
+    element.querySelector<HTMLButtonElement>('.syn-error__retry')!.click();
+    expect(host.retryCount).toBe(1);
+  });
+
+  // ── empty differentiation: first-use vs no-results ──────────────────────────
+  it('differentiates first-use from no-results and clears criteria via the CTA', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    host.facets.set(FACETS);
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+
+    // No criteria + zero results → first-use.
+    expect(element.querySelector('syn-empty-state')?.getAttribute('data-kind')).toBe('first-use');
+
+    // Activating a facet with zero results → no-results + a "clear" CTA.
+    const checkbox = element.querySelector<HTMLInputElement>('.syn-discovery__facet-option input')!;
+    checkbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(element.querySelector('syn-empty-state')?.getAttribute('data-kind')).toBe('no-results');
+
+    const cta = element.querySelector<HTMLButtonElement>('syn-empty-state .syn-empty__action')!;
+    cta.click();
+    fixture.detectChanges();
+    // The internal clear() reset the criteria (no facets selected any more).
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({});
   });
 });

@@ -8,6 +8,10 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { SynSkeletonComponent, type SkeletonVariant } from '../states/skeleton';
+import { SynEmptyStateComponent, type EmptyStateKind } from '../states/empty-state';
+import { SynErrorStateComponent } from '../states/error-state';
+import { SynStatusBannerComponent } from '../states/status-banner';
 
 /**
  * SH-1 — `syn-discovery-shell` (catálogo §1.3 doc 21).
@@ -61,6 +65,17 @@ export interface DiscoveryShellConfig {
   readonly sortLabel?: string;
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
+  // ── State surfaces (Fase 2) — all optional, additive ─────────────────────────
+  /** Title for the `no-results` empty surface. */
+  readonly emptyTitle?: string;
+  /** `first-use` empty surface (nothing exists yet) — onboarding copy + CTA. */
+  readonly firstUseTitle?: string;
+  readonly firstUseMessage?: string;
+  readonly firstUseActionLabel?: string;
+  readonly firstUseActionHref?: string;
+  /** When set, the shell renders `syn-error-state` (with an inline retry). */
+  readonly errorMessage?: string;
+  readonly errorTitle?: string;
   /** Result-count nouns, e.g. `{ one: 'resultado', many: 'resultados' }`. */
   readonly resultsNoun?: { readonly one: string; readonly many: string };
   /** `grid` (default) or `list` layout for results. */
@@ -85,12 +100,21 @@ let discoveryInstanceId = 0;
 @Component({
   selector: 'syn-discovery-shell',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [
+    NgTemplateOutlet,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
+    SynErrorStateComponent,
+    SynStatusBannerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'syn-discovery-shell' },
   styleUrl: './discovery-shell.scss',
   template: `
     <div class="syn-discovery" [class.syn-discovery--list]="layout() === 'list'">
+      @if (degradedMessage(); as degraded) {
+        <syn-status-banner class="syn-discovery__banner" [message]="degraded" />
+      }
       @if (showSearch()) {
         <form class="syn-discovery__search" role="search" (submit)="onSearchSubmit($event)">
           <label class="syn-discovery__sr-only" [attr.for]="fieldId + '-q'">
@@ -160,14 +184,34 @@ let discoveryInstanceId = 0;
             }
           </div>
 
-          @if (loading()) {
-            <p class="syn-discovery__empty" role="status">
-              {{ config().loadingMessage || 'Cargando…' }}
-            </p>
+          @if (config().errorMessage; as errorMessage) {
+            <syn-error-state
+              class="syn-discovery__state"
+              [title]="config().errorTitle || 'Algo salió mal'"
+              [message]="errorMessage"
+              (retry)="retry.emit()"
+            />
+          } @else if (loading()) {
+            @if (loadingTemplate(); as tpl) {
+              <ng-container [ngTemplateOutlet]="tpl" />
+            } @else {
+              <syn-skeleton
+                class="syn-discovery__state"
+                [variant]="skeletonVariant()"
+                [rows]="skeletonRows()"
+                [ariaLabel]="config().loadingMessage || 'Cargando…'"
+              />
+            }
           } @else if (items().length === 0) {
-            <p class="syn-discovery__empty">
-              {{ config().emptyMessage || 'No encontramos resultados.' }}
-            </p>
+            <syn-empty-state
+              class="syn-discovery__state"
+              [kind]="emptyKind()"
+              [title]="resolvedEmptyTitle()"
+              [message]="resolvedEmptyMessage()"
+              [actionLabel]="resolvedEmptyActionLabel()"
+              [actionHref]="resolvedEmptyActionHref()"
+              (action)="onEmptyAction()"
+            />
           } @else {
             <ul class="syn-discovery__items" [class.syn-discovery__items--list]="layout() === 'list'">
               @for (item of items(); track $index) {
@@ -220,12 +264,20 @@ export class DiscoveryShellComponent<TItem> {
   readonly loading = input(false);
   /** How to render one result. Context: `$implicit` item, `index`, `select()`. */
   readonly itemTemplate = input.required<TemplateRef<DiscoveryItemContext<TItem>>>();
+  /** Optional custom loading surface; falls back to `syn-skeleton`. */
+  readonly loadingTemplate = input<TemplateRef<unknown> | null>(null);
+  /** When set, a persistent `syn-status-banner` ("datos de ejemplo") stacks on top. */
+  readonly degradedMessage = input<string | undefined>(undefined);
   /** Optional deep-link seed; resets internal criteria whenever it changes. */
   readonly initialCriteria = input<Partial<DiscoveryCriteria> | undefined>(undefined);
 
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly criteriachange = output<DiscoveryCriteria>();
   readonly itemselect = output<TItem>();
+  /** Emitted when the inline error-state retry is pressed. */
+  readonly retry = output<void>();
+  /** Emitted when the `first-use` empty CTA (button) is pressed. */
+  readonly emptyAction = output<void>();
 
   readonly fieldId = `syn-discovery-${(discoveryInstanceId += 1)}`;
 
@@ -258,6 +310,49 @@ export class DiscoveryShellComponent<TItem> {
     sort: this.sort(),
     page: this.page(),
   }));
+
+  // ─── State surfaces (Fase 2) ────────────────────────────────────────────────
+  /** `no-results` when criteria are active (filters/search); `first-use` otherwise. */
+  readonly emptyKind = computed<EmptyStateKind>(() =>
+    this.hasActiveCriteria() ? 'no-results' : 'first-use',
+  );
+  /** Skeleton mould matches the results layout (list → list, grid → cards). */
+  readonly skeletonVariant = computed<SkeletonVariant>(() =>
+    this.layout() === 'list' ? 'list' : 'card',
+  );
+  readonly skeletonRows = computed(() => Math.min(Math.max(this.pageSize(), 3), 8));
+
+  /** Default no-results copy derived from context (nouns + echoed term). */
+  private readonly derivedEmptyMessage = computed(() => {
+    const noun = this.config().resultsNoun?.many ?? 'resultados';
+    const term = this.term().trim();
+    return term !== '' ? `No encontramos ${noun} para “${term}”.` : `No encontramos ${noun}.`;
+  });
+
+  readonly resolvedEmptyTitle = computed(() => {
+    const cfg = this.config();
+    return this.emptyKind() === 'first-use'
+      ? (cfg.firstUseTitle ?? cfg.emptyTitle ?? 'Aún no hay nada aquí')
+      : (cfg.emptyTitle ?? 'Sin resultados');
+  });
+
+  readonly resolvedEmptyMessage = computed(() => {
+    const cfg = this.config();
+    const base =
+      this.emptyKind() === 'first-use' ? (cfg.firstUseMessage ?? cfg.emptyMessage) : cfg.emptyMessage;
+    return base ?? this.derivedEmptyMessage();
+  });
+
+  readonly resolvedEmptyActionLabel = computed(() => {
+    const cfg = this.config();
+    return this.emptyKind() === 'no-results'
+      ? (cfg.clearLabel ?? 'Limpiar filtros')
+      : cfg.firstUseActionLabel;
+  });
+
+  readonly resolvedEmptyActionHref = computed(() =>
+    this.emptyKind() === 'first-use' ? this.config().firstUseActionHref : undefined,
+  );
 
   // ─── User actions (each one emits the fresh criteria) ─────────────────────
   onTermInput(event: Event): void {
@@ -318,6 +413,15 @@ export class DiscoveryShellComponent<TItem> {
     }
     this.page.set(clamped);
     this.emitCriteria();
+  }
+
+  /** Empty CTA: clears criteria for `no-results`, else reports `first-use` intent. */
+  onEmptyAction(): void {
+    if (this.emptyKind() === 'no-results') {
+      this.clear();
+    } else {
+      this.emptyAction.emit();
+    }
   }
 
   showSearch(): boolean {

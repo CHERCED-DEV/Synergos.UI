@@ -40,10 +40,12 @@ const CONFIG: MessageCenterConfig = {
       [activeThread]="active()"
       [loading]="loading()"
       [sending]="sending()"
+      [degradedMessage]="degraded()"
       [threadTemplate]="row"
       [detailTemplate]="detail"
       (threadselect)="active.set($event); selectLog.push($event.id)"
       (send)="sendLog.push($event)"
+      (retry)="retryCount = retryCount + 1"
     />
   `,
 })
@@ -53,6 +55,8 @@ class HostComponent {
   readonly active = signal<Thread | null>(null);
   readonly loading = signal(false);
   readonly sending = signal(false);
+  readonly degraded = signal<string | undefined>(undefined);
+  retryCount = 0;
   readonly selectLog: string[] = [];
   readonly sendLog: MessageSendEvent<Thread>[] = [];
 }
@@ -91,7 +95,7 @@ describe(MessageCenterComponent.name, () => {
     const element: HTMLElement = fixture.nativeElement;
 
     expect(element.querySelector('.syn-messages__heading')?.textContent).toContain('Mensajes');
-    expect(element.querySelector('.syn-messages__empty')?.textContent).toContain(
+    expect(element.querySelector('syn-empty-state')?.textContent).toContain(
       'Sin conversaciones todavía',
     );
     expect(element.querySelector('.syn-messages__placeholder')?.textContent).toContain(
@@ -175,5 +179,30 @@ describe(MessageCenterComponent.name, () => {
     element.querySelector('form')!.dispatchEvent(new Event('submit'));
     fixture.detectChanges();
     expect(host.sendLog).toEqual([]);
+  });
+
+  // ── state surfaces (Fase 2): skeleton / error / degraded ────────────────────
+  it('renders a list skeleton on loading, error-state with retry, and the degraded banner', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    const element: HTMLElement = fixture.nativeElement;
+
+    host.loading.set(true);
+    fixture.detectChanges();
+    expect(element.querySelector('syn-skeleton')?.getAttribute('data-variant')).toBe('list');
+    expect(element.querySelector('syn-empty-state')).toBeNull();
+
+    host.degraded.set('Estás viendo datos de ejemplo.');
+    fixture.detectChanges();
+    expect(element.querySelector('syn-status-banner')?.textContent).toContain('datos de ejemplo');
+
+    host.config.set({ ...CONFIG, errorMessage: 'No se pudieron cargar los mensajes.' });
+    fixture.detectChanges();
+    expect(element.querySelector('syn-error-state')?.textContent).toContain(
+      'No se pudieron cargar los mensajes.',
+    );
+    expect(element.querySelector('syn-skeleton')).toBeNull();
+    element.querySelector<HTMLButtonElement>('.syn-error__retry')!.click();
+    expect(host.retryCount).toBe(1);
   });
 });
