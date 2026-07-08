@@ -14,17 +14,18 @@
       (click)="toggleNav()"
     >☰</button>
 
-    <div class="ehr__roles" role="group" aria-label="Cambiar de portal (demo)">
+    <nav class="ehr__roles" aria-label="Cambiar de perfil">
       @for (r of roles; track r.key) {
         <button
           type="button"
           class="ehr__role-btn"
           [class.is-active]="role() === r.key"
-          [attr.aria-pressed]="role() === r.key"
+          [attr.aria-current]="role() === r.key ? 'page' : null"
           (click)="setRole(r.key)"
         >{{ r.label }}</button>
       }
-    </div>
+    </nav>
+    <p class="ehr__sr-only" aria-live="polite" aria-atomic="true">{{ roleAnnouncement() }}</p>
   </header>
 
   <div class="ehr__layout">
@@ -302,16 +303,13 @@
       @if (view() === 'health') {
         <h1 class="ehr__view-title">Resumen de salud</h1>
         @if (healthSummary(); as hs) {
-          <div class="ehr__tabs" role="tablist" aria-label="Secciones de salud">
-            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'conditions'"
-              [attr.aria-selected]="healthTab() === 'conditions'" (click)="setHealthTab('conditions')">Condiciones</button>
-            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'allergies'"
-              [attr.aria-selected]="healthTab() === 'allergies'" (click)="setHealthTab('allergies')">Alergias</button>
-            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'immunizations'"
-              [attr.aria-selected]="healthTab() === 'immunizations'" (click)="setHealthTab('immunizations')">Vacunas</button>
-            <button type="button" class="ehr__tab" role="tab" [class.is-active]="healthTab() === 'maintenance'"
-              [attr.aria-selected]="healthTab() === 'maintenance'" (click)="setHealthTab('maintenance')">Cuidado preventivo</button>
-          </div>
+          <syn-tabs
+            class="ehr__tabs-strip"
+            [tabs]="healthTabs"
+            [activeId]="healthTab()"
+            ariaLabel="Secciones de salud"
+            (activeIdChange)="setHealthTab($any($event))"
+          />
 
           @switch (healthTab()) {
             @case ('conditions') {
@@ -453,18 +451,13 @@
 
             <!-- Chart activities -->
             <div class="ehr__chart-main">
-              <div class="ehr__tabs" role="tablist" aria-label="Actividades del chart">
-                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'summary'"
-                  [attr.aria-selected]="chartTab() === 'summary'" (click)="setChartTab('summary')">SnapShot</button>
-                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'history'"
-                  [attr.aria-selected]="chartTab() === 'history'" (click)="setChartTab('history')">Notas</button>
-                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'results'"
-                  [attr.aria-selected]="chartTab() === 'results'" (click)="setChartTab('results')">Resultados</button>
-                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'medications'"
-                  [attr.aria-selected]="chartTab() === 'medications'" (click)="setChartTab('medications')">Fórmulas</button>
-                <button type="button" class="ehr__tab" role="tab" [class.is-active]="chartTab() === 'evolution'"
-                  [attr.aria-selected]="chartTab() === 'evolution'" (click)="setChartTab('evolution')">Evolución</button>
-              </div>
+              <syn-tabs
+                class="ehr__tabs-strip"
+                [tabs]="chartTabs"
+                [activeId]="chartTab()"
+                ariaLabel="Actividades del chart"
+                (activeIdChange)="setChartTab($any($event))"
+              />
 
               @if (closedAvs()) {
                 <p class="ehr__avs" role="status">AVS generado y compartido al portal del paciente: {{ closedAvs() }}</p>

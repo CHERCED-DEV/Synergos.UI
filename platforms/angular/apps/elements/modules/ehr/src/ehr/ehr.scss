@@ -353,27 +353,19 @@
     cursor: pointer;
   }
 
-  /* ─── Tabs ───────────────────────────────────────────────────────────────── */
-  &__tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.px-to-rem(2);
-    border-bottom: syn.px-to-rem(1) solid var(--eh-border-subtle);
-  }
+  /* ─── Tabs (shared syn-tabs primitive; tablist only, rich panels below) ────── */
+  &__tabs-strip {
+    display: block;
+    margin-bottom: syn.$space-lg;
 
-  &__tab {
-    padding: syn.$space-2 syn.$space-3;
-    border: none;
-    border-bottom: syn.px-to-rem(2) solid transparent;
-    background: transparent;
-    color: var(--eh-text-secondary);
-    font-weight: syn.$font-weight-medium;
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
-
-    &.is-active {
-      color: var(--eh-brand);
-      border-bottom-color: var(--eh-brand);
+    /*
+     * syn-tabs bundles a text tabpanel; this module renders its own rich @switch
+     * panels, so hide the primitive's (empty) panel and keep only the accessible
+     * tablist — roving tabindex + Arrow/Home/End + focus are inherited. Styling
+     * comes from the primitive's own --syn-tabs-* tokens (zero local hardcode).
+     */
+    ::ng-deep .syn-tabs__panel {
+      display: none;
     }
   }
 

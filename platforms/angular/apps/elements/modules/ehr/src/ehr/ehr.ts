@@ -35,6 +35,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -220,6 +221,7 @@ let ehrInstanceId = 0;
     MessageCenterComponent,
     CheckoutWizardComponent,
     TrackingTimelineComponent,
+    TabsComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',
@@ -277,6 +279,27 @@ export class EhrElementComponent {
   readonly clinicianNav = CLINICIAN_NAV;
   readonly checkinSteps = E_CHECKIN_STEPS;
 
+  /**
+   * Content-tab descriptors fed to the shared `syn-tabs` primitive. We consume it
+   * as the accessible tablist only (roving tabindex + Arrow/Home/End + focus come
+   * for free); the rich `@switch` panels stay in this module's template, so `content`
+   * is intentionally empty and the primitive's own text panel is hidden in the SCSS.
+   */
+  readonly healthTabs: readonly { readonly id: HealthTab; readonly label: string; readonly content: string }[] = [
+    { id: 'conditions', label: 'Condiciones', content: '' },
+    { id: 'allergies', label: 'Alergias', content: '' },
+    { id: 'immunizations', label: 'Vacunas', content: '' },
+    { id: 'maintenance', label: 'Cuidado preventivo', content: '' },
+  ];
+
+  readonly chartTabs: readonly { readonly id: ChartTab; readonly label: string; readonly content: string }[] = [
+    { id: 'summary', label: 'SnapShot', content: '' },
+    { id: 'history', label: 'Notas', content: '' },
+    { id: 'results', label: 'Resultados', content: '' },
+    { id: 'medications', label: 'Fórmulas', content: '' },
+    { id: 'evolution', label: 'Evolución', content: '' },
+  ];
+
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly viewchange = output<EhrView>();
   readonly rolechange = output<EhrRole>();
@@ -306,6 +329,17 @@ export class EhrElementComponent {
 
   /** Only clinicians (doctor / nurse) may author encounters, e-Rx and release results. */
   readonly canClinicalWrite = computed(() => this.role() === 'doctor' || this.role() === 'nurse');
+
+  /**
+   * Polite screen-reader announcement of the active profile. The role switch changes
+   * the whole portal/journey (navigation, not a toggle), so the context change is
+   * surfaced through an `aria-live` region rather than `aria-pressed` state.
+   */
+  readonly roleAnnouncement = computed(() => {
+    const label = this.roleLabel(this.role());
+    const portal = this.portal() === 'patient' ? 'portal del paciente' : 'portal clínico';
+    return `Perfil activo: ${label}. Estás en el ${portal}.`;
+  });
 
   // ─── PATIENT portal state ────────────────────────────────────────────────────
   readonly home = signal<PortalHome | null>(null);
