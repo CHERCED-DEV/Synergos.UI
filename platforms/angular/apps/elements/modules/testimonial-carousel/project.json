@@ -41,6 +41,12 @@
           "apps/elements/modules/testimonial-carousel/src/**/*.html"
         ]
       }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/testimonial-carousel/tsconfig.spec.json"
+      }
     }
   }
 }

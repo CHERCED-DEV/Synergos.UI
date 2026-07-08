@@ -20,6 +20,11 @@
   --tc-star-empty: var(--syn-color-border-default, #{syn.$color-neutral-300});
   --tc-star-filled: var(--syn-color-warning-500, #{syn.$color-warning-500});
 
+  // Slide handoff (Ola 0 premium motion). One phase = fade-out OR fade-in; the
+  // two run back-to-back so a text slide is never cross-faded over another.
+  --tc-fade-dur: var(--syn-dur-fast, #{syn.$dur-fast});
+  --tc-fade-ease: var(--syn-ease-out, #{syn.$ease-out});
+
   display: block;
   max-width: 100%;
 }
@@ -54,15 +59,25 @@
     opacity: 0;
     visibility: hidden;
     transform: translateY(#{syn.px-to-rem(8)});
+    // Exit phase: the outgoing slide fades out FIRST, with no delay. Visibility
+    // flips to hidden only after the fade completes (stepped, delayed) so it
+    // stays paintable while fading, then leaves the a11y/focus tree.
     transition:
-      opacity var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth,
-      transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
-      visibility var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-smooth;
+      opacity var(--tc-fade-dur) var(--tc-fade-ease),
+      transform var(--tc-fade-dur) var(--tc-fade-ease),
+      visibility 0s linear var(--tc-fade-dur);
 
     &--active {
       opacity: 1;
       visibility: visible;
       transform: translateY(0);
+      // Entrance phase: wait one fade duration for the outgoing slide to fully
+      // clear, THEN fade in. Sequential handoff — two text slides are never
+      // partially visible at the same time (no cross-fade overlap).
+      transition:
+        opacity var(--tc-fade-dur) var(--tc-fade-ease) var(--tc-fade-dur),
+        transform var(--tc-fade-dur) var(--tc-fade-ease) var(--tc-fade-dur),
+        visibility 0s linear var(--tc-fade-dur);
     }
   }
 
@@ -237,13 +252,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  // Hard-cut swap: no fade, no delay, no drift. The active slide appears and
+  // the previous one disappears instantly — still never two slides at once.
   .carousel__slide,
+  .carousel__slide--active,
   .carousel__nav,
   .carousel__dot-mark {
     transition: none;
   }
 
-  .carousel__slide {
+  .carousel__slide,
+  .carousel__slide--active {
     transform: none;
   }
 
