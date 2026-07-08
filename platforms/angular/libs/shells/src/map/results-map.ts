@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { SegmentedComponent, type SegmentedOption } from '@synergos/shared';
 
 /**
  * SH-8 — `syn-results-map` (catálogo §1.3 doc 21; estrenado por Booking, reusado
@@ -133,7 +134,7 @@ let resultsMapInstanceId = 0;
 @Component({
   selector: 'syn-results-map',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, SegmentedComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'syn-results-map' },
   styleUrl: './results-map.scss',
@@ -141,35 +142,13 @@ let resultsMapInstanceId = 0;
     <div class="syn-rmap" [attr.data-layout]="layout()">
       @if (showToggle()) {
         <div class="syn-rmap__toolbar">
-          <div class="syn-rmap__toggle" role="group" [attr.aria-label]="'Vista'">
-            <button
-              type="button"
-              class="syn-rmap__toggle-btn"
-              [class.is-active]="layout() === 'list'"
-              [attr.aria-pressed]="layout() === 'list'"
-              (click)="setLayout('list')"
-            >
-              {{ config().listLabel || 'Lista' }}
-            </button>
-            <button
-              type="button"
-              class="syn-rmap__toggle-btn"
-              [class.is-active]="layout() === 'split'"
-              [attr.aria-pressed]="layout() === 'split'"
-              (click)="setLayout('split')"
-            >
-              {{ config().splitLabel || 'Dividido' }}
-            </button>
-            <button
-              type="button"
-              class="syn-rmap__toggle-btn"
-              [class.is-active]="layout() === 'map'"
-              [attr.aria-pressed]="layout() === 'map'"
-              (click)="setLayout('map')"
-            >
-              {{ config().mapLabel || 'Mapa' }}
-            </button>
-          </div>
+          <syn-segmented
+            size="sm"
+            ariaLabel="Vista"
+            [options]="layoutOptions()"
+            [value]="layout()"
+            (valueChange)="onLayoutChange($event)"
+          />
         </div>
       }
 
@@ -288,6 +267,15 @@ export class ResultsMapComponent<TItem> {
   /** Follows the configured layout whenever the config changes. */
   readonly layout = linkedSignal<ResultsMapLayout>(() => this.config().layout ?? 'split');
   readonly showToggle = computed(() => this.config().showToggle ?? true);
+  /** The three layout segments for the `syn-segmented` toggle (labels from config). */
+  readonly layoutOptions = computed<readonly SegmentedOption[]>(() => {
+    const config = this.config();
+    return [
+      { value: 'list', label: config.listLabel || 'Lista' },
+      { value: 'split', label: config.splitLabel || 'Dividido' },
+      { value: 'map', label: config.mapLabel || 'Mapa' },
+    ];
+  });
   readonly showControls = computed(() => this.config().showControls ?? true);
   readonly hoveredIndex = signal(-1);
   readonly searchAsIMove = signal(false);
@@ -341,6 +329,11 @@ export class ResultsMapComponent<TItem> {
     }
     this.layout.set(layout);
     this.layoutchange.emit(layout);
+  }
+
+  /** Adapts `syn-segmented`'s string emission back to the typed layout contract. */
+  onLayoutChange(value: string): void {
+    this.setLayout(value as ResultsMapLayout);
   }
 
   hover(index: number): void {

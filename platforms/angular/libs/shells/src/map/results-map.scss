@@ -24,36 +24,10 @@
   flex-direction: column;
   gap: syn.$space-3;
 
-  // ─── Toolbar / layout toggle ────────────────────────────────────────────────
+  // ─── Toolbar / layout toggle (control = `syn-segmented`) ────────────────────
   &__toolbar {
     display: flex;
     justify-content: flex-end;
-  }
-
-  &__toggle {
-    display: inline-flex;
-    border: syn.px-to-rem(1) solid var(--shm-border);
-    border-radius: syn.$radius-full;
-    background: var(--shm-surface-muted);
-    overflow: hidden;
-  }
-
-  &__toggle-btn {
-    padding: syn.$space-1 syn.$space-3;
-    border: none;
-    background: transparent;
-    color: var(--shm-text-secondary);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
-
-    @include syn.focus-visible(var(--shm-focus-ring));
-
-    &.is-active {
-      background: var(--shm-brand);
-      color: var(--shm-brand-text);
-      font-weight: syn.$font-weight-semibold;
-    }
   }
 
   // ─── Body: list ↔ map ──────────────────────────────────────────────────────

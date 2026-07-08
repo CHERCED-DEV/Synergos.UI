@@ -123,6 +123,11 @@ export {
 } from './components/compositions/pricing-card/pricing-card';
 export { ReadMoreComponent } from './components/compositions/read-more/read-more';
 export {
+  SegmentedComponent,
+  type SegmentedOption,
+  type SegmentedSize,
+} from './components/compositions/segmented/segmented';
+export {
   SegmentedControlComponent,
   type SegmentedControlOption,
 } from './components/compositions/segmented-control/segmented-control';

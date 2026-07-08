@@ -143,7 +143,9 @@ describe(ResultsMapComponent.name, () => {
     expect(host.boundsLog[0].maxLat).toBeGreaterThan(10.45);
 
     // Toggle list → map → back to split; the list pane returns identically.
-    const toggles = element.querySelectorAll<HTMLButtonElement>('.syn-rmap__toggle-btn');
+    // The layout control is now the `syn-segmented` radiogroup (list/split/map).
+    const toggles = element.querySelectorAll<HTMLButtonElement>('.syn-segmented__option');
+    expect(toggles).toHaveLength(3);
     toggles[2].click(); // map only
     fixture.detectChanges();
     expect(element.querySelector('.syn-rmap__list-pane')).toBeNull();
