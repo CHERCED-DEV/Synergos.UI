@@ -11,20 +11,25 @@
       <span class="gov__brand-name">GOV · Trámites</span>
     </button>
 
-    <div class="gov__roles" role="tablist" aria-label="Cara de demostración">
+    <!--
+      El switch de perfil NO son tabs: cada perfil abre un journey completo
+      (portal ciudadano vs consola del funcionario), así que es navegación.
+      Perfil activo = aria-current="page"; el cambio se anuncia en la región
+      aria-live gov__sr-status (setRole → announce()).
+    -->
+    <nav class="gov__roles" aria-label="Cambiar de perfil">
       @for (r of roles; track r.key) {
         <button
           type="button"
-          role="tab"
           class="gov__role"
           [class.gov__role--active]="role() === r.key"
-          [attr.aria-selected]="role() === r.key"
+          [attr.aria-current]="role() === r.key ? 'page' : null"
           (click)="setRole(r.key)"
         >
           {{ r.label }}
         </button>
       }
-    </div>
+    </nav>
 
     <nav class="gov__nav" aria-label="Secciones">
       @if (role() === 'citizen') {

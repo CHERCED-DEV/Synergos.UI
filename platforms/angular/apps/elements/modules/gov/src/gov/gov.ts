@@ -451,7 +451,10 @@ export class GovElementComponent {
       setter((event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value ?? '');
   }
 
-  // ─── Role switch (demo: citizen ↔ officer) ─────────────────────────────────
+  // ─── Role switch (navegación entre journeys: citizen ↔ officer) ─────────────
+  // No es un tablist: cada perfil abre un portal completo distinto. La UI lo
+  // trata como <nav aria-current>; aquí se anuncia el cambio en la región
+  // aria-live para lectores de pantalla (WCAG: estado sin recarga).
   setRole(role: GovRole): void {
     if (this.role() === role) {
       return;
@@ -460,6 +463,7 @@ export class GovElementComponent {
     this.errorMessage.set('');
     this.rolechange.emit(role);
     this.navigate(role === 'officer' ? 'queue' : 'catalog');
+    this.announce(`Cambió al perfil ${ROLES.find((r) => r.key === role)?.label ?? ''}.`);
   }
 
   // ─── Router (signals + hash deep-links) ────────────────────────────────────
