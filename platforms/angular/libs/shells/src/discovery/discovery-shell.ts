@@ -8,10 +8,14 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { SynSkeletonComponent, type SkeletonVariant } from '../states/skeleton';
-import { SynEmptyStateComponent, type EmptyStateKind } from '../states/empty-state';
-import { SynErrorStateComponent } from '../states/error-state';
-import { SynStatusBannerComponent } from '../states/status-banner';
+import {
+  SynSkeletonComponent,
+  type SkeletonVariant,
+  SynEmptyStateComponent,
+  type EmptyStateKind,
+  SynErrorStateComponent,
+  SynStatusBannerComponent,
+} from '@synergos/shared';
 
 /**
  * SH-1 — `syn-discovery-shell` (catálogo §1.3 doc 21).

@@ -199,3 +199,14 @@ export {
   type SocialLinkItem,
   type SocialLinksLayout,
 } from './components/patterns/social-links/social-links';
+
+// State components (ViewState contract)
+// The loading|ready|empty|error|degraded contract + the four tokenised state
+// surfaces every data shell composes (doc 22 §6). Domain-free; they live here
+// (not in @synergos/shells) so they load ONCE from the externalized runtime
+// (sg-shared.js) instead of bundling-as-source into every consuming app.
+export { type ViewState } from './components/states/view-state';
+export { SynSkeletonComponent, type SkeletonVariant } from './components/states/skeleton';
+export { SynEmptyStateComponent, type EmptyStateKind } from './components/states/empty-state';
+export { SynErrorStateComponent } from './components/states/error-state';
+export { SynStatusBannerComponent, type StatusBannerTone } from './components/states/status-banner';

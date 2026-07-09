@@ -8,10 +8,13 @@ import {
   output,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { SynSkeletonComponent } from '../states/skeleton';
-import { SynEmptyStateComponent, type EmptyStateKind } from '../states/empty-state';
-import { SynErrorStateComponent } from '../states/error-state';
-import { SynStatusBannerComponent } from '../states/status-banner';
+import {
+  SynSkeletonComponent,
+  SynEmptyStateComponent,
+  type EmptyStateKind,
+  SynErrorStateComponent,
+  SynStatusBannerComponent,
+} from '@synergos/shared';
 
 /**
  * SH-5 — `syn-console-shell` (catálogo §1.3 doc 21).

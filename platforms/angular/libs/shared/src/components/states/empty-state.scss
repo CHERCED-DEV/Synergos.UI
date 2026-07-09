@@ -1,4 +1,4 @@
-@use '../../../../../../vitals/core-assets/src/scss' as syn;
+@use '../../../../../../../vitals/core-assets/src/scss' as syn;
 
 :host {
   --emp-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});

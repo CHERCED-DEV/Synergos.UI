@@ -129,10 +129,17 @@ export {
 
 // ─── State components ─────────────────────────────────────────────────────────
 // The ViewState contract (loading|ready|empty|error|degraded) + the four
-// tokenised state surfaces every data shell composes (doc 22 §6). Built once
-// here, framework-free of any domain; Fase 2 wires them into the shells above.
-export { type ViewState } from './states/view-state';
-export { SynSkeletonComponent, type SkeletonVariant } from './states/skeleton';
-export { SynEmptyStateComponent, type EmptyStateKind } from './states/empty-state';
-export { SynErrorStateComponent } from './states/error-state';
-export { SynStatusBannerComponent, type StatusBannerTone } from './states/status-banner';
+// tokenised state surfaces every data shell composes (doc 22 §6). These now
+// live in @synergos/shared so they load ONCE from the externalized runtime
+// (sg-shared.js) instead of bundling-as-source into every app. Re-exported here
+// unchanged to preserve the @synergos/shells public contract.
+export {
+  type ViewState,
+  SynSkeletonComponent,
+  type SkeletonVariant,
+  SynEmptyStateComponent,
+  type EmptyStateKind,
+  SynErrorStateComponent,
+  SynStatusBannerComponent,
+  type StatusBannerTone,
+} from '@synergos/shared';

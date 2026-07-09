@@ -8,10 +8,12 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { SynSkeletonComponent } from '../states/skeleton';
-import { SynEmptyStateComponent } from '../states/empty-state';
-import { SynErrorStateComponent } from '../states/error-state';
-import { SynStatusBannerComponent } from '../states/status-banner';
+import {
+  SynSkeletonComponent,
+  SynEmptyStateComponent,
+  SynErrorStateComponent,
+  SynStatusBannerComponent,
+} from '@synergos/shared';
 
 /**
  * SH-7 — `syn-message-center` **v1** (catálogo §1.3 doc 21).
