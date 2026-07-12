@@ -13,8 +13,9 @@
   --al-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --al-count-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --al-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --al-accent: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --al-accent-soft: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  // --al-accent = acento SÓLIDO (color del icono); era state-brand-surface (wash 18%) → icono casi invisible
+  --al-accent: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --al-accent-soft: var(--syn-color-state-brand-soft, #{syn.$color-neutral-100});
 
   display: block;
 }
@@ -203,9 +204,10 @@
     color: var(--al-accent);
   }
 
-  &__icon-glyph {
-    font-size: syn.$font-size-xl;
-    line-height: 1;
+  &__icon-svg {
+    inline-size: #{syn.px-to-rem(24)};
+    block-size: #{syn.px-to-rem(24)};
+    // color hereda de .domain-card__icon (--al-accent) via currentColor
   }
 
   &__badge {
