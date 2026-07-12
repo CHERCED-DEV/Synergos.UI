@@ -681,6 +681,20 @@ export class StorefrontElementComponent {
       : '';
   }
 
+  /** Iniciales (hasta 2) para el plato-fallback cuando un producto no trae foto.
+   *  Reemplaza el emoji genérico por un monograma intencional y theme-aware. */
+  monogram(title: string): string {
+    const stop = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'con', 'para']);
+    const words = (title || '')
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w && !stop.has(w.toLowerCase()));
+    if (words.length === 0) return '·';
+    const first = words[0].charAt(0);
+    const second = words.length > 1 ? words[1].charAt(0) : words[0].charAt(1);
+    return (first + (second || '')).toUpperCase();
+  }
+
   // ─── PDP (SH-2 wiring) ───────────────────────────────────────────────────────
   openProduct(product: ShopProduct): void {
     this.navigate('pdp', product.id);

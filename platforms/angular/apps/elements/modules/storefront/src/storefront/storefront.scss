@@ -10,9 +10,14 @@
   --sf-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sf-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --sf-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sf-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --sf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --sf-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // --sf-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en un wash 12% → botón fantasma).
+  --sf-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --sf-brand-soft = wash de marca THEME-AWARE para bandas (antes apuntaba a un token inexistente
+  // → lavanda claro fijo en todos los temas → hero ilegible en dark). Ahora se oscurece en temas dark.
+  --sf-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el botón --sf-brand: misma familia action-primary → contraste correcto
+  // en cada tema (en dark el botón es periwinkle claro, así que este token es oscuro).
+  --sf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --sf-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --sf-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
@@ -107,6 +112,9 @@
   }
 
   &__searchbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     padding: syn.$space-2 syn.$space-4;
     border: none;
@@ -115,6 +123,11 @@
     cursor: pointer;
 
     @include syn.focus-visible(var(--sf-focus-ring));
+  }
+
+  &__icon {
+    display: block;
+    flex: 0 0 auto;
   }
 
   &__nav {
@@ -403,9 +416,22 @@
     object-fit: cover;
   }
 
-  &__card-placeholder {
-    font-size: syn.px-to-rem(40);
-    opacity: 0.5;
+  // Fallback elegante cuando el producto no trae foto: plato theme-aware + monograma.
+  // Reemplaza el emoji 📦 genérico (olor-a-IA) por algo intencional que hereda el tema.
+  &__card-monogram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: syn.px-to-rem(30);
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: 0.04em;
+    color: var(--sf-text-secondary);
+    background:
+      radial-gradient(115% 115% at 28% 18%, var(--sf-brand-soft) 0%, transparent 62%),
+      var(--sf-surface-muted);
+    user-select: none;
   }
 
   &__card-body {
@@ -1456,9 +1482,14 @@
   }
 
   &__searchbar--hero {
+    // El base .searchbar trae `flex: 1 1 280px` para el HEADER (flex row → 280 = ancho).
+    // Aquí el hero es flex COLUMN, así que ese flex-basis caía sobre el eje vertical
+    // (280px de alto) y con el pill radius se veía como un óvalo gigante. Reset explícito.
+    flex: 0 0 auto;
     width: 100%;
-    max-width: syn.px-to-rem(520);
+    max-width: syn.px-to-rem(560);
     background: var(--sf-surface);
+    box-shadow: var(--syn-shadow-sm);
   }
 
   &__home-section {
