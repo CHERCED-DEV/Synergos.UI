@@ -8,8 +8,9 @@
   --shd-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --shd-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --shd-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --shd-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --shd-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  /* brand = acento SÓLIDO (antes state-brand-surface wash → el botón de búsqueda era un CTA fantasma) */
+  --shd-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --shd-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --shd-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
 
   display: block;
@@ -38,13 +39,18 @@
   &__search {
     display: flex;
     max-width: syn.px-to-rem(560);
+    min-height: syn.$control-h-lg;                 // 48px — altura fija, no 'crece' al hidratar
     border: syn.px-to-rem(1) solid var(--shd-border);
     border-radius: syn.$radius-full;
     background: var(--shd-surface-muted);
     overflow: hidden;
 
+    // Foco de dos capas (borde nítido + halo) — legible en cualquier tema.
     &:focus-within {
       border-color: var(--shd-brand);
+      box-shadow:
+        0 0 0 syn.px-to-rem(1) var(--shd-brand),
+        0 0 0 syn.px-to-rem(4) var(--shd-focus-ring);
     }
   }
 

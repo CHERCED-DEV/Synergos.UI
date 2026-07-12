@@ -9,8 +9,9 @@
   --sb-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sb-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --sb-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
-  --sb-submit-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --sb-submit-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  /* submit = acción SÓLIDA (antes state-brand-surface wash + text-on-brand inexistente = CTA fantasma) */
+  --sb-submit-surface: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --sb-submit-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sb-suggestion-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --sb-suggestion-active: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
   --sb-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
@@ -36,18 +37,23 @@
     display: flex;
     align-items: center;
     gap: syn.$space-2;
+    // Altura FIJA (antes la dictaba el contenido → 'crecía' al hidratar).
+    min-height: syn.$control-h-lg;                 // 48px estable
     padding: syn.$space-1 syn.$space-1 syn.$space-1 syn.$space-3;
     border: syn.px-to-rem(1) solid var(--sb-border);
-    border-radius: syn.$radius-full;
+    border-radius: syn.$radius-full;               // pill (estable ahora que la altura es fija)
     background: var(--sb-surface);
     box-shadow: var(--sb-shadow);
     transition:
       border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
       box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
+    // Foco de dos capas (borde nítido + halo focus-ring) — legible en cualquier tema.
     &:focus-within {
       border-color: var(--sb-border-focus);
-      box-shadow: var(--sb-shadow-focus);
+      box-shadow:
+        0 0 0 syn.px-to-rem(1) var(--sb-border-focus),
+        0 0 0 syn.px-to-rem(4) var(--sb-focus-ring);
     }
   }
 
