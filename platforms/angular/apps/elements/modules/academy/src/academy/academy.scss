@@ -10,9 +10,15 @@
   --ac-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --ac-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --ac-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --ac-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --ac-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --ac-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // --ac-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
+  // un wash 12% → botón/hero fantasma: blanco sobre lavado ~1.1:1).
+  --ac-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --ac-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a
+  // --syn-color-state-brand-soft, token inexistente → siempre brand-100, no theme-aware).
+  --ac-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el botón --ac-brand: misma familia action-primary → contraste correcto
+  // (antes --syn-color-text-on-brand, token inexistente).
+  --ac-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --ac-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --ac-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --ac-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

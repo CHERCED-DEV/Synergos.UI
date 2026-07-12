@@ -10,9 +10,9 @@
   --ev-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --ev-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --ev-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --ev-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --ev-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --ev-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --ev-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --ev-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --ev-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --ev-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --ev-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

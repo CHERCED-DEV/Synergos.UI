@@ -9,9 +9,10 @@
   --gv-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --gv-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --gv-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --gv-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --gv-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --gv-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --gv-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // Texto/ícono SOBRE el fondo sólido --gv-brand: misma familia action-primary → contraste correcto
+  --gv-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --gv-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --gv-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --gv-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

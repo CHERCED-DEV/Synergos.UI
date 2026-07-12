@@ -10,9 +10,9 @@
   --rt-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --rt-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --rt-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --rt-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --rt-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --rt-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --rt-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --rt-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --rt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --rt-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --rt-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

@@ -19,9 +19,13 @@
   --eh-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --eh-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --eh-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --eh-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --eh-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --eh-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // --eh-brand = acento SÓLIDO para CTAs/bordes/foco/badges (antes caía en un wash 12% → botón fantasma).
+  --eh-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --eh-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a un token inexistente
+  // → lavanda claro fijo en todos los temas). Ahora se oscurece en temas dark.
+  --eh-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el acento --eh-brand: misma familia action-primary → contraste correcto por tema.
+  --eh-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --eh-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --eh-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --eh-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

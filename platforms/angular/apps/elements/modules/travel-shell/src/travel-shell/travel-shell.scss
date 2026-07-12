@@ -10,9 +10,13 @@
   --ts-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --ts-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --ts-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --ts-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  // --ts-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
+  // un wash 12% pensado como fondo de chip → botón/CTA fantasma ~1.1:1).
+  --ts-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --ts-brand-soft = wash de marca THEME-AWARE para bandas/estados suaves (nav activo, crosssell, chip).
   --ts-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --ts-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // Texto/ícono SOBRE el fill --ts-brand: misma familia action-primary → contraste correcto.
+  --ts-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --ts-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --ts-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --ts-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});

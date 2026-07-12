@@ -9,9 +9,12 @@
   --bw-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --bw-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --bw-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --bw-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  // --bw-brand = acento SÓLIDO para CTAs/badge/foco/spinner (antes caía en un wash 12% → botón fantasma).
+  --bw-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --bw-brand-soft = wash de marca THEME-AWARE (track del spinner); se queda apuntando al surface 12%.
   --bw-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
-  --bw-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  // Texto SOBRE el brand sólido (badge/botón primario): misma familia action-primary → contraste correcto.
+  --bw-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --bw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --bw-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
   --bw-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
