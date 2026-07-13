@@ -695,6 +695,20 @@ export class StorefrontElementComponent {
     return (first + (second || '')).toUpperCase();
   }
 
+  /** Imágenes que fallaron al cargar (404) → la card cae al monograma en vez de
+   *  mostrar un ícono de imagen rota. Robusto ante rutas de media inexistentes. */
+  readonly #imgFailed = signal<ReadonlySet<string>>(new Set<string>());
+  onImageError(id: string): void {
+    this.#imgFailed.update((s) => {
+      const n = new Set(s);
+      n.add(id);
+      return n;
+    });
+  }
+  hasImage(product: { id: string; images?: readonly string[] }): boolean {
+    return (product.images?.length ?? 0) > 0 && !this.#imgFailed().has(product.id);
+  }
+
   // ─── PDP (SH-2 wiring) ───────────────────────────────────────────────────────
   openProduct(product: ShopProduct): void {
     this.navigate('pdp', product.id);

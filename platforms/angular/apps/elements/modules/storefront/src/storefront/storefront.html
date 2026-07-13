@@ -131,8 +131,8 @@
             (click)="openProduct(product)"
             [attr.aria-label]="'Ver ' + product.title"
           >
-            @if (product.images.length > 0) {
-              <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
+            @if (hasImage(product)) {
+              <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
             } @else {
               <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
             }
@@ -187,8 +187,8 @@
           (click)="select()"
           [attr.aria-label]="'Ver ' + product.title"
         >
-          @if (product.images.length > 0) {
-            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
+          @if (hasImage(product)) {
+            <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
           } @else {
             <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
           }
@@ -425,8 +425,8 @@
                   (click)="openProduct(product)"
                   [attr.aria-label]="'Ver ' + product.title"
                 >
-                  @if (product.images.length > 0) {
-                    <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
+                  @if (hasImage(product)) {
+                    <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" (error)="onImageError(product.id)" />
                   } @else {
                     <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
                   }
