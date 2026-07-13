@@ -15,9 +15,9 @@
   --bl-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --bl-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --bl-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --bl-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --bl-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
   --bl-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
-  --bl-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --bl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --bl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
 
   display: block;

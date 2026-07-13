@@ -14,11 +14,11 @@
   // Texto/ícono SOBRE el fondo sólido --gv-brand: misma familia action-primary → contraste correcto
   --gv-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --gv-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --gv-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --gv-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --gv-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --gv-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --gv-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --gv-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --gv-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --gv-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
   --gv-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
 
   display: block;

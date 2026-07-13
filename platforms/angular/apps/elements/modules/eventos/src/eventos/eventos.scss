@@ -14,11 +14,11 @@
   --ev-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --ev-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --ev-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --ev-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --ev-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --ev-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --ev-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --ev-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --ev-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --ev-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --ev-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
   --ev-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
 
   display: block;

@@ -14,10 +14,10 @@
   --rt-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --rt-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --rt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --rt-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --rt-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --rt-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --rt-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
-  --rt-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --rt-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --rt-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
   --rt-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
 
   display: block;

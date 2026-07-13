@@ -27,11 +27,11 @@
   // Texto/ícono SOBRE el acento --eh-brand: misma familia action-primary → contraste correcto por tema.
   --eh-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --eh-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --eh-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --eh-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --eh-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --eh-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --eh-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --eh-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --eh-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --eh-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
   --eh-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
 
   display: block;

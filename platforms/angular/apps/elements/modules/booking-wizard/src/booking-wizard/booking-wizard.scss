@@ -16,9 +16,9 @@
   // Texto SOBRE el brand sólido (badge/botón primario): misma familia action-primary → contraste correcto.
   --bw-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --bw-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --bw-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --bw-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --bw-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --bw-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --bw-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
 
   display: block;
   max-width: 100%;

@@ -19,11 +19,11 @@
   // en cada tema (en dark el botón es periwinkle claro, así que este token es oscuro).
   --sf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --sf-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --sf-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --sf-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --sf-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --sf-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --sf-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --sf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --sf-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
 
   display: block;
   max-width: 100%;

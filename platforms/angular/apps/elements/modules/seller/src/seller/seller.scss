@@ -13,11 +13,11 @@
   --sl-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
   --sl-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
   --sl-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --sl-success: var(--syn-color-state-success-surface, #{syn.$color-success-600});
+  --sl-success: var(--syn-color-state-success-text, #{syn.$color-success-600});
   --sl-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --sl-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --sl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --sl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --sl-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --sl-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
 
   display: block;
   max-width: 100%;

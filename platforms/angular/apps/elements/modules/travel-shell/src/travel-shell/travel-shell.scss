@@ -18,11 +18,11 @@
   // Texto/ícono SOBRE el fill --ts-brand: misma familia action-primary → contraste correcto.
   --ts-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --ts-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
-  --ts-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --ts-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
   --ts-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
-  --ts-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --ts-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --ts-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --ts-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --ts-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
 
   display: block;
   max-width: 100%;
