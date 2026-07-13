@@ -73,8 +73,13 @@
   }
 
   &__brand-mark {
+    display: inline-flex;
     color: var(--ev-brand);
-    font-size: syn.px-to-rem(20);
+
+    svg {
+      inline-size: syn.px-to-rem(20);
+      block-size: syn.px-to-rem(20);
+    }
   }
 
   &__roles {
@@ -189,6 +194,9 @@
   }
 
   &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xxs;
     align-self: flex-start;
     padding: syn.$space-xxs 0;
     font-size: syn.px-to-rem(14);
@@ -196,6 +204,11 @@
     background: none;
     border: 0;
     cursor: pointer;
+  }
+
+  &__back-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
   }
 
   // ─── Buttons ─────────────────────────────────────────────────────────────────
@@ -274,7 +287,13 @@
     place-items: center;
     width: 100%;
     height: 100%;
-    font-size: syn.px-to-rem(40);
+    color: var(--ev-brand);
+
+    svg {
+      inline-size: syn.px-to-rem(40);
+      block-size: syn.px-to-rem(40);
+      opacity: 0.55;
+    }
   }
 
   &__card-flag {
