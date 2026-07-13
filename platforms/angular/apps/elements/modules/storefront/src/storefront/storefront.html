@@ -190,7 +190,7 @@
           @if (product.images.length > 0) {
             <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
           } @else {
-            <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+            <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
           }
         </button>
         <div class="storefront__card-body">
@@ -428,7 +428,7 @@
                   @if (product.images.length > 0) {
                     <img class="storefront__card-img" [src]="product.images[0]" alt="" loading="lazy" />
                   } @else {
-                    <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+                    <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(product.title) }}</span>
                   }
                 </button>
                 <div class="storefront__card-body">
@@ -676,7 +676,7 @@
                   @if (entry.image) {
                     <img class="storefront__wish-img" [src]="entry.image" alt="" loading="lazy" />
                   } @else {
-                    <span class="storefront__card-placeholder" aria-hidden="true">📦</span>
+                    <span class="storefront__card-monogram" aria-hidden="true">{{ monogram(entry.title) }}</span>
                   }
                   <p class="storefront__wish-title">{{ entry.title }}</p>
                   <p class="storefront__card-now">{{ wishlistPriceLabel(entry) }}</p>
