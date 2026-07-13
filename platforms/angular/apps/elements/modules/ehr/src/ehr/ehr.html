@@ -232,9 +232,13 @@
         <h1 class="ehr__view-title">Resultados de laboratorio</h1>
         <p class="ehr__view-sub">Tus resultados liberados con su rango de referencia y una nota de tu médico.</p>
         @if (loading() && !resultsLoaded()) {
-          <p class="ehr__loading" role="status">Cargando resultados…</p>
+          <syn-skeleton variant="list" [rows]="5" />
         } @else if (releasedResults().length === 0) {
-          <p class="ehr__empty">Aún no hay resultados liberados a tu portal.</p>
+          <syn-empty-state
+            kind="first-use"
+            title="Sin resultados aún"
+            message="Cuando tu médico libere resultados de laboratorio, aparecerán aquí con su rango de referencia."
+          />
         } @else {
           <ul class="ehr__results">
             @for (result of releasedResults(); track trackResult($index, result)) {
@@ -271,9 +275,13 @@
         <h1 class="ehr__view-title">Mis medicamentos</h1>
         <p class="ehr__view-sub">Tu lista activa. Puedes solicitar renovación; tu médico la aprueba.</p>
         @if (loading() && !medsLoaded()) {
-          <p class="ehr__loading" role="status">Cargando medicamentos…</p>
+          <syn-skeleton variant="list" [rows]="5" />
         } @else if (medications().length === 0) {
-          <p class="ehr__empty">No tienes medicamentos activos.</p>
+          <syn-empty-state
+            kind="first-use"
+            title="Sin medicamentos aún"
+            message="Cuando tu médico registre una fórmula, tu lista activa de medicamentos aparecerá aquí."
+          />
         } @else {
           <ul class="ehr__meds">
             @for (med of medications(); track trackMed($index, med)) {
@@ -358,8 +366,14 @@
               </ul>
             }
           }
-        } @else if (loading()) {
-          <p class="ehr__loading" role="status">Cargando resumen de salud…</p>
+        } @else if (loading() && !healthLoaded()) {
+          <syn-skeleton variant="list" [rows]="5" />
+        } @else {
+          <syn-empty-state
+            kind="first-use"
+            title="Sin resumen aún"
+            message="Tu resumen de salud (condiciones, alergias, vacunas y cuidado preventivo) aparecerá aquí."
+          />
         }
       }
 
@@ -394,8 +408,14 @@
               }
             </tbody>
           </table>
-        } @else if (loading()) {
-          <p class="ehr__loading" role="status">Cargando facturación…</p>
+        } @else if (loading() && !billingLoaded()) {
+          <syn-skeleton variant="list" [rows]="5" />
+        } @else {
+          <syn-empty-state
+            kind="first-use"
+            title="Sin facturación aún"
+            message="Cuando tengas movimientos, tu estado de cuenta y saldo aparecerán aquí."
+          />
         }
       }
 

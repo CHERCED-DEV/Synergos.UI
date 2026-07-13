@@ -440,9 +440,10 @@
   &__num,
   &__search-input {
     width: 100%;
+    min-height: var(--syn-control-h-md);
     padding: syn.$space-2 syn.$space-3;
     border: syn.px-to-rem(1) solid var(--eh-border);
-    border-radius: syn.$radius-md;
+    border-radius: var(--syn-radius-field);
     background: var(--eh-surface);
     color: var(--eh-text);
     font: inherit;

@@ -36,6 +36,8 @@ import {
   type MessageCenterConfig,
 } from '@synergos/shells';
 import {
+  SynEmptyStateComponent,
+  SynSkeletonComponent,
   TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -181,6 +183,8 @@ let blogsInstanceId = 0;
     ConsoleShellComponent,
     CheckoutWizardComponent,
     TabsComponent,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',

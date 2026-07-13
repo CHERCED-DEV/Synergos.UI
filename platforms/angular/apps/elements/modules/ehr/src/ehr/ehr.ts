@@ -35,6 +35,8 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  SynEmptyStateComponent,
+  SynSkeletonComponent,
   TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -222,6 +224,8 @@ let ehrInstanceId = 0;
     CheckoutWizardComponent,
     TrackingTimelineComponent,
     TabsComponent,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
   ],
   templateUrl: './ehr.html',
   styleUrl: './ehr.scss',

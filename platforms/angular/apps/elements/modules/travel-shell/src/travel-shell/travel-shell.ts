@@ -36,6 +36,8 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  SynEmptyStateComponent,
+  SynSkeletonComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -159,6 +161,8 @@ let travelShellInstanceId = 0;
     AccountShellComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
+    SynSkeletonComponent,
+    SynEmptyStateComponent,
   ],
   templateUrl: './travel-shell.html',
   styleUrl: './travel-shell.scss',

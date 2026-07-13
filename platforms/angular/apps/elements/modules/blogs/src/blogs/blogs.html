@@ -113,9 +113,15 @@
       }
 
       @if (loading() && posts().length === 0) {
-        <p class="blogs__loading" role="status">Cargando feed…</p>
+        <syn-skeleton variant="card" [rows]="4" />
       } @else if (posts().length === 0) {
-        <p class="blogs__empty">No hay publicaciones en este feed todavía. Sigue a más cuentas o publica algo.</p>
+        <syn-empty-state
+          kind="first-use"
+          title="Tu feed está vacío"
+          message="Sigue cuentas o publica algo."
+          actionLabel="Publicar"
+          (action)="toggleComposer()"
+        />
       } @else {
         <ul class="blogs__feed">
           @for (post of posts(); track trackPost($index, post)) {
@@ -181,7 +187,7 @@
     <!-- ═══ PROFILE ════════════════════════════════════════════════════════════ -->
     @if (view() === 'profile') {
       @if (loading() && !profile()) {
-        <p class="blogs__loading" role="status">Cargando perfil…</p>
+        <syn-skeleton variant="card" [rows]="1" />
       } @else if (profile(); as author) {
         <header class="blogs__profile">
           <div class="blogs__profile-banner" aria-hidden="true"></div>
@@ -225,7 +231,7 @@
 
         @if (profileTab() === 'media') {
           @if (profileMediaPosts().length === 0) {
-            <p class="blogs__empty">Sin contenido multimedia.</p>
+            <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
           } @else {
             <ul class="blogs__feed">
               @for (post of profileMediaPosts(); track trackPost($index, post)) {
@@ -234,10 +240,10 @@
             </ul>
           }
         } @else if (profileTab() === 'replies') {
-          <p class="blogs__empty">Las respuestas de {{ author.displayName }} aparecerán aquí.</p>
+          <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
         } @else {
           @if (profilePosts().length === 0) {
-            <p class="blogs__empty">Aún no hay publicaciones.</p>
+            <syn-empty-state kind="first-use" title="Sin publicaciones aún" />
           } @else {
             <ul class="blogs__feed">
               @for (post of profilePosts(); track trackPost($index, post)) {

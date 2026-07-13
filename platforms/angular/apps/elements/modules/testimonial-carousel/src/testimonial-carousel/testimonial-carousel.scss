@@ -89,11 +89,21 @@
   }
 
   &__star {
+    display: inline-flex;
     color: var(--tc-star-empty);
 
     &--filled {
       color: var(--tc-star-filled);
+
+      svg {
+        fill: currentColor;
+      }
     }
+  }
+
+  &__star-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
   }
 
   &__quote {
