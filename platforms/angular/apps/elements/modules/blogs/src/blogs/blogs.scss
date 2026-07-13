@@ -73,8 +73,9 @@
 }
 
 .blogs__verified {
+  display: inline-flex;
+  align-items: center;
   color: var(--bl-brand);
-  font-weight: syn.$font-weight-bold;
 }
 
 .blogs__meta-time {
@@ -204,8 +205,39 @@
 }
 
 .blogs__brand-mark {
+  display: inline-flex;
+  align-items: center;
   color: var(--bl-brand);
-  font-size: syn.$font-size-xl;
+}
+
+// ─── Inline Lucide-style icons ─────────────────────────────────────────────────
+// Every UI glyph is an inline SVG with stroke="currentColor" so it inherits the
+// active theme token (no per-OS emoji, no hardcoded hex). Sized by class only.
+.blogs__ic {
+  inline-size: syn.px-to-rem(20);
+  block-size: syn.px-to-rem(20);
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.blogs__ic--sm {
+  inline-size: syn.px-to-rem(18);
+  block-size: syn.px-to-rem(18);
+}
+
+.blogs__ic--xs {
+  inline-size: syn.px-to-rem(16);
+  block-size: syn.px-to-rem(16);
+}
+
+.blogs__ic--brand {
+  inline-size: syn.px-to-rem(24);
+  block-size: syn.px-to-rem(24);
+}
+
+.blogs__ic--xl {
+  inline-size: syn.px-to-rem(48);
+  block-size: syn.px-to-rem(48);
 }
 
 .blogs__brand-text {
@@ -262,7 +294,7 @@
 }
 
 .blogs__nav-glyph {
-  font-size: syn.$font-size-lg;
+  color: currentColor;
 }
 
 .blogs__nav-badge {
@@ -688,6 +720,9 @@
 }
 
 .blogs__back {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
   margin-bottom: syn.$space-4;
   border: 0;
   background: none;
@@ -1021,6 +1056,10 @@
 }
 
 .blogs__compose-cta--ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-2;
   margin: 0;
   padding: syn.$space-2 syn.$space-4;
   background: transparent;
@@ -1381,8 +1420,10 @@
 }
 
 .blogs__confirm-glyph {
+  display: flex;
+  justify-content: center;
   margin: 0;
-  font-size: syn.$font-size-4xl;
+  color: var(--bl-brand);
 }
 
 .blogs__confirm-text {

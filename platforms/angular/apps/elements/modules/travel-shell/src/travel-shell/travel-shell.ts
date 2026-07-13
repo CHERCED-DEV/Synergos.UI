@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import {
   CUSTOM_ELEMENTS_SCHEMA,
   ChangeDetectionStrategy,
@@ -151,6 +152,7 @@ let travelShellInstanceId = 0;
   selector: 'sg-travel-shell',
   standalone: true,
   imports: [
+    NgTemplateOutlet,
     ResultsMapComponent,
     DetailShellComponent,
     CheckoutWizardComponent,
@@ -524,17 +526,6 @@ export class TravelShellElementComponent {
         return 'Vuelos';
       case 'car':
         return 'Autos';
-    }
-  }
-
-  productIcon(product: TravelProduct): string {
-    switch (product) {
-      case 'hotel':
-        return '\u{1F3E8}';
-      case 'flight':
-        return '\u{2708}\u{FE0F}';
-      case 'car':
-        return '\u{1F697}';
     }
   }
 
@@ -936,10 +927,6 @@ export class TravelShellElementComponent {
 
   itemProduct(item: SessionItem): TravelProduct {
     return item.kind as TravelProduct;
-  }
-
-  itemProductIcon(item: SessionItem): string {
-    return this.productIcon(item.kind as TravelProduct);
   }
 
   itemPriceLabel(item: SessionItem): string {

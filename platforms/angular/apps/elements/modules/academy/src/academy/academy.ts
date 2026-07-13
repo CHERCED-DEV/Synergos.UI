@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import {
   FulfillmentContext,
   OrchestratorService,
@@ -187,6 +188,7 @@ let academyInstanceId = 0;
     ConsoleShellComponent,
     AuthoringWizardComponent,
     TabsComponent,
+    NgTemplateOutlet,
   ],
   templateUrl: './academy.html',
   styleUrl: './academy.scss',
@@ -355,7 +357,7 @@ export class AcademyElementComponent {
       { label: 'Escuela', value: course.category || '—' },
       { label: 'Lecciones', value: String(this.totalLessons() || course.lessonCount) },
       { label: 'Duración', value: this.durationLabel(course.durationMinutes) || '—' },
-      { label: 'Valoración', value: course.rating > 0 ? `${course.rating.toFixed(1)} ★` : '—' },
+      { label: 'Valoración', value: course.rating > 0 ? course.rating.toFixed(1) : '—' },
       { label: 'Estudiantes', value: this.formatCount(course.studentCount) },
     ];
   });
@@ -547,7 +549,7 @@ export class AcademyElementComponent {
       { id: 'courses', label: 'Cursos publicados', value: this.formatCount(published), hint: `${desk.courses.length} en total` },
       { id: 'students', label: 'Alumnos', value: this.formatCount(desk.totalStudents), trend: 'up', delta: '+8%' },
       { id: 'revenue', label: 'Ingresos', value: this.formatPrice(desk.totalRevenue, this.currency()) },
-      { id: 'rating', label: 'Valoración media', value: desk.averageRating > 0 ? `${desk.averageRating.toFixed(2)} ★` : '—' },
+      { id: 'rating', label: 'Valoración media', value: desk.averageRating > 0 ? desk.averageRating.toFixed(2) : '—' },
     ];
   });
 
@@ -963,19 +965,6 @@ export class AcademyElementComponent {
 
   planPriceLabel(plan: AcademyPlan): string {
     return plan.amount <= 0 ? 'Gratis' : this.formatPrice(plan.amount, this.currency());
-  }
-
-  lessonIcon(lesson: AcademyLesson): string {
-    switch (lesson.kind) {
-      case 'reading':
-        return '📄';
-      case 'quiz':
-        return '✓';
-      case 'assignment':
-        return '📝';
-      default:
-        return '▶';
-    }
   }
 
   // ─── Enrolment (SH-3 wizard over engine) ──────────────────────────────────────

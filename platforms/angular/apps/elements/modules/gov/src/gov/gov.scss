@@ -70,6 +70,11 @@
     color: var(--gv-brand-text);
   }
 
+  &__brand-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
   &__roles {
     display: inline-flex;
     gap: syn.px-to-rem(2);
@@ -250,6 +255,13 @@
   }
 
   &--sm { padding: syn.$space-1 syn.$space-2; }
+
+  &__icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    vertical-align: text-bottom;
+    margin-inline-end: syn.px-to-rem(4);
+  }
 }
 
 .gv-link {
@@ -595,6 +607,14 @@
     span { color: var(--gv-success); }
   }
 
+  &__check-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex-shrink: 0;
+    margin-block-start: syn.px-to-rem(2);
+    color: var(--gv-success);
+  }
+
   &__cta {
     position: sticky;
     top: syn.$space-md;
@@ -784,7 +804,20 @@
     font-size: syn.$font-size-sm;
   }
 
-  &__name { flex: 1; overflow-wrap: anywhere; }
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex-shrink: 0;
+    color: var(--gv-muted);
+  }
 
   &__size {
     color: var(--gv-muted);
@@ -858,7 +891,11 @@
     border-radius: syn.$radius-full;
     background: var(--gv-success-soft);
     color: var(--gv-success);
-    font-size: syn.$font-size-2xl;
+  }
+
+  &__check-icon {
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
   }
 
   &__title {

@@ -61,7 +61,16 @@
   }
 
   &__brand-mark {
+    display: inline-flex;
     color: var(--rt-brand);
+  }
+
+  // ─── Inline SVG icon (Lucide-style, theme-aware via currentColor) ───────────
+  &__icon {
+    inline-size: 1em;
+    block-size: 1em;
+    flex: none;
+    vertical-align: -0.15em;
   }
 
   &__roles {
@@ -225,6 +234,7 @@
     place-items: center;
     width: 100%;
     height: 100%;
+    color: var(--rt-muted);
     font-size: syn.$font-size-2xl;
   }
 
@@ -257,6 +267,10 @@
 
     &.is-on {
       color: var(--rt-danger);
+    }
+
+    &.is-on .realty__icon {
+      fill: currentColor;
     }
   }
 
@@ -480,6 +494,10 @@
 
   // ─── Buttons ────────────────────────────────────────────────────────────────
   &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xxs;
     padding: syn.$space-xs syn.$space-md;
     border: syn.px-to-rem(1) solid var(--rt-border);
     border-radius: syn.$radius-md;
@@ -507,9 +525,16 @@
       border-color: var(--rt-brand);
       color: var(--rt-brand);
     }
+
+    &.is-on .realty__icon {
+      fill: currentColor;
+    }
   }
 
   &__link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xxs;
     align-self: flex-start;
     padding: 0;
     border: 0;
@@ -520,6 +545,9 @@
   }
 
   &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xxs;
     align-self: flex-start;
     padding: syn.$space-xxs syn.$space-sm;
     border: 0;
@@ -1176,6 +1204,7 @@
   &__pin-marker {
     position: absolute;
     transform: translate(-50%, -100%);
+    color: var(--rt-brand);
     font-size: syn.$font-size-xl;
     pointer-events: none;
   }

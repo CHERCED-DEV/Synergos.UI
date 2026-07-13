@@ -67,7 +67,23 @@
 
   &__brand-mark {
     color: var(--ts-brand);
-    font-size: syn.$font-size-lg;
+  }
+
+  // ─── Inline SVG icons (Lucide-style, inherit currentColor) ────────────────
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    line-height: 0;
+  }
+
+  &__icon-svg {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    flex: 0 0 auto;
+
+    &--sm { inline-size: syn.px-to-rem(16); block-size: syn.px-to-rem(16); }
+    &--lg { inline-size: syn.px-to-rem(28); block-size: syn.px-to-rem(28); }
   }
 
   &__brand-text {
@@ -260,7 +276,7 @@
     }
   }
 
-  &__tab-icon { font-size: syn.$font-size-base; }
+  &__tab-icon { display: inline-flex; align-items: center; }
 
   &__search {
     display: flex;
@@ -450,7 +466,15 @@
     gap: syn.px-to-rem(2);
   }
 
-  &__fare-perk { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
+  &__fare-perk {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ts-text-secondary);
+
+    .travel__icon-svg { color: var(--ts-success, var(--ts-brand)); }
+  }
 
   &__seatmap-wrap {
     display: flex;
@@ -520,7 +544,7 @@
   }
 
   &__stay-sub { margin: 0; color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
-  &__stay-rating { margin: 0; color: var(--ts-warn); font-size: syn.$font-size-sm; font-weight: 600; }
+  &__stay-rating { display: inline-flex; align-items: center; gap: syn.$space-1; margin: 0; color: var(--ts-warn); font-size: syn.$font-size-sm; font-weight: 600; }
 
   &__stay-foot {
     display: flex;
@@ -534,7 +558,7 @@
 
   // ─── Stay detail (SH-2 slots) ─────────────────────────────────────────────
   &__stay-desc { margin: 0 0 syn.$space-2; color: var(--ts-text-secondary); }
-  &__stay-address { margin: 0; font-size: syn.$font-size-sm; }
+  &__stay-address { display: flex; align-items: center; gap: syn.$space-1; margin: 0; font-size: syn.$font-size-sm; }
 
   &__pdp-price { margin: 0; font-size: syn.$font-size-xl; font-weight: 800; color: var(--ts-brand); }
   &__pdp-hint { margin: 0 0 syn.$space-3; font-size: syn.$font-size-xs; color: var(--ts-muted); }
@@ -569,7 +593,15 @@
     gap: syn.$space-2;
   }
 
-  &__amenity { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
+  &__amenity {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ts-text-secondary);
+
+    .travel__icon-svg { color: var(--ts-success, var(--ts-brand)); }
+  }
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
   &__cart-page { display: flex; flex-direction: column; gap: syn.$space-md; }
@@ -586,18 +618,20 @@
     background: var(--ts-surface);
   }
 
-  &__cart-icon { font-size: syn.$font-size-lg; flex: 0 0 auto; }
+  &__cart-icon { display: inline-flex; align-items: center; color: var(--ts-brand); flex: 0 0 auto; }
   &__cart-main { display: flex; flex-direction: column; gap: syn.px-to-rem(2); flex: 1 1 auto; min-width: 0; }
   &__cart-name { font-weight: 600; }
   &__cart-sub { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
   &__cart-price { font-weight: 700; white-space: nowrap; }
 
   &__cart-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 0;
     background: transparent;
     cursor: pointer;
     color: var(--ts-muted);
-    font-size: syn.$font-size-base;
     padding: syn.$space-1;
     flex: 0 0 auto;
 
@@ -660,7 +694,7 @@
     justify-content: space-between;
     gap: syn.$space-3;
 
-    dt { margin: 0; }
+    dt { display: flex; align-items: center; gap: syn.$space-2; margin: 0; }
     dd { margin: 0; font-weight: 600; }
 
     &--total {
@@ -754,12 +788,16 @@
   &__drawer-items { display: flex; flex-direction: column; gap: syn.$space-2; }
 
   &__cart-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: 0;
     background: transparent;
     cursor: pointer;
     color: var(--ts-muted);
-    font-size: syn.$font-size-base;
     padding: syn.$space-1;
+
+    &:hover { color: var(--ts-text); }
   }
 
   // ─── Responsive ───────────────────────────────────────────────────────────

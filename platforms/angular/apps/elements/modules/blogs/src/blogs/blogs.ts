@@ -115,11 +115,13 @@ const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
-const REACTION_META: readonly { type: ReactionType; glyph: string; label: string }[] = [
-  { type: 'like', glyph: '👍', label: 'Me gusta' },
-  { type: 'love', glyph: '❤️', label: 'Me encanta' },
-  { type: 'celebrate', glyph: '🎉', label: 'Celebrar' },
-  { type: 'insightful', glyph: '💡', label: 'Interesante' },
+// Icons render as inline Lucide-style SVG in the template (@switch on `type`),
+// so no per-OS emoji glyph is baked here — only the semantic type + a11y label.
+const REACTION_META: readonly { type: ReactionType; label: string }[] = [
+  { type: 'like', label: 'Me gusta' },
+  { type: 'love', label: 'Me encanta' },
+  { type: 'celebrate', label: 'Celebrar' },
+  { type: 'insightful', label: 'Interesante' },
 ];
 
 const SEARCH_SORT: readonly DiscoverySortOption[] = [

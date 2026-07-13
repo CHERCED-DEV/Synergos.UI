@@ -3,10 +3,30 @@
   Role-switch, hash-routed multi-page SPA over @synergos/shells.
 -->
 <div class="academy">
+  <!-- Icono Lucide-style por tipo de lección (reutilizado en currículum · syllabus · player) -->
+  <ng-template #lessonKindIcon let-kind>
+    @switch (kind) {
+      @case ('reading') {
+        <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M8 13h8M8 17h8M8 9h2"/></svg>
+      }
+      @case ('quiz') {
+        <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+      }
+      @case ('assignment') {
+        <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      }
+      @default {
+        <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      }
+    }
+  </ng-template>
+
   <!-- ═══════════════════════════ TOPBAR + role switch ═══════════════════════ -->
   <header class="academy__topbar">
     <button type="button" class="academy__brand" (click)="goToCatalog()">
-      <span class="academy__brand-mark">🎓</span>
+      <span class="academy__brand-mark" aria-hidden="true">
+        <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>
+      </span>
       <span class="academy__brand-name">Synergos Academy</span>
     </button>
 
@@ -81,7 +101,7 @@
               @if (course.cover) {
                 <img class="academy__card-img" [src]="course.cover" [alt]="course.title" />
               } @else {
-                <span class="academy__card-glyph" aria-hidden="true">📘</span>
+                <svg class="academy__card-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               }
               @if (course.amount <= 0) {
                 <span class="academy__card-free">Gratis</span>
@@ -92,7 +112,7 @@
               <h3 class="academy__card-title">{{ course.title }}</h3>
               <p class="academy__card-instructor">{{ course.instructorName }}</p>
               <div class="academy__card-meta">
-                <span class="academy__card-rating">★ {{ course.rating.toFixed(1) }}</span>
+                <span class="academy__card-rating"><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ course.rating.toFixed(1) }}</span>
                 <span class="academy__card-count">{{ formatCount(course.studentCount) }} alumnos</span>
                 @if (durationLabel(course.durationMinutes)) {
                   <span class="academy__card-dur">{{ durationLabel(course.durationMinutes) }}</span>
@@ -147,7 +167,7 @@
             <h3 class="academy__section-title">Lo que aprenderás</h3>
             <ul class="academy__outcomes-list">
               @for (outcome of detail.outcomes; track outcome) {
-                <li class="academy__outcome">✓ {{ outcome }}</li>
+                <li class="academy__outcome"><svg class="academy__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> {{ outcome }}</li>
               }
             </ul>
           </div>
@@ -217,13 +237,13 @@
               >
                 <span class="academy__module-title">{{ section.title }}</span>
                 <span class="academy__module-count">{{ section.lessons.length }} lecciones</span>
-                <span class="academy__module-chevron" aria-hidden="true">{{ isSectionExpanded(section.id) ? '−' : '+' }}</span>
+                <svg class="academy__module-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               @if (isSectionExpanded(section.id)) {
                 <ul class="academy__lessons">
                   @for (lesson of section.lessons; track lesson.id) {
                     <li class="academy__lesson-row">
-                      <span class="academy__lesson-icon" aria-hidden="true">{{ lessonIcon(lesson) }}</span>
+                      <span class="academy__lesson-icon" aria-hidden="true"><ng-container [ngTemplateOutlet]="lessonKindIcon" [ngTemplateOutletContext]="{ $implicit: lesson.kind }" /></span>
                       <span class="academy__lesson-title">{{ lesson.title }}</span>
                       @if (lesson.preview) {
                         <span class="academy__lesson-preview">Vista previa</span>
@@ -256,7 +276,7 @@
           </div>
           <p class="academy__instructor-bio">{{ detail.instructor.bio }}</p>
           <ul class="academy__instructor-stats">
-            <li>★ {{ detail.instructor.rating.toFixed(1) }} valoración</li>
+            <li><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ detail.instructor.rating.toFixed(1) }} valoración</li>
             <li>{{ formatCount(detail.instructor.studentCount) }} estudiantes</li>
             <li>{{ detail.instructor.courseCount }} cursos</li>
           </ul>
@@ -267,7 +287,7 @@
     <!-- ─── CHECKOUT: SH-3 wizard (inscripción sobre el motor) ───────────────── -->
     @if (view() === 'checkout' && detail(); as detail) {
       <section class="academy__checkout">
-        <button type="button" class="academy__back" (click)="onEnrollExit()">← Volver al curso</button>
+        <button type="button" class="academy__back" (click)="onEnrollExit()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver al curso</button>
         <syn-checkout-wizard
           [config]="enrollSteps()"
           [stepTemplate]="enrollStep"
@@ -343,7 +363,7 @@
     <!-- ─── ENROLLED: bridge → aula ──────────────────────────────────────────── -->
     @if (view() === 'enrolled') {
       <section class="academy__enrolled">
-        <p class="academy__enrolled-badge">Matrícula activa 🎉</p>
+        <p class="academy__enrolled-badge"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg> Matrícula activa</p>
         <h1 class="academy__enrolled-title">¡Ya estás inscrito!</h1>
         <p class="academy__enrolled-ref">Inscripción <code>{{ enrollmentId() }}</code></p>
         <div class="academy__actions">
@@ -382,7 +402,7 @@
                         (change)="toggleLessonCompleteFor(lesson)"
                         [attr.aria-label]="'Marcar ' + lesson.title + ' como completa'"
                       />
-                      <span class="academy__lesson-icon" aria-hidden="true">{{ lessonIcon(lesson) }}</span>
+                      <span class="academy__lesson-icon" aria-hidden="true"><ng-container [ngTemplateOutlet]="lessonKindIcon" [ngTemplateOutletContext]="{ $implicit: lesson.kind }" /></span>
                       <span class="academy__syllabus-lesson-title">{{ lesson.title }}</span>
                       @if (durationLabel(lesson.durationMinutes)) {
                         <span class="academy__lesson-dur">{{ durationLabel(lesson.durationMinutes) }}</span>
@@ -411,13 +431,13 @@
                 ></synergos-video-player>
                 @if (!lesson.videoRef) {
                   <div class="academy__player-fallback" aria-hidden="true">
-                    <span class="academy__player-glyph">▶</span>
+                    <svg class="academy__player-glyph" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
                     <p>Reproductor del curso · el video real se carga desde el CMS.</p>
                   </div>
                 }
               } @else {
                 <div class="academy__player-fallback">
-                  <span class="academy__player-glyph">{{ lessonIcon(lesson) }}</span>
+                  <span class="academy__player-glyph" aria-hidden="true"><ng-container [ngTemplateOutlet]="lessonKindIcon" [ngTemplateOutletContext]="{ $implicit: lesson.kind }" /></span>
                   <p>{{ lesson.title }}</p>
                 </div>
               }
@@ -426,7 +446,7 @@
             <div class="academy__lesson-bar">
               <h2 class="academy__lesson-heading">{{ lesson.title }}</h2>
               <div class="academy__lesson-actions">
-                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasPrevLesson()" (click)="previousLesson()">← Anterior</button>
+                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasPrevLesson()" (click)="previousLesson()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Anterior</button>
                 <button
                   type="button"
                   class="academy__btn"
@@ -434,9 +454,13 @@
                   [class.academy__btn--done]="isLessonComplete(lesson.id)"
                   (click)="markLessonComplete()"
                 >
-                  {{ isLessonComplete(lesson.id) ? '✓ Completada' : 'Marcar completa' }}
+                  @if (isLessonComplete(lesson.id)) {
+                    <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Completada
+                  } @else {
+                    Marcar completa
+                  }
                 </button>
-                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasNextLesson()" (click)="nextLesson()">Siguiente →</button>
+                <button type="button" class="academy__btn academy__btn--ghost" [disabled]="!hasNextLesson()" (click)="nextLesson()">Siguiente <svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
               </div>
             </div>
 
@@ -496,7 +520,7 @@
                         <li class="academy__qa-item">
                           <p class="academy__qa-q"><strong>{{ question.author }}</strong> · {{ question.question }}</p>
                           @if (question.answer) {
-                            <p class="academy__qa-a">↳ {{ question.answer }}</p>
+                            <p class="academy__qa-a"><svg class="academy__qa-reply-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg> {{ question.answer }}</p>
                           }
                         </li>
                       }
@@ -507,7 +531,7 @@
                   <div class="academy__assignment">
                     <p class="academy__lesson-body">Sube tu entrega para recibir retroalimentación del instructor.</p>
                     @if (activeSubmission(); as submission) {
-                      <p class="academy__assignment-done">✓ Entregado: {{ submission.fileName }}</p>
+                      <p class="academy__assignment-done"><svg class="academy__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Entregado: {{ submission.fileName }}</p>
                     }
                     <label class="academy__field">
                       <span class="academy__label">Archivo de la tarea</span>
@@ -612,7 +636,7 @@
     <!-- ─── CERTIFICADO: SH-10 credential-wallet (verificable) ───────────────── -->
     @if (view() === 'certificate') {
       <section class="academy__certificate">
-        <button type="button" class="academy__back" (click)="backToClassroom()">← Volver al aula</button>
+        <button type="button" class="academy__back" (click)="backToClassroom()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver al aula</button>
         <syn-credential-wallet
           [config]="walletConfig"
           [credentials]="walletCredentials()"
@@ -629,7 +653,7 @@
   @if (role() === 'instructor') {
     @if (instructorView() === 'create') {
       <section class="academy__create">
-        <button type="button" class="academy__back" (click)="onCreateExit()">← Volver a la consola</button>
+        <button type="button" class="academy__back" (click)="onCreateExit()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver a la consola</button>
         @if (createResultId()) {
           <div class="academy__create-done">
             <p class="academy__enrolled-badge">Curso publicado</p>
@@ -739,7 +763,7 @@
             }
             @case ('price') { {{ row.price > 0 ? formatPrice(row.price, currency()) : 'Gratis' }} }
             @case ('students') { {{ formatCount(row.studentCount) }} }
-            @case ('rating') { {{ row.rating > 0 ? (row.rating.toFixed(1) + ' ★') : '—' }} }
+            @case ('rating') { @if (row.rating > 0) { {{ row.rating.toFixed(1) }} <svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> } @else { — } }
             @case ('revenue') { {{ formatPrice(row.revenue, currency()) }} }
             @case ('name') { <span class="academy__cell-strong">{{ row.name }}</span><span class="academy__cell-sub">{{ row.email }}</span> }
             @case ('course') { {{ row.courseTitle }}@if (row.lessonTitle) { <span class="academy__cell-sub">{{ row.lessonTitle }}</span> } }
@@ -762,7 +786,7 @@
                       <li class="academy__perf-row">
                         <span class="academy__perf-title">{{ course.title }}</span>
                         <span class="academy__perf-stat">{{ formatCount(course.studentCount) }} alumnos</span>
-                        <span class="academy__perf-stat">★ {{ course.rating > 0 ? course.rating.toFixed(1) : '—' }}</span>
+                        <span class="academy__perf-stat"><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ course.rating > 0 ? course.rating.toFixed(1) : '—' }}</span>
                         <span class="academy__perf-stat">{{ formatPrice(course.revenue, currency()) }}</span>
                       </li>
                     }
@@ -780,7 +804,7 @@
               <input class="academy__input academy__input--search" type="search" placeholder="Filtrar alumnos…" [value]="studentFilter()" (input)="setStudentFilter($event)" />
             }
             @if (sectionId === 'courses') {
-              <button type="button" class="academy__btn academy__btn--primary academy__btn--sm" (click)="openCreate()">+ Crear curso</button>
+              <button type="button" class="academy__btn academy__btn--primary academy__btn--sm" (click)="openCreate()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Crear curso</button>
             }
             <button type="button" class="academy__link" (click)="reloadDesk()">Actualizar</button>
           </div>

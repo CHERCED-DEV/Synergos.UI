@@ -67,7 +67,49 @@
   }
 
   &__brand-mark {
-    font-size: syn.$font-size-xl;
+    display: inline-flex;
+    align-items: center;
+    color: var(--ac-brand);
+
+    .academy__ico {
+      inline-size: syn.px-to-rem(24);
+      block-size: syn.px-to-rem(24);
+    }
+  }
+
+  // ─── Inline Lucide-style icons (currentColor, theme-aware) ──────────────────
+  &__ico {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    flex: none;
+  }
+
+  &__star {
+    inline-size: syn.px-to-rem(15);
+    block-size: syn.px-to-rem(15);
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  &__check {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  &__qa-reply-ico {
+    inline-size: syn.px-to-rem(15);
+    block-size: syn.px-to-rem(15);
+    flex: none;
+    vertical-align: -0.1em;
+    color: var(--ac-muted);
+  }
+
+  &__card-glyph {
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    color: var(--ac-muted);
   }
 
   &__roles {
@@ -318,8 +360,15 @@
   }
 
   &__outcome {
+    display: flex;
+    align-items: center;
+    gap: syn.px-to-rem(6);
     font-size: syn.$font-size-sm;
     color: var(--ac-text-secondary);
+
+    .academy__check {
+      color: var(--ac-success);
+    }
   }
 
   // ─── Buybox (sticky CTA) ──────────────────────────────────────────────────
@@ -456,8 +505,15 @@
   }
 
   &__module-chevron {
-    font-size: syn.$font-size-lg;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    flex: none;
     color: var(--ac-brand);
+    transition: transform 0.2s ease;
+
+    .academy__module.is-open & {
+      transform: rotate(180deg);
+    }
   }
 
   &__lessons {
@@ -662,6 +718,9 @@
   }
 
   &__enrolled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.px-to-rem(6);
     margin: 0;
     padding: syn.$space-xxs syn.$space-md;
     border-radius: syn.$radius-full;
@@ -835,7 +894,17 @@
   }
 
   &__player-glyph {
-    font-size: syn.$font-size-3xl;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+    color: var(--ac-muted);
+
+    .academy__ico {
+      inline-size: 100%;
+      block-size: 100%;
+    }
   }
 
   &__lesson-bar {
@@ -1192,6 +1261,9 @@
   }
 
   &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.px-to-rem(4);
     align-self: flex-start;
     padding: syn.$space-xxs syn.$space-xs;
     border: none;

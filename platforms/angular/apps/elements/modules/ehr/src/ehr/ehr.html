@@ -2,7 +2,9 @@
   <!-- ─── Topbar: brand · role switch · nav ─────────────────────────────────── -->
   <header class="ehr__topbar">
     <div class="ehr__brand">
-      <span class="ehr__brand-mark" aria-hidden="true">✚</span>
+      <span class="ehr__brand-mark" aria-hidden="true">
+        <svg class="ehr__brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      </span>
       <span class="ehr__brand-text">{{ clinic() }}</span>
     </div>
 
@@ -12,7 +14,7 @@
       [attr.aria-expanded]="navOpen()"
       aria-label="Menú"
       (click)="toggleNav()"
-    >☰</button>
+    ><svg class="ehr__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
 
     <nav class="ehr__roles" aria-label="Cambiar de perfil">
       @for (r of roles; track r.key) {
@@ -119,7 +121,7 @@
 
       <!-- ─── SCHEDULE — SH-3 checkout-wizard over the engine ─── -->
       @if (view() === 'schedule') {
-        <button type="button" class="ehr__back" (click)="onScheduleExit()">← Volver a mis citas</button>
+        <button type="button" class="ehr__back" (click)="onScheduleExit()"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Volver a mis citas</button>
         <h1 class="ehr__view-title">Agendar una cita</h1>
         <syn-checkout-wizard
           [config]="scheduleConfig()"
@@ -136,11 +138,11 @@
 
       <!-- ─── e-CHECK-IN wizard ─── -->
       @if (view() === 'echeckin') {
-        <button type="button" class="ehr__back" (click)="navigate('home')">← Volver al inicio</button>
+        <button type="button" class="ehr__back" (click)="navigate('home')"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Volver al inicio</button>
         <h1 class="ehr__view-title">e-Check-In</h1>
         @if (checkinDone()) {
           <div class="ehr__confirm" role="status">
-            <p class="ehr__confirm-glyph" aria-hidden="true">✓</p>
+            <p class="ehr__confirm-glyph" aria-hidden="true"><svg class="ehr__confirm-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></p>
             <h2 class="ehr__confirm-title">Listo para tu visita</h2>
             <p class="ehr__confirm-text">Confirmamos tus datos. El equipo ya sabe que llegarás preparado.</p>
             <button type="button" class="ehr__btn ehr__btn--brand" (click)="navigate('home')">Volver al inicio</button>
@@ -255,7 +257,7 @@
                     @if (result.comment) {
                       <p class="ehr__result-comment">“{{ result.comment }}”</p>
                     }
-                    <button type="button" class="ehr__link" (click)="navigate('messages')">Preguntar sobre este resultado →</button>
+                    <button type="button" class="ehr__link" (click)="navigate('messages')">Preguntar sobre este resultado<svg class="ehr__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
                   </div>
                 }
               </li>
@@ -429,7 +431,7 @@
       <!-- ─── PATIENT CHART WORKSPACE (Storyboard + activities) ─── -->
       @if (view() === 'chart') {
         @if (chart(); as c) {
-          <button type="button" class="ehr__back" (click)="backToBoard()">← Volver a la agenda</button>
+          <button type="button" class="ehr__back" (click)="backToBoard()"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Volver a la agenda</button>
           <div class="ehr__chart">
             <!-- Storyboard sidebar (always visible context) -->
             <aside class="ehr__storyboard" aria-label="Storyboard del paciente">
@@ -496,7 +498,7 @@
                 }
                 @case ('results') {
                   <p class="ehr__panel-text">Resultados de laboratorio del paciente (vista clínica).</p>
-                  <button type="button" class="ehr__link" (click)="navigate('inbasket')">Ir al In Basket para liberar resultados →</button>
+                  <button type="button" class="ehr__link" (click)="navigate('inbasket')">Ir al In Basket para liberar resultados<svg class="ehr__link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
                 }
                 @case ('medications') {
                   <ul class="ehr__notes">
@@ -507,7 +509,7 @@
                           <p class="ehr__note-rx">{{ item.drug }} {{ item.dose }} — {{ item.frequency }}</p>
                         }
                         @if (rx.interactions.length > 0) {
-                          <p class="ehr__note-warn">⚠ {{ rx.interactions.join(' · ') }}</p>
+                          <p class="ehr__note-warn"><svg class="ehr__note-warn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.73 18 13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>{{ rx.interactions.join(' · ') }}</p>
                         }
                       </li>
                     } @empty { <li class="ehr__empty">Sin fórmulas registradas.</li> }
@@ -540,7 +542,7 @@
       <!-- ─── ENCOUNTER (SOAP + orders/e-Rx) ─── -->
       @if (view() === 'encounter') {
         @if (chart(); as c) {
-          <button type="button" class="ehr__back" (click)="cancelEncounter()">← Cancelar encuentro</button>
+          <button type="button" class="ehr__back" (click)="cancelEncounter()"><svg class="ehr__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>Cancelar encuentro</button>
           <h1 class="ehr__view-title">Encuentro · {{ c.patient.name }}</h1>
           <form class="ehr__soap" (submit)="$event.preventDefault(); saveEncounter()">
             <label class="ehr__field-label" [attr.for]="fieldId + '-s'">Subjetivo</label>
@@ -575,7 +577,7 @@
             <fieldset class="ehr__erx">
               <legend class="ehr__field-label">Prescripción (e-Rx)</legend>
               @if (rxInteractions().length > 0) {
-                <p class="ehr__note-warn" role="alert">⚠ {{ rxInteractions().join(' · ') }}</p>
+                <p class="ehr__note-warn" role="alert"><svg class="ehr__note-warn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.73 18 13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>{{ rxInteractions().join(' · ') }}</p>
               }
               <div class="ehr__erx-form">
                 <input class="ehr__input" type="text" placeholder="Medicamento" [value]="rxDrug()" (input)="bind(rxDrug.set)($event)" aria-label="Medicamento" />
@@ -700,7 +702,7 @@
       <span class="ehr__state-chip" [attr.data-kind]="row.kind">{{ inboxKindLabel(row.kind) }}</span>
     }
     @case ('title') {
-      <span>{{ row.title }} @if (row.done) { <span class="ehr__done">✓</span> }</span>
+      <span>{{ row.title }} @if (row.done) { <span class="ehr__done" aria-hidden="true"><svg class="ehr__done-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span> }</span>
     }
     @case ('priority') {
       <span class="ehr__state-chip" [attr.data-tone]="row.priority === 'high' ? 'danger' : 'neutral'">

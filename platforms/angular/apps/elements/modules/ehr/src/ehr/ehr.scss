@@ -105,6 +105,11 @@
     font-weight: syn.$font-weight-bold;
   }
 
+  &__brand-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
   &__brand-text {
     font-weight: syn.$font-weight-semibold;
     font-size: syn.$font-size-base;
@@ -119,6 +124,11 @@
     background: var(--eh-surface);
     color: var(--eh-text);
     cursor: pointer;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
   }
 
   &__roles {
@@ -275,8 +285,28 @@
     cursor: pointer;
   }
 
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__back-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
   &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
     font-size: syn.$font-size-xs;
+  }
+
+  &__link-icon {
+    flex: none;
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
   }
 
   /* ─── Buttons ────────────────────────────────────────────────────────────── */
@@ -502,6 +532,11 @@
     font-weight: syn.$font-weight-bold;
   }
 
+  &__confirm-icon {
+    inline-size: syn.px-to-rem(24);
+    block-size: syn.px-to-rem(24);
+  }
+
   &__confirm-title {
     margin: 0 0 syn.$space-2;
     font-size: syn.$font-size-lg;
@@ -723,7 +758,12 @@
     &[data-kind='cosign'] { background: var(--eh-surface-sunken); color: var(--eh-text-secondary); }
   }
 
-  &__done { color: var(--eh-success); font-weight: syn.$font-weight-bold; }
+  &__done { display: inline-flex; vertical-align: middle; color: var(--eh-success); }
+
+  &__done-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
 
   /* ─── Chart workspace ────────────────────────────────────────────────────── */
   &__chart {
@@ -831,7 +871,13 @@
   &__note-reason { margin: 0 0 syn.$space-2; color: var(--eh-brand); font-size: syn.$font-size-xs; }
   &__note-soap,
   &__note-rx { margin: 0 0 syn.px-to-rem(2); color: var(--eh-text-secondary); font-size: syn.$font-size-sm; }
-  &__note-warn { margin: syn.$space-2 0 0; color: var(--eh-danger); font-size: syn.$font-size-xs; font-weight: syn.$font-weight-medium; }
+  &__note-warn { display: flex; align-items: center; gap: syn.$space-1; margin: syn.$space-2 0 0; color: var(--eh-danger); font-size: syn.$font-size-xs; font-weight: syn.$font-weight-medium; }
+
+  &__note-warn-icon {
+    flex: none;
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+  }
 
   /* Evolution bars */
   &__evo {

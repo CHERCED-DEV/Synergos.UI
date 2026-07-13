@@ -2,7 +2,9 @@
   <!-- ─── Top bar: brand + role-switch + nav ───────────────────────────────── -->
   <header class="realty__bar">
     <button type="button" class="realty__brand" (click)="goToSearch()">
-      <span class="realty__brand-mark" aria-hidden="true">◆</span>
+      <span class="realty__brand-mark" aria-hidden="true">
+        <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+      </span>
       <span class="realty__brand-text">Synergos Propiedades</span>
     </button>
 
@@ -118,7 +120,9 @@
             @if (listing.cover) {
               <img class="realty__card-img" [src]="listing.cover" alt="" loading="lazy" />
             } @else {
-              <span class="realty__card-placeholder" aria-hidden="true">🏠</span>
+              <span class="realty__card-placeholder" aria-hidden="true">
+                <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              </span>
             }
             @if (listing.status !== 'active') {
               <span class="realty__card-flag">{{ statusLabel(listing.status) }}</span>
@@ -132,7 +136,7 @@
             [attr.aria-label]="isFavorite(listing.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
             (click)="toggleFavorite(listing.id)"
           >
-            ♥
+            <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
           </button>
           <div class="realty__card-body">
             <p class="realty__card-price">{{ priceLabel(listing) }}</p>
@@ -201,14 +205,15 @@
               [class.is-on]="isFavorite(pdp.listing.id)"
               (click)="toggleFavorite(pdp.listing.id)"
             >
-              {{ isFavorite(pdp.listing.id) ? '♥ En favoritos' : '♡ Guardar' }}
+              <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+              {{ isFavorite(pdp.listing.id) ? 'En favoritos' : 'Guardar' }}
             </button>
 
             <div class="realty__agent">
               <span class="realty__agent-avatar" aria-hidden="true">{{ pdp.agent.name.charAt(0) }}</span>
               <div>
                 <p class="realty__agent-name">{{ pdp.agent.name }}</p>
-                <p class="realty__agent-agency">{{ pdp.agent.agency }} · ★ {{ pdp.agent.rating }}</p>
+                <p class="realty__agent-agency">{{ pdp.agent.agency }} · <svg class="realty__icon realty__icon--star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> {{ pdp.agent.rating }}</p>
               </div>
             </div>
           </div>
@@ -415,7 +420,9 @@
     <!-- ─── CONFIRMATION ──────────────────────────────────────────────────── -->
     @if (view() === 'confirmation') {
       <div class="realty__confirm">
-        <span class="realty__confirm-mark" aria-hidden="true">✓</span>
+        <span class="realty__confirm-mark" aria-hidden="true">
+          <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </span>
         @if (confirmedVisit(); as visit) {
           <h1 class="realty__confirm-title">¡Visita agendada!</h1>
           <p class="realty__confirm-sub">
@@ -480,7 +487,7 @@
                 }
               </div>
               @if (favoriteListings().length === 0) {
-                <p class="realty__empty">Aún no has guardado propiedades. Toca ♥ en cualquier resultado.</p>
+                <p class="realty__empty">Aún no has guardado propiedades. Toca <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg> en cualquier resultado.</p>
               } @else {
                 <div class="realty__favs-grid" [class.is-compare]="compareMode()">
                   @for (listing of favoriteListings(); track listing.id) {
@@ -596,7 +603,9 @@
             }
             @case ('fotos') {
               <div class="realty__dropzone">
-                <p class="realty__dropzone-icon" aria-hidden="true">📷</p>
+                <p class="realty__dropzone-icon" aria-hidden="true">
+                  <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                </p>
                 <p>Arrastra las fotos del inmueble aquí, o selecciona desde tu equipo.</p>
                 <p class="realty__dropzone-hint">(Demo — la carga real usa el dropzone publicado.)</p>
               </div>
@@ -631,7 +640,9 @@
                 <div class="realty__pin-map" (click)="dropPin(patch, $event)">
                   <div class="realty__pin-grid" aria-hidden="true"></div>
                   @if (hasPin(draft)) {
-                    <span class="realty__pin-marker" [style.left.%]="pinPct(draft, 'x')" [style.top.%]="pinPct(draft, 'y')" aria-hidden="true">📍</span>
+                    <span class="realty__pin-marker" [style.left.%]="pinPct(draft, 'x')" [style.top.%]="pinPct(draft, 'y')" aria-hidden="true">
+                      <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                    </span>
                   }
                 </div>
                 @if (hasPin(draft)) {
@@ -653,7 +664,7 @@
                 <div><dt>Ubicación</dt><dd>{{ draft['neighborhood'] }}, {{ draft['city'] }}</dd></div>
               </dl>
               @if (publishResultId()) {
-                <p class="realty__publish-done">✓ Publicado con id {{ publishResultId() }}.</p>
+                <p class="realty__publish-done"><svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Publicado con id {{ publishResultId() }}.</p>
               }
             }
           }
