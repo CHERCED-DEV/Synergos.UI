@@ -1282,7 +1282,7 @@ function mockDetail(id: string, currency: string): CourseDetail {
             label: 'Plan completo',
             description: 'Todo lo que necesitas para dominar el curso',
             amount: course.amount,
-            installments: `4 x ${Math.round(course.amount / 4).toLocaleString('es-CO')}`,
+            installments: `4 x ${new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Math.round(course.amount / 4))}`,
             perks: [
               'Acceso de por vida',
               'Recursos descargables',
@@ -1296,7 +1296,7 @@ function mockDetail(id: string, currency: string): CourseDetail {
             label: 'Plan con mentoría',
             description: 'Acompañamiento personalizado del instructor',
             amount: Math.round(course.amount * 1.6),
-            installments: `6 x ${Math.round((course.amount * 1.6) / 6).toLocaleString('es-CO')}`,
+            installments: `6 x ${new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Math.round((course.amount * 1.6) / 6))}`,
             perks: [
               'Todo lo del plan completo',
               '3 sesiones 1:1 con el instructor',

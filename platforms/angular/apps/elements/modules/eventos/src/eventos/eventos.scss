@@ -950,7 +950,8 @@
     display: block;
     height: 100%;
     background: var(--ev-brand);
-    transition: width 0.3s ease;
+    /* motion tokenizado: el bridge lo colapsa bajo prefers-reduced-motion */
+    transition: inline-size var(--syn-duration-slow, #{syn.$duration-slow}) var(--syn-ease-out, #{syn.$ease-out});
   }
 
   &__meter-label {

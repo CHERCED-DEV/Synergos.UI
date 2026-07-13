@@ -138,6 +138,13 @@
     }
 
     <!-- ─── CURSO: SH-2 detail (currículum acordeón · instructor · planes) ───── -->
+    @if (view() === 'course' && !detail()) {
+      @if (loading()) {
+        <syn-skeleton variant="card" [rows]="3" />
+      } @else {
+        <syn-error-state [message]="errorMessage() || 'No pudimos abrir el curso.'" (retry)="retryCourse()" />
+      }
+    }
     @if (view() === 'course' && detail(); as detail) {
       <syn-detail-shell
         [config]="{
@@ -285,6 +292,13 @@
     }
 
     <!-- ─── CHECKOUT: SH-3 wizard (inscripción sobre el motor) ───────────────── -->
+    @if (view() === 'checkout' && !detail()) {
+      @if (loading()) {
+        <syn-skeleton variant="card" [rows]="3" />
+      } @else {
+        <syn-error-state [message]="errorMessage() || 'No pudimos abrir el curso.'" (retry)="retryCourse()" />
+      }
+    }
     @if (view() === 'checkout' && detail(); as detail) {
       <section class="academy__checkout">
         <button type="button" class="academy__back" (click)="onEnrollExit()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver al curso</button>
@@ -374,6 +388,13 @@
     }
 
     <!-- ─── AULA: player + currículum + progreso + Q&A + recursos + tarea ────── -->
+    @if (view() === 'classroom' && !detail()) {
+      @if (loading()) {
+        <syn-skeleton variant="card" [rows]="3" />
+      } @else {
+        <syn-error-state [message]="errorMessage() || 'No pudimos abrir el curso.'" (retry)="retryCourse()" />
+      }
+    }
     @if (view() === 'classroom' && detail(); as detail) {
       <section class="academy__classroom">
         <aside class="academy__syllabus" aria-label="Currículum del curso">

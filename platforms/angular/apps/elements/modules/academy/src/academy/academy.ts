@@ -49,6 +49,8 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  SynSkeletonComponent,
+  SynErrorStateComponent,
 } from '@synergos/shared';
 import { AcademyApiClient } from './academy-api.client';
 import type { EnrollSelectionPayload } from './academy-fulfillment.strategy';
@@ -189,6 +191,8 @@ let academyInstanceId = 0;
     AuthoringWizardComponent,
     TabsComponent,
     NgTemplateOutlet,
+    SynSkeletonComponent,
+    SynErrorStateComponent,
   ],
   templateUrl: './academy.html',
   styleUrl: './academy.scss',
@@ -929,7 +933,18 @@ export class AcademyElementComponent {
     this.navigate('course', course.id);
   }
 
+  /** Último id de curso solicitado, para reintentar desde el error-state. */
+  #pendingCourseId = '';
+
+  /** Reintenta cargar el curso tras un error (lo invoca el (retry) de syn-error-state). */
+  retryCourse(): void {
+    if (this.#pendingCourseId) {
+      void this.loadCourse(this.#pendingCourseId);
+    }
+  }
+
   private async loadCourse(id: string): Promise<void> {
+    this.#pendingCourseId = id;
     this.loading.set(true);
     this.errorMessage.set('');
     try {

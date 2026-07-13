@@ -108,7 +108,7 @@
     border: syn.px-to-rem(2) solid var(--bw-brand-soft);
     border-top-color: var(--bw-brand);
     border-radius: syn.$radius-full;
-    animation: booking-wizard-spin 0.7s linear infinite;
+    animation: booking-wizard-spin var(--syn-duration-loop, #{syn.$duration-loop}) linear infinite;
   }
 
   &__error {

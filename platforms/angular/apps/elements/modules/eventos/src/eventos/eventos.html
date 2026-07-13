@@ -242,8 +242,10 @@
             {{ isReserved() ? 'Elegir asientos' : 'Elegir cantidad' }}
           </button>
         </ng-template>
+      } @else if (loading()) {
+        <syn-skeleton variant="card" [rows]="2" />
       } @else {
-        <p class="eventos__empty" role="status">Cargando evento…</p>
+        <syn-error-state [message]="errorMessage() || 'No pudimos abrir el evento.'" (retry)="retryEvent()" />
       }
     }
 

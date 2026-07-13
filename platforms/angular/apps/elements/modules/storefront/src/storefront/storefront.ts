@@ -37,6 +37,8 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  SynSkeletonComponent,
+  SynErrorStateComponent,
 } from '@synergos/shared';
 import { ShopApiClient } from './shop-api.client';
 import type { ShopSelectionPayload } from './shop-fulfillment.strategy';
@@ -128,6 +130,8 @@ let storefrontInstanceId = 0;
     CheckoutWizardComponent,
     AccountShellComponent,
     TrackingTimelineComponent,
+    SynSkeletonComponent,
+    SynErrorStateComponent,
   ],
   templateUrl: './storefront.html',
   styleUrl: './storefront.scss',
@@ -730,7 +734,18 @@ export class StorefrontElementComponent {
     });
   }
 
+  /** Último id de producto solicitado, para reintentar desde el error-state del PDP. */
+  #pendingProductId = '';
+
+  /** Reintenta cargar el PDP tras un error (lo invoca el (retry) de syn-error-state). */
+  retryProduct(): void {
+    if (this.#pendingProductId) {
+      void this.loadProduct(this.#pendingProductId);
+    }
+  }
+
   private async loadProduct(id: string): Promise<void> {
+    this.#pendingProductId = id;
     this.loading.set(true);
     this.errorMessage.set('');
     try {

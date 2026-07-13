@@ -92,7 +92,8 @@
     color: var(--gv-text-secondary);
     font-weight: syn.$font-weight-medium;
     font-size: syn.$font-size-sm;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+                color var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
 
     &--active {
       background: var(--gv-surface);
@@ -212,7 +213,9 @@
   font: inherit;
   font-weight: syn.$font-weight-semibold;
   font-size: syn.$font-size-sm;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  transition: background var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+              color var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+              transform var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
 
   &:disabled {
     opacity: 0.5;
@@ -474,7 +477,7 @@
   border: syn.px-to-rem(1) solid var(--gv-border-subtle);
   border-radius: syn.$radius-lg;
   background: var(--gv-surface);
-  transition: box-shadow 0.15s ease;
+  transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
 
   &:hover { box-shadow: var(--gv-shadow); }
 

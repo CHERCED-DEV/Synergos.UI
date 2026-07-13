@@ -218,7 +218,8 @@
     background: var(--ac-surface);
     overflow: hidden;
     cursor: pointer;
-    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+                transform var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
 
     &:hover {
       box-shadow: var(--ac-shadow-pop);
@@ -509,7 +510,7 @@
     block-size: syn.px-to-rem(18);
     flex: none;
     color: var(--ac-brand);
-    transition: transform 0.2s ease;
+    transition: transform var(--syn-duration-base, #{syn.$duration-base}) var(--syn-easing-default, #{syn.$easing-default});
 
     .academy__module.is-open & {
       transform: rotate(180deg);
@@ -640,9 +641,10 @@
 
   &__input {
     width: 100%;
+    min-height: var(--syn-control-h-md);
     padding: syn.$space-xs syn.$space-sm;
     border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
+    border-radius: var(--syn-radius-field);
     background: var(--ac-surface);
     color: var(--ac-text);
     font: inherit;
@@ -786,7 +788,7 @@
       height: 100%;
       border-radius: inherit;
       background: var(--ac-brand);
-      transition: width 0.2s ease;
+      transition: inline-size var(--syn-duration-base, #{syn.$duration-base}) var(--syn-easing-default, #{syn.$easing-default});
     }
 
     &--sm {

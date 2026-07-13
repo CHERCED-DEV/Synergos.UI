@@ -1559,6 +1559,24 @@
     }
   }
 
+  // Icono de corazón (wishlist/fav): outline por defecto, relleno cuando activo
+  // vía la clase de estado existente (hereda currentColor = danger en is-active).
+  &__wish-icon {
+    display: block;
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+  &__wish.is-active &__wish-icon,
+  &__btn.is-active &__wish-icon {
+    fill: currentColor;
+  }
+  &__btn:has(&__wish-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-2;
+  }
+
   &__seller-note {
     margin: 0;
     color: var(--sf-text-secondary);

@@ -47,6 +47,8 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  SynSkeletonComponent,
+  SynErrorStateComponent,
 } from '@synergos/shared';
 import { EventosApiClient } from './eventos-api.client';
 import {
@@ -184,6 +186,8 @@ let eventosInstanceId = 0;
     ConsoleShellComponent,
     AuthoringWizardComponent,
     CredentialWalletComponent,
+    SynSkeletonComponent,
+    SynErrorStateComponent,
   ],
   templateUrl: './eventos.html',
   styleUrl: './eventos.scss',
@@ -501,23 +505,23 @@ export class EventosElementComponent {
   readonly accountConfig = computed<AccountShellConfig>(() => ({
     heading: 'Mi cuenta',
     navLabel: 'Secciones de la cuenta',
-    inboxEmptyMessage: 'Todavía no tienes tickets. Explora eventos y compra tu entrada.',
-    inboxLoadingMessage: 'Cargando tus tickets…',
-    detailPlaceholder: 'Selecciona un ticket para ver el detalle y su seguimiento.',
+    inboxEmptyMessage: 'Todavía no tienes entradas. Explora eventos y compra tu entrada.',
+    inboxLoadingMessage: 'Cargando tus entradas…',
+    detailPlaceholder: 'Selecciona una entrada para ver el detalle y su seguimiento.',
     sections: [
-      { id: 'tickets', label: 'Mis tickets', kind: 'inbox', badge: this.wallet().length || undefined },
+      { id: 'tickets', label: 'Mis entradas', kind: 'inbox', badge: this.wallet().length || undefined },
       { id: 'perfil', label: 'Mis datos' },
     ],
   }));
 
   // ─── Wallet (SH-10 inputs) ──────────────────────────────────────────────────
   readonly walletConfig = computed<CredentialWalletConfig>(() => ({
-    heading: 'Mis tickets',
-    emptyMessage: 'Todavía no tienes tickets. Explora eventos y compra tu entrada.',
-    listLabel: 'Mis tickets',
+    heading: 'Mis entradas',
+    emptyMessage: 'Todavía no tienes entradas. Explora eventos y compra tu entrada.',
+    listLabel: 'Mis entradas',
     referenceLabel: 'Código',
-    expandLabel: 'Ver e-ticket (QR)',
-    collapseLabel: 'Ocultar e-ticket',
+    expandLabel: 'Ver entrada (QR)',
+    collapseLabel: 'Ocultar entrada',
     qrSize: 160,
   }));
 
@@ -953,7 +957,18 @@ export class EventosElementComponent {
     this.navigate('event', event.slug || event.id);
   }
 
+  /** Último id/slug de evento solicitado, para reintentar desde el error-state. */
+  #pendingEventId = '';
+
+  /** Reintenta abrir el evento tras un error (lo invoca el (retry) de syn-error-state). */
+  retryEvent(): void {
+    if (this.#pendingEventId) {
+      void this.loadEvent(this.#pendingEventId);
+    }
+  }
+
   private async loadEvent(id: string): Promise<void> {
+    this.#pendingEventId = id;
     this.loading.set(true);
     this.errorMessage.set('');
     try {

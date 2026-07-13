@@ -99,11 +99,15 @@
       </p>
 
       @if (loading()) {
-        <p class="booking-wizard__empty" aria-live="polite">Buscando disponibilidad…</p>
+        <syn-skeleton variant="card" [rows]="4" />
       } @else if (!hasOffers()) {
-        <p class="booking-wizard__empty" role="status">
-          No encontramos disponibilidad para esas fechas. Ajusta tu búsqueda.
-        </p>
+        <syn-empty-state
+          kind="no-results"
+          title="Sin disponibilidad"
+          message="No encontramos disponibilidad para esas fechas. Ajusta tu búsqueda."
+          actionLabel="Ajustar fechas"
+          (action)="back()"
+        />
       } @else {
         <ul class="booking-wizard__offers" role="list">
           @for (offer of offers(); track trackOffer($index, offer)) {

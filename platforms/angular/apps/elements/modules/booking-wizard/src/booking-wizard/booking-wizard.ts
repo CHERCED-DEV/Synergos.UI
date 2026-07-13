@@ -16,6 +16,8 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  SynSkeletonComponent,
+  SynEmptyStateComponent,
 } from '@synergos/shared';
 
 /**
@@ -242,7 +244,7 @@ let bookingWizardInstanceId = 0;
   standalone: true,
   // No imports: the pax-selector is consumed as a registered custom element
   // (<synergos-pax-selector>), kept out of Angular's template schema below.
-  imports: [],
+  imports: [SynSkeletonComponent, SynEmptyStateComponent],
   templateUrl: './booking-wizard.html',
   styleUrl: './booking-wizard.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

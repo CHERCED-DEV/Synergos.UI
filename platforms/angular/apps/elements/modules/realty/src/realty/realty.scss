@@ -573,13 +573,18 @@
     input,
     textarea,
     select {
+      min-height: var(--syn-control-h-md);
       padding: syn.$space-xs syn.$space-sm;
       border: syn.px-to-rem(1) solid var(--rt-border);
-      border-radius: syn.$radius-md;
+      border-radius: var(--syn-radius-field);
       background: var(--rt-surface);
       color: var(--rt-text);
       font: inherit;
+
+      @include syn.focus-visible(var(--rt-focus-ring));
     }
+
+    textarea { min-height: syn.px-to-rem(96); }
   }
 
   // ─── Lead modal ─────────────────────────────────────────────────────────────

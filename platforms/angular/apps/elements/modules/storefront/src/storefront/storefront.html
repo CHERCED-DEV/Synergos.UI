@@ -18,7 +18,7 @@
         [attr.aria-controls]="fieldId + '-cart'"
         (click)="toggleCart()"
       >
-        <span aria-hidden="true">🛒</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
         <span>Carrito</span>
         @if (cartCount() > 0) {
           <span class="storefront__cart-count" [attr.aria-label]="cartCount() + ' artículos'">
@@ -240,7 +240,7 @@
               [attr.aria-label]="isWished(product.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
               (click)="toggleWishlist(product)"
             >
-              {{ isWished(product.id) ? '♥' : '♡' }}
+              <svg class="storefront__wish-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
             </button>
           </div>
         </div>
@@ -346,10 +346,12 @@
         <button
           type="button"
           class="storefront__btn storefront__btn--ghost storefront__btn--block"
+          [class.is-active]="isWished(pdp.product.id)"
           [attr.aria-pressed]="isWished(pdp.product.id)"
           (click)="toggleWishlist(pdp.product)"
         >
-          {{ isWished(pdp.product.id) ? '♥ En favoritos' : '♡ Agregar a favoritos' }}
+          <svg class="storefront__wish-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          <span>{{ isWished(pdp.product.id) ? 'En favoritos' : 'Agregar a favoritos' }}</span>
         </button>
         @if (pdp.product.seller) {
           <p class="storefront__seller-note">Vendido por <strong>{{ pdp.product.seller }}</strong></p>
@@ -446,8 +448,10 @@
           }
         </ul>
       </ng-template>
+    } @else if (loading()) {
+      <syn-skeleton variant="card" [rows]="1" />
     } @else {
-      <p class="storefront__empty" role="status">Cargando producto…</p>
+      <syn-error-state [message]="errorMessage() || 'No pudimos cargar el producto.'" (retry)="retryProduct()" />
     }
   }
 
@@ -485,7 +489,7 @@
                     class="storefront__cart-remove"
                     (click)="removeFromCart(item.id)"
                     [attr.aria-label]="'Eliminar ' + item.label"
-                  >✕</button>
+                  ><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
                 </li>
               }
             </ul>
@@ -668,7 +672,7 @@
       @switch (section.id) {
         @case ('favoritos') {
           @if (wishlist().length === 0) {
-            <p class="storefront__empty">Todavía no guardas productos. Toca ♡ en cualquier producto.</p>
+            <p class="storefront__empty">Todavía no guardas productos. Toca el corazón en cualquier producto.</p>
           } @else {
             <ul class="storefront__wish-grid">
               @for (entry of wishlist(); track entry.productId) {
@@ -741,7 +745,7 @@
     <div class="storefront__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Carrito de compras">
       <div class="storefront__cart-head">
         <h2 class="storefront__cart-title">Carrito ({{ cartCount() }})</h2>
-        <button type="button" class="storefront__cart-close" (click)="toggleCart()" aria-label="Cerrar carrito">✕</button>
+        <button type="button" class="storefront__cart-close" (click)="toggleCart()" aria-label="Cerrar carrito"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </div>
       @if (!hasCart()) {
         <p class="storefront__empty">Tu carrito está vacío.</p>
@@ -754,7 +758,7 @@
                 <span class="storefront__cart-sub">{{ item.quantity }} × {{ itemUnitLabel(item) }}</span>
               </div>
               <span class="storefront__cart-price">{{ itemLineTotalLabel(item) }}</span>
-              <button type="button" class="storefront__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Eliminar ' + item.label">✕</button>
+              <button type="button" class="storefront__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Eliminar ' + item.label"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
             </li>
           }
         </ul>
