@@ -446,11 +446,16 @@ function normalizeSearch(value: unknown, fallbackCurrency: string): SearchResult
     : Array.isArray(value['items'])
       ? value['items']
       : [];
+  const products = rawProducts
+    .map((entry) => normalizeProduct(entry, fallbackCurrency))
+    .filter((product): product is ShopProduct => product !== null);
+
   return {
-    products: rawProducts
-      .map((entry) => normalizeProduct(entry, fallbackCurrency))
-      .filter((product): product is ShopProduct => product !== null),
+    products,
     facets: normalizeFacets(value['facets']),
+    // Falls back to the page length when the backend omits `total`, which keeps an older
+    // API honest: one page of results is exactly what we got.
+    total: readNumber(value['total']) || products.length,
   };
 }
 
@@ -786,7 +791,8 @@ function mockSearch(criteria: SearchCriteria, currency: string): SearchResult {
     });
   }
   products = sortMock(products, criteria.sort);
-  return { products, facets: mockFacets(all) };
+  // The mock does not paginate, so every match is on the single page it returns.
+  return { products, facets: mockFacets(all), total: products.length };
 }
 
 function sortMock(products: readonly ShopProduct[], sort: SearchCriteria['sort']): ShopProduct[] {

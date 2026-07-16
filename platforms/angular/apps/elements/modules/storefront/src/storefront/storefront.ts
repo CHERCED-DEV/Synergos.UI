@@ -196,6 +196,11 @@ export class StorefrontElementComponent {
   // ─── Search / PLP (SH-1 inputs) ─────────────────────────────────────────────
   readonly criteria = signal<DiscoveryCriteria>(CLEAN_CRITERIA);
   readonly products = signal<readonly ShopProduct[]>([]);
+  /**
+   * Total matches across all pages — feeds the shell's `[total]`, which is what turns
+   * `pageCount` into something other than 1 once the backend starts paginating.
+   */
+  readonly total = signal(0);
   readonly discoveryFacets = signal<readonly DiscoveryFacet[]>([]);
   readonly searched = signal(false);
   readonly homeTerm = signal('');
@@ -655,6 +660,7 @@ export class StorefrontElementComponent {
         this.#api.search(this.apiBase(), criteria, this.currency()),
       );
       this.products.set(result.products);
+      this.total.set(result.total);
       this.discoveryFacets.set(
         result.facets.map((facet) => ({
           key: facet.key,

@@ -132,6 +132,14 @@ export interface FacetValue {
 export interface SearchResult {
   readonly products: readonly ShopProduct[];
   readonly facets: readonly Facet[];
+  /**
+   * How many products match the filters IN TOTAL — not how many this page carries.
+   *
+   * The shell computes `pageCount = ceil(total / pageSize)`, so without this it falls back
+   * to `items.length` and concludes there is a single page: the backend would serve page 1
+   * of N and the pager would stay hidden, leaving the rest unreachable.
+   */
+  readonly total: number;
 }
 
 /** The active query the PLP drives the search with. */
