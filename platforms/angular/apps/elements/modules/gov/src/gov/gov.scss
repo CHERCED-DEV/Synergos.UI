@@ -964,6 +964,40 @@
 }
 
 // ─── Mi carpeta ───────────────────────────────────────────────────────────────
+// Hueco de identidad (401): lo que se ve en "Mis solicitudes" sin sesión. No es un
+// error ni una degradación — es una invitación, así que se estila como panel neutro
+// y no con --gv-danger.
+.signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-lg;
+  border: 1px solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface-muted);
+  text-align: center;
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__text {
+    max-width: syn.px-to-rem(420);
+    margin: 0;
+    color: var(--gv-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: syn.$space-2;
+  }
+}
+
 .folder {
   display: flex;
   flex-direction: column;

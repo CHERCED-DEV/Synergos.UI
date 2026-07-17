@@ -76,7 +76,9 @@
   <!-- WCAG: cambios de estado anunciados sin recarga -->
   <p class="gov__sr-status" role="status" aria-live="polite">{{ announcement() }}</p>
 
-  @if (degraded()) {
+  @if (degraded() && !unauthenticated()) {
+    <!-- No convivir con el panel "Inicie sesión": un 401 previo podría dejar el latch
+         `degraded` encendido y se verían dos verdades contradictorias a la vez. -->
     <p class="gov__notice" role="status">
       Mostrando <strong>datos de ejemplo</strong>. El backend de trámites conectará el catálogo,
       las solicitudes y los casos reales.
@@ -280,6 +282,22 @@
   <!-- ════════════════════ MIS SOLICITUDES (SH-4 account) ════════════════════ -->
   @if (view() === 'applications') {
     <section class="folder" aria-label="Mis solicitudes">
+      @if (unauthenticated()) {
+        <!-- El backend pidió sesión. NO se pinta la carpeta con datos de ejemplo: sería
+             mostrarle al anónimo solicitudes que no son suyas. -->
+        <div class="signin">
+          <h2 class="signin__title">Inicie sesión para ver sus solicitudes</h2>
+          <p class="signin__text">
+            Sus trámites están asociados a su cuenta. Los verá aquí en cuanto entre.
+          </p>
+          <div class="signin__actions">
+            <a class="gv-btn gv-btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">
+              Ver el catálogo de trámites
+            </button>
+          </div>
+        </div>
+      } @else {
       <syn-account-shell
         [config]="accountConfig()"
         [items]="applications()"
@@ -288,6 +306,7 @@
         [detailTemplate]="applicationDetail"
         (itemselect)="openApplication($event)"
       />
+      }
 
       <ng-template #applicationRow let-app>
         <span class="app-row">

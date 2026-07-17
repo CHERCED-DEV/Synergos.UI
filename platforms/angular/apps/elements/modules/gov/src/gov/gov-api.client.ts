@@ -37,9 +37,9 @@ import {
  *  - `GET  /api/gov/service/{id}`               → `{ service }`
  *  - `GET  /api/gov/form/{serviceId}`           → `{ form }`
  *  - `POST /api/gov/application`                → `{ application }`   (summary)
- *  - `GET  /api/gov/applications?citizen=`      → `{ applications }`
- *  - `GET  /api/gov/application/{id}`           → `{ application }`   (detail)
- *  - `POST /api/gov/document`                   → `{ document }`
+ *  - `GET  /api/gov/applications`               → `{ applications }`  🔒 sesión
+ *  - `GET  /api/gov/application/{id}`           → `{ application }`   🔒 sesión
+ *  - `POST /api/gov/document`                   → `{ document }`      🔒 sesión
  *  - `GET  /api/gov/queue?agency=&status=`      → `{ cases }`
  *  - `GET  /api/gov/case/{id}`                  → `{ case }`
  *  - `POST /api/gov/decision`                   → `{ case }`
@@ -49,7 +49,38 @@ import {
  * cola de casos) and latches `degraded` so the shell can show a "datos de ejemplo"
  * notice. The full lifecycle — radicar → revisar → decidir → subsanar — demos
  * end-to-end offline before the backend lands. No RxJS: native `fetch` + Promise.
+ *
+ * **El 401 es la excepción a esa degradación, y es deliberado.** Las tres rutas 🔒
+ * son la carpeta del ciudadano: su identidad la resuelve el servidor desde la cookie
+ * de sesión (T2), no un `?citizen=<email>` que cualquiera podía teclear. Un 401 no
+ * significa "el backend no está" — significa "no hay sesión", y taparlo con datos de
+ * ejemplo le mostraría al anónimo una carpeta de solicitudes que no son de nadie.
+ * Por eso viaja como <see cref="GovUnauthorizedError"/> hasta la UI, que pide login.
+ *
+ * La cookie viaja sola: `fetch` manda credenciales same-origin por defecto y la app
+ * se monta dentro de la propia página del CMS. No se fuerza `credentials: 'include'`
+ * —mandaría la cookie a orígenes ajenos si `apiBase` fuera absoluto.
  */
+
+/**
+ * El backend exige sesión para esta ruta. NO es una degradación: es un hueco de
+ * identidad, y la UI debe ofrecer iniciar sesión en vez de inventar datos.
+ */
+export class GovUnauthorizedError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 401 ${url}`);
+    this.name = 'GovUnauthorizedError';
+  }
+}
+
+/**
+ * `instanceof` no es fiable cruzando bundles (la clase puede venir de otra copia del
+ * módulo), así que se discrimina por `name` — el mismo motivo por el que el runtime
+ * comparte `sg-core.js` en vez de duplicarlo.
+ */
+export function isGovUnauthorized(error: unknown): error is GovUnauthorizedError {
+  return error instanceof Error && error.name === 'GovUnauthorizedError';
+}
 @Injectable()
 export class GovApiClient {
   readonly #logger = inject(LoggerService);
@@ -143,8 +174,15 @@ export class GovApiClient {
     }
   }
 
-  async applications(apiBase: string, citizen: string): Promise<readonly ApplicationSummary[]> {
-    const url = `${apiBase}/applications?citizen=${encodeURIComponent(citizen)}`;
+  /**
+   * La carpeta del member de la SESIÓN. Sin parámetro de identidad: el `?citizen=<email>`
+   * era el IDOR (saber el correo de alguien bastaba para leer sus expedientes) y el
+   * backend ya no lo mira.
+   *
+   * @throws {GovUnauthorizedError} si no hay sesión.
+   */
+  async applications(apiBase: string): Promise<readonly ApplicationSummary[]> {
+    const url = `${apiBase}/applications`;
     try {
       const data = await this.getJson(url);
       const list = normalizeSummaries(data);
@@ -153,11 +191,15 @@ export class GovApiClient {
       }
       throw new Error('applications-shape');
     } catch (error) {
+      if (isGovUnauthorized(error)) {
+        throw error;
+      }
       this.markDegraded('GET /api/gov/applications', error);
       return [...this.mockStore().values()].map(toSummary);
     }
   }
 
+  /** @throws {GovUnauthorizedError} si no hay sesión. */
   async application(apiBase: string, id: string): Promise<ApplicationDetail> {
     const url = `${apiBase}/application/${encodeURIComponent(id)}`;
     try {
@@ -168,12 +210,16 @@ export class GovApiClient {
       }
       throw new Error('application-detail-shape');
     } catch (error) {
+      if (isGovUnauthorized(error)) {
+        throw error;
+      }
       this.markDegraded('GET /api/gov/application/{id}', error);
       const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
       return toDetail(seed);
     }
   }
 
+  /** @throws {GovUnauthorizedError} si no hay sesión. */
   async uploadDocument(apiBase: string, body: UploadDocumentRequest): Promise<GovDocument> {
     const url = `${apiBase}/document`;
     try {
@@ -184,6 +230,9 @@ export class GovApiClient {
       }
       throw new Error('document-shape');
     } catch (error) {
+      if (isGovUnauthorized(error)) {
+        throw error;
+      }
       this.markDegraded('POST /api/gov/document', error);
       return this.mockUpload(body);
     }
@@ -266,9 +315,14 @@ export class GovApiClient {
     return fetch(url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
-    }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
-    );
+    }).then((response) => {
+      if (response.status === 401) {
+        // Antes caía en el `catch` genérico y se degradaba a mock: el anónimo veía
+        // "datos de ejemplo" con solicitudes ajenas en vez de un "inicie sesión".
+        return Promise.reject(new GovUnauthorizedError(url));
+      }
+      return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
+    });
   }
 
   private markDegraded(endpoint: string, error: unknown): void {

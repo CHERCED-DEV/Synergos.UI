@@ -37,7 +37,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
-import { GovApiClient } from './gov-api.client';
+import { GovApiClient, isGovUnauthorized } from './gov-api.client';
 import {
   OUTCOME_LABELS,
   STATUS_HINTS,
@@ -72,7 +72,7 @@ import {
  *    prioridad) → revisar caso → decisión (aprobar/rechazar/pedir info + nota).
  *
  * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`role`/`citizen`/`agency`/`config` JSON, patrón createConfigInputTransform/
+ * (`apiBase`/`role`/`agency`/`config` JSON, patrón createConfigInputTransform/
  * resolveConfigValue) and data always comes from the API with visible mock
  * degradation. Shells stay domain-free (contrato D3) — the module only feeds
  * data + templates. WCAG AA + lenguaje claro GOV.UK are first-class (state
@@ -80,15 +80,19 @@ import {
  *
  * **Angular Elements lesson:** the initial fetch is NOT fired from the constructor
  * (inputs land AFTER construction); it fires from an `effect()` reactive to the
- * resolved identity/role, so a CMS-supplied `citizen`/`agency`/`role` re-fetches.
+ * resolved identity/role, so a CMS-supplied `agency`/`role` re-fetches.
+ *
+ * **Quién es el ciudadano NO se compone (T2).** Hubo un prop `citizen` que el mount
+ * mandaba como `?citizen=<email>`: era la identidad puesta por el cliente, o sea el
+ * IDOR. Ahora la resuelve el servidor desde la cookie de sesión y aquí no hay knob
+ * que valga — un `citizen` componible solo podría mentir. `agency` sí sigue: es un
+ * filtro de la cola, no una identidad.
  */
 export interface GovRuntimeConfig {
   /** Base URL of the gov API. Default `/api/gov`. */
   readonly apiBase?: string;
   /** Initial demo role. Default `citizen`. */
   readonly role?: GovRole;
-  /** Demo citizen id used to scope "mis solicitudes". Default `CC-52841903`. */
-  readonly citizen?: string;
   /** Agency scope for the officer queue (empty = all). Default `''`. */
   readonly agency?: string;
   /** Storage / hash-route scope. Default `gov`. */
@@ -97,9 +101,10 @@ export interface GovRuntimeConfig {
 
 const DEFAULT_API_BASE = '/api/gov';
 const DEFAULT_ROLE: GovRole = 'citizen';
-const DEFAULT_CITIZEN = 'CC-52841903';
 const DEFAULT_AGENCY = '';
 const DEFAULT_SCOPE = 'gov';
+/** Autoservicio de members del CMS (ADR 0034). Acepta un `returnUrl` relativo. */
+const LOGIN_PATH = '/account/login';
 
 const ROLES: readonly { key: GovRole; label: string }[] = [
   { key: 'citizen', label: 'Ciudadano' },
@@ -136,7 +141,6 @@ function sanitizeConfig(value: Partial<GovRuntimeConfig>): GovRuntimeConfig {
   return omitUndefinedProperties<GovRuntimeConfig>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
     role: coerceRole(value.role),
-    citizen: coerceTrimmedStringInput(value.citizen),
     agency: coerceTrimmedStringInput(value.agency),
     scope: coerceTrimmedStringInput(value.scope),
   });
@@ -172,7 +176,6 @@ export class GovElementComponent {
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
-  readonly citizenInput = input<string | undefined>(undefined, { alias: 'citizen' });
   readonly agencyInput = input<string | undefined>(undefined, { alias: 'agency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
 
@@ -185,13 +188,6 @@ export class GovElementComponent {
   );
   readonly initialRole = computed<GovRole>(() =>
     resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
-  );
-  readonly citizen = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.citizenInput()),
-      this.config()?.citizen,
-      DEFAULT_CITIZEN,
-    ),
   );
   readonly agency = computed(() =>
     resolveConfigValue(
@@ -220,11 +216,17 @@ export class GovElementComponent {
   readonly view = signal<GovView>('catalog');
   readonly loading = signal(false);
   readonly errorMessage = signal('');
+  /**
+   * El backend pidió sesión (401) para la carpeta del ciudadano. NO es `degraded`:
+   * ahí no hay nada que degradar, hay que iniciar sesión. Se separan porque el
+   * aviso de "datos de ejemplo" y el de "inicie sesión" son verdades distintas.
+   */
+  readonly unauthenticated = signal(false);
   /** Announced via role="status" — WCAG: state changes without a reload. */
   readonly announcement = signal('');
   #suppressedHash = '';
   /**
-   * The identity (`citizen`/`agency`) the current data was last loaded for. In
+   * The scope (`role`/`agency`/`apiBase`) the current data was last loaded for. In
    * Angular Elements the attr→input lands AFTER the constructor, so the first read
    * is the default; the identity `effect()` re-loads the CURRENT view once the real
    * config arrives. `''` = "nothing loaded yet" (never equals a real value).
@@ -412,11 +414,11 @@ export class GovElementComponent {
     this.applyHash();
 
     // Identity effect: fires with the default first, then again once the CMS-supplied
-    // `citizen`/`agency`/`role` land after construction (Angular Elements lifecycle),
-    // re-fetching against the real identity. Guarded by `#lastIdentity` so it never
+    // `agency`/`role` land after construction (Angular Elements lifecycle),
+    // re-fetching against the real scope. Guarded by `#lastIdentity` so it never
     // loops. This is the fix that avoids the constructor-fetch anti-pattern.
     effect(() => {
-      const identity = `${this.initialRole()}|${this.citizen()}|${this.agency()}|${this.apiBase()}`;
+      const identity = `${this.initialRole()}|${this.agency()}|${this.apiBase()}`;
       if (identity === this.#lastIdentity) {
         return;
       }
@@ -442,6 +444,8 @@ export class GovElementComponent {
     this.queueLoaded.set(false);
     this.activeApplication.set(null);
     this.activeCase.set(null);
+    // El 401 se vuelve a preguntar contra el nuevo apiBase; no se arrastra.
+    this.unauthenticated.set(false);
     this.loadForView(this.view());
   }
 
@@ -726,15 +730,59 @@ export class GovElementComponent {
   private async loadApplications(): Promise<void> {
     this.loading.set(true);
     try {
-      const apps = await this.#api.applications(this.apiBase(), this.citizen());
+      const apps = await this.#api.applications(this.apiBase());
       this.applications.set(apps);
       this.applicationsLoaded.set(true);
+      this.unauthenticated.set(false);
     } catch (error) {
+      if (this.handleUnauthorized(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar sus solicitudes. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Traduce un 401 al ÚNICO estado que lo sabe pintar: la carpeta con el panel "Inicie
+   * sesión". Devuelve `true` si el error era ese, para que quien llama corte ahí.
+   *
+   * Aterriza SIEMPRE en la vista `applications` (única que renderiza el panel), sin
+   * importar desde dónde saltó el 401 (carpeta, detalle, subir documento). Si no, un 401
+   * en el detalle dejaba al usuario vidente sin ninguna señal: el aviso solo iba a la
+   * región aria-live (sr-only). Y deja la carpeta HONESTA: `applications=[]` +
+   * `applicationsLoaded=true` para que el badge del nav no siga mostrando un conteo
+   * viejo mientras el cuerpo pide iniciar sesión.
+   */
+  private handleUnauthorized(error: unknown, announcement?: string): boolean {
+    if (!isGovUnauthorized(error)) {
+      return false;
+    }
+    this.unauthenticated.set(true);
+    this.errorMessage.set('');
+    this.activeApplication.set(null);
+    this.applications.set([]);
+    this.applicationsLoaded.set(true);
+    this.announce(announcement ?? 'Necesita iniciar sesión para ver sus solicitudes.');
+    if (this.view() !== 'applications') {
+      this.navigate('applications');
+    }
+    return true;
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página (con su hash, para caer en la misma vista).
+   * Es un método y no un `computed` a propósito: el hash cambia con la navegación y un
+   * computed cacheado devolvería el de la primera lectura.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
   }
 
   openApplication(app: ApplicationSummary): void {
@@ -748,8 +796,14 @@ export class GovElementComponent {
       const detail = await this.#api.application(this.apiBase(), id);
       this.activeApplication.set(detail);
       this.activeThreadId.set(null);
+      this.unauthenticated.set(false);
       // View was already set by `applyRoute` before dispatch — do not re-route.
     } catch (error) {
+      // Deep-link a un expediente sin sesión: handleUnauthorized rebota a la carpeta,
+      // que es donde vive el panel "inicie sesión".
+      if (this.handleUnauthorized(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos abrir su solicitud. Intente de nuevo.');
       void error;
     } finally {
@@ -785,6 +839,13 @@ export class GovElementComponent {
       this.uploadName.set('');
       this.announce(`Documento "${doc.name}" adjuntado.`);
     } catch (error) {
+      // Sesión expirada a mitad del detalle: handleUnauthorized rebota a la carpeta con
+      // el panel de login (antes fallaba en silencio — el aviso solo iba a la región
+      // sr-only y la vista de detalle no pinta el panel).
+      if (this.handleUnauthorized(error, 'Su sesión expiró. Inicie sesión para adjuntar el documento.')) {
+        this.uploadName.set('');
+        return;
+      }
       this.errorMessage.set('No pudimos subir el documento. Intente de nuevo.');
       void error;
     } finally {

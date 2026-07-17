@@ -157,11 +157,14 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.activeCase()?.application.status).toBe(before);
   });
 
-  // ── reactive identity: citizen input landing AFTER construction re-fetches ────
-  it('re-fetches when the citizen/agency input lands after construction', async () => {
-    // Backend "alive" for the CMS-supplied citizen; the default 404s to mock.
+  // ── reactive identity: an input landing AFTER construction re-fetches ─────────
+  // Guardaba la lección con `citizen`, que murió con T2 (la identidad ya no la pone el
+  // cliente). La lección NO murió: en Angular Elements los inputs aterrizan después del
+  // constructor, así que se afirma con `apiBase`, que sigue siendo componible.
+  it('re-fetches when the apiBase input lands after construction', async () => {
+    // El backend solo "existe" en la base que manda el CMS; la default cae a mock.
     const fetchMock = vi.fn((url: string) => {
-      if (url.includes('/applications') && url.includes('CC-99999999')) {
+      if (url.includes('/api/gov-live/applications')) {
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -197,17 +200,218 @@ describe('GovElementComponent (v2 dual face)', () => {
     fixture.detectChanges();
     await flushMicrotasks();
     expect(component.view()).toBe('applications');
-    expect(component.degraded()).toBe(true); // default CC-52841903 → mock
+    expect(component.degraded()).toBe(true); // /api/gov default → offline → mock
 
-    // The CMS mount sets `citizen` AFTER construction (Angular Elements lifecycle).
-    fixture.componentRef.setInput('citizen', 'CC-99999999');
+    // The CMS mount sets `apiBase` AFTER construction (Angular Elements lifecycle).
+    fixture.componentRef.setInput('apiBase', '/api/gov-live');
     fixture.detectChanges();
     await flushMicrotasks();
 
-    expect(component.citizen()).toBe('CC-99999999');
     expect(component.applications().some((a) => a.reference === 'GOV-2026-77777')).toBe(true);
     expect(component.degraded()).toBe(false);
-    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('CC-99999999'))).toBe(true);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/api/gov-live'))).toBe(true);
+  });
+
+  // ── T2: sin sesión el 401 NO se degrada a datos de ejemplo ────────────────────
+  // El bug que cierra: el 401 caía en el catch genérico → markDegraded → la carpeta se
+  // llenaba con las solicitudes sembradas. Un anónimo veía expedientes ajenos con un
+  // cartelito de "datos de ejemplo".
+  it('pide iniciar sesión cuando el backend responde 401 (no degrada a mock)', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/applications')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/mis-solicitudes';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expect(component.view()).toBe('applications');
+    expect(component.unauthenticated()).toBe(true);
+    // Lo que importa: NADA de solicitudes sembradas, y sin cartel de "datos de ejemplo".
+    expect(component.applications()).toEqual([]);
+    expect(component.errorMessage()).toBe('');
+    // El enlace vuelve a esta misma página tras el login.
+    expect(component.loginUrl()).toContain('/account/login?returnUrl=');
+  });
+
+  // ── T2: la identidad ya no viaja en la URL ────────────────────────────────────
+  it('nunca manda ?citizen= al pedir la carpeta', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      void url;
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/mis-solicitudes';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const applicationCalls = fetchMock.mock.calls
+      .map(([u]) => String(u))
+      .filter((u) => u.includes('/applications'));
+    expect(applicationCalls.length).toBeGreaterThan(0); // control: se pidió de verdad
+    expect(applicationCalls.every((u) => !u.includes('citizen'))).toBe(true);
+  });
+
+  // ── T2 (review): un 401 en el DETALLE rebota a la carpeta y la deja honesta ────
+  // Bug de la revisión: loadApplication en 401 iba a 'applications' pero NO limpiaba la
+  // lista → el badge del nav seguía mostrando el conteo viejo mientras el cuerpo pedía
+  // iniciar sesión. Deep-link a un expediente con sesión expirada.
+  it('un 401 al abrir un expediente rebota a la carpeta y limpia el badge', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/application/')) {
+        return Promise.resolve({
+          ok: false, status: 401,
+          json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-cualquiera';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // Aterriza en la carpeta (única vista que pinta el panel), no en el detalle.
+    expect(component.view()).toBe('applications');
+    expect(component.unauthenticated()).toBe(true);
+    expect(component.activeApplication()).toBeNull();
+    // Badge honesto: nada de conteo viejo mientras se pide iniciar sesión.
+    expect(component.applications()).toEqual([]);
+  });
+
+  // ── T2 (review): un 401 al SUBIR documento no falla en silencio ───────────────
+  // Bug de la revisión: la vista de detalle no pinta el panel de login y el aviso solo
+  // iba a la región sr-only → para un vidente la subida fallaba sin señal. Ahora rebota.
+  it('un 401 al subir documento rebota a la carpeta (no falla en silencio)', async () => {
+    const detail = {
+      id: 'app-1', reference: 'GOV-2026-11111', serviceId: 'svc-x', serviceName: 'Trámite',
+      status: 'in-review', submittedAt: '2026-07-05T10:00:00Z', currentStage: 'En revisión',
+      timeline: [], documents: [], messages: [],
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes('/document') && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: false, status: 401,
+          json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+        } as Response);
+      }
+      if (url.includes('/application/')) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ application: detail }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-1';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // Control: el detalle cargó con sesión (200).
+    expect(component.view()).toBe('application');
+    expect(component.activeApplication()?.id).toBe('app-1');
+
+    // La sesión "expira": subir un documento devuelve 401.
+    component.uploadName.set('cedula.pdf');
+    component.uploadDocument();
+    await flushMicrotasks();
+
+    // No se queda en el detalle en silencio: rebota al panel "Inicie sesión".
+    expect(component.unauthenticated()).toBe(true);
+    expect(component.view()).toBe('applications');
+    expect(component.uploadName()).toBe('');
+  });
+
+  // ── T2 (review): el banner "datos de ejemplo" NO convive con "Inicie sesión" ──
+  it('no muestra el banner de datos de ejemplo estando sin sesión', async () => {
+    // service/{id} → 404 real (degrada a mock, prende el latch); applications → 401.
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/service/')) {
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) } as Response);
+      }
+      if (url.includes('/applications')) {
+        return Promise.resolve({
+          ok: false, status: 401, json: () => Promise.resolve({ error: 'x' }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // Un trámite inexistente prende el latch `degraded`.
+    component.openService({ id: 'no-existe', name: 'x', summary: '', category: '', agency: '',
+      estimatedDays: 0, feeMinor: 0, currency: 'COP' });
+    await flushMicrotasks();
+    expect(component.degraded()).toBe(true);
+
+    // Ahora la carpeta: 401 → unauthenticated. El banner se apaga aunque degraded siga true.
+    component.goToApplications();
+    await flushMicrotasks();
+    expect(component.unauthenticated()).toBe(true);
+
+    const notice = (fixture.nativeElement as HTMLElement).querySelector('.gov__notice');
+    expect(notice).toBeNull();
   });
 });
 
