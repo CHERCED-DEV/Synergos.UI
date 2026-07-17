@@ -372,6 +372,9 @@ export class RealtyElementComponent {
     this.facets().map((facet) => ({
       key: facet.key,
       label: facet.label,
+      // El kind VIAJA: es lo que hace que `beds` se pinte como radio (los tramos son pisos
+      // "3+ habitaciones", no valores exactos). Sin él, el shell cae a MultiSelect.
+      kind: facet.kind,
       values: facet.values.map((value) => ({ value: value.value, label: value.label, count: value.count })),
     })),
   );

@@ -520,6 +520,8 @@ function normalizeFacets(value: unknown): readonly Facet[] {
       return {
         key,
         label: readString(entry['label']).trim() || key,
+        // Sin kind = MultiSelect: es el default del contrato y deja el checkbox de siempre.
+        kind: readString(entry['kind']).trim() || 'MultiSelect',
         values: rawValues
           .map((facetValue) => {
             if (!isRecord(facetValue)) {

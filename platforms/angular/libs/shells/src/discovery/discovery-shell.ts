@@ -42,6 +42,15 @@ export interface DiscoveryFacet {
   readonly key: string;
   readonly label: string;
   readonly values: readonly DiscoveryFacetValue[];
+  /**
+   * Cómo se comporta la faceta al filtrar, tal como lo declara el backend
+   * (`MultiSelect` | `SingleSelect` | `Threshold` | `Range`). El shell NO lo adivina por el
+   * nombre del campo.
+   *
+   * Ausente = `MultiSelect`: un vertical que todavía no lo emite conserva exactamente el
+   * comportamiento de checkbox que tenía.
+   */
+  readonly kind?: string;
 }
 
 /** One sort option for the toolbar. */
@@ -66,6 +75,13 @@ export interface DiscoveryShellConfig {
   readonly showSearch?: boolean;
   readonly filtersHeading?: string;
   readonly clearLabel?: string;
+  /**
+   * La opción "sin filtro" de una faceta de valor único. Default `Cualquiera`.
+   *
+   * Existe porque un radio no se puede desmarcar: sin ella, elegir "4 estrellas o más" sería
+   * irreversible salvo con `Limpiar`, que borra TAMBIÉN el término y las demás facetas.
+   */
+  readonly anyLabel?: string;
   readonly sortLabel?: string;
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
@@ -152,13 +168,33 @@ let discoveryInstanceId = 0;
             @for (facet of facets(); track facet.key) {
               <fieldset class="syn-discovery__facet">
                 <legend class="syn-discovery__facet-legend">{{ facet.label }}</legend>
-                @for (value of facet.values; track value.value) {
+                @if (isSingleValued(facet)) {
                   <label class="syn-discovery__facet-option">
                     <input
-                      type="checkbox"
-                      [checked]="isSelected(facet.key, value.value)"
-                      (change)="toggleFacet(facet.key, value.value)"
+                      type="radio"
+                      [name]="facetGroupName(facet.key)"
+                      [checked]="!hasSelection(facet.key)"
+                      (change)="clearFacet(facet.key)"
                     />
+                    <span class="syn-discovery__facet-label">{{ config().anyLabel || 'Cualquiera' }}</span>
+                  </label>
+                }
+                @for (value of facet.values; track value.value) {
+                  <label class="syn-discovery__facet-option">
+                    @if (isSingleValued(facet)) {
+                      <input
+                        type="radio"
+                        [name]="facetGroupName(facet.key)"
+                        [checked]="isSelected(facet.key, value.value)"
+                        (change)="selectFacet(facet.key, value.value)"
+                      />
+                    } @else {
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(facet.key, value.value)"
+                        (change)="toggleFacet(facet.key, value.value)"
+                      />
+                    }
                     <span class="syn-discovery__facet-label">{{ value.label }}</span>
                     @if (value.count !== undefined) {
                       <span class="syn-discovery__facet-count">{{ value.count }}</span>
@@ -383,15 +419,68 @@ export class DiscoveryShellComponent<TItem> {
     return (this.selectedFacets()[facetKey] ?? []).includes(value);
   }
 
+  hasSelection(facetKey: string): boolean {
+    return (this.selectedFacets()[facetKey] ?? []).length > 0;
+  }
+
+  /**
+   * ¿Esta faceta admite UN solo valor a la vez? Lo dice el `kind` que declara el backend; el
+   * shell no lo adivina por el nombre del campo.
+   *
+   * Hoy solo `Threshold`: un umbral es un piso ("4 estrellas o más"), y encender dos pisos no
+   * pide la unión — el motor se queda con el MENOS restrictivo. Marcar "4.5+" y además "4+"
+   * devolvía el catálogo ENTERO con los dos chips encendidos: el estricto se veía marcado y
+   * no hacía nada.
+   *
+   * `SingleSelect` es el otro kind de valor único del contrato, pero hoy ningún descriptor lo
+   * emite (Tienda declara `category` MultiSelect a propósito, porque marcar dos categorías y
+   * ver la unión es lo que el usuario espera). Cuando un vertical lo estrene, entra aquí —
+   * con su verificación.
+   */
+  isSingleValued(facet: DiscoveryFacet): boolean {
+    return facet.kind === 'Threshold';
+  }
+
+  /**
+   * El `name` que agrupa los radios de una faceta. Lleva el `fieldId` porque el name es
+   * global al documento: sin él, dos shells en la misma página (o el mismo `key` en dos
+   * facetas) compartirían grupo y se desmarcarían entre sí.
+   */
+  facetGroupName(facetKey: string): string {
+    return `${this.fieldId}-${facetKey}`;
+  }
+
+  /** Multi-valor: ACUMULA (marcar dos marcas es pedir la unión). */
   toggleFacet(facetKey: string, value: string): void {
-    const current = this.selectedFacets();
-    const selected = current[facetKey] ?? [];
+    const selected = this.selectedFacets()[facetKey] ?? [];
     const next = selected.includes(value)
       ? selected.filter((entry) => entry !== value)
       : [...selected, value];
-    const facets: Record<string, readonly string[]> = { ...current };
-    if (next.length > 0) {
-      facets[facetKey] = next;
+    this.setFacet(facetKey, next);
+  }
+
+  /** Valor único: REEMPLAZA. Elegir "4+" sobre "4.5+" cambia el piso, no lo suma. */
+  selectFacet(facetKey: string, value: string): void {
+    const selected = this.selectedFacets()[facetKey] ?? [];
+    if (selected.length === 1 && selected[0] === value) {
+      return;
+    }
+    this.setFacet(facetKey, [value]);
+  }
+
+  /** La opción "Cualquiera" de una faceta de valor único: suelta el filtro sin tocar el resto. */
+  clearFacet(facetKey: string): void {
+    if (!this.hasSelection(facetKey)) {
+      return;
+    }
+    this.setFacet(facetKey, []);
+  }
+
+  /** Escribe la selección de UNA faceta y reporta; vacío = la faceta sale del criterio. */
+  private setFacet(facetKey: string, values: readonly string[]): void {
+    const facets: Record<string, readonly string[]> = { ...this.selectedFacets() };
+    if (values.length > 0) {
+      facets[facetKey] = values;
     } else {
       delete facets[facetKey];
     }

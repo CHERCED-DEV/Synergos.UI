@@ -119,6 +119,12 @@ export interface Facet {
   /** Human label for the facet group. */
   readonly label: string;
   readonly values: readonly FacetValue[];
+  /**
+   * Cómo se comporta la faceta al filtrar (`MultiSelect` | `SingleSelect` | `Threshold` |
+   * `Range`), tal como la declara el descriptor del backend. El shell decide con esto si
+   * pinta checkboxes o radios. Ausente = `MultiSelect`.
+   */
+  readonly kind?: string;
 }
 
 /** One selectable value within a facet group, with a result count. */

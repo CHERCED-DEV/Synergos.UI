@@ -235,4 +235,113 @@ describe(DiscoveryShellComponent.name, () => {
     // The internal clear() reset the criteria (no facets selected any more).
     expect(host.criteriaLog.at(-1)?.facets).toEqual({});
   });
+
+  // ── kind ────────────────────────────────────────────────────────────────────
+  // El backend declara CÓMO se comporta cada faceta (`kind`); el shell obedece en vez de
+  // pintarlo todo como checkbox. Sin esto, marcar "4.5+" y "4+" a la vez devolvía el
+  // catálogo entero con los DOS chips encendidos (gana el umbral menos restrictivo).
+
+  /** Una faceta de umbral tal como la emiten Tienda (`minRating`) y Propiedades (`beds`). */
+  const THRESHOLD_FACET: readonly DiscoveryFacet[] = [
+    {
+      key: 'minRating',
+      label: 'Calificación',
+      kind: 'Threshold',
+      values: [
+        { value: '4.5', label: '4.5 estrellas o más', count: 3 },
+        { value: '4', label: '4 estrellas o más', count: 6 },
+      ],
+    },
+  ];
+
+  function optionInputs(element: HTMLElement): HTMLInputElement[] {
+    return Array.from(
+      element.querySelectorAll<HTMLInputElement>('.syn-discovery__facet-option input'),
+    );
+  }
+
+  it('renders a facet with no kind as checkboxes (compat: los verticales que no lo emiten)', async () => {
+    const fixture = await createHost();
+    fixture.componentInstance.facets.set(FACETS);
+    fixture.detectChanges();
+
+    const inputs = optionInputs(fixture.nativeElement);
+    expect(inputs).toHaveLength(2);
+    expect(inputs.every((input) => input.type === 'checkbox')).toBe(true);
+  });
+
+  it('renders a Threshold facet as radios plus an "any" option', async () => {
+    const fixture = await createHost();
+    fixture.componentInstance.facets.set(THRESHOLD_FACET);
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const inputs = optionInputs(element);
+    // 2 tramos + "Cualquiera".
+    expect(inputs).toHaveLength(3);
+    expect(inputs.every((input) => input.type === 'radio')).toBe(true);
+    // Un solo grupo → seleccionar uno desmarca el otro sin ayuda del shell.
+    expect(new Set(inputs.map((input) => input.name)).size).toBe(1);
+    // Sin selección, "Cualquiera" es el que está marcado.
+    expect(inputs[0].checked).toBe(true);
+    expect(element.querySelector('.syn-discovery__facet-label')?.textContent).toContain(
+      'Cualquiera',
+    );
+  });
+
+  it('REPLACES the value of a Threshold facet instead of accumulating it', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    host.facets.set(THRESHOLD_FACET);
+    fixture.detectChanges();
+
+    const [, strict, loose] = optionInputs(fixture.nativeElement);
+
+    strict.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({ minRating: ['4.5'] });
+
+    // El bug: esto acumulaba a ['4.5','4'] y el motor se quedaba con el MENOS restrictivo,
+    // así que el listado volvía a salir entero con los dos chips marcados.
+    loose.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({ minRating: ['4'] });
+  });
+
+  it('releases only its own facet through the "any" option', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    host.facets.set([...THRESHOLD_FACET, ...FACETS]);
+    fixture.detectChanges();
+
+    const element: HTMLElement = fixture.nativeElement;
+    const [any, strict] = optionInputs(element);
+    strict.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    // Una faceta multi-valor encendida en paralelo: "Cualquiera" no debe tocarla.
+    const brand = element.querySelectorAll<HTMLInputElement>('.syn-discovery__facet-option input')[3];
+    brand.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({ minRating: ['4.5'], brand: ['sony'] });
+
+    any.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({ brand: ['sony'] });
+  });
+
+  it('keeps accumulating values on a MultiSelect facet (la unión sigue viva)', async () => {
+    const fixture = await createHost();
+    const host = fixture.componentInstance;
+    host.facets.set([{ ...FACETS[0], kind: 'MultiSelect' }]);
+    fixture.detectChanges();
+
+    const [sony, acme] = optionInputs(fixture.nativeElement);
+    sony.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    acme.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(host.criteriaLog.at(-1)?.facets).toEqual({ brand: ['sony', 'acme'] });
+  });
 });
