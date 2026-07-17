@@ -76,9 +76,10 @@
   <!-- WCAG: cambios de estado anunciados sin recarga -->
   <p class="gov__sr-status" role="status" aria-live="polite">{{ announcement() }}</p>
 
-  @if (degraded() && !unauthenticated()) {
-    <!-- No convivir con el panel "Inicie sesión": un 401 previo podría dejar el latch
-         `degraded` encendido y se verían dos verdades contradictorias a la vez. -->
+  @if (degraded() && !unauthenticated() && officerAccess() === 'ok') {
+    <!-- No convivir con un panel de acceso ("Inicie sesión" del ciudadano o "no autorizado"
+         del funcionario): un 401/403 previo podría dejar el latch `degraded` encendido y se
+         verían dos verdades contradictorias a la vez. -->
     <p class="gov__notice" role="status">
       Mostrando <strong>datos de ejemplo</strong>. El backend de trámites conectará el catálogo,
       las solicitudes y los casos reales.
@@ -414,6 +415,37 @@
   <!-- ════════════════════ COLA DE CASOS (SH-5 console) ════════════════════ -->
   @if (view() === 'queue') {
     <section class="queue" aria-label="Cola de casos">
+      @if (officerAccess() !== 'ok') {
+        <!-- La consola expone PII de otros ciudadanos: si no hay rol de funcionario NO se
+             pinta con datos de ejemplo. 'anon' → ofrecer login; 'forbidden' → el login no
+             ayuda (hace falta que un admin dé el permiso), así que solo se explica. -->
+        <div class="signin">
+          @if (officerAccess() === 'anon') {
+            <h2 class="signin__title">Inicie sesión como funcionario</h2>
+            <p class="signin__text">
+              La cola de casos es para funcionarios de la entidad. Inicie sesión con una
+              cuenta autorizada para verla.
+            </p>
+            <div class="signin__actions">
+              <a class="gv-btn gv-btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+              <button type="button" class="gv-btn gv-btn--ghost" (click)="goToCitizenPortal()">
+                Ir al portal ciudadano
+              </button>
+            </div>
+          } @else {
+            <h2 class="signin__title">Su cuenta no tiene permiso de funcionario</h2>
+            <p class="signin__text">
+              Esta consola es solo para funcionarios de la entidad. Si necesita acceso,
+              solicite el rol al administrador.
+            </p>
+            <div class="signin__actions">
+              <button type="button" class="gv-btn gv-btn--brand" (click)="goToCitizenPortal()">
+                Ir al portal ciudadano
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
       <syn-console-shell
         [config]="consoleConfig()"
         [kpis]="consoleKpis()"
@@ -426,6 +458,7 @@
         (filterchange)="onConsoleFilterChange($event)"
         (rowaction)="onConsoleRowAction($event)"
       />
+      }
 
       <ng-template #queueCell let-row let-column="column">
         @switch (column.key) {

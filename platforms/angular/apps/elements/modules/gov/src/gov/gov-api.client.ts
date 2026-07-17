@@ -81,6 +81,24 @@ export class GovUnauthorizedError extends Error {
 export function isGovUnauthorized(error: unknown): error is GovUnauthorizedError {
   return error instanceof Error && error.name === 'GovUnauthorizedError';
 }
+
+/**
+ * El backend respondió 403: hay sesión, pero la cuenta NO tiene el rol de funcionario.
+ * A diferencia del 401, iniciar sesión otra vez NO ayuda — hace falta que un admin le dé
+ * el permiso. Por eso viaja distinto: la consola muestra "no autorizado", no un login.
+ * Solo lo lanzan las rutas del funcionario (cola/expediente/decisión).
+ */
+export class GovForbiddenError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 403 ${url}`);
+    this.name = 'GovForbiddenError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isGovForbidden(error: unknown): error is GovForbiddenError {
+  return error instanceof Error && error.name === 'GovForbiddenError';
+}
 @Injectable()
 export class GovApiClient {
   readonly #logger = inject(LoggerService);
@@ -239,7 +257,19 @@ export class GovApiClient {
   }
 
   // ─── Funcionario ──────────────────────────────────────────────────────────────
+  //
+  // La consola del funcionario expone PII de OTROS ciudadanos. Un 401 (anónimo) o un 403
+  // (logueado sin rol) NO se degradan a mock —eso le mostraría la cola ajena a quien no
+  // debe—: se re-lanzan tipados para que la UI muestre "inicie sesión" / "no autorizado".
 
+  /** Re-lanza un 401/403 (los que la UI del funcionario trata como estado, no como caída). */
+  private rethrowIfAuthError(error: unknown): void {
+    if (isGovUnauthorized(error) || isGovForbidden(error)) {
+      throw error;
+    }
+  }
+
+  /** @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario. */
   async queue(apiBase: string, agency: string, status: string): Promise<readonly QueueCase[]> {
     const params = new URLSearchParams();
     if (agency) {
@@ -258,11 +288,13 @@ export class GovApiClient {
       }
       throw new Error('queue-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/gov/queue', error);
       return this.mockQueue(agency, status);
     }
   }
 
+  /** @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario. */
   async case(apiBase: string, id: string): Promise<GovCase> {
     const url = `${apiBase}/case/${encodeURIComponent(id)}`;
     try {
@@ -273,12 +305,14 @@ export class GovApiClient {
       }
       throw new Error('case-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/gov/case/{id}', error);
       const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
       return toCase(seed);
     }
   }
 
+  /** @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario. */
   async decide(apiBase: string, body: DecisionRequest): Promise<GovCase> {
     const url = `${apiBase}/decision`;
     try {
@@ -289,6 +323,7 @@ export class GovApiClient {
       }
       throw new Error('decision-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/gov/decision', error);
       return this.mockDecide(body);
     }
@@ -320,6 +355,11 @@ export class GovApiClient {
         // Antes caía en el `catch` genérico y se degradaba a mock: el anónimo veía
         // "datos de ejemplo" con solicitudes ajenas en vez de un "inicie sesión".
         return Promise.reject(new GovUnauthorizedError(url));
+      }
+      if (response.status === 403) {
+        // Autenticado pero sin rol (funcionario): tampoco es degradación. Taparlo con
+        // mock le mostraría la cola de otros ciudadanos a quien no debe verla.
+        return Promise.reject(new GovForbiddenError(url));
       }
       return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
     });

@@ -37,7 +37,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
-import { GovApiClient, isGovUnauthorized } from './gov-api.client';
+import { GovApiClient, isGovForbidden, isGovUnauthorized } from './gov-api.client';
 import {
   OUTCOME_LABELS,
   STATUS_HINTS,
@@ -222,6 +222,15 @@ export class GovElementComponent {
    * aviso de "datos de ejemplo" y el de "inicie sesión" son verdades distintas.
    */
   readonly unauthenticated = signal(false);
+  /**
+   * Acceso a la CONSOLA DEL FUNCIONARIO (cola/expediente/decisión), que ahora exige rol.
+   * - `'ok'`: hay funcionario, se muestra la consola.
+   * - `'anon'` (401): no hay sesión → ofrecer login.
+   * - `'forbidden'` (403): hay sesión pero sin el rol → "no autorizado" (login NO ayuda,
+   *   hace falta que un admin le dé el permiso).
+   * Es distinto de `unauthenticated` (carpeta del ciudadano): son dos caras y dos verdades.
+   */
+  readonly officerAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
   /** Announced via role="status" — WCAG: state changes without a reload. */
   readonly announcement = signal('');
   #suppressedHash = '';
@@ -444,8 +453,9 @@ export class GovElementComponent {
     this.queueLoaded.set(false);
     this.activeApplication.set(null);
     this.activeCase.set(null);
-    // El 401 se vuelve a preguntar contra el nuevo apiBase; no se arrastra.
+    // El 401/403 se vuelve a preguntar contra el nuevo apiBase; no se arrastran.
     this.unauthenticated.set(false);
+    this.officerAccess.set('ok');
     this.loadForView(this.view());
   }
 
@@ -468,6 +478,22 @@ export class GovElementComponent {
     this.rolechange.emit(role);
     this.navigate(role === 'officer' ? 'queue' : 'catalog');
     this.announce(`Cambió al perfil ${ROLES.find((r) => r.key === role)?.label ?? ''}.`);
+  }
+
+  /**
+   * Salida del panel "no autorizado" del funcionario hacia el portal ciudadano. NO puede ser
+   * `setRole('citizen')` a secas: si se llegó por deep-link a `#/gov/gestion`, el `role()` ya
+   * es 'citizen' (el toggle nunca se pulsó) y `setRole` haría early-return dejando el botón
+   * MUERTO en el panel. Aquí se navega SIEMPRE al catálogo, alineando el rol de paso.
+   */
+  goToCitizenPortal(): void {
+    this.officerAccess.set('ok');
+    if (this.role() === 'officer') {
+      this.setRole('citizen');
+      return;
+    }
+    this.role.set('citizen');
+    this.navigate('catalog');
   }
 
   // ─── Router (signals + hash deep-links) ────────────────────────────────────
@@ -897,12 +923,41 @@ export class GovElementComponent {
       const cases = await this.#api.queue(this.apiBase(), this.agency(), this.queueFilter());
       this.queueCases.set(cases);
       this.queueLoaded.set(true);
+      this.officerAccess.set('ok');
     } catch (error) {
+      if (this.handleOfficerDenied(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar la cola de casos. Intente de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Traduce un 401/403 de la consola del funcionario a `officerAccess` y vacía la cola/caso
+   * para no dejar a la vista datos que ya no debe ver. Devuelve `true` si era ese error.
+   * - 401 → `'anon'` (ofrecer login), 403 → `'forbidden'` (no autorizado; login no ayuda).
+   */
+  private handleOfficerDenied(error: unknown): boolean {
+    const anon = isGovUnauthorized(error);
+    if (!anon && !isGovForbidden(error)) {
+      return false;
+    }
+    this.officerAccess.set(anon ? 'anon' : 'forbidden');
+    this.errorMessage.set('');
+    this.queueCases.set([]);
+    this.activeCase.set(null);
+    this.announce(anon
+      ? 'Inicie sesión como funcionario para ver la cola.'
+      : 'Su cuenta no tiene permiso de funcionario.');
+    // Aterriza SIEMPRE en 'queue' (única vista que pinta el panel), venga de la cola o de
+    // un expediente — igual que el ciudadano cae siempre en 'applications'.
+    if (this.view() !== 'queue') {
+      this.navigate('queue');
+    }
+    return true;
   }
 
   onConsoleRowAction(event: ConsoleRowActionEvent<QueueCase>): void {
@@ -922,8 +977,12 @@ export class GovElementComponent {
       const kase = await this.#api.case(this.apiBase(), caseId);
       this.activeCase.set(kase);
       this.decisionNote.set('');
+      this.officerAccess.set('ok');
       // View was already set by `applyRoute` before dispatch — do not re-route.
     } catch (error) {
+      if (this.handleOfficerDenied(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos abrir el caso. Intente de nuevo.');
       void error;
     } finally {
@@ -960,6 +1019,10 @@ export class GovElementComponent {
       this.announce(`El caso pasó a: ${STATUS_LABELS[kase.application.status]}.`);
       this.casedecided.emit({ caseId, outcome });
     } catch (error) {
+      // La sesión pudo expirar a mitad de la revisión, o perder el rol: mismo rebote.
+      if (this.handleOfficerDenied(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos registrar la decisión. Intente de nuevo.');
       void error;
     } finally {

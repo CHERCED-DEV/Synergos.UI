@@ -413,6 +413,98 @@ describe('GovElementComponent (v2 dual face)', () => {
     const notice = (fixture.nativeElement as HTMLElement).querySelector('.gov__notice');
     expect(notice).toBeNull();
   });
+
+  // ── T2 (RBAC funcionario): la cola sin rol NO se degrada a mock ───────────────
+  // El bug que cierra: queue/case/decision eran anónimas. Un visitante pulsaba
+  // "Funcionario" y veía la cola con la PII de otros ciudadanos (cédula/correo).
+  async function bootOfficer(status: 401 | 403): Promise<void> {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/queue') || url.includes('/case/')) {
+        return Promise.resolve({
+          ok: false, status,
+          json: () => Promise.resolve({ error: 'x' }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/gestion'; // ruta de la cola del funcionario
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('role', 'officer');
+    fixture.detectChanges();
+    await flushMicrotasks();
+  }
+
+  it('un 401 en la cola del funcionario pide iniciar sesión (no mock)', async () => {
+    await bootOfficer(401);
+
+    expect(component.view()).toBe('queue');
+    expect(component.officerAccess()).toBe('anon');
+    // Lo que importa: NINGÚN caso sembrado con PII a la vista.
+    expect(component.queueCases()).toEqual([]);
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.signin__title');
+    expect(panel?.textContent).toContain('Inicie sesión como funcionario');
+  });
+
+  it('un 403 en la cola del funcionario dice "no autorizado" (no login, no mock)', async () => {
+    await bootOfficer(403);
+
+    expect(component.view()).toBe('queue');
+    expect(component.officerAccess()).toBe('forbidden');
+    expect(component.queueCases()).toEqual([]);
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.signin__title');
+    expect(panel?.textContent).toContain('no tiene permiso de funcionario');
+    // 403: iniciar sesión NO ayuda → no se ofrece el enlace de login.
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector('.signin a');
+    expect(loginLink).toBeNull();
+  });
+
+  // ── T2 (live-caught): "Ir al portal ciudadano" NO puede ser un botón muerto ───
+  // Deep-link a #/gov/gestion con el rol POR DEFECTO (citizen, el toggle nunca se pulsó):
+  // la vista es la cola pero role()==='citizen', así que setRole('citizen') haría early-return
+  // y el botón quedaría muerto en el panel. goToCitizenPortal navega igual.
+  it('sale del panel del funcionario aunque el rol ya sea citizen (deep-link)', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/queue')) {
+        return Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: 'x' }) } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/gestion'; // deep-link a la cola SIN pulsar "Funcionario"
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // Control: estamos en la cola con el panel, pero el rol nunca dejó de ser 'citizen'.
+    expect(component.view()).toBe('queue');
+    expect(component.role()).toBe('citizen');
+    expect(component.officerAccess()).toBe('anon');
+
+    // El botón del panel: navega al catálogo de verdad (no es un no-op).
+    component.goToCitizenPortal();
+    await flushMicrotasks();
+    expect(component.view()).toBe('catalog');
+    expect(component.officerAccess()).toBe('ok');
+  });
 });
 
 describe('OUTCOME_TO_STATUS (model)', () => {
