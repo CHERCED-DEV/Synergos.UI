@@ -51,6 +51,7 @@ import {
   SynErrorStateComponent,
 } from '@synergos/shared';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
+import { subscribeToChannel, type RealtimeSubscription } from './realtime-stream';
 import {
   EVENTOS_FLOW,
   type Attendee,
@@ -722,6 +723,8 @@ export class EventosElementComponent {
     }
 
     this.#destroyRef.onDestroy(() => {
+      // Sin esto queda una conexión SSE abierta por cada montaje del componente.
+      this.closeCheckinStream();
       this.#orchestrator.unregister(widget);
       this.#bus.destroy();
       if (typeof window !== 'undefined') {
@@ -751,6 +754,9 @@ export class EventosElementComponent {
       }
       this.writeHash('organizer', this.managerView());
     } else {
+      // Volver a la cara de asistente cierra el canal: nadie está mirando la consola,
+      // y una conexión abierta por cada ida y vuelta se acumula.
+      this.closeCheckinStream();
       if (this.events().length === 0) {
         void this.runSearch();
       }
@@ -1286,6 +1292,8 @@ export class EventosElementComponent {
       this.checkedInCount.set(
         result.attendees.filter((a) => a.state === 'checked-in').length,
       );
+      // T7 Ola B: con el panel ya cargado y autorizado, escuchar el canal del evento.
+      this.subscribeToCheckins(eventId);
     } catch (error) {
       if (this.handleOrganizerDenied(error)) {
         return;
@@ -1301,11 +1309,93 @@ export class EventosElementComponent {
    * Traduce un 401/403 de la consola a `organizerAccess` y VACÍA el panel, para no dejar
    * a la vista datos de asistentes que ya no debe ver. Devuelve `true` si era ese error.
    */
+  // ─── T7 Ola B — la consola escucha el canal del evento ──────────────────────
+  //
+  // El backend ya publicaba cada check-in (ADR 0111) y no había nadie escuchando. Con
+  // varias puertas, cada operador ve entrar a la gente sin recargar.
+
+  /** Suscripción viva al canal. Null = no hay ninguna abierta. */
+  #checkinStream: RealtimeSubscription | null = null;
+  /** Evento cuyo canal se está escuchando, para no reabrir el mismo. */
+  #streamedEventId = '';
+  /** La conexión se cayó y `EventSource` está reintentando sola. */
+  readonly liveDisconnected = signal(false);
+  /** Hay canal abierto: la consola puede decir "en vivo" con verdad. */
+  readonly liveConnected = signal(false);
+
+  private subscribeToCheckins(eventId: string): void {
+    if (!eventId || this.#streamedEventId === eventId) {
+      // Ya se está escuchando ESE evento: reabrir sería una conexión de más.
+      return;
+    }
+    this.closeCheckinStream();
+    this.#streamedEventId = eventId;
+    this.#checkinStream = subscribeToChannel(
+      `${this.apiBase().replace(/\/api\/eventos$/, '/api')}/realtime/stream`,
+      `eventos:checkin:${eventId}`,
+      {
+        onOpen: () => {
+          this.liveConnected.set(true);
+          this.liveDisconnected.set(false);
+        },
+        onError: () => {
+          // No se reconecta a mano: EventSource reintenta solo. Esto solo lo refleja.
+          this.liveConnected.set(false);
+          this.liveDisconnected.set(true);
+        },
+        onEvent: (_name, payload) => this.applyLiveCheckin(payload),
+      },
+    );
+  }
+
+  /**
+   * Aplica un check-in que ocurrió EN OTRA PUERTA. Es idempotente: si esa fila ya
+   * estaba marcada (porque la marcó este mismo operador), no vuelve a sumar — el
+   * contador saldría inflado al recibir el eco de la propia acción.
+   */
+  private applyLiveCheckin(payload: Record<string, unknown>): void {
+    const ticketId = typeof payload['ticketId'] === 'string' ? payload['ticketId'] : '';
+    if (!ticketId || payload['status'] !== 'valid') {
+      // `already-used` no cambia nada: la fila ya estaba marcada.
+      return;
+    }
+
+    let changed = false;
+    this.manage.update((data) => {
+      if (!data) {
+        return data;
+      }
+      const attendees = data.attendees.map((a) => {
+        if (a.ticketId !== ticketId || a.state === 'checked-in') {
+          return a;
+        }
+        changed = true;
+        return { ...a, state: 'checked-in' as const };
+      });
+      return changed ? { ...data, attendees } : data;
+    });
+
+    if (changed) {
+      this.checkedInCount.update((count) => count + 1);
+    }
+  }
+
+  private closeCheckinStream(): void {
+    this.#checkinStream?.close();
+    this.#checkinStream = null;
+    this.#streamedEventId = '';
+    this.liveConnected.set(false);
+    this.liveDisconnected.set(false);
+  }
+
   private handleOrganizerDenied(error: unknown): boolean {
     const anon = isEventosUnauthorized(error);
     if (!anon && !isEventosForbidden(error)) {
       return false;
     }
+    // Sin permiso no se escucha el canal: el servidor lo negaría igual, pero dejar el
+    // EventSource reintentando contra un 403 es un bucle de peticiones inútil.
+    this.closeCheckinStream();
     this.organizerAccess.set(anon ? 'anon' : 'forbidden');
     this.errorMessage.set('');
     this.manage.set(null);

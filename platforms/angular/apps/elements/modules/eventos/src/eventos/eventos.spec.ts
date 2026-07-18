@@ -331,6 +331,133 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     // 403: iniciar sesión NO ayuda → no se ofrece el enlace de login.
     expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__denied a')).toBeNull();
   });
+
+  // ── T7 Ola B: la consola ESCUCHA el canal del evento ─────────────────────────
+  // El backend ya publicaba cada check-in (ADR 0111) y no había nadie escuchando.
+  // jsdom no trae EventSource, así que se instala uno falso que además deja
+  // comprobar lo que más importa: que la conexión se CIERRE.
+  interface FakeSource {
+    url: string;
+    closed: boolean;
+    emit(event: string, data: unknown): void;
+  }
+
+  function installFakeEventSource(): FakeSource[] {
+    const created: FakeSource[] = [];
+    class FakeEventSource {
+      readonly #listeners = new Map<string, ((e: MessageEvent<string>) => void)[]>();
+      closed = false;
+      constructor(readonly url: string) {
+        created.push(this as unknown as FakeSource);
+      }
+      addEventListener(type: string, handler: (e: MessageEvent<string>) => void): void {
+        this.#listeners.set(type, [...(this.#listeners.get(type) ?? []), handler]);
+      }
+      close(): void {
+        this.closed = true;
+      }
+      emit(type: string, data: unknown): void {
+        for (const h of this.#listeners.get(type) ?? []) {
+          h({ data: JSON.stringify(data) } as MessageEvent<string>);
+        }
+      }
+    }
+    vi.stubGlobal('EventSource', FakeEventSource);
+    return created;
+  }
+
+  /** Abre la consola con el panel cargado (manage OK) y devuelve los streams creados. */
+  async function bootOrganizerWithManage(): Promise<FakeSource[]> {
+    const sources = installFakeEventSource();
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (String(url).includes('/manage/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            attendees: [
+              { ticketId: 'TKT-1', name: 'Ada', email: 'a@b.co', tier: 'VIP', seat: '', state: 'pending' },
+              { ticketId: 'TKT-2', name: 'Grace', email: 'g@b.co', tier: 'GEN', seat: '', state: 'pending' },
+            ],
+            capacity: 100,
+            sold: 2,
+          }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    }));
+    await createComponent();
+    component.setRole('organizer');
+    await flushMicrotasks();
+    return sources;
+  }
+
+  it('abre el canal del evento al cargar la consola', async () => {
+    const sources = await bootOrganizerWithManage();
+
+    expect(sources.length).toBe(1);
+    expect(sources[0].url).toContain('/api/realtime/stream');
+    expect(sources[0].url).toContain(encodeURIComponent('eventos:checkin:'));
+    // Aún no dice "en vivo": el servidor no ha confirmado el canal.
+    expect(component.liveConnected()).toBe(false);
+  });
+
+  it('un check-in de OTRA puerta actualiza la consola sin recargar', async () => {
+    const sources = await bootOrganizerWithManage();
+    const before = component.checkedInCount();
+
+    sources[0].emit('ready', {});
+    sources[0].emit('checkin', { status: 'valid', ticketId: 'TKT-1', attendee: 'Ada' });
+    await flushMicrotasks();
+
+    expect(component.liveConnected()).toBe(true);
+    expect(component.checkedInCount()).toBe(before + 1);
+    expect(component.manage()!.attendees.find((a) => a.ticketId === 'TKT-1')!.state).toBe('checked-in');
+    // La otra fila no se toca.
+    expect(component.manage()!.attendees.find((a) => a.ticketId === 'TKT-2')!.state).toBe('pending');
+  });
+
+  it('el eco del propio check-in NO infla el contador (idempotente)', async () => {
+    const sources = await bootOrganizerWithManage();
+    sources[0].emit('ready', {});
+
+    sources[0].emit('checkin', { status: 'valid', ticketId: 'TKT-1', attendee: 'Ada' });
+    await flushMicrotasks();
+    const afterFirst = component.checkedInCount();
+
+    // Mismo ticket otra vez (eco, o el operador que ya lo marcó): no vuelve a sumar.
+    sources[0].emit('checkin', { status: 'valid', ticketId: 'TKT-1', attendee: 'Ada' });
+    sources[0].emit('checkin', { status: 'already-used', ticketId: 'TKT-2', attendee: 'Grace' });
+    await flushMicrotasks();
+
+    expect(component.checkedInCount()).toBe(afterFirst);
+  });
+
+  it('cierra el canal al volver a la cara de asistente', async () => {
+    const sources = await bootOrganizerWithManage();
+    expect(sources[0].closed).toBe(false);
+
+    component.setRole('attendee');
+    await flushMicrotasks();
+
+    // Sin esto queda una conexión abierta por cada ida y vuelta.
+    expect(sources[0].closed).toBe(true);
+    expect(component.liveConnected()).toBe(false);
+  });
+
+  it('un payload corrupto no tumba el stream', async () => {
+    const sources = await bootOrganizerWithManage();
+    sources[0].emit('ready', {});
+
+    // Emitir algo que no es el shape esperado: no debe lanzar ni cambiar nada.
+    sources[0].emit('checkin', { status: 'valid' }); // sin ticketId
+    await flushMicrotasks();
+
+    expect(component.checkedInCount()).toBe(0);
+    expect(component.liveConnected()).toBe(true);
+  });
+
 });
 
 describe('EventosApiClient', () => {

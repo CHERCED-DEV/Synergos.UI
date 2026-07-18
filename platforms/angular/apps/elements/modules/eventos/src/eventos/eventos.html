@@ -734,7 +734,19 @@
           }
           @case ('checkin') {
             <div class="eventos__checkin">
-              <h2 class="eventos__heading">Check-in por QR</h2>
+              <h2 class="eventos__heading">
+                Check-in por QR
+                <!-- T7 Ola B: solo se dice "en vivo" cuando el canal está ABIERTO de
+                     verdad. Un indicador que miente es peor que no tenerlo: el operador
+                     creería que la otra puerta se refleja sola. -->
+                @if (liveConnected()) {
+                  <span class="eventos__live" title="Actualiza solo cuando validan en otra puerta">
+                    <span class="eventos__live-dot" aria-hidden="true"></span>En vivo
+                  </span>
+                } @else if (liveDisconnected()) {
+                  <span class="eventos__live eventos__live--off">Reconectando…</span>
+                }
+              </h2>
               <div class="eventos__meter">
                 <div class="eventos__meter-bar"><span class="eventos__meter-fill" [style.width.%]="checkinRate()"></span></div>
                 <p class="eventos__meter-label">{{ formatCount(checkedInCount()) }} ingresaron · aforo live</p>

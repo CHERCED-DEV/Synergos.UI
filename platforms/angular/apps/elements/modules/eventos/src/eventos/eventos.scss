@@ -1105,3 +1105,31 @@
   gap: syn.$space-1;
   justify-content: center;
 }
+
+// T7 Ola B — indicador "en vivo" del canal de check-in. Solo aparece cuando el stream
+// está ABIERTO de verdad (ver eventos.html): un indicador que miente haría creer al
+// operador que la otra puerta se refleja sola.
+.eventos__live {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  margin-inline-start: syn.$space-1;
+  padding: 0 syn.$space-1;
+  border-radius: syn.$radius-pill;
+  background: var(--syn-state-success-surface, var(--syn-surface-muted));
+  color: var(--syn-text-secondary);
+  font-size: syn.$font-size-xs;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.eventos__live--off {
+  background: var(--syn-surface-muted);
+}
+
+.eventos__live-dot {
+  width: syn.px-to-rem(7);
+  height: syn.px-to-rem(7);
+  border-radius: 50%;
+  background: var(--syn-state-success, currentColor);
+}
