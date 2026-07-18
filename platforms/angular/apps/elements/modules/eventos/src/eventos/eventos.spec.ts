@@ -221,7 +221,8 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     // First purchase to issue a recognisable e-ticket for the mock check-in.
     await purchaseFirstGeneralEvent();
-    const ticketId = component.tickets()[0].id;
+    // T9: se entra con el TOKEN del QR, no con el id (que la UI imprime bajo el código).
+    const ticketQr = component.tickets()[0].qr;
 
     component.setRole('organizer');
     await flushMicrotasks();
@@ -231,14 +232,14 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.portfolioRows().length).toBeGreaterThan(0);
 
     component.onManagerSectionChange('checkin');
-    component.checkinCode.set(ticketId);
+    component.checkinCode.set(ticketQr);
     component.submitCheckin();
     await flushMicrotasks();
     expect(component.lastScan()?.status).toBe('valid');
     expect(component.checkedInCount()).toBeGreaterThan(0);
 
     // Idempotent: a second scan of the same ticket → already-used.
-    component.checkinCode.set(ticketId);
+    component.checkinCode.set(ticketQr);
     component.submitCheckin();
     await flushMicrotasks();
     expect(component.lastScan()?.status).toBe('already-used');
@@ -348,6 +349,8 @@ describe('EventosApiClient', () => {
     expect(client.degraded).toBe(true);
     expect(confirmation.tickets.length).toBe(1);
     const id = confirmation.tickets[0].id;
+    // T9: la credencial es el token del QR, no el id.
+    const qr = confirmation.tickets[0].qr;
 
     // The confirmed ticket is now in the wallet ("mis tickets").
     const wallet = await client.tickets('/api/eventos', 'g@b.co');
@@ -360,12 +363,15 @@ describe('EventosApiClient', () => {
     expect(walletAfter.tickets.find((t) => t.id === id)?.status).toBe('transferred');
 
     // Check-in: first valid, second already-used, unknown invalid.
-    const first = await client.checkin('/api/eventos', id);
+    const first = await client.checkin('/api/eventos', qr);
     expect(first.status).toBe('valid');
-    const second = await client.checkin('/api/eventos', id);
+    const second = await client.checkin('/api/eventos', qr);
     expect(second.status).toBe('already-used');
     const unknown = await client.checkin('/api/eventos', 'NOPE');
     expect(unknown.status).toBe('invalid');
+    // T9: el id suelto NO abre la puerta (la UI lo imprime bajo el QR).
+    const bareId = await client.checkin('/api/eventos', id);
+    expect(bareId.status).toBe('invalid');
   });
 
   it('returns a free checkout when the order total is zero (free case)', async () => {

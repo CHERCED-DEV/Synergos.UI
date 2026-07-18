@@ -186,9 +186,15 @@ export class EventosApiClient {
 
   // ─── Wallet ("mis tickets", holder-scoped) ────────────────────────────────────
 
+  /**
+   * "Mis entradas" — las del member de la SESIÓN.
+   *
+   * El `?holder=<email>` desapareció (T9): listaba las entradas de cualquiera y, con
+   * ellas, **el token de su QR** — o sea, permitía entrar en su lugar. La identidad la
+   * resuelve el servidor desde la cookie; `holder` solo se usa para el modo degradado.
+   */
   async tickets(apiBase: string, holder: string): Promise<WalletResult> {
-    const query = holder ? `?holder=${encodeURIComponent(holder)}` : '';
-    const url = `${apiBase}/tickets${query}`;
+    const url = `${apiBase}/tickets`;
     try {
       const data = await this.getJson(url);
       const result = normalizeWallet(data);
@@ -291,9 +297,10 @@ export class EventosApiClient {
    */
   private mockCheckin(code: string): CheckInResult {
     const trimmed = code.trim();
-    const match = this.#lastTickets.find(
-      (ticket) => ticket.id === trimmed || ticket.qr === trimmed,
-    );
+    // Solo por QR, igual que el backend real (T9): el id suelto NO abre la puerta —
+    // la UI lo imprime bajo el código, así que aceptarlo aquí enseñaría lo contrario
+    // de lo que hace el servidor y volvería el modo demo más permisivo que producción.
+    const match = this.#lastTickets.find((ticket) => ticket.qr === trimmed);
     if (!match) {
       return { status: 'invalid' };
     }
