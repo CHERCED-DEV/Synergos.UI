@@ -358,7 +358,16 @@
                 <li class="doc-list__item">
                   <span class="doc-list__name">
                     <svg class="doc-list__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
-                    {{ doc.name }}
+                    <!-- Solo hay enlace si hay binario detrás (T6). Los adjuntos previos
+                         son metadata sin fichero: se muestran, pero no se ofrecen. -->
+                    @if (doc.downloadUrl) {
+                      <a class="doc-list__link" [href]="doc.downloadUrl" download>{{ doc.name }}</a>
+                      @if (documentSizeLabel(doc.sizeBytes); as size) {
+                        <span class="doc-list__size">{{ size }}</span>
+                      }
+                    } @else {
+                      {{ doc.name }}
+                    }
                   </span>
                   <span class="doc-list__status">{{ doc.status }}</span>
                 </li>
@@ -377,7 +386,8 @@
             @if (uploadName()) {
               <p class="upload__pending">Listo para subir: <strong>{{ uploadName() }}</strong></p>
             }
-            <button type="submit" class="gv-btn gv-btn--outline" [disabled]="uploadName().trim() === '' || loading()">
+            <!-- Se habilita con el FICHERO, no con el nombre: sin bytes no hay subida. -->
+            <button type="submit" class="gv-btn gv-btn--outline" [disabled]="!uploadFile() || loading()">
               Subir documento
             </button>
           </form>
@@ -513,7 +523,16 @@
                 <li class="doc-list__item">
                   <span class="doc-list__name">
                     <svg class="doc-list__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
-                    {{ doc.name }}
+                    <!-- El funcionario descarga el adjunto para poder decidir; el backend
+                         le da permiso por rol, no por ser el dueño del expediente. -->
+                    @if (doc.downloadUrl) {
+                      <a class="doc-list__link" [href]="doc.downloadUrl" download>{{ doc.name }}</a>
+                      @if (documentSizeLabel(doc.sizeBytes); as size) {
+                        <span class="doc-list__size">{{ size }}</span>
+                      }
+                    } @else {
+                      {{ doc.name }}
+                    }
                   </span>
                   <span class="doc-list__status">{{ doc.status }}</span>
                 </li>

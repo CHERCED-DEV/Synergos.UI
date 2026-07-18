@@ -237,11 +237,21 @@ export class GovApiClient {
     }
   }
 
-  /** @throws {GovUnauthorizedError} si no hay sesión. */
+  /**
+   * Adjunta un documento REAL al expediente (T6): el fichero viaja como multipart.
+   *
+   * No se fija `Content-Type` a mano — el navegador lo pone junto al `boundary` del
+   * `FormData`, y escribirlo rompe el parseo del multipart en el servidor.
+   *
+   * @throws {GovUnauthorizedError} si no hay sesión.
+   */
   async uploadDocument(apiBase: string, body: UploadDocumentRequest): Promise<GovDocument> {
     const url = `${apiBase}/document`;
+    const form = new FormData();
+    form.append('applicationId', body.applicationId);
+    form.append('file', body.file, body.file.name);
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.request(url, { method: 'POST', body: form });
       const doc = normalizeDocument(isRecord(data) ? data['document'] : data);
       if (doc) {
         return doc;
@@ -412,14 +422,19 @@ export class GovApiClient {
 
   private mockUpload(body: UploadDocumentRequest): GovDocument {
     const nowIso = new Date().toISOString();
+    const name = body.file.name;
+    // Sin `downloadUrl` a propósito: en modo degradado no hay fichero guardado en
+    // ningún sitio, así que ofrecer una descarga sería la mentira que T6 vino a cerrar.
     const doc: GovDocument = {
       id: `DOC-${Date.now().toString(36)}`,
-      name: body.name,
+      name,
       status: 'received',
       uploadedAt: nowIso,
+      contentType: body.file.type || undefined,
+      sizeBytes: body.file.size || undefined,
     };
     const app = this.mockStore().get(body.applicationId);
-    if (app && !app.documents.some((d) => d.name === body.name)) {
+    if (app && !app.documents.some((d) => d.name === name)) {
       app.documents = [...app.documents, doc];
     }
     return doc;
@@ -788,11 +803,17 @@ function normalizeDocument(value: unknown): GovDocument | null {
   if (!id || !name) {
     return null;
   }
+  // `downloadUrl` solo llega cuando hay binario detrás (T6); si falta, la UI no ofrece
+  // descarga. Se deja `undefined` en vez de '' para que un `@if` simple baste.
+  const downloadUrl = readString(value['downloadUrl']).trim();
   return {
     id,
     name,
     status: readString(value['status']).trim() || 'received',
     uploadedAt: readString(value['uploadedAt']).trim(),
+    contentType: readString(value['contentType']).trim() || undefined,
+    sizeBytes: readNumber(value['sizeBytes']) || undefined,
+    downloadUrl: downloadUrl || undefined,
   };
 }
 

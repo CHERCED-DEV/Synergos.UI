@@ -153,6 +153,14 @@ export interface GovDocument {
   readonly status: string;
   /** ISO datetime. */
   readonly uploadedAt: string;
+  readonly contentType?: string;
+  readonly sizeBytes?: number;
+  /**
+   * Ruta de descarga, presente SOLO si hay un binario detrás (T6). Los documentos
+   * sembrados antes de T6 son metadata sin fichero y llegan sin esto: la UI los pinta
+   * como texto en vez de ofrecer una descarga que daría 404.
+   */
+  readonly downloadUrl?: string;
 }
 
 /** One correspondence message (SH-7). */
@@ -234,10 +242,13 @@ export interface CreateApplicationRequest {
   readonly answers: Readonly<Record<string, string>>;
 }
 
-/** `POST /api/gov/document` body. */
+/**
+ * `POST /api/gov/document` — desde T6 va como **multipart**, no JSON: el fichero de
+ * verdad viaja aquí. Antes solo iba el `name` y el binario se quedaba en el navegador.
+ */
 export interface UploadDocumentRequest {
   readonly applicationId: string;
-  readonly name: string;
+  readonly file: File;
 }
 
 /** `POST /api/gov/decision` body. */

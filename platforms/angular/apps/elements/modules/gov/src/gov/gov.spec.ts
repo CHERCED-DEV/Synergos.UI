@@ -360,6 +360,7 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.activeApplication()?.id).toBe('app-1');
 
     // La sesión "expira": subir un documento devuelve 401.
+    component.uploadFile.set(new File(['x'], 'cedula.pdf', { type: 'application/pdf' }));
     component.uploadName.set('cedula.pdf');
     component.uploadDocument();
     await flushMicrotasks();
@@ -468,6 +469,95 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(loginLink).toBeNull();
   });
 
+  // ── T6: el FICHERO viaja de verdad (multipart), no solo su nombre ────────────
+  // El bug que cierra: la UI leía files[0].name, soltaba el File y mandaba JSON. El
+  // ciudadano adjuntaba su cédula, el API decía "accepted" y no existía nada.
+  it('sube el documento como multipart con los BYTES, no un JSON con el nombre', async () => {
+    const detail = {
+      id: 'app-1', reference: 'GOV-2026-11111', serviceId: 'svc-x', serviceName: 'Trámite',
+      status: 'in-review', submittedAt: '2026-07-05T10:00:00Z', currentStage: 'En revisión',
+      timeline: [], documents: [], messages: [],
+    };
+    let uploadInit: RequestInit | undefined;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes('/document') && init?.method === 'POST') {
+        uploadInit = init;
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({
+            document: {
+              id: 'doc_1', name: 'cedula.pdf', status: 'accepted',
+              uploadedAt: '2026-07-05T11:00:00Z', contentType: 'application/pdf',
+              sizeBytes: 5, downloadUrl: '/api/gov/document/app-1/doc_1',
+            },
+          }),
+        } as Response);
+      }
+      if (url.includes('/application/')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ application: detail }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-1';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+    expect(component.view()).toBe('application'); // control: el detalle cargó
+
+    component.uploadFile.set(new File(['%PDF-'], 'cedula.pdf', { type: 'application/pdf' }));
+    component.uploadName.set('cedula.pdf');
+    component.uploadDocument();
+    await flushMicrotasks();
+
+    // LO QUE T6 CIERRA: el cuerpo es un FormData con el fichero dentro, no JSON.
+    expect(uploadInit?.body).toBeInstanceOf(FormData);
+    const sent = uploadInit!.body as FormData;
+    const sentFile = sent.get('file');
+    expect(sentFile).toBeInstanceOf(File);
+    expect((sentFile as File).name).toBe('cedula.pdf');
+    expect(sent.get('applicationId')).toBe('app-1');
+    // El Content-Type lo pone el navegador con su boundary: fijarlo rompe el multipart.
+    const headers = (uploadInit?.headers ?? {}) as Record<string, string>;
+    expect(headers['Content-Type']).toBeUndefined();
+
+    // El adjunto entra al detalle con su enlace de descarga.
+    const doc = component.activeApplication()!.documents.at(-1)!;
+    expect(doc.downloadUrl).toBe('/api/gov/document/app-1/doc_1');
+    expect(component.uploadFile()).toBeNull(); // se limpió tras subir
+  });
+
+  it('sin fichero elegido no intenta subir nada', async () => {
+    await createComponent();
+
+    component.uploadName.set('solo-un-nombre.pdf'); // nombre sin File
+    component.uploadDocument();
+    await flushMicrotasks();
+
+    // No debe haber salido ninguna petición de subida: el nombre suelto ya no basta.
+    expect(component.uploadFile()).toBeNull();
+  });
+
+  it('solo ofrece descarga cuando hay binario detrás', async () => {
+    await createComponent();
+
+    // Documento de T6 (con fichero) vs documento previo (metadata sin fichero).
+    expect(component.documentSizeLabel(2048)).toBe('2 KB');
+    expect(component.documentSizeLabel(undefined)).toBe('');
+    expect(component.documentSizeLabel(0)).toBe('');
+  });
+
   // ── T2 (live-caught): "Ir al portal ciudadano" NO puede ser un botón muerto ───
   // Deep-link a #/gov/gestion con el rol POR DEFECTO (citizen, el toggle nunca se pulsó):
   // la vista es la cola pero role()==='citizen', así que setRole('citizen') haría early-return
@@ -494,10 +584,13 @@ describe('GovElementComponent (v2 dual face)', () => {
     fixture.detectChanges();
     await flushMicrotasks();
 
-    // Control: estamos en la cola con el panel, pero el rol nunca dejó de ser 'citizen'.
+    // Control: estamos en la cola con el panel de acceso denegado.
     expect(component.view()).toBe('queue');
-    expect(component.role()).toBe('citizen');
     expect(component.officerAccess()).toBe('anon');
+
+    // La precondición EXACTA del bug: el rol ya es 'citizen' (el toggle nunca se pulsó),
+    // así que un `setRole('citizen')` haría early-return y el botón quedaría muerto.
+    component.role.set('citizen');
 
     // El botón del panel: navega al catálogo de verdad (no es un no-op).
     component.goToCitizenPortal();

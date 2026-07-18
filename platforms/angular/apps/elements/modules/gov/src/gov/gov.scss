@@ -1469,6 +1469,26 @@
   letter-spacing: 0.03em;
 }
 
+// T6 — el adjunto con binario detrás se puede descargar; el enlace se distingue del
+// texto plano de los documentos previos (metadata sin fichero), que no son clicables.
+.doc-list__link {
+  color: var(--gv-brand);
+  text-decoration: underline;
+  text-underline-offset: syn.px-to-rem(2);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--gv-brand-strong, var(--gv-brand));
+  }
+}
+
+.doc-list__size {
+  margin-inline-start: syn.$space-1;
+  color: var(--gv-muted);
+  font-size: syn.$font-size-xs;
+  white-space: nowrap;
+}
+
 .upload {
   display: flex;
   flex-direction: column;

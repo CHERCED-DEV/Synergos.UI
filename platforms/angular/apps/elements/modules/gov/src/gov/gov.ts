@@ -261,6 +261,8 @@ export class GovElementComponent {
   readonly applicationsLoaded = signal(false);
   readonly activeApplication = signal<ApplicationDetail | null>(null);
   readonly uploadName = signal('');
+  /** El fichero elegido (T6). Es lo que se sube; `uploadName` es solo para mostrarlo. */
+  readonly uploadFile = signal<File | null>(null);
   // SH-7 correspondence (from the active application/case).
   readonly activeThreadId = signal<string | null>(null);
   readonly sendingMessage = signal(false);
@@ -838,38 +840,45 @@ export class GovElementComponent {
   }
 
   // ─── Subir documento ────────────────────────────────────────────────────────
+  /**
+   * T6: se RETIENE el `File`, no solo su nombre. Antes se guardaba `files[0].name` y el
+   * objeto se soltaba — por eso el binario nunca salía del navegador y el expediente se
+   * quedaba con un adjunto que no existía.
+   */
   onDocumentFile(event: Event): void {
     const files = (event.target as HTMLInputElement | null)?.files;
     if (files && files.length > 0) {
+      this.uploadFile.set(files[0]);
       this.uploadName.set(files[0].name);
     }
   }
 
   uploadDocument(): void {
     const app = this.activeApplication();
-    const name = this.uploadName().trim();
-    if (!app || name === '' || this.loading()) {
+    const file = this.uploadFile();
+    // Sin FICHERO no se sube: el nombre suelto ya no basta (era justo el bug de T6).
+    if (!app || !file || this.loading()) {
       return;
     }
-    void this.#upload(app.id, name);
+    void this.#upload(app.id, file);
   }
 
-  async #upload(applicationId: string, name: string): Promise<void> {
+  async #upload(applicationId: string, file: File): Promise<void> {
     this.loading.set(true);
     try {
-      const doc = await this.#api.uploadDocument(this.apiBase(), { applicationId, name });
+      const doc = await this.#api.uploadDocument(this.apiBase(), { applicationId, file });
       // Reflect the new document in the open detail (optimistic reconcile).
       this.activeApplication.update((current) =>
         current ? { ...current, documents: [...current.documents, doc] } : current,
       );
-      this.uploadName.set('');
+      this.clearUpload();
       this.announce(`Documento "${doc.name}" adjuntado.`);
     } catch (error) {
       // Sesión expirada a mitad del detalle: handleUnauthorized rebota a la carpeta con
       // el panel de login (antes fallaba en silencio — el aviso solo iba a la región
       // sr-only y la vista de detalle no pinta el panel).
       if (this.handleUnauthorized(error, 'Su sesión expiró. Inicie sesión para adjuntar el documento.')) {
-        this.uploadName.set('');
+        this.clearUpload();
         return;
       }
       this.errorMessage.set('No pudimos subir el documento. Intente de nuevo.');
@@ -877,6 +886,25 @@ export class GovElementComponent {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private clearUpload(): void {
+    this.uploadName.set('');
+    this.uploadFile.set(null);
+  }
+
+  /** Etiqueta legible del peso de un adjunto (los bytes crudos no dicen nada al ciudadano). */
+  documentSizeLabel(bytes: number | undefined): string {
+    if (!bytes || bytes <= 0) {
+      return '';
+    }
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+    if (bytes < 1024 * 1024) {
+      return `${Math.round(bytes / 1024)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   // ─── Correspondencia (SH-7) ─────────────────────────────────────────────────
