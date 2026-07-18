@@ -50,7 +50,7 @@ import {
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
-import { EventosApiClient } from './eventos-api.client';
+import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
 import {
   EVENTOS_FLOW,
   type Attendee,
@@ -300,6 +300,13 @@ export class EventosElementComponent {
   readonly managerView = signal<ManagerView>('portfolio');
   readonly manageEventId = signal('');
   readonly manage = signal<ManageResult | null>(null);
+  /**
+   * Acceso a la CONSOLA DEL ORGANIZADOR (panel, crear evento, check-in), que ahora exige
+   * rol. `'anon'` (401) → ofrecer login; `'forbidden'` (403) → el login NO ayuda, hace
+   * falta que un admin dé el permiso. Distinto de `degraded`: aquí no hay nada que
+   * degradar, y pintar datos de ejemplo mostraría asistentes a quien no debe verlos.
+   */
+  readonly organizerAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
   readonly attendeeFilter = signal('');
   readonly checkinCode = signal('');
   readonly lastScan = signal<CheckInResult | null>(null);
@@ -1275,15 +1282,50 @@ export class EventosElementComponent {
         this.#api.manage(this.apiBase(), eventId),
       );
       this.manage.set(result);
+      this.organizerAccess.set('ok');
       this.checkedInCount.set(
         result.attendees.filter((a) => a.state === 'checked-in').length,
       );
     } catch (error) {
+      if (this.handleOrganizerDenied(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar el panel del evento. Intenta de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Traduce un 401/403 de la consola a `organizerAccess` y VACÍA el panel, para no dejar
+   * a la vista datos de asistentes que ya no debe ver. Devuelve `true` si era ese error.
+   */
+  private handleOrganizerDenied(error: unknown): boolean {
+    const anon = isEventosUnauthorized(error);
+    if (!anon && !isEventosForbidden(error)) {
+      return false;
+    }
+    this.organizerAccess.set(anon ? 'anon' : 'forbidden');
+    this.errorMessage.set('');
+    this.manage.set(null);
+    this.checkedInCount.set(0);
+    // No hace falta anunciar por aria-live: el panel REEMPLAZA la consola con un
+    // encabezado propio, así que el lector de pantalla lo encuentra al navegar. (En gov
+    // sí hizo falta porque allí el fallo del upload no cambiaba nada en pantalla.)
+    return true;
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página. Método y no `computed`: el hash cambia con la
+   * navegación y un computed cacheado devolvería el de la primera lectura.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/account/login';
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `/account/login?returnUrl=${encodeURIComponent(here)}`;
   }
 
   reloadManage(): void {
@@ -1341,6 +1383,11 @@ export class EventosElementComponent {
       }
       this.checkinCode.set('');
     } catch (error) {
+      // Un 401/403 aquí NO significa "entrada inválida": significa que QUIEN ESCANEA no
+      // tiene permiso. Marcarlo como inválido culparía a la entrada del asistente.
+      if (this.handleOrganizerDenied(error)) {
+        return;
+      }
       this.lastScan.set({ status: 'invalid' });
       void error;
     } finally {
@@ -1395,7 +1442,10 @@ export class EventosElementComponent {
         this.walletLoaded.set(false);
         void this.runSearch();
       })
-      .catch(() => this.createPublishing.set(false));
+      .catch((error: unknown) => {
+        this.createPublishing.set(false);
+        this.handleOrganizerDenied(error);
+      });
   }
 
   private draftString(draft: Readonly<Record<string, unknown>>, key: string): string {

@@ -1071,3 +1071,37 @@
     display: none;
   }
 }
+
+// T2-Eventos — panel de acceso denegado a la consola del organizador. Ocupa el lugar
+// del panel real: sin rol NO se pintan asistentes ni aforo, ni siquiera de ejemplo.
+.eventos__denied {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-2;
+  padding: syn.$space-3 syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--syn-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--syn-surface-muted);
+  text-align: center;
+}
+
+.eventos__denied-title {
+  margin: 0;
+  font-size: syn.$font-size-lg;
+  font-weight: 600;
+  color: var(--syn-text-primary);
+}
+
+.eventos__denied-text {
+  margin: 0;
+  max-width: syn.px-to-rem(460);
+  color: var(--syn-text-secondary);
+}
+
+.eventos__denied-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-1;
+  justify-content: center;
+}

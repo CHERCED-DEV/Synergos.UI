@@ -293,6 +293,44 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.events().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
+
+  // ── T2-Eventos: la consola del organizador exige ROL ─────────────────────────
+  // El bug que cierra: los 9 endpoints eran anónimos. Cualquiera abría el panel y veía
+  // la lista de ASISTENTES con sus datos, publicaba eventos y quemaba entradas ajenas.
+  async function bootOrganizer(status: 401 | 403): Promise<void> {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn((url: string) => {
+      if (String(url).includes('/manage/')) {
+        return Promise.resolve({ ok: false, status, json: () => Promise.resolve({ error: 'x' }) } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    }));
+    await createComponent();
+    component.setRole('organizer');
+    await flushMicrotasks();
+  }
+
+  it('pide iniciar sesión cuando el panel del organizador responde 401 (no mock)', async () => {
+    await bootOrganizer(401);
+
+    expect(component.organizerAccess()).toBe('anon');
+    // Lo que importa: NINGÚN asistente a la vista.
+    expect(component.manage()).toBeNull();
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.eventos__denied-title');
+    expect(panel?.textContent).toContain('Inicia sesión como organizador');
+    expect(component.loginUrl()).toContain('/account/login?returnUrl=');
+  });
+
+  it('dice sin-permiso cuando responde 403 (el login no ayuda)', async () => {
+    await bootOrganizer(403);
+
+    expect(component.organizerAccess()).toBe('forbidden');
+    expect(component.manage()).toBeNull();
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.eventos__denied-title');
+    expect(panel?.textContent).toContain('no tiene permiso de organizador');
+    // 403: iniciar sesión NO ayuda → no se ofrece el enlace de login.
+    expect((fixture.nativeElement as HTMLElement).querySelector('.eventos__denied a')).toBeNull();
+  });
 });
 
 describe('EventosApiClient', () => {

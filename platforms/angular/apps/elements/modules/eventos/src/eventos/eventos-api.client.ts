@@ -47,6 +47,38 @@ import {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * El backend exige sesión (401). NO es una degradación: es un hueco de identidad, y la
+ * UI debe ofrecer iniciar sesión en vez de inventar datos.
+ */
+export class EventosUnauthorizedError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 401 ${url}`);
+    this.name = 'EventosUnauthorizedError';
+  }
+}
+
+/**
+ * Hay sesión, pero la cuenta NO tiene rol de organizador (403). Iniciar sesión otra vez
+ * no ayuda: hace falta que un admin dé el permiso.
+ */
+export class EventosForbiddenError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 403 ${url}`);
+    this.name = 'EventosForbiddenError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isEventosUnauthorized(error: unknown): error is EventosUnauthorizedError {
+  return error instanceof Error && error.name === 'EventosUnauthorizedError';
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isEventosForbidden(error: unknown): error is EventosForbiddenError {
+  return error instanceof Error && error.name === 'EventosForbiddenError';
+}
+
 @Injectable()
 export class EventosApiClient {
   readonly #logger = inject(LoggerService);
@@ -204,6 +236,7 @@ export class EventosApiClient {
       }
       throw new Error('tickets-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/eventos/tickets', error);
       // Prefer the in-session wallet (a mock purchase just happened); else seed.
       const tickets = this.#walletTickets.length > 0 ? this.#walletTickets : mockWallet(holder);
@@ -250,6 +283,7 @@ export class EventosApiClient {
       }
       throw new Error('create-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/eventos/event', error);
       const slug = slugify(request.title);
       return { id: `EVT-${Date.now().toString(36).toUpperCase()}`, slug, status: 'draft' };
@@ -268,6 +302,7 @@ export class EventosApiClient {
       }
       throw new Error('manage-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/eventos/manage/{eventId}', error);
       return mockManage(eventId);
     }
@@ -285,6 +320,7 @@ export class EventosApiClient {
       }
       throw new Error('checkin-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/eventos/checkin', error);
       return this.mockCheckin(ticketId);
     }
@@ -325,6 +361,13 @@ export class EventosApiClient {
     });
   }
 
+  /** Re-lanza 401/403: la UI del organizador los trata como estado, no como caída. */
+  private rethrowIfAuthError(error: unknown): void {
+    if (isEventosUnauthorized(error) || isEventosForbidden(error)) {
+      throw error;
+    }
+  }
+
   private request(url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
@@ -332,9 +375,18 @@ export class EventosApiClient {
     return fetch(url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
-    }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
-    );
+    }).then((response) => {
+      // 401/403 NO son "el backend no está": son huecos de acceso. Degradarlos a datos
+      // de ejemplo le mostraría la consola del organizador —con los asistentes— a quien
+      // no debe verla.
+      if (response.status === 401) {
+        return Promise.reject(new EventosUnauthorizedError(url));
+      }
+      if (response.status === 403) {
+        return Promise.reject(new EventosForbiddenError(url));
+      }
+      return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
+    });
   }
 
   private toCatalogQuery(criteria: CatalogCriteria): string {

@@ -562,7 +562,37 @@
 
   <!-- ═══════════════════════════════ ORGANIZADOR ═════════════════════════════ -->
   @if (role() === 'organizer') {
-    @if (managerView() === 'create') {
+    @if (organizerAccess() !== 'ok') {
+      <!-- La consola expone la lista de ASISTENTES, mueve aforo y quema entradas: si no
+           hay rol de organizador NO se pinta con datos de ejemplo. 'anon' → ofrecer
+           login; 'forbidden' → el login no ayuda, hace falta que un admin dé el rol. -->
+      <div class="eventos__denied">
+        @if (organizerAccess() === 'anon') {
+          <h2 class="eventos__denied-title">Inicia sesión como organizador</h2>
+          <p class="eventos__denied-text">
+            El panel del evento es para su equipo organizador. Inicia sesión con una
+            cuenta autorizada para verlo.
+          </p>
+          <div class="eventos__denied-actions">
+            <a class="eventos__btn eventos__btn--primary" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="eventos__btn" (click)="setRole('attendee')">
+              Ir a la cartelera
+            </button>
+          </div>
+        } @else {
+          <h2 class="eventos__denied-title">Tu cuenta no tiene permiso de organizador</h2>
+          <p class="eventos__denied-text">
+            Este panel es solo para el equipo organizador del evento. Si necesitas acceso,
+            solicita el rol al administrador.
+          </p>
+          <div class="eventos__denied-actions">
+            <button type="button" class="eventos__btn eventos__btn--primary" (click)="setRole('attendee')">
+              Ir a la cartelera
+            </button>
+          </div>
+        }
+      </div>
+    } @else if (managerView() === 'create') {
       <div class="eventos__create">
         <button type="button" class="eventos__back" (click)="onCreateExit()">
           <svg class="eventos__back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
