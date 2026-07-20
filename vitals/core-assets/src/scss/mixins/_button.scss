@@ -43,6 +43,17 @@
 
   @include focus.focus-visible;
 
+  // Principio 6 (doc 24): el press es MÁS rápido que el hover. Va aquí, en
+  // `button-base`, y no en `button-variant`, porque `.syn-button--gradient`
+  // no pasa por `button-variant` — desde la base lo cubren TODAS las variantes.
+  // Declararlo dentro de `:active` es lo que hace el efecto asimétrico:
+  // entrar al press usa estos 90ms, soltar vuelve a la transition de la base.
+  // Se decidió shorthand-en-token (no un token de duración nuevo) porque
+  // --syn-press-duration ya existía en el SSOT sin consumidores.
+  &:active:not(:disabled) {
+    transition: motion.$transition-press;
+  }
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -119,12 +130,34 @@
     border: $stroke-width solid currentColor;
     border-right-color: transparent;
     border-radius: 50%;
-    animation: syn-button-spin motion.$duration-loop linear infinite;
+    // La CSS var (no el literal) para que un override por-tema/vertical de
+    // --syn-duration-loop se respete. OJO: esto por sí solo NO resuelve
+    // reduced-motion, ver el @media de abajo.
+    animation: syn-button-spin var(--syn-duration-loop, #{motion.$duration-loop}) linear infinite;
 
     @if $placement == before {
       margin-right: $gap;
     } @else {
       margin-left: $gap;
+    }
+
+    // ── reduced-motion: por qué un @media y NO solo la var ──────────────────
+    // El swap global de syn-tokens.css lleva --syn-duration-loop a 0.01ms. Ese
+    // 0.01ms está razonado para TRANSITIONS y animaciones FINITAS: es
+    // imperceptible y aun así dispara transitionend/animationend, que es lo que
+    // evita dejar colgada la lógica encadenada a ese evento. En un
+    // `infinite` la semántica es otra: 0.01ms por vuelta son ~100.000
+    // vueltas/segundo — un ESTROBO, peor que el giro original y un riesgo real
+    // (WCAG 2.3.1, destellos). O sea que consumir la var sola solo PARECE el
+    // arreglo. Se corta la animación de raíz.
+    // (Va al final del bloque a propósito: una nested rule antes de las
+    // declaraciones dispara el deprecation `mixed-decls` de Sass.)
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      // Un aro con hueco y quieto se lee como spinner CONGELADO ("colgado").
+      // Cerrado, se lee como un indicador estático deliberado.
+      border-right-color: currentColor;
+      opacity: 0.6;
     }
   }
 }

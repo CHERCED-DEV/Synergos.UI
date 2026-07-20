@@ -13,6 +13,11 @@
 $duration-fast:    120ms;
 $duration-base:    200ms;
 $duration-slow:    280ms;
+// press → 90ms — SOLO el estado :active. Espejo Sass de --syn-press-duration,
+// que YA existía en el SSOT (syn-tokens.css) sin un solo consumidor. No se crea
+// token nuevo: se consume el que estaba. Va por debajo de fast a propósito —
+// el press debe sentirse instantáneo (principio 6, doc 24).
+$duration-press:   90ms;
 $duration-xslow:   400ms;   // Parallax / slow transforms (espejo CMS, P2-4)
 $duration-loop:    750ms;   // Continuous spin animations (spinner, button loading)
 $duration-shimmer: 1400ms;  // Skeleton shimmer, progress indeterminate
@@ -33,14 +38,31 @@ $dur-fast: 150ms;
 $dur-base: 220ms;
 $dur-slow: 320ms;
 
-// Composed shorthands for common use
-$transition-colors:    background-color $duration-fast $easing-smooth,
-                       border-color     $duration-fast $easing-smooth,
-                       color            $duration-fast $easing-smooth,
-                       box-shadow       $duration-fast $easing-smooth,
-                       opacity          $duration-fast $easing-smooth;
+// ── Composed shorthands ───────────────────────────────────────────────────────
+// Consumen la CSS var con FALLBACK Sass, no el literal. Un literal Sass compila
+// a valor fijo y es inmune al swap de --syn-duration-* bajo
+// `@media (prefers-reduced-motion: reduce)` (syn-tokens.css). Arreglarlo aquí,
+// en la definición, neutraliza de una vez los ~16 consumidores de estos
+// shorthands SIN editar un solo componente — el mismo argumento de palanca con
+// el que se decidió hacer el swap en el SSOT y no un mixin por componente.
+$transition-colors:    background-color var(--syn-duration-fast, #{$duration-fast}) $easing-smooth,
+                       border-color     var(--syn-duration-fast, #{$duration-fast}) $easing-smooth,
+                       color            var(--syn-duration-fast, #{$duration-fast}) $easing-smooth,
+                       box-shadow       var(--syn-duration-fast, #{$duration-fast}) $easing-smooth,
+                       opacity          var(--syn-duration-fast, #{$duration-fast}) $easing-smooth;
 
-$transition-transform: transform $duration-base $easing-default;
+$transition-transform: transform var(--syn-duration-base, #{$duration-base}) $easing-default;
 
-$transition-panel:     opacity   $duration-base $easing-out,
-                       transform $duration-base $easing-out;
+$transition-panel:     opacity   var(--syn-duration-base, #{$duration-base}) $easing-out,
+                       transform var(--syn-duration-base, #{$duration-base}) $easing-out;
+
+// Press — se declara DENTRO del bloque `:active`, nunca en la base. La
+// transition que corre al ENTRAR en :active es la declarada en la regla
+// :active; la que corre al SALIR es la de la regla base. Poner la duración
+// corta aquí y dejar la larga en la base es lo que da "press seco, suelta
+// suave"; al revés da exactamente lo contrario.
+$transition-press:     background-color var(--syn-press-duration, #{$duration-press}) $easing-smooth,
+                       border-color     var(--syn-press-duration, #{$duration-press}) $easing-smooth,
+                       color            var(--syn-press-duration, #{$duration-press}) $easing-smooth,
+                       box-shadow       var(--syn-press-duration, #{$duration-press}) $easing-smooth,
+                       transform        var(--syn-press-duration, #{$duration-press}) $easing-smooth;

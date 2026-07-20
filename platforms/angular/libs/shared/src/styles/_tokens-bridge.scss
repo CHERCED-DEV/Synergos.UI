@@ -14,7 +14,7 @@
 // via var() para que el host pueda override en runtime.
 //
 // DO NOT EDIT MANUALLY — sync-tokens.mjs regenera + sobrescribe este file.
-// Generated: 2026-07-20T17:09:35.874Z
+// Generated: 2026-07-20T18:47:01.260Z
 // =============================================================================
 
 :root {
@@ -1423,6 +1423,11 @@
   --syn-dur-fast:         0.01ms;
   --syn-dur-base:         0.01ms;
   --syn-dur-slow:         0.01ms;
+  /* press entra a la lista al ganar su primer consumidor (el :active de
+  button-base). Anima transform, que es movimiento de verdad; y dejarlo
+  fuera daba las DOS CONDUCTAS que este bloque justamente evita: hover
+  instantáneo y press de 90ms para quien pidió menos movimiento. */
+  --syn-press-duration:   0.01ms;
   --syn-motion-scale:     0;
   }
 }

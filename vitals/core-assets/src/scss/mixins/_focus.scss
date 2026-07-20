@@ -22,7 +22,9 @@
   &:focus-visible {
     outline: $ring-width solid $ring-color;
     outline-offset: $ring-offset;
-    transition: outline-offset $duration-fast $easing-smooth;
+    // CSS var + fallback Sass: el literal era inmune al swap de duraciones
+    // bajo `prefers-reduced-motion` (syn-tokens.css).
+    transition: outline-offset var(--syn-duration-fast, #{$duration-fast}) $easing-smooth;
   }
 }
 
