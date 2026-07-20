@@ -264,7 +264,7 @@
       "description": "Color theme (light | dark)"
     }
   ],
-  "button": [
+  "button-container": [
     {
       "name": "config",
       "type": "json",
@@ -305,6 +305,20 @@
       "required": false,
       "default": "_self",
       "description": "Link target (_self | _blank)"
+    },
+    {
+      "name": "loading",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Loading state; disables interaction and shows the loading label"
+    },
+    {
+      "name": "loadingLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Text shown while loading (falls back to the button label)"
     },
     {
       "name": "disabled",
@@ -1222,7 +1236,7 @@
       "description": "Color theme (light | dark)"
     }
   ],
-  "stat": [
+  "stat-counter": [
     {
       "name": "value",
       "type": "string",
@@ -2409,7 +2423,7 @@
       "description": "Color theme (light | dark)"
     }
   ],
-  "link": [
+  "link-block": [
     {
       "name": "config",
       "type": "json",

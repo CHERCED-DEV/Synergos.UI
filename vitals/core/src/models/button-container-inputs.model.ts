@@ -5,5 +5,7 @@ export interface ButtonContainerInputs {
   size: string;
   href: string;
   target: string;
+  loading: string;
+  loadingLabel: string;
   disabled: string;
 }

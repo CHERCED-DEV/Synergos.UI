@@ -35,6 +35,7 @@ import {
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest } from './lib/manifest-builder.mjs';
+import { upsertCdnRegistryEntry } from './lib/cdn-registry.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,28 @@ const inputsData = loadInputs();
 
 const entry = registry.find((e) => e.name === elementName);
 if (!entry) {
-  console.error(`\n  ❌ Element "${elementName}" not found in element-registry.json\n`);
+  // The bundle built fine — only the registry lookup failed, so this is a
+  // naming mismatch, not a missing element. Say so, and point at the likely
+  // culprit: an entry that already owns this element under a different `name`
+  // (matched by tag, which is the CMS-facing contract and rarely wrong).
+  const byTag = registry.find((e) => e.tag === `synergos-${elementName}`);
+
+  console.error(`\n  ❌ Cannot publish "${PROJECT_NAME}": no registry entry is named "${elementName}".`);
+  console.error(`     The bundle exists (${bundlePath}) — this is a naming mismatch, not a missing build.`);
+
+  if (byTag) {
+    console.error(`\n     Registry entry "${byTag.name}" already carries tag "${byTag.tag}" (alias ${byTag.alias}).`);
+    console.error(`     The Nx project is tagged element:${elementName}, so the two disagree on the element's name.`);
+    console.error('     Fix by aligning them — rename that entry\'s "name" to '
+      + `"${elementName}" (and its key in vitals/contracts/src/element-inputs.json),`);
+    console.error(`     or retag the project to element:${byTag.name} and build to dist/${byTag.name}.`);
+  } else {
+    console.error('\n     Add an entry to vitals/contracts/src/element-registry.json with '
+      + `"name": "${elementName}",`);
+    console.error('     plus a matching key in vitals/contracts/src/element-inputs.json.');
+  }
+
+  console.error('\n     Run `npm run element:audit` to see every project affected by this class of drift.\n');
   process.exit(1);
 }
 
@@ -124,7 +146,17 @@ function sha256(filePath) {
 
 // ── Publish ──────────────────────────────────────────────────────────────────
 
-const manifest = buildManifest(entry, framework, VERSION, inputsData[elementName] ?? []);
+// Key inputs by the registry `name`, same as buildContracts() in publish.mjs —
+// keying by the Nx tag instead would silently publish an empty input list the
+// moment the two names drift apart.
+const elementInputs = inputsData[entry.name];
+if (!elementInputs || elementInputs.length === 0) {
+  console.warn(`\n  ⚠ No inputs declared for "${entry.name}" in element-inputs.json.`);
+  console.warn('    Publishing anyway, but the manifest will advertise zero inputs —'
+    + ' the CMS will not know which config fields this element accepts.\n');
+}
+
+const manifest = buildManifest(entry, framework, VERSION, elementInputs ?? []);
 
 const bundleSize = statSync(bundlePath).size;
 const integrity  = sha256(bundlePath);
@@ -158,5 +190,23 @@ if (DRY_RUN) {
   // Latest slot
   publishSlot(join(CDN_SYNERGOS, elementName, framework, 'latest'));
 
+  // Register it. Without this the bundle sits on disk unreachable — the CMS
+  // resolves elements through registry.json, not by scanning directories.
+  const upsert = upsertCdnRegistryEntry({
+    cdnSynergosDir: CDN_SYNERGOS,
+    entry,
+    framework,
+    version: VERSION,
+  });
+
   console.log(`   ✅ ${elementName} [${framework}] → ${entry.tag} (${VERSION} | ${majorAlias} | latest)`);
+
+  if (upsert.ok) {
+    console.log(`   📋 registry.json → ${upsert.created ? 'added' : 'updated'} "${entry.name}" (${framework})`);
+  } else {
+    console.error(`\n   ❌ Bundle published, but registry.json was NOT updated: ${upsert.reason}.`);
+    console.error(`      The CMS resolves elements through registry.json, so "${entry.name}" stays invisible`);
+    console.error('      until you run `npm run publish:cdn`, which rebuilds it from the on-disk manifests.\n');
+    process.exit(1);
+  }
 }

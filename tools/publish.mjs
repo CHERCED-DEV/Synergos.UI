@@ -48,6 +48,11 @@ const FRAMEWORK_FILTER = getArg('framework');
 let GIT_SHA = '';
 try { GIT_SHA = execSync('git rev-parse --short HEAD', { cwd: ROOT }).toString().trim(); } catch { /* ignore */ }
 
+/** Strip the `synergos-` prefix off a tag to get the conventional element name */
+function stripSynergosPrefix(tag) {
+  return tag.startsWith('synergos-') ? tag.slice('synergos-'.length) : tag;
+}
+
 /** Compute SHA-256 integrity string (SRI format) for a file */
 function sha256(filePath) {
   const hash = createHash('sha256').update(readFileSync(filePath)).digest('base64');
@@ -283,6 +288,27 @@ if (published.length > 0) {
 console.log(`\n${LOG_PREFIX}   Published: ${published.length} bundles`);
 if (skipped.length > 0) {
   console.log(`${LOG_PREFIX}   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
+
+  // "Not built" is the benign reading, and it hides the nastier case: the
+  // bundle WAS built, just under a dist directory named after the Nx
+  // `element:` tag rather than the registry `name`. Those never publish and
+  // nothing else complains, so an element can stay dormant indefinitely.
+  const mismatched = skipped.filter((name) =>
+    PLATFORMS.some((platform) => {
+      const entry = registry.find((e) => e.name === name);
+      return entry ? existsSync(platform.resolveBundlePath(stripSynergosPrefix(entry.tag))) : false;
+    }),
+  );
+
+  if (mismatched.length > 0) {
+    console.warn(`\n${LOG_PREFIX}   ⚠ ${mismatched.length} of those ARE built, under a different dist name:`);
+    for (const name of mismatched) {
+      const entry = registry.find((e) => e.name === name);
+      console.warn(`${LOG_PREFIX}     - registry name "${name}" vs dist/"${stripSynergosPrefix(entry.tag)}" (tag ${entry.tag})`);
+    }
+    console.warn(`${LOG_PREFIX}     These will never reach the CDN until the names agree.`);
+    console.warn(`${LOG_PREFIX}     Run \`npm run element:audit\` for the full picture.`);
+  }
 }
 console.log('');
 

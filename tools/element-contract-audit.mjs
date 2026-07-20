@@ -10,6 +10,7 @@ const INPUTS_JSON = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
 const BLOCK_MAPPER_TS = resolve(ROOT, 'vitals/core/src/mappers/block.mapper.ts');
 const MODELS_DIR = resolve(ROOT, 'vitals/core/src/models');
 const MODELS_INDEX_TS = resolve(ROOT, 'vitals/core/src/models/index.ts');
+const PLATFORMS_DIR = resolve(ROOT, 'platforms');
 
 /**
  * Known compatibility aliases intentionally left in block.mapper.ts because
@@ -111,8 +112,68 @@ function printSection(title, issues, formatter) {
   }
 }
 
+/**
+ * Scan every platform workspace for Nx projects tagged `element:<name>`.
+ *
+ * The publish pipeline keys off this tag in two places, and both resolve it
+ * against the registry `name`:
+ *   - `publish-element.mjs` reads the tag, then looks up `registry[].name`.
+ *   - `publish.mjs` walks the registry and resolves `dist/<name>`.
+ *
+ * So a project whose `element:` tag has no matching registry `name` cannot be
+ * published by either path — and both fail quietly (one exits non-zero from a
+ * per-project target, the other files it under "Skipped (not built)"). That is
+ * how an element goes dormant without anyone noticing, so it is an error here.
+ */
+function scanNxElementProjects() {
+  const found = new Map();
+  const SKIP = new Set(['node_modules', 'dist', '.nx', '.angular', '.git']);
+
+  function walk(dir) {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (SKIP.has(entry.name)) continue;
+      const full = resolve(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (entry.name !== 'project.json') continue;
+
+      let project;
+      try {
+        project = JSON.parse(readFileSync(full, 'utf8'));
+      } catch {
+        continue;
+      }
+
+      const tags = project.tags ?? [];
+      const elementTag = tags.find((tag) => tag.startsWith('element:'));
+      if (!elementTag) continue;
+
+      const frameworkTag = tags.find((tag) => tag.startsWith('framework:'));
+      found.set(elementTag.slice('element:'.length), {
+        project: project.name,
+        framework: frameworkTag ? frameworkTag.slice('framework:'.length) : 'unknown',
+        buildable: Boolean(project.targets?.build),
+      });
+    }
+  }
+
+  walk(PLATFORMS_DIR);
+  return found;
+}
+
 const registryEntries = readJson(REGISTRY_JSON);
 const inputsData = readJson(INPUTS_JSON);
+const nxElementProjects = scanNxElementProjects();
 const blockMapperSource = readFileSync(BLOCK_MAPPER_TS, 'utf8');
 const modelFiles = readdirSync(MODELS_DIR)
   .filter((name) => name.endsWith('-inputs.model.ts'))
@@ -133,6 +194,7 @@ const errors = {
   missingModels: [],
   missingModelExports: [],
   missingInputs: [],
+  unpublishableNxProjects: [],
 };
 
 const warnings = {
@@ -142,6 +204,7 @@ const warnings = {
   orphanInputEntries: [],
   inputFieldsMissingFromModels: [],
   modelFieldsMissingFromInputs: [],
+  registryWithoutImplementation: [],
 };
 
 for (const entry of registryEntries) {
@@ -237,6 +300,41 @@ for (const inputName of inputNames) {
   }
 }
 
+// ── Publishability: Nx `element:` tags <-> registry `name` ──────────────────
+
+for (const [elementName, project] of nxElementProjects.entries()) {
+  if (registryNames.has(elementName) || KNOWN_DEPRECATED_INPUT_NAMES.has(elementName)) {
+    continue;
+  }
+  pushIssue(errors.unpublishableNxProjects, {
+    elementName,
+    project: project.project,
+    framework: project.framework,
+  });
+}
+
+// Inverse direction: a registry entry nothing can build. Several entries share
+// one implementation on purpose (six text-* aliases all render through
+// `synergos-text-block`), so exempt any entry whose tag is also carried by a
+// sibling entry that does have a project — computed, not a hardcoded list.
+const namesWithProject = new Set(
+  registryEntries.filter((entry) => nxElementProjects.has(entry.name)).map((entry) => entry.name),
+);
+const tagsWithProject = new Set(
+  registryEntries.filter((entry) => namesWithProject.has(entry.name)).map((entry) => entry.tag),
+);
+
+for (const entry of registryEntries) {
+  if (nxElementProjects.has(entry.name) || tagsWithProject.has(entry.tag)) {
+    continue;
+  }
+  pushIssue(warnings.registryWithoutImplementation, {
+    name: entry.name,
+    alias: entry.alias,
+    tag: entry.tag,
+  });
+}
+
 const errorCount = Object.values(errors).reduce((sum, issues) => sum + issues.length, 0);
 
 console.log('\nSynergos Element Contract Audit');
@@ -244,6 +342,7 @@ console.log(`  Registry entries: ${registryEntries.length}`);
 console.log(`  Mapper aliases:   ${mapperEntries.size}`);
 console.log(`  Model files:      ${modelSlugs.size}`);
 console.log(`  Input entries:    ${inputNames.length}`);
+console.log(`  Nx element projects: ${nxElementProjects.size}`);
 
 printSection('Errors: Missing mapper aliases', errors.missingMappers, (issue) =>
   `${issue.alias} (${issue.name}) -> ${issue.tag}`,
@@ -259,6 +358,12 @@ printSection('Errors: Missing model exports', errors.missingModelExports, (issue
 );
 printSection('Errors: Missing input entries', errors.missingInputs, (issue) =>
   `${issue.alias} (${issue.name}) missing key in vitals/contracts/src/element-inputs.json`,
+);
+printSection('Errors: Nx projects that cannot be published', errors.unpublishableNxProjects, (issue) =>
+  `${issue.project} [${issue.framework}] is tagged element:${issue.elementName}, `
+  + `but no registry entry has name "${issue.elementName}" — `
+  + 'add one to vitals/contracts/src/element-registry.json (and a matching key in element-inputs.json), '
+  + 'or retag the project to an existing registry name',
 );
 
 printSection('Warnings: Empty input arrays', warnings.emptyInputs, (issue) =>
@@ -278,6 +383,10 @@ printSection('Warnings: Input fields missing from models', warnings.inputFieldsM
 );
 printSection('Warnings: Model fields missing from input entries', warnings.modelFieldsMissingFromInputs, (issue) =>
   `${issue.alias} (${issue.name}) -> ${issue.fields.join(', ')}`,
+);
+printSection('Warnings: Registry entries with no buildable project', warnings.registryWithoutImplementation, (issue) =>
+  `${issue.alias} (${issue.name}) -> ${issue.tag} — no Nx project is tagged element:${issue.name}, `
+  + 'so nothing ever builds it and publish.mjs reports it as "not built"',
 );
 
 if (errorCount > 0) {
