@@ -152,6 +152,42 @@
   }
 }
 
+// ─── Hueco de identidad (401) ───────────────────────────────────────────────────
+// Lo que se ve en mensajes / notificaciones / guardados / estudio sin sesión. No es un
+// error ni una degradación — es una invitación, así que se estila como panel neutro y
+// no con --bl-danger.
+.blogs__signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--bl-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface-muted);
+  text-align: center;
+}
+
+.blogs__signin-title {
+  margin: 0;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-bold;
+  color: var(--bl-text);
+}
+
+.blogs__signin-text {
+  max-width: syn.px-to-rem(420);
+  margin: 0;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__signin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: syn.$space-2;
+}
+
 // ─── Notices ────────────────────────────────────────────────────────────────────
 .blogs__notice {
   margin: 0 0 syn.$space-4;

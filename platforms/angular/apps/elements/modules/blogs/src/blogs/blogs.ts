@@ -44,7 +44,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
-import { BlogsApiClient } from './blogs-api.client';
+import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
 import { mockViewer, reactionStateFor } from './blogs.mock';
 import {
@@ -96,7 +96,11 @@ export interface BlogsRuntimeConfig {
   readonly apiBase?: string;
   /** Storage / instance scope (typically the siteRoot). Default `blogs`. */
   readonly scope?: string;
-  /** The viewer handle used to scope inbox/saved/studio queries. Default `me`. */
+  /**
+   * Etiqueta de instancia, **NO identidad**. Ya no viaja a ninguna ruta: la bandeja, los
+   * guardados y el estudio los scopea el servidor desde la cookie de sesión. Enviarlo
+   * como `?user=` era el IDOR (bastaba el handle ajeno). No re-cablear como identidad.
+   */
   readonly user?: string;
   /** The current viewer's public @handle (nav identity). Default `tu`. */
   readonly viewerHandle?: string;
@@ -116,6 +120,8 @@ const DEFAULT_SCOPE = 'blogs';
 const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
 const SESSION_TTL_MS = 30 * 60 * 1000;
+/** Login del CMS — mismo destino que usa Gobierno para el hueco de identidad. */
+const LOGIN_PATH = '/account/login';
 
 // Icons render as inline Lucide-style SVG in the template (@switch on `type`),
 // so no per-OS emoji glyph is baked here — only the semantic type + a11y label.
@@ -432,6 +438,24 @@ export class BlogsElementComponent {
   readonly subscribeCreator = signal<Author | null>(null);
   readonly confirmedMembership = signal<string>('');
 
+  // ─── Acceso (401/403) — estado, NO degradación ──────────────────────────────────
+  /**
+   * Acceso a lo que es DEL USUARIO: bandeja de mensajes, notificaciones, guardados y
+   * estudio. Un 401 en cualquiera de esas cuatro dice lo mismo —no hay sesión—, así que
+   * un solo estado las cubre y evita cuatro round-trips para recibir cuatro veces el
+   * mismo 401. NO es `degraded`: ahí no hay nada que degradar, hay que iniciar sesión.
+   */
+  readonly sessionAccess = signal<'ok' | 'anon'>('ok');
+  /**
+   * Acceso a la conversación ABIERTA (403 = el hilo es de otras dos personas). Es un
+   * estado del detalle, no de la sesión: la bandeja propia sigue siendo legítima y se
+   * mantiene a la vista; lo único que se cierra es el hilo ajeno. Solo se llega aquí por
+   * deep-link `#/…/mensajes/<id-ajeno>`.
+   */
+  readonly threadAccess = signal<'ok' | 'forbidden'>('ok');
+  /** Announced via role="status" — WCAG: cambios de estado sin recarga. */
+  readonly announcement = signal('');
+
   // ─── Degradation flag (mock fallback surfaced to the shell) ─────────────────────
   readonly degraded = computed(() => {
     // Recompute whenever a fetch path could have flipped the flag.
@@ -654,6 +678,10 @@ export class BlogsElementComponent {
         }
         if (param) {
           void this.openThread(param);
+        } else {
+          // Entrar a la bandeja sin hilo: el veredicto del 403 anterior ya no aplica a
+          // nada abierto, y dejarlo pintado sería un reproche colgado sin conversación.
+          this.threadAccess.set('ok');
         }
         return;
       case 'saved':
@@ -1158,7 +1186,11 @@ export class BlogsElementComponent {
       const list = await this.#api.notifications(this.apiBase());
       this.notifications.set(list);
       this.notificationsLoaded.set(true);
+      this.sessionAccess.set('ok');
     } catch (error) {
+      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus notificaciones.')) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar las notificaciones.');
       void error;
     } finally {
@@ -1215,16 +1247,89 @@ export class BlogsElementComponent {
     }
   }
 
+  // ─── Acceso: traducir 401/403 a estado (nunca a datos inventados) ───────────────
+  /**
+   * Traduce un 401 al estado que la UI sabe pintar: el panel "Inicia sesión" en las
+   * cuatro superficies del usuario. Devuelve `true` si el error era ese, para que quien
+   * llama corte ahí sin escribir un `errorMessage` que contradiga al panel.
+   *
+   * **Vacía TODO lo personal ya cargado**, no solo lo de la vista actual: si el usuario
+   * abrió su bandeja con sesión y esta expiró, dejar los hilos en pantalla mientras el
+   * panel pide iniciar sesión es la misma mentira, y los badges del nav seguirían
+   * contando mensajes que ya no podemos leer. Marca las cuatro como "cargadas" para que
+   * navegar entre ellas no dispare tres 401 más: el primero ya dijo que no hay sesión.
+   */
+  private handleUnauthenticated(error: unknown, announcement?: string): boolean {
+    if (!isBlogsUnauthorized(error)) {
+      return false;
+    }
+    this.sessionAccess.set('anon');
+    this.errorMessage.set('');
+    // Mensajes directos — lo más sensible: sin esto el anónimo veía una bandeja sembrada.
+    this.threads.set([]);
+    this.activeThread.set(null);
+    this.threadAccess.set('ok');
+    this.threadsLoaded.set(true);
+    // Notificaciones, guardados y estudio.
+    this.notifications.set([]);
+    this.notificationsLoaded.set(true);
+    this.savedPosts.set([]);
+    this.savedIds.set(new Set());
+    this.savedLoaded.set(true);
+    this.studio.set(null);
+    this.studioLoaded.set(true);
+    this.announce(announcement ?? 'Inicia sesión para ver esta sección.');
+    return true;
+  }
+
+  /**
+   * 403 en `GET /thread/{id}`: hay sesión, pero la conversación es de otras dos personas.
+   * Se cierra SOLO el hilo (la bandeja propia sigue siendo legítima) y se dice con esas
+   * palabras — antes se caía al mock y se abría OTRA conversación en su lugar.
+   */
+  private handleThreadForbidden(error: unknown): boolean {
+    if (!isBlogsForbidden(error)) {
+      return false;
+    }
+    this.threadAccess.set('forbidden');
+    this.activeThread.set(null);
+    this.errorMessage.set('');
+    this.announce('Esa conversación no es tuya.');
+    return true;
+  }
+
+  /** Publica en la región aria-live (WCAG: estado sin recarga). */
+  private announce(message: string): void {
+    this.announcement.set(message);
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página (con su hash, para caer en la misma vista).
+   * Es un método y no un `computed` a propósito: el hash cambia con la navegación y un
+   * computed cacheado devolvería el de la primera lectura.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
+  }
+
   // ─── DMs (SH-7 message-center) ──────────────────────────────────────────────────
   private async loadThreads(): Promise<void> {
     this.loading.set(true);
     try {
       const threads = await this.#orchestrator.callApi('messages', () =>
-        this.#api.messages(this.apiBase(), this.user()),
+        this.#api.messages(this.apiBase()),
       );
       this.threads.set(threads);
       this.threadsLoaded.set(true);
+      this.sessionAccess.set('ok');
     } catch (error) {
+      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus mensajes.')) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar tus mensajes.');
       void error;
     } finally {
@@ -1238,6 +1343,8 @@ export class BlogsElementComponent {
   }
 
   private async openThread(threadId: string): Promise<void> {
+    // Se intenta un hilo nuevo: el veredicto del anterior no aplica a este.
+    this.threadAccess.set('ok');
     // Optimistically clear unread on the selected row.
     this.threads.update((current) =>
       current.map((thread) => (thread.id === threadId ? { ...thread, unread: 0 } : thread)),
@@ -1245,12 +1352,23 @@ export class BlogsElementComponent {
     try {
       const thread = await this.#api.thread(this.apiBase(), threadId);
       this.activeThread.set(thread);
+      this.threadAccess.set('ok');
+      this.sessionAccess.set('ok');
       this.threads.update((current) =>
         current.some((entry) => entry.id === thread.id)
           ? current.map((entry) => (entry.id === thread.id ? { ...thread, unread: 0 } : entry))
           : [{ ...thread, unread: 0 }, ...current],
       );
     } catch (error) {
+      // Antes este catch se tragaba TODO en silencio (`void error`): un 403 por deep-link
+      // a un hilo ajeno caía al mock y abría otra conversación como si fuera esa.
+      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus mensajes.')) {
+        return;
+      }
+      if (this.handleThreadForbidden(error)) {
+        return;
+      }
+      this.errorMessage.set('No pudimos abrir la conversación.');
       void error;
     }
   }
@@ -1287,7 +1405,22 @@ export class BlogsElementComponent {
         }));
         this.messagesent.emit({ threadId });
       })
-      .catch((error: unknown) => void error)
+      .catch((error: unknown) => {
+        // El mensaje NO salió: hay que RETIRAR la burbuja optimista. Dejarla diría
+        // "enviado" sobre algo que el servidor rechazó — y en el caso del 401 el
+        // handler además vacía la bandeja, así que el hilo ya no existe.
+        this.patchThread(threadId, (thread) => ({
+          ...thread,
+          messages: thread.messages.filter((entry) => entry.id !== local.id),
+        }));
+        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.')) {
+          return;
+        }
+        if (this.handleThreadForbidden(error)) {
+          return;
+        }
+        void error;
+      })
       .finally(() => this.sendingMessage.set(false));
   }
 
@@ -1295,11 +1428,15 @@ export class BlogsElementComponent {
   private async loadSaved(): Promise<void> {
     this.loading.set(true);
     try {
-      const posts = await this.#api.saved(this.apiBase(), this.user());
+      const posts = await this.#api.saved(this.apiBase());
       this.savedPosts.set(posts);
       this.savedIds.set(new Set(posts.map((post) => post.id)));
       this.savedLoaded.set(true);
+      this.sessionAccess.set('ok');
     } catch (error) {
+      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tus guardados.')) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar tus guardados.');
       void error;
     } finally {
@@ -1318,11 +1455,15 @@ export class BlogsElementComponent {
     this.loading.set(true);
     try {
       const studio = await this.#orchestrator.callApi('studio', () =>
-        this.#api.studio(this.apiBase(), this.user()),
+        this.#api.studio(this.apiBase()),
       );
       this.studio.set(studio);
       this.studioLoaded.set(true);
+      this.sessionAccess.set('ok');
     } catch (error) {
+      if (this.handleUnauthenticated(error, 'Inicia sesión para ver tu estudio.')) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar el estudio.');
       void error;
     } finally {

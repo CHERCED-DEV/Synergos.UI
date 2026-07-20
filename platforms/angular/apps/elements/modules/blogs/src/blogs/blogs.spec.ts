@@ -7,7 +7,7 @@ import {
   SessionStore,
   TransactionEventBusService,
 } from '@synergos/transaction-engine';
-import { BlogsApiClient } from './blogs-api.client';
+import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BlogsElementComponent } from './blogs';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from './blogs.model';
@@ -36,11 +36,71 @@ const AUTHOR: Author = {
   postsCount: 5,
 };
 
+/**
+ * Payloads "de verdad" del member de la sesión — lo que el backend devuelve con 200 y
+ * que un 401 posterior tiene que BORRAR. Deliberadamente distintos de la semilla del
+ * mock (`t-valeria`, `buildMockSaved()`…): si un test los confunde, el aserto lo canta.
+ */
+const MY_THREAD = {
+  id: 't-mio',
+  participant: AUTHOR,
+  lastMessage: 'Esta conversación sí es mía',
+  lastAtUtc: '2026-07-18T10:00:00Z',
+  unread: 0,
+  messages: [
+    {
+      id: 'm-1',
+      threadId: 't-mio',
+      author: AUTHOR,
+      body: 'Hola',
+      createdAtUtc: '2026-07-18T10:00:00Z',
+      outgoing: false,
+    },
+  ],
+};
+
+const MY_SAVED_POST = {
+  id: 'p-mio',
+  author: AUTHOR,
+  body: 'Un post que guardé yo',
+  createdAtUtc: '2026-07-18T10:00:00Z',
+  reactions: { counts: [], mine: null, total: 0 },
+  commentCount: 0,
+};
+
+const MY_NOTIFICATION = {
+  id: 'n-mia',
+  verb: 'follow',
+  actor: AUTHOR,
+  summary: 'te empezó a seguir',
+  createdAtUtc: '2026-07-18T10:00:00Z',
+  read: false,
+};
+
+const MY_STUDIO = {
+  followers: 1234,
+  followersDelta: 12,
+  reach: 56789,
+  reachDelta: 300,
+  engagementRate: 4.2,
+  monthlyRevenueMinor: 250000,
+  currency: 'COP',
+  audience: [{ label: 'Ene', value: 10 }],
+  topPosts: [
+    { postId: 'p-mio', excerpt: 'Un post mío', impressions: 10, engagements: 2, reactions: 2, comments: 0 },
+  ],
+  tiers: [{ id: 'tier-mio', name: 'Fan', priceMinor: 1000, currency: 'COP', perks: [], subscribers: 3 }],
+};
+
 describe('BlogsElementComponent', () => {
   let fixture: ComponentFixture<BlogsElementComponent>;
   let component: BlogsElementComponent;
 
-  async function createComponent(): Promise<void> {
+  // `hash` alimenta el router de hash (deep-links `#/blogs/mensajes/<id>`); vacío = feed.
+  async function createComponent(hash = ''): Promise<void> {
+    if (typeof window !== 'undefined') {
+      window.location.hash = hash;
+    }
     await TestBed.configureTestingModule({
       imports: [BlogsElementComponent],
       providers: [
@@ -66,6 +126,11 @@ describe('BlogsElementComponent', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+    // El hash es estado GLOBAL del jsdom: sin limpiarlo, un deep-link de un test
+    // arrastra al siguiente a otra vista y el fallo aparece donde no está la causa.
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
   });
 
   // ── empty: pristine shell, feed view, mock fallback flagged ──────────────────
@@ -320,6 +385,283 @@ describe('BlogsElementComponent', () => {
     component.onSubscribeCompleted({ reference: 'SUB-TEST', vouchers: [] });
     expect(component.confirmedMembership()).toBe('SUB-TEST');
   });
+
+  // ═══ Ola de seguridad: lo del usuario NO se degrada a datos sembrados ═════════
+  //
+  // El bug que cierran estos tests: cada `catch` del cliente caía a mock, así que un 401
+  // del backend pintaba la bandeja de DMs / las notificaciones / los guardados / el
+  // estudio SEMBRADOS como si fueran del visitante. En pantalla se veía perfecto —
+  // por eso ni el compilador ni un smoke lo atrapaban.
+
+  /** Boot con 401 en UNA ruta del usuario; el resto cae a mock (error de red). */
+  async function bootWith401On(path: string, hash = ''): Promise<ReturnType<typeof vi.fn>> {
+    const fetchMock = vi.fn((url: string) =>
+      String(url).includes(path)
+        ? Promise.resolve({
+            ok: false,
+            status: 401,
+            json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+          } as Response)
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent(hash);
+    return fetchMock;
+  }
+
+  /** La ruta se pidió DE VERDAD: sin esto, un 401 que nunca ocurre "pasa" el test. */
+  function expectRequested(fetchMock: ReturnType<typeof vi.fn>, path: string): void {
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes(path))).toBe(true);
+  }
+
+  it('un 401 en la bandeja pide iniciar sesión y NO pinta los DMs sembrados', async () => {
+    const fetchMock = await bootWith401On('/messages');
+
+    component.go('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expectRequested(fetchMock, '/messages');
+    expect(component.sessionAccess()).toBe('anon');
+    // EL CORAZÓN DE LA OLA: cero conversaciones sembradas a la vista.
+    expect(component.threads()).toEqual([]);
+    expect(component.activeThread()).toBeNull();
+    // Y se dice con palabras, no con un banner de "datos de ejemplo".
+    const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
+    expect(title?.textContent).toContain('Inicia sesión para ver tus mensajes');
+    expect(component.loginUrl()).toContain('/account/login?returnUrl=');
+  });
+
+  it('un 401 en notificaciones no pinta la actividad sembrada', async () => {
+    const fetchMock = await bootWith401On('/notifications');
+
+    component.go('notifications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expectRequested(fetchMock, '/notifications');
+    expect(component.sessionAccess()).toBe('anon');
+    expect(component.notifications()).toEqual([]);
+    const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
+    expect(title?.textContent).toContain('Inicia sesión para ver tus notificaciones');
+  });
+
+  it('un 401 en guardados no pinta la colección sembrada', async () => {
+    const fetchMock = await bootWith401On('/saved');
+
+    component.go('saved');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expectRequested(fetchMock, '/saved');
+    expect(component.sessionAccess()).toBe('anon');
+    expect(component.savedPosts()).toEqual([]);
+    const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
+    expect(title?.textContent).toContain('Inicia sesión para ver tus guardados');
+  });
+
+  it('un 401 en el estudio no pinta alcance ni ingresos sembrados', async () => {
+    const fetchMock = await bootWith401On('/studio');
+
+    component.go('studio');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expectRequested(fetchMock, '/studio');
+    expect(component.sessionAccess()).toBe('anon');
+    // Métricas de otro leídas como propias: la mentira más cara de las cuatro.
+    expect(component.studio()).toBeNull();
+    expect(component.studioKpis()).toEqual([]);
+    const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
+    expect(title?.textContent).toContain('Inicia sesión para ver tu estudio');
+  });
+
+  // ── La sesión expira a media navegación: se vacían las CUATRO, no solo la vista ──
+  // Si `handleUnauthenticated` dejara de limpiar una sola de ellas, los badges del nav
+  // seguirían contando mensajes que ya no podemos leer mientras el cuerpo pide login.
+  //
+  // El 401 llega por `POST /message` —una ACCIÓN del usuario, que siempre va a la red—
+  // y no por una de las cuatro cargas: así las cuatro alcanzan a poblarse con 200 antes
+  // de que caduque la sesión. Con el 401 en la propia carga, la superficie afectada
+  // nunca llegaba a tener datos y su aserto pasaba en vacío sin proteger nada.
+  it('un 401 con las CUATRO superficies cargadas las vacía todas (la sesión expiró)', async () => {
+    let sessionValid = true;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      const u = String(url);
+      // `POST /message` (singular) — no confundir con `GET /messages` (bandeja).
+      if (u.endsWith('/message') && init?.method === 'POST') {
+        return sessionValid
+          ? Promise.resolve({
+              ok: true, status: 200,
+              json: () => Promise.resolve({
+                message: {
+                  id: 'm-server', threadId: 't-mio', author: AUTHOR, body: 'ok',
+                  createdAtUtc: '2026-07-18T11:00:00Z', outgoing: true,
+                },
+              }),
+            } as Response)
+          : Promise.resolve({
+              ok: false, status: 401, json: () => Promise.resolve({ error: 'Sesión expirada.' }),
+            } as Response);
+      }
+      if (u.includes('/messages')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ threads: [MY_THREAD] }),
+        } as Response);
+      }
+      if (u.includes('/saved')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ posts: [MY_SAVED_POST] }),
+        } as Response);
+      }
+      if (u.includes('/notifications')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ notifications: [MY_NOTIFICATION] }),
+        } as Response);
+      }
+      if (u.includes('/studio')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve(MY_STUDIO),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    component.go('messages');
+    await flushMicrotasks();
+    component.go('saved');
+    await flushMicrotasks();
+    component.go('notifications');
+    await flushMicrotasks();
+    component.go('studio');
+    await flushMicrotasks();
+
+    // Control: las CUATRO están POBLADAS con lo suyo — hay algo real que borrar.
+    expect(component.sessionAccess()).toBe('ok');
+    expect(component.threads().map((t) => t.id)).toEqual(['t-mio']);
+    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-mio']);
+    expect(component.notifications().map((n) => n.id)).toEqual(['n-mia']);
+    expect(component.studio()?.followers).toBe(1234);
+
+    // La sesión expira y el usuario manda un DM: el servidor responde 401.
+    sessionValid = false;
+    component.onSendMessage({ thread: component.threads()[0], body: '¿Hola?' });
+    await flushMicrotasks();
+
+    expect(component.sessionAccess()).toBe('anon');
+    // NADA personal sobrevive: ni en pantalla ni en los contadores del nav.
+    expect(component.threads()).toEqual([]);
+    expect(component.activeThread()).toBeNull();
+    expect(component.notifications()).toEqual([]);
+    expect(component.savedPosts()).toEqual([]);
+    expect(component.isSaved('p-mio')).toBe(false);
+    expect(component.studio()).toBeNull();
+  });
+
+  // ── 403 de hilo AJENO: se cierra el hilo, la bandeja propia queda INTACTA ──────
+  // Un 403 no es un hueco de identidad: hay sesión y lo suyo sigue siendo suyo. Vaciarle
+  // la bandeja por tocar una conversación ajena castigaría al dueño legítimo.
+  it('un 403 al abrir un hilo ajeno lo cierra sin tocar la bandeja propia', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      const u = String(url);
+      if (u.includes('/thread/')) {
+        return Promise.resolve({
+          ok: false, status: 403, json: () => Promise.resolve({ error: 'Esa conversación no es tuya.' }),
+        } as Response);
+      }
+      if (u.includes('/messages')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ threads: [MY_THREAD] }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    // El id deep-linkeado EXISTE en la semilla a propósito: es la forma real del IDOR
+    // (se adivina/conoce un hilo ajeno de verdad) y, de paso, hace el test sensible —
+    // con un id inventado, el `buildMockThread → null → throw` taparía una regresión
+    // del re-lanzado y el test pasaría en verde sin proteger nada.
+    await createComponent('#/blogs/mensajes/t-valeria');
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('messages');
+    expectRequested(fetchMock, '/thread/');
+    expect(component.threadAccess()).toBe('forbidden');
+    // Ninguna conversación abierta bajo el id ajeno (antes se servía OTRA del mock).
+    expect(component.activeThread()).toBeNull();
+    // No se le pide iniciar sesión: YA la tiene. Y su bandeja sigue en pie.
+    expect(component.sessionAccess()).toBe('ok');
+    expect(component.threads().map((t) => t.id)).toEqual(['t-mio']);
+    const notice = (fixture.nativeElement as HTMLElement).querySelector('.blogs__notice--error');
+    expect(notice?.textContent).toContain('no es tuya');
+  });
+
+  it('entrar a la bandeja sin hilo limpia el veredicto del 403 anterior', async () => {
+    const fetchMock = vi.fn((url: string) =>
+      String(url).includes('/thread/')
+        ? Promise.resolve({
+            ok: false, status: 403, json: () => Promise.resolve({ error: 'x' }),
+          } as Response)
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent('#/blogs/mensajes/t-valeria'); // sembrado: ver nota arriba
+
+    expect(component.threadAccess()).toBe('forbidden'); // control
+
+    component.go('messages');
+    await flushMicrotasks();
+    expect(component.threadAccess()).toBe('ok');
+  });
+
+  // ── Regresión en la dirección CONTRARIA: lo público debe SEGUIR degradando ─────
+  // Blindar el 401 no puede convertir una caída de red en un "inicia sesión": el feed y
+  // el detalle de un post son contenido público y ahí el mock no le miente a nadie.
+  it('las rutas públicas (feed, post) siguen degradando a mock ante un error de red', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.degraded()).toBe(true);
+    // Una caída de red NO es un hueco de sesión.
+    expect(component.sessionAccess()).toBe('ok');
+
+    component.openPost(component.posts()[0]);
+    await flushMicrotasks();
+
+    expect(component.view()).toBe('post');
+    expect(component.comments().length).toBeGreaterThan(0);
+    expect(component.sessionAccess()).toBe('ok');
+  });
+
+  // ── Deep-link a un hilo que no existe: 404/500 NO puede abrir otra conversación ──
+  // `buildMockThread` devolvía `?? [primer hilo]`: un id desconocido abría mensajes que
+  // el usuario nunca tuvo, rotulados con el id pedido e indistinguibles de los suyos.
+  it('un 500 al abrir un hilo por deep-link no abre otra conversación', async () => {
+    const fetchMock = vi.fn((url: string) =>
+      String(url).includes('/thread/')
+        ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response)
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent('#/blogs/mensajes/t-que-no-existe');
+
+    // Control: la bandeja SÍ se sembró — hay hilos que el `?? [0]` podría haber servido.
+    expect(component.threads().length).toBeGreaterThan(0);
+    // Lo que cierra el bug: nada abierto bajo el id pedido.
+    expect(component.activeThread()).toBeNull();
+    expect(component.threadAccess()).toBe('ok'); // no es un 403: es un fallo del backend
+    expect(component.sessionAccess()).toBe('ok'); // ni un 401
+  });
+
+  it('offline, un hilo SÍ sembrado sigue abriéndose (la demo no se rompió)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent('#/blogs/mensajes/t-valeria');
+
+    expect(component.activeThread()?.id).toBe('t-valeria');
+  });
 });
 
 describe('BlogsApiClient', () => {
@@ -428,5 +770,105 @@ describe('BlogsApiClient', () => {
     expect(tags.length).toBeGreaterThan(0);
     // Trending is auxiliary: its absence must not brand the shell as offline.
     expect(client.degraded).toBe(false);
+  });
+
+  // ── Ola de seguridad: las 6 rutas del usuario re-lanzan el 401/403 ─────────────
+
+  it('re-lanza el 401 en las CUATRO rutas del usuario en vez de devolver la semilla', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const routes: readonly [string, Promise<unknown>][] = [
+      ['messages', client.messages('/api/blogs')],
+      ['notifications', client.notifications('/api/blogs')],
+      ['saved', client.saved('/api/blogs')],
+      ['studio', client.studio('/api/blogs')],
+    ];
+    for (const [name, promise] of routes) {
+      const error = await promise.then(() => null, (e: unknown) => e);
+      // Se discrimina por `name`, no por `instanceof`: esa es la garantía que sobrevive
+      // a que la clase se duplique en otro bundle.
+      expect(isBlogsUnauthorized(error), name).toBe(true);
+    }
+    // Un 401 NO es una caída del backend: el banner de "datos de ejemplo" sigue apagado.
+    expect(client.degraded).toBe(false);
+  });
+
+  it('re-lanza el 401 al enviar un DM (no sintetiza una burbuja "enviada")', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const error = await client
+      .sendMessage('/api/blogs', { threadId: 't-valeria', body: 'hola' }, AUTHOR)
+      .then(() => null, (e: unknown) => e);
+    expect(isBlogsUnauthorized(error)).toBe(true);
+  });
+
+  // El id pedido está SEMBRADO a propósito: si el `rethrowIfAuthError` desapareciera, el
+  // mock resolvería con esa conversación y el 403 se convertiría en "aquí tienes un hilo".
+  it('un 403 en thread(id) re-lanza en vez de abrir la conversación sembrada', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: false,
+          status: 403,
+          json: () => Promise.resolve({ error: 'Esa conversación no es tuya.' }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const error = await client.thread('/api/blogs', 't-valeria').then(() => null, (e: unknown) => e);
+    expect(isBlogsForbidden(error)).toBe(true);
+    expect(client.degraded).toBe(false);
+  });
+
+  it('un 500 en thread(id) sin hilo sembrado propaga en vez de servir otro', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response)),
+    );
+    const client = createClient();
+
+    await expect(client.thread('/api/blogs', 'no-existe-en-ningun-lado')).rejects.toThrow();
+  });
+
+  it('offline, un hilo SÍ sembrado sigue resolviendo (control opuesto)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const seeded = await client.thread('/api/blogs', 't-valeria');
+    expect(seeded.id).toBe('t-valeria');
+  });
+
+  // Lo público es deliberadamente asimétrico: ahí el mock no le miente a nadie, así que
+  // ni siquiera un 401 re-lanza. Blindar de más rompería el feed anónimo.
+  it('el feed (ruta pública) sigue degradando a mock incluso ante un 401', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const page = await client.feed('/api/blogs', 'foryou', null);
+    expect(page.posts.length).toBeGreaterThan(0);
+    expect(client.degraded).toBe(true);
   });
 });

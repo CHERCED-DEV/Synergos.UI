@@ -53,13 +53,65 @@ import {
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
  * flow is complete end-to-end before the backend lands. A **core content** mock path
- * (feed/post/profile/search/notifications/DMs/saved/studio) flips the `degraded` flag
- * so the shell surfaces a "datos de ejemplo" notice. **Auxiliary** widgets (e.g. the
- * trending sidebar) degrade *silently* — their absence must not brand the whole shell
- * as offline while the primary content is real.
+ * (feed/post/profile/search) flips the `degraded` flag so the shell surfaces a
+ * "datos de ejemplo" notice. **Auxiliary** widgets (e.g. the trending sidebar)
+ * degrade *silently* — their absence must not brand the whole shell as offline
+ * while the primary content is real.
+ *
+ * **Lo del usuario NO degrada, y es deliberado.** La bandeja de mensajes, las
+ * notificaciones, los guardados y el estudio son del member de la SESIÓN: su identidad
+ * la resuelve el servidor desde la cookie, no un `?user=<handle>` que cualquiera podía
+ * teclear (ese era el IDOR). Un 401 ahí no significa "el backend no está" — significa
+ * "no hay sesión", y taparlo con mock le pintaría al anónimo una bandeja de DMs
+ * SEMBRADA como si fuera la suya. Por eso viaja como {@link BlogsUnauthorizedError}
+ * hasta la UI, que pide iniciar sesión. Un 403 en `/thread/{id}` (conversación ajena)
+ * viaja como {@link BlogsForbiddenError}: mostrar OTRA conversación sería la mentira.
+ *
+ * La cookie viaja sola: `fetch` manda credenciales same-origin por defecto y la app se
+ * monta dentro de la propia página del CMS. No se fuerza `credentials: 'include'`
+ * —mandaría la cookie a orígenes ajenos si `apiBase` fuera absoluto.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+
+/**
+ * El backend exige sesión para esta ruta. NO es una degradación: es un hueco de
+ * identidad, y la UI debe ofrecer iniciar sesión en vez de inventar datos del usuario.
+ */
+export class BlogsUnauthorizedError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 401 ${url}`);
+    this.name = 'BlogsUnauthorizedError';
+  }
+}
+
+/**
+ * `instanceof` no es fiable cruzando bundles (la clase puede venir de otra copia del
+ * módulo), así que se discrimina por `name` — el mismo motivo por el que el runtime
+ * comparte `sg-core.js` en vez de duplicarlo.
+ */
+export function isBlogsUnauthorized(error: unknown): error is BlogsUnauthorizedError {
+  return error instanceof Error && error.name === 'BlogsUnauthorizedError';
+}
+
+/**
+ * El backend respondió 403: hay sesión, pero el recurso NO es del viewer — hoy solo lo
+ * lanza `GET /thread/{id}` cuando la conversación es de otras dos personas. A diferencia
+ * del 401, volver a iniciar sesión NO ayuda: no es un hueco de identidad, es que esa
+ * conversación no le pertenece. Por eso viaja distinto y la UI lo dice con esas palabras.
+ */
+export class BlogsForbiddenError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 403 ${url}`);
+    this.name = 'BlogsForbiddenError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isBlogsForbidden(error: unknown): error is BlogsForbiddenError {
+  return error instanceof Error && error.name === 'BlogsForbiddenError';
+}
+
 @Injectable()
 export class BlogsApiClient {
   readonly #logger = inject(LoggerService);
@@ -188,6 +240,11 @@ export class BlogsApiClient {
 
   // ─── Notifications (no contract endpoint yet — degrades to mock) ─────────────
 
+  /**
+   * La actividad del member de la SESIÓN.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   */
   async notifications(apiBase: string): Promise<readonly Notification[]> {
     const url = `${apiBase}/notifications`;
     try {
@@ -198,7 +255,7 @@ export class BlogsApiClient {
       }
       throw new Error('notifications-shape');
     } catch (error) {
-      // TODO(backend): no `/notifications` endpoint in the OLA 3 contract yet.
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/blogs/notifications', error);
       return buildMockNotifications();
     }
@@ -272,14 +329,16 @@ export class BlogsApiClient {
 
   // ─── Direct messages (SH-7 message-center) ──────────────────────────────────
 
-  /** `GET /api/blogs/messages?user=` — inbox conversation-list. */
-  async messages(apiBase: string, user: string): Promise<readonly MessageThread[]> {
-    const params = new URLSearchParams();
-    if (user.trim()) {
-      params.set('user', user.trim());
-    }
-    const qs = params.toString();
-    const url = `${apiBase}/messages${qs ? `?${qs}` : ''}`;
+  /**
+   * `GET /api/blogs/messages` — la bandeja del member de la SESIÓN.
+   *
+   * Sin parámetro de identidad: el `?user=<handle>` era el IDOR (saber el handle de
+   * alguien bastaba para leerle los mensajes directos) y el backend ya no lo mira.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   */
+  async messages(apiBase: string): Promise<readonly MessageThread[]> {
+    const url = `${apiBase}/messages`;
     try {
       const data = await this.getJson(url);
       const list = normalizeThreads(data);
@@ -288,12 +347,18 @@ export class BlogsApiClient {
       }
       throw new Error('messages-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/blogs/messages', error);
       return buildMockThreads();
     }
   }
 
-  /** `GET /api/blogs/thread/{id}` — the open conversation + materialised messages. */
+  /**
+   * `GET /api/blogs/thread/{id}` — the open conversation + materialised messages.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   * @throws {BlogsForbiddenError} si la conversación no es del viewer.
+   */
   async thread(apiBase: string, threadId: string): Promise<MessageThread> {
     const url = `${apiBase}/thread/${encodeURIComponent(threadId)}`;
     try {
@@ -306,12 +371,24 @@ export class BlogsApiClient {
       }
       throw new Error('thread-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/blogs/thread/{id}', error);
-      return buildMockThread(threadId);
+      const seeded = buildMockThread(threadId);
+      if (!seeded) {
+        // Sin hilo sembrado con ESE id, se propaga: mejor "no se pudo abrir" que
+        // abrir una conversación que no es la que se pidió.
+        throw error;
+      }
+      return seeded;
     }
   }
 
-  /** `POST /api/blogs/message` `{ threadId, body }` → the persisted message. */
+  /**
+   * `POST /api/blogs/message` `{ threadId, body }` → the persisted message.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   * @throws {BlogsForbiddenError} si la conversación no es del viewer.
+   */
   async sendMessage(
     apiBase: string,
     draft: NewMessage,
@@ -329,6 +406,9 @@ export class BlogsApiClient {
       }
       throw new Error('message-shape');
     } catch (error) {
+      // Sin sesión el mensaje NO se envió: sintetizarlo dejaría la burbuja en pantalla
+      // como si hubiera salido. Se re-lanza para que la UI retire el optimista.
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/blogs/message', error);
       return synthesizeMessage(draft, author);
     }
@@ -336,14 +416,14 @@ export class BlogsApiClient {
 
   // ─── Guardados / listas ──────────────────────────────────────────────────────
 
-  /** `GET /api/blogs/saved?user=` — the viewer's bookmarked posts. */
-  async saved(apiBase: string, user: string): Promise<readonly Post[]> {
-    const params = new URLSearchParams();
-    if (user.trim()) {
-      params.set('user', user.trim());
-    }
-    const qs = params.toString();
-    const url = `${apiBase}/saved${qs ? `?${qs}` : ''}`;
+  /**
+   * `GET /api/blogs/saved` — the viewer's bookmarked posts. Sin `?user=`: esa era la
+   * misma llave que abría la lista de guardados de cualquiera.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   */
+  async saved(apiBase: string): Promise<readonly Post[]> {
+    const url = `${apiBase}/saved`;
     try {
       const data = await this.getJson(url);
       const rawPosts = Array.isArray(data)
@@ -356,6 +436,7 @@ export class BlogsApiClient {
       }
       throw new Error('saved-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/blogs/saved', error);
       return buildMockSaved();
     }
@@ -381,14 +462,14 @@ export class BlogsApiClient {
 
   // ─── Creator studio (SH-5 analytics + monetización) ──────────────────────────
 
-  /** `GET /api/blogs/studio?user=` — the creator dashboard aggregate. */
-  async studio(apiBase: string, user: string): Promise<StudioPayload> {
-    const params = new URLSearchParams();
-    if (user.trim()) {
-      params.set('user', user.trim());
-    }
-    const qs = params.toString();
-    const url = `${apiBase}/studio${qs ? `?${qs}` : ''}`;
+  /**
+   * `GET /api/blogs/studio` — borradores y métricas del autor de la SESIÓN. Sin `?user=`:
+   * con ese parámetro se leían los ingresos y el alcance de cualquier creador.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   */
+  async studio(apiBase: string): Promise<StudioPayload> {
+    const url = `${apiBase}/studio`;
     try {
       const data = await this.getJson(url);
       const payload = normalizeStudio(data);
@@ -397,6 +478,7 @@ export class BlogsApiClient {
       }
       throw new Error('studio-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/blogs/studio', error);
       return buildMockStudio();
     }
@@ -423,9 +505,30 @@ export class BlogsApiClient {
     return fetch(url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
-    }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
-    );
+    }).then((response) => {
+      if (response.status === 401) {
+        // Antes caía en el `catch` genérico y se degradaba a mock: el anónimo veía una
+        // bandeja de DMs sembrada como si fuera la suya, en vez de un "inicia sesión".
+        return Promise.reject(new BlogsUnauthorizedError(url));
+      }
+      if (response.status === 403) {
+        // Autenticado, pero el recurso es de otro (conversación ajena). Taparlo con mock
+        // le mostraría OTRA conversación — la mentira exacta que esto viene a cerrar.
+        return Promise.reject(new BlogsForbiddenError(url));
+      }
+      return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
+    });
+  }
+
+  /**
+   * Re-lanza un 401/403 (los que la UI trata como estado de sesión, no como caída).
+   * Lo llaman SOLO las rutas del usuario; las públicas (feed/post/publicar/reaccionar/
+   * seguir) siguen degradando a mock, que ahí no le miente a nadie.
+   */
+  private rethrowIfAuthError(error: unknown): void {
+    if (isBlogsUnauthorized(error) || isBlogsForbidden(error)) {
+      throw error;
+    }
   }
 
   /**

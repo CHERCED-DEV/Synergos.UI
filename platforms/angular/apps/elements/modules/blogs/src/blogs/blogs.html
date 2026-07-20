@@ -81,8 +81,14 @@
       <p class="blogs__notice" role="status">Otra pestaña tomó esta sesión. Tu carrito se sincronizó.</p>
     }
 
+    <!-- WCAG: cambios de estado anunciados sin recarga -->
+    <p class="blogs__sr-only" role="status" aria-live="polite">{{ announcement() }}</p>
+
     <!-- Mock-data degradation notice -->
-    @if (degraded()) {
+    @if (degraded() && sessionAccess() === 'ok') {
+      <!-- No convivir con un panel de acceso: un 401 previo pudo dejar el latch `degraded`
+           encendido de una ruta pública, y se verían dos verdades contradictorias a la vez
+           ("datos de ejemplo" encima de "inicia sesión"). -->
       <p class="blogs__notice blogs__notice--warn" role="status">
         Mostrando datos de ejemplo: el backend de la red social aún no responde.
       </p>
@@ -257,13 +263,29 @@
 
     <!-- ═══ NOTIFICATIONS ══════════════════════════════════════════════════════ -->
     @if (view() === 'notifications') {
+      @if (sessionAccess() === 'anon') {
+        <div class="blogs__signin">
+          <h1 class="blogs__signin-title">Inicia sesión para ver tus notificaciones</h1>
+          <p class="blogs__signin-text">
+            Aquí verás quién te siguió, te mencionó o respondió a tus publicaciones.
+          </p>
+          <div class="blogs__signin-actions">
+            <a class="blogs__btn blogs__btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="blogs__btn blogs__btn--ghost" (click)="go('feed')">
+              Volver al feed
+            </button>
+          </div>
+        </div>
+      } @else {
       <header class="blogs__view-head">
         <h1 class="blogs__view-title">Notificaciones</h1>
         <button type="button" class="blogs__link-btn" (click)="markAllRead()">Marcar todo como leído</button>
       </header>
 
       <!-- Reuse the published notification-center custom element (progressive enhancement;
-           hydrates in the CMS via the CDN bundle, degrades to the native list below). -->
+           hydrates in the CMS via the CDN bundle, degrades to the native list below).
+           Vive DENTRO del `@else` a propósito: hace su propio fetch a /notifications, y
+           montarlo sin sesión dispararía un 401 que este componente no controla. -->
       <synergos-notification-center
         class="blogs__notif-embed"
         title="Actividad reciente"
@@ -299,6 +321,7 @@
             </li>
           }
         </ul>
+      }
       }
     }
 
@@ -368,30 +391,70 @@
 
     <!-- ═══ DMs — SH-7 message-center ══════════════════════════════════════════ -->
     @if (view() === 'messages') {
-      <syn-message-center
-        [config]="messageConfig"
-        [threads]="threads()"
-        [activeThread]="activeThread()"
-        [loading]="loading() && !threadsLoaded()"
-        [sending]="sendingMessage()"
-        [threadTemplate]="threadRowTpl"
-        [detailTemplate]="threadDetailTpl"
-        (threadselect)="onThreadSelect($event)"
-        (send)="onSendMessage($event)"
-      ></syn-message-center>
+      @if (sessionAccess() === 'anon') {
+        <!-- El backend pidió sesión. NO se pinta la bandeja con datos de ejemplo: sería
+             mostrarle al anónimo conversaciones que no son de nadie. -->
+        <div class="blogs__signin">
+          <h1 class="blogs__signin-title">Inicia sesión para ver tus mensajes</h1>
+          <p class="blogs__signin-text">
+            Tus conversaciones son privadas y están asociadas a tu cuenta. Las verás aquí
+            en cuanto entres.
+          </p>
+          <div class="blogs__signin-actions">
+            <a class="blogs__btn blogs__btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="blogs__btn blogs__btn--ghost" (click)="go('feed')">
+              Volver al feed
+            </button>
+          </div>
+        </div>
+      } @else {
+        @if (threadAccess() === 'forbidden') {
+          <!-- 403: hay sesión, pero el hilo es de otras dos personas. Antes se caía al mock
+               y se abría OTRA conversación en su lugar. -->
+          <p class="blogs__notice blogs__notice--error" role="alert">
+            Esa conversación no es tuya. Elige una de tus conversaciones.
+          </p>
+        }
+        <syn-message-center
+          [config]="messageConfig"
+          [threads]="threads()"
+          [activeThread]="activeThread()"
+          [loading]="loading() && !threadsLoaded()"
+          [sending]="sendingMessage()"
+          [threadTemplate]="threadRowTpl"
+          [detailTemplate]="threadDetailTpl"
+          (threadselect)="onThreadSelect($event)"
+          (send)="onSendMessage($event)"
+        ></syn-message-center>
+      }
     }
 
     <!-- ═══ GUARDADOS / LISTAS — SH-4 account-shell ════════════════════════════ -->
     @if (view() === 'saved') {
-      <syn-account-shell
-        [config]="savedConfig()"
-        [items]="savedPosts()"
-        [loading]="loading() && !savedLoaded()"
-        [itemTemplate]="savedRowTpl"
-        [detailTemplate]="savedDetailTpl"
-        [sectionTemplate]="savedSectionTpl"
-        (sectionchange)="onSavedSectionChange($event)"
-      ></syn-account-shell>
+      @if (sessionAccess() === 'anon') {
+        <div class="blogs__signin">
+          <h1 class="blogs__signin-title">Inicia sesión para ver tus guardados</h1>
+          <p class="blogs__signin-text">
+            Lo que guardas queda en tu cuenta. Entra y encontrarás aquí tus publicaciones.
+          </p>
+          <div class="blogs__signin-actions">
+            <a class="blogs__btn blogs__btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="blogs__btn blogs__btn--ghost" (click)="go('feed')">
+              Volver al feed
+            </button>
+          </div>
+        </div>
+      } @else {
+        <syn-account-shell
+          [config]="savedConfig()"
+          [items]="savedPosts()"
+          [loading]="loading() && !savedLoaded()"
+          [itemTemplate]="savedRowTpl"
+          [detailTemplate]="savedDetailTpl"
+          [sectionTemplate]="savedSectionTpl"
+          (sectionchange)="onSavedSectionChange($event)"
+        ></syn-account-shell>
+      }
     }
 
     <!-- ═══ LONG-FORM EDITOR (`/write`) ════════════════════════════════════════ -->
@@ -431,18 +494,35 @@
 
     <!-- ═══ CREATOR STUDIO — SH-5 console-shell ════════════════════════════════ -->
     @if (view() === 'studio') {
-      <syn-console-shell
-        [config]="studioConfig()"
-        [kpis]="studioKpis()"
-        [rows]="studioRows()"
-        [columns]="studioColumns"
-        [actions]="studioActions"
-        [loading]="loading() && !studioLoaded()"
-        [cellTemplate]="studioCellTpl"
-        [sectionTemplate]="studioSectionTpl"
-        (sectionchange)="onStudioSectionChange($event)"
-        (rowaction)="onStudioAction($event)"
-      ></syn-console-shell>
+      @if (sessionAccess() === 'anon') {
+        <!-- El estudio expone borradores, alcance e ingresos del autor: sin sesión no se
+             pinta con datos de ejemplo, que se leerían como métricas propias. -->
+        <div class="blogs__signin">
+          <h1 class="blogs__signin-title">Inicia sesión para ver tu estudio</h1>
+          <p class="blogs__signin-text">
+            Tus borradores, tu alcance y tus ingresos están asociados a tu cuenta.
+          </p>
+          <div class="blogs__signin-actions">
+            <a class="blogs__btn blogs__btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="blogs__btn blogs__btn--ghost" (click)="go('feed')">
+              Volver al feed
+            </button>
+          </div>
+        </div>
+      } @else {
+        <syn-console-shell
+          [config]="studioConfig()"
+          [kpis]="studioKpis()"
+          [rows]="studioRows()"
+          [columns]="studioColumns"
+          [actions]="studioActions"
+          [loading]="loading() && !studioLoaded()"
+          [cellTemplate]="studioCellTpl"
+          [sectionTemplate]="studioSectionTpl"
+          (sectionchange)="onStudioSectionChange($event)"
+          (rowaction)="onStudioAction($event)"
+        ></syn-console-shell>
+      }
     }
 
     <!-- ═══ SUBSCRIBE / TIP — SH-3 checkout-wizard over the engine ═════════════ -->

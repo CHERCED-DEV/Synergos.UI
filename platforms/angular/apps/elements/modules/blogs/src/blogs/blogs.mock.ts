@@ -416,8 +416,14 @@ export function buildMockThreads(): readonly MessageThread[] {
 }
 
 /** `GET /api/blogs/thread/{id}` — the open conversation with materialised messages. */
-export function buildMockThread(threadId: string): MessageThread {
-  const thread = buildMockThreads().find((entry) => entry.id === threadId) ?? buildMockThreads()[0];
+export function buildMockThread(threadId: string): MessageThread | null {
+  // Devuelve `null` —y NO el primer hilo— cuando el id no está sembrado. Con el `??`
+  // que había, un 404 o un 500 abría OTRA conversación bajo el id pedido: mensajes
+  // que el usuario nunca tuvo, indistinguibles de los suyos.
+  const thread = buildMockThreads().find((entry) => entry.id === threadId);
+  if (!thread) {
+    return null;
+  }
   return { ...thread, unread: 0, messages: threadMessages(thread.id, thread.participant) };
 }
 
