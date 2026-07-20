@@ -20,13 +20,24 @@
 // commiteado. Si difieren, imprime un diff y termina con exit 1 SIN
 // escribir — atrapa un _tokens-bridge.scss stale en CI / pre-commit.
 //
+// Gate G-2 (barrido de derivados): G-1 mira UN path hardcodeado, así que su
+// OK sólo dice "el bridge está bien" — pero se leía como "no hay drift". Bajo
+// esa falsa calma vivía `_brand.scss`, una SEGUNDA copia a mano de los mismos
+// --syn-* que se compila DENTRO de cada bundle y que, por orden de fuente,
+// GANABA sobre el <link> del CMS en runtime (verificado en navegador). Servía
+// valores pre-a11y: silverGold text-accent #8f7035 = 3.47:1 peor caso contra
+// 5.19:1 del SSOT. G-2 barre TODO .scss/.css del repo: si un archivo DECLARA
+// a nivel de tema un token que el SSOT también define, el valor tiene que
+// coincidir con alguno que el SSOT le dé. Los tokens component-local y los
+// overrides dentro de un selector de componente se ignoran (son legítimos).
+//
 // Defaults (sibling dirs convention):
 //   CMS:  ../../../Synergos.CMS/Synergos.CMS.Web/wwwroot/css/syn-tokens.css
 //   UI:   ./libs/shared/src/styles/_tokens-bridge.scss
 // =============================================================================
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { resolve, dirname, relative } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { resolve, dirname, relative, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const checkMode = process.argv.includes('--check');
@@ -45,6 +56,19 @@ const uiOutputPath = resolve(
   angularRoot,
   'libs/shared/src/styles/_tokens-bridge.scss',
 );
+
+// Raíz del repo UI y directorios que G-2 no barre (ver gate G-2 abajo).
+// Van acá arriba —y no junto al gate— porque `const` no hoistea y runG2()
+// se invoca antes en el flujo de --check.
+const uiRoot = resolve(angularRoot, '..', '..');
+const G2_SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.nx', '.angular', 'coverage']);
+// Índice perezoso de variables Sass del repo (ver globalScssVars). Vive acá
+// arriba por lo mismo que uiRoot: `let` no hoistea y runG2() corre antes.
+let globalVarsCache = null;
+// Sólo las declaraciones a nivel de TEMA compiten con el <link> del host.
+const THEME_SCOPE = /(^|,)\s*(:root|html)\b|\[data-theme|\[theme=|\.theme-/i;
+// Funciones CSS legítimas: que aparezcan en el valor no impide compararlo.
+const CSS_FNS = /^(var|rgb|rgba|hsl|hsla|calc|clamp|min|max|url|linear-gradient|radial-gradient|conic-gradient|color-mix|env|repeat|minmax|cubic-bezier|translate|rotate|scale|blur|drop-shadow)$/i;
 
 if (!existsSync(cmsTokensPath)) {
   console.error(`[sync-tokens] CMS tokens file not found: ${cmsTokensPath}`);
@@ -157,7 +181,9 @@ function normalize(s) {
 }
 
 if (checkMode) {
-  // ── Gate G-1: comparar sin escribir ──
+  let failed = false;
+
+  // ── Gate G-1: el bridge, comparado sin escribir ──
   if (!existsSync(uiOutputPath)) {
     console.error('[sync-tokens:check] FAIL — bridge no existe en disco:');
     console.error(`[sync-tokens:check]   ${uiOutputPath}`);
@@ -170,24 +196,36 @@ if (checkMode) {
     console.log(`[sync-tokens:check]   source: ${cmsTokensPath}`);
     console.log(`[sync-tokens:check]   target: ${uiOutputPath}`);
     console.log(`[sync-tokens:check]   tokens: ${tokenCount}`);
-    process.exit(0);
+  } else {
+    failed = true;
+    // Diff por líneas (LCS simple) para señalar exactamente qué difiere.
+    const a = normalize(committed).split('\n');
+    const b = normalize(output).split('\n');
+    console.error('[sync-tokens:check] FAIL — _tokens-bridge.scss STALE (G-1).');
+    console.error('[sync-tokens:check] El bridge commiteado NO coincide con lo que');
+    console.error('[sync-tokens:check] sync-tokens.mjs regenera desde syn-tokens.css.');
+    console.error(`[sync-tokens:check]   source: ${cmsTokensPath}`);
+    console.error(`[sync-tokens:check]   target: ${uiOutputPath}`);
+    console.error('');
+    console.error('--- committed (_tokens-bridge.scss)');
+    console.error('+++ regenerated (from syn-tokens.css)');
+    printDiff(a, b);
+    console.error('');
+    console.error('[sync-tokens:check] Fix: corré `npm run sync:tokens` y commiteá el bridge.');
   }
 
-  // Diff por líneas (LCS simple) para señalar exactamente qué difiere.
-  const a = normalize(committed).split('\n');
-  const b = normalize(output).split('\n');
-  console.error('[sync-tokens:check] FAIL — _tokens-bridge.scss STALE (G-1).');
-  console.error('[sync-tokens:check] El bridge commiteado NO coincide con lo que');
-  console.error('[sync-tokens:check] sync-tokens.mjs regenera desde syn-tokens.css.');
-  console.error(`[sync-tokens:check]   source: ${cmsTokensPath}`);
-  console.error(`[sync-tokens:check]   target: ${uiOutputPath}`);
-  console.error('');
-  console.error('--- committed (_tokens-bridge.scss)');
-  console.error('+++ regenerated (from syn-tokens.css)');
-  printDiff(a, b);
-  console.error('');
-  console.error('[sync-tokens:check] Fix: corré `npm run sync:tokens` y commiteá el bridge.');
-  process.exit(1);
+  // ── Gate G-2: CUALQUIER derivado, no sólo el bridge ──
+  // G-1 mira UN path hardcodeado. Eso dejó pasar `_brand.scss`, una segunda
+  // copia a mano de los mismos --syn-* que se compila DENTRO de cada bundle y
+  // que, por orden de fuente, GANABA sobre el <link> del CMS en runtime —
+  // sirviendo valores pre-a11y (silverGold text-accent #8f7035 = 3.47:1 peor
+  // caso, contra 5.19:1 del SSOT). El OK de G-1 invitaba a creer que no había
+  // drift. G-2 barre el repo entero: si un archivo DECLARA un token que el
+  // SSOT también define, tiene que darle un valor que el SSOT le dé en ALGÚN
+  // tema. Los tokens component-local (que el SSOT no conoce) se ignoran.
+  if (!runG2(sourceCss)) failed = true;
+
+  process.exit(failed ? 1 : 0);
 }
 
 // ── Modo normal: escribir ──
@@ -197,6 +235,238 @@ console.log(`[sync-tokens]   source: ${cmsTokensPath}`);
 console.log(`[sync-tokens]   target: ${uiOutputPath}`);
 console.log(`[sync-tokens]   blocks: ${blocks.length} (${blocks.map(b => b.selector).join(', ')})`);
 console.log(`[sync-tokens]   tokens: ${tokenCount} (incluye references via var())`);
+
+// ── Gate G-2: barrido de derivados ─────────────────────────────────────────
+// Un "derivado" es cualquier archivo que DECLARE (`--syn-x: valor`) un token
+// que el SSOT también declara. Declarar un token que el SSOT NO conoce es
+// legítimo: es un token component-local (`--syn-card-gap`, etc.).
+//
+// Normaliza para que diferencias cosméticas no cuenten como drift:
+// espacios, mayúsculas de hex, `0.10` vs `0.1`, `!important`.
+function normVal(v) {
+  return v
+    .replace(/!important/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .replace(/(\d)0+(?=\D|$)/g, (m, d) => (m.includes('.') ? d : m))
+    .replace(/(\.\d*?)0+\b/g, '$1')
+    .replace(/\.(?=\D|$)/g, '');
+}
+
+// La interpolación SCSS `#{$x}` lleva llaves literales: si no se neutraliza
+// primero, el walker de bloques se desincroniza y los valores se truncan en el
+// `#` (`--syn-color-neutral-0: #`). Se reemplaza por un marcador sin llaves; el
+// valor queda marcado como no-resoluble estáticamente.
+// El marcador CONSERVA lo interpolado (`#{$x}` → `«$x»`). Guardar sólo un
+// marcador opaco fue lo que dejó pasar `_brand.scss`: sus selectores se
+// arman por interpolación (`#{$silver-gold-theme-selectors}`), así que al
+// borrar el contenido el bloque dejaba de parecer theme-scope y el gate daba
+// OK con el drift presente.
+function stripSource(s) {
+  return s
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/#\{([^}]*)\}/g, (_, inner) => `«${inner.trim()}»`);
+}
+
+// Mapa de variables SCSS del archivo (`$nombre: valor;`) para poder resolver
+// un selector interpolado a su lista real de selectores.
+function scssVars(text) {
+  const map = new Map();
+  for (const m of text.matchAll(/^\s*(\$[\w-]+)\s*:\s*([\s\S]*?);/gm)) {
+    map.set(m[1], m[2].replace(/\s+/g, ' ').trim());
+  }
+  return map;
+}
+
+// Expande `«$var»` con su definición para que THEME_SCOPE pueda evaluarlo.
+function resolveSelector(sel, vars) {
+  return sel.replace(/«([^»]*)»/g, (whole, inner) => vars.get(inner.trim()) ?? whole);
+}
+
+function declarationsIn(text) {
+  const out = [];
+  for (const m of stripSource(text).matchAll(/(--syn-[a-z0-9-]+)\s*:\s*([^;{}]+)/gi)) {
+    out.push([m[1].toLowerCase(), m[2]]);
+  }
+  return out;
+}
+
+// THEME_SCOPE se declara arriba, junto a uiRoot (TDZ: runG2 corre antes).
+// Una declaración dentro de un selector de componente (`.product-card__badge {
+// --syn-color-state-brand-surface: transparent }`) es un override local
+// legítimo — scoping normal de custom properties, no una copia derivada.
+function themeScopedDeclarations(text) {
+  const css = stripSource(text);
+  const vars = scssVars(text);
+  const out = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < css.length; i++) {
+    if (css[i] === '{') { if (depth === 0) start = i; depth++; }
+    else if (css[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        // El selector termina en el `}` anterior O en el `;` anterior. Sin el
+        // `;`, todo el preámbulo `@use '...';` se pegaba al selector y `:root`
+        // dejaba de quedar al principio — así se colaban 138 declaraciones de
+        // `_palette.scss` sin revisar.
+        let selStart = 0;
+        for (let j = start - 1; j >= 0; j--) {
+          if (css[j] === '}' || css[j] === ';') { selStart = j + 1; break; }
+        }
+        const sel = resolveSelector(
+          css.slice(selStart, start).replace(/\s+/g, ' ').trim(),
+          vars,
+        );
+        if (THEME_SCOPE.test(sel)) {
+          for (const m of css.slice(start + 1, i).matchAll(/(--syn-[a-z0-9-]+)\s*:\s*([^;{}]+)/gi)) {
+            out.push({ tok: m[1].toLowerCase(), val: m[2], sel });
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function walkStyleFiles(dir, acc = []) {
+  let entries;
+  try { entries = readdirSync(dir); } catch { return acc; }
+  for (const e of entries) {
+    if (G2_SKIP_DIRS.has(e)) continue;
+    const full = join(dir, e);
+    let st;
+    try { st = statSync(full); } catch { continue; }
+    // `.claude/worktrees` son checkouts paralelos de otros agentes: mismo
+    // código, otra copia. Barrerlos duplicaría cada hallazgo.
+    if (st.isDirectory()) {
+      if (full.replace(/\\/g, '/').includes('/.claude/worktrees')) continue;
+      walkStyleFiles(full, acc);
+    } else if (['.scss', '.css'].includes(extname(e))) {
+      acc.push(full);
+    }
+  }
+  return acc;
+}
+
+// Las variables Sass viven en OTRO archivo que el consumidor `@use`a
+// (`_palette.scss` interpola `#{$color-neutral-0}` desde `tokens/_colors`).
+// Sin resolverlas, esas declaraciones quedaban "no verificables" y el gate
+// volvía a invitar a confiar de más. Se indexan una vez todas las del repo.
+function globalScssVars(files) {
+  if (globalVarsCache) return globalVarsCache;
+  globalVarsCache = new Map();
+  for (const f of files) {
+    let t;
+    try { t = readFileSync(f, 'utf8'); } catch { continue; }
+    for (const [k, v] of scssVars(stripSource(t))) {
+      if (!globalVarsCache.has(k)) globalVarsCache.set(k, v);
+    }
+  }
+  return globalVarsCache;
+}
+
+// `px-to-rem(N)` es una función Sass del repo (base 16, ver
+// scss/functions/_px-to-rem.scss). Evaluarla evita 28 falsos positivos:
+// `px-to-rem(6)` ES `0.375rem`, exactamente lo que dice el SSOT.
+function evalScssFns(v) {
+  return v.replace(/px-to-rem\(\s*([\d.]+)\s*\)/gi, (_, n) => {
+    const rem = parseFloat(n) / 16;
+    return `${parseFloat(rem.toFixed(6))}rem`;
+  });
+}
+
+// ¿Queda alguna llamada a función Sass que no sabemos evaluar?
+function hasUnevaluatedFn(v) {
+  for (const m of v.matchAll(/([a-z][\w-]*)\s*\(/gi)) {
+    if (!CSS_FNS.test(m[1])) return true;
+  }
+  return false;
+}
+
+// Resuelve `«$x»` con las vars del archivo y, si no, con las del repo.
+// Itera porque una var puede definirse en términos de otra.
+// Una variable Sass puede venir interpolada (`#{$x}`) o DESNUDA
+// (`--syn-control-h-sm: $space-8`). Resolver sólo la interpolada dejaba 7
+// falsos positivos que en realidad coincidían con el SSOT.
+function resolveValue(val, fileVars, allVars) {
+  let out = val;
+  const lookup = k => fileVars.get(k) ?? allVars.get(k);
+  for (let pass = 0; pass < 6; pass++) {
+    const before = out;
+    out = out
+      .replace(/«([^»]*)»/g, (whole, inner) => lookup(inner.trim()) ?? whole)
+      .replace(/\$[\w-]+/g, whole => lookup(whole) ?? whole);
+    if (out === before) break;
+  }
+  return evalScssFns(out);
+}
+
+function runG2(ssotCss) {
+  // token -> Set(valores que el SSOT le asigna en cualquier tema)
+  const ssotValues = new Map();
+  for (const [tok, val] of declarationsIn(ssotCss)) {
+    if (!ssotValues.has(tok)) ssotValues.set(tok, new Set());
+    ssotValues.get(tok).add(normVal(val));
+  }
+
+  const files = walkStyleFiles(uiRoot);
+  const allVars = globalScssVars(files);
+  const offenders = [];
+  const unresolved = new Map();
+  for (const file of files) {
+    if (resolve(file) === resolve(uiOutputPath)) continue;   // el bridge es G-1
+    let text;
+    try { text = readFileSync(file, 'utf8'); } catch { continue; }
+    const fileVars = scssVars(stripSource(text));
+    const bad = [];
+    for (const { tok, val } of themeScopedDeclarations(text)) {
+      const known = ssotValues.get(tok);
+      if (!known) continue;                                   // component-local
+      const resolved = resolveValue(val, fileVars, allVars);
+      // Si ni así se resuelve, se REPORTA — callarlo sería repetir el pecado
+      // original: un derivado invisible que el gate da por bueno.
+      if (resolved.includes('«') || resolved.includes('$') || hasUnevaluatedFn(resolved)) {
+        unresolved.set(file, (unresolved.get(file) ?? 0) + 1);
+        continue;
+      }
+      if (!known.has(normVal(resolved))) {
+        bad.push([tok, resolved.replace(/\s+/g, ' ').trim()]);
+      }
+    }
+    if (bad.length) offenders.push({ file, bad });
+  }
+  for (const [file, n] of unresolved) {
+    console.error(`[sync-tokens:check] WARN — ${n} declaración(es) sin resolver en ${relative(uiRoot, file).replace(/\\/g, '/')}`);
+  }
+
+  if (offenders.length === 0) {
+    console.log('[sync-tokens:check] OK — ningún derivado fuera de sync (G-2).');
+    console.log(`[sync-tokens:check]   tokens del SSOT vigilados: ${ssotValues.size}`);
+    return true;
+  }
+
+  const totalBad = offenders.reduce((n, o) => n + o.bad.length, 0);
+  console.error('');
+  console.error(`[sync-tokens:check] FAIL — ${totalBad} declaración(es) en ${offenders.length} archivo(s) NO`);
+  console.error('[sync-tokens:check] coinciden con ningún valor del SSOT (G-2).');
+  console.error(`[sync-tokens:check]   SSOT: ${cmsTokensPath}`);
+  for (const { file, bad } of offenders) {
+    console.error('');
+    console.error(`  ${relative(uiRoot, file).replace(/\\/g, '/')}  (${bad.length})`);
+    for (const [tok, val] of bad.slice(0, 12)) {
+      const exp = [...(ssotValues.get(tok) ?? [])].slice(0, 3).join(' | ');
+      console.error(`    ${tok}: ${val}`);
+      console.error(`        SSOT: ${exp}`);
+    }
+    if (bad.length > 12) console.error(`    … +${bad.length - 12} más`);
+  }
+  console.error('');
+  console.error('[sync-tokens:check] Un token que el SSOT define NO se redeclara a mano.');
+  console.error('[sync-tokens:check] Consumilo con var(--syn-x) o generá el derivado desde el SSOT.');
+  return false;
+}
 
 // ── Diff helper (Myers-lite por LCS sobre líneas) ──
 function printDiff(a, b) {

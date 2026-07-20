@@ -18,26 +18,30 @@ name: Design gates UI (token bridge parity)
 # apunta `SYNERGOS_CMS_PATH` al CMS para que el check compare contra la
 # fuente real. Ajustar `repository:` + token cuando exista el remote CMS.
 
+# G-2 vigila CUALQUIER .scss/.css del repo, no sólo el bridge, así que los
+# filtros de path tienen que ser igual de anchos. Con la lista vieja —acotada a
+# `libs/shared/src/styles/**`— un cambio en `vitals/.../tokens/_brand.scss` NO
+# disparaba el workflow: el derivado rancio podía entrar sin que nada corriera.
 on:
   pull_request:
     paths:
-      - 'platforms/angular/libs/shared/src/styles/_tokens-bridge.scss'
+      - '**/*.scss'
+      - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
-      - 'platforms/angular/libs/shared/src/styles/**'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
       - main
       - master
     paths:
-      - 'platforms/angular/libs/shared/src/styles/_tokens-bridge.scss'
+      - '**/*.scss'
+      - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
-      - 'platforms/angular/libs/shared/src/styles/**'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 sync:tokens:check
+    name: G-1 + G-2 sync:tokens:check
     runs-on: ubuntu-latest
 
     steps:
