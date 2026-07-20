@@ -181,7 +181,26 @@
 
         <h2 class="blogs__thread-title">Comentarios ({{ post.commentCount }})</h2>
         @if (loading() && comments().length === 0) {
-          <p class="blogs__loading" role="status">Cargando comentarios…</p>
+          <!-- Molde del hilo: MISMAS clases que `commentTpl` (avatar 36px + cuerpo), así la
+               geometría no se duplica y no puede divergir. Mudo para el lector (`aria-hidden`)
+               porque un esqueleto es decorativo; el aviso va en el `role="status"` de abajo,
+               que sí tiene TEXTO (una live region sin texto no se anuncia de forma fiable). -->
+          <ul class="blogs__thread" aria-hidden="true">
+            @for (bone of commentSkeletons; track bone) {
+              <li>
+                <article class="blogs__comment">
+                  <span class="blogs__bone blogs__bone--avatar-sm"></span>
+                  <div class="blogs__comment-body">
+                    <span class="blogs__bone blogs__bone--comment-head"></span>
+                    <span class="blogs__bone blogs__bone--comment-text"></span>
+                    <span class="blogs__bone blogs__bone--comment-action"></span>
+                    <span class="blogs__bone blogs__bone--comment-form"></span>
+                  </div>
+                </article>
+              </li>
+            }
+          </ul>
+          <p class="blogs__sr-only" role="status">Cargando comentarios…</p>
         } @else if (comments().length === 0) {
           <p class="blogs__empty">Sé el primero en comentar.</p>
         } @else {
@@ -314,7 +333,23 @@
       />
 
       @if (loading() && !notificationsLoaded()) {
-        <p class="blogs__loading" role="status">Cargando…</p>
+        <!-- Molde de la lista de notificaciones: reusa `blogs__notif` (el mismo padding y
+             gap que la fila real) sobre un `div`, NO un `button`: un esqueleto no se enfoca
+             ni se pulsa. El aviso, con texto, viaja aparte. -->
+        <ul class="blogs__notifs" aria-hidden="true">
+          @for (bone of notificationSkeletons; track bone) {
+            <li>
+              <div class="blogs__notif blogs__notif--skeleton">
+                <span class="blogs__bone blogs__bone--avatar-sm"></span>
+                <span class="blogs__notif-body">
+                  <span class="blogs__bone blogs__bone--notif-text"></span>
+                  <span class="blogs__bone blogs__bone--notif-time"></span>
+                </span>
+              </div>
+            </li>
+          }
+        </ul>
+        <p class="blogs__sr-only" role="status">Cargando notificaciones…</p>
       } @else if (filteredNotifications().length === 0) {
         <p class="blogs__empty">No tienes notificaciones aquí.</p>
       } @else {
@@ -762,6 +797,16 @@
 
 <!-- ─── SH-1 search result item ────────────────────────────────────────────────── -->
 <ng-template #searchItemTpl let-post let-select="select">
+  <!-- El (click) de este envoltorio es SOLO el atajo de ratón "abrir desde cualquier punto".
+       La acción ya tiene ruta de teclado: la tarjeta que se renderiza dentro (postCardTpl)
+       incluye siempre <button class="blogs__action" (click)="openPost(post)">, que hace
+       EXACTAMENTE lo mismo que este select() (el shell enruta itemselect → openPost).
+       Aquí NO se puede estirar un enlace sobre la tarjeta como en academy: esta lleva más de
+       diez interactivos propios (autor, vídeo, hashtags, reacciones, guardar, responder…) y
+       el velo los taparía.
+       Salvedad conocida: ese botón se anuncia como «Comentarios (N)», así que la ruta existe
+       pero no se llama "abrir resultado". Mejorar la etiqueta es trabajo de UX, no de lint. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
   <div class="blogs__search-item" (click)="select()">
     <ng-container [ngTemplateOutlet]="postCardTpl" [ngTemplateOutletContext]="{ post }"></ng-container>
   </div>

@@ -255,6 +255,15 @@ export class BlogsElementComponent {
   readonly searchSort = SEARCH_SORT;
 
   /**
+   * Repeat counts for the loading skeletons. They mirror the typical first page of
+   * each list so the mould reserves the real footprint and the swap to data does not
+   * shift the layout (doc 24, patrón de `data-grid`). The bones themselves are
+   * `aria-hidden`; the announcement travels in a sibling `role="status"`.
+   */
+  readonly commentSkeletons = [0, 1, 2];
+  readonly notificationSkeletons = [0, 1, 2, 3, 4];
+
+  /**
    * Content-tab descriptors fed to the shared `syn-tabs` primitive. We consume it as
    * the accessible tablist only (roving tabindex + Arrow/Home/End + focus come for
    * free); each view keeps its own rich content below, so `content` is intentionally

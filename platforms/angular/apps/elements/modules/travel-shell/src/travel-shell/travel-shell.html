@@ -443,8 +443,37 @@
           }
         </ul>
       </ng-template>
-    } @else {
-      <p class="travel__empty" role="status">Cargando alojamiento…</p>
+    } @else if (loading()) {
+      <!-- Mould of syn-detail-shell's __top grid: 4:3 gallery + info + CTA. -->
+      <div class="travel__stay-skeleton" aria-hidden="true">
+        <span class="travel__bone travel__bone--back"></span>
+        <div class="travel__stay-skeleton-top">
+          <div class="travel__stay-skeleton-gallery">
+            <span class="travel__bone travel__bone--media"></span>
+            <div class="travel__stay-skeleton-thumbs">
+              <span class="travel__bone travel__bone--thumb"></span>
+              <span class="travel__bone travel__bone--thumb"></span>
+              <span class="travel__bone travel__bone--thumb"></span>
+            </div>
+          </div>
+          <div class="travel__stay-skeleton-info">
+            <span class="travel__bone travel__bone--eyebrow"></span>
+            <span class="travel__bone travel__bone--title"></span>
+            <span class="travel__bone travel__bone--subtitle"></span>
+            <span class="travel__bone travel__bone--text"></span>
+            <span class="travel__bone travel__bone--text"></span>
+          </div>
+          <div class="travel__stay-skeleton-cta">
+            <span class="travel__bone travel__bone--price"></span>
+            <span class="travel__bone travel__bone--rate"></span>
+            <span class="travel__bone travel__bone--rate"></span>
+            <span class="travel__bone travel__bone--button"></span>
+          </div>
+        </div>
+      </div>
+      <p class="travel__sr" role="status">Cargando alojamiento…</p>
+    } @else if (!errorMessage()) {
+      <p class="travel__empty">No encontramos este alojamiento.</p>
     }
   }
 

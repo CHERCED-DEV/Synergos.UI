@@ -284,6 +284,15 @@ export class EhrElementComponent {
   readonly checkinSteps = E_CHECKIN_STEPS;
 
   /**
+   * Cuántas tarjetas esqueleto reservan la rejilla del portal mientras carga. Los
+   * huesos son `aria-hidden` (decorativos); el aviso viaja en un `role="status"`
+   * visually-hidden aparte, para no dejar mudo al lector de pantalla.
+   */
+  readonly homeSkeletons = [0, 1, 2, 3];
+  /** Paneles del molde de la ficha clínica (rama `chart` mientras carga). */
+  readonly chartSkeletons = [0, 1, 2];
+
+  /**
    * Content-tab descriptors fed to the shared `syn-tabs` primitive. We consume it
    * as the accessible tablist only (roving tabindex + Arrow/Home/End + focus come
    * for free); the rich `@switch` panels stay in this module's template, so `content`

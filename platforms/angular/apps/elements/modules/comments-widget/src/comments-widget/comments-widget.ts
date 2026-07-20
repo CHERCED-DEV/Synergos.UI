@@ -288,6 +288,13 @@ export class CommentsWidgetElementComponent {
 
   readonly count = computed(() => this.allComments().length);
   readonly hasComments = computed(() => this.count() > 0);
+
+  /**
+   * Cuántas tarjetas esqueleto se pintan mientras carga. Reservan el sitio del hilo
+   * para que el formulario de abajo no salte cuando llegan los comentarios; los
+   * huesos son `aria-hidden` y el aviso viaja en un `role="status"` aparte.
+   */
+  readonly skeletonRows = [0, 1, 2];
   readonly countLabel = computed(() => {
     const count = this.count();
     return count === 1 ? '1 comentario' : `${count} comentarios`;

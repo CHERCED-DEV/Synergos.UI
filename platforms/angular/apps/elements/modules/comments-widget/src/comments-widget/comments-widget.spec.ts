@@ -116,6 +116,48 @@ describe('CommentsWidgetElementComponent', () => {
     expect(emissions).toBe(0);
     expect(component.count()).toBe(before);
   });
+
+  // ── Molde de carga (doc 24) ──────────────────────────────────────────────────
+  // La trampa de este patrón: cambiar el `<p>Cargando comentarios…</p>` por un
+  // esqueleto mejora la PANTALLA y deja MUDO al lector de pantalla. El test pide las
+  // dos mitades a la vez: huesos con la forma real de la tarjeta Y un `role="status"`
+  // con TEXTO fuera del `aria-hidden`.
+  it('carga con molde MUDO y un anuncio que SÍ se lee', async () => {
+    // `fetch` que nunca resuelve → el componente se queda en `loading`.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})));
+    fixture.componentRef.setInput('commentsEndpoint', 'https://example.test/comments');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.loading()).toBe(true);
+
+    const host: HTMLElement = fixture.nativeElement;
+
+    // 1. Forma real: una tarjeta por fila, con las MISMAS clases que la rama con
+    //    datos (`comments__list` / `__item` / `__card`), y sus cuatro huesos.
+    const rows = component.skeletonRows.length;
+    expect(host.querySelectorAll('.comments__list .comments__card').length).toBe(rows);
+    expect(host.querySelectorAll('.comments__bone--author').length).toBe(rows);
+    expect(host.querySelectorAll('.comments__bone--body').length).toBe(rows);
+
+    // 2. Los huesos son decorativos: cuelgan de un contenedor `aria-hidden`.
+    expect(host.querySelector('.comments__bone--body')?.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    // 3. El aviso sigue existiendo, con texto, y NO tapado por el aria-hidden.
+    const status = Array.from(host.querySelectorAll('[role="status"]')).find((el) =>
+      /Cargando comentarios/.test(el.textContent ?? ''),
+    );
+    expect(status).toBeDefined();
+    expect(status!.closest('[aria-hidden="true"]')).toBeNull();
+    // Y sigue siendo PERCEPTIBLE: una auditoria muto el SCSS a `display: none` -el nodo
+    // queda con su rol y su texto- y las pruebas siguieron verdes. `display:none` y
+    // `visibility:hidden` sacan el nodo del arbol de accesibilidad; el recorte no.
+    {
+      const e = getComputedStyle(status!);
+      expect(e.display).not.toBe('none');
+      expect(e.visibility).not.toBe('hidden');
+    }
+  });
 });
 
 describe('comments-widget pure helpers', () => {

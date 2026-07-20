@@ -41,6 +41,12 @@
           "apps/elements/modules/comments-widget/src/**/*.html"
         ]
       }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/comments-widget/tsconfig.spec.json"
+      }
     }
   }
 }

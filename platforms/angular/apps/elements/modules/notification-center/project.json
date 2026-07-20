@@ -41,6 +41,12 @@
           "apps/elements/modules/notification-center/src/**/*.html"
         ]
       }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/notification-center/tsconfig.spec.json"
+      }
     }
   }
 }

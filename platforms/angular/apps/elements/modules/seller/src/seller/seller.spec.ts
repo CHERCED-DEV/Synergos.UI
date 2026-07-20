@@ -202,4 +202,41 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(active.messages[active.messages.length - 1].from).toBe('seller');
     expect(component.sending()).toBe(false);
   });
+
+  // ── reputación cargando: esqueleto CON forma + aviso audible ────────────────
+  it('reserves the reputation grid with a skeleton and still announces the load', async () => {
+    installMemoryStorage();
+    // A never-resolving fetch parks loadSummary() mid-flight → reputation() null.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})));
+    await createComponent();
+
+    expect(component.reputation()).toBeNull();
+
+    const shell = fixture.debugElement.query(By.directive(ConsoleShellComponent));
+    expect(shell).not.toBeNull();
+    // ConsoleShellComponent is generic in TRow; only selectSection matters here.
+    (shell.componentInstance as { selectSection(id: string): void }).selectSection('reputacion');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    // 1) The mould is the real grid: hero card + exactly three metric cards,
+    //    reusing `seller__rep` / `seller__rep-card` so chrome and padding match.
+    expect(host.querySelectorAll('.seller__rep-card--skeleton').length).toBe(
+      component.repSkeletonCards.length + 1,
+    );
+    expect(
+      host.querySelectorAll('.seller__rep-card--hero.seller__rep-card--skeleton').length,
+    ).toBe(1);
+
+    // 2) Bones are decorative and hidden from assistive tech…
+    expect(host.querySelector('.seller__rep')?.getAttribute('aria-hidden')).toBe('true');
+
+    // 3) …so the announcement MUST survive on a live region. Skeleton without
+    //    this pair = prettier screen, silent screen reader — a11y REGRESSION.
+    const announcement = host.querySelector('.seller__sr');
+    expect(announcement).not.toBeNull();
+    expect(announcement!.getAttribute('role')).toBe('status');
+    expect(announcement!.textContent).toContain('Cargando reputación');
+  });
 });

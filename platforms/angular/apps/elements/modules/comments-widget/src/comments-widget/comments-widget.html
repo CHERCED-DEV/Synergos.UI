@@ -5,7 +5,26 @@
   </header>
 
   @if (loading()) {
-    <p class="comments__status" role="status">Cargando comentarios…</p>
+    <!-- Molde del hilo: reusa `comments__list` / `__item` / `__card`, así el padding, el
+         borde y el gap son literalmente los de la tarjeta real y el formulario de abajo no
+         salta al llegar los datos. Va mudo (`aria-hidden`) — un esqueleto es decorativo —
+         y el aviso viaja en el `role="status"` con TEXTO de la línea siguiente, porque una
+         live region sin texto no se anuncia de forma fiable. -->
+    <ol class="comments__list" aria-hidden="true">
+      @for (bone of skeletonRows; track bone) {
+        <li class="comments__item">
+          <article class="comments__card">
+            <div class="comments__meta">
+              <span class="comments__bone comments__bone--author"></span>
+              <span class="comments__bone comments__bone--date"></span>
+            </div>
+            <span class="comments__bone comments__bone--body"></span>
+            <span class="comments__bone comments__bone--action"></span>
+          </article>
+        </li>
+      }
+    </ol>
+    <p class="comments__sr" role="status">Cargando comentarios…</p>
   } @else if (fetchFailed()) {
     <p class="comments__status comments__status--error" role="status">
       No se pudieron cargar los comentarios.

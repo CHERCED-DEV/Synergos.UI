@@ -228,6 +228,50 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.rxItems().length).toBe(1);
     expect(component.rxInteractions().length).toBeGreaterThan(0);
   });
+
+  // ── Molde de carga del portal (doc 24) ───────────────────────────────────────
+  // La trampa: sustituir el `<p>Cargando tu portal…</p>` por un esqueleto deja la
+  // pantalla más fina y al usuario ciego SIN saber que algo carga. El test exige las
+  // dos mitades — huesos con la forma real de la rejilla Y el anuncio con texto.
+  it('el portal carga con molde MUDO y un anuncio que SÍ se lee', async () => {
+    await createComponent();
+
+    // Volver al estado de carga: sin `home` y con `loading` encendido.
+    component.view.set('home');
+    component.home.set(null);
+    component.loading.set(true);
+    fixture.detectChanges();
+
+    const host: HTMLElement = fixture.nativeElement;
+
+    // 1. Forma real: título + subtítulo + una tarjeta por hueco de la rejilla, con
+    //    las MISMAS clases (`ehr__cards`/`ehr__card`) que la rama con datos.
+    const cards = component.homeSkeletons.length;
+    expect(host.querySelectorAll('.ehr__bone--title').length).toBe(1);
+    expect(host.querySelectorAll('.ehr__bone--sub').length).toBe(1);
+    expect(host.querySelectorAll('.ehr__cards .ehr__card--skeleton').length).toBe(cards);
+    expect(host.querySelectorAll('.ehr__bone--card-title').length).toBe(cards);
+
+    // 2. Los huesos son decorativos.
+    expect(host.querySelector('.ehr__bone--card-title')?.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    // 3. El aviso sigue vivo, con texto, fuera del aria-hidden.
+    const status = Array.from(host.querySelectorAll('[role="status"]')).find((el) =>
+      /Cargando tu portal/.test(el.textContent ?? ''),
+    );
+    expect(status).toBeDefined();
+    expect(status!.closest('[aria-hidden="true"]')).toBeNull();
+
+    // 4. Y sigue siendo PERCEPTIBLE por el lector. Este aserto existe porque una
+    //    auditoría mutó el SCSS a `display: none` —la región queda en el DOM, con su
+    //    rol y su texto— y las pruebas siguieron VERDES: el ciego se queda mudo con
+    //    la pantalla idéntica y el tablero en verde. `display:none` y
+    //    `visibility:hidden` SACAN el nodo del árbol de accesibilidad; el patrón de
+    //    recorte (`clip-path`) no.
+    const estilo = getComputedStyle(status!);
+    expect(estilo.display).not.toBe('none');
+    expect(estilo.visibility).not.toBe('hidden');
+  });
 });
 
 describe('EhrApiClient (v2 endpoints)', () => {

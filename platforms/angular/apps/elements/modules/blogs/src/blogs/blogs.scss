@@ -19,6 +19,8 @@
   --bl-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
   --bl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --bl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --bl-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --bl-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
 
   display: block;
   max-width: 100%;
@@ -70,6 +72,73 @@
     font-size: syn.$font-size-2xl;
     border: syn.px-to-rem(4) solid var(--bl-surface);
   }
+}
+
+// ─── Skeleton bone ──────────────────────────────────────────────────────────────
+// Un hueso es DECORATIVO: no lleva texto ni rol, y sus contenedores van marcados
+// `aria-hidden`. Las medidas replican el contenido real de cada lista para que el
+// intercambio a datos no mueva el layout. Tokenizado (`--bl-skeleton-*`) para que
+// los 7 temas por-siteRoot lo repinten sin tocar este archivo.
+.blogs__bone {
+  display: block;
+  border-radius: syn.$radius-md;
+  background: linear-gradient(
+    90deg,
+    var(--bl-skeleton-base) 0%,
+    var(--bl-skeleton-highlight) 50%,
+    var(--bl-skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: blogs-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
+
+  // Mismo diámetro que `.blogs__avatar--sm` (36px), que es quien fija la altura de
+  // la fila tanto en el hilo de comentarios como en las notificaciones.
+  &--avatar-sm {
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(36);
+    block-size: syn.px-to-rem(36);
+    border-radius: syn.$radius-full;
+  }
+
+  // Hilo de comentarios: cabecera (autor + handle + hora), cuerpo, acción y caja de
+  // respuesta — los mismos cuatro bloques que pinta `commentTpl`.
+  &--comment-head {
+    inline-size: 45%;
+    block-size: syn.px-to-rem(16);
+  }
+
+  &--comment-text {
+    inline-size: 100%;
+    block-size: syn.px-to-rem(40);
+    margin-block: syn.$space-3;
+  }
+
+  &--comment-action {
+    inline-size: syn.px-to-rem(96);
+    block-size: syn.px-to-rem(28);
+  }
+
+  &--comment-form {
+    inline-size: 100%;
+    block-size: syn.px-to-rem(40);
+    margin-block-start: syn.$space-3;
+  }
+
+  // Notificaciones: texto + hora apilados; 20 + 2 (gap) + 14 = 36 = el avatar.
+  &--notif-text {
+    inline-size: 70%;
+    block-size: syn.px-to-rem(20);
+  }
+
+  &--notif-time {
+    inline-size: syn.px-to-rem(64);
+    block-size: syn.px-to-rem(14);
+  }
+}
+
+@keyframes blogs-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }
 
 .blogs__verified {
@@ -221,7 +290,8 @@
   }
 }
 
-.blogs__loading,
+// `.blogs__loading` vivía aquí y ya no tiene consumidores: los dos `<p>Cargando…</p>`
+// que la usaban son ahora moldes de esqueleto.
 .blogs__empty,
 .blogs__aside-empty {
   padding: syn.$space-8 syn.$space-4;
@@ -988,6 +1058,16 @@
   &.is-unread {
     background: var(--bl-brand-soft);
   }
+
+  // El molde comparte el padding/gap de la fila real, pero no es un control: ni
+  // cursor de mano ni realce al pasar el ratón.
+  &--skeleton {
+    cursor: default;
+
+    &:hover {
+      background: none;
+    }
+  }
 }
 
 .blogs__notif-body {
@@ -1491,5 +1571,14 @@
   * {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+
+  // El reset de arriba NO basta para el shimmer: es `infinite`, y acortar la
+  // duración a 0.01ms lo convierte en un parpadeo rápido — justo lo que este
+  // usuario pidió no ver. Hay que apagar la animación, no acelerarla. Gana por
+  // especificidad (clase > `*`) aun con el `!important` del reset.
+  .blogs__bone {
+    animation: none !important;
+    background: var(--bl-skeleton-base);
   }
 }

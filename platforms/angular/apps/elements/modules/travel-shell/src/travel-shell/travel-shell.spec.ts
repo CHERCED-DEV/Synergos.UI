@@ -352,3 +352,86 @@ describe('TravelApiClient', () => {
     expect(confirmation.items[0].reservationId).toBe('RES-1');
   });
 });
+
+// ── ficha de estadía cargando: esqueleto CON forma + aviso audible ────────────
+describe('TravelShellElementComponent — stay loading surface', () => {
+  let fixture: ComponentFixture<TravelShellElementComponent>;
+  let component: TravelShellElementComponent;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  async function createComponent(): Promise<void> {
+    await TestBed.configureTestingModule({
+      imports: [TravelShellElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        TravelApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: TravelFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(TravelShellElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }
+
+  it('reserves the detail-shell shape with a skeleton and still announces the load', async () => {
+    installMemoryStorage();
+    // A never-resolving fetch parks loadStay() mid-flight → stay() null, loading true.
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})));
+    await createComponent();
+
+    component.navigate('stay', 'HT-1');
+    fixture.detectChanges();
+
+    expect(component.stay()).toBeNull();
+    expect(component.loading()).toBe(true);
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    // 1) The mould mirrors syn-detail-shell's __top: a 4:3 gallery, an info
+    //    column and a CTA column — not three generic bars.
+    expect(host.querySelector('.travel__stay-skeleton-top')).not.toBeNull();
+    expect(host.querySelector('.travel__bone--media')).not.toBeNull();
+    expect(host.querySelectorAll('.travel__bone--thumb').length).toBe(3);
+    expect(host.querySelector('.travel__bone--button')).not.toBeNull();
+
+    // 2) Bones are decorative and hidden from assistive tech…
+    expect(host.querySelector('.travel__stay-skeleton')?.getAttribute('aria-hidden')).toBe(
+      'true',
+    );
+
+    // 3) …so the announcement MUST survive on a live region. Skeleton without
+    //    this pair = prettier screen, silent screen reader — a11y REGRESSION.
+    const announcement = host.querySelector('.travel__sr');
+    expect(announcement).not.toBeNull();
+    expect(announcement!.getAttribute('role')).toBe('status');
+    expect(announcement!.textContent).toContain('Cargando alojamiento');
+  });
+
+  it('retires the skeleton AND its announcement once the stay settles', async () => {
+    installMemoryStorage();
+    // The API client degrades to mockStay() instead of throwing, so an offline
+    // fetch still ends in a fully rendered detail shell — never in an error.
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.navigate('stay', 'HT-1');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.loading()).toBe(false);
+    expect(component.stay()).not.toBeNull();
+
+    const host = fixture.nativeElement as HTMLElement;
+    // No stale live region left behind: a `role="status"` still reading
+    // "Cargando…" after the content arrived would keep announcing a lie.
+    expect(host.querySelector('.travel__stay-skeleton')).toBeNull();
+    expect(host.querySelector('.travel__sr')).toBeNull();
+    expect(host.textContent).not.toContain('Cargando alojamiento');
+  });
+});

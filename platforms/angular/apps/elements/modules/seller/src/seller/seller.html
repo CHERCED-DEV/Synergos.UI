@@ -104,7 +104,19 @@
           </article>
         </div>
       } @else {
-        <p class="seller__rep-empty" role="status">Cargando reputación…</p>
+        <div class="seller__rep" aria-hidden="true">
+          <article class="seller__rep-card seller__rep-card--hero seller__rep-card--skeleton">
+            <span class="seller__bone seller__bone--score"></span>
+            <span class="seller__bone seller__bone--level"></span>
+          </article>
+          @for (placeholder of repSkeletonCards; track placeholder) {
+            <article class="seller__rep-card seller__rep-card--skeleton">
+              <span class="seller__bone seller__bone--value"></span>
+              <span class="seller__bone seller__bone--label"></span>
+            </article>
+          }
+        </div>
+        <p class="seller__sr" role="status">Cargando reputación…</p>
       }
     </ng-template>
   }

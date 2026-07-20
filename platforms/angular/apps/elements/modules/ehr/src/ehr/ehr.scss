@@ -19,6 +19,8 @@
   --eh-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --eh-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --eh-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --eh-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --eh-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
   // --eh-brand = acento SÓLIDO para CTAs/bordes/foco/badges (antes caía en un wash 12% → botón fantasma).
   --eh-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   // --eh-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a un token inexistente
@@ -362,6 +364,12 @@
     &[data-tone='warning'] { border-left-color: var(--eh-warn); }
     &[data-tone='danger'] { border-left-color: var(--eh-danger); }
     &[data-tone='neutral'] { border-left-color: var(--eh-border); }
+
+    /* El riel izquierdo codifica el TONO de la tarjeta (éxito/aviso/peligro) y
+       todavía no sabemos cuál es: pintarlo de marca inventaría una urgencia
+       clínica que nadie ha dicho. Se apaga al gris de borde hasta que llegue el
+       dato — el ancho, que es lo que ocupa sitio, se conserva. */
+    &--skeleton { border-left-color: var(--eh-border-subtle); }
   }
 
   &__card-title {
@@ -385,6 +393,63 @@
     font-weight: syn.$font-weight-semibold;
     font-size: syn.$font-size-sm;
     cursor: pointer;
+  }
+
+  /* ─── Huesos del molde ────────────────────────────────────────────────────────
+     Medidas tomadas del contenido real (título de vista, subtítulo y tarjetas del
+     portal) para que la rejilla reserve su sitio y no se recoloque al llegar. */
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-md;
+    background: linear-gradient(
+      90deg,
+      var(--eh-skeleton-base) 0%,
+      var(--eh-skeleton-highlight) 50%,
+      var(--eh-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: ehr-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    &--title {
+      inline-size: syn.px-to-rem(240);
+      block-size: syn.px-to-rem(28);
+    }
+
+    &--sub {
+      inline-size: syn.px-to-rem(320);
+      max-inline-size: 100%;
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--card-title {
+      inline-size: 70%;
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--card-detail {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(16);
+    }
+
+    /* Avatar del storyboard: redondo y del tamaño real de `__story-avatar`. */
+    &--story-avatar {
+      inline-size: 3rem;
+      block-size: 3rem;
+      border-radius: 50%;
+    }
+
+    /* Panel del cuerpo de la ficha. Alto generoso a propósito: lo que llega son
+       paneles de vitales/notas, no líneas de texto. */
+    &--panel {
+      block-size: 7.5rem;
+      inline-size: 100%;
+    }
+
+    &--card-cta {
+      inline-size: syn.px-to-rem(96);
+      block-size: syn.px-to-rem(16);
+    }
   }
 
   /* ─── Tabs (shared syn-tabs primitive; tablist only, rich panels below) ────── */
@@ -1095,5 +1160,19 @@
     &__chart { grid-template-columns: 1fr; }
 
     &__storyboard { position: static; }
+  }
+}
+
+@keyframes ehr-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Motion reducida: el shimmer se apaga, no se acelera. Queda una superficie
+   teñida estática que sigue reservando el mismo sitio. */
+@media (prefers-reduced-motion: reduce) {
+  .ehr__bone {
+    animation: none;
+    background: var(--eh-skeleton-base);
   }
 }

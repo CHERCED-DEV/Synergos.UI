@@ -10,6 +10,8 @@
   --cw-author-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
   --cw-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
   --cw-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --cw-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --cw-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
   --cw-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
   --cw-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
   --cw-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
@@ -58,6 +60,50 @@
 
     &--error {
       color: var(--cw-error-color);
+    }
+  }
+
+  // El aviso de carga ya no se ve (lo cuenta el esqueleto), pero SIGUE existiendo con
+  // texto real para el lector de pantalla. Sin esto el molde sería más bonito y el
+  // usuario ciego se quedaría sin saber que algo está cargando.
+  &__sr {
+    @include syn.visually-hidden;
+  }
+
+  // ─── Huesos del molde ──────────────────────────────────────────────────────────
+  // Medidas tomadas del contenido real (`__meta` / `__body` / `__actions`) para que
+  // la tarjeta esqueleto ocupe el mismo alto que la tarjeta con datos.
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-md;
+    background: linear-gradient(
+      90deg,
+      var(--cw-skeleton-base) 0%,
+      var(--cw-skeleton-highlight) 50%,
+      var(--cw-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: comments-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    &--author {
+      inline-size: syn.px-to-rem(120);
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--date {
+      inline-size: syn.px-to-rem(80);
+      block-size: syn.px-to-rem(14);
+    }
+
+    &--body {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(40);
+    }
+
+    &--action {
+      inline-size: syn.px-to-rem(72);
+      block-size: syn.px-to-rem(16);
     }
   }
 
@@ -252,7 +298,17 @@
   }
 }
 
+@keyframes comments-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .comments__bone {
+    animation: none;
+    background: var(--cw-skeleton-base);
+  }
+
   .comments__reply-btn,
   .comments__input,
   .comments__textarea,

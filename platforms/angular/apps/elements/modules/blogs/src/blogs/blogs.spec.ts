@@ -92,6 +92,34 @@ const MY_STUDIO = {
   tiers: [{ id: 'tier-mio', name: 'Fan', priceMinor: 1000, currency: 'COP', perks: [], subscribers: 3 }],
 };
 
+/** Post mínimo para forzar la vista de detalle sin depender de la semilla del mock. */
+const POST_FOR_SKELETON: Post = {
+  id: 'p-skeleton',
+  author: AUTHOR,
+  objectKind: 'post',
+  body: 'Cuerpo del post',
+  media: [],
+  hashtags: [],
+  mentions: [],
+  createdAtUtc: '2026-07-20T10:00:00Z',
+  reactions: { counts: [], mine: null, total: 0 },
+  commentCount: 3,
+  repostCount: 0,
+  reposted: false,
+};
+
+/**
+ * Busca la región viva que ANUNCIA algo concreto. Se filtra por texto a propósito:
+ * la app tiene varias `role="status"` (avisos de sesión, de datos de ejemplo…), y un
+ * `querySelector('[role=status]')` a secas pasaría con cualquiera de ellas — el test
+ * seguiría verde con el anuncio de carga borrado.
+ */
+function findLiveStatus(host: HTMLElement, text: RegExp): Element | undefined {
+  return Array.from(host.querySelectorAll('[role="status"]')).find((el) =>
+    text.test(el.textContent ?? ''),
+  );
+}
+
 describe('BlogsElementComponent', () => {
   let fixture: ComponentFixture<BlogsElementComponent>;
   let component: BlogsElementComponent;
@@ -795,6 +823,87 @@ describe('BlogsElementComponent', () => {
     await createComponent('#/blogs/mensajes/t-valeria');
 
     expect(component.activeThread()?.id).toBe('t-valeria');
+  });
+
+  // ─── Moldes de carga (doc 24) ───────────────────────────────────────────────
+  // La trampa de este patrón: al cambiar el `<p>Cargando…</p>` por un esqueleto la
+  // PANTALLA mejora y el lector de pantalla se queda MUDO — se habría empeorado la
+  // accesibilidad en nombre del pulido. Por eso cada test pide LAS DOS cosas: huesos
+  // con la forma real Y un `role="status"` con TEXTO que no esté tapado por el
+  // `aria-hidden` del molde. Un aserto solo sobre los huesos dejaría pasar la regresión.
+  it('el hilo de comentarios carga con molde MUDO y un anuncio que SÍ se lee', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.view.set('post');
+    component.activePost.set(POST_FOR_SKELETON);
+    component.comments.set([]);
+    component.loading.set(true);
+    fixture.detectChanges();
+
+    const host: HTMLElement = fixture.nativeElement;
+
+    // 1. El molde tiene la FORMA real del comentario: avatar + cabecera + cuerpo +
+    //    acción + caja de respuesta, uno por cada fila anunciada.
+    const rows = component.commentSkeletons.length;
+    expect(host.querySelectorAll('.blogs__bone--avatar-sm').length).toBe(rows);
+    expect(host.querySelectorAll('.blogs__bone--comment-head').length).toBe(rows);
+    expect(host.querySelectorAll('.blogs__bone--comment-text').length).toBe(rows);
+    expect(host.querySelectorAll('.blogs__bone--comment-form').length).toBe(rows);
+
+    // 2. Los huesos son decorativos: viven bajo un contenedor `aria-hidden`.
+    const bone = host.querySelector('.blogs__bone--avatar-sm');
+    expect(bone?.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    // 3. …y el aviso sigue existiendo, con TEXTO, FUERA del aria-hidden. Sin esto el
+    //    usuario ciego no sabría que algo está cargando.
+    const status = findLiveStatus(host, /Cargando comentarios/);
+    expect(status).toBeDefined();
+    expect(status!.closest('[aria-hidden="true"]')).toBeNull();
+    // Y sigue siendo PERCEPTIBLE: una auditoría mutó el SCSS a `display: none` —el nodo
+    // queda con su rol y su texto— y las pruebas siguieron verdes. `display:none` y
+    // `visibility:hidden` sacan el nodo del árbol de accesibilidad; el recorte no.
+    {
+      const e = getComputedStyle(status!);
+      expect(e.display).not.toBe('none');
+      expect(e.visibility).not.toBe('hidden');
+    }
+  });
+
+  it('las notificaciones cargan con molde MUDO y un anuncio que SÍ se lee', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.sessionAccess.set('ok');
+    component.view.set('notifications');
+    component.notificationsLoaded.set(false);
+    component.loading.set(true);
+    fixture.detectChanges();
+
+    const host: HTMLElement = fixture.nativeElement;
+
+    const rows = component.notificationSkeletons.length;
+    expect(host.querySelectorAll('.blogs__bone--notif-text').length).toBe(rows);
+    expect(host.querySelectorAll('.blogs__bone--notif-time').length).toBe(rows);
+
+    // El molde reusa `blogs__notif` para heredar el padding real, pero NO puede ser
+    // un control: un esqueleto no se enfoca ni se pulsa.
+    const skeletonRow = host.querySelector('.blogs__notif--skeleton');
+    expect(skeletonRow).not.toBeNull();
+    expect(skeletonRow!.tagName).not.toBe('BUTTON');
+    expect(skeletonRow!.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    const status = findLiveStatus(host, /Cargando notificaciones/);
+    expect(status).toBeDefined();
+    expect(status!.closest('[aria-hidden="true"]')).toBeNull();
+    // Y sigue siendo PERCEPTIBLE: una auditoría mutó el SCSS a `display: none` —el nodo
+    // queda con su rol y su texto— y las pruebas siguieron verdes. `display:none` y
+    // `visibility:hidden` sacan el nodo del árbol de accesibilidad; el recorte no.
+    {
+      const e = getComputedStyle(status!);
+      expect(e.display).not.toBe('none');
+      expect(e.visibility).not.toBe('hidden');
+    }
   });
 });
 

@@ -10,6 +10,8 @@
   --ts-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --ts-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --ts-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ts-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ts-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
   // --ts-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
   // un wash 12% pensado como fondo de chip → botón/CTA fantasma ~1.1:1).
   --ts-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
@@ -800,6 +802,131 @@
     &:hover { color: var(--ts-text); }
   }
 
+  // ─── Stay skeleton ────────────────────────────────────────────────────────
+  // Mirrors syn-detail-shell's `__top` grid (gallery / info / sticky CTA) and
+  // its 920px stack breakpoint, so the swap to the real shell does not reflow.
+  // Bones are decorative + `aria-hidden`; `&__sr` carries the announcement.
+  &__stay-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-lg;
+  }
+
+  &__stay-skeleton-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(syn.px-to-rem(240), 0.8fr);
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(920)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__stay-skeleton-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  &__stay-skeleton-thumbs {
+    display: flex;
+    gap: syn.$space-2;
+  }
+
+  &__stay-skeleton-info,
+  &__stay-skeleton-cta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    min-width: 0;
+  }
+
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(
+      90deg,
+      var(--ts-skeleton-base) 0%,
+      var(--ts-skeleton-highlight) 50%,
+      var(--ts-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: travel-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    // Text bones use `em` against the same font-size token as the node they
+    // stand in for, so they are exactly that line box.
+    &--back {
+      inline-size: syn.px-to-rem(140);
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--media {
+      inline-size: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: syn.$radius-lg;
+    }
+
+    &--thumb {
+      inline-size: syn.px-to-rem(56);
+      block-size: syn.px-to-rem(56);
+      border-radius: syn.$radius-md;
+    }
+
+    &--eyebrow {
+      inline-size: syn.px-to-rem(160);
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--title {
+      inline-size: 78%;
+      font-size: syn.$font-size-2xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--subtitle {
+      inline-size: 60%;
+      font-size: syn.$font-size-base;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--text {
+      inline-size: 100%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+
+      &:last-child {
+        inline-size: 72%;
+      }
+    }
+
+    &--price {
+      inline-size: syn.px-to-rem(120);
+      font-size: syn.$font-size-xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--rate {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(72);
+      border-radius: syn.$radius-md;
+    }
+
+    &--button {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(40);
+      border-radius: syn.$radius-md;
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
+  }
+
   // ─── Responsive ───────────────────────────────────────────────────────────
   @include syn.respond-below(md) {
     padding: syn.$space-md;
@@ -810,5 +937,21 @@
     &__search-btn { width: 100%; }
     &__flight { flex-direction: column; align-items: stretch; }
     &__flight-price { align-items: flex-start; }
+  }
+}
+
+@keyframes travel-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel__bone {
+    animation: none;
   }
 }

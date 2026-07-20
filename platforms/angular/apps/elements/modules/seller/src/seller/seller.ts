@@ -236,6 +236,12 @@ export class SellerElementComponent {
   // ─── Data (always from the API — visible mock degradation) ─────────────────
   readonly kpiMetrics = signal<readonly SellerKpiMetric[]>([]);
   readonly reputation = signal<SellerReputation | null>(null);
+  /**
+   * Placeholder metric cards for the reputation skeleton. Three, because the
+   * real grid is always hero + exactly three metrics (on-time / claims /
+   * answered) — the mould is a fixed shape, not a guess.
+   */
+  readonly repSkeletonCards = [0, 1, 2];
   readonly orders = signal<readonly SellerOrder[]>([]);
   readonly ordersLoaded = signal(false);
   readonly ordersLoading = signal(false);

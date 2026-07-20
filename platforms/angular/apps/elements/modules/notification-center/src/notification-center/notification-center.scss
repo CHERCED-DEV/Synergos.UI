@@ -15,6 +15,8 @@
   --notif-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
   --notif-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --notif-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+  --notif-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --notif-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
 
   display: block;
   max-width: 100%;
@@ -220,6 +222,86 @@
   &__action-icon {
     inline-size: syn.px-to-rem(18);
     block-size: syn.px-to-rem(18);
+  }
+
+  // ─── Loading skeleton ──────────────────────────────────────────────────────
+  // Mirrors `&__item` 1:1 (dot + body lines + two 32px actions) so the swap to
+  // the real list costs zero CLS. Every bone is decorative and `aria-hidden`;
+  // the announcement rides on `&__sr` below.
+  &__list--loading {
+    pointer-events: none;
+  }
+
+  &__item--skeleton:hover {
+    background: transparent;
+  }
+
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(
+      90deg,
+      var(--notif-skeleton-base) 0%,
+      var(--notif-skeleton-highlight) 50%,
+      var(--notif-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: notif-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    // Bone heights are expressed in `em` against the same font-size token the
+    // real node uses, so they track the type scale instead of drifting from it.
+    &--dot {
+      flex: none;
+      inline-size: syn.px-to-rem(8);
+      block-size: syn.px-to-rem(8);
+      margin-block-start: syn.px-to-rem(6);
+      border-radius: syn.$radius-full;
+    }
+
+    &--title {
+      inline-size: 58%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--text {
+      inline-size: 88%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--time {
+      inline-size: syn.px-to-rem(72);
+      font-size: syn.$font-size-xs;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--action {
+      inline-size: syn.px-to-rem(32);
+      block-size: syn.px-to-rem(32);
+      border-radius: syn.$radius-md;
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
+  }
+}
+
+@keyframes notif-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif__bone {
+    animation: none;
   }
 }
 

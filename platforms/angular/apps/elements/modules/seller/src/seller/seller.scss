@@ -18,6 +18,8 @@
   --sl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --sl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
   --sl-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --sl-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sl-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
 
   display: block;
   max-width: 100%;
@@ -221,6 +223,62 @@
     margin: 0;
     color: var(--sl-muted);
     font-size: syn.$font-size-sm;
+  }
+
+  // ─── Reputation skeleton ────────────────────────────────────────────────
+  // Reuses `&__rep` / `&__rep-card` verbatim, so the grid, the padding and the
+  // card chrome are already the real ones; only the text nodes become bones.
+  // Bones are decorative + `aria-hidden`; `&__sr` carries the announcement.
+  &__rep-card--skeleton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(
+      90deg,
+      var(--sl-skeleton-base) 0%,
+      var(--sl-skeleton-highlight) 50%,
+      var(--sl-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: seller-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    // `em` against the same font-size token the real node uses, so the bone is
+    // exactly the line box it stands in for.
+    &--score {
+      inline-size: syn.px-to-rem(72);
+      font-size: syn.$font-size-2xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--level {
+      inline-size: syn.px-to-rem(96);
+      margin-block-start: syn.$space-1;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--value {
+      inline-size: syn.px-to-rem(56);
+      font-size: syn.$font-size-xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--label {
+      inline-size: syn.px-to-rem(104);
+      margin-block-start: syn.$space-1;
+      font-size: syn.$font-size-xs;
+      block-size: #{syn.$line-height-normal}em;
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
   }
 
   // ─── Buttons ────────────────────────────────────────────────────────────
@@ -541,5 +599,21 @@
     margin: syn.px-to-rem(2) 0 0;
     color: var(--sl-muted);
     font-size: syn.$font-size-xs;
+  }
+}
+
+@keyframes seller-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seller__bone {
+    animation: none;
   }
 }

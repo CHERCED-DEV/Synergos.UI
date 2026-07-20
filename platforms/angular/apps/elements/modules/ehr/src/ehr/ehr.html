@@ -101,7 +101,24 @@
             }
           </div>
         } @else if (loading()) {
-          <p class="ehr__loading" role="status">Cargando tu portal…</p>
+          <!-- Molde del portal: título + subtítulo + rejilla de tarjetas, con las MISMAS
+               clases (`ehr__cards` / `ehr__card`) que la rama de datos, así el `minmax(240px)`
+               y el gap son los reales y la rejilla no se recoloca al llegar el portal.
+               Mudo (`aria-hidden`): el aviso va abajo, con texto, en su `role="status"`. -->
+          <span class="ehr__bone ehr__bone--title" aria-hidden="true"></span>
+          <span class="ehr__bone ehr__bone--sub" aria-hidden="true"></span>
+          <div class="ehr__cards" aria-hidden="true">
+            @for (bone of homeSkeletons; track bone) {
+              <article class="ehr__card ehr__card--skeleton">
+                <span class="ehr__bone ehr__bone--card-title"></span>
+                <span class="ehr__bone ehr__bone--card-detail"></span>
+                <span class="ehr__bone ehr__bone--card-cta"></span>
+              </article>
+            }
+          </div>
+          <!-- El aviso deja de VERSE (lo cuenta el molde) pero no desaparece: sigue con
+               texto real, en la clase visually-hidden que ya usa esta app. -->
+          <p class="ehr__sr-only" role="status">Cargando tu portal…</p>
         }
       }
 
@@ -555,7 +572,25 @@
             </div>
           </div>
         } @else if (loading()) {
-          <p class="ehr__loading" role="status">Abriendo la ficha…</p>
+          <!-- Molde de la ficha. Reusa `ehr__chart` y `ehr__storyboard`, o sea la MISMA
+               rejilla de 240px + 1fr y el mismo gap que la rama de datos: al llegar la
+               ficha no se recoloca la columna. Mudo (`aria-hidden`); el aviso va abajo
+               con texto real en su `role="status"`, como en el molde del portal. -->
+          <div class="ehr__chart" aria-hidden="true">
+            <aside class="ehr__storyboard">
+              <span class="ehr__bone ehr__bone--story-avatar"></span>
+              <span class="ehr__bone ehr__bone--title"></span>
+              <span class="ehr__bone ehr__bone--sub"></span>
+              <span class="ehr__bone ehr__bone--sub"></span>
+              <span class="ehr__bone ehr__bone--card-cta"></span>
+            </aside>
+            <div class="ehr__chart-main">
+              @for (bone of chartSkeletons; track bone) {
+                <span class="ehr__bone ehr__bone--panel"></span>
+              }
+            </div>
+          </div>
+          <p class="ehr__sr-only" role="status">Abriendo la ficha…</p>
         }
       }
 

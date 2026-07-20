@@ -104,6 +104,38 @@ describe('NotificationCenterElementComponent', () => {
     component.dismiss(target);
     expect(component.items().length).toBe(2);
   });
+
+  // ── loading: esqueleto CON forma + aviso audible (los DOS, siempre) ─────────
+  it('reserves the list shape with a skeleton and still announces the load', () => {
+    // A never-resolving fetch parks the component in `loading` with no items.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    fixture.componentRef.setInput('fetchEndpoint', '/api/notifications');
+    fixture.detectChanges();
+
+    expect(component.loading()).toBe(true);
+    expect(component.hasItems()).toBe(false);
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    // 1) The skeleton mimics the real row (dot + body lines + two actions),
+    //    reusing `notif__item` so padding/gap/border are the real ones.
+    const rows = host.querySelectorAll('.notif__item--skeleton');
+    expect(rows.length).toBe(component.skeletonRows.length);
+    expect(host.querySelectorAll('.notif__bone--action').length).toBe(rows.length * 2);
+
+    // 2) Bones are decorative and hidden from assistive tech…
+    expect(host.querySelector('.notif__list--loading')?.getAttribute('aria-hidden')).toBe('true');
+
+    // 3) …so the announcement MUST survive on a live region. Skeleton without
+    //    this pair = prettier screen, silent screen reader — a11y REGRESSION.
+    const announcement = host.querySelector('.notif__sr');
+    expect(announcement).not.toBeNull();
+    expect(announcement!.getAttribute('role')).toBe('status');
+    expect(announcement!.textContent).toContain('Cargando notificaciones');
+  });
 });
 
 describe('notification-center pure helpers', () => {
@@ -126,4 +158,5 @@ describe('notification-center pure helpers', () => {
     expect(normalizePollingInterval(500)).toBe(1000);
     expect(normalizePollingInterval(30000)).toBe(30000);
   });
+
 });

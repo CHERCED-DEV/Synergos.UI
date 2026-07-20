@@ -247,6 +247,12 @@ export class NotificationCenterElementComponent {
   readonly unreadCount = computed(() => this.items().filter((item) => !item.read).length);
   readonly hasUnread = computed(() => this.unreadCount() > 0);
 
+  /**
+   * Placeholder rows for the loading skeleton. Three is the shortest run that
+   * still reads as "a list is coming" without over-reserving on a short inbox.
+   */
+  readonly skeletonRows = [0, 1, 2];
+
   constructor() {
     // Lazy-fetch (and optionally poll) when an endpoint is configured.
     effect((onCleanup) => {

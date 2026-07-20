@@ -20,7 +20,23 @@
   </header>
 
   @if (loading() && !hasItems()) {
-    <p class="notif__status" role="status">Cargando notificaciones…</p>
+    <ul class="notif__list notif__list--loading" role="list" aria-hidden="true">
+      @for (placeholder of skeletonRows; track placeholder) {
+        <li class="notif__item notif__item--skeleton">
+          <span class="notif__bone notif__bone--dot"></span>
+          <div class="notif__body">
+            <span class="notif__bone notif__bone--title"></span>
+            <span class="notif__bone notif__bone--text"></span>
+            <span class="notif__bone notif__bone--time"></span>
+          </div>
+          <div class="notif__actions">
+            <span class="notif__bone notif__bone--action"></span>
+            <span class="notif__bone notif__bone--action"></span>
+          </div>
+        </li>
+      }
+    </ul>
+    <p class="notif__sr" role="status">Cargando notificaciones…</p>
   } @else if (fetchFailed() && !hasItems()) {
     <p class="notif__status notif__status--error" role="status">
       No se pudieron cargar las notificaciones.
