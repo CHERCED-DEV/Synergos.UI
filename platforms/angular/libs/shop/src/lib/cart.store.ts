@@ -17,7 +17,7 @@
  *   cartStore.add({ productId, ... });
  */
 
-import { computed, effect, signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import type { CartItem, Cart } from '@synergos/contracts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -69,10 +69,22 @@ const snapshot = computed<Cart>(() => ({
 
 // ── Persistence + event bus ───────────────────────────────────────────────────
 
-effect(() => {
-  const items = _items();
+/**
+ * Persist to localStorage and notify non-Angular consumers.
+ *
+ * Called explicitly by every mutation that changes the snapshot (items, coupon,
+ * discount). This used to be a module-level `effect()`, which threw NG0203 at
+ * import time — `effect()` requires an injection context, and this store is a
+ * plain module singleton with no injector. That exception escaped before
+ * `createApplication()` ran, so the custom elements never registered and both
+ * cart-item and cart-summary were dead on arrival in the browser.
+ *
+ * Drawer open/close deliberately does NOT persist: it is not part of the
+ * snapshot, and the old effect did not track it either.
+ */
+function persist(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(_items()));
   } catch { /* storage quota exceeded — silently skip */ }
 
   window.dispatchEvent(
@@ -82,7 +94,7 @@ effect(() => {
       detail:   snapshot(),
     }),
   );
-});
+}
 
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
@@ -103,11 +115,13 @@ function add(item: Omit<CartItem, 'subtotal'>): void {
     // Add new item
     return [...prev, { ...item, subtotal: item.price * item.quantity }];
   });
+  persist();
 }
 
 function remove(productId: string, variantId?: string): void {
   const key = itemKey(productId, variantId);
   _items.update((prev) => prev.filter((i) => itemKey(i.productId, i.variantId) !== key));
+  persist();
 }
 
 function updateQuantity(productId: string, quantity: number, variantId?: string): void {
@@ -120,12 +134,14 @@ function updateQuantity(productId: string, quantity: number, variantId?: string)
         : i,
     ),
   );
+  persist();
 }
 
 function clear(): void {
   _items.set([]);
   _coupon.set(undefined);
   _discount.set(0);
+  persist();
 }
 
 function openDrawer(): void  { _open.set(true);  }
@@ -135,11 +151,13 @@ function toggleDrawer(): void { _open.update((v) => !v); }
 function applyDiscount(code: string, amount: number): void {
   _coupon.set(code);
   _discount.set(amount);
+  persist();
 }
 
 function clearDiscount(): void {
   _coupon.set(undefined);
   _discount.set(0);
+  persist();
 }
 
 // ── Listen for add-to-cart events (from product-card and other components) ────

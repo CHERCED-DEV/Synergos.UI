@@ -12,8 +12,7 @@ import {
   InputComponent,
   EmptyStateComponent,
 } from '@synergos/shared';
-import { CartItemComponent } from '../../../cart-item/src/cart-item/cart-item';
-import { cartStore } from '../../../cart.store';
+import { CartItemComponent, cartStore } from '@synergos/shop';
 
 function sanitizeCartSummaryConfig(
   value: Partial<CartSummaryElementConfig>,

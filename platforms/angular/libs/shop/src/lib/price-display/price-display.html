@@ -16,7 +16,7 @@
     </span>
   }
 
-  @if (currentPrice() != null) {
+  @if (currentPrice() !== undefined) {
     <span class="price-display__current" [attr.aria-label]="currentPriceAriaLabel()">
       {{ formatPrice(currentPrice()) }}
     </span>

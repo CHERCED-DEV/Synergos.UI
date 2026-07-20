@@ -10,8 +10,8 @@ import {
   resolveConfigValue,
   IconButtonComponent,
 } from '@synergos/shared';
-import { QuantitySelectorComponent } from '../../../quantity-selector/src/quantity-selector/quantity-selector';
-import { cartStore } from '../../../cart.store';
+import { QuantitySelectorComponent } from '../quantity-selector/quantity-selector';
+import { cartStore } from '../cart.store';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

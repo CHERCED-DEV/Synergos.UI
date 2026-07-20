@@ -21,9 +21,11 @@ import {
   BadgeComponent,
   ButtonComponent,
 } from '@synergos/shared';
-import { PriceDisplayComponent } from '../../../price-display/src/price-display/price-display';
-import { QuantitySelectorComponent } from '../../../quantity-selector/src/quantity-selector/quantity-selector';
-import { VariantPickerComponent } from '../../../variant-picker/src/variant-picker/variant-picker';
+import {
+  PriceDisplayComponent,
+  QuantitySelectorComponent,
+  VariantPickerComponent,
+} from '@synergos/shop';
 
 function sanitizeProductDetailConfig(
   value: Partial<ProductDetailElementConfig>,

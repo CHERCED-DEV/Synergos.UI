@@ -13,7 +13,8 @@
       "@synergos/rendering": ["./libs/rendering/src/index.ts"],
       "@synergos/integrations": ["./libs/integrations/src/index.ts"],
       "@synergos/transaction-engine": ["./libs/transaction-engine/src/index.ts"],
-      "@synergos/shells": ["./libs/shells/src/index.ts"]
+      "@synergos/shells": ["./libs/shells/src/index.ts"],
+      "@synergos/shop": ["./libs/shop/src/index.ts"]
     }
   },
   "angularCompilerOptions": {
