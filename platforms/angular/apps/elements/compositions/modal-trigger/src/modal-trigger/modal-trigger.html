@@ -9,6 +9,12 @@
 </button>
 
 @if (isOpen()) {
+  <!-- Backdrop: el (click) es SOLO el atajo de ratón para cerrar. La ruta de teclado es
+       Escape, que atiende el (keydown)="onDialogKeydown($event)" de este mismo elemento
+       (modal-trigger.ts:182) y que además atrapa el Tab dentro del diálogo. El foco lo
+       recibe el .modal-trigger__dialog de abajo, que ya es tabindex="-1" + role="dialog".
+       Un tabindex aquí crearía una parada de tabulación fantasma sobre el velo. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
   <div
     class="modal-trigger__overlay"
     (click)="onBackdropPointer($event)"

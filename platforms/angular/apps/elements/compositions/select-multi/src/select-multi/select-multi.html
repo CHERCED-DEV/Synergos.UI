@@ -63,6 +63,11 @@
       [attr.aria-label]="hasLabel() ? null : 'Opciones'"
     >
       @for (option of filteredOptions(); track option.value) {
+        <!-- Patrón ARIA combobox: la ruta de teclado la da el <input role="combobox"> de
+             arriba vía (keydown)="onKeydown($event)" + aria-activedescendant, que mueve el
+             opción activa sin mover el foco. Las <li role="option"> NO deben ser focusables:
+             un tabindex aquí duplicaría las paradas de tabulación y rompería el patrón. -->
+        <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
         <li
           class="select-multi__option"
           [class.select-multi__option--selected]="isSelected(option)"

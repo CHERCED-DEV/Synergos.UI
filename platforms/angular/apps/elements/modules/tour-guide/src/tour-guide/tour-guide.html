@@ -1,4 +1,10 @@
 @if (isActive() && currentStep(); as step) {
+  <!-- Raíz del tour: NO es un interactivo, solo delega el (keydown)="onOverlayKeydown($event)"
+       del paso (Escape/flechas). El velo que cierra al hacer clic ya es un <button
+       type="button" class="tour__backdrop"> real con aria-label —focusable de nativo— así que
+       la acción "saltar el tour" tiene su ruta de teclado propia. Un tabindex en este <div>
+       añadiría una parada de tabulación sobre un contenedor sin acción. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
   <div
     class="tour"
     [class.tour--has-spotlight]="spotlight() !== null"

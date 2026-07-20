@@ -35,6 +35,12 @@
   </ul>
 
   @if (activeImage(); as active) {
+    <!-- Backdrop: el (click) es SOLO el atajo de ratón para cerrar. La ruta de teclado es
+         Escape (y ArrowLeft/ArrowRight para navegar), que atiende el
+         (keydown)="onDialogKeydown($event)" de este mismo elemento (lightbox-gallery.ts:248).
+         El foco lo recibe el .lightbox__dialog de abajo, que ya es tabindex="-1" +
+         role="dialog". Un tabindex aquí crearía una parada de tabulación fantasma. -->
+    <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
     <div
       class="lightbox"
       (click)="onBackdropClick($event)"

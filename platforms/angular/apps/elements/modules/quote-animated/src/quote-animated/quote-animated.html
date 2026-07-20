@@ -34,6 +34,11 @@
     }
 
     @if (canRotate()) {
+      <!-- Patrón ARIA tabs: en un role="tablist" los focusables son las PESTAÑAS, no la lista.
+           Los <button> de abajo (prev/next y los dots) ya son focusables de nativo, y el
+           (keydown) de aquí es justamente la navegación con flechas del patrón. Un tabindex en
+           el tablist rompería el roving focus y metería una parada de más. -->
+      <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
       <div
         class="quote__controls"
         role="tablist"

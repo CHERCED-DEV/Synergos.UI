@@ -180,6 +180,12 @@ let discoveryInstanceId = 0;
                   </label>
                 }
                 @for (value of facet.values; track value.value) {
+                  <!-- Falso positivo: esta <label> SÍ envuelve su control, pero el <input> vive
+                       dentro del @if/@else de abajo (radio si la faceta es de valor único,
+                       checkbox si es múltiple) y el análisis estático de la regla solo mira
+                       hijos directos. Compárese con la <label> de arriba, que lleva el <input>
+                       como hijo directo y no se marca. -->
+                  <!-- eslint-disable-next-line @angular-eslint/template/label-has-associated-control -->
                   <label class="syn-discovery__facet-option">
                     @if (isSingleValued(facet)) {
                       <input

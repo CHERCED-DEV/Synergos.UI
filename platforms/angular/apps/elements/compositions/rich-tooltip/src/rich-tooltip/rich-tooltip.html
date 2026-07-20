@@ -1,3 +1,9 @@
+<!-- Contenedor de posicionamiento: los (mouseenter)/(mouseleave) son SOLO el atajo de ratón.
+     El interactivo real es el <button class="rich-tooltip__trigger"> de abajo, focusable de
+     nativo, con (click)="toggle()" y aria-expanded. El teclado ya está cubierto por los
+     (focusin)/(focusout) de este mismo elemento —que se disparan al tabular hasta el botón— y
+     por el (keydown) que delega Escape. Un tabindex aquí duplicaría la parada de tabulación. -->
+<!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
 <div
   class="rich-tooltip"
   [class.rich-tooltip--open]="open()"
