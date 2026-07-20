@@ -61,7 +61,7 @@
     "cms:validate":               "node tools/validate-cms-contracts.mjs",
     "cms:sync":                   "node tools/cms-sync.mjs",
     "cms:sync:check":             "node tools/cms-sync.mjs --dry-run",
-    "contracts:validate":         "npm run element:audit && npm run manifest:validate && npm run cms:validate && npm run cms:sync:check",
+    "contracts:validate":         "npm run sync:tokens:check && npm run element:audit && npm run manifest:validate && npm run cms:validate && npm run cms:sync:check",
     "contracts:export":           "node tools/contracts-export.mjs",
     "catalog":                    "node tools/catalog.mjs",
 
@@ -81,6 +81,7 @@
 
     "// ─── ALIAS sync tokens (Cap-250 Batch D) ────────────────────────────────": "",
     "sync:tokens":                "npm run --prefix platforms/angular sync:tokens",
+    "sync:tokens:check":          "npm run --prefix platforms/angular sync:tokens:check",
 
     "// ─── HUSKY (pre-commit hooks) ──────────────────────────────────────────": "",
     "prepare":                    "husky"
