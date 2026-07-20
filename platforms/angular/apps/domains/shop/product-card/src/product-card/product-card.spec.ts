@@ -153,50 +153,20 @@ describe('ProductCardComponent', () => {
     });
   });
 
-  // ── Monograma: qué pasa con nombres vacíos o raros ─────────────────────────
+  // ── Monograma ──────────────────────────────────────────────────────────────
+  // Los casos límite (emoji inicial, comillas, 'ß'.toUpperCase(), alfabetos no
+  // latinos) se mudaron a `libs/shared/src/utils/monogram.util.spec.ts` junto con
+  // la regla. Aquí queda solo lo que es de ESTE componente: de qué señal sale el
+  // título que se le pasa.
   describe('monograma', () => {
-    const monogramFor = (name: string): string => {
-      component.product.set(makeProduct({ name, images: [] }));
-      return component.monogram();
-    };
-
-    it('toma la inicial de las dos primeras palabras con carga', () => {
-      expect(monogramFor('Silla Nórdica Roble')).toBe('SN');
+    it('lo calcula sobre el nombre que llega de la API', () => {
+      component.product.set(makeProduct({ name: 'Café de Colombia', images: [] }));
+      expect(component.monogram()).toBe('CC');
     });
 
-    it('salta las palabras vacías (de, la, con…)', () => {
-      expect(monogramFor('Café de Colombia')).toBe('CC');
-    });
-
-    it('con una sola palabra usa sus dos primeras letras', () => {
-      expect(monogramFor('Silla')).toBe('SI');
-    });
-
-    it('ignora comillas y puntuación de apertura', () => {
-      expect(monogramFor('«Silla»')).toBe('SI');
-      expect(monogramFor('"Mesa Roble"')).toBe('MR');
-    });
-
-    it('ignora un emoji inicial en vez de partirlo por la mitad', () => {
-      // Con charAt(0) esto imprimiría media pareja subrogada (un rombo ).
-      expect(monogramFor('🎁 Caja Regalo')).toBe('CR');
-    });
-
-    it('cae a · cuando no queda ninguna letra', () => {
-      expect(monogramFor('')).toBe('·');
-      expect(monogramFor('   ')).toBe('·');
-      expect(monogramFor('🎁')).toBe('·');
-      expect(monogramFor('!!!')).toBe('·');
-    });
-
-    it('nunca devuelve más de dos caracteres, ni cuando mayusculizar alarga', () => {
-      // 'ß'.toUpperCase() === 'SS' — dos caracteres a partir de uno.
-      expect(monogramFor('ßeta').length).toBe(2);
-      expect(Array.from(monogramFor('Silla Nórdica Roble')).length).toBe(2);
-    });
-
-    it('funciona con alfabetos no latinos', () => {
-      expect(monogramFor('Ωmega Δelta')).toBe('ΩΔ');
+    it('cae al nombre editorial mientras no hay producto cargado', () => {
+      fixture.componentRef.setInput('config', { name: 'Mesa Roble' });
+      expect(component.monogram()).toBe('MR');
     });
   });
 

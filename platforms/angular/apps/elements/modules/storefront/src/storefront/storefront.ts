@@ -35,6 +35,7 @@ import {
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
+  monogram as monogramOf,
   omitUndefinedProperties,
   resolveConfigValue,
   SynSkeletonComponent,
@@ -695,18 +696,13 @@ export class StorefrontElementComponent {
   }
 
   /** Iniciales (hasta 2) para el plato-fallback cuando un producto no trae foto.
-   *  Reemplaza el emoji genérico por un monograma intencional y theme-aware. */
-  monogram(title: string): string {
-    const stop = new Set(['de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'con', 'para']);
-    const words = (title || '')
-      .trim()
-      .split(/\s+/)
-      .filter((w) => w && !stop.has(w.toLowerCase()));
-    if (words.length === 0) return '·';
-    const first = words[0].charAt(0);
-    const second = words.length > 1 ? words[1].charAt(0) : words[0].charAt(1);
-    return (first + (second || '')).toUpperCase();
-  }
+   *  Reemplaza el emoji genérico por un monograma intencional y theme-aware.
+   *
+   *  La regla vive en `@synergos/shared`, compartida con `product-card`; aquí solo
+   *  se expone al template. La copia local recorría UNIDADES UTF-16: un título que
+   *  empezaba por emoji imprimía media pareja subrogada (un rombo) y las comillas
+   *  de apertura pasaban como inicial. */
+  readonly monogram = monogramOf;
 
   /** Imágenes que fallaron al cargar (404) → la card cae al monograma en vez de
    *  mostrar un ícono de imagen rota. Robusto ante rutas de media inexistentes. */

@@ -2,6 +2,7 @@
 export * from './utils/class-names.util';
 export * from './utils/config-input.util';
 export * from './utils/form.util';
+export * from './utils/monogram.util';
 export { ClickOutsideDirective } from './directives/click-outside.directive';
 export { FocusOutDirective } from './directives/focus-out.directive';
 export { FocusVisibleDirective } from './directives/focus-visible.directive';

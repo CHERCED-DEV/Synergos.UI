@@ -18,6 +18,7 @@ import {
   coerceStringRecordInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
+  monogram as monogramOf,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
@@ -40,20 +41,6 @@ function sanitizeProductCardConfig(
     variantKey: coerceTrimmedStringInput(value.variantKey),
     translations: coerceStringRecordInput(value.translations),
   });
-}
-
-/** Palabras que no aportan inicial al monograma. Calcadas de `storefront`. */
-const MONOGRAM_STOP_WORDS: ReadonlySet<string> = new Set([
-  'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'con', 'para',
-]);
-
-/** Caracteres de una palabra que pueden ser inicial: letras y dígitos de
- *  CUALQUIER alfabeto. Se recorre por puntos de código (`Array.from`) y no por
- *  unidades UTF-16: `'🎁'.charAt(0)` devuelve media pareja subrogada y pinta un
- *  rombo de reemplazo en el plato. Filtrar por `\p{L}|\p{N}` deja fuera de una
- *  sola pasada emojis, comillas («»"'), guiones y demás puntuación de apertura. */
-function monogramGlyphs(word: string): readonly string[] {
-  return Array.from(word).filter((character) => /[\p{L}\p{N}]/u.test(character));
 }
 
 @Component({
@@ -173,27 +160,9 @@ export class ProductCardComponent {
   });
 
   /** Iniciales (hasta 2) del plato que ocupa el hueco de la foto cuando no hay.
-   *  Misma regla que `monogram()` del storefront —primera letra de las dos
-   *  primeras palabras con carga, o las dos primeras de la única que haya, y `·`
-   *  si no queda nada— sobre puntos de código y descartando lo que no sea letra
-   *  o dígito, para que un nombre que empiece por emoji o por comilla angular no
-   *  imprima basura. El recorte final a 2 acota los casos en que mayusculizar
-   *  ALARGA la cadena (`'ß'.toUpperCase() === 'SS'`). */
-  readonly monogram = computed(() => {
-    const words = this.name()
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0 && !MONOGRAM_STOP_WORDS.has(word.toLowerCase()));
-
-    const parts = words.map(monogramGlyphs).filter((glyphs) => glyphs.length > 0);
-    if (parts.length === 0) {
-      return '·';
-    }
-
-    const first = parts[0][0];
-    const second = parts.length > 1 ? parts[1][0] : parts[0].at(1) ?? '';
-    return Array.from((first + second).toUpperCase()).slice(0, 2).join('');
-  });
+   *  La regla y sus casos límite viven en `monogram()` de `@synergos/shared`,
+   *  compartida con el storefront (que pinta el mismo plato). */
+  readonly monogram = computed(() => monogramOf(this.name()));
 
   readonly hasPrice     = computed(() => this.showPrice() && this.price() != null);
   readonly hasDiscount  = computed(() => (this.discount() ?? 0) > 0);
