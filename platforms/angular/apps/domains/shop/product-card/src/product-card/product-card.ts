@@ -8,6 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import {
   BadgeComponent,
@@ -41,9 +42,23 @@ function sanitizeProductCardConfig(
   });
 }
 
+/** Palabras que no aportan inicial al monograma. Calcadas de `storefront`. */
+const MONOGRAM_STOP_WORDS: ReadonlySet<string> = new Set([
+  'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'con', 'para',
+]);
+
+/** Caracteres de una palabra que pueden ser inicial: letras y dígitos de
+ *  CUALQUIER alfabeto. Se recorre por puntos de código (`Array.from`) y no por
+ *  unidades UTF-16: `'🎁'.charAt(0)` devuelve media pareja subrogada y pinta un
+ *  rombo de reemplazo en el plato. Filtrar por `\p{L}|\p{N}` deja fuera de una
+ *  sola pasada emojis, comillas («»"'), guiones y demás puntuación de apertura. */
+function monogramGlyphs(word: string): readonly string[] {
+  return Array.from(word).filter((character) => /[\p{L}\p{N}]/u.test(character));
+}
+
 @Component({
   selector: 'sg-product-card',
-  imports: [BadgeComponent, ButtonComponent],
+  imports: [BadgeComponent, ButtonComponent, NgTemplateOutlet],
   templateUrl: './product-card.html',
   styleUrl: './product-card.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -130,7 +145,56 @@ export class ProductCardComponent {
   });
 
   // ── Computed display state ────────────────────────────────────────────────
-  readonly hasImage     = computed(() => this.imageSrc().length > 0);
+
+  /** Src que ya falló al cargar (404 / ruta de media inexistente). Se guarda el
+   *  valor, no un booleano: así, cuando el SKU cambia y llega otra foto, el
+   *  fallo del producto anterior no arrastra al nuevo al plato. */
+  readonly #failedImageSrc = signal('');
+
+  /**
+   * Recibe el src que falló COMO ARGUMENTO, no lo lee de la señal.
+   *
+   * Leerlo de `imageSrc()` parecía equivalente y no lo es: el evento `error` de una
+   * imagen puede aterrizar DESPUÉS de que el sku haya cambiado, y entonces la señal
+   * ya devuelve la foto del producto NUEVO — que se apuntaba en la lista negra sin
+   * haber fallado, mandando al plato a un producto con foto sana.
+   *
+   * El comentario de abajo prometía justo esa protección y el código no la daba. El
+   * test que decía cubrirlo tampoco: llamaba al handler ANTES de cambiar de producto,
+   * o sea nunca ejercía el orden que importa.
+   */
+  onImageError(failedSrc: string): void {
+    this.#failedImageSrc.set(failedSrc);
+  }
+
+  readonly hasImage = computed(() => {
+    const src = this.imageSrc();
+    return src.length > 0 && src !== this.#failedImageSrc();
+  });
+
+  /** Iniciales (hasta 2) del plato que ocupa el hueco de la foto cuando no hay.
+   *  Misma regla que `monogram()` del storefront —primera letra de las dos
+   *  primeras palabras con carga, o las dos primeras de la única que haya, y `·`
+   *  si no queda nada— sobre puntos de código y descartando lo que no sea letra
+   *  o dígito, para que un nombre que empiece por emoji o por comilla angular no
+   *  imprima basura. El recorte final a 2 acota los casos en que mayusculizar
+   *  ALARGA la cadena (`'ß'.toUpperCase() === 'SS'`). */
+  readonly monogram = computed(() => {
+    const words = this.name()
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0 && !MONOGRAM_STOP_WORDS.has(word.toLowerCase()));
+
+    const parts = words.map(monogramGlyphs).filter((glyphs) => glyphs.length > 0);
+    if (parts.length === 0) {
+      return '·';
+    }
+
+    const first = parts[0][0];
+    const second = parts.length > 1 ? parts[1][0] : parts[0].at(1) ?? '';
+    return Array.from((first + second).toUpperCase()).slice(0, 2).join('');
+  });
+
   readonly hasPrice     = computed(() => this.showPrice() && this.price() != null);
   readonly hasDiscount  = computed(() => (this.discount() ?? 0) > 0);
   readonly hasBadge     = computed(() => this.showBadge() && this.badge().length > 0);

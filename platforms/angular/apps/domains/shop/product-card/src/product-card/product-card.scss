@@ -4,9 +4,40 @@
   --pc-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
   --pc-surface-media: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
   --pc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
-  --pc-border-hover: var(--syn-color-border-accent, #{syn.$color-brand-300});
   --pc-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
   --pc-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+
+  /* Anillo de elevación del tema (box-shadow, NO border-color). En los temas
+     oscuros la sombra proyectada es negra sobre lienzo oscuro y no se pinta, así
+     que el anillo es la ÚNICA señal de hover que queda ahí.
+     Consume `--syn-ring-hover`, que es el token pensado para esto y que los temas
+     oscuros suben al 24%. Antes esto apuntaba a `--syn-border-hairline` (10%), y
+     eso NO servía: medido, daba 1.32:1 contra la superficie mientras el borde en
+     reposo ya estaba en 1.22 — el hover se leía como el borde difuminándose, no
+     como un cambio de estado. */
+  --pc-rim: var(--syn-ring-hover, var(--syn-border-hairline, 0 0 0 1px rgb(15 23 42 / 0.10)));
+
+  /* ── Forma del marco de media (COMPONIBLE por el consumidor) ──────────────
+     --pc-fit: cover    → foto de ambiente; llena el marco y recorta lo que sobra
+     --pc-fit: contain  → packshot sobre fondo blanco; se ve ENTERO, sin recortar
+     --pc-aspect        → alto del marco. Lo comparten foto, plato y skeleton:
+                          si se cambia aquí, las tres superficies siguen midiendo
+                          lo mismo y la grilla no se desalinea.
+     Los defaults reproducen EXACTAMENTE lo que la tarjeta ya hacía. */
+  --pc-fit: cover;
+  --pc-aspect: 4 / 3;
+
+  /* Plato para producto sin foto: par verificado AA en los 7 temas. */
+  --pc-placeholder-surface: var(--syn-image-placeholder-surface, #{syn.$color-neutral-100});
+  --pc-placeholder-ink: var(--syn-image-placeholder-ink, #{syn.$color-neutral-600});
+
+  /* Badge sobre la foto: mismo par que el chip de agotado (superficie de overlay
+     del tema, alpha 0.84-0.90 → el peor caso medido sobre foto blanca o negra es
+     10.54:1, AAA). El desenfoque es puro acabado: la legibilidad la garantiza el
+     alpha, no el backdrop-filter, así que un navegador sin soporte no la pierde. */
+  --pc-badge-surface: var(--syn-color-surface-overlay, #{syn.$color-surface});
+  --pc-badge-ink: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --pc-badge-blur: var(--syn-backdrop-blur-subtle, #{syn.px-to-rem(10)});
 
   --pc-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --pc-price-current: var(--syn-color-text-primary, #{syn.$color-neutral-900});
@@ -26,7 +57,14 @@
   min-height: 0;
   height: 100%;
   border-radius: syn.$radius-xl;
-  overflow: hidden;
+
+  /* SIN `overflow: hidden` a propósito. El host y .product-card ocupan la MISMA
+     caja con el MISMO radio, así que recortar aquí recortaba (a) el hairline de
+     1px del borde en las cuatro esquinas y (b) toda la sombra de la tarjeta, que
+     se pinta por fuera de esa caja — la sombra de reposo y la de hover no se
+     estaban viendo nunca. Además, en hover la tarjeta sube 2px y el recorte se
+     comía esa franja: el "lift" se leía como un corte. El recorte de la media lo
+     hace .product-card, que sí lo necesita. */
 }
 
 .product-card {
@@ -37,16 +75,20 @@
   border: syn.px-to-rem(1) solid var(--pc-border);
   background: var(--pc-surface);
   box-shadow: var(--pc-shadow);
+  /* CSS var, no el literal de Sass: `$duration-base` compila a un valor fijo y el
+     swap global de `prefers-reduced-motion` (que redefine `--syn-duration-*`) NO lo
+     alcanza. Con la var, este componente respeta la preferencia sin @media propio. */
   transition:
-    box-shadow syn.$duration-base syn.$easing-default,
-    transform syn.$duration-base syn.$easing-default,
-    border-color syn.$duration-base syn.$easing-default;
+    box-shadow var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default,
+    transform var(--syn-duration-base, #{syn.$duration-base}) syn.$easing-default;
   cursor: default;
 
+  /* Hover restraint (doc 24): UNA señal, elevación. Antes eran cuatro a la vez
+     (borde + sombra + lift + zoom de la foto), que se leen como ruido; el zoom
+     además desplazaba el encuadre del producto justo bajo el cursor. */
   &:hover {
-    box-shadow: var(--pc-shadow-hover);
-    border-color: var(--pc-border-hover);
-    transform: translateY(syn.px-to-rem(-2));
+    box-shadow: var(--pc-rim), var(--pc-shadow-hover);
+    transform: var(--syn-card-lift, translateY(#{syn.px-to-rem(-2)}));
   }
 
   &--horizontal,
@@ -57,7 +99,7 @@
       .product-card__image {
         width: syn.px-to-rem(200);
         flex-shrink: 0;
-        aspect-ratio: 1 / 1;
+        aspect-ratio: var(--pc-aspect-horizontal, 1 / 1);
       }
 
       .product-card__content {
@@ -71,20 +113,25 @@
     --pc-surface: var(--syn-color-neutral-900, #{syn.$color-neutral-900});
     --pc-surface-media: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
     --pc-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
-    --pc-border-hover: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
     --pc-title: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
     --pc-price-current: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
     --pc-price-original: var(--syn-color-neutral-400, #{syn.$color-neutral-400});
-    --pc-stock-chip-surface: var(--syn-color-overlay-medium, #{syn.$color-overlay-inverse});
-    --pc-stock-chip-text: var(--syn-color-neutral-50, #{syn.$color-neutral-50});
+    --pc-placeholder-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --pc-placeholder-ink: var(--syn-color-neutral-300, #{syn.$color-neutral-300});
     --pc-skeleton-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+
+    /* El chip de agotado ya NO se degrada aquí. Esta variante lo bajaba a
+       --syn-color-overlay-medium, que no es una superficie: es un scrim de alpha
+       0.14. Texto claro sobre un velo del 14% encima de una foto arbitraria
+       desaparece en cuanto la foto es clara — medido 1.03:1 en tema dark y
+       2.01:1 en tema light sobre foto blanca, contra 11.04:1 y 17.85:1 heredando
+       la superficie de overlay del tema, que es lo que hace ahora. */
   }
 
   &--silver-gold,
   &--silverGold,
   &.sg-product-card--silver-gold,
   &.sg-product-card--silverGold {
-    --pc-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
     --pc-discount-surface: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
     --pc-discount-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
   }
@@ -92,7 +139,7 @@
   &__image {
     position: relative;
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: var(--pc-aspect);
     overflow: hidden;
     background: var(--pc-surface-media);
   }
@@ -111,14 +158,29 @@
   }
 
   &__img {
+    display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    transition: transform syn.$duration-slow syn.$easing-default;
+    object-fit: var(--pc-fit);
+  }
 
-    .product-card:hover & {
-      transform: scale(1.04);
-    }
+  /* Plato + monograma para el producto sin foto. Calca el fallback del
+     storefront (misma geometría, mismo peso, mismas iniciales) con una
+     desviación deliberada: el degradado radial se cae. El contraste se midió
+     contra la superficie PLANA del token; un degradado haría que la cifra
+     medida solo valiera en parte del plato. */
+  &__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: syn.px-to-rem(30);
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: 0.04em;
+    color: var(--pc-placeholder-ink);
+    background: var(--pc-placeholder-surface);
+    user-select: none;
   }
 
   &__badge-overlay {
@@ -126,6 +188,22 @@
     top: syn.$space-sm;
     left: syn.$space-sm;
     z-index: 1;
+
+    /* Glass: el plato traslúcido lo pinta ESTE envoltorio, no el badge. El span
+       .syn-badge vive dentro del template de la primitiva, así que con
+       encapsulación emulada no hay selector desde aquí que lo alcance: el único
+       resorte real es el token semántico que la primitiva resuelve. Se anula
+       acotado a este envoltorio —cuyo único hijo es el badge— para que el badge
+       siga aportando tipografía, forma y rol, y el plato aporte legibilidad. */
+    display: inline-flex;
+    border-radius: syn.px-to-rem(999);
+    background: var(--pc-badge-surface);
+    box-shadow: var(--pc-rim);
+    backdrop-filter: blur(var(--pc-badge-blur)) saturate(140%);
+
+    --syn-color-state-brand-surface: transparent;
+    --syn-color-state-brand-border: transparent;
+    --syn-color-state-brand-text: var(--pc-badge-ink);
   }
 
   &__out-of-stock-overlay {
@@ -183,24 +261,29 @@
     }
   }
 
+  /* Cifras de ancho fijo: sin esto cada precio mide distinto y la columna de
+     precios de la grilla baila de tarjeta en tarjeta. */
   &__price-block {
     display: flex;
     align-items: baseline;
     gap: syn.$space-xs;
     flex-wrap: wrap;
     margin-top: auto;
+    font-variant-numeric: tabular-nums;
   }
 
   &__price-current {
     font-size: syn.$font-size-lg;
     font-weight: syn.$font-weight-bold;
     color: var(--pc-price-current);
+    font-variant-numeric: tabular-nums;
   }
 
   &__price-original {
     font-size: syn.$font-size-sm;
     color: var(--pc-price-original);
     text-decoration: line-through;
+    font-variant-numeric: tabular-nums;
   }
 
   &__price-discount {
@@ -210,6 +293,7 @@
     background: var(--pc-discount-surface);
     padding: syn.px-to-rem(2) syn.$space-xs;
     border-radius: syn.$radius-sm;
+    font-variant-numeric: tabular-nums;
   }
 
   &__actions {
@@ -246,12 +330,14 @@
   &__skeleton {
     @include syn.flex-column;
     height: 100%;
-    animation: sg-shimmer 1.6s infinite linear;
+    /* El shimmer es un bucle INFINITO, la categoría que más molesta a quien pidió menos
+     movimiento. El literal `1.6s` lo hacía inmune al swap global. */
+  animation: sg-shimmer var(--syn-duration-shimmer, 1.6s) infinite linear;
   }
 
   &__skeleton-image {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: var(--pc-aspect);
     background: var(--pc-skeleton-surface);
   }
 

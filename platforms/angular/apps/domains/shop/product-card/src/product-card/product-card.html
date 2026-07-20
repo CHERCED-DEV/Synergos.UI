@@ -21,45 +21,53 @@
   @if (!loading()) {
     @let detailUrl = productUrl();
 
-    <!-- Product image -->
-    @if (hasImage()) {
-      <div class="product-card__image">
-        @if (detailUrl) {
-          <a
-            class="product-card__image-link"
-            [href]="detailUrl"
-            [attr.aria-label]="viewDetailsAriaLabel()"
-            (click)="onProductLinkClick($event, 'image')"
-          >
-            <img
-              [src]="imageSrc()"
-              [alt]="imageAlt()"
-              loading="lazy"
-              decoding="async"
-              class="product-card__img"
-            />
-          </a>
-        } @else {
-          <img
-            [src]="imageSrc()"
-            [alt]="imageAlt()"
-            loading="lazy"
-            decoding="async"
-            class="product-card__img"
-          />
-        }
-        @if (hasBadge()) {
-          <div class="product-card__badge-overlay">
-            <syn-badge [text]="badge()" tone="brand" size="sm" />
-          </div>
-        }
-        @if (!inStock()) {
-          <div class="product-card__out-of-stock-overlay">
-            <span>{{ outOfStockLabel() }}</span>
-          </div>
-        }
-      </div>
-    }
+    <!--
+      Media. El contenido cambia (foto o plato con monograma) pero el MARCO se
+      pinta siempre: antes, un producto sin foto no pintaba nada aquí y su
+      tarjeta quedaba más baja que las vecinas — la grilla harapienta. El plato
+      hereda el mismo --pc-aspect, así que ocupa exactamente el hueco que habría
+      ocupado la foto. Un solo <img> y un solo plato, reusados por outlet en la
+      rama con enlace y en la rama sin él.
+    -->
+    <ng-template #media>
+      @if (hasImage()) {
+        <img
+          [src]="imageSrc()"
+          [alt]="imageAlt()"
+          loading="lazy"
+          decoding="async"
+          class="product-card__img"
+          (error)="onImageError(imageSrc())"
+        />
+      } @else {
+        <span class="product-card__placeholder" aria-hidden="true">{{ monogram() }}</span>
+      }
+    </ng-template>
+
+    <div class="product-card__image">
+      @if (detailUrl) {
+        <a
+          class="product-card__image-link"
+          [href]="detailUrl"
+          [attr.aria-label]="viewDetailsAriaLabel()"
+          (click)="onProductLinkClick($event, 'image')"
+        >
+          <ng-container [ngTemplateOutlet]="media"></ng-container>
+        </a>
+      } @else {
+        <ng-container [ngTemplateOutlet]="media"></ng-container>
+      }
+      @if (hasBadge()) {
+        <div class="product-card__badge-overlay">
+          <syn-badge [text]="badge()" tone="brand" size="sm" />
+        </div>
+      }
+      @if (!inStock()) {
+        <div class="product-card__out-of-stock-overlay">
+          <span>{{ outOfStockLabel() }}</span>
+        </div>
+      }
+    </div>
 
     <!-- Content -->
     <div class="product-card__content">
