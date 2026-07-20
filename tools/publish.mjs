@@ -104,6 +104,9 @@ if (!DRY_RUN) {
 
 const published = [];
 const skipped = [];
+// Entradas servidas por una implementación compartida (varios tipos del CMS,
+// un solo web component). Se reportan para que la compartición sea visible.
+const sharedImpl = [];
 
 for (const entry of registry) {
   let elementPublished = false;
@@ -111,9 +114,22 @@ for (const entry of registry) {
   for (const platform of PLATFORMS) {
     if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
 
-    const bundlePath = platform.resolveBundlePath(entry.name);
+    // Varios tipos de elemento del CMS comparten UNA implementación: heading,
+    // paragraph, rich-text, eyebrow, quote y label los pinta el mismo
+    // `synergos-text-block`. Para esos no hay `dist/<name>` sino
+    // `dist/<tag sin prefijo>`, y como el CMS resuelve la carpeta del CDN por
+    // `name` (ResolveFolderName en FileSystemBundleRegistryClient), publicar
+    // sólo bajo el name propio los dejaba DORMIDOS: seis tipos que el editor
+    // puede insertar y que nunca hidrataban. Se publica el bundle compartido
+    // bajo CADA name.
+    const ownPath = platform.resolveBundlePath(entry.name);
+    const sharedPath = platform.resolveBundlePath(stripSynergosPrefix(entry.tag));
+    const bundlePath = existsSync(ownPath) ? ownPath : sharedPath;
 
     if (!existsSync(bundlePath)) continue;
+    if (bundlePath === sharedPath && ownPath !== sharedPath) {
+      sharedImpl.push(`${entry.name} ← ${stripSynergosPrefix(entry.tag)}`);
+    }
 
     // CDN path: synergos/<element>/<framework>/latest/
     const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
@@ -286,6 +302,9 @@ if (published.length > 0) {
 // ── Summary ──────────────────────────────────────────────────────────────────
 
 console.log(`\n${LOG_PREFIX}   Published: ${published.length} bundles`);
+if (sharedImpl.length > 0) {
+  console.log(`${LOG_PREFIX}   Implementación compartida: ${sharedImpl.length} — ${sharedImpl.join(', ')}`);
+}
 if (skipped.length > 0) {
   console.log(`${LOG_PREFIX}   Skipped (not built): ${skipped.length} — ${skipped.join(', ')}`);
 
@@ -293,12 +312,20 @@ if (skipped.length > 0) {
   // bundle WAS built, just under a dist directory named after the Nx
   // `element:` tag rather than the registry `name`. Those never publish and
   // nothing else complains, so an element can stay dormant indefinitely.
-  const mismatched = skipped.filter((name) =>
-    PLATFORMS.some((platform) => {
-      const entry = registry.find((e) => e.name === name);
-      return entry ? existsSync(platform.resolveBundlePath(stripSynergosPrefix(entry.tag))) : false;
-    }),
-  );
+  // Respeta --framework: sin esto, un elemento construido SÓLO para react
+  // (stat-counter) se reportaba como "divergente" al publicar angular, aunque
+  // su name y su tag coinciden. El aviso perdía credibilidad justo donde más
+  // hace falta. Y un name que YA coincide con el tag nunca es divergencia.
+  const mismatched = skipped.filter((name) => {
+    const entry = registry.find((e) => e.name === name);
+    if (!entry) return false;
+    const tagDir = stripSynergosPrefix(entry.tag);
+    if (tagDir === name) return false;
+    return PLATFORMS.some((platform) =>
+      (!FRAMEWORK_FILTER || platform.name === FRAMEWORK_FILTER) &&
+      existsSync(platform.resolveBundlePath(tagDir)),
+    );
+  });
 
   if (mismatched.length > 0) {
     console.warn(`\n${LOG_PREFIX}   ⚠ ${mismatched.length} of those ARE built, under a different dist name:`);
