@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
   effect,
   inject,
@@ -10,6 +11,7 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   AccountShellComponent,
@@ -32,6 +34,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  LiveAnnouncerService,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -169,6 +172,15 @@ let govInstanceId = 0;
 export class GovElementComponent {
   readonly #api = inject(GovApiClient);
   readonly #destroyRef = inject(DestroyRef);
+  /**
+   * Región `aria-live` COMPARTIDA del design system. Reemplaza al `signal` + `<p role=status>`
+   * que vivía en esta plantilla: una señal usa igualdad `Object.is`, así que re-anunciar el
+   * MISMO texto (dos 403 seguidos: "Esa solicitud no es suya") no mutaba el DOM y el lector
+   * de pantalla callaba (GOV-BL-A11Y-05). El servicio hace las dos escrituras ('' → mensaje)
+   * separadas por un `setTimeout`, FUERA del sistema de señales, que es lo único que fuerza
+   * al lector a repetir. No se duplica aquí: es el único mecanismo (ver `announce`).
+   */
+  readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<GovRuntimeConfig | undefined, unknown>(undefined, {
@@ -252,8 +264,20 @@ export class GovElementComponent {
    * Es distinto de `unauthenticated` (carpeta del ciudadano): son dos caras y dos verdades.
    */
   readonly officerAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
-  /** Announced via role="status" — WCAG: state changes without a reload. */
-  readonly announcement = signal('');
+  /**
+   * Contenedor del panel de acceso ("Inicie sesión" del ciudadano / "no autorizado" del
+   * funcionario). Los dos paneles declaran la MISMA ref `#signinPanel` y viven en vistas
+   * mutuamente excluyentes (`applications` vs `queue`), así que a lo sumo uno existe: la
+   * query resuelve siempre al que está pintado.
+   */
+  readonly signinPanel = viewChild<ElementRef<HTMLElement>>('signinPanel');
+  /**
+   * "El usuario acaba de recibir una negativa; en cuanto el panel exista, enfócalo."
+   * Es un latch de UNA sola vez y no un `effect()` que mire el estado de acceso: ese
+   * correría en CADA re-render con el panel puesto y le arrancaría el foco al usuario
+   * mientras tabula dentro del propio panel.
+   */
+  readonly #panelFocusPending = signal(false);
   #suppressedHash = '';
   /**
    * The scope (`role`/`agency`/`apiBase`) the current data was last loaded for. In
@@ -457,6 +481,36 @@ export class GovElementComponent {
       this.#lastIdentity = identity;
       untracked(() => this.reloadForIdentity());
     });
+
+    // WCAG 2.4.3 (Focus Order). El panel de acceso está tras un `@if`, así que en el
+    // instante en que `handleCitizenDenied`/`handleOfficerDenied` piden el foco el <div>
+    // TODAVÍA no existe en el DOM. Este effect es el punto de reunión de las dos señales:
+    // corre cuando se enciende el latch Y otra vez cuando la query de vista resuelve al
+    // elemento recién pintado. El latch se apaga al enfocar, de modo que los re-renders
+    // posteriores entran aquí y salen por el early-return sin tocar el foco.
+    effect(() => {
+      const panel = this.signinPanel();
+      if (!this.#panelFocusPending() || !panel) {
+        return;
+      }
+      this.#panelFocusPending.set(false);
+      // El CONTENEDOR, no el botón "Iniciar sesión": enfocando el contenedor el lector lee
+      // el título y el texto ("por qué no ve nada") ANTES que las acciones. Por eso el
+      // markup lleva `tabindex="-1"` (enfocable por código) y no `0` (que además lo metería
+      // en el orden de tabulación, donde un contenedor no pinta nada).
+      panel.nativeElement.focus();
+    });
+
+  }
+
+  /**
+   * Pide mover el foco al panel de acceso. Se llama SOLO desde los traductores de 401/403,
+   * es decir cuando la negativa es consecuencia de una acción del usuario — nunca desde un
+   * effect de render. Si el panel ya está en pantalla el foco se mueve en el mismo ciclo;
+   * si aún no se ha pintado, el effect de arriba lo hace en cuanto aparezca.
+   */
+  private requestAccessPanelFocus(): void {
+    this.#panelFocusPending.set(true);
   }
 
   /** Reset caches for the new identity and reload the current view. */
@@ -880,6 +934,10 @@ export class GovElementComponent {
     this.accessNotice.set('');
     this.applications.set([]);
     this.applicationsLoaded.set(true);
+    // Solo aquí se pinta el panel. La rama de arriba (403 sobre UN expediente) deja
+    // `citizenAccess` en 'ok' y vuelve al listado propio: no hay panel que enfocar, y el
+    // aviso viaja por la región aria-live.
+    this.requestAccessPanelFocus();
     this.announce(
       anon
         ? (options.anonAnnouncement ?? 'Necesita iniciar sesión para ver sus solicitudes.')
@@ -1075,6 +1133,7 @@ export class GovElementComponent {
     this.errorMessage.set('');
     this.queueCases.set([]);
     this.activeCase.set(null);
+    this.requestAccessPanelFocus();
     this.announce(anon
       ? 'Inicie sesión como funcionario para ver la cola.'
       : 'Su cuenta no tiene permiso de funcionario.');
@@ -1251,7 +1310,18 @@ export class GovElementComponent {
     }
   }
 
+  /**
+   * Publica en la región `aria-live` compartida (WCAG 4.1.3: cambios de estado sin recarga).
+   *
+   * GOV-BL-A11Y-05: esto era `this.announcement.set(message)`. Las señales comparan con
+   * `Object.is`, así que volver a poner el MISMO string no notificaba, el DOM no cambiaba y
+   * el lector no repetía — al ciudadano al que le niegan un segundo expediente ajeno el
+   * "Esa solicitud no es suya" le llegaba en silencio. El arreglo NO es `set('')` + `set(msg)`:
+   * las dos escrituras colapsan en un render y el '' nunca alcanza el DOM. Hace falta que las
+   * dos escrituras estén separadas por un turno del event loop, y eso es exactamente lo que
+   * hace `LiveAnnouncerService` — se reutiliza en vez de escribir un tercer mecanismo.
+   */
   private announce(message: string): void {
-    this.announcement.set(message);
+    this.#announcer.announce(message);
   }
 }

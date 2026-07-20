@@ -131,7 +131,21 @@ describe('BlogsElementComponent', () => {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
     }
+    // Ídem la región de `LiveAnnouncerService`: cuelga de <body> y sobrevive al reset del
+    // TestBed, así que `lastLiveRegion()` leería la del test anterior.
+    document.querySelectorAll('[data-syn-live-announcer]').forEach((node) => node.remove());
   });
+
+  /** La región aria-live COMPARTIDA (`@synergos/shared`), o null si nadie la creó. */
+  function lastLiveRegion(): HTMLElement | null {
+    const regions = document.querySelectorAll<HTMLElement>('[data-syn-live-announcer]');
+    return regions.length ? regions[regions.length - 1] : null;
+  }
+
+  /** El servicio escribe el mensaje 100 ms después de limpiar; hay que dejarlo llegar. */
+  async function settleAnnouncer(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 160));
+  }
 
   // ── empty: pristine shell, feed view, mock fallback flagged ──────────────────
   it('lands on the feed with a populated demo timeline and flags degradation (empty case)', async () => {
@@ -474,6 +488,126 @@ describe('BlogsElementComponent', () => {
     expect(component.studioKpis()).toEqual([]);
     const title = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin-title');
     expect(title?.textContent).toContain('Inicia sesión para ver tu estudio');
+  });
+
+  // ── WCAG 2.4.3: el panel de acceso RECIBE el foco ─────────────────────────────
+  // El bug que cierran: el markup ya traía `tabindex="-1"` + `#signinPanel` en los cuatro
+  // paneles, pero ningún .ts consumía la ref, así que el foco no se movía y el usuario de
+  // teclado tenía que tabular desde el principio para llegar al "Iniciar sesión".
+  it('un 401 mueve el foco al CONTENEDOR del panel, no al botón de login', async () => {
+    const fetchMock = await bootWith401On('/messages');
+
+    component.go('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expectRequested(fetchMock, '/messages'); // control: el 401 ocurrió de verdad
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin');
+    expect(panel).not.toBeNull();
+    // El CONTENEDOR: el lector lee el título y el porqué ANTES que las acciones.
+    expect(document.activeElement).toBe(panel);
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin a');
+    expect(loginLink).not.toBeNull(); // control: sí había un botón al que enfocar por error
+    expect(document.activeElement).not.toBe(loginLink);
+  });
+
+  // El foco se mueve SOLO cuando la negativa viene de una acción del usuario: si colgara de
+  // un effect que corre en cada cambio, se lo arrancaría al usuario mientras tabula.
+  it('un re-render posterior NO le roba el foco al usuario dentro del panel', async () => {
+    await bootWith401On('/notifications');
+
+    component.go('notifications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.blogs__signin a',
+    );
+    loginLink?.focus();
+    expect(document.activeElement).toBe(loginLink); // control: el foco se movió de verdad
+
+    fixture.detectChanges();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(loginLink);
+  });
+
+  // El caso que de verdad distingue "enfocar en la negativa" de "enfocar en cada render":
+  // `handleUnauthenticated` marca las CUATRO superficies como cargadas, así que navegar
+  // entre ellas NO dispara fetch ni negativa nueva — solo destruye un panel y pinta otro.
+  // Si el `.focus()` colgara de la mera aparición del panel, cada clic del usuario en el nav
+  // le arrancaría el foco. Solo la negativa (una acción suya) puede moverlo.
+  it('navegar entre superficies ya denegadas NO vuelve a robar el foco', async () => {
+    const fetchMock = await bootWith401On('/messages');
+
+    component.go('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const firstPanel = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin');
+    expect(document.activeElement).toBe(firstPanel); // control: la 1.ª negativa sí enfocó
+    const callsAfterDenial = fetchMock.mock.calls.length;
+
+    // El usuario navega él mismo a otra superficie del panel.
+    component.go('notifications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // control: fue navegación pura — ni un fetch más, luego ninguna negativa nueva.
+    expect(fetchMock.mock.calls.length).toBe(callsAfterDenial);
+    const secondPanel = (fixture.nativeElement as HTMLElement).querySelector('.blogs__signin');
+    expect(secondPanel).not.toBeNull();
+    expect(secondPanel).not.toBe(firstPanel); // control: el panel se re-creó de verdad
+    // Y aun así el foco NO saltó al panel nuevo.
+    expect(document.activeElement).not.toBe(secondPanel);
+  });
+
+  // ── GOV-BL-A11Y-05: el MISMO mensaje se vuelve a anunciar ─────────────────────
+  // `announce()` era `this.announcement.set(message)`. Las señales comparan con `Object.is`,
+  // así que repetir el mismo string no notificaba → el DOM no cambiaba → el lector callaba.
+  // Escenario real: le niegan una sección, navega, y le niegan OTRA con el mismo aviso.
+  it('re-anuncia el MISMO mensaje cuando llega una segunda negativa idéntica', async () => {
+    // 401 en las DOS rutas de mensajes: navegar entre ellas repite el mismo aviso.
+    const fetchMock = vi.fn((url: string) =>
+      String(url).includes('/messages') || String(url).includes('/saved')
+        ? Promise.resolve({
+            ok: false,
+            status: 401,
+            json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+          } as Response)
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    component.go('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await settleAnnouncer();
+
+    const region = lastLiveRegion();
+    expect(region).not.toBeNull(); // control: se usa la región compartida, no un signal
+    expect(region?.textContent).toContain('Inicia sesión para ver tus mensajes');
+
+    // Se marca el nodo: si el segundo aviso NO se escribe, la marca sobrevive — que es
+    // exactamente lo que pasaba con la señal.
+    region!.textContent = '((no se re-anunció))';
+
+    // `handleUnauthenticated` ya marcó las cuatro como cargadas, así que la segunda negativa
+    // se fuerza volviendo a pedir la bandeja: mismo 401, MISMO texto.
+    component.sessionAccess.set('ok');
+    component.threadsLoaded.set(false);
+    component.go('messages');
+    await flushMicrotasks();
+    expect(component.sessionAccess()).toBe('anon'); // control: el 401 volvió a ocurrir
+
+    await settleAnnouncer();
+    expect(lastLiveRegion()?.textContent).toContain('Inicia sesión para ver tus mensajes');
   });
 
   // ── La sesión expira a media navegación: se vacían las CUATRO, no solo la vista ──

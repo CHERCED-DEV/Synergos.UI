@@ -139,17 +139,8 @@
   }
 
   // ─── Notices + a11y ────────────────────────────────────────────────────────
-  &__sr-status {
-    position: absolute;
-    width: syn.px-to-rem(1);
-    height: syn.px-to-rem(1);
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
+  // (`&__sr-status` se fue con su <p>: la región aria-live la sirve ahora
+  //  LiveAnnouncerService, que estila la suya inline a nivel de documento.)
 
   &__notice {
     margin: 0;
@@ -1583,6 +1574,27 @@
 .gov :focus-visible {
   outline: syn.px-to-rem(2) solid var(--gv-focus-ring);
   outline-offset: syn.px-to-rem(2);
+}
+
+// El contenedor del panel de acceso queda FUERA de esa regla.
+//
+// La regla de arriba es un selector de DESCENDIENTE, así que en cuanto el componente hace
+// `.focus()` sobre `.signin[tabindex="-1"]` el navegador lo cuenta como `:focus-visible`
+// (el foco programático SÍ matchea cuando la última interacción fue de teclado, que es
+// justo el escenario del 401/403) y el panel ENTERO se dibuja con un recuadro de 2px que se
+// lee como un fallo de render, no como foco. `realty` y `blogs` no tienen regla equivalente,
+// así que sus paneles no mostraban NADA: tres apps, tres conductas.
+//
+// Se unifican SIN anillo, y esa es la conducta correcta, no solo la consistente: el anillo
+// es el indicador de la navegación por teclado (WCAG 2.4.7) y aquí el usuario no tabuló
+// hasta el panel — lo trajo la app. El contenedor tiene `tabindex="-1"` justo para NO estar
+// en el orden de tabulación: nunca es un destino que el usuario deba poder ubicar. Lo que
+// debe verse enfocado son las acciones de dentro ("Iniciar sesión", "Ver el catálogo"), y
+// esas conservan su anillo porque siguen matcheando la regla de arriba. Es el mismo trato
+// que dan los contenedores de diálogo del CDK (`outline: 0`) al destino de foco inicial.
+.gov .signin:focus,
+.gov .signin:focus-visible {
+  outline: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -286,6 +286,91 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     // El badge de alertas se apaga: si no, seguiría contando matches de nadie.
     expect(component.savedAlertCount()).toBe(0);
   });
+
+  // ── WCAG 2.4.3: el panel de acceso RECIBE el foco ─────────────────────────────
+  // El bug que cierran: el markup ya traía `tabindex="-1"` + `#signinPanel`, pero ningún
+  // .ts consumía la ref, así que el foco no se movía. El panel sustituye el contenido sin
+  // avisar y el usuario de teclado se queda donde estaba (o en <body>), sin enterarse de
+  // que hay un "Iniciar sesión" nuevo.
+  it('un 401 en las búsquedas guardadas mueve el foco al CONTENEDOR del panel', async () => {
+    installMemoryStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/saved')
+          ? Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    component.goToAccount();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.realty__signin');
+    expect(panel).not.toBeNull(); // control: el panel se pintó de verdad
+    // El CONTENEDOR, no el botón: el lector lee el título y el porqué ANTES que las acciones.
+    expect(document.activeElement).toBe(panel);
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector('.realty__signin a');
+    expect(loginLink).not.toBeNull(); // control: sí había un botón al que enfocar por error
+    expect(document.activeElement).not.toBe(loginLink);
+  });
+
+  it('un 403 en la consola del agente también enfoca el panel', async () => {
+    installMemoryStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/agent/leads')
+          ? Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    component.setRole('agent');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.realty__signin');
+    expect(panel).not.toBeNull();
+    expect(document.activeElement).toBe(panel);
+  });
+
+  // El foco se mueve SOLO cuando la negativa viene de una acción del usuario: si colgara de
+  // un effect que corre en cada cambio, se lo arrancaría al usuario mientras tabula.
+  it('un re-render posterior NO le roba el foco al usuario dentro del panel', async () => {
+    installMemoryStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/saved')
+          ? Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    component.goToAccount();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.realty__signin a',
+    );
+    loginLink?.focus();
+    expect(document.activeElement).toBe(loginLink); // control: el foco se movió de verdad
+
+    fixture.detectChanges();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(loginLink);
+  });
 });
 
 describe('RealtyApiClient', () => {

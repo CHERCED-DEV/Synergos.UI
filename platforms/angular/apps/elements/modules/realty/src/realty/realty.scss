@@ -156,6 +156,20 @@
     border-radius: syn.$radius-lg;
     background: var(--rt-surface-muted);
     text-align: center;
+
+    // El componente hace `.focus()` sobre este contenedor al recibir un 401/403 (WCAG 2.4.3),
+    // y `tabindex="-1"` lo hace enfocable. Sin anillo, a propósito y en las tres apps (gov,
+    // realty, blogs): el anillo es el indicador de la navegación por TECLADO (WCAG 2.4.7) y
+    // aquí el usuario no tabuló hasta el panel — lo trajo la app; el `-1` existe justo para
+    // dejarlo fuera del orden de tabulación. Un recuadro alrededor de todo el panel se lee
+    // como un fallo de render. Las acciones de dentro sí conservan el suyo. Se declara
+    // explícito aunque hoy `realty.scss` no tenga una regla `:focus-visible` de descendiente
+    // que lo pinte (gov sí la tiene, en `gov.scss`): así la conducta no depende de que nadie
+    // añada una mañana.
+    &:focus,
+    &:focus-visible {
+      outline: none;
+    }
   }
 
   &__signin-title {

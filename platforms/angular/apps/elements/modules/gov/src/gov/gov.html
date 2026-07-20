@@ -23,7 +23,8 @@
       El switch de perfil NO son tabs: cada perfil abre un journey completo
       (portal ciudadano vs consola del funcionario), así que es navegación.
       Perfil activo = aria-current="page"; el cambio se anuncia en la región
-      aria-live gov__sr-status (setRole → announce()).
+      aria-live compartida del design system (setRole → announce() →
+      LiveAnnouncerService).
     -->
     <nav class="gov__roles" aria-label="Cambiar de perfil">
       @for (r of roles; track r.key) {
@@ -73,8 +74,12 @@
     </nav>
   </header>
 
-  <!-- WCAG: cambios de estado anunciados sin recarga -->
-  <p class="gov__sr-status" role="status" aria-live="polite">{{ announcement() }}</p>
+  <!-- WCAG: los cambios de estado se anuncian sin recarga, pero la región aria-live YA NO
+       vive aquí. Estaba atada a un `signal`, y una señal no notifica cuando se le pone el
+       mismo valor (`Object.is`), así que el segundo "Esa solicitud no es suya" no mutaba el
+       DOM y el lector callaba. Ahora `announce()` delega en `LiveAnnouncerService`
+       (@synergos/shared), que mantiene UNA región a nivel de documento. No se deja también
+       la de aquí: dos regiones con el mismo texto se leen DOS veces. -->
 
   @if (degraded() && citizenAccess() === 'ok' && officerAccess() === 'ok') {
     <!-- No convivir con un panel de acceso ("Inicie sesión" del ciudadano o "no autorizado"
@@ -287,7 +292,15 @@
         <!-- El backend negó el acceso. NO se pinta la carpeta con datos de ejemplo: sería
              mostrarle solicitudes que no son suyas. 'anon' → ofrecer login; 'forbidden' →
              el login no ayuda (ya hay sesión), así que solo se explica. -->
-        <div class="signin">
+        <!-- WCAG 2.4.3 (Focus Order): el 401/403 llega mientras el usuario tiene el foco en
+             un control de la vista anterior, y `handleCitizenDenied` navega, así que ese
+             control se DESTRUYE y el foco cae a <body> — hay que tabular la página entera
+             para volver al "Iniciar sesión" que se le acaba de ofrecer. `tabindex="-1"` +
+             la ref son el enganche para que el componente enfoque el CONTENEDOR (no el
+             botón: enfocando el contenedor el lector lee título y texto ANTES que las
+             acciones). El foco solo debe moverse si la negativa vino de una acción del
+             usuario, y no en cada re-render, o el panel roba el foco. -->
+        <div class="signin" tabindex="-1" #signinPanel>
           @if (citizenAccess() === 'anon') {
             <h2 class="signin__title">Inicie sesión para ver sus solicitudes</h2>
             <p class="signin__text">
@@ -449,7 +462,10 @@
         <!-- La consola expone PII de otros ciudadanos: si no hay rol de funcionario NO se
              pinta con datos de ejemplo. 'anon' → ofrecer login; 'forbidden' → el login no
              ayuda (hace falta que un admin dé el permiso), así que solo se explica. -->
-        <div class="signin">
+        <!-- WCAG 2.4.3: mismo enganche que el panel del ciudadano — `handleOfficerDenied`
+             navega y destruye el control enfocado (p.ej. la acción de una fila de la cola).
+             Ver el comentario largo en el panel de "Mis solicitudes". -->
+        <div class="signin" tabindex="-1" #signinPanel>
           @if (officerAccess() === 'anon') {
             <h2 class="signin__title">Inicie sesión como funcionario</h2>
             <p class="signin__text">

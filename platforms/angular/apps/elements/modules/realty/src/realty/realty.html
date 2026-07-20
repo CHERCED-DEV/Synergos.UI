@@ -453,7 +453,13 @@
              del shell y no dentro de la sección 'saved' porque el shell abre en 'favoritos' y
              el aviso quedaría escondido tras un clic. Favoritos y visitas siguen debajo: son
              de esta sesión, no del servidor, y no mienten sobre ninguna cuenta. -->
-        <div class="realty__signin">
+        <!-- WCAG 2.4.3 (Focus Order): el panel sustituye contenido sin mover el foco, así que
+             el usuario de teclado se queda donde estaba (o en <body>) y no se entera de que
+             hay un "Iniciar sesión" nuevo. `tabindex="-1"` + la ref son el enganche para que
+             el componente enfoque el CONTENEDOR — no el botón: enfocando el contenedor el
+             lector lee título y texto antes que las acciones. Solo enfocar si el 401 vino de
+             una acción del usuario, y nunca en cada re-render. -->
+        <div class="realty__signin" tabindex="-1" #signinPanel>
           <h2 class="realty__signin-title">Inicia sesión para ver tus búsquedas guardadas</h2>
           <p class="realty__signin-text">
             Tus búsquedas y sus alertas quedan atadas a tu cuenta. Las verás aquí en cuanto entres.
@@ -582,7 +588,8 @@
            correo y teléfono) además de la cartera y la facturación del agente: si no hay rol
            NO se pinta con datos de ejemplo. 'anon' → ofrecer login; 'forbidden' → el login no
            ayuda (hace falta que un admin dé el permiso), así que solo se explica. -->
-      <div class="realty__signin">
+      <!-- WCAG 2.4.3: mismo enganche que el panel de la cuenta. Ver ese comentario. -->
+      <div class="realty__signin" tabindex="-1" #signinPanel>
         @if (agentAccess() === 'anon') {
           <h2 class="realty__signin-title">Inicia sesión como agente</h2>
           <p class="realty__signin-text">

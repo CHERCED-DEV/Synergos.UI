@@ -3,11 +3,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -309,6 +312,19 @@ export class RealtyElementComponent {
    * Es distinto de `unauthenticated` (la cuenta del comprador): son dos caras y dos verdades.
    */
   readonly agentAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
+  /**
+   * Contenedor del panel de acceso (el de la cuenta y el de la consola del agente). Los dos
+   * declaran la misma ref `#signinPanel` y viven en caras mutuamente excluyentes
+   * (`role() === 'demand'` vs `role() === 'agent'`), así que a lo sumo hay uno pintado y la
+   * query resuelve a ese.
+   */
+  readonly signinPanel = viewChild<ElementRef<HTMLElement>>('signinPanel');
+  /**
+   * "Al usuario acaban de negarle algo; enfoca el panel en cuanto exista." Latch de una sola
+   * vez — no un `effect()` sobre el estado de acceso, que correría en cada re-render con el
+   * panel puesto y le robaría el foco al usuario mientras tabula dentro del propio panel.
+   */
+  readonly #panelFocusPending = signal(false);
   #suppressedHash = '';
 
   // ─── DEMANDA state ───────────────────────────────────────────────────────────
@@ -746,11 +762,37 @@ export class RealtyElementComponent {
       }
     });
 
+    // WCAG 2.4.3 (Focus Order). El panel de acceso está tras un `@if`, así que cuando
+    // `handleUnauthorized`/`handleAgentDenied` piden el foco el <div> todavía no existe. Este
+    // effect es el punto de reunión de las dos señales: corre al encenderse el latch y otra
+    // vez cuando la query resuelve al elemento recién pintado. El latch se apaga al enfocar,
+    // así que los re-renders posteriores entran y salen por el early-return sin tocar el foco.
+    effect(() => {
+      const panel = this.signinPanel();
+      if (!this.#panelFocusPending() || !panel) {
+        return;
+      }
+      this.#panelFocusPending.set(false);
+      // El CONTENEDOR, no el botón "Iniciar sesión": así el lector lee el título y el texto
+      // (el porqué) ANTES que las acciones. De ahí el `tabindex="-1"` del markup, que lo hace
+      // enfocable por código sin meterlo en el orden de tabulación.
+      panel.nativeElement.focus();
+    });
+
     if (this.role() === 'agent') {
       void this.loadDesk().then(() => this.applyHash());
     } else {
       void this.runSearch().then(() => this.applyHash());
     }
+  }
+
+  /**
+   * Pide mover el foco al panel de acceso. Se llama SOLO desde los traductores de 401/403,
+   * es decir cuando la negativa es consecuencia de una acción del usuario — nunca desde un
+   * effect de render.
+   */
+  private requestAccessPanelFocus(): void {
+    this.#panelFocusPending.set(true);
   }
 
   // ─── Role switch ─────────────────────────────────────────────────────────────
@@ -1084,6 +1126,7 @@ export class RealtyElementComponent {
     this.unauthenticated.set(true);
     this.errorMessage.set('');
     this.savedSearches.set([]);
+    this.requestAccessPanelFocus();
     // `savedLoaded` queda en true a propósito: corta el re-fetch que dispararía el
     // `navigate('account')` de la línea siguiente (y que solo traería otro 401).
     this.savedLoaded.set(true);
@@ -1433,6 +1476,7 @@ export class RealtyElementComponent {
     this.desk.set(null);
     this.deskLoaded.set(false);
     this.publishing.set(false);
+    this.requestAccessPanelFocus();
     // Un id de publicación de antes del 403 en pantalla diría "publicado" sobre algo que el
     // servidor ya no reconoce como suyo.
     this.publishResultId.set('');

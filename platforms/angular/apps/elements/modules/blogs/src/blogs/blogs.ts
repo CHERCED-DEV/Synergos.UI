@@ -4,11 +4,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   computed,
+  effect,
   inject,
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -36,6 +39,7 @@ import {
   type MessageCenterConfig,
 } from '@synergos/shells';
 import {
+  LiveAnnouncerService,
   SynEmptyStateComponent,
   SynSkeletonComponent,
   TabsComponent,
@@ -207,6 +211,14 @@ export class BlogsElementComponent {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<BlogsBus>>(TransactionEventBusService);
   readonly #api = inject(BlogsApiClient);
+  /**
+   * Región `aria-live` COMPARTIDA del design system. Reemplaza al `signal` + `<p role=status>`
+   * de esta plantilla: una señal compara con `Object.is`, así que re-anunciar el MISMO texto
+   * (dos 403 de hilo ajeno seguidos: "Esa conversación no es tuya") no mutaba el DOM y el
+   * lector callaba (GOV-BL-A11Y-05). El servicio separa las dos escrituras ('' → mensaje) con
+   * un `setTimeout`, fuera del sistema de señales, que es lo único que fuerza la repetición.
+   */
+  readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<BlogsRuntimeConfig | undefined, unknown>(undefined, {
@@ -453,8 +465,19 @@ export class BlogsElementComponent {
    * deep-link `#/…/mensajes/<id-ajeno>`.
    */
   readonly threadAccess = signal<'ok' | 'forbidden'>('ok');
-  /** Announced via role="status" — WCAG: cambios de estado sin recarga. */
-  readonly announcement = signal('');
+  /**
+   * Contenedor del panel "Inicia sesión". Las CUATRO superficies del usuario (mensajes,
+   * notificaciones, guardados, estudio) declaran la misma ref `#signinPanel`, pero cada una
+   * vive bajo un `view()` distinto y son mutuamente excluyentes: a lo sumo hay uno pintado,
+   * y la query resuelve a ese.
+   */
+  readonly signinPanel = viewChild<ElementRef<HTMLElement>>('signinPanel');
+  /**
+   * "Al usuario acaban de negarle algo; enfoca el panel en cuanto exista." Latch de una sola
+   * vez — no un `effect()` sobre `sessionAccess`, que correría en cada re-render con el panel
+   * puesto y le robaría el foco al usuario mientras tabula dentro del propio panel.
+   */
+  readonly #panelFocusPending = signal(false);
 
   // ─── Degradation flag (mock fallback surfaced to the shell) ─────────────────────
   readonly degraded = computed(() => {
@@ -641,9 +664,35 @@ export class BlogsElementComponent {
       }
     });
 
+    // WCAG 2.4.3 (Focus Order). El panel de acceso está tras un `@if`, así que cuando
+    // `handleUnauthenticated` pide el foco el <div> todavía no existe. Este effect es el
+    // punto de reunión de las dos señales: corre al encenderse el latch y otra vez cuando la
+    // query resuelve al elemento recién pintado. El latch se apaga al enfocar, así que los
+    // re-renders posteriores entran y salen por el early-return sin tocar el foco.
+    effect(() => {
+      const panel = this.signinPanel();
+      if (!this.#panelFocusPending() || !panel) {
+        return;
+      }
+      this.#panelFocusPending.set(false);
+      // El CONTENEDOR, no el botón "Iniciar sesión": así el lector lee el título y el texto
+      // (el porqué) ANTES que las acciones. De ahí el `tabindex="-1"` del markup, que lo hace
+      // enfocable por código sin meterlo en el orden de tabulación.
+      panel.nativeElement.focus();
+    });
+
     void this.loadFeed();
     void this.loadTrending();
     this.applyHash();
+  }
+
+  /**
+   * Pide mover el foco al panel de acceso. Se llama SOLO desde el traductor del 401, es
+   * decir cuando la negativa es consecuencia de una acción del usuario — nunca desde un
+   * effect de render.
+   */
+  private requestAccessPanelFocus(): void {
+    this.#panelFocusPending.set(true);
   }
 
   // ─── Native input bindings ───────────────────────────────────────────────────
@@ -1278,6 +1327,7 @@ export class BlogsElementComponent {
     this.savedLoaded.set(true);
     this.studio.set(null);
     this.studioLoaded.set(true);
+    this.requestAccessPanelFocus();
     this.announce(announcement ?? 'Inicia sesión para ver esta sección.');
     return true;
   }
@@ -1294,13 +1344,26 @@ export class BlogsElementComponent {
     this.threadAccess.set('forbidden');
     this.activeThread.set(null);
     this.errorMessage.set('');
+    // NO se pide foco de panel: este 403 no pinta un `.blogs__signin` (la sesión vale y la
+    // bandeja propia sigue en pantalla), sino un `role="alert"` sobre el message-center. Ese
+    // rol ya interrumpe al lector, y mover el foco robaría el que el usuario tiene en su
+    // lista de conversaciones, que sigue siendo suya y navegable.
     this.announce('Esa conversación no es tuya.');
     return true;
   }
 
-  /** Publica en la región aria-live (WCAG: estado sin recarga). */
+  /**
+   * Publica en la región `aria-live` compartida (WCAG 4.1.3: estado sin recarga).
+   *
+   * GOV-BL-A11Y-05: esto era `this.announcement.set(message)`. Las señales comparan con
+   * `Object.is`, así que repetir el MISMO string no notificaba, el DOM no cambiaba y el
+   * lector no lo repetía. El arreglo NO es `set('')` + `set(msg)`: las dos escrituras
+   * colapsan en un render y el '' nunca alcanza el DOM. Se necesita que estén separadas por
+   * un turno del event loop, que es justo lo que hace `LiveAnnouncerService` — se reutiliza
+   * en vez de escribir un tercer mecanismo.
+   */
   private announce(message: string): void {
-    this.announcement.set(message);
+    this.#announcer.announce(message);
   }
 
   /**

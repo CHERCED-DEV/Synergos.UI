@@ -45,7 +45,22 @@ describe('GovElementComponent (v2 dual face)', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+    // `LiveAnnouncerService` cuelga su región de <body>, que es estado GLOBAL del jsdom y
+    // sobrevive al reset del TestBed: sin esto, `lastLiveRegion()` leería la región del test
+    // anterior y el fallo aparecería donde no está la causa.
+    document.querySelectorAll('[data-syn-live-announcer]').forEach((node) => node.remove());
   });
+
+  /** La región aria-live COMPARTIDA (`@synergos/shared`), o null si nadie la creó. */
+  function lastLiveRegion(): HTMLElement | null {
+    const regions = document.querySelectorAll<HTMLElement>('[data-syn-live-announcer]');
+    return regions.length ? regions[regions.length - 1] : null;
+  }
+
+  /** El servicio escribe el mensaje 100 ms después de limpiar; hay que dejarlo llegar. */
+  async function settleAnnouncer(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 160));
+  }
 
   // ── empty: pristine portal, citizen face, seeded catalogue, no active state ───
   it('opens on the catalogue with seeded services (empty case)', async () => {
@@ -418,7 +433,7 @@ describe('GovElementComponent (v2 dual face)', () => {
   // ── T2 (RBAC funcionario): la cola sin rol NO se degrada a mock ───────────────
   // El bug que cierra: queue/case/decision eran anónimas. Un visitante pulsaba
   // "Funcionario" y veía la cola con la PII de otros ciudadanos (cédula/correo).
-  async function bootOfficer(status: 401 | 403): Promise<void> {
+  async function bootOfficer(status: 401 | 403): Promise<ReturnType<typeof vi.fn>> {
     const fetchMock = vi.fn((url: string) => {
       if (url.includes('/queue') || url.includes('/case/')) {
         return Promise.resolve({
@@ -443,6 +458,7 @@ describe('GovElementComponent (v2 dual face)', () => {
     fixture.componentRef.setInput('role', 'officer');
     fixture.detectChanges();
     await flushMicrotasks();
+    return fetchMock;
   }
 
   it('un 401 en la cola del funcionario pide iniciar sesión (no mock)', async () => {
@@ -467,6 +483,125 @@ describe('GovElementComponent (v2 dual face)', () => {
     // 403: iniciar sesión NO ayuda → no se ofrece el enlace de login.
     const loginLink = (fixture.nativeElement as HTMLElement).querySelector('.signin a');
     expect(loginLink).toBeNull();
+  });
+
+  // ── WCAG 2.4.3: el panel de acceso RECIBE el foco ─────────────────────────────
+  // El bug que cierran: el markup ya traía `tabindex="-1"` + `#signinPanel`, pero ningún
+  // .ts consumía la ref (`grep ViewChild|viewChild|signinPanel` en los .ts daba CERO), así
+  // que el foco no se movía: media solución, conductualmente inerte. El 401 destruye el
+  // control enfocado al navegar, el foco cae a <body> y el usuario de teclado tiene que
+  // tabular la página entera para llegar al "Iniciar sesión" que se le acaba de ofrecer.
+  it('un 401 en la cola mueve el foco al CONTENEDOR del panel, no al botón de login', async () => {
+    await bootOfficer(401);
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.signin');
+    expect(panel).not.toBeNull(); // control: el panel se pintó de verdad
+    // El CONTENEDOR: enfocándolo, el lector lee el título y el porqué ANTES que las
+    // acciones. Por eso el markup es `tabindex="-1"` y no `0`.
+    expect(document.activeElement).toBe(panel);
+    const loginLink = (fixture.nativeElement as HTMLElement).querySelector('.signin a');
+    expect(loginLink).not.toBeNull(); // control: sí había un botón al que enfocar por error
+    expect(document.activeElement).not.toBe(loginLink);
+  });
+
+  it('el 403 del funcionario también enfoca el panel (no solo el 401)', async () => {
+    await bootOfficer(403);
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('.signin');
+    expect(panel).not.toBeNull();
+    expect(document.activeElement).toBe(panel);
+  });
+
+  // El foco se mueve SOLO cuando la negativa viene de una acción del usuario, NUNCA por el
+  // mero hecho de que el panel aparezca. `handleCitizenDenied` deja `applicationsLoaded` en
+  // true, así que salir de la carpeta y volver NO dispara fetch ni negativa nueva: solo
+  // destruye el panel y lo vuelve a pintar. Si el `.focus()` colgara de esa aparición, cada
+  // ida y vuelta del usuario por el nav le arrancaría el foco.
+  it('volver a un panel ya denegado NO vuelve a robar el foco', async () => {
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/applications')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/mis-solicitudes';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const firstPanel = (fixture.nativeElement as HTMLElement).querySelector('.signin');
+    expect(firstPanel).not.toBeNull();
+    expect(document.activeElement).toBe(firstPanel); // control: la 1.ª negativa sí enfocó
+
+    /** Solo las llamadas a la carpeta: el catálogo sí puede refetchear, y da igual. */
+    const folderCalls = (): number =>
+      fetchMock.mock.calls.filter(([u]) => String(u).includes('/applications')).length;
+    const callsAfterDenial = folderCalls();
+
+    // El usuario se va al catálogo y vuelve a su carpeta por su propio pie.
+    component.navigate('catalog');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    component.navigate('applications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // control: fue navegación pura — la carpeta no se volvió a pedir, luego no hubo negativa.
+    expect(folderCalls()).toBe(callsAfterDenial);
+    const secondPanel = (fixture.nativeElement as HTMLElement).querySelector('.signin');
+    expect(secondPanel).not.toBeNull();
+    expect(secondPanel).not.toBe(firstPanel); // control: el panel se re-creó de verdad
+    // Y aun así el foco NO saltó al panel nuevo.
+    expect(document.activeElement).not.toBe(secondPanel);
+  });
+
+  // ── GOV-BL-A11Y-05: el MISMO mensaje se vuelve a anunciar ─────────────────────
+  // `announce()` era `this.announcement.set(message)`. Las señales comparan con `Object.is`,
+  // así que repetir el mismo string no notificaba → el DOM no cambiaba → el lector callaba.
+  it('re-anuncia el MISMO mensaje cuando llega una segunda negativa idéntica', async () => {
+    const fetchMock = await bootOfficer(401);
+    fixture.detectChanges();
+    await settleAnnouncer();
+
+    const region = lastLiveRegion();
+    expect(region).not.toBeNull(); // control: se usa la región compartida, no un signal
+    expect(region?.textContent).toContain('Inicie sesión como funcionario');
+
+    // Se marca el nodo: si el segundo aviso NO se escribe, la marca sobrevive — que es
+    // exactamente lo que pasaba con la señal.
+    region!.textContent = '((no se re-anunció))';
+    const callsBefore = fetchMock.mock.calls.length;
+
+    // Segunda negativa IDÉNTICA: filtrar la cola la vuelve a pedir y vuelve a dar 401 con
+    // el mismo texto.
+    component.onConsoleFilterChange('assigned');
+    await flushMicrotasks();
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBefore); // control: se pidió
+    expect(component.officerAccess()).toBe('anon');
+
+    await settleAnnouncer();
+    expect(lastLiveRegion()?.textContent).toContain('Inicie sesión como funcionario');
   });
 
   // ── T6: el FICHERO viaja de verdad (multipart), no solo su nombre ────────────

@@ -81,8 +81,12 @@
       <p class="blogs__notice" role="status">Otra pestaña tomó esta sesión. Tu carrito se sincronizó.</p>
     }
 
-    <!-- WCAG: cambios de estado anunciados sin recarga -->
-    <p class="blogs__sr-only" role="status" aria-live="polite">{{ announcement() }}</p>
+    <!-- WCAG: los cambios de estado se anuncian sin recarga, pero la región aria-live YA NO
+         vive aquí. Estaba atada a un `signal`, y una señal no notifica cuando se le pone el
+         mismo valor (`Object.is`), así que el segundo "Esa conversación no es tuya" no mutaba
+         el DOM y el lector callaba. Ahora `announce()` delega en `LiveAnnouncerService`
+         (@synergos/shared), que mantiene UNA región a nivel de documento. No se deja también
+         la de aquí: dos regiones con el mismo texto se leen DOS veces. -->
 
     <!-- Mock-data degradation notice -->
     @if (degraded() && sessionAccess() === 'ok') {
@@ -264,7 +268,14 @@
     <!-- ═══ NOTIFICATIONS ══════════════════════════════════════════════════════ -->
     @if (view() === 'notifications') {
       @if (sessionAccess() === 'anon') {
-        <div class="blogs__signin">
+        <!-- WCAG 2.4.3 (Focus Order): el panel sustituye la vista sin mover el foco, así que
+             el usuario de teclado no se entera de que hay un "Iniciar sesión" nuevo y tiene
+             que tabular desde el principio. `tabindex="-1"` + la ref son el enganche para que
+             el componente enfoque el CONTENEDOR — no el botón: enfocando el contenedor el
+             lector lee título y texto antes que las acciones. Solo enfocar si el 401 vino de
+             una acción del usuario, y nunca en cada re-render. Mismo enganche en los otros
+             tres paneles (mensajes, guardados, estudio). -->
+        <div class="blogs__signin" tabindex="-1" #signinPanel>
           <h1 class="blogs__signin-title">Inicia sesión para ver tus notificaciones</h1>
           <p class="blogs__signin-text">
             Aquí verás quién te siguió, te mencionó o respondió a tus publicaciones.
@@ -394,7 +405,8 @@
       @if (sessionAccess() === 'anon') {
         <!-- El backend pidió sesión. NO se pinta la bandeja con datos de ejemplo: sería
              mostrarle al anónimo conversaciones que no son de nadie. -->
-        <div class="blogs__signin">
+        <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+        <div class="blogs__signin" tabindex="-1" #signinPanel>
           <h1 class="blogs__signin-title">Inicia sesión para ver tus mensajes</h1>
           <p class="blogs__signin-text">
             Tus conversaciones son privadas y están asociadas a tu cuenta. Las verás aquí
@@ -432,7 +444,8 @@
     <!-- ═══ GUARDADOS / LISTAS — SH-4 account-shell ════════════════════════════ -->
     @if (view() === 'saved') {
       @if (sessionAccess() === 'anon') {
-        <div class="blogs__signin">
+        <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+        <div class="blogs__signin" tabindex="-1" #signinPanel>
           <h1 class="blogs__signin-title">Inicia sesión para ver tus guardados</h1>
           <p class="blogs__signin-text">
             Lo que guardas queda en tu cuenta. Entra y encontrarás aquí tus publicaciones.
@@ -497,7 +510,8 @@
       @if (sessionAccess() === 'anon') {
         <!-- El estudio expone borradores, alcance e ingresos del autor: sin sesión no se
              pinta con datos de ejemplo, que se leerían como métricas propias. -->
-        <div class="blogs__signin">
+        <!-- WCAG 2.4.3: enganche de foco, ver el panel de notificaciones. -->
+        <div class="blogs__signin" tabindex="-1" #signinPanel>
           <h1 class="blogs__signin-title">Inicia sesión para ver tu estudio</h1>
           <p class="blogs__signin-text">
             Tus borradores, tu alcance y tus ingresos están asociados a tu cuenta.
