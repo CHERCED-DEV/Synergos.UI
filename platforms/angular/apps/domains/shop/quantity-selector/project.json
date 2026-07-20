@@ -10,7 +10,7 @@
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/domains/quantity-selector",
+        "outputPath": "dist/quantity-selector",
         "browser": "apps/domains/shop/quantity-selector/src/main.ts",
         "index": "apps/domains/shop/quantity-selector/src/index.html",
         "tsConfig": "apps/domains/shop/quantity-selector/tsconfig.app.json"

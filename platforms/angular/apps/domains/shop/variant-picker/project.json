@@ -10,7 +10,7 @@
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/domains/variant-picker",
+        "outputPath": "dist/variant-picker",
         "browser": "apps/domains/shop/variant-picker/src/main.ts",
         "index": "apps/domains/shop/variant-picker/src/index.html",
         "tsConfig": "apps/domains/shop/variant-picker/tsconfig.app.json"

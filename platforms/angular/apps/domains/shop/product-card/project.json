@@ -10,7 +10,7 @@
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/domains/product-card",
+        "outputPath": "dist/product-card",
         "browser": "apps/domains/shop/product-card/src/main.ts",
         "index": "apps/domains/shop/product-card/src/index.html",
         "tsConfig": "apps/domains/shop/product-card/tsconfig.app.json"

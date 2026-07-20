@@ -10,7 +10,7 @@
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/domains/price-display",
+        "outputPath": "dist/price-display",
         "browser": "apps/domains/shop/price-display/src/main.ts",
         "index": "apps/domains/shop/price-display/src/index.html",
         "tsConfig": "apps/domains/shop/price-display/tsconfig.app.json"

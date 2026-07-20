@@ -10,7 +10,7 @@
       "executor": "@angular/build:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/domains/cart-item",
+        "outputPath": "dist/cart-item",
         "browser": "apps/domains/shop/cart-item/src/main.ts",
         "index": "apps/domains/shop/cart-item/src/index.html",
         "tsConfig": "apps/domains/shop/cart-item/tsconfig.app.json"
