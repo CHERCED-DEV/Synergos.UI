@@ -31,12 +31,21 @@
     --stb-surface: var(--stb-degraded-surface);
     --stb-border: var(--stb-degraded-border);
     --stb-text: var(--stb-degraded-text);
+
+    // WCAG 1.4.1 — the glyph used to be a hardcoded 'ⓘ' in the template, so a
+    // `degraded` banner showed an INFO mark on a warning surface: the tone was
+    // carried by hue alone. Tone -> glyph now resolves in the same one place
+    // the tone -> colour mapping does. `$gap: 0` because the flex `gap` on
+    // `.syn-status` already separates icon from message.
+    .syn-status__icon { @include syn.state-icon('\26A0 \FE0E', 0); }
   }
 
   &[data-tone='info'] {
     --stb-surface: var(--stb-info-surface);
     --stb-border: var(--stb-info-border);
     --stb-text: var(--stb-info-text);
+
+    .syn-status__icon { @include syn.state-icon('\24D8', 0); }
   }
 
   &__icon {

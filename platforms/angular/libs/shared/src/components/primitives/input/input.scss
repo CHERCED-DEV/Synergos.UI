@@ -71,6 +71,18 @@
   @include syn.focus-visible-danger;
 }
 
+// WCAG 1.4.1 — of the four state-bearing primitives this is the only real
+// failure: `status-tag`, `status-banner` and `alert` all NAME the state in their
+// own text, while an invalid input announced itself with a red ramp alone.
+// The glyph rides the hint, which in the error state IS the error message and
+// already carries `--syn-color-state-danger-text` as `currentColor`.
+// Limitation, deliberate: an `invalid` input with no `hint` still shows no glyph
+// (CSS cannot branch on an absent sibling). That input is already failing
+// SC 3.3.1 for lack of an error description — callers must pass the message.
+.syn-input--error .syn-input__hint {
+  @include syn.state-icon('\26A0 \FE0E');
+}
+
 .syn-input__hint {
   font-size: syn.$font-size-xs;
   color:     var(--syn-input-hint-color);

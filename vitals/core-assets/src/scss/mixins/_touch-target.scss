@@ -1,0 +1,69 @@
+@use '../functions/px-to-rem' as rem;
+
+// ─── Touch target — WCAG 2.5.5 Target Size (Enhanced, AAA) ─────────────────────
+//
+// Expands the POINTER target of a control without touching its visual box.
+//
+// Why not just raise `min-height`: the control heights are a deliberate,
+// documented decision — `--syn-control-h` 32/40/48 in `syn-tokens.css` is an
+// explicit anti-off-grid choice, and 44 is not a multiple of 8. Painting the box
+// bigger would wreck density AND leave the 8pt grid. So the hit area is
+// DECOUPLED from the box: a transparent, absolutely-positioned `::after` that
+// overflows the border box. `min-height`, padding and layout are untouched —
+// the box stays on-grid, the finger gets 44px.
+//
+// Level, honestly: AA (SC 2.5.8) is 24px and every measured Synergos control
+// already clears it. This is AAA polish (SC 2.5.5), not a blocker.
+//
+// ── Requirements ──
+//  · Forces `position: relative` on the host so the `::after` anchors to it.
+//    Safe to include on a host that is already relative (idempotent).
+//  · The host must not already own an `::after`. Audited at time of writing:
+//    `button-loading` is the only other `::after` in the design system and it
+//    has zero consumers; no app SCSS attaches a pseudo to these controls.
+//  · An ancestor with `overflow: hidden` clips the overflow, silently dropping
+//    the expansion back to the visual box. Nothing breaks, nothing regresses —
+//    the target is simply not enlarged there.
+//
+// ── Overlap between adjacent controls ──
+// Two expanded areas stay disjoint only if the gap between the visual boxes is
+// at least `$min - box`: 16px between two 28px controls, 8px between two 36px
+// ones. Below that the areas overlap, and hit-testing resolves the shared strip
+// by paint order — the LATER sibling in DOM order wins it. There is no pure-CSS
+// way to clip one element's hit area against a sibling's box, so a tight cluster
+// must opt OUT rather than silently steal its neighbour's clicks:
+//
+//     .my-toolbar { --syn-touch-target-size: 100%; }   // collapse to the box
+//
+// `max(100%, 100%)` resolves to the border box, so the pseudo becomes a
+// no-op overlay of the control itself.
+
+@mixin touch-target($min: rem.px-to-rem(44)) {
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    width: max(100%, var(--syn-touch-target-size, #{$min}));
+    height: max(100%, var(--syn-touch-target-size, #{$min}));
+
+    // Never paints: no background, no border. Deliberately NOT `border-radius:
+    // inherit` — a rounded pseudo would clip hit-testing to the inscribed
+    // circle, and a square 44x44 is what SC 2.5.5 asks for.
+    background: none;
+    border: 0;
+
+    // Above the host's own (transparent-to-it) content. `z-index: 0` is confined
+    // to the host's stacking context WHEN the host establishes one — both
+    // current hosts do (`.syn-button` via `isolation: isolate`, `.syn-icon-button`
+    // via `transform`). A future host that establishes neither would let this
+    // pseudo participate in the ancestor's context; harmless while it paints
+    // nothing, but give such a host `isolation: isolate` if you add one.
+    z-index: 0;
+
+    // It DOES take the pointer — that is the entire point of the mixin.
+    pointer-events: auto;
+  }
+}

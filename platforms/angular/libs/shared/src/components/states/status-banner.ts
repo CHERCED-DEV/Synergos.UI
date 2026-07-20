@@ -27,7 +27,9 @@ export type StatusBannerTone = 'degraded' | 'info';
   template: `
     @if (!dismissed()) {
       <div class="syn-status" [attr.data-tone]="tone()">
-        <span class="syn-status__icon" aria-hidden="true">ⓘ</span>
+        <!-- Glyph is emitted by CSS per tone (see status-banner.scss): a
+             hardcoded 'ⓘ' here showed an info mark on a degraded banner. -->
+        <span class="syn-status__icon" aria-hidden="true"></span>
         <p class="syn-status__message">{{ message() }}</p>
         @if (dismissable()) {
           <button

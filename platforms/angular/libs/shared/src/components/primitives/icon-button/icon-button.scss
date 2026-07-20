@@ -29,6 +29,13 @@
   @include syn.flex-center;
   @include syn.focus-visible(var(--syn-color-focus-ring, #{syn.$color-brand-300}));
 
+  // WCAG 2.5.5 (AAA): these are TEXT-LESS controls (close, prev/next), the worst
+  // case for a finger — default 36px, sm 28px. The hit area is decoupled from the
+  // box so the size tokens (and the density they buy) stay exactly as they are.
+  // The lg variant is already 44px, where `max(100%, 44px)` is a no-op.
+  // Tight clusters opt out with `--syn-touch-target-size: 100%` — see the mixin.
+  @include syn.touch-target;
+
   width: var(--syn-icon-button-size);
   height: var(--syn-icon-button-size);
   border: var(--syn-icon-button-border-width) solid var(--syn-icon-button-border-color);

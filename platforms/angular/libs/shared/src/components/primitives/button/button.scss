@@ -111,6 +111,8 @@
   }
 }
 
-.syn-button--sm { @include syn.button-size(sm); }
+// The sm box stays at 32px — on the 8pt grid, per `--syn-control-h-sm`. Only the
+// pointer target grows to 44px (WCAG 2.5.5, AAA). See `_touch-target.scss`.
+.syn-button--sm { @include syn.button-size(sm); @include syn.touch-target; }
 .syn-button--md { @include syn.button-size(md); }
 .syn-button--lg { @include syn.button-size(lg); }
