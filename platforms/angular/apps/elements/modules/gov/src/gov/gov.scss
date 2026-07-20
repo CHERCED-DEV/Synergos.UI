@@ -158,6 +158,14 @@
     background: var(--gv-brand-soft);
     color: var(--gv-text);
     font-size: syn.$font-size-sm;
+
+    // "Esa solicitud no es suya": no es una caída del sistema (por eso no es `__error`),
+    // pero sí una negativa — reusa los tokens de peligro, ya calibrados en los 7 temas.
+    &--deny {
+      margin-bottom: syn.$space-3;
+      background: var(--gv-danger-soft);
+      color: var(--gv-danger);
+    }
   }
 
   &__error {

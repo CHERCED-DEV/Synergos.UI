@@ -50,12 +50,14 @@ import {
  * notice. The full lifecycle — radicar → revisar → decidir → subsanar — demos
  * end-to-end offline before the backend lands. No RxJS: native `fetch` + Promise.
  *
- * **El 401 es la excepción a esa degradación, y es deliberado.** Las tres rutas 🔒
+ * **El 401 y el 403 son la excepción a esa degradación, y es deliberado.** Las rutas 🔒
  * son la carpeta del ciudadano: su identidad la resuelve el servidor desde la cookie
  * de sesión (T2), no un `?citizen=<email>` que cualquiera podía teclear. Un 401 no
  * significa "el backend no está" — significa "no hay sesión", y taparlo con datos de
  * ejemplo le mostraría al anónimo una carpeta de solicitudes que no son de nadie.
- * Por eso viaja como <see cref="GovUnauthorizedError"/> hasta la UI, que pide login.
+ * Un 403 significa algo aún más concreto: "eso no es suyo". Degradarlo era peor que un
+ * error — devolvía el expediente de otro bajo el id pedido. Ambos viajan tipados
+ * (<see cref="GovUnauthorizedError"/> / <see cref="GovForbiddenError"/>) hasta la UI.
  *
  * La cookie viaja sola: `fetch` manda credenciales same-origin por defecto y la app
  * se monta dentro de la propia página del CMS. No se fuerza `credentials: 'include'`
@@ -117,6 +119,20 @@ export class GovApiClient {
     this.#degraded = false;
   }
 
+  /**
+   * Re-lanza un 401/403 en vez de degradar. Lo usan TODAS las rutas que devuelven algo
+   * de alguien —la carpeta del ciudadano y la consola del funcionario—: ahí el mock no
+   * es una degradación amable, es un dato fabricado con cara de dato real.
+   *
+   * El catálogo (servicios/ficha/formulario) NO lo llama a propósito: es público, no
+   * tiene dueño, y degradarlo no le atribuye a nadie algo que no es suyo.
+   */
+  private rethrowIfAuthError(error: unknown): void {
+    if (isGovUnauthorized(error) || isGovForbidden(error)) {
+      throw error;
+    }
+  }
+
   // ─── Catálogo ────────────────────────────────────────────────────────────────
 
   async services(apiBase: string, q: string, category: string): Promise<readonly GovService[]> {
@@ -174,6 +190,12 @@ export class GovApiClient {
 
   // ─── Solicitud ──────────────────────────────────────────────────────────────
 
+  /**
+   * Radica a nombre del member de la SESIÓN. Un 401/403 no se degrada: fabricar un
+   * radicado local le daría al usuario un número que NO existe en ninguna agencia.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin permiso.
+   */
   async createApplication(
     apiBase: string,
     body: CreateApplicationRequest,
@@ -187,6 +209,7 @@ export class GovApiClient {
       }
       throw new Error('application-shape');
     } catch (error) {
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/gov/application', error);
       return this.mockCreate(body);
     }
@@ -197,7 +220,7 @@ export class GovApiClient {
    * era el IDOR (saber el correo de alguien bastaba para leer sus expedientes) y el
    * backend ya no lo mira.
    *
-   * @throws {GovUnauthorizedError} si no hay sesión.
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin permiso.
    */
   async applications(apiBase: string): Promise<readonly ApplicationSummary[]> {
     const url = `${apiBase}/applications`;
@@ -209,15 +232,24 @@ export class GovApiClient {
       }
       throw new Error('applications-shape');
     } catch (error) {
-      if (isGovUnauthorized(error)) {
-        throw error;
-      }
+      this.rethrowIfAuthError(error);
       this.markDegraded('GET /api/gov/applications', error);
       return [...this.mockStore().values()].map(toSummary);
     }
   }
 
-  /** @throws {GovUnauthorizedError} si no hay sesión. */
+  /**
+   * UN expediente del ciudadano de la sesión.
+   *
+   * **El 403 es el caso grave y por eso se re-lanza.** Este catch degradaba a mock, y como
+   * el id ajeno no está en el store local caía en `?? [...values()][0]`: devolvía EL PRIMER
+   * expediente que hubiera, rotulado con el id que se pidió. No era "mostrar datos de
+   * ejemplo" — era fabricar un registro inexistente y presentarlo como el solicitado, justo
+   * a quien el servidor acababa de decirle que no. El `??` también se quitó: un id que no
+   * está en el store es "no lo tengo", no una excusa para servir el de otro.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si no es suyo.
+   */
   async application(apiBase: string, id: string): Promise<ApplicationDetail> {
     const url = `${apiBase}/application/${encodeURIComponent(id)}`;
     try {
@@ -228,11 +260,12 @@ export class GovApiClient {
       }
       throw new Error('application-detail-shape');
     } catch (error) {
-      if (isGovUnauthorized(error)) {
-        throw error;
+      this.rethrowIfAuthError(error);
+      const seed = this.mockStore().get(id);
+      if (!seed) {
+        throw error instanceof Error ? error : new Error('application-detail-unavailable');
       }
       this.markDegraded('GET /api/gov/application/{id}', error);
-      const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
       return toDetail(seed);
     }
   }
@@ -243,7 +276,7 @@ export class GovApiClient {
    * No se fija `Content-Type` a mano — el navegador lo pone junto al `boundary` del
    * `FormData`, y escribirlo rompe el parseo del multipart en el servidor.
    *
-   * @throws {GovUnauthorizedError} si no hay sesión.
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si el expediente no es suyo.
    */
   async uploadDocument(apiBase: string, body: UploadDocumentRequest): Promise<GovDocument> {
     const url = `${apiBase}/document`;
@@ -258,9 +291,7 @@ export class GovApiClient {
       }
       throw new Error('document-shape');
     } catch (error) {
-      if (isGovUnauthorized(error)) {
-        throw error;
-      }
+      this.rethrowIfAuthError(error);
       this.markDegraded('POST /api/gov/document', error);
       return this.mockUpload(body);
     }
@@ -271,13 +302,6 @@ export class GovApiClient {
   // La consola del funcionario expone PII de OTROS ciudadanos. Un 401 (anónimo) o un 403
   // (logueado sin rol) NO se degradan a mock —eso le mostraría la cola ajena a quien no
   // debe—: se re-lanzan tipados para que la UI muestre "inicie sesión" / "no autorizado".
-
-  /** Re-lanza un 401/403 (los que la UI del funcionario trata como estado, no como caída). */
-  private rethrowIfAuthError(error: unknown): void {
-    if (isGovUnauthorized(error) || isGovForbidden(error)) {
-      throw error;
-    }
-  }
 
   /** @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario. */
   async queue(apiBase: string, agency: string, status: string): Promise<readonly QueueCase[]> {
@@ -316,8 +340,13 @@ export class GovApiClient {
       throw new Error('case-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
+      // Mismo `??` fabricador que en `application(id)`: un id desconocido devolvía el
+      // primer caso del store rotulado con el id pedido. Sin fichas de otro: se falla.
+      const seed = this.mockStore().get(id);
+      if (!seed) {
+        throw error instanceof Error ? error : new Error('case-unavailable');
+      }
       this.markDegraded('GET /api/gov/case/{id}', error);
-      const seed = this.mockStore().get(id) ?? [...this.mockStore().values()][0];
       return toCase(seed);
     }
   }
@@ -454,9 +483,15 @@ export class GovApiClient {
   private mockDecide(body: DecisionRequest): GovCase {
     const app = this.mockStore().get(body.caseId);
     if (!app) {
-      // Unknown case: synthesise a minimal decided case (idempotent-ish).
-      const fallback = [...this.mockStore().values()][0];
-      return toCase(fallback);
+      // El TERCER fabricador de este fichero, y el peor: si el POST de la decisión
+      // caía (500, red), esto devolvía el PRIMER caso sembrado y la UI anunciaba
+      // "El caso pasó a: Aprobada" sobre el expediente de OTRO ciudadano —con su
+      // nombre, respuestas y documentos— mientras la decisión no se registraba en
+      // ninguna parte. Fingir una escritura que no ocurrió es peor que no escribir.
+      //
+      // El comentario que estaba aquí decía "synthesise a minimal decided case";
+      // no sintetizaba nada mínimo: devolvía el caso entero de otra persona.
+      throw new Error(`gov: no hay caso sembrado para ${body.caseId}`);
     }
     const nowIso = new Date().toISOString();
     const nextStatus: ApplicationStatus = OUTCOME_TO_STATUS[body.outcome];

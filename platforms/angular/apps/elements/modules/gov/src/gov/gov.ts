@@ -217,11 +217,32 @@ export class GovElementComponent {
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   /**
-   * El backend pidió sesión (401) para la carpeta del ciudadano. NO es `degraded`:
-   * ahí no hay nada que degradar, hay que iniciar sesión. Se separan porque el
-   * aviso de "datos de ejemplo" y el de "inicie sesión" son verdades distintas.
+   * Acceso a la CARPETA DEL CIUDADANO (mis solicitudes / expediente / adjuntar). Calca el
+   * tri-estado del funcionario porque el backend ya responde las dos cosas:
+   * - `'ok'`: hay sesión y la carpeta es suya.
+   * - `'anon'` (401): no hay sesión → ofrecer login.
+   * - `'forbidden'` (403): hay sesión, pero esta carpeta no le corresponde. El login NO
+   *   ayuda, así que no se ofrece.
+   * NO es `degraded`: ahí no hay nada que degradar. El aviso de "datos de ejemplo" y el de
+   * "inicie sesión" son verdades distintas y no pueden convivir.
    */
-  readonly unauthenticated = signal(false);
+  readonly citizenAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
+
+  /**
+   * Alias histórico de `citizenAccess() === 'anon'`. Se conserva porque "unauthenticated"
+   * significa exactamente eso —falta sesión— y un 403 NUNCA debe encenderlo: quien tiene
+   * sesión y pide un expediente ajeno no necesita loguearse, necesita que le digan que no
+   * es suyo.
+   */
+  readonly unauthenticated = computed(() => this.citizenAccess() === 'anon');
+
+  /**
+   * Aviso puntual sobre la carpeta: "esa solicitud no es suya". Va aparte de
+   * `errorMessage` (que es "no pudimos", una caída) porque esto NO es un fallo del
+   * sistema — es el sistema funcionando y negando el acceso. Se limpia en cada
+   * navegación del usuario.
+   */
+  readonly accessNotice = signal('');
   /**
    * Acceso a la CONSOLA DEL FUNCIONARIO (cola/expediente/decisión), que ahora exige rol.
    * - `'ok'`: hay funcionario, se muestra la consola.
@@ -456,7 +477,8 @@ export class GovElementComponent {
     this.activeApplication.set(null);
     this.activeCase.set(null);
     // El 401/403 se vuelve a preguntar contra el nuevo apiBase; no se arrastran.
-    this.unauthenticated.set(false);
+    this.citizenAccess.set('ok');
+    this.accessNotice.set('');
     this.officerAccess.set('ok');
     this.loadForView(this.view());
   }
@@ -507,6 +529,10 @@ export class GovElementComponent {
   private applyRoute(view: GovView, param: string): void {
     this.view.set(view);
     this.errorMessage.set('');
+    // El aviso NO se limpia aquí a propósito. `applyRoute` se re-ejecuta solo, por los ecos
+    // asíncronos del `hashchange` que dispara el propio `navigate('applications')` del
+    // rechazo, y borraba el aviso justo después de ponerlo (lo cazó el test del 403). Se
+    // limpia en las entradas con INTENCIÓN del usuario: goToApplications/openApplication.
     this.viewchange.emit(view);
     this.loadForView(view, param);
   }
@@ -666,6 +692,10 @@ export class GovElementComponent {
   }
 
   backToCatalog(): void {
+    // Salir por aquí también cierra el aviso de acceso: sin esto, "Esa solicitud no
+    // es suya" reaparecía al volver a la carpeta por Atrás o por deep-link, sin que
+    // nadie le acabara de negar nada.
+    this.accessNotice.set('');
     this.navigate('catalog');
   }
 
@@ -743,6 +773,25 @@ export class GovElementComponent {
       this.announce(`Su solicitud quedó radicada con el número ${summary.reference}.`);
       this.applicationsubmitted.emit({ id: summary.id, reference: summary.reference });
     } catch (error) {
+      // Radicar ya no degrada: fabricar un radicado local le daría al ciudadano un número
+      // que no existe en ninguna agencia. Un 403 es "hay sesión pero no puede radicar":
+      // se dice y se le deja EN EL FORMULARIO, con sus respuestas intactas — mandarlo a
+      // la carpeta con "no es suya" sería responder otra pregunta.
+      if (isGovForbidden(error)) {
+        const message = 'Su cuenta no tiene permiso para radicar este trámite.';
+        this.errorMessage.set(message);
+        this.announce(message);
+        return;
+      }
+      // Un 401 sí manda al panel de login: sin sesión no hay a nombre de quién radicar.
+      if (
+        this.handleCitizenDenied(error, {
+          scope: 'folder',
+          anonAnnouncement: 'Necesita iniciar sesión para radicar su solicitud.',
+        })
+      ) {
+        return;
+      }
       this.errorMessage.set('No pudimos radicar la solicitud. Intente de nuevo.');
       void error;
     } finally {
@@ -752,6 +801,7 @@ export class GovElementComponent {
 
   // ─── Mis solicitudes (SH-4) ─────────────────────────────────────────────────
   goToApplications(): void {
+    this.accessNotice.set('');
     this.navigate('applications');
   }
 
@@ -761,9 +811,9 @@ export class GovElementComponent {
       const apps = await this.#api.applications(this.apiBase());
       this.applications.set(apps);
       this.applicationsLoaded.set(true);
-      this.unauthenticated.set(false);
+      this.citizenAccess.set('ok');
     } catch (error) {
-      if (this.handleUnauthorized(error)) {
+      if (this.handleCitizenDenied(error, { scope: 'folder' })) {
         return;
       }
       this.errorMessage.set('No pudimos cargar sus solicitudes. Intente de nuevo.');
@@ -774,26 +824,67 @@ export class GovElementComponent {
   }
 
   /**
-   * Traduce un 401 al ÚNICO estado que lo sabe pintar: la carpeta con el panel "Inicie
-   * sesión". Devuelve `true` si el error era ese, para que quien llama corte ahí.
+   * Traduce un 401/403 de la carpeta del ciudadano al estado que lo sabe pintar, y VACÍA
+   * lo que ya no se puede mostrar. Devuelve `true` si el error era uno de esos dos, para
+   * que quien llama corte ahí.
    *
-   * Aterriza SIEMPRE en la vista `applications` (única que renderiza el panel), sin
-   * importar desde dónde saltó el 401 (carpeta, detalle, subir documento). Si no, un 401
-   * en el detalle dejaba al usuario vidente sin ninguna señal: el aviso solo iba a la
-   * región aria-live (sr-only). Y deja la carpeta HONESTA: `applications=[]` +
-   * `applicationsLoaded=true` para que el badge del nav no siga mostrando un conteo
-   * viejo mientras el cuerpo pide iniciar sesión.
+   * Aterriza SIEMPRE en la vista `applications` (única que renderiza los paneles), venga
+   * de donde venga (carpeta, detalle, adjuntar). Si no, el rechazo en el detalle dejaba al
+   * usuario vidente sin ninguna señal: el aviso solo iba a la región aria-live (sr-only).
+   *
+   *  - **401 → `'anon'`**: no hay sesión. La carpeta queda HONESTA (`applications=[]` +
+   *    `applicationsLoaded=true`) para que el badge del nav no siga mostrando un conteo
+   *    viejo mientras el cuerpo pide iniciar sesión.
+   *  - **403 con `scope:'folder'`**: la carpeta entera está vedada para esta cuenta. Se
+   *    vacía igual, pero NO se ofrece login: ya hay sesión y volver a entrar no cambia nada.
+   *  - **403 con `scope:'record'`**: el expediente pedido no es suyo. Su propia carpeta SÍ
+   *    lo es, así que se vuelve al listado y se recarga, con el aviso de que ese no era
+   *    suyo. Aquí es donde el mock pintaba el expediente de otro bajo el id pedido.
+   *
+   * En los tres casos se descarta el detalle abierto y el adjunto a medias: son de la
+   * sesión que el servidor acaba de rechazar, y dejarlos en pantalla es la misma mentira.
    */
-  private handleUnauthorized(error: unknown, announcement?: string): boolean {
-    if (!isGovUnauthorized(error)) {
+  private handleCitizenDenied(
+    error: unknown,
+    options: { scope: 'folder' | 'record'; anonAnnouncement?: string; forbiddenNotice?: string },
+  ): boolean {
+    const anon = isGovUnauthorized(error);
+    if (!anon && !isGovForbidden(error)) {
       return false;
     }
-    this.unauthenticated.set(true);
+
     this.errorMessage.set('');
     this.activeApplication.set(null);
+    this.activeThreadId.set(null);
+    this.clearUpload();
+
+    // 403 sobre UN expediente: la sesión vale y el listado propio sigue siendo legítimo.
+    if (!anon && options.scope === 'record') {
+      const notice =
+        options.forbiddenNotice ??
+        'Esa solicitud no es suya. Solo puede ver las solicitudes radicadas con su cuenta.';
+      this.citizenAccess.set('ok');
+      this.applicationsLoaded.set(false); // refrescar el listado real, no el que había
+      if (this.view() !== 'applications') {
+        this.navigate('applications');
+      } else {
+        void this.loadApplications();
+      }
+      // Después de navegar: `applyRoute` limpia el aviso en cada navegación del usuario.
+      this.accessNotice.set(notice);
+      this.announce(notice);
+      return true;
+    }
+
+    this.citizenAccess.set(anon ? 'anon' : 'forbidden');
+    this.accessNotice.set('');
     this.applications.set([]);
     this.applicationsLoaded.set(true);
-    this.announce(announcement ?? 'Necesita iniciar sesión para ver sus solicitudes.');
+    this.announce(
+      anon
+        ? (options.anonAnnouncement ?? 'Necesita iniciar sesión para ver sus solicitudes.')
+        : 'Su cuenta no tiene acceso a esta carpeta de solicitudes.',
+    );
     if (this.view() !== 'applications') {
       this.navigate('applications');
     }
@@ -814,6 +905,7 @@ export class GovElementComponent {
   }
 
   openApplication(app: ApplicationSummary): void {
+    this.accessNotice.set('');
     this.navigate('application', app.id);
   }
 
@@ -824,12 +916,13 @@ export class GovElementComponent {
       const detail = await this.#api.application(this.apiBase(), id);
       this.activeApplication.set(detail);
       this.activeThreadId.set(null);
-      this.unauthenticated.set(false);
+      this.citizenAccess.set('ok');
+      this.accessNotice.set('');
       // View was already set by `applyRoute` before dispatch — do not re-route.
     } catch (error) {
-      // Deep-link a un expediente sin sesión: handleUnauthorized rebota a la carpeta,
-      // que es donde vive el panel "inicie sesión".
-      if (this.handleUnauthorized(error)) {
+      // Deep-link a un expediente ajeno o sin sesión. 401 → panel "inicie sesión"; 403 →
+      // de vuelta al listado con "no es suya". Nunca se pinta el expediente de otro.
+      if (this.handleCitizenDenied(error, { scope: 'record' })) {
         return;
       }
       this.errorMessage.set('No pudimos abrir su solicitud. Intente de nuevo.');
@@ -874,11 +967,16 @@ export class GovElementComponent {
       this.clearUpload();
       this.announce(`Documento "${doc.name}" adjuntado.`);
     } catch (error) {
-      // Sesión expirada a mitad del detalle: handleUnauthorized rebota a la carpeta con
-      // el panel de login (antes fallaba en silencio — el aviso solo iba a la región
-      // sr-only y la vista de detalle no pinta el panel).
-      if (this.handleUnauthorized(error, 'Su sesión expiró. Inicie sesión para adjuntar el documento.')) {
-        this.clearUpload();
+      // Sesión expirada a mitad del detalle, o expediente ajeno: se rebota a la carpeta
+      // (antes fallaba en silencio — el aviso solo iba a la región sr-only y la vista de
+      // detalle no pinta el panel). `handleCitizenDenied` ya suelta el fichero elegido.
+      if (
+        this.handleCitizenDenied(error, {
+          scope: 'record',
+          anonAnnouncement: 'Su sesión expiró. Inicie sesión para adjuntar el documento.',
+          forbiddenNotice: 'No puede adjuntar documentos a una solicitud que no es suya.',
+        })
+      ) {
         return;
       }
       this.errorMessage.set('No pudimos subir el documento. Intente de nuevo.');

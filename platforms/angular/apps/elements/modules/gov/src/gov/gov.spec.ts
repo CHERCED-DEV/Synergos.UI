@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { GovApiClient } from './gov-api.client';
+import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
 import { OUTCOME_TO_STATUS, isClosedStatus } from './gov.model';
 
@@ -598,6 +598,111 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.view()).toBe('catalog');
     expect(component.officerAccess()).toBe('ok');
   });
+
+  // ── Barrido IDOR: un 403 de expediente AJENO no pinta el expediente de otro ────
+  // El bug más grave del lado ciudadano: `application(id)` degradaba a mock en el catch y,
+  // como el id ajeno NO está en el store local, caía en `?? [...values()][0]` → devolvía EL
+  // PRIMER expediente sembrado, rotulado con el id que se pidió. No era "mostrar datos de
+  // ejemplo": era fabricar un registro inexistente y presentarlo como el solicitado, justo
+  // a quien el servidor acababa de negarle el acceso.
+  it('un 403 al abrir un expediente ajeno vuelve al listado y NO pinta otro expediente', async () => {
+    const mios = [
+      {
+        id: 'app-mio', reference: 'GOV-2026-77777', serviceId: 'svc-x', serviceName: 'Mi trámite',
+        status: 'in-review', submittedAt: '2026-07-05T10:00:00Z', currentStage: 'En revisión',
+      },
+    ];
+    const fetchMock = vi.fn((url: string) => {
+      if (url.includes('/application/')) {
+        return Promise.resolve({
+          ok: false, status: 403,
+          json: () => Promise.resolve({ error: 'Esa solicitud no es suya.' }),
+        } as Response);
+      }
+      if (url.includes('/applications')) {
+        return Promise.resolve({
+          ok: true, status: 200,
+          json: () => Promise.resolve({ applications: mios }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-de-otro';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // LO QUE CIERRA EL BUG: ningún expediente pintado bajo el id ajeno.
+    expect(component.activeApplication()).toBeNull();
+    expect(component.view()).toBe('applications');
+    // No se le pide iniciar sesión: YA tiene sesión, el expediente simplemente no es suyo.
+    expect(component.unauthenticated()).toBe(false);
+    expect(component.citizenAccess()).toBe('ok');
+    expect(component.accessNotice()).toContain('no es suya');
+    // Y su carpeta REAL sí se muestra: eso sí es suyo, y lo dice el servidor.
+    expect(component.applications().map((app) => app.id)).toEqual(['app-mio']);
+  });
+
+  // ── Barrido IDOR: 403 al adjuntar a un expediente ajeno ───────────────────────
+  it('un 403 al subir documento saca del detalle y suelta el fichero', async () => {
+    const detail = {
+      id: 'app-1', reference: 'GOV-2026-11111', serviceId: 'svc-x', serviceName: 'Trámite',
+      status: 'in-review', submittedAt: '2026-07-05T10:00:00Z', currentStage: 'En revisión',
+      timeline: [], documents: [], messages: [],
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes('/document') && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: false, status: 403, json: () => Promise.resolve({ error: 'No es suyo.' }),
+        } as Response);
+      }
+      if (url.includes('/application/')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ application: detail }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-1';
+    }
+
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    // Control: el detalle cargó (200) antes de intentar adjuntar.
+    expect(component.activeApplication()?.id).toBe('app-1');
+
+    component.uploadFile.set(new File(['x'], 'cedula.pdf', { type: 'application/pdf' }));
+    component.uploadName.set('cedula.pdf');
+    component.uploadDocument();
+    await flushMicrotasks();
+
+    // Sale del detalle con el aviso — sin pedir login (la sesión es válida).
+    expect(component.view()).toBe('applications');
+    expect(component.activeApplication()).toBeNull();
+    expect(component.unauthenticated()).toBe(false);
+    expect(component.uploadName()).toBe('');
+    expect(component.uploadFile()).toBeNull();
+  });
 });
 
 describe('OUTCOME_TO_STATUS (model)', () => {
@@ -671,6 +776,33 @@ describe('GovApiClient (v2 contract)', () => {
     expect(services.every((s) => s.category === 'vehiculos')).toBe(true);
   });
 
+  // ── Barrido IDOR (cliente): el 403 se re-lanza, no se degrada ────────────────
+  it('un 403 en application(id) re-lanza en vez de devolver el expediente de otro', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: false, status: 403, json: () => Promise.resolve({ error: 'No es suyo.' }),
+    } as Response)));
+    const client = createClient();
+
+    const error = await client.application('/api/gov', 'app-de-otro').then(() => null, (e) => e);
+    // Se discrimina por `name` (el guard real), no por `instanceof`: esa es la garantía
+    // que sobrevive a que la clase se duplique en otro bundle.
+    expect(isGovForbidden(error)).toBe(true);
+    // Y NO se encendió el latch de "datos de ejemplo": un 403 no es una caída del backend.
+    expect(client.degraded).toBe(false);
+  });
+
+  // Control del MISMO fabricador sin auth de por medio: offline, un id desconocido ya no
+  // sirve el primer expediente del store rotulado con el id pedido.
+  it('offline, un id desconocido falla en vez de devolver el primer expediente', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(client.application('/api/gov', 'no-existe-en-ningun-lado')).rejects.toThrow();
+    // Control opuesto: un id SÍ sembrado sigue resolviendo offline (la demo no se rompió).
+    const seeded = await client.application('/api/gov', 'app-seed-4');
+    expect(seeded.id).toBe('app-seed-4');
+  });
+
   it('creates a mock application with a radicado on the exact contract (happy case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
@@ -702,6 +834,25 @@ describe('GovApiClient (v2 contract)', () => {
     // The officer note landed as an incoming correspondence entry for the citizen.
     const detail = await client.application('/api/gov', 'app-seed-4');
     expect(detail.status).toBe('info-requested');
+  });
+
+  // Regresión del hallazgo BLOQUEANTE de la auditoría de la ola "un 401/403 no se
+  // disfraza de datos": `mockDecide` tenía un `?? [...mockStore().values()][0]`, así que
+  // si el POST de la decisión caía, devolvía el PRIMER caso sembrado. En pantalla: el
+  // funcionario aprueba, la UI anuncia éxito, la decisión no se registra en ninguna
+  // parte, y queda abierto el expediente de OTRO ciudadano con su nombre y sus
+  // documentos. Fingir una escritura que no ocurrió es peor que no escribir.
+  it('does NOT fabricate a decision on a different case when the id is unknown', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(
+      client.decide('/api/gov', {
+        caseId: 'CASE-REAL-DEL-BACKEND-9999',
+        outcome: 'approve',
+        note: 'Aprobado.',
+      }),
+    ).rejects.toThrow();
   });
 
   it('scopes the queue by status when offline (filter case)', async () => {
