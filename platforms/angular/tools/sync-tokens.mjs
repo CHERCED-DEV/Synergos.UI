@@ -135,33 +135,13 @@ const sections = blocks.map(({ selector, body }) => {
   return `${selector} {\n${indented}\n}`;
 }).join('\n\n');
 
-const trailer = `
-
-// =============================================================================
-// Reduced motion respect (UI components opt-in con esta query)
-// =============================================================================
-//
-// Swap los tokens de duración REALES que los componentes consumen
-// (--syn-duration-* + la escala premium Ola 0 --syn-dur-*) a 0.01ms — NO a 0 —
-// para colapsar la animación sin perder el evento 'transitionend' del que
-// dependen algunos handlers JS. --syn-motion-scale → 0 apaga el multiplicador
-// de motion por-vertical. UNA sola query (alineada, sin duplicar).
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --syn-duration-fast:    0.01ms;
-    --syn-duration-base:    0.01ms;
-    --syn-duration-slow:    0.01ms;
-    --syn-duration-xslow:   0.01ms;
-    --syn-duration-loop:    0.01ms;
-    --syn-duration-shimmer: 0.01ms;
-    --syn-dur-fast:         0.01ms;
-    --syn-dur-base:         0.01ms;
-    --syn-dur-slow:         0.01ms;
-    --syn-motion-scale:     0;
-  }
-}
-`;
+// El bloque de `prefers-reduced-motion` YA NO se inyecta aquí. Vivía en este
+// trailer, escrito a mano, y eso significaba que solo existía en el BRIDGE —que
+// únicamente aplica en standalone/Storybook—, dejando al CMS (lo único que el
+// navegador ve en el sitio real) SIN la media query. Ahora vive en el SSOT,
+// `Synergos.CMS.Web/wwwroot/css/syn-tokens.css`, y desde ahí fluye a los dos por
+// la vía normal. Reintroducirlo aquí lo DUPLICARÍA en el bridge.
+const trailer = '';
 
 const output = header + sections + trailer;
 const tokenCount = (output.match(/--syn-/g) || []).length;

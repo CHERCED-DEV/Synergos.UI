@@ -14,7 +14,7 @@
 // via var() para que el host pueda override en runtime.
 //
 // DO NOT EDIT MANUALLY — sync-tokens.mjs regenera + sobrescribe este file.
-// Generated: 2026-07-20T16:27:10.040Z
+// Generated: 2026-07-20T17:09:35.874Z
 // =============================================================================
 
 :root {
@@ -1414,34 +1414,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-  --syn-duration-fast:  0.01ms;
-  --syn-duration-base:  0.01ms;
-  --syn-duration-slow:  0.01ms;
-  --syn-duration-xslow: 0.01ms;
-  }
-}
-
-// =============================================================================
-// Reduced motion respect (UI components opt-in con esta query)
-// =============================================================================
-//
-// Swap los tokens de duración REALES que los componentes consumen
-// (--syn-duration-* + la escala premium Ola 0 --syn-dur-*) a 0.01ms — NO a 0 —
-// para colapsar la animación sin perder el evento 'transitionend' del que
-// dependen algunos handlers JS. --syn-motion-scale → 0 apaga el multiplicador
-// de motion por-vertical. UNA sola query (alineada, sin duplicar).
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --syn-duration-fast:    0.01ms;
-    --syn-duration-base:    0.01ms;
-    --syn-duration-slow:    0.01ms;
-    --syn-duration-xslow:   0.01ms;
-    --syn-duration-loop:    0.01ms;
-    --syn-duration-shimmer: 0.01ms;
-    --syn-dur-fast:         0.01ms;
-    --syn-dur-base:         0.01ms;
-    --syn-dur-slow:         0.01ms;
-    --syn-motion-scale:     0;
+  --syn-duration-fast:    0.01ms;
+  --syn-duration-base:    0.01ms;
+  --syn-duration-slow:    0.01ms;
+  --syn-duration-xslow:   0.01ms;
+  --syn-duration-loop:    0.01ms;
+  --syn-duration-shimmer: 0.01ms;
+  --syn-dur-fast:         0.01ms;
+  --syn-dur-base:         0.01ms;
+  --syn-dur-slow:         0.01ms;
+  --syn-motion-scale:     0;
   }
 }
