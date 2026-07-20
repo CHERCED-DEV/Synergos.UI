@@ -116,3 +116,99 @@
 .syn-button--sm { @include syn.button-size(sm); @include syn.touch-target; }
 .syn-button--md { @include syn.button-size(md); }
 .syn-button--lg { @include syn.button-size(lg); }
+
+// ── Estado de carga ───────────────────────────────────────────────────────────
+// 16px: sobre la grilla de 8. El default del mixin (14) no lo está.
+$loading-spinner-size: syn.px-to-rem(16);
+
+.syn-button--loading {
+  // `::before`, NO `::after`, y esto NO es cosmético: `touch-target` (WCAG 2.5.5)
+  // ya ocupa el `::after` de este mismo host, y su propio contrato lo dice por
+  // escrito ("the host must not already own an ::after"). Cuando el estado de carga
+  // ganó su primer consumidor, ese invariante se rompió: en un `<syn-button size="sm"
+  // loading>` los dos pseudos se fusionaban por propiedad y el spinner (16px) pisaba
+  // el `max(100%, 44px)` del área táctil —adiós al objetivo AAA— además de que el
+  // keyframe del giro sobrescribía el `transform` que centra el área.
+  // El mixin ya aceptaba `$placement`, y como aquí el spinner va posicionado en
+  // absoluto, moverlo a `::before` no cambia nada visual y separa los dos pseudos.
+  @include syn.button-loading($placement: before, $size: $loading-spinner-size);
+
+  // `progress`, no `not-allowed`: el botón no está prohibido, está ocupado.
+  cursor: progress;
+
+  // El mixin monta el anillo EN FLUJO (inline-block + margin-left del gap), así que
+  // el botón se ensancharía justo al entrar en carga y el puntero del usuario
+  // quedaría sobre otra cosa. Sacándolo del flujo (abspos + `margin: auto`, que
+  // centra en los dos ejes una caja de tamaño fijo) el anillo cuesta CERO layout:
+  // el botón conserva exactamente el ancho que ya reservaba su etiqueta.
+  // Nota: se centra con márgenes y no con `transform: translate(-50%, -50%)` a
+  // propósito — el keyframe `syn-button-spin` anima `transform`, y pisaría el
+  // centrado dejando el anillo fuera de sitio.
+  // La duración del giro NO se toca aquí: el mixin ya consume --syn-duration-loop, y
+  // ya resuelve reduced-motion con un `animation: none` propio. Redeclarar la
+  // duración desde el token sería, además de redundante, PELIGROSO: en una animación
+  // `infinite` el 0.01ms del swap global son ~100.000 vueltas/segundo, un estrobo
+  // (WCAG 2.3.1). Ese razonamiento vive en `_button.scss`; no duplicarlo aquí.
+  &::before {
+    position: absolute;
+    inset:    0;
+    margin:   auto;
+  }
+
+  // `opacity`, NO `visibility`/`display`. Una etiqueta oculta sale del árbol de
+  // accesibilidad, y en un botón cuyo nombre sale del contenido proyectado eso
+  // borraría el nombre accesible en plena operación — el lector de pantalla se
+  // quedaría sin qué anunciar. Con `opacity: 0` el nombre sigue ahí y, sobre todo,
+  // el ancho sigue reservado.
+  .syn-button__label {
+    opacity: 0;
+  }
+}
+
+// El lift de hover vive en `.syn-button:where(:hover, :focus-visible):not(:disabled)`,
+// que especifica (0,2,0); hay que igualar esa especificidad para neutralizarlo. Un
+// botón ocupado no debe responder al hover como si fuese pulsable.
+.syn-button--loading:where(:hover, :focus-visible):not(:disabled) {
+  transform: translateY(0);
+}
+
+.syn-button__busy-text {
+  // Solo se revela bajo prefers-reduced-motion; con movimiento, el anillo ya informa.
+  display:        none;
+  position:       absolute;
+  inset:          0;
+  align-items:    center;
+  justify-content: center;
+  padding-inline: syn.$space-sm;
+  font-size:      syn.$font-size-sm;
+  // Abspos ⇒ fuera de flujo ⇒ NO puede cambiar el tamaño del botón. Si la etiqueta
+  // de carga no cabe en la huella que ya ocupaba el label, se recorta. Es el
+  // compromiso elegido: recortar un texto largo antes que reflowear la página.
+  overflow:       hidden;
+  white-space:    nowrap;
+}
+
+.syn-button__status {
+  @include syn.visually-hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  // El mixin YA degrada bien por su cuenta: para el aro sin girar y lo cierra
+  // (`border-right-color: currentColor`) para que no se lea como spinner congelado.
+  // Aquí se va un paso más allá — y conviene decir por qué, porque es pisar una
+  // decisión deliberada de `_button.scss`:
+  //
+  // Ese aro cerrado funciona cuando acompaña a una etiqueta visible. En ESTE botón
+  // no la acompaña: el aro va centrado ENCIMA del label, que está en opacity 0 para
+  // reservar el ancho. Sin giro, lo que queda es un botón vacío con un punto quieto
+  // en medio — el caso exacto que se lee como "colgado". Así que para este usuario
+  // el aro se retira y toma el relevo el TEXTO, que es el único canal que distingue
+  // "en curso" de "roto" sin recurrir al movimiento.
+  .syn-button--loading::before {
+    display: none;
+  }
+
+  .syn-button--loading .syn-button__busy-text {
+    display: flex;
+  }
+}

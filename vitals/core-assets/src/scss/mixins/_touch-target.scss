@@ -18,9 +18,20 @@
 // ── Requirements ──
 //  · Forces `position: relative` on the host so the `::after` anchors to it.
 //    Safe to include on a host that is already relative (idempotent).
-//  · The host must not already own an `::after`. Audited at time of writing:
-//    `button-loading` is the only other `::after` in the design system and it
-//    has zero consumers; no app SCSS attaches a pseudo to these controls.
+//  · The host must not already own an `::after`. This is a REAL constraint, not a
+//    formality — it already got violated once, hours after this line was written.
+//    `button-loading` used to be the only other `::after` in the system and had
+//    zero consumers, so the note said so. Then the loading state got wired up and
+//    `.syn-button` had both: on a `size="sm"` button in flight the two pseudos
+//    merged per-property, the spinner's 16px clobbered `max(100%, 44px)` and the
+//    target silently dropped back to the visual box, while the spin keyframe
+//    overwrote the `transform` that centres it.
+//    Fixed by moving the spinner to `::before` (the mixin takes a `$placement`),
+//    so `::after` is this mixin's alone again.
+//    **Do not audit this the way I did.** "Nothing else uses it *today*" is not an
+//    invariant, it is a snapshot. Before adding an `::after` to a shared control,
+//    grep for `touch-target` on that host — and if you need a second pseudo there,
+//    take `::before`.
 //  · An ancestor with `overflow: hidden` clips the overflow, silently dropping
 //    the expansion back to the visual box. Nothing breaks, nothing regresses —
 //    the target is simply not enlarged there.
