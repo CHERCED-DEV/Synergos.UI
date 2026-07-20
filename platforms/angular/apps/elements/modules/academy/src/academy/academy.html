@@ -96,7 +96,7 @@
         />
 
         <ng-template #courseCard let-course let-select="select">
-          <article class="academy__card" (click)="select()">
+          <article class="academy__card">
             <div class="academy__card-cover">
               @if (course.cover) {
                 <img class="academy__card-img" [src]="course.cover" [alt]="course.title" />
@@ -109,7 +109,14 @@
             </div>
             <div class="academy__card-body">
               <p class="academy__card-cat">{{ course.category }} · {{ levelLabel(course.level) }}</p>
-              <h3 class="academy__card-title">{{ course.title }}</h3>
+              <!-- El disparador real es este <button>, no la tarjeta: es focusable de nativo y
+                   activa con Enter/Espacio. Su ::after se estira sobre toda la .academy__card
+                   (stretched link), así el ratón conserva "clic en cualquier parte" con UNA
+                   sola parada de tabulación. La tarjeta no tiene ningún otro interactivo, así
+                   que el velo no tapa nada. -->
+              <h3 class="academy__card-title">
+                <button type="button" class="academy__card-link" (click)="select()">{{ course.title }}</button>
+              </h3>
               <p class="academy__card-instructor">{{ course.instructorName }}</p>
               <div class="academy__card-meta">
                 <span class="academy__card-rating"><svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> {{ course.rating.toFixed(1) }}</span>

@@ -1595,11 +1595,70 @@ export class RealtyElementComponent {
       return;
     }
     const rect = target.getBoundingClientRect();
-    const xPct = ((event.clientX - rect.left) / rect.width) * 100;
-    const yPct = ((event.clientY - rect.top) / rect.height) * 100;
-    // Project the click back onto the demo Bogotá frame (same span as the pins).
-    const lng = -74.12 + (xPct / 100) * 0.18;
-    const lat = 4.6 + (1 - yPct / 100) * 0.18;
+    this.patchPinFromPct(
+      patch,
+      ((event.clientX - rect.left) / rect.width) * 100,
+      ((event.clientY - rect.top) / rect.height) * 100,
+    );
+  }
+
+  /**
+   * Ruta de TECLADO para ubicar el pin — el `(click)` del mapa solo sirve al ratón.
+   *
+   * Sin esto, publicar un inmueble era IMPOSIBLE sin ratón: la ubicación no tenía ningún
+   * otro control (no hay campos de lat/lng; el par se deriva solo del punto pulsado).
+   *
+   * Flechas mueven el pin; Shift afina el paso; Enter/Espacio lo coloca en el centro si aún
+   * no existe (y NO lo mueve si ya está puesto, para que confirmar no descoloque).
+   */
+  nudgePin(
+    patch: (values: Readonly<Record<string, unknown>>) => void,
+    draft: Readonly<Record<string, unknown>>,
+    event: KeyboardEvent,
+  ): void {
+    const step = event.shiftKey ? 0.5 : 2;
+    const placed = this.hasPin(draft);
+    let xPct = placed ? this.pinPct(draft, 'x') : 50;
+    let yPct = placed ? this.pinPct(draft, 'y') : 50;
+
+    switch (event.key) {
+      case 'ArrowLeft':
+        xPct -= step;
+        break;
+      case 'ArrowRight':
+        xPct += step;
+        break;
+      case 'ArrowUp':
+        yPct -= step;
+        break;
+      case 'ArrowDown':
+        yPct += step;
+        break;
+      case 'Enter':
+      case ' ':
+        if (placed) {
+          return;
+        }
+        break;
+      default:
+        return;
+    }
+
+    // Solo aquí: si la tecla no era nuestra, se deja pasar (Tab debe seguir tabulando).
+    event.preventDefault();
+    this.patchPinFromPct(patch, xPct, yPct);
+  }
+
+  /** Proyecta un punto en % del marco de demo (Bogotá) al par lat/lng — mismo tramo que los pines. */
+  private patchPinFromPct(
+    patch: (values: Readonly<Record<string, unknown>>) => void,
+    xPct: number,
+    yPct: number,
+  ): void {
+    const x = clampPct(xPct);
+    const y = clampPct(yPct);
+    const lng = -74.12 + (x / 100) * 0.18;
+    const lat = 4.6 + (1 - y / 100) * 0.18;
     patch({ lat: lat.toFixed(5), lng: lng.toFixed(5) });
   }
 

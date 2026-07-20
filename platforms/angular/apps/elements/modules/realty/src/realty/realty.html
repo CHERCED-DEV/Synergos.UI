@@ -699,8 +699,23 @@
             }
             @case ('ubicacion') {
               <div class="realty__pin">
-                <p class="realty__pin-help">Haz clic en el mapa para ubicar el pin del inmueble.</p>
-                <div class="realty__pin-map" (click)="dropPin(patch, $event)">
+                <p class="realty__pin-help" [id]="fieldId + '-pin-help'">
+                  Haz clic en el mapa para ubicar el pin del inmueble, o enfócalo y usa las
+                  flechas (Shift para afinar; Enter lo coloca en el centro).
+                </p>
+                <!-- El mapa es un control de posición 2D: aquí el tabindex NO sobra, es la
+                     ÚNICA forma de fijar la ubicación sin ratón (no hay campos de lat/lng).
+                     role="application" para que el lector de pantalla ceda las flechas al
+                     widget en vez de usarlas para navegar el documento. -->
+                <div
+                  class="realty__pin-map"
+                  role="application"
+                  tabindex="0"
+                  aria-label="Mapa: ubicación del inmueble"
+                  [attr.aria-describedby]="fieldId + '-pin-help ' + fieldId + '-pin-coords'"
+                  (click)="dropPin(patch, $event)"
+                  (keydown)="nudgePin(patch, draft, $event)"
+                >
                   <div class="realty__pin-grid" aria-hidden="true"></div>
                   @if (hasPin(draft)) {
                     <span class="realty__pin-marker" [style.left.%]="pinPct(draft, 'x')" [style.top.%]="pinPct(draft, 'y')" aria-hidden="true">
@@ -708,11 +723,21 @@
                     </span>
                   }
                 </div>
-                @if (hasPin(draft)) {
-                  <p class="realty__pin-coords">Lat {{ draft['lat'] }} · Lng {{ draft['lng'] }}</p>
-                } @else {
-                  <p class="realty__pin-coords realty__pin-coords--empty">Sin ubicación aún.</p>
-                }
+                <!-- UNA sola región viva (el @if va DENTRO, no fuera): si el <p> se destruyera
+                     y recreara en cada rama, el lector no anunciaría nada. Así quien mueve el
+                     pin con las flechas oye las coordenadas resultantes. -->
+                <p
+                  class="realty__pin-coords"
+                  [class.realty__pin-coords--empty]="!hasPin(draft)"
+                  [id]="fieldId + '-pin-coords'"
+                  aria-live="polite"
+                >
+                  @if (hasPin(draft)) {
+                    Lat {{ draft['lat'] }} · Lng {{ draft['lng'] }}
+                  } @else {
+                    Sin ubicación aún.
+                  }
+                </p>
                 <label class="realty__field">
                   <span>Dirección</span>
                   <input type="text" [value]="draft['address'] || ''" (input)="draftPatchHandler(patch, 'address')($event)" />

@@ -1250,6 +1250,10 @@
     background: var(--rt-surface-muted);
     cursor: crosshair;
     overflow: hidden;
+
+    // Ahora es focusable (tabindex="0"): sin indicador visible sería un fallo de
+    // WCAG 2.4.7 — el foco existiría y no se vería.
+    @include syn.focus-visible(var(--rt-focus-ring));
   }
 
   &__pin-grid {

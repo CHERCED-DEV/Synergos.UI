@@ -210,6 +210,8 @@
 
   // ─── Course card (SH-1 item template) ─────────────────────────────────────
   &__card {
+    // Ancla del ::after estirado de __card-link.
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -276,6 +278,39 @@
     font-size: syn.$font-size-base;
     font-weight: 700;
     line-height: 1.3;
+  }
+
+  // Stretched link: el disparador de "abrir curso". Es un <button> de verdad (focusable
+  // de nativo, Enter/Espacio) pero se pinta como el título y su ::after cubre la tarjeta
+  // entera, de modo que el ratón sigue abriendo desde cualquier punto. Una sola parada
+  // de tabulación por tarjeta.
+  &__card-link {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
+
+    // El anillo se dibuja sobre el ::after para que rodee la TARJETA, no solo el texto.
+    // Offset negativo porque .academy__card lleva overflow: hidden y lo recortaría.
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:focus-visible::after {
+      outline: syn.px-to-rem(2) solid var(--ac-focus-ring);
+      outline-offset: syn.px-to-rem(-2);
+    }
   }
 
   &__card-instructor {
