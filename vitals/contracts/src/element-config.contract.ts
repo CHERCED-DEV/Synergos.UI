@@ -471,6 +471,17 @@ export interface ButtonContainerElementConfig {
   readonly tone?: string; // runtime compatibility alias
   readonly size?: string;
   readonly disabled?: boolean;
+  /**
+   * Async work in flight: the button blocks the press and announces itself busy.
+   *
+   * Only honoured when the control renders as a BUTTON. In the `href` branch it is
+   * ignored on purpose — a link navigates, it does not perform an action in place,
+   * and the busy text would fold into the surrounding anchor's accessible name
+   * ("Guardar Cargando"), which is worse than having no loading state at all.
+   */
+  readonly loading?: boolean;
+  /** Short text announced while `loading`. Keep it brief: it is clipped, not wrapped. */
+  readonly loadingLabel?: string;
   readonly translations?: ComponentTranslations;
 }
 

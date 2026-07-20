@@ -15,10 +15,21 @@
     />
   </a>
 } @else {
+  <!--
+    `loading` va SOLO en esta rama, la de BOTÓN, y no en la de enlace de arriba.
+    Dos razones, y las dos importan:
+    1. Un enlace navega; no ejecuta una acción asíncrona en sitio, así que no tiene
+       estado "en curso" que anunciar.
+    2. El texto sr-only del estado de carga sí computa en el nombre accesible de un
+       ancestro interactivo: dentro del <a> el enlace pasaría a llamarse
+       "Guardar Cargando". Peor que no tener estado de carga.
+  -->
   <syn-button
     [label]="label()"
     [variant]="resolvedVariant()"
     [size]="resolvedSize()"
     [disabled]="disabled()"
+    [loading]="loading()"
+    [loadingLabel]="loadingLabel()"
   />
 }

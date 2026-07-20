@@ -30,6 +30,8 @@ function sanitizeButtonContainerConfig(
     variant: coerceTrimmedStringInput(value.variant),
     size: coerceTrimmedStringInput(value.size),
     disabled: coerceOptionalBooleanInput(value.disabled),
+    loading: coerceOptionalBooleanInput(value.loading),
+    loadingLabel: coerceTrimmedStringInput(value.loadingLabel),
   });
 }
 
@@ -50,6 +52,12 @@ export class ButtonContainerComponent {
   readonly sizeInput = input<string | undefined>(undefined, { alias: 'size' });
   readonly hrefInput = input<string | undefined>(undefined, { alias: 'href' });
   readonly targetInput = input<string | undefined>(undefined, { alias: 'target' });
+  readonly loadingInput = input<boolean | undefined, unknown>(undefined, {
+    alias: 'loading',
+    transform: coerceOptionalBooleanInput,
+  });
+  readonly loadingLabelInput = input<string | undefined>(undefined, { alias: 'loadingLabel' });
+
   readonly disabledInput = input<boolean | undefined, unknown>(undefined, {
     alias: 'disabled',
     transform: coerceOptionalBooleanInput,
@@ -67,6 +75,10 @@ export class ButtonContainerComponent {
     resolveConfigValue(this.targetInput(), this.config()?.target, '_self'),
   );
   readonly disabled = computed(() => resolveConfigValue(this.disabledInput(), this.config()?.disabled, false));
+  readonly loading = computed(() => resolveConfigValue(this.loadingInput(), this.config()?.loading, false));
+  readonly loadingLabel = computed(() =>
+    resolveConfigValue(coerceTrimmedStringInput(this.loadingLabelInput()), this.config()?.loadingLabel, ''),
+  );
 
   readonly isLink = computed(() => this.href().trim().length > 0);
   readonly resolvedVariant = computed<ButtonVariant>(() =>
