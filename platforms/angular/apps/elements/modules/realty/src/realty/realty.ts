@@ -48,7 +48,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
-import { RealtyApiClient } from './realty-api.client';
+import { RealtyApiClient, isRealtyForbidden, isRealtyUnauthorized } from './realty-api.client';
 import { calculateMortgage } from './mortgage.calc';
 import {
   REALTY_FLOW,
@@ -134,6 +134,8 @@ const DEFAULT_LAYOUT: ResultsLayout = 'split';
 const DEFAULT_RATE = 12;
 const MAX_SCHEDULE_ROWS = 12;
 const SESSION_TTL_MS = 30 * 60 * 1000;
+/** Autoservicio de members del CMS (ADR 0034). Acepta un `returnUrl` relativo. */
+const LOGIN_PATH = '/account/login';
 
 const ROLES: readonly { key: RealtyRole; label: string }[] = [
   { key: 'demand', label: 'Buscar' },
@@ -291,6 +293,22 @@ export class RealtyElementComponent {
   readonly role = signal<RealtyRole>(DEFAULT_ROLE);
   readonly loading = signal(false);
   readonly errorMessage = signal('');
+  /**
+   * El backend pidió sesión (401) para lo que es del USUARIO: sus búsquedas guardadas y
+   * sus alertas. NO es `degraded`: ahí no hay nada que degradar, hay que iniciar sesión.
+   * Se separan porque el aviso de "datos de ejemplo" y el de "inicia sesión" son verdades
+   * distintas — el primero habla del backend, el segundo de la cuenta.
+   */
+  readonly unauthenticated = signal(false);
+  /**
+   * Acceso a la CONSOLA DEL AGENTE (cartera, leads, agenda, publicar), que ahora exige rol.
+   * - `'ok'`: hay agente, se muestra la consola.
+   * - `'anon'` (401): no hay sesión → ofrecer login.
+   * - `'forbidden'` (403): hay sesión pero sin el rol → "no autorizado" (volver a entrar NO
+   *   ayuda, hace falta que un admin le dé el permiso).
+   * Es distinto de `unauthenticated` (la cuenta del comprador): son dos caras y dos verdades.
+   */
+  readonly agentAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
   #suppressedHash = '';
 
   // ─── DEMANDA state ───────────────────────────────────────────────────────────
@@ -1031,11 +1049,61 @@ export class RealtyElementComponent {
     if (this.savedLoaded()) {
       return;
     }
-    const user = this.visitEmail().trim() || 'invitado@synergos';
-    void this.#api.savedSearches(this.apiBase(), user).then((result) => {
-      this.savedSearches.set(result.searches);
-      this.savedLoaded.set(true);
-    });
+    // Sin `?user=`: la identidad la resuelve el servidor desde la cookie. El correo que el
+    // visitante tecleó en el formulario de visita NO era una identidad — era el IDOR (y el
+    // 'invitado@synergos' de relleno, una cuenta que no existe).
+    void this.#api
+      .savedSearches(this.apiBase())
+      .then((result) => {
+        this.savedSearches.set(result.searches);
+        this.savedLoaded.set(true);
+        this.unauthenticated.set(false);
+      })
+      .catch((error: unknown) => {
+        if (this.handleUnauthorized(error)) {
+          return;
+        }
+        this.errorMessage.set('No pudimos cargar tus búsquedas guardadas. Intenta de nuevo.');
+      });
+  }
+
+  /**
+   * Traduce un 401 de las rutas del usuario al estado que la cuenta sabe pintar: el panel
+   * "Inicia sesión". Devuelve `true` si el error era ese, para que quien llama corte ahí.
+   *
+   * Aterriza SIEMPRE en la vista `account` (la única que renderiza el panel), sin importar
+   * desde dónde saltó el 401 — guardar una búsqueda se dispara desde los resultados, y si no
+   * se navegara, el usuario se quedaría sin ninguna señal de por qué no pasó nada. Y deja la
+   * cuenta HONESTA: `savedSearches=[]` para que el badge de alertas no siga mostrando un
+   * conteo viejo mientras el cuerpo pide iniciar sesión.
+   */
+  private handleUnauthorized(error: unknown): boolean {
+    if (!isRealtyUnauthorized(error) && !isRealtyForbidden(error)) {
+      return false;
+    }
+    this.unauthenticated.set(true);
+    this.errorMessage.set('');
+    this.savedSearches.set([]);
+    // `savedLoaded` queda en true a propósito: corta el re-fetch que dispararía el
+    // `navigate('account')` de la línea siguiente (y que solo traería otro 401).
+    this.savedLoaded.set(true);
+    if (this.view() !== 'account') {
+      this.navigate('account');
+    }
+    return true;
+  }
+
+  /**
+   * Login del CMS de vuelta a ESTA página (con su hash, para caer en la misma vista).
+   * Es un método y no un `computed` a propósito: el hash cambia con la navegación y un
+   * computed cacheado devolvería el de la primera lectura.
+   */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
   }
 
   saveCurrentSearch(): void {
@@ -1054,7 +1122,18 @@ export class RealtyElementComponent {
     const label = this.searchLabel(criteria);
     void this.#api
       .saveSearch(this.apiBase(), { label, operation: this.operation(), criteria, alert: true })
-      .then((saved) => this.savedSearches.update((list) => [saved, ...list]));
+      .then((saved) => {
+        this.savedSearches.update((list) => [saved, ...list]);
+        this.unauthenticated.set(false);
+      })
+      .catch((error: unknown) => {
+        // Sin sesión no hay dónde guardarla: `handleUnauthorized` lleva a la cuenta con el
+        // panel de login en vez de dejar la búsqueda "guardada" solo en esta pestaña.
+        if (this.handleUnauthorized(error)) {
+          return;
+        }
+        this.errorMessage.set('No pudimos guardar tu búsqueda. Intenta de nuevo.');
+      });
   }
 
   private searchLabel(criteria: SearchCriteria): string {
@@ -1319,17 +1398,64 @@ export class RealtyElementComponent {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
+      // Sin `?agent=`: quién es el agente lo resuelve el servidor desde la sesión. El
+      // 'agent' literal que iba aquí era una identidad puesta por el cliente.
       const result = await this.#orchestrator.callApi('agent-desk', () =>
-        this.#api.agentDesk(this.apiBase(), 'agent'),
+        this.#api.agentDesk(this.apiBase()),
       );
       this.desk.set(result);
       this.deskLoaded.set(true);
+      this.agentAccess.set('ok');
     } catch (error) {
+      if (this.handleAgentDenied(error)) {
+        return;
+      }
       this.errorMessage.set('No pudimos cargar la consola del agente. Intenta de nuevo.');
       void error;
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /**
+   * Traduce un 401/403 de la consola del agente a `agentAccess` y VACÍA la cartera, los
+   * leads y la agenda para no dejar en pantalla datos que ya no se pueden mostrar —los leads
+   * son nombres, correos y teléfonos de personas—. Devuelve `true` si era ese error.
+   * - 401 → `'anon'` (ofrecer login), 403 → `'forbidden'` (no autorizado; el login no ayuda).
+   */
+  private handleAgentDenied(error: unknown): boolean {
+    const anon = isRealtyUnauthorized(error);
+    if (!anon && !isRealtyForbidden(error)) {
+      return false;
+    }
+    this.agentAccess.set(anon ? 'anon' : 'forbidden');
+    this.errorMessage.set('');
+    this.desk.set(null);
+    this.deskLoaded.set(false);
+    this.publishing.set(false);
+    // Un id de publicación de antes del 403 en pantalla diría "publicado" sobre algo que el
+    // servidor ya no reconoce como suyo.
+    this.publishResultId.set('');
+    // El panel de acceso reemplaza TODA la cara del agente (consola y asistente de publicar),
+    // así que la sección activa deja de importar; se normaliza para volver limpio.
+    this.agentView.set('portfolio');
+    return true;
+  }
+
+  /**
+   * Salida del panel de acceso del agente hacia el portal público. NO puede ser
+   * `setRole('demand')` a secas: `setRole` hace early-return si el rol ya es el mismo, y por
+   * un deep-link a `#/realty/agente` el rol pudo quedar en 'agent' sin que el toggle se
+   * pulsara nunca — el botón quedaría MUERTO dentro del panel. Aquí se navega SIEMPRE.
+   */
+  goToDemandPortal(): void {
+    this.agentAccess.set('ok');
+    if (this.role() === 'agent') {
+      this.setRole('demand');
+      return;
+    }
+    this.role.set('demand');
+    this.navigate('search');
   }
 
   reloadDesk(): void {
@@ -1403,9 +1529,19 @@ export class RealtyElementComponent {
         this.publishResultId.set(result.id);
         this.publishing.set(false);
         this.deskLoaded.set(false);
+        this.agentAccess.set('ok');
         void this.loadDesk();
       })
-      .catch(() => this.publishing.set(false));
+      .catch((error: unknown) => {
+        this.publishing.set(false);
+        // La sesión pudo expirar a mitad del asistente, o la cuenta perder el rol: el 403
+        // rebota al panel de acceso en vez de dejar el wizard callado (antes el `.catch`
+        // solo apagaba el spinner y el agente creía que había publicado).
+        if (this.handleAgentDenied(error)) {
+          return;
+        }
+        this.errorMessage.set('No pudimos publicar el inmueble. Intenta de nuevo.');
+      });
   }
 
   /** Drop a pin on the mini-map inside the SH-6 ubicación step. */

@@ -142,6 +142,47 @@
     font-size: syn.$font-size-sm;
   }
 
+  // ─── Panel de acceso (401/403) ──────────────────────────────────────────────
+  // Hueco de identidad: lo que se ve en vez de las búsquedas guardadas (sin sesión) o de
+  // la consola del agente (sin rol). No es un error ni una degradación — es una invitación,
+  // así que se estila como panel neutro y NO con --rt-danger.
+  &__signin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface-muted);
+    text-align: center;
+  }
+
+  &__signin-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 600;
+  }
+
+  &__signin-text {
+    max-width: syn.px-to-rem(520);
+    margin: 0;
+    color: var(--rt-text-secondary);
+  }
+
+  &__signin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: syn.$space-xs;
+
+    // El "Iniciar sesión" es un <a> real (navega al autoservicio del CMS), no un botón:
+    // hereda .realty__btn y hay que apagarle el subrayado del enlace.
+    a.realty__btn {
+      text-decoration: none;
+    }
+  }
+
   // ─── Hero + operation toggle ────────────────────────────────────────────────
   &__hero {
     display: flex;

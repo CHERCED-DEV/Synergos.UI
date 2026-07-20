@@ -44,10 +44,10 @@ import {
  *  - `POST /api/realty/visit`    `{ listingId, slot, contact, mode }` → `{ visit }`
  *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRate }` → `{ monthly, … }`
  *  - `POST /api/realty/lead`     `{ listingId, contact, message }`  → `{ leadId }`
- *  - `GET  /api/realty/saved?user=`                          → `{ searches }`
- *  - `POST /api/realty/saved-search` `{ label, criteria, alert }` → `{ id }`
- *  - `GET  /api/realty/agent/leads?agent=`                   → `{ portfolio, leads, agenda }`
- *  - `POST /api/realty/listing`  `{ …publish… }`             → `{ id, status }`
+ *  - `GET  /api/realty/saved`                                → `{ searches }`    🔒 sesión
+ *  - `POST /api/realty/saved-search` `{ label, criteria, alert }` → `{ id }`     🔒 sesión
+ *  - `GET  /api/realty/agent/leads`                          → `{ portfolio, leads, agenda }` 🔒 rol
+ *  - `POST /api/realty/listing`  `{ …publish… }`             → `{ id, status }`  🔒 rol
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **seeded demo data** (con geo) and logs a `TODO`,
@@ -56,8 +56,62 @@ import {
  * notice. The mortgage endpoint additionally falls back to the pure client-side
  * calculator (deterministic), which is the recommended source per the spec.
  *
+ * **El 401/403 es la excepción a esa degradación, y es deliberado.** Las rutas 🔒 son
+ * las del USUARIO (sus búsquedas guardadas) y las del AGENTE (cartera, leads, publicar).
+ * Su identidad la resuelve el servidor desde la cookie de sesión — ya no un `?user=` /
+ * `?agent=` que cualquiera podía teclear. Un 401 no significa "el backend no está":
+ * significa "no hay sesión", y taparlo con datos de ejemplo le pintaría al anónimo unas
+ * "búsquedas guardadas" que no son de nadie y unos leads con nombre y teléfono de personas
+ * que no existen. Por eso viajan tipados hasta la UI, que los traduce a estado.
+ *
+ * Las rutas PÚBLICAS (catálogo, ficha, hipoteca, agendar visita, dejar un lead) siguen
+ * degradando a propósito: un portal donde hay que registrarse para ver un inmueble o para
+ * contactar al agente no sirve para nada.
+ *
+ * La cookie viaja sola: `fetch` manda credenciales same-origin por defecto y la app se
+ * monta dentro de la propia página del CMS. No se fuerza `credentials: 'include'`
+ * —mandaría la cookie a orígenes ajenos si `apiBase` fuera absoluto.
+ *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+
+/**
+ * El backend exige sesión para esta ruta. NO es una degradación: es un hueco de
+ * identidad, y la UI debe ofrecer iniciar sesión en vez de inventar datos.
+ */
+export class RealtyUnauthorizedError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 401 ${url}`);
+    this.name = 'RealtyUnauthorizedError';
+  }
+}
+
+/**
+ * `instanceof` no es fiable cruzando bundles (la clase puede venir de otra copia del
+ * módulo y serían dos clases distintas con el mismo nombre), así que se discrimina por
+ * `name` — el mismo motivo por el que el runtime comparte `sg-core.js` en vez de duplicarlo.
+ */
+export function isRealtyUnauthorized(error: unknown): error is RealtyUnauthorizedError {
+  return error instanceof Error && error.name === 'RealtyUnauthorizedError';
+}
+
+/**
+ * El backend respondió 403: hay sesión, pero la cuenta NO tiene el rol de agente.
+ * A diferencia del 401, volver a iniciar sesión NO ayuda — hace falta que un admin le dé
+ * el permiso. Por eso viaja distinto: la consola muestra "no autorizado", no un login.
+ * Solo lo lanzan las rutas del agente (cartera/leads/publicar).
+ */
+export class RealtyForbiddenError extends Error {
+  constructor(readonly url: string) {
+    super(`HTTP 403 ${url}`);
+    this.name = 'RealtyForbiddenError';
+  }
+}
+
+/** Discriminado por `name`, no `instanceof` (no cruza bundles). */
+export function isRealtyForbidden(error: unknown): error is RealtyForbiddenError {
+  return error instanceof Error && error.name === 'RealtyForbiddenError';
+}
 @Injectable()
 export class RealtyApiClient {
   readonly #logger = inject(LoggerService);
@@ -200,10 +254,31 @@ export class RealtyApiClient {
   }
 
   // ─── Saved searches + alerts (P11) ────────────────────────────────────────────
+  //
+  // Son del USUARIO. Un 401 NO se degrada: mostrarle "tus búsquedas guardadas" a quien no
+  // tiene sesión es inventarle una cuenta.
 
-  async savedSearches(apiBase: string, user: string): Promise<SavedResult> {
-    const query = user ? `?user=${encodeURIComponent(user)}` : '';
-    const url = `${apiBase}/saved${query}`;
+  /**
+   * Re-lanza un 401/403 de una ruta del USUARIO y, de paso, OLVIDA la copia en memoria de
+   * sus búsquedas. Sin esto, la caché sobreviviría a la pérdida de sesión y un fallo de red
+   * posterior (que sí degrada) las repintaría como si fueran del visitante de turno.
+   */
+  private rethrowIfUserAuthError(error: unknown): void {
+    if (isRealtyUnauthorized(error) || isRealtyForbidden(error)) {
+      this.#savedSearches = [];
+      throw error;
+    }
+  }
+
+  /**
+   * Las búsquedas guardadas del member de la SESIÓN. Sin parámetro de identidad: el
+   * `?user=<correo>` era el IDOR (saber el correo de alguien bastaba para leer sus
+   * búsquedas) y el backend ya no lo mira.
+   *
+   * @throws {RealtyUnauthorizedError} si no hay sesión.
+   */
+  async savedSearches(apiBase: string): Promise<SavedResult> {
+    const url = `${apiBase}/saved`;
     try {
       const data = await this.getJson(url);
       const result = normalizeSaved(data);
@@ -213,6 +288,7 @@ export class RealtyApiClient {
       }
       throw new Error('saved-shape');
     } catch (error) {
+      this.rethrowIfUserAuthError(error);
       this.markDegraded('GET /api/realty/saved', error);
       const searches = this.#savedSearches.length > 0 ? this.#savedSearches : mockSaved();
       this.#savedSearches = searches;
@@ -220,6 +296,7 @@ export class RealtyApiClient {
     }
   }
 
+  /** @throws {RealtyUnauthorizedError} si no hay sesión. */
   async saveSearch(apiBase: string, body: SavedSearchRequest): Promise<SavedSearch> {
     const url = `${apiBase}/saved-search`;
     try {
@@ -231,6 +308,7 @@ export class RealtyApiClient {
       }
       throw new Error('saved-search-shape');
     } catch (error) {
+      this.rethrowIfUserAuthError(error);
       this.markDegraded('POST /api/realty/saved-search', error);
       const saved: SavedSearch = {
         id: `SS-${Date.now().toString(36).toUpperCase()}`,
@@ -246,10 +324,34 @@ export class RealtyApiClient {
   }
 
   // ─── Agent desk (cartera + leads + agenda) ────────────────────────────────────
+  //
+  // La consola del agente expone PII de OTRAS personas: los leads son nombres, correos y
+  // teléfonos de prospectos reales. Un 401 (anónimo) o un 403 (logueado sin el rol) NO se
+  // degradan a mock —eso le pintaría una cartera y unos contactos a quien no debe verlos—:
+  // se re-lanzan tipados para que la UI muestre "inicia sesión" / "no autorizado".
 
-  async agentDesk(apiBase: string, agent: string): Promise<AgentDeskResult> {
-    const query = agent ? `?agent=${encodeURIComponent(agent)}` : '';
-    const url = `${apiBase}/agent/leads${query}`;
+  /**
+   * Re-lanza un 401/403 de una ruta del AGENTE y olvida lo que este cliente acumuló en
+   * memoria de esa cara: los leads de la sesión (que llevan datos de contacto) y los
+   * inmuebles recién publicados. Si no, sobrevivirían a la pérdida de sesión y volverían a
+   * aparecer plegados en el próximo fallback degradado.
+   */
+  private rethrowIfAgentAuthError(error: unknown): void {
+    if (isRealtyUnauthorized(error) || isRealtyForbidden(error)) {
+      this.#agentLeads = [];
+      this.#publishedListings = [];
+      throw error;
+    }
+  }
+
+  /**
+   * La cartera del agente de la SESIÓN. Sin parámetro de identidad: el `?agent=<id>` era
+   * la identidad puesta por el cliente, o sea el IDOR; el backend ya no lo mira.
+   *
+   * @throws {RealtyUnauthorizedError | RealtyForbiddenError} sin sesión o sin el rol de agente.
+   */
+  async agentDesk(apiBase: string): Promise<AgentDeskResult> {
+    const url = `${apiBase}/agent/leads`;
     try {
       const data = await this.getJson(url);
       const result = normalizeAgentDesk(data);
@@ -258,6 +360,7 @@ export class RealtyApiClient {
       }
       throw new Error('agent-desk-shape');
     } catch (error) {
+      this.rethrowIfAgentAuthError(error);
       this.markDegraded('GET /api/realty/agent/leads', error);
       return this.mergeAgentDesk(mockAgentDesk());
     }
@@ -277,6 +380,7 @@ export class RealtyApiClient {
 
   // ─── Publish a listing (SH-6 authoring) ───────────────────────────────────────
 
+  /** @throws {RealtyUnauthorizedError | RealtyForbiddenError} sin sesión o sin el rol de agente. */
   async publishListing(
     apiBase: string,
     body: PublishListingRequest,
@@ -292,6 +396,9 @@ export class RealtyApiClient {
       }
       throw new Error('publish-shape');
     } catch (error) {
+      // Publicar es del agente: un 403 NO puede devolver un id inventado y un "Publicado"
+      // en verde. El inmueble no existe en ningún sitio.
+      this.rethrowIfAgentAuthError(error);
       this.markDegraded('POST /api/realty/listing', error);
       const id = `L-${Date.now().toString(36).toUpperCase()}`;
       this.seedPublished(id, body, currency);
@@ -336,9 +443,19 @@ export class RealtyApiClient {
     return fetch(url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
-    }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
-    );
+    }).then((response) => {
+      if (response.status === 401) {
+        // Antes caía en el `catch` genérico y se degradaba a mock: el anónimo veía
+        // "datos de ejemplo" con búsquedas y leads ajenos en vez de un "inicia sesión".
+        return Promise.reject(new RealtyUnauthorizedError(url));
+      }
+      if (response.status === 403) {
+        // Autenticado pero sin rol (agente): tampoco es degradación. Taparlo con mock le
+        // mostraría la cartera y los datos de contacto de los leads a quien no debe verlos.
+        return Promise.reject(new RealtyForbiddenError(url));
+      }
+      return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
+    });
   }
 
   private toSearchQuery(criteria: SearchCriteria): string {

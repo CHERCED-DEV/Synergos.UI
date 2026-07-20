@@ -240,6 +240,52 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.listings().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
+
+  // ── 403 del agente: la consola NO se degrada a mock (los leads son PII ajena) ──
+  it('no pinta la consola del agente con datos de ejemplo cuando el backend responde 403', async () => {
+    installMemoryStorage();
+    // Solo /agent/leads responde 403; el catálogo público sigue cayendo a mock a propósito.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/agent/leads')
+          ? Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    component.setRole('agent');
+    await flushMicrotasks();
+
+    // 'forbidden', no 'anon': volver a iniciar sesión no le daría el rol.
+    expect(component.agentAccess()).toBe('forbidden');
+    expect(component.desk()).toBeNull();
+    // Y el catálogo público sí degradó — las dos verdades conviven sin mezclarse.
+    expect(component.listings().length).toBeGreaterThan(0);
+  });
+
+  // ── 401 del usuario: las búsquedas guardadas NO se inventan ───────────────────
+  it('pide iniciar sesión en vez de inventar búsquedas guardadas cuando el backend responde 401', async () => {
+    installMemoryStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/saved')
+          ? Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    expect(component.unauthenticated()).toBe(true);
+    expect(component.savedSearches()).toHaveLength(0);
+    // El badge de alertas se apaga: si no, seguiría contando matches de nadie.
+    expect(component.savedAlertCount()).toBe(0);
+  });
 });
 
 describe('RealtyApiClient', () => {
@@ -321,11 +367,53 @@ describe('RealtyApiClient', () => {
     );
     expect(lead.leadId.length).toBeGreaterThan(0);
 
-    const desk = await client.agentDesk('/api/realty', 'agent');
+    const desk = await client.agentDesk('/api/realty');
     expect(client.degraded).toBe(true);
     expect(desk.portfolio.length).toBeGreaterThan(0);
     // The just-submitted lead is folded into the CRM.
     expect(desk.leads.some((entry) => entry.id === lead.leadId)).toBe(true);
+  });
+
+  it('re-lanza el 401 de las búsquedas guardadas en vez de degradar a mock', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)),
+    );
+    const client = createClient();
+
+    await expect(client.savedSearches('/api/realty')).rejects.toMatchObject({
+      // Discriminado por `name` — es lo que la UI mira, porque `instanceof` no cruza bundles.
+      name: 'RealtyUnauthorizedError',
+    });
+    // Un 401 NO es "el backend no responde": el aviso de datos de ejemplo no debe encenderse.
+    expect(client.degraded).toBe(false);
+  });
+
+  it('re-lanza el 403 del escritorio del agente y olvida los leads en memoria', async () => {
+    const fetchMock = vi.fn((url: string) =>
+      String(url).includes('/agent/leads')
+        ? Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) } as Response)
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const client = createClient();
+
+    // Un lead dejado desde la ficha pública (con nombre y teléfono) queda en memoria…
+    await client.submitLead(
+      '/api/realty',
+      { listingId: 'L-1', contact: { name: 'Grace', email: 'g@b.co', phone: '3009998877' }, message: 'Hola' },
+      'Apartamento en Chicó',
+    );
+
+    await expect(client.agentDesk('/api/realty')).rejects.toMatchObject({
+      name: 'RealtyForbiddenError',
+    });
+
+    // …y el 403 lo BORRA: si no, un fallo de red posterior (que sí degrada) lo repintaría
+    // plegado en la cartera de quien no tiene el rol.
+    fetchMock.mockImplementation(() => Promise.reject(new Error('offline')));
+    const desk = await client.agentDesk('/api/realty');
+    expect(desk.leads.some((entry) => entry.name === 'Grace')).toBe(false);
   });
 
   it('publishes a listing that surfaces in the cartera (mock)', async () => {
@@ -353,7 +441,7 @@ describe('RealtyApiClient', () => {
     );
     expect(result.id.length).toBeGreaterThan(0);
 
-    const desk = await client.agentDesk('/api/realty', 'agent');
+    const desk = await client.agentDesk('/api/realty');
     expect(desk.portfolio.some((entry) => entry.id === result.id)).toBe(true);
   });
 });

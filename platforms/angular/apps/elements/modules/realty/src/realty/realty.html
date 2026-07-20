@@ -37,7 +37,10 @@
   }
 
   <!-- Mock-data degradation notice -->
-  @if (degraded()) {
+  @if (degraded() && agentAccess() === 'ok') {
+    <!-- No convive con el panel de acceso del agente: ese panel reemplaza la cara entera, y
+         un 401/403 previo pudo dejar el latch `degraded` encendido — se verían dos verdades
+         contradictorias a la vez ("hay datos de ejemplo" / "no puedes ver estos datos"). -->
     <p class="realty__notice realty__notice--warn" role="status">
       Mostrando datos de ejemplo: el motor de propiedades aún no responde.
     </p>
@@ -444,6 +447,24 @@
 
     <!-- ─── ACCOUNT: SH-4 (favoritos+comparar · saved · visitas · mensajes) ── -->
     @if (view() === 'account') {
+      @if (unauthenticated()) {
+        <!-- El backend pidió sesión para las búsquedas guardadas. NO se pintan las de ejemplo:
+             sería mostrarle al anónimo unas búsquedas que no son de nadie. El panel va FUERA
+             del shell y no dentro de la sección 'saved' porque el shell abre en 'favoritos' y
+             el aviso quedaría escondido tras un clic. Favoritos y visitas siguen debajo: son
+             de esta sesión, no del servidor, y no mienten sobre ninguna cuenta. -->
+        <div class="realty__signin">
+          <h2 class="realty__signin-title">Inicia sesión para ver tus búsquedas guardadas</h2>
+          <p class="realty__signin-text">
+            Tus búsquedas y sus alertas quedan atadas a tu cuenta. Las verás aquí en cuanto entres.
+          </p>
+          <div class="realty__signin-actions">
+            <a class="realty__btn realty__btn--primary" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="realty__btn" (click)="goToSearch()">Seguir buscando</button>
+          </div>
+        </div>
+      }
+
       <syn-account-shell
         [config]="accountConfig()"
         [items]="myVisits()"
@@ -515,7 +536,11 @@
           @case ('saved') {
             <div class="realty__saved">
               <h2 class="realty__favs-title">Búsquedas guardadas y alertas</h2>
-              @if (savedSearches().length === 0) {
+              @if (unauthenticated()) {
+                <!-- Sin sesión la lista está vacía porque no se pudo leer, NO porque no haya
+                     ninguna. "No tienes búsquedas guardadas" sería mentirle a quien sí tiene. -->
+                <p class="realty__empty">Inicia sesión para ver tus búsquedas guardadas y sus alertas.</p>
+              } @else if (savedSearches().length === 0) {
                 <p class="realty__empty">No tienes búsquedas guardadas. Guarda una desde los resultados.</p>
               } @else {
                 <ul class="realty__saved-list">
@@ -552,7 +577,38 @@
 
   <!-- ═══════════════════════════════ AGENTE ══════════════════════════════════ -->
   @if (role() === 'agent') {
-    @if (agentView() === 'publish') {
+    @if (agentAccess() !== 'ok') {
+      <!-- La consola expone datos de contacto de OTRAS personas (los leads traen nombre,
+           correo y teléfono) además de la cartera y la facturación del agente: si no hay rol
+           NO se pinta con datos de ejemplo. 'anon' → ofrecer login; 'forbidden' → el login no
+           ayuda (hace falta que un admin dé el permiso), así que solo se explica. -->
+      <div class="realty__signin">
+        @if (agentAccess() === 'anon') {
+          <h2 class="realty__signin-title">Inicia sesión como agente</h2>
+          <p class="realty__signin-text">
+            La consola es para los agentes de la inmobiliaria: muestra la cartera y los datos de
+            contacto de cada prospecto. Entra con una cuenta autorizada para verla.
+          </p>
+          <div class="realty__signin-actions">
+            <a class="realty__btn realty__btn--primary" [href]="loginUrl()">Iniciar sesión</a>
+            <button type="button" class="realty__btn" (click)="goToDemandPortal()">
+              Ir al portal de búsqueda
+            </button>
+          </div>
+        } @else {
+          <h2 class="realty__signin-title">Tu cuenta no tiene el rol de agente</h2>
+          <p class="realty__signin-text">
+            Esta consola es solo para los agentes de la inmobiliaria. Volver a iniciar sesión no
+            cambia nada: si necesitas acceso, pídele el rol al administrador.
+          </p>
+          <div class="realty__signin-actions">
+            <button type="button" class="realty__btn realty__btn--primary" (click)="goToDemandPortal()">
+              Ir al portal de búsqueda
+            </button>
+          </div>
+        }
+      </div>
+    } @else if (agentView() === 'publish') {
       <div class="realty__publish">
         <button type="button" class="realty__back" (click)="onPublishExit()">← Volver a la consola</button>
 
