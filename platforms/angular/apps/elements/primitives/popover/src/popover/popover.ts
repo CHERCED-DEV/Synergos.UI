@@ -39,7 +39,7 @@ export interface PopoverRuntimeConfig {
 /** Where the panel is anchored relative to the trigger. */
 export type PopoverPlacement = 'top' | 'bottom' | 'left' | 'right';
 
-/** Emitted on the `toggle` CustomEvent and the typed Angular output. */
+/** Emitted on the `popovertoggle` CustomEvent and the typed Angular output. */
 export interface PopoverToggleDetail {
   readonly open: boolean;
 }
@@ -91,8 +91,13 @@ export class PopoverElementComponent {
   readonly closeLabelInput = input<string | undefined>(undefined, { alias: 'closeLabel' });
   readonly integration = input<string | undefined>(undefined);
 
-  /** Typed Angular output mirroring the native `toggle` CustomEvent. */
-  readonly toggle = output<PopoverToggleDetail>();
+  /**
+   * Emitted as the `popovertoggle` CustomEvent.
+   *
+   * NO se llama `toggle`: ese es un evento DOM nativo (`<details>` y la Popover API) y sería
+   * indistinguible del nuestro en el host. Convención de la casa, igual que `tooltiptoggle`.
+   */
+  readonly popovertoggle = output<PopoverToggleDetail>();
 
   /** Stable ids tying the trigger to the panel for aria-controls / labelling. */
   readonly #instanceId = ++popoverInstanceCounter;
@@ -165,7 +170,11 @@ export class PopoverElementComponent {
   }
 
   toggleOpen(): void {
-    this.#open() ? this.close() : this.openPanel();
+    if (this.#open()) {
+      this.close();
+    } else {
+      this.openPanel();
+    }
   }
 
   openPanel(): void {
@@ -173,7 +182,7 @@ export class PopoverElementComponent {
       return;
     }
     this.#open.set(true);
-    this.toggle.emit({ open: true });
+    this.popovertoggle.emit({ open: true });
     this.#focusPanel();
   }
 
@@ -182,7 +191,7 @@ export class PopoverElementComponent {
       return;
     }
     this.#open.set(false);
-    this.toggle.emit({ open: false });
+    this.popovertoggle.emit({ open: false });
     this.#focusTrigger();
   }
 

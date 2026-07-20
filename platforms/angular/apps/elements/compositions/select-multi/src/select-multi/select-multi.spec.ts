@@ -48,7 +48,7 @@ describe('SelectMultiElementComponent', () => {
 
   it('should toggle a selection, emit, filter by query, and honor max + disabled (interaction)', async () => {
     const emitted: SelectMultiChangeDetail[] = [];
-    component.selectionchange.subscribe((detail) => emitted.push(detail));
+    component.valueschange.subscribe((detail) => emitted.push(detail));
 
     fixture.componentRef.setInput('optionsJson', OPTIONS);
     fixture.componentRef.setInput('maxSelections', 2);

@@ -9,7 +9,6 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
@@ -130,7 +129,6 @@ function sanitizeLivestreamConfig(value: Partial<LivestreamRuntimeConfig>): Live
   host: { class: 'sg-livestream' },
 })
 export class LivestreamElementComponent {
-  readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
   readonly config = input<LivestreamRuntimeConfig | undefined, unknown>(undefined, {

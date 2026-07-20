@@ -60,7 +60,7 @@ describe('SearchBoxElementComponent', () => {
 
     const searches: string[] = [];
     const submits: string[] = [];
-    component.search.subscribe((value) => searches.push(value));
+    component.querychange.subscribe((value) => searches.push(value));
     component.submitted.subscribe((value) => submits.push(value));
 
     component.query.set('  centro  ');

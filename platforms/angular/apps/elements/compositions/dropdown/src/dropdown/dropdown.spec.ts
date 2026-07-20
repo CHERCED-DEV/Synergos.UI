@@ -62,7 +62,7 @@ describe('DropdownElementComponent', () => {
     await fixture.whenStable();
 
     let emitted: DropdownSelectDetail | undefined;
-    component.select.subscribe((detail) => (emitted = detail));
+    component.itemselect.subscribe((detail) => (emitted = detail));
 
     component.openMenu();
     expect(component.open()).toBe(true);

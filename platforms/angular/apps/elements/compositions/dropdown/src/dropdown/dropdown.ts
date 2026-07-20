@@ -22,7 +22,7 @@ import {
  * Runtime config for the CMS element <c>elementSynDropdown</c>.
  *
  * A trigger button that opens an accessible menu of items. Items can be
- * plain actions (emit a `select` CustomEvent) or links (navigate via href).
+ * plain actions (emit an `itemselect` CustomEvent) or links (navigate via href).
  * Supports full keyboard control (Arrow/Home/End/typeahead/Escape), a
  * roving-focus `aria-activedescendant`-free roving tabindex menu, optional
  * inline search filtering, and outside-click / Escape dismissal.
@@ -52,7 +52,7 @@ export interface DropdownItem {
   readonly disabled: boolean;
 }
 
-/** Emitted on the `select` CustomEvent and the typed Angular output. */
+/** Emitted on the `itemselect` CustomEvent and the typed Angular output. */
 export interface DropdownSelectDetail {
   readonly value: string;
   readonly label: string;
@@ -150,8 +150,14 @@ export class DropdownElementComponent {
   });
   readonly integration = input<string | undefined>(undefined);
 
-  /** Typed Angular output mirroring the native `select` CustomEvent. */
-  readonly select = output<DropdownSelectDetail>();
+  /**
+   * Emitted as the `itemselect` CustomEvent.
+   *
+   * NO se llama `select`: ese es un evento DOM nativo (lo dispara `<input>`/`<textarea>` al
+   * seleccionar texto) y, al burbujear hasta el host del custom element, sería
+   * indistinguible del nuestro. Convención de la casa: nombre compuesto en minúscula.
+   */
+  readonly itemselect = output<DropdownSelectDetail>();
 
   /** Stable ids so trigger/menu can reference each other via aria. */
   readonly triggerId = `syn-dropdown-trigger-${nextId()}`;
@@ -283,7 +289,7 @@ export class DropdownElementComponent {
       label: item.label,
       href: item.href,
     };
-    this.select.emit(detail);
+    this.itemselect.emit(detail);
 
     this.close(true);
   }

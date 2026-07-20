@@ -59,7 +59,7 @@ describe('PopoverElementComponent', () => {
     fixture.detectChanges();
 
     const emitted: PopoverToggleDetail[] = [];
-    component.toggle.subscribe((detail) => emitted.push(detail));
+    component.popovertoggle.subscribe((detail) => emitted.push(detail));
 
     component.toggleOpen();
     fixture.detectChanges();

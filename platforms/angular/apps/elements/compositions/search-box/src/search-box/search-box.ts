@@ -111,8 +111,14 @@ export class SearchBoxElementComponent {
   });
   readonly suggestionsInput = input<string | undefined>(undefined, { alias: 'suggestions' });
 
-  /** Emits the live (debounced) query as the user types. */
-  readonly search = output<string>();
+  /**
+   * Emits the live (debounced) query as the user types, como el `querychange` CustomEvent.
+   *
+   * NO se llama `search`: este componente CONTIENE un `<input type="search">`, que dispara un
+   * evento `search` nativo (p. ej. al pulsar Escape o la "x" del navegador) que burbujea hasta
+   * el host ⇒ sería indistinguible del nuestro. Aquí la colisión no era teórica.
+   */
+  readonly querychange = output<string>();
   /** Emits when the query is committed (Enter / explicit submit). */
   readonly submitted = output<string>();
   /** Emits when the field is cleared. */
@@ -258,7 +264,7 @@ export class SearchBoxElementComponent {
     this.suggestionsOpen.set(false);
     this.activeSuggestion.set(-1);
     this.cleared.emit();
-    this.search.emit('');
+    this.querychange.emit('');
   }
 
   private seedInitialQuery(): void {
@@ -277,7 +283,7 @@ export class SearchBoxElementComponent {
   private commit(value: string): void {
     this.clearDebounce();
     const trimmed = value.trim();
-    this.search.emit(trimmed);
+    this.querychange.emit(trimmed);
     this.submitted.emit(trimmed);
   }
 
@@ -291,12 +297,12 @@ export class SearchBoxElementComponent {
 
     const delay = this.debounceMs();
     if (delay === 0) {
-      this.search.emit(trimmed);
+      this.querychange.emit(trimmed);
       return;
     }
 
     this.#debounceTimer = setTimeout(() => {
-      this.search.emit(trimmed);
+      this.querychange.emit(trimmed);
       this.#debounceTimer = null;
     }, delay);
   }

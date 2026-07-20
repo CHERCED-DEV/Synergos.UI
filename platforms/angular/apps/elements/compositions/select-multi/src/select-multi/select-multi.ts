@@ -23,7 +23,7 @@ import {
  * `role="listbox"` (multiselectable) whose chosen values render as
  * removable chips. Built for faceted forms and tag pickers across the
  * verticals. Options are supplied inline via `optionsJson` (or `options`
- * in the config object). Each commit emits a `selectionchange`
+ * in the config object). Each commit emits a `valueschange`
  * CustomEvent carrying the selected values.
  *
  * Bridge contract: every CMS property is a TypeScript input with the
@@ -51,7 +51,7 @@ export interface SelectMultiOption {
   readonly disabled: boolean;
 }
 
-/** Emitted on the `selectionchange` CustomEvent and the typed output. */
+/** Emitted on the `valueschange` CustomEvent and the typed output. */
 export interface SelectMultiChangeDetail {
   readonly values: readonly string[];
   readonly options: readonly SelectMultiOption[];
@@ -158,8 +158,14 @@ export class SelectMultiElementComponent {
   });
   readonly integration = input<string | undefined>(undefined);
 
-  /** Typed Angular output mirroring the native `selectionchange` event. */
-  readonly selectionchange = output<SelectMultiChangeDetail>();
+  /**
+   * Emitted as the `valueschange` CustomEvent.
+   *
+   * NO se llama `selectionchange`: ese es un evento DOM nativo (lo dispara `document` al
+   * cambiar la selección de texto) y sería indistinguible del nuestro en el host del custom
+   * element. Convención de la casa: nombre compuesto en minúscula.
+   */
+  readonly valueschange = output<SelectMultiChangeDetail>();
 
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, ''),
@@ -408,7 +414,7 @@ export class SelectMultiElementComponent {
     const options = values
       .map((value) => index.get(value))
       .filter((option): option is SelectMultiOption => option !== undefined);
-    this.selectionchange.emit({ values: [...values], options });
+    this.valueschange.emit({ values: [...values], options });
   }
 
   /** Lowercase + strip diacritics for accent-insensitive matching. */
