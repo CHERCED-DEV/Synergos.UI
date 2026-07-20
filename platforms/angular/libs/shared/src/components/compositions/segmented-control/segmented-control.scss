@@ -80,6 +80,14 @@
 
 .syn-segmented-control--compact .syn-segmented-control__option,
 .syn-segmented-control--compact .syn-segmented-control__nav {
+  // WCAG 2.5.5 (AAA). La caja compacta se queda en 34px —es deliberada— y solo se
+  // expande el área de puntero. MEDIDO antes de incluirlo, porque el mixin avisa de
+  // que dos áreas adyacentes se solapan y gana la última del DOM: aquí NO pasa. El
+  // padding horizontal es `$space-sm` (16px) a cada lado más el texto, así que un
+  // segmento ya mide >44px de ancho y `max(100%, 44px)` es un no-op en ese eje. Solo
+  // crece en alto (34→44), donde no hay vecino con el que chocar.
+  @include syn.touch-target;
+
   min-height: syn.px-to-rem(34);
   padding: syn.$space-xxs syn.$space-sm;
 }

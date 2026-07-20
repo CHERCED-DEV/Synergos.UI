@@ -60,6 +60,11 @@
 }
 
 .syn-paginator__page {
+  // WCAG 2.5.5 (AAA): se expande el área de puntero sin tocar la caja. MEDIDO: los
+  // botones son 40px y el `gap` es `$space-xs` (8px); el mixin exige `44 - caja` = 4px
+  // de separación para que dos áreas no se pisen, así que hay margen de sobra.
+  @include syn.touch-target;
+
   min-width: syn.px-to-rem(40);
   padding-inline: syn.$space-sm;
   text-align: center;
