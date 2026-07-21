@@ -5799,5 +5799,481 @@
       "default": "",
       "description": "Hook opcional para integración custom — vacío por default"
     }
+  ],
+  "academy": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for academy."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    }
+  ],
+  "app-launcher": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for app-launcher."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "description": "Main heading rendered above the module."
+    },
+    {
+      "name": "searchLabel",
+      "type": "string",
+      "required": false,
+      "description": "Accessible label of the search field."
+    },
+    {
+      "name": "searchPlaceholder",
+      "type": "string",
+      "required": false,
+      "description": "Placeholder text of the search field."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the primary call to action."
+    },
+    {
+      "name": "emptyLabel",
+      "type": "string",
+      "required": false,
+      "description": "Message shown when there is nothing to list."
+    },
+    {
+      "name": "allFiltersLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the option that clears every filter."
+    },
+    {
+      "name": "apps",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of apps to list: {id, name, tagline, status, url, icon}."
+    }
+  ],
+  "blogs": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for blogs."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "user",
+      "type": "string",
+      "required": false,
+      "description": "Author identifier whose posts are listed."
+    },
+    {
+      "name": "viewerHandle",
+      "type": "string",
+      "required": false,
+      "description": "Handle of the signed-in reader, used for their own actions."
+    },
+    {
+      "name": "viewerName",
+      "type": "string",
+      "required": false,
+      "description": "Display name of the signed-in reader."
+    },
+    {
+      "name": "view",
+      "type": "string",
+      "required": false,
+      "description": "Initial view to render."
+    }
+  ],
+  "booking-wizard": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for booking-wizard."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "destinationLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the destination field."
+    },
+    {
+      "name": "sessionKey",
+      "type": "string",
+      "required": false,
+      "description": "Key used to persist wizard progress across reloads."
+    }
+  ],
+  "ehr": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for ehr."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "clinic",
+      "type": "string",
+      "required": false,
+      "description": "Clinic identifier the records belong to."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "patient",
+      "type": "string",
+      "required": false,
+      "description": "Patient identifier to open on load."
+    },
+    {
+      "name": "copayMinor",
+      "type": "number",
+      "required": false,
+      "description": "Copay amount in minor units (cents)."
+    }
+  ],
+  "eventos": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for eventos."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "json",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "eventId",
+      "type": "string",
+      "required": false,
+      "description": "Event identifier to open on load."
+    },
+    {
+      "name": "feePercent",
+      "type": "number",
+      "required": false,
+      "description": "Service fee applied to the ticket price, as a percentage."
+    }
+  ],
+  "gov": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for gov."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "agency",
+      "type": "string",
+      "required": false,
+      "description": "Agency identifier the procedures belong to."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    }
+  ],
+  "realty": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for realty."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "operation",
+      "type": "string",
+      "required": false,
+      "description": "Listing operation to show: sale or rent."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "description": "Layout variant used to present the listings."
+    },
+    {
+      "name": "defaultRate",
+      "type": "number",
+      "required": false,
+      "description": "Interest rate prefilled in the mortgage estimator."
+    }
+  ],
+  "pax-selector": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for pax-selector."
+    },
+    {
+      "name": "maxRooms",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of rooms selectable."
+    },
+    {
+      "name": "maxPerRoom",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of guests per room."
+    },
+    {
+      "name": "maxChildAge",
+      "type": "number",
+      "required": false,
+      "description": "Highest age still counted as a child."
+    },
+    {
+      "name": "initial",
+      "type": "json",
+      "required": false,
+      "description": "JSON with the initial occupancy selection."
+    }
+  ],
+  "seat-map": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for seat-map."
+    },
+    {
+      "name": "seatmap",
+      "type": "json",
+      "required": false,
+      "description": "JSON describing the seat layout: rows, seats and their state."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "maxSelectable",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of seats selectable at once."
+    }
+  ],
+  "seller": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for seller."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "sellerName",
+      "type": "string",
+      "required": false,
+      "description": "Seller display name shown in the console header."
+    },
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "description": "Main heading rendered above the module."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    }
+  ],
+  "storefront": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for storefront."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    }
+  ],
+  "travel-shell": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for travel-shell."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "traveler",
+      "type": "string",
+      "required": false,
+      "description": "Traveller identifier whose bookings are listed."
+    }
   ]
 }

@@ -862,6 +862,58 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-video-player',
     map: (d) => toRecord(d),
   },
+  elementSynAcademy: {
+    tag: 'synergos-academy',
+    map: (d) => toRecord(d),
+  },
+  elementSynAppLauncher: {
+    tag: 'synergos-app-launcher',
+    map: (d) => toRecord(d),
+  },
+  elementSynBlogs: {
+    tag: 'synergos-blogs',
+    map: (d) => toRecord(d),
+  },
+  elementSynBookingWizard: {
+    tag: 'synergos-booking-wizard',
+    map: (d) => toRecord(d),
+  },
+  elementSynEhr: {
+    tag: 'synergos-ehr',
+    map: (d) => toRecord(d),
+  },
+  elementSynEventos: {
+    tag: 'synergos-eventos',
+    map: (d) => toRecord(d),
+  },
+  elementSynGov: {
+    tag: 'synergos-gov',
+    map: (d) => toRecord(d),
+  },
+  elementSynRealty: {
+    tag: 'synergos-realty',
+    map: (d) => toRecord(d),
+  },
+  elementSynPaxSelector: {
+    tag: 'synergos-pax-selector',
+    map: (d) => toRecord(d),
+  },
+  elementSynSeatMap: {
+    tag: 'synergos-seat-map',
+    map: (d) => toRecord(d),
+  },
+  elementSynSeller: {
+    tag: 'synergos-seller',
+    map: (d) => toRecord(d),
+  },
+  elementSynStorefront: {
+    tag: 'synergos-storefront',
+    map: (d) => toRecord(d),
+  },
+  elementSynTravelShell: {
+    tag: 'synergos-travel-shell',
+    map: (d) => toRecord(d),
+  },
 };
 
 export function mapBlockToElementResult(block: BlockConfig): BlockMappingResult {
