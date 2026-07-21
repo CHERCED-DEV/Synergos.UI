@@ -1,0 +1,38 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+.syn-skeleton {
+  display: grid;
+  gap:     syn.$space-sm;
+  width:   100%;
+}
+
+.syn-skeleton__item {
+  display:       block;
+  width:         100%;
+  border-radius: syn.$radius-md;
+  background:    linear-gradient(
+    90deg,
+    var(--syn-skeleton-base, #{syn.$color-skeleton-base}) 0%,
+    var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen}) 50%,
+    var(--syn-skeleton-base, #{syn.$color-skeleton-base}) 100%
+  );
+  background-size: 200% 100%;
+  animation: syn-skeleton-shimmer syn.$duration-shimmer ease-in-out infinite;
+}
+
+.syn-skeleton--sm .syn-skeleton__item { border-radius: syn.$radius-sm; }
+.syn-skeleton--lg .syn-skeleton__item { border-radius: syn.$radius-lg; }
+.syn-skeleton--circle .syn-skeleton__item { border-radius: 50%; }
+
+.syn-skeleton--static .syn-skeleton__item { animation: none; }
+
+@keyframes syn-skeleton-shimmer {
+  from { background-position:  200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-skeleton__item { animation: none; }
+}

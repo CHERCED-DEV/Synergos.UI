@@ -1,0 +1,202 @@
+@use '../elevation' as elevation;
+
+/* Capa de marca propiedad de la UI — NO es una copia del tema.
+
+   Este archivo lo `@forward`ea el índice de tokens, así que TODO lo que emita
+   se inlinea en el CSS de cada componente y se inyecta en runtime DESPUÉS del
+   <link> del CMS. A igual especificidad gana el orden de fuente ⇒ lo que se
+   declare acá SUPLANTA al SSOT en el navegador. El header anterior decía "CMS
+   can override these": era falso, y bajo esa creencia vivieron 92 tokens
+   --syn-* rancios (silverGold text-accent 3.47:1 contra 5.19:1 del SSOT).
+
+   REGLA: acá NO se declara ningún --syn-* que `syn-tokens.css` ya defina.
+   El tema en runtime es del host (Synergos.CMS.Web/wwwroot/css/syn-tokens.css);
+   se consume con var(--syn-x), no se redeclara. Lo gobierna el gate G-2 de
+   `platforms/angular/tools/sync-tokens.mjs --check`.
+
+   Lo que SÍ vive acá, porque el SSOT no lo define:
+     · --sg-*  — capa de marca legacy (gradientes, glow, peso de heading…).
+     · --syn-gradient-hero-dark / -silver-gold, --syn-shadow-accent.
+     · los alias semánticos del mixin (indirección pura vía var()). */
+
+$light-theme-selectors: ':root',
+  ':root[data-theme="light"]',
+  ':root[theme="light"]',
+  '[data-theme="light"]',
+  '[theme="light"]',
+  '.theme-light';
+
+$dark-theme-selectors: ':root[data-theme="dark"]',
+  ':root[theme="dark"]',
+  '[data-theme="dark"]',
+  '[theme="dark"]',
+  '.theme-dark';
+
+$silver-gold-theme-selectors: ':root[data-theme="silver-gold"]',
+  ':root[theme="silver-gold"]',
+  ':root[data-theme="silverGold"]',
+  ':root[theme="silverGold"]',
+  '[data-theme="silver-gold"]',
+  '[theme="silver-gold"]',
+  '[data-theme="silverGold"]',
+  '[theme="silverGold"]',
+  '.theme-silver-gold',
+  '.theme-silverGold';
+
+@mixin semantic-aliases {
+  --sg-z-overlay: #{elevation.$z-overlay};
+
+  --syn-surface: var(--syn-color-surface-primary);
+  --syn-surface-subtle: var(--syn-color-surface-secondary);
+  --syn-surface-muted: var(--syn-color-surface-tertiary);
+  --syn-surface-inverse: var(--syn-color-surface-inverse);
+
+  --syn-text-primary: var(--syn-color-text-primary);
+  --syn-text-secondary: var(--syn-color-text-secondary);
+  --syn-text-muted: var(--syn-color-text-muted);
+  --syn-text-disabled: var(--syn-color-text-disabled);
+  --syn-text-inverse: var(--syn-color-text-inverse);
+  --syn-text-brand: var(--syn-color-text-accent);
+
+  --syn-border-subtle: var(--syn-color-border-subtle);
+  --syn-border-default: var(--syn-color-border-default);
+  --syn-border-strong: var(--syn-color-border-strong);
+  --syn-border-brand: var(--syn-color-border-accent);
+
+  --syn-gradient-divider: var(--sg-brand-divider-gradient);
+  --syn-gradient-action-emphasis: linear-gradient(
+    135deg,
+    var(--syn-color-action-primary) 0%,
+    var(--syn-color-action-emphasis, var(--syn-color-text-accent)) 100%
+  );
+
+  --syn-surface-glass-background: var(--sg-brand-surface-glass-bg);
+  --syn-surface-glass-blur: var(--sg-brand-surface-backdrop-blur);
+  --syn-shadow-emphasis: var(--sg-brand-cta-glow);
+}
+
+#{$light-theme-selectors} {
+  color-scheme: light;
+
+  --sg-color-action-primary: var(--syn-color-brand-500);
+  --sg-color-action-primary-hover: var(--syn-color-brand-600);
+  --sg-color-action-primary-text: var(--syn-color-neutral-0);
+  --sg-color-surface-elevated: var(--syn-color-neutral-50);
+  --sg-color-text-secondary: var(--syn-color-neutral-600);
+  --sg-color-border-subtle: var(--syn-color-neutral-200);
+  --sg-color-info: #0284c7;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #eef3ff 0%, #ffffff 56%, #e2e9ff 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(15 23 42 / 0.12) 0%,
+    rgb(15 23 42 / 0.58) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(79 110 247 / 0.32),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(79 110 247 / 0.24);
+  --sg-brand-surface-glass-bg: rgb(255 255 255 / 0.7);
+  --sg-brand-surface-backdrop-blur: 18px;
+  --sg-brand-cta-glow: 0 14px 32px -18px rgb(79 110 247 / 0.58);
+
+  --sg-brand-logo-filter: none;
+  --sg-brand-particle-enabled: false;
+  --sg-brand-heading-weight: 620;
+  --sg-brand-heading-letter-spacing: -0.02em;
+
+  --syn-gradient-hero-dark: linear-gradient(135deg, #060d18 0%, #172338 52%, #4f6ef7 100%);
+  --syn-gradient-hero-silver-gold: linear-gradient(135deg, #f7f1e6 0%, #fffaf2 52%, #ece0ca 100%);
+
+  --syn-shadow-accent: #{elevation.$shadow-accent-md};
+
+  @include semantic-aliases;
+}
+
+#{$dark-theme-selectors} {
+  color-scheme: dark;
+
+  --sg-color-action-primary: var(--syn-color-brand-400);
+  --sg-color-action-primary-hover: var(--syn-color-brand-300);
+  --sg-color-action-primary-text: var(--syn-color-neutral-900);
+  --sg-color-surface-elevated: #101a2a;
+  --sg-color-text-secondary: var(--syn-color-neutral-300);
+  --sg-color-border-subtle: var(--syn-color-neutral-700);
+  --sg-color-info: #38bdf8;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #060d18 0%, #172338 52%, #4f6ef7 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(2 6 23 / 0.08) 0%,
+    rgb(2 6 23 / 0.68) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(165 180 252 / 0.28),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(79 110 247 / 0.32);
+  --sg-brand-surface-glass-bg: rgb(15 23 42 / 0.54);
+  --sg-brand-surface-backdrop-blur: 22px;
+  --sg-brand-cta-glow: 0 18px 40px -18px rgb(79 110 247 / 0.44);
+
+  --sg-brand-logo-filter: brightness(0) invert(1);
+  --sg-brand-particle-enabled: true;
+  --sg-brand-heading-weight: 620;
+  --sg-brand-heading-letter-spacing: -0.02em;
+
+  --syn-gradient-hero-dark: var(--sg-brand-gradient-hero);
+  --syn-gradient-hero-silver-gold: linear-gradient(135deg, #1b222d 0%, #3d4754 56%, #a98b54 100%);
+
+  --syn-shadow-accent: 0 18px 36px -22px rgb(139 92 246 / 0.42);
+
+  @include semantic-aliases;
+}
+
+#{$silver-gold-theme-selectors} {
+  color-scheme: light;
+
+  --sg-color-action-primary: #2a3240;
+  --sg-color-action-primary-hover: #1c2230;
+  --sg-color-action-primary-text: #fffaf2;
+  --sg-color-surface-elevated: #fff8ec;
+  --sg-color-text-secondary: #4f5864;
+  --sg-color-border-subtle: #d9d0c0;
+  --sg-color-info: #2f6f93;
+
+  --sg-brand-gradient-hero: linear-gradient(135deg, #f7f1e6 0%, #fffaf2 52%, #ece0ca 100%);
+  --sg-brand-hero-overlay: linear-gradient(
+    180deg,
+    rgb(20 26 34 / 0.1) 0%,
+    rgb(20 26 34 / 0.56) 100%
+  );
+  --sg-brand-divider-gradient: linear-gradient(
+    90deg,
+    transparent,
+    rgb(181 150 89 / 0.44),
+    transparent
+  );
+
+  --sg-brand-glow-color: rgb(181 150 89 / 0.24);
+  --sg-brand-surface-glass-bg: rgb(255 250 242 / 0.66);
+  --sg-brand-surface-backdrop-blur: 18px;
+  --sg-brand-cta-glow: 0 16px 32px -18px rgb(181 150 89 / 0.48);
+
+  --sg-brand-logo-filter: none;
+  --sg-brand-particle-enabled: false;
+  --sg-brand-heading-weight: 630;
+  --sg-brand-heading-letter-spacing: -0.025em;
+
+  --syn-gradient-hero-dark: linear-gradient(135deg, #141b25 0%, #2b3340 52%, #a98b54 100%);
+  --syn-gradient-hero-silver-gold: var(--sg-brand-gradient-hero);
+
+  --syn-shadow-accent: 0 18px 34px -22px rgb(181 150 89 / 0.34);
+
+  @include semantic-aliases;
+}

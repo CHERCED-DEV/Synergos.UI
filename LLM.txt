@@ -1,0 +1,441 @@
+# Synergos UI — LLM Governance Rules
+# ─────────────────────────────────────────────────────────────────────────────
+# This file defines rules that AI agents MUST follow when generating,
+# modifying, or reviewing code in this repository.
+#
+# Full context: SynergosDocs/ARCHITECTURE.md · ANGULAR_STANDARDS.md
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+## 1. REPOSITORY STRUCTURE RULES
+
+Multi-framework workspace with isolated dependencies per framework:
+
+- platforms/           → Framework workspaces (each with own node_modules/)
+  - platforms/angular/ → Main framework — Angular Elements catalog
+    - apps/elements/     → Web Components (primitives/, compositions/, modules/)
+    - apps/experiences/  → Rich interactive experiences (tier:experience) — see section 15
+    - libs/core/         → Angular-specific providers, tokens, interceptors, services
+    - libs/shared/       → Angular design system: foundations/, components/, patterns/
+    - libs/core-assets/  → SCSS tokens + mixins (Angular copy)
+    - libs/rendering/    → ElementRegistry, ComponentResolver, InputMapper
+    - libs/integrations/ → CMS sync tooling
+    - modules/           → Git submodules (independent Angular module repos)
+  - platforms/react/   → React POC (hero Web Component)
+  - platforms/svelte/  → Svelte POC (hero Web Component)
+  - platforms/vanilla/ → Vanilla JS POC (hero Web Component)
+- vitals/              → Agnostic packages (consumed via tsconfig paths, NOT npm)
+  - vitals/contracts/  → Pure TS interfaces (element taxonomy, CMS contracts)
+  - vitals/core/       → Agnostic utilities, mappers, bridge protocol
+  - vitals/core-assets/→ SCSS design tokens, mixins, typography (source of truth)
+  - vitals/shared/     → Constants, validators, test utilities
+- tools/               → Interactive CLI for multi-framework builds
+- SynergosDocs/        → Architectural documentation — READ before generating code
+- LLM.txt              → This file
+
+NEVER create files outside these directories without explicit user instruction.
+
+
+## 2. DEPENDENCY RULES
+
+### Agnostic layer (vitals/) — flows downward only:
+  vitals/shared    →  vitals/core, vitals/contracts
+  vitals/core      →  vitals/contracts
+  vitals/contracts →  (nothing)
+  vitals/core-assets → (nothing — SCSS only)
+
+### Angular layer (platforms/angular/) — flows downward only:
+  modules/*        →  libs/shared, libs/core, libs/core-assets
+  apps/experiences →  libs/shared, libs/core, apps/elements (Web Components used in templates)
+  libs/shared      →  libs/core, libs/core-assets
+  libs/rendering   →  libs/core, libs/shared
+  libs/core        →  (nothing inside angular workspace)
+  libs/core-assets →  (nothing)
+
+### Cross-layer (all frameworks → vitals):
+  Any framework may import from vitals/ via @synergos/contracts, @synergos/core, @synergos/shared
+
+FORBIDDEN:
+  - vitals/ importing from any framework
+  - libs/core importing from libs/shared
+  - libs/shared importing from any module
+  - modules importing from other modules
+  - One framework importing from another framework
+  - circular dependencies of any kind
+
+Verify import direction before writing any import statement.
+
+
+## 3. ANGULAR API RULES
+
+ALWAYS USE:
+  - standalone: true on every @Component, @Directive, @Pipe
+  - ChangeDetectionStrategy.OnPush on every component
+  - provideZonelessChangeDetection() — never provideZoneChangeDetection()
+  - input() / input.required() for inputs
+  - output() for events
+  - signal() for all mutable state (local and service)
+  - computed() for derived state — never effect() for derivation
+  - effect() only for side effects (document title, analytics, logging)
+  - inject() for dependency injection
+  - @if / @for / @switch for template control flow
+  - takeUntilDestroyed() for RxJS subscriptions inside components
+  - # (private fields) for injected deps: readonly #svc = inject(MyService)
+
+NEVER USE:
+  - NgModule
+  - Zone.js
+  - BehaviorSubject / Subject for state → use signal()
+  - *ngIf / *ngFor / *ngSwitch structural directives
+  - constructor injection
+  - @Input() / @Output() decorators
+  - any TypeScript type → use unknown and narrow
+  - console.log / console.error → use LoggerService from @synergos/core
+
+
+## 4. NAMING CONVENTIONS (MODERN ANGULAR)
+
+Angular 21 promotes concise, suffix-free file names. Apply this project-wide:
+
+Design system (libs/shared):
+  Foundation:    button.ts            (in components/foundations/button/)
+  Component:     card.ts              (in components/card/)
+  Pattern:       data-grid.ts         (in components/patterns/data-grid/)
+  Directive:     tooltip.directive.ts
+  Pipe:          date-format.pipe.ts  ← pipes KEEP the .pipe.ts suffix
+
+Feature modules (modules/<name>/):
+  Container:     feature.container.ts   (orchestrates state + UI)
+  Store:         feature.store.ts       (signal-based state)
+  API:           feature.api.ts         (HTTP calls only)
+  Routes:        feature.routes.ts
+  View:          feature.view.html      (optional standalone template)
+  Model:         appointment.model.ts
+
+Infrastructure (libs/core):
+  Interceptor:   auth.interceptor.ts    ← keep suffix for clarity
+  Guard:         auth.guard.ts          ← keep suffix for clarity
+
+Spec files always colocated:
+  button.ts  →  button.spec.ts
+  feature.store.ts  →  feature.store.spec.ts
+
+
+## 5. DESIGN SYSTEM RULES (platforms/angular/libs/shared)
+
+The Angular design system is in platforms/angular/libs/shared/src/components/ with three tiers:
+
+### foundations/
+Primitive, single-responsibility UI building blocks. Angular equivalent of design system atoms.
+- Stateless (no internal state)
+- Inputs control 100% of appearance
+- No business logic, no service injection, no API calls
+- Examples: button.ts, icon.ts, badge.ts, spinner.ts, avatar.ts, skeleton.ts
+
+### components/ (root)
+Composed, self-contained UI components.
+- Composed from foundations
+- May have internal interaction state (open/close, active, expanded)
+- No business logic, no API calls
+- Examples: card.ts, dialog.ts, dropdown.ts, input.ts, select.ts, tabs.ts
+
+### patterns/
+Compositions of 2–4 foundations/components that implement a recurring UI layout.
+- Encode platform UX conventions
+- May have richer internal state (pagination, multi-step, filtering)
+- Still purely presentational — never fetch data externally
+- Examples: data-grid.ts, form.ts, search-results.ts, page-header.ts, empty-state.ts
+
+Rules for all design system code:
+  - selector prefix: syn- (syn-button, syn-card, syn-data-grid)
+  - NEVER inject HTTP, call APIs, or import from feature modules
+  - All public symbols exported through libs/shared/src/index.ts
+  - SCSS uses @use 'scss' as syn; with design tokens only
+
+
+## 6. FEATURE ARCHITECTURE RULES (modules/)
+
+Features follow a container-based architecture with separated concerns:
+
+  feature.container.ts  → component that wires store/api to UI, handles events
+  feature.store.ts      → signal state: #state = signal(), exposed as readonly
+  feature.api.ts        → HTTP calls only, returns data (no state inside)
+  feature.routes.ts     → lazy route config
+  feature.view.html     → optional: when template is large enough to split out
+
+Rules:
+  - Container composes the view using patterns and foundations from libs/shared
+  - Container delegates state to store, HTTP to api
+  - Store exposes readonly signals: readonly items = this.#items.asReadonly()
+  - API uses inject(HttpClient) and inject(ENVIRONMENT) — returns observables
+  - No unnecessary extra services — prefer store.ts + api.ts split
+
+Container example:
+  @Component({ selector: 'syn-appointments', standalone: true, changeDetection: OnPush })
+  export class AppointmentsContainer {
+    readonly #store = inject(AppointmentsStore);
+    readonly #api   = inject(AppointmentsApi);
+
+    readonly appointments = this.#store.items;
+    readonly loading      = this.#store.loading;
+
+    onLoad(): void { this.#store.load(this.#api); }
+  }
+
+Store example:
+  @Injectable({ providedIn: 'root' })
+  export class AppointmentsStore {
+    readonly #items   = signal<Appointment[]>([]);
+    readonly #loading = signal(false);
+
+    readonly items   = this.#items.asReadonly();
+    readonly loading = this.#loading.asReadonly();
+    readonly count   = computed(() => this.#items().length);
+  }
+
+
+## 7. SCSS RULES
+
+ALWAYS:
+  - @use 'scss' as syn; (tokens + mixins, no global pollution)
+  - syn.$color-primary, syn.$space-md, syn.$shadow-sm, syn.$z-modal
+  - @include syn.flex-center, @include syn.respond-to('md')
+
+NEVER:
+  - Hardcoded colors: #fff, rgba(...), blue, transparent (use syn.$color-*)
+  - Hardcoded spacing: 16px, 1rem, 0.5em (use syn.$space-*)
+  - Raw z-index numbers: z-index: 999 (use syn.$z-modal)
+  - @import (always @use / @forward)
+  - @use 'scss/global' inside components — root styles.scss only
+
+
+## 8. SERVICE / STORE RULES
+
+MUST:
+  - Use signal() for all state
+  - Expose readonly: readonly data = this.#data.asReadonly()
+  - Use # private fields: readonly #data = signal<T[]>([])
+  - Use inject(ENVIRONMENT) for API base URLs
+  - Never mutate state from outside the service/store
+  - Never use any type
+
+PREFER store.ts + api.ts pattern over a single monolithic service:
+  - store.ts holds signals + computed + mutation methods
+  - api.ts holds HTTP calls, returns Observable<T> or Promise<T>
+
+
+## 9. TESTING RULES
+
+Spec files are colocated with the source file they test:
+  button.ts           →  button.spec.ts
+  feature.store.ts    →  feature.store.spec.ts
+  auth.interceptor.ts →  auth.interceptor.spec.ts
+
+Every new file added to libs/ or modules/ MUST have a spec file.
+
+Unit test rules:
+  - Use Vitest (configured in workspace)
+  - Test public API only — no testing of private signals directly
+  - Mock inject() dependencies with TestBed.overrideProvider
+  - No HTTP in unit tests — use provideHttpClientTesting()
+
+
+## 10. CODE GENERATION WORKFLOW
+
+When creating or modifying code:
+  1. Read SynergosDocs/ARCHITECTURE.md — understand where the code belongs
+  2. For Angular: run generators from platforms/angular/ directory
+  3. Apply all naming conventions from section 4 to generated output
+  4. Export new symbols from the library's src/index.ts
+  5. Create the colocated .spec.ts file
+  6. Verify import directions comply with section 2
+
+Scaffolding cheatsheet (run from platforms/angular/):
+  Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
+  Component:   npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
+  Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
+  Feature app: npx nx g @nx/angular:app appointments --directory=modules
+
+
+## 11. MODULE CREATION RULES
+
+Every Angular feature module must:
+  - Export mountModule(selector: string, config: ModuleConfig): void from src/index.ts
+  - Use provideCoreConfig({ environment }) from @synergos/core (Angular lib)
+  - Use provideZonelessChangeDetection()
+  - Have zero coupling to other feature modules
+  - Full guide: SynergosDocs/MODULE_CREATION_GUIDE.md
+
+
+## 12. MULTI-FRAMEWORK RULES
+
+This workspace supports multiple frameworks, each producing Custom Elements:
+
+  - Angular: main framework — reference implementation for the full element catalog
+      Status: production-ready | Catalog: primitives + compositions + modules
+  - React: production alternative — selected elements only
+      Status: production-ready pattern | Elements: compositions tier focus
+  - Svelte: production alternative — selected elements only
+      Status: production-ready pattern | Elements: compositions + primitives
+  - Vanilla: production alternative — selected elements only
+      Status: production-ready pattern | Elements: primitives tier focus
+
+Platform rules:
+  - All frameworks produce `synergos-*` Custom Elements with identical public API
+  - Agnostic packages (vitals/) are shared via tsconfig path aliases, NOT npm
+  - Each framework resolves @synergos/* through its own libs/ first (NOT directly to vitals/)
+    Exception: @synergos/contracts always points to vitals/contracts (no platform override)
+  - Each framework has isolated node_modules/ — NO npm workspaces
+  - Bridge protocol (vitals/core/src/bridge/) defines cross-framework interop
+  - Build output goes to CDN — no local wwwroot/ directory
+  - Nx orchestrates all frameworks from root via project.json tags
+
+Tags:
+  - framework:angular | framework:react | framework:svelte | framework:vanilla
+  - scope:elements | scope:experiences | scope:cms-adapter | scope:rendering | scope:integrations | scope:libs | scope:vitals
+  - tier:primitive | tier:composition | tier:module | tier:experience
+
+Scope boundary rule (enforced by ESLint @nx/enforce-module-boundaries):
+  - scope:elements CANNOT import scope:rendering or scope:integrations
+  - scope:cms-adapter (macro-host only) MAY import any scope
+  - scope:rendering and scope:integrations are libs — NOT elements
+  - Decision tree for code placement: SynergosDocs/WHERE_DOES_THIS_GO.md
+
+Platform-specific bootstrap patterns (do NOT cross-pollinate):
+  - Angular: createApplication() + createCustomElement() from @angular/elements
+  - React: HTMLElement subclass + createRoot() in connectedCallback
+  - Svelte: <svelte:options customElement="synergos-*" /> compiler directive
+  - Vanilla: HTMLElement subclass + manual render() in connectedCallback
+
+
+## 13. CDN, MANIFEST, AND VERSIONING RULES
+
+Every Custom Element published to the CDN must have:
+  - A compiled IIFE bundle: dist/{name}/{framework}/main.js
+  - A manifest.json: { tag, alias, framework, version, tier, entryScript, inputs: [] }
+  - Published to three CDN slots: /{semver}/ (immutable) + /v{major}/ (stable) + /latest/ (staging)
+
+Manifest rules:
+  - manifest.json is the formal contract between CDN and CMS (Umbraco)
+  - Input descriptors must use camelCase names (attribute will be kebab-cased by the browser)
+  - All inputs declared in vitals/contracts/src/element-inputs.json (source of truth)
+  - Generate manifests: npm run manifest:gen
+  - Validate (fail if any element has empty inputs): npm run manifest:validate
+
+Versioning rules:
+  - Breaking change (rename/remove input) = bump MAJOR version
+  - New optional input = bump MINOR version
+  - Bug fix, style, no API change = bump PATCH version
+  - CDN /v{major}/ slot is stable for production Umbraco sites
+  - CDN /latest/ slot is for staging — never recommend for production
+
+Publishing rules:
+  - tools/publish.mjs is the ONLY script that writes to the CDN
+  - Never write to CDN directly from component code or nx targets
+  - Element registration in element-registry.json is required BEFORE publishing
+  - tools/catalog.mjs generates a visual HTML catalog: npm run catalog
+
+CDN path rules:
+  - The `name` field in element-registry.json governs the CDN path, NOT the tag
+    Example: name="stat", tag="synergos-stat-counter" → CDN path is /synergos/stat/angular/...
+  - Never derive the CDN path by stripping the "synergos-" prefix from the tag
+  - Corollary for CMS: always use registry entry.name to build the CDN URL
+
+Alias-variant routing:
+  - Multiple registry aliases may map to the same custom element tag (N→1)
+  - This is the "alias-variant routing" pattern used for text primitives:
+      elementTextHeading   → synergos-text-block (pass headingLevel="h2")
+      elementTextParagraph → synergos-text-block (pass variant="paragraph")
+      elementTextRichText  → synergos-text-block (pass variant="rich-text")
+      elementTextEyebrow   → synergos-text-block (pass variant="eyebrow")
+      elementTextQuote     → synergos-text-block (pass variant="quote")
+      elementTextLabel     → synergos-text-block (pass variant="label")
+  - These aliases share ONE CDN bundle (synergos-text-block/main.js)
+  - CMS must pass the correct variant/headingLevel in the config attribute
+  - Never try to load a "synergos-heading" bundle — it does not exist
+
+Contract validation gates (run before every publish):
+  - npm run element:audit     — fails if registry/mapper/model/inputs are out of sync
+  - npm run manifest:validate — fails if any element has empty inputs array
+  - npm run contracts:validate — runs both in sequence (use this in CI and release scripts)
+  - npm run contracts:export  — generates dist/contracts.json for CMS CI consumption
+  - These gates are already wired into all npm run release:* scripts
+  - publish.mjs always writes contracts.json to CDN alongside registry.json
+
+Cross-project alignment (UI ↔ CMS in separate pods/tenants):
+  - contracts.json on CDN is the formal boundary between projects
+  - CMS CI fetches contracts.json and validates its own resolvers against it
+  - Neither project needs access to the other's repo or runtime
+  - Full cross-project governance: SynergosDocs/INTEGRATION_GOVERNANCE.md
+
+## 15. EXPERIENCES LAYER RULES (apps/experiences/)
+
+Experiences are rich interactive units that go beyond a static element.
+They have internal state, multi-step navigation, or user-driven content switching.
+
+### Directory structure — mandatory for every experience:
+
+  apps/experiences/<name>/
+    src/<name>/
+      domain/
+        models/<name>.model.ts           → interfaces (pure TS, no Angular)
+        <name>.domain.ts                 → default seed data (used until CMS provides items)
+      application/
+        <name>.state.ts                  → signal-based state class (NOT @Injectable)
+        use-cases/<action>.ts            → pure functions (state: State, payload) => void
+      infrastructure/
+        <name>.config.ts                 → TS interface for CMS config object
+        <name>.adapter.ts                → parseXxx(): readonly Xxx[] | null
+      interface/
+        <name>.ts                        → @Component — wires inputs, state, use-cases
+        <name>.html                      → template using syn-* and synergos-* components
+        <name>.scss                      → BEM scoped styles
+    <name>.spec.ts                       → ≥15 tests: component + state unit + adapter
+
+### Mandatory inputs (every experience):
+  config, title, theme ('light'|'dark'), variant, elementId, domClass
+  Items (if CMS-driven): accept as JSON string attribute, parse in adapter
+
+### Architecture rules:
+  - State class has NO @Injectable — instantiated directly in the component with new XxxState()
+  - Use-cases are PURE FUNCTIONS: (state: XxxState, payload) => void — no services, no DI
+  - Adapter parses JSON string input → typed domain model — returns null on failure, never throws
+  - Component is thin: inputs → resolveConfigValue → state → template. Zero business logic inline.
+  - effect() for input→state sync (items override, filter init) — always declare as # private field
+
+### Mandatory libs/shared components:
+  Every experience MUST use at least one component from @synergos/shared:
+  - syn-heading   → ALL titles and section headings (never raw <h2>, <h3>)
+  - syn-button    → ALL navigation controls (prev/next, play — uses (pressed) not (click))
+  - syn-card      → ALL item selectors / clickable cards (uses (selected) not (click))
+  - syn-link      → ALL CTA links
+  - syn-badge     → ALL tags, labels, metadata chips
+  Using raw HTML when a syn-* component covers the use case is a violation.
+
+### Custom element registration:
+  - selector: sg-<name>  →  custom element tag: synergos-<name>
+  - Registered in vitals/contracts/src/element-registry.json
+  - Mapper in vitals/core/src/mappers/<name>.mapper.ts
+  - Entry in vitals/core/src/mappers/block.mapper.ts REGISTRY
+  - Model in vitals/core/src/models/<name>-inputs.model.ts
+  - CMS block type key: experience<PascalName>
+
+### Current experiences:
+  - experienceFeatureJourney   → synergos-feature-journey   (port 4260)
+  - experienceInsightExplorer  → synergos-insight-explorer  (port 4261)
+  - experienceMediaExplorer    → synergos-media-explorer    (port 4262, dark default)
+
+
+## 14. WHAT NOT TO GENERATE
+
+Unless explicitly requested:
+  - No NgModules
+  - No Zone.js
+  - No one-off helpers — solve inline, do not abstract prematurely
+  - No error handling for impossible scenarios
+  - No obvious comments (code explains itself)
+  - No barrel files beyond src/index.ts per library
+  - No extra documentation files
+  - No .component.ts / .service.ts suffixes on design system files
+  - No BehaviorSubject
+  - No constructor injection

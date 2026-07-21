@@ -1,0 +1,74 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-heading {
+  --syn-heading-eyebrow-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-500}));
+  --syn-heading-title-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-heading-supporting-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-600}));
+
+  display: grid;
+  gap: syn.$space-xs;
+}
+
+.syn-heading--center {
+  text-align: center;
+}
+
+.syn-heading__eyebrow {
+  color:          var(--syn-heading-eyebrow-color);
+  font-size:      syn.$font-size-xs;
+  font-weight:    syn.$font-weight-semibold;
+  letter-spacing: syn.$letter-spacing-eyebrow;
+  text-transform: uppercase;
+}
+
+.syn-heading__title {
+  margin:         0;
+  color:          var(--syn-heading-title-color);
+  font-weight:    var(--sg-brand-heading-weight, #{syn.$font-weight-semibold});
+  letter-spacing: var(--sg-brand-heading-letter-spacing, normal);
+  line-height:    syn.$line-height-tight;
+  text-wrap:      balance;
+}
+
+.syn-heading__title--hidden {
+  @include syn.visually-hidden;
+}
+
+.syn-heading--sm .syn-heading__title  { @include syn.heading('xs'); }
+.syn-heading--md .syn-heading__title  { @include syn.heading('md'); }
+.syn-heading--lg .syn-heading__title  { @include syn.heading('lg'); }
+.syn-heading--xl .syn-heading__title  { @include syn.heading('xl'); }
+
+.syn-heading--neutral {
+  --syn-heading-title-color: var(--syn-color-text-primary, var(--syn-text-primary, #{syn.$color-neutral-900}));
+  --syn-heading-supporting-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-600}));
+}
+
+.syn-heading--muted {
+  --syn-heading-title-color: var(--syn-color-text-secondary, var(--syn-text-secondary, #{syn.$color-neutral-500}));
+  --syn-heading-supporting-color: var(--syn-color-text-muted, var(--syn-text-muted, #{syn.$color-neutral-500}));
+}
+
+.syn-heading--brand {
+  --syn-heading-title-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-600}));
+  --syn-heading-supporting-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-600}));
+}
+
+.syn-heading--inverse {
+  --syn-heading-eyebrow-color: var(--syn-color-text-accent, var(--syn-text-brand, #{syn.$color-brand-300}));
+  --syn-heading-title-color: var(--syn-color-text-inverse, var(--syn-text-inverse, #{syn.$color-neutral-0}));
+  --syn-heading-supporting-color: var(--syn-color-text-inverse, var(--syn-text-inverse, #{syn.$color-neutral-0}));
+}
+
+.syn-heading__supporting {
+  margin:      0;
+  color:       var(--syn-heading-supporting-color);
+  font-size:   syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+  text-wrap:   pretty;
+
+  .syn-heading--lg &,
+  .syn-heading--xl & {
+    font-size: syn.$font-size-lg;
+  }
+}

@@ -1,0 +1,272 @@
+@use 'scss' as syn;
+
+@keyframes nf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+:host {
+  --nf-card-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --nf-card-border-gradient: var(--syn-gradient-action-emphasis, linear-gradient(135deg, #{syn.$color-brand-400}, #{syn.$color-accent-400}));
+  --nf-card-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+  --nf-card-focus-ring: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --nf-intro-text: var(--syn-color-text-secondary, #{syn.$color-neutral-500});
+  --nf-note-text: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+
+  --nf-pill-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --nf-pill-border-gradient: var(--syn-gradient-action-emphasis, linear-gradient(135deg, #{syn.$color-brand-400}, #{syn.$color-accent-400}));
+  --nf-pill-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --nf-pill-focus-ring: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --nf-at-gradient: var(--syn-gradient-action-emphasis, linear-gradient(135deg, #{syn.$color-brand-500}, #{syn.$color-accent-500}));
+  --nf-input-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --nf-input-placeholder: var(--syn-color-text-disabled, #{syn.$color-neutral-400});
+
+  --nf-submit-gradient: var(--syn-gradient-action-emphasis, linear-gradient(135deg, #{syn.$color-brand-500}, #{syn.$color-accent-500}));
+  --nf-submit-gradient-hover: linear-gradient(
+    135deg,
+    var(--syn-color-action-primary-hover, #{syn.$color-brand-600}) 0%,
+    var(--syn-color-action-emphasis, #{syn.$color-accent-600}) 100%
+  );
+  --nf-submit-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --nf-submit-shadow: var(--syn-shadow-action, #{syn.$shadow-brand-sm});
+  --nf-submit-shadow-hover: var(--syn-shadow-action-hover, #{syn.$shadow-brand-md});
+
+  --nf-spinner-track: var(--syn-color-border-inverse, #{syn.$color-overlay-inverse});
+  --nf-spinner-head: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+
+  display: block;
+}
+
+.newsletter-form {
+  @include syn.flex-column;
+  gap: syn.$space-md;
+
+  &__header {
+    @include syn.flex-column;
+    gap: syn.$space-xxs;
+  }
+
+  &__heading {
+    display: block;
+  }
+
+  &__intro {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+    color: var(--nf-intro-text);
+  }
+
+  &__form {
+    @include syn.flex-column;
+    gap: syn.$space-xs;
+  }
+
+  &__pill {
+    display: flex;
+    align-items: center;
+    gap: syn.px-to-rem(2);
+    padding: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    border: syn.px-to-rem(1.5) solid transparent;
+    background:
+      linear-gradient(var(--nf-pill-surface), var(--nf-pill-surface)) padding-box,
+      var(--nf-pill-border-gradient) border-box;
+    box-shadow: var(--nf-pill-shadow);
+    transition:
+      box-shadow syn.$duration-fast syn.$easing-smooth,
+      background syn.$duration-fast syn.$easing-smooth;
+
+    &:focus-within {
+      box-shadow:
+        0 0 0 syn.px-to-rem(3) var(--nf-pill-focus-ring),
+        var(--nf-pill-shadow);
+    }
+
+    &.is-loading {
+      opacity: 0.65;
+      pointer-events: none;
+    }
+  }
+
+  &__at {
+    flex-shrink: 0;
+    padding-inline: syn.$space-sm syn.px-to-rem(6);
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    line-height: 1;
+    background: var(--nf-at-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    user-select: none;
+  }
+
+  &__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    outline: 0;
+    padding: syn.$space-sm syn.px-to-rem(4);
+    font-size: syn.$font-size-sm;
+    font-family: inherit;
+    color: var(--nf-input-text);
+
+    &::placeholder {
+      color: var(--nf-input-placeholder);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  &__submit {
+    @include syn.focus-visible;
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(10) syn.$space-lg;
+    background: var(--nf-submit-gradient);
+    color: var(--nf-submit-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-family: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: var(--nf-submit-shadow);
+    transition:
+      background syn.$duration-fast syn.$easing-smooth,
+      box-shadow syn.$duration-fast syn.$easing-smooth,
+      transform syn.$duration-fast syn.$easing-smooth;
+
+    &:hover:not(:disabled) {
+      background: var(--nf-submit-gradient-hover);
+      box-shadow: var(--nf-submit-shadow-hover);
+      transform: translateY(syn.px-to-rem(-1));
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+
+  &__arrow {
+    display: inline-block;
+    transition: transform syn.$duration-fast syn.$easing-smooth;
+
+    .newsletter-form__submit:hover:not(:disabled) & {
+      transform: translateX(syn.px-to-rem(3));
+    }
+  }
+
+  &__spinner {
+    display: block;
+    width: syn.px-to-rem(14);
+    height: syn.px-to-rem(14);
+    border: syn.px-to-rem(2) solid var(--nf-spinner-track);
+    border-top-color: var(--nf-spinner-head);
+    border-radius: 50%;
+    animation: nf-spin syn.$duration-loop linear infinite;
+  }
+
+  &__note {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    text-align: center;
+    letter-spacing: syn.$letter-spacing-wide;
+    color: var(--nf-note-text);
+  }
+}
+
+.newsletter-form--light {
+  padding: syn.$space-lg;
+  border-radius: syn.$radius-2xl;
+  border: syn.px-to-rem(1.5) solid transparent;
+  background:
+    linear-gradient(var(--nf-card-surface), var(--nf-card-surface)) padding-box,
+    var(--nf-card-border-gradient) border-box;
+  box-shadow:
+    var(--nf-card-shadow),
+    0 0 0 syn.px-to-rem(4) var(--nf-card-focus-ring);
+}
+
+.newsletter-form--dark {
+  --nf-intro-text: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --nf-note-text: var(--syn-color-text-disabled, #{syn.$color-neutral-600});
+  --nf-at-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-brand-300, #{syn.$color-brand-300}) 0%,
+    var(--syn-color-accent-300, #{syn.$color-accent-300}) 100%
+  );
+  --nf-pill-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+  --nf-pill-border-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-brand-500, #{syn.$color-brand-500}) 0%,
+    var(--syn-color-accent-500, #{syn.$color-accent-500}) 100%
+  );
+  --nf-pill-shadow: var(--syn-shadow-panel, #{syn.$shadow-sm});
+  --nf-pill-focus-ring: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --nf-input-text: var(--syn-color-neutral-200, #{syn.$color-neutral-200});
+  --nf-input-placeholder: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.newsletter-form--silver-gold,
+.newsletter-form--silverGold {
+  --nf-card-border-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-border-strong, #{syn.$color-warning-500}) 0%,
+    var(--syn-color-action-emphasis, #{syn.$color-accent-500}) 100%
+  );
+  --nf-card-focus-ring: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  --nf-at-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-state-warning-text, #{syn.$color-warning-600}) 0%,
+    var(--syn-color-action-emphasis, #{syn.$color-accent-500}) 100%
+  );
+  --nf-pill-border-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-border-strong, #{syn.$color-warning-500}) 0%,
+    var(--syn-color-action-emphasis, #{syn.$color-accent-500}) 100%
+  );
+  --nf-submit-gradient: linear-gradient(
+    135deg,
+    var(--syn-color-action-primary, #{syn.$color-neutral-700}) 0%,
+    var(--syn-color-action-emphasis, #{syn.$color-accent-500}) 100%
+  );
+  --nf-submit-gradient-hover: linear-gradient(
+    135deg,
+    var(--syn-color-action-primary-hover, #{syn.$color-neutral-800}) 0%,
+    var(--syn-color-state-warning-text, #{syn.$color-warning-600}) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newsletter-form__spinner {
+    animation: none;
+  }
+
+  .newsletter-form__submit,
+  .newsletter-form__arrow {
+    transition: none;
+  }
+}

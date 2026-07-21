@@ -1,0 +1,54 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.alert-bar {
+  --ab-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ab-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: syn.$space-md;
+  @include syn.surface-panel(syn.$space-sm syn.$space-lg, var(--ab-surface), var(--ab-border), syn.px-to-rem(1), syn.$radius-xl, var(--ab-shadow));
+
+  &--neutral {
+    --ab-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+    --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  }
+
+  &--brand {
+    --ab-surface: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 76%, white);
+    --ab-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  }
+
+  &--critical {
+    --ab-surface: color-mix(in srgb, var(--syn-color-state-danger-surface, #{syn.$color-danger-100}) 82%, white);
+    --ab-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  }
+
+  &--dark {
+    --ab-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-800});
+    --ab-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+  }
+
+  &__main {
+    flex: 1 1 min(100%, #{syn.px-to-rem(320)});
+    min-width: 0;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  &__link {
+    text-decoration: none;
+  }
+}

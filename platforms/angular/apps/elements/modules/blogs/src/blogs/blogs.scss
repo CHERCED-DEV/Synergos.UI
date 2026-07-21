@@ -1,0 +1,1584 @@
+@use 'scss' as syn;
+
+:host {
+  // Theme bridge: prefer the CMS runtime tokens, fall back to the design-line defaults.
+  --bl-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --bl-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --bl-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --bl-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --bl-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --bl-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --bl-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --bl-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --bl-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --bl-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --bl-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --bl-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --bl-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --bl-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --bl-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+  --bl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --bl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --bl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --bl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+
+  display: block;
+  max-width: 100%;
+  color: var(--bl-text);
+  font-family: syn.$font-family-sans;
+}
+
+.blogs {
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) minmax(0, 18rem);
+  gap: syn.$space-lg;
+  align-items: start;
+  max-width: syn.px-to-rem(1120);
+  margin: 0 auto;
+
+  @media (max-width: 60rem) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__sr-only {
+    @include syn.visually-hidden;
+  }
+}
+
+// ─── Shared atoms ───────────────────────────────────────────────────────────────
+.blogs__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: syn.px-to-rem(44);
+  height: syn.px-to-rem(44);
+  border-radius: syn.$radius-full;
+  background: var(--bl-brand-soft);
+  color: var(--bl-brand);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-bold;
+  letter-spacing: syn.$letter-spacing-tight;
+
+  &--sm {
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    font-size: syn.$font-size-xs;
+  }
+
+  &--lg {
+    width: syn.px-to-rem(80);
+    height: syn.px-to-rem(80);
+    font-size: syn.$font-size-2xl;
+    border: syn.px-to-rem(4) solid var(--bl-surface);
+  }
+}
+
+// ─── Skeleton bone ──────────────────────────────────────────────────────────────
+// Un hueso es DECORATIVO: no lleva texto ni rol, y sus contenedores van marcados
+// `aria-hidden`. Las medidas replican el contenido real de cada lista para que el
+// intercambio a datos no mueva el layout. Tokenizado (`--bl-skeleton-*`) para que
+// los 7 temas por-siteRoot lo repinten sin tocar este archivo.
+.blogs__bone {
+  display: block;
+  border-radius: syn.$radius-md;
+  background: linear-gradient(
+    90deg,
+    var(--bl-skeleton-base) 0%,
+    var(--bl-skeleton-highlight) 50%,
+    var(--bl-skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: blogs-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer}) syn.$easing-smooth infinite;
+
+  // Mismo diámetro que `.blogs__avatar--sm` (36px), que es quien fija la altura de
+  // la fila tanto en el hilo de comentarios como en las notificaciones.
+  &--avatar-sm {
+    flex: 0 0 auto;
+    inline-size: syn.px-to-rem(36);
+    block-size: syn.px-to-rem(36);
+    border-radius: syn.$radius-full;
+  }
+
+  // Hilo de comentarios: cabecera (autor + handle + hora), cuerpo, acción y caja de
+  // respuesta — los mismos cuatro bloques que pinta `commentTpl`.
+  &--comment-head {
+    inline-size: 45%;
+    block-size: syn.px-to-rem(16);
+  }
+
+  &--comment-text {
+    inline-size: 100%;
+    block-size: syn.px-to-rem(40);
+    margin-block: syn.$space-3;
+  }
+
+  &--comment-action {
+    inline-size: syn.px-to-rem(96);
+    block-size: syn.px-to-rem(28);
+  }
+
+  &--comment-form {
+    inline-size: 100%;
+    block-size: syn.px-to-rem(40);
+    margin-block-start: syn.$space-3;
+  }
+
+  // Notificaciones: texto + hora apilados; 20 + 2 (gap) + 14 = 36 = el avatar.
+  &--notif-text {
+    inline-size: 70%;
+    block-size: syn.px-to-rem(20);
+  }
+
+  &--notif-time {
+    inline-size: syn.px-to-rem(64);
+    block-size: syn.px-to-rem(14);
+  }
+}
+
+@keyframes blogs-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.blogs__verified {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bl-brand);
+}
+
+.blogs__meta-time {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-xs;
+  white-space: nowrap;
+}
+
+.blogs__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-1;
+  padding: syn.$space-2 syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-full;
+  background: var(--bl-surface);
+  color: var(--bl-text);
+  font: inherit;
+  font-weight: syn.$font-weight-semibold;
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+  transition: background-color syn.$duration-fast syn.$easing-smooth,
+    border-color syn.$duration-fast syn.$easing-smooth;
+
+  &:hover:not(:disabled) {
+    background: var(--bl-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--brand {
+    background: var(--bl-brand);
+    border-color: var(--bl-brand);
+    color: var(--bl-brand-text);
+
+    &:hover:not(:disabled) {
+      background: var(--bl-brand);
+      filter: brightness(0.95);
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+  }
+
+  &--sm {
+    padding: syn.$space-1 syn.$space-3;
+    font-size: syn.$font-size-xs;
+  }
+}
+
+.blogs__link-btn {
+  border: 0;
+  background: none;
+  color: var(--bl-brand);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-sm;
+  }
+}
+
+// ─── Hueco de identidad (401) ───────────────────────────────────────────────────
+// Lo que se ve en mensajes / notificaciones / guardados / estudio sin sesión. No es un
+// error ni una degradación — es una invitación, así que se estila como panel neutro y
+// no con --bl-danger.
+.blogs__signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--bl-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface-muted);
+  text-align: center;
+
+  // El componente hace `.focus()` sobre este contenedor al recibir un 401 (WCAG 2.4.3), y
+  // `tabindex="-1"` lo hace enfocable. Sin anillo, a propósito y en las tres apps (gov,
+  // realty, blogs): el anillo es el indicador de la navegación por TECLADO (WCAG 2.4.7) y
+  // aquí el usuario no tabuló hasta el panel — lo trajo la app; el `-1` existe justo para
+  // dejarlo fuera del orden de tabulación. Un recuadro alrededor de todo el panel se lee
+  // como un fallo de render. Las acciones de dentro sí conservan el suyo. Se declara
+  // explícito aunque hoy `blogs.scss` no tenga una regla `:focus-visible` de descendiente
+  // que lo pinte (gov sí la tiene, en `gov.scss`): así la conducta no depende de que nadie
+  // añada una mañana.
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.blogs__signin-title {
+  margin: 0;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-bold;
+  color: var(--bl-text);
+}
+
+.blogs__signin-text {
+  max-width: syn.px-to-rem(420);
+  margin: 0;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__signin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: syn.$space-2;
+}
+
+// ─── Notices ────────────────────────────────────────────────────────────────────
+.blogs__notice {
+  margin: 0 0 syn.$space-4;
+  padding: syn.$space-3 syn.$space-4;
+  border-radius: syn.$radius-md;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+
+  &--warn {
+    background: var(--bl-warn-soft);
+    color: var(--bl-warn);
+  }
+
+  &--error {
+    background: var(--bl-danger-soft);
+    color: var(--bl-danger);
+  }
+}
+
+// `.blogs__loading` vivía aquí y ya no tiene consumidores: los dos `<p>Cargando…</p>`
+// que la usaban son ahora moldes de esqueleto.
+.blogs__empty,
+.blogs__aside-empty {
+  padding: syn.$space-8 syn.$space-4;
+  color: var(--bl-muted);
+  text-align: center;
+  font-size: syn.$font-size-sm;
+}
+
+// ─── Left rail ──────────────────────────────────────────────────────────────────
+.blogs__rail {
+  position: sticky;
+  top: syn.$space-4;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+
+  @media (max-width: 60rem) {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+
+.blogs__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-2;
+  margin: 0 0 syn.$space-3;
+  padding: syn.$space-2 syn.$space-3;
+}
+
+.blogs__brand-mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--bl-brand);
+}
+
+// ─── Inline Lucide-style icons ─────────────────────────────────────────────────
+// Every UI glyph is an inline SVG with stroke="currentColor" so it inherits the
+// active theme token (no per-OS emoji, no hardcoded hex). Sized by class only.
+.blogs__ic {
+  inline-size: syn.px-to-rem(20);
+  block-size: syn.px-to-rem(20);
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+.blogs__ic--sm {
+  inline-size: syn.px-to-rem(18);
+  block-size: syn.px-to-rem(18);
+}
+
+.blogs__ic--xs {
+  inline-size: syn.px-to-rem(16);
+  block-size: syn.px-to-rem(16);
+}
+
+.blogs__ic--brand {
+  inline-size: syn.px-to-rem(24);
+  block-size: syn.px-to-rem(24);
+}
+
+.blogs__ic--xl {
+  inline-size: syn.px-to-rem(48);
+  block-size: syn.px-to-rem(48);
+}
+
+.blogs__brand-text {
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-bold;
+  letter-spacing: syn.$letter-spacing-tight;
+}
+
+.blogs__nav {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (max-width: 60rem) {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+.blogs__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-3;
+  width: 100%;
+  padding: syn.$space-3 syn.$space-4;
+  border: 0;
+  border-radius: syn.$radius-full;
+  background: none;
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-medium;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(-2);
+  }
+
+  &.is-active {
+    background: var(--bl-brand-soft);
+    color: var(--bl-brand);
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+.blogs__nav-glyph {
+  color: currentColor;
+}
+
+.blogs__nav-badge {
+  margin-left: auto;
+  min-width: syn.px-to-rem(20);
+  padding: 0 syn.px-to-rem(6);
+  border-radius: syn.$radius-full;
+  background: var(--bl-brand);
+  color: var(--bl-brand-text);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-bold;
+  text-align: center;
+}
+
+.blogs__compose-cta {
+  margin: syn.$space-3 0;
+  padding: syn.$space-3 syn.$space-5;
+  border: 0;
+  border-radius: syn.$radius-full;
+  background: var(--bl-brand);
+  color: var(--bl-brand-text);
+  font: inherit;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-bold;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}
+
+.blogs__rail-me {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-2;
+  margin: syn.$space-2 0 0;
+  padding: syn.$space-2 syn.$space-3;
+  border-radius: syn.$radius-full;
+}
+
+.blogs__rail-me-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.blogs__rail-me-name {
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__rail-me-handle {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-xs;
+}
+
+// ─── Center column ──────────────────────────────────────────────────────────────
+.blogs__main {
+  min-width: 0;
+}
+
+.blogs__view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: syn.$space-3;
+  margin-bottom: syn.$space-3;
+}
+
+.blogs__view-title {
+  margin: 0;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-bold;
+  letter-spacing: syn.$letter-spacing-tight;
+}
+
+// ─── Content tabs → shared syn-tabs primitive (tablist only) ──────────────────────
+.blogs__tabctl {
+  display: block;
+  margin-bottom: syn.$space-4;
+
+  // Active-tab chrome tracks the blogs brand token (composable override).
+  --syn-tabs-tab-color-active: var(--bl-brand);
+  --syn-tabs-tab-border-active: var(--bl-brand);
+
+  /*
+   * syn-tabs bundles a text tabpanel; each blogs view (feed / profile / notifications)
+   * renders its own rich content below, so hide the primitive's (empty) panel and keep
+   * only the accessible tablist — roving tabindex + Arrow/Home/End + focus are
+   * inherited. Styling comes from the primitive's own --syn-tabs-* tokens.
+   */
+  ::ng-deep .syn-tabs__panel {
+    display: none;
+  }
+}
+
+// ─── Composer ───────────────────────────────────────────────────────────────────
+.blogs__composer-inline {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-3;
+  margin-bottom: syn.$space-4;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+}
+
+.blogs__composer-open {
+  flex: 1;
+  padding: syn.$space-3 syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-full;
+  background: var(--bl-surface-muted);
+  color: var(--bl-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}
+
+.blogs__composer {
+  margin-bottom: syn.$space-4;
+  padding: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+}
+
+.blogs__composer-row {
+  display: flex;
+  gap: syn.$space-3;
+}
+
+.blogs__composer-input {
+  flex: 1;
+  min-height: syn.px-to-rem(72);
+  padding: syn.$space-2;
+  border: 0;
+  background: none;
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-base;
+  resize: vertical;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-sm;
+  }
+}
+
+.blogs__composer-media {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  margin-top: syn.$space-3;
+}
+
+.blogs__field-label {
+  color: var(--bl-text-secondary);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.blogs__composer-field {
+  padding: syn.$space-2 syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface-muted);
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: 0;
+    border-color: var(--bl-brand);
+  }
+}
+
+.blogs__composer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: syn.$space-3;
+  margin-top: syn.$space-3;
+}
+
+.blogs__char-count {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-sm;
+  font-variant-numeric: tabular-nums;
+
+  &.is-over {
+    color: var(--bl-danger);
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+// ─── Feed / posts ─────────────────────────────────────────────────────────────────
+.blogs__feed {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-4;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__post {
+  padding: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+
+  &--detail {
+    border-color: var(--bl-brand-soft);
+  }
+}
+
+.blogs__post-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: syn.$space-3;
+}
+
+.blogs__post-author,
+.blogs__account-id {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-3;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-md;
+  }
+}
+
+.blogs__post-id,
+.blogs__account-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.blogs__post-name,
+.blogs__account-name {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__post-handle,
+.blogs__account-handle {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-xs;
+}
+
+.blogs__kind {
+  display: inline-block;
+  margin-top: syn.$space-2;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  background: var(--bl-brand-soft);
+  color: var(--bl-brand);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-bold;
+  text-transform: uppercase;
+  letter-spacing: syn.$letter-spacing-eyebrow;
+}
+
+.blogs__post-body,
+.blogs__comment-text {
+  margin: syn.$space-3 0;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.blogs__post-media {
+  display: grid;
+  gap: syn.$space-2;
+  margin: syn.$space-3 0;
+}
+
+.blogs__media-asset {
+  width: 100%;
+  max-height: syn.px-to-rem(440);
+  border-radius: syn.$radius-md;
+  object-fit: cover;
+}
+
+.blogs__post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-2;
+  margin: syn.$space-2 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__chip,
+.blogs__hashtag-name,
+.blogs__trend-name {
+  color: var(--bl-brand);
+  font-weight: syn.$font-weight-semibold;
+}
+
+.blogs__chip {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-sm;
+  }
+}
+
+// ─── Actions / reactions ──────────────────────────────────────────────────────────
+.blogs__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  margin-top: syn.$space-3;
+  padding-top: syn.$space-3;
+  border-top: syn.px-to-rem(1) solid var(--bl-border-subtle);
+}
+
+.blogs__reactions {
+  display: inline-flex;
+  gap: syn.$space-1;
+}
+
+.blogs__react,
+.blogs__action,
+.blogs__comment-like {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  padding: syn.$space-1 syn.$space-3;
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.$radius-full;
+  background: none;
+  color: var(--bl-text-secondary);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+  transition: background-color syn.$duration-fast syn.$easing-smooth,
+    color syn.$duration-fast syn.$easing-smooth;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+    color: var(--bl-text);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+
+  &.is-active {
+    background: var(--bl-brand-soft);
+    color: var(--bl-brand);
+    border-color: var(--bl-brand-soft);
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+.blogs__react-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.blogs__more {
+  display: block;
+  width: 100%;
+  margin-top: syn.$space-4;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface);
+  color: var(--bl-text);
+  font: inherit;
+  font-weight: syn.$font-weight-semibold;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--bl-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}
+
+.blogs__back {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-1;
+  margin-bottom: syn.$space-4;
+  border: 0;
+  background: none;
+  color: var(--bl-brand);
+  font: inherit;
+  font-weight: syn.$font-weight-semibold;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-sm;
+  }
+}
+
+// ─── Comment thread ────────────────────────────────────────────────────────────────
+.blogs__comment-form,
+.blogs__reply-form {
+  display: flex;
+  gap: syn.$space-2;
+  margin: syn.$space-3 0;
+}
+
+.blogs__comment-input,
+.blogs__reply-input {
+  flex: 1;
+  padding: syn.$space-2 syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface-muted);
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  resize: vertical;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: 0;
+    border-color: var(--bl-brand);
+  }
+}
+
+.blogs__thread-title {
+  margin: syn.$space-4 0 syn.$space-3;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__thread,
+.blogs__replies {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__replies {
+  margin-top: syn.$space-3;
+  padding-left: syn.$space-5;
+  border-left: syn.px-to-rem(2) solid var(--bl-border-subtle);
+}
+
+.blogs__comment {
+  display: flex;
+  gap: syn.$space-3;
+}
+
+.blogs__comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.blogs__comment-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: syn.$space-1;
+}
+
+.blogs__comment-author {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+    border-radius: syn.$radius-sm;
+  }
+}
+
+.blogs__comment-handle {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-xs;
+}
+
+.blogs__comment-actions {
+  margin-top: syn.$space-1;
+}
+
+// ─── Profile ────────────────────────────────────────────────────────────────────────
+.blogs__profile {
+  margin-bottom: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+  overflow: hidden;
+}
+
+.blogs__profile-banner {
+  height: syn.px-to-rem(140);
+  background: linear-gradient(135deg, var(--bl-brand) 0%, var(--bl-brand-soft) 100%);
+}
+
+.blogs__profile-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: syn.$space-3;
+  margin-top: syn.px-to-rem(-40);
+  padding: 0 syn.$space-4;
+}
+
+.blogs__profile-name {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-1;
+  margin: syn.$space-3 syn.$space-4 0;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__profile-handle {
+  margin: 0 syn.$space-4;
+  color: var(--bl-muted);
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__profile-bio {
+  margin: syn.$space-3 syn.$space-4;
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-relaxed;
+}
+
+.blogs__profile-stats {
+  display: flex;
+  gap: syn.$space-5;
+  margin: 0 syn.$space-4 syn.$space-4;
+
+  div {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-1;
+  }
+
+  dt {
+    order: 2;
+    color: var(--bl-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  dd {
+    order: 1;
+    margin: 0;
+    font-weight: syn.$font-weight-bold;
+    font-size: syn.$font-size-sm;
+  }
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────────
+.blogs__notifs,
+.blogs__accounts,
+.blogs__hashtags,
+.blogs__trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__notif {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-3;
+  width: 100%;
+  padding: syn.$space-3 syn.$space-4;
+  border: 0;
+  border-radius: syn.$radius-md;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(-2);
+  }
+
+  &.is-unread {
+    background: var(--bl-brand-soft);
+  }
+
+  // El molde comparte el padding/gap de la fila real, pero no es un control: ni
+  // cursor de mano ni realce al pasar el ratón.
+  &--skeleton {
+    cursor: default;
+
+    &:hover {
+      background: none;
+    }
+  }
+}
+
+.blogs__notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  flex: 1;
+  min-width: 0;
+}
+
+.blogs__notif-text {
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__notif-dot {
+  flex: 0 0 auto;
+  width: syn.px-to-rem(8);
+  height: syn.px-to-rem(8);
+  border-radius: syn.$radius-full;
+  background: var(--bl-brand);
+}
+
+// ─── Search / explore ──────────────────────────────────────────────────────────────
+.blogs__searchbar {
+  display: flex;
+  gap: syn.$space-2;
+  margin-bottom: syn.$space-4;
+}
+
+.blogs__searchbar-input {
+  flex: 1;
+  padding: syn.$space-3 syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-full;
+  background: var(--bl-surface-muted);
+  color: var(--bl-text);
+  font: inherit;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: 0;
+    border-color: var(--bl-brand);
+  }
+}
+
+.blogs__account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: syn.$space-3;
+  padding: syn.$space-3 syn.$space-4;
+  border-radius: syn.$radius-md;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+  }
+}
+
+.blogs__hashtag,
+.blogs__trend {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  width: 100%;
+  padding: syn.$space-3 syn.$space-4;
+  border: 0;
+  border-radius: syn.$radius-md;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(-2);
+  }
+}
+
+.blogs__hashtag-count,
+.blogs__trend-count {
+  color: var(--bl-muted);
+  font-size: syn.$font-size-xs;
+}
+
+// ─── Right rail ──────────────────────────────────────────────────────────────────────
+.blogs__aside {
+  position: sticky;
+  top: syn.$space-4;
+  padding: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+  box-shadow: var(--bl-shadow);
+
+  @media (max-width: 60rem) {
+    display: none;
+  }
+}
+
+.blogs__aside-title {
+  margin: 0 0 syn.$space-3;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-bold;
+}
+
+// ═══ v2 additions (OLA 6): rail CTAs · DMs · guardados · studio · editor · sub ═══
+
+.blogs__rail-cta {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+}
+
+.blogs__compose-cta--ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-2;
+  margin: 0;
+  padding: syn.$space-2 syn.$space-4;
+  background: transparent;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  color: var(--bl-text);
+  font-size: syn.$font-size-sm;
+
+  &:hover {
+    background: var(--bl-surface-muted);
+    filter: none;
+  }
+}
+
+// Progressive-enhancement embeds (hydrate in the CMS; hidden until upgraded so the
+// native fallback carries the interactive flow standalone).
+.blogs__comments-embed,
+.blogs__notif-embed {
+  display: block;
+  margin: syn.$space-4 0;
+
+  &:not(:defined) {
+    display: none;
+  }
+}
+
+.blogs__profile-actions {
+  display: flex;
+  gap: syn.$space-2;
+}
+
+// ─── Long-form editor (`/write`) ─────────────────────────────────────────────────
+.blogs__editor {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  padding: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+}
+
+.blogs__editor-title {
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface);
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-xl;
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__editor-body {
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface);
+  color: var(--bl-text);
+  font: inherit;
+  font-size: syn.$font-size-base;
+  line-height: syn.$line-height-relaxed;
+  resize: vertical;
+}
+
+.blogs__editor-hint {
+  font-size: syn.$font-size-xs;
+  color: var(--bl-muted);
+}
+
+// ─── DMs — SH-7 conversation-list row + thread pane ──────────────────────────────
+.blogs__thread-row {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: start;
+}
+
+.blogs__thread-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: syn.$space-2;
+}
+
+.blogs__thread-row-name {
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__thread-row-last {
+  overflow: hidden;
+  font-size: syn.$font-size-xs;
+  color: var(--bl-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blogs__dm-head {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  padding-bottom: syn.$space-3;
+  border-bottom: syn.px-to-rem(1) solid var(--bl-border-subtle);
+}
+
+.blogs__dm-peer {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-2;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.blogs__dm-peer-name {
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__dm-peer-handle {
+  font-size: syn.$font-size-xs;
+  color: var(--bl-muted);
+}
+
+.blogs__dm-messages {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  margin: syn.$space-3 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__dm-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  align-self: flex-start;
+  max-width: 80%;
+  padding: syn.$space-2 syn.$space-3;
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface-muted);
+
+  &.is-outgoing {
+    align-self: flex-end;
+    background: var(--bl-brand-soft);
+  }
+}
+
+.blogs__dm-text {
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__dm-time {
+  font-size: syn.$font-size-xs;
+  color: var(--bl-muted);
+}
+
+// ─── Guardados — SH-4 row ─────────────────────────────────────────────────────────
+.blogs__saved-row {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  min-width: 0;
+  text-align: start;
+}
+
+.blogs__saved-row-author {
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+}
+
+.blogs__saved-row-excerpt {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: syn.$font-size-xs;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__lists-empty {
+  padding: syn.$space-4;
+}
+
+// ─── Creator studio — SH-5 custom sections ───────────────────────────────────────
+.blogs__studio-overview,
+.blogs__studio-audience,
+.blogs__studio-monetization {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  padding: syn.$space-3 0;
+}
+
+.blogs__studio-lead {
+  margin: 0;
+  font-size: syn.$font-size-base;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__studio-sub {
+  margin: 0;
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__studio-excerpt {
+  display: inline-block;
+  max-width: syn.px-to-rem(280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.blogs__chart {
+  display: flex;
+  align-items: flex-end;
+  gap: syn.$space-2;
+  height: syn.px-to-rem(140);
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--bl-border-subtle);
+  border-radius: syn.$radius-md;
+  background: var(--bl-surface-muted);
+}
+
+.blogs__chart-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: syn.$space-1;
+  height: 100%;
+}
+
+.blogs__chart-bar {
+  width: 60%;
+  min-height: syn.px-to-rem(4);
+  border-radius: syn.$radius-sm syn.$radius-sm 0 0;
+  background: var(--bl-brand);
+}
+
+.blogs__chart-label {
+  font-size: syn.$font-size-xs;
+  color: var(--bl-muted);
+}
+
+// ─── Tiers (studio + subscribe) ───────────────────────────────────────────────────
+.blogs__tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(200)}, 1fr));
+  gap: syn.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blogs__tier {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  padding: syn.$space-4;
+  border: syn.px-to-rem(1) solid var(--bl-border);
+  border-radius: syn.$radius-lg;
+  background: var(--bl-surface);
+
+  &.is-selected {
+    border-color: var(--bl-brand);
+    box-shadow: 0 0 0 syn.px-to-rem(1) var(--bl-brand);
+  }
+}
+
+.blogs__tier-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: syn.$space-2;
+}
+
+.blogs__tier-name {
+  font-weight: syn.$font-weight-bold;
+}
+
+.blogs__tier-price {
+  font-weight: syn.$font-weight-bold;
+  color: var(--bl-brand);
+}
+
+.blogs__tier-perks {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  margin: 0;
+  padding-inline-start: syn.$space-4;
+  font-size: syn.$font-size-sm;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__tier-subs {
+  margin: 0;
+  font-size: syn.$font-size-xs;
+  color: var(--bl-muted);
+}
+
+// ─── Subscribe wizard (SH-3) steps + confirmation ────────────────────────────────
+.blogs__sub-plans,
+.blogs__sub-pay,
+.blogs__sub-review {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+}
+
+.blogs__sub-lead {
+  margin: 0;
+  color: var(--bl-text-secondary);
+}
+
+.blogs__sub-total {
+  margin: 0;
+  font-size: syn.$font-size-lg;
+}
+
+.blogs__sub-summary {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  margin: 0;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  dt {
+    color: var(--bl-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: syn.$font-weight-medium;
+  }
+}
+
+.blogs__confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-6 syn.$space-4;
+  text-align: center;
+}
+
+.blogs__confirm-glyph {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  color: var(--bl-brand);
+}
+
+.blogs__confirm-text {
+  margin: 0;
+  max-width: syn.px-to-rem(420);
+  color: var(--bl-text-secondary);
+}
+
+.blogs__search-item {
+  cursor: pointer;
+}
+
+// ─── Reduced motion ────────────────────────────────────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+
+  // El reset de arriba NO basta para el shimmer: es `infinite`, y acortar la
+  // duración a 0.01ms lo convierte en un parpadeo rápido — justo lo que este
+  // usuario pidió no ver. Hay que apagar la animación, no acelerarla. Gana por
+  // especificidad (clase > `*`) aun con el `!important` del reset.
+  .blogs__bone {
+    animation: none !important;
+    background: var(--bl-skeleton-base);
+  }
+}

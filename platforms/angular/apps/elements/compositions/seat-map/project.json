@@ -1,0 +1,52 @@
+{
+  "name": "elements-compositions-seat-map",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/seat-map/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:seat-map",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/seat-map",
+        "browser": "apps/elements/compositions/seat-map/src/main.ts",
+        "index": "apps/elements/compositions/seat-map/src/index.html",
+        "tsConfig": "apps/elements/compositions/seat-map/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4353 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/seat-map/src/**/*.ts",
+          "apps/elements/compositions/seat-map/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/seat-map/tsconfig.spec.json"
+      }
+    }
+  }
+}

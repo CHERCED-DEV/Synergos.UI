@@ -1,0 +1,32 @@
+<div class="button-group sg-button-group" [class]="hostClasses()">
+  @defer (on idle) {
+    @for (btn of parsedButtons(); track btn.label + btn.href) {
+      @if (btn.href) {
+        <a
+          class="button-group__link"
+          [attr.href]="btn.disabled ? null : btn.href"
+          [attr.target]="btn.target"
+          [attr.rel]="btn.target === '_blank' ? 'noopener noreferrer' : null"
+          [attr.aria-disabled]="btn.disabled ? 'true' : null"
+          [attr.tabindex]="btn.disabled ? -1 : null"
+        >
+          <syn-button
+            [label]="btn.label"
+            [variant]="btn.variant"
+            [size]="btn.size"
+            [disabled]="btn.disabled"
+          />
+        </a>
+      } @else {
+        <span class="button-group__button-shell">
+          <syn-button
+            [label]="btn.label"
+            [variant]="btn.variant"
+            [size]="btn.size"
+            [disabled]="btn.disabled"
+          />
+        </span>
+      }
+    }
+  }
+</div>

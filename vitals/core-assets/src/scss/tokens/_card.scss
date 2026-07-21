@@ -1,0 +1,20 @@
+// ─── Canonical CARD language ──────────────────────────────────────────────────
+// Vocabulario único de toda superficie tipo card (card, testimonial, faq panel,
+// etc.). Espejo de los tokens --syn-card-* del CMS (syn-tokens.css). Referenciar
+// estos en lugar de recombinar surface/border/shadow a mano, para que ninguna
+// card se desincronice.
+
+@use 'semantic' as *;
+@use 'radius' as *;
+@use 'spacing' as *;
+@use '../elevation/shadows' as *;
+
+$card-surface:      $color-surface;            // white
+$card-radius:       $radius-lg;                // 14px
+$card-border:       1px solid $color-border-default;
+$card-border-hover: $color-border-brand;       // hover = arista de acento
+$card-shadow:       $shadow-card;
+$card-shadow-hover: $shadow-card-hover;
+$card-pad:          $space-lg;                 // 24
+$card-pad-lg:       $space-xl;                 // 32
+$card-lift:         translateY(-2px);

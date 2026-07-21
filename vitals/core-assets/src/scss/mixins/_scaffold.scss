@@ -1,0 +1,30 @@
+// ─── Scaffold Mixins ────────────────────────────────────────────────────────
+// Dev-only helpers for elements that are not yet implemented. The placeholder
+// renders an on-brand "scaffold" chip so authors can see the element exists in
+// the layout without shipping baked-in styling. NOT for production output —
+// real components replace this with their own styles.
+
+@use '../tokens/spacing' as spacing;
+@use '../tokens/radius' as radius;
+@use '../tokens/typography' as typography;
+@use '../tokens/semantic' as semantic;
+@use '../functions/px-to-rem' as rem;
+
+// syn-scaffold-placeholder — tokenized stand-in chip for un-built elements.
+// Mirrors the legacy hardcoded placeholder block but sourced from design tokens
+// so it stays on-brand and on-grid.
+@mixin syn-scaffold-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: spacing.$space-2;
+  padding: spacing.$space-2 spacing.$space-sm;
+  border: rem.px-to-rem(1) dashed
+    var(--syn-color-border-strong, #{semantic.$color-border-strong});
+  border-radius: radius.$radius-md;
+  background: var(--syn-color-surface-secondary, #{semantic.$color-surface-subtle});
+  color: var(--syn-color-text-muted, #{semantic.$color-text-muted});
+  font-family: typography.$font-family-sans;
+  font-size: typography.$font-size-xs;
+  line-height: 1;
+  letter-spacing: typography.$letter-spacing-eyebrow;
+}

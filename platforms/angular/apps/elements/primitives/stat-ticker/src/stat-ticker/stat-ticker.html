@@ -1,0 +1,14 @@
+<div class="syn-stat" role="group" [attr.aria-label]="statLabel() || null">
+  <p class="syn-stat__value">
+    @if (statPrefix(); as prefix) {
+      <span class="syn-stat__affix syn-stat__affix--prefix">{{ prefix }}</span>
+    }
+    <span class="syn-stat__number">{{ display() }}</span>
+    @if (statSuffix(); as suffix) {
+      <span class="syn-stat__affix syn-stat__affix--suffix">{{ suffix }}</span>
+    }
+  </p>
+  @if (statLabel(); as label) {
+    <p class="syn-stat__label">{{ label }}</p>
+  }
+</div>

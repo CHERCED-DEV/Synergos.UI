@@ -1,0 +1,18 @@
+@use 'scss' as syn;
+
+:host {
+  display: inline-flex;
+}
+
+.icon-block {
+  @include syn.flex-center;
+
+  &--sm { font-size: syn.$font-size-base; }
+  &--md { font-size: syn.$font-size-xl; }
+  &--lg { font-size: syn.$font-size-3xl; }
+
+  &__icon {
+    display: block;
+    line-height: 1;
+  }
+}

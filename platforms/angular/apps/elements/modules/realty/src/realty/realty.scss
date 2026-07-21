@@ -1,0 +1,1285 @@
+@use 'scss' as syn;
+
+:host {
+  --rt-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --rt-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --rt-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --rt-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --rt-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --rt-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --rt-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --rt-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --rt-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --rt-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --rt-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --rt-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --rt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --rt-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --rt-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --rt-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --rt-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --rt-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+}
+
+.realty {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--rt-border);
+  border-radius: syn.$radius-xl;
+  background: var(--rt-surface);
+  box-shadow: var(--rt-shadow);
+  color: var(--rt-text);
+  font-size: syn.$font-size-base;
+
+  // ─── Top bar ────────────────────────────────────────────────────────────────
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-md;
+    padding-bottom: syn.$space-md;
+    border-bottom: syn.px-to-rem(1) solid var(--rt-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--rt-text);
+    font-weight: 700;
+    font-size: syn.$font-size-lg;
+    cursor: pointer;
+  }
+
+  &__brand-mark {
+    display: inline-flex;
+    color: var(--rt-brand);
+  }
+
+  // ─── Inline SVG icon (Lucide-style, theme-aware via currentColor) ───────────
+  &__icon {
+    inline-size: 1em;
+    block-size: 1em;
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  &__roles {
+    display: inline-flex;
+    gap: syn.px-to-rem(2);
+    padding: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface-muted);
+  }
+
+  &__role {
+    padding: syn.$space-xxs syn.$space-md;
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: none;
+    color: var(--rt-text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-active {
+      background: var(--rt-surface);
+      color: var(--rt-text);
+      box-shadow: var(--rt-shadow);
+    }
+  }
+
+  &__nav {
+    display: inline-flex;
+    gap: syn.$space-xs;
+    margin-left: auto;
+  }
+
+  &__nav-btn {
+    padding: syn.$space-xxs syn.$space-sm;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: none;
+    color: var(--rt-text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-active {
+      color: var(--rt-brand);
+      background: var(--rt-brand-soft);
+    }
+  }
+
+  // ─── Notices ──────────────────────────────────────────────────────────────
+  &__notice {
+    margin: 0;
+    padding: syn.$space-xs syn.$space-md;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &--warn {
+      background: var(--rt-danger-soft);
+      color: var(--rt-danger);
+    }
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-xs syn.$space-md;
+    border-radius: syn.$radius-md;
+    background: var(--rt-danger-soft);
+    color: var(--rt-danger);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Panel de acceso (401/403) ──────────────────────────────────────────────
+  // Hueco de identidad: lo que se ve en vez de las búsquedas guardadas (sin sesión) o de
+  // la consola del agente (sin rol). No es un error ni una degradación — es una invitación,
+  // así que se estila como panel neutro y NO con --rt-danger.
+  &__signin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface-muted);
+    text-align: center;
+
+    // El componente hace `.focus()` sobre este contenedor al recibir un 401/403 (WCAG 2.4.3),
+    // y `tabindex="-1"` lo hace enfocable. Sin anillo, a propósito y en las tres apps (gov,
+    // realty, blogs): el anillo es el indicador de la navegación por TECLADO (WCAG 2.4.7) y
+    // aquí el usuario no tabuló hasta el panel — lo trajo la app; el `-1` existe justo para
+    // dejarlo fuera del orden de tabulación. Un recuadro alrededor de todo el panel se lee
+    // como un fallo de render. Las acciones de dentro sí conservan el suyo. Se declara
+    // explícito aunque hoy `realty.scss` no tenga una regla `:focus-visible` de descendiente
+    // que lo pinte (gov sí la tiene, en `gov.scss`): así la conducta no depende de que nadie
+    // añada una mañana.
+    &:focus,
+    &:focus-visible {
+      outline: none;
+    }
+  }
+
+  &__signin-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 600;
+  }
+
+  &__signin-text {
+    max-width: syn.px-to-rem(520);
+    margin: 0;
+    color: var(--rt-text-secondary);
+  }
+
+  &__signin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: syn.$space-xs;
+
+    // El "Iniciar sesión" es un <a> real (navega al autoservicio del CMS), no un botón:
+    // hereda .realty__btn y hay que apagarle el subrayado del enlace.
+    a.realty__btn {
+      text-decoration: none;
+    }
+  }
+
+  // ─── Hero + operation toggle ────────────────────────────────────────────────
+  &__hero {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-md 0;
+  }
+
+  &__hero-title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: 700;
+  }
+
+  &__hero-sub {
+    margin: 0;
+    color: var(--rt-text-secondary);
+  }
+
+  &__ops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+    margin-top: syn.$space-xs;
+  }
+
+  &__op {
+    padding: syn.$space-xxs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface);
+    color: var(--rt-text);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-active {
+      background: var(--rt-brand);
+      border-color: var(--rt-brand);
+      color: var(--rt-brand-text);
+    }
+  }
+
+  &__save-search {
+    margin-left: auto;
+    padding: syn.$space-xxs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface);
+    color: var(--rt-brand);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  // ─── SH-8 results-map wrapper ───────────────────────────────────────────────
+  &__resultsmap {
+    display: block;
+    min-height: syn.px-to-rem(420);
+  }
+
+  // ─── Listing card (SH-8 item template) ──────────────────────────────────────
+  &__card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface);
+  }
+
+  &__card-media {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    padding: 0;
+    border: 0;
+    background: var(--rt-surface-muted);
+    cursor: pointer;
+  }
+
+  &__card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__card-placeholder {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: var(--rt-muted);
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__card-flag {
+    position: absolute;
+    top: syn.$space-xs;
+    left: syn.$space-xs;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--rt-warn);
+    color: var(--rt-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+  }
+
+  &__fav {
+    position: absolute;
+    top: syn.$space-xs;
+    right: syn.$space-xs;
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(32);
+    height: syn.px-to-rem(32);
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface);
+    color: var(--rt-muted);
+    box-shadow: var(--rt-shadow);
+    cursor: pointer;
+
+    &.is-on {
+      color: var(--rt-danger);
+    }
+
+    &.is-on .realty__icon {
+      fill: currentColor;
+    }
+  }
+
+  &__card-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    padding: syn.$space-sm;
+  }
+
+  &__card-price {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+    color: var(--rt-text);
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 600;
+  }
+
+  &__card-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--rt-brand);
+    }
+  }
+
+  &__card-specs,
+  &__card-loc {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xxs;
+    margin: syn.$space-xxs 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__chip {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-xs;
+  }
+
+  // ─── PDP CTA (SH-2 sticky slot) ─────────────────────────────────────────────
+  &__cta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface);
+    box-shadow: var(--rt-shadow);
+  }
+
+  &__cta-price {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: 700;
+  }
+
+  &__cta-status {
+    margin: 0;
+    color: var(--rt-success);
+    font-weight: 600;
+    font-size: syn.$font-size-sm;
+
+    &.is-warn {
+      color: var(--rt-warn);
+    }
+  }
+
+  &__cta-mortgage {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    padding: syn.$space-sm;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+  }
+
+  &__cta-mortgage-label {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__cta-mortgage-value {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+    color: var(--rt-brand);
+  }
+
+  &__cta-mortgage-hint {
+    margin: 0;
+    color: var(--rt-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__agent {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding-top: syn.$space-sm;
+    border-top: syn.px-to-rem(1) solid var(--rt-border-subtle);
+  }
+
+  &__agent-avatar {
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(40);
+    height: syn.px-to-rem(40);
+    border-radius: syn.$radius-full;
+    background: var(--rt-brand-soft);
+    color: var(--rt-brand);
+    font-weight: 700;
+  }
+
+  &__agent-name {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  &__agent-agency {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── PDP body ───────────────────────────────────────────────────────────────
+  &__pdp-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__pdp-desc {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    line-height: 1.6;
+  }
+
+  &__pdp-section {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__pdp-heading {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 600;
+  }
+
+  &__pdp-map {
+    display: block;
+    min-height: syn.px-to-rem(260);
+  }
+
+  &__amenities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__amenity {
+    padding: syn.$space-xxs syn.$space-sm;
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__hood {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(160)}, 1fr));
+    gap: syn.$space-sm;
+    margin: 0;
+  }
+
+  &__hood-row {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    padding: syn.$space-sm;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+  }
+
+  &__hood-label {
+    color: var(--rt-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__hood-value {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  // ─── Buttons ────────────────────────────────────────────────────────────────
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-xs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface);
+    color: var(--rt-text);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      background: var(--rt-brand);
+      border-color: var(--rt-brand);
+      color: var(--rt-brand-text);
+    }
+
+    &--ghost {
+      background: none;
+    }
+
+    &.is-on {
+      border-color: var(--rt-brand);
+      color: var(--rt-brand);
+    }
+
+    &.is-on .realty__icon {
+      fill: currentColor;
+    }
+  }
+
+  &__link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xxs;
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--rt-brand);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xxs;
+    align-self: flex-start;
+    padding: syn.$space-xxs syn.$space-sm;
+    border: 0;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  // ─── Fields ─────────────────────────────────────────────────────────────────
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    font-size: syn.$font-size-sm;
+
+    span {
+      color: var(--rt-text-secondary);
+      font-weight: 600;
+    }
+
+    input,
+    textarea,
+    select {
+      min-height: var(--syn-control-h-md);
+      padding: syn.$space-xs syn.$space-sm;
+      border: syn.px-to-rem(1) solid var(--rt-border);
+      border-radius: var(--syn-radius-field);
+      background: var(--rt-surface);
+      color: var(--rt-text);
+      font: inherit;
+
+      @include syn.focus-visible(var(--rt-focus-ring));
+    }
+
+    textarea { min-height: syn.px-to-rem(96); }
+  }
+
+  // ─── Lead modal ─────────────────────────────────────────────────────────────
+  &__modal {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: grid;
+    place-items: center;
+    padding: syn.$space-md;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  &__modal-card {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    width: min(#{syn.px-to-rem(440)}, 100%);
+    padding: syn.$space-lg;
+    border-radius: syn.$radius-xl;
+    background: var(--rt-surface);
+    box-shadow: var(--rt-shadow-pop);
+  }
+
+  &__modal-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: syn.$space-xs;
+  }
+
+  // ─── Mortgage ───────────────────────────────────────────────────────────────
+  &__mortgage {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__mortgage-title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: 700;
+  }
+
+  &__mortgage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(260)}, 1fr));
+    gap: syn.$space-md;
+  }
+
+  &__mortgage-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__mortgage-result {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-md;
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface-muted);
+  }
+
+  &__mortgage-monthly-label {
+    margin: 0;
+    color: var(--rt-text-secondary);
+  }
+
+  &__mortgage-monthly {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: 700;
+    color: var(--rt-brand);
+  }
+
+  &__mortgage-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+
+    > div {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    dt {
+      color: var(--rt-text-secondary);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+    }
+  }
+
+  // ─── Visit wizard steps ─────────────────────────────────────────────────────
+  &__visit {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__visit-title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: 700;
+  }
+
+  &__visit-modes,
+  &__visit-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  &__visit-contact {
+    flex-direction: column;
+    max-width: syn.px-to-rem(440);
+  }
+
+  &__mode {
+    padding: syn.$space-sm syn.$space-lg;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface);
+    color: var(--rt-text);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: var(--rt-brand);
+      background: var(--rt-brand-soft);
+      color: var(--rt-brand);
+    }
+  }
+
+  &__slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(160)}, 1fr));
+    gap: syn.$space-sm;
+  }
+
+  &__slot-day {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-sm;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+  }
+
+  &__slot-date {
+    margin: 0;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  &__slot-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xxs;
+  }
+
+  &__slot {
+    padding: syn.$space-xxs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-sm;
+    background: var(--rt-surface);
+    color: var(--rt-text);
+    cursor: pointer;
+
+    &.is-active {
+      background: var(--rt-brand);
+      border-color: var(--rt-brand);
+      color: var(--rt-brand-text);
+    }
+  }
+
+  &__review {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+
+    > div {
+      display: flex;
+      justify-content: space-between;
+      gap: syn.$space-md;
+      padding: syn.$space-xxs 0;
+      border-bottom: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    }
+
+    dt {
+      color: var(--rt-text-secondary);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      text-align: right;
+    }
+  }
+
+  &__review-note {
+    margin: syn.$space-xs 0 0;
+    color: var(--rt-success);
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+  }
+
+  // ─── Confirmation ───────────────────────────────────────────────────────────
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-xs;
+    padding: syn.$space-2xl syn.$space-md;
+    text-align: center;
+  }
+
+  &__confirm-mark {
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(56);
+    height: syn.px-to-rem(56);
+    border-radius: syn.$radius-full;
+    background: var(--rt-success-soft);
+    color: var(--rt-success);
+    font-size: syn.$font-size-2xl;
+    font-weight: 700;
+  }
+
+  &__confirm-title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: 700;
+  }
+
+  &__confirm-sub {
+    margin: 0;
+    color: var(--rt-text-secondary);
+  }
+
+  &__confirm-ref {
+    margin: 0;
+    color: var(--rt-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__confirm-actions {
+    display: flex;
+    gap: syn.$space-xs;
+    margin-top: syn.$space-sm;
+  }
+
+  // ─── Account ────────────────────────────────────────────────────────────────
+  &__visit-row {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    text-align: left;
+  }
+
+  &__visit-row-title {
+    font-weight: 600;
+  }
+
+  &__visit-row-when {
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__visit-detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__visit-detail-title {
+    margin: 0;
+    font-weight: 700;
+  }
+
+  &__visit-detail-meta {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__favs,
+  &__saved,
+  &__messages {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__favs-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__favs-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 600;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-md;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+  }
+
+  &__favs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(220)}, 1fr));
+    gap: syn.$space-sm;
+
+    &.is-compare {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(#{syn.px-to-rem(220)}, 1fr);
+      grid-template-columns: none;
+      overflow-x: auto;
+    }
+  }
+
+  &__fav-card {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-lg;
+  }
+
+  &__fav-card-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 600;
+  }
+
+  &__compare {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: syn.$space-xxs;
+    margin: syn.$space-xxs 0;
+
+    > div {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    dt {
+      color: var(--rt-muted);
+      font-size: syn.$font-size-xs;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      font-size: syn.$font-size-sm;
+    }
+  }
+
+  &__saved-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__saved-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: syn.$space-md;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-md;
+  }
+
+  &__saved-label {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  &__saved-meta {
+    margin: syn.px-to-rem(2) 0 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__saved-badge {
+    display: inline-block;
+    margin-right: syn.$space-xxs;
+    padding: syn.px-to-rem(1) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--rt-brand-soft);
+    color: var(--rt-brand);
+    font-weight: 600;
+  }
+
+  &__toggle {
+    padding: syn.$space-xxs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-full;
+    background: var(--rt-surface);
+    color: var(--rt-text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.is-on {
+      background: var(--rt-brand-soft);
+      border-color: var(--rt-brand);
+      color: var(--rt-brand);
+    }
+  }
+
+  // ─── Agent console ──────────────────────────────────────────────────────────
+  &__console-top {
+    display: flex;
+    gap: syn.$space-xs;
+  }
+
+  &__tag {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+  }
+
+  &__lead-cell {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__lead-name {
+    font-weight: 600;
+  }
+
+  &__lead-contact {
+    color: var(--rt-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__lead-msg {
+    display: block;
+    max-width: syn.px-to-rem(280);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__agenda-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__agenda-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+    align-items: baseline;
+    padding: syn.$space-sm;
+    border-radius: syn.$radius-md;
+    background: var(--rt-surface-muted);
+  }
+
+  &__agenda-when {
+    font-weight: 700;
+    color: var(--rt-brand);
+    text-transform: capitalize;
+  }
+
+  &__agenda-title {
+    font-weight: 600;
+  }
+
+  &__agenda-who {
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__analytics {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__analytics-lead {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  &__funnel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  &__funnel-step {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    flex: 1 1 syn.px-to-rem(120);
+    padding: syn.$space-md;
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface-muted);
+    text-align: center;
+  }
+
+  &__funnel-value {
+    font-size: syn.$font-size-2xl;
+    font-weight: 700;
+    color: var(--rt-brand);
+  }
+
+  &__funnel-label {
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Publish wizard ─────────────────────────────────────────────────────────
+  &__publish {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__publish-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(220)}, 1fr));
+    gap: syn.$space-sm;
+  }
+
+  &__publish-done {
+    margin: syn.$space-sm 0 0;
+    color: var(--rt-success);
+    font-weight: 600;
+  }
+
+  &__dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-2xl;
+    border: syn.px-to-rem(2) dashed var(--rt-border);
+    border-radius: syn.$radius-lg;
+    color: var(--rt-text-secondary);
+    text-align: center;
+  }
+
+  &__dropzone-icon {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__dropzone-hint {
+    margin: 0;
+    color: var(--rt-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  // ─── Pin drop map (SH-6 ubicación step) ─────────────────────────────────────
+  &__pin {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__pin-help {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__pin-map {
+    position: relative;
+    width: 100%;
+    height: syn.px-to-rem(260);
+    border: syn.px-to-rem(1) solid var(--rt-border);
+    border-radius: syn.$radius-lg;
+    background: var(--rt-surface-muted);
+    cursor: crosshair;
+    overflow: hidden;
+
+    // Ahora es focusable (tabindex="0"): sin indicador visible sería un fallo de
+    // WCAG 2.4.7 — el foco existiría y no se vería.
+    @include syn.focus-visible(var(--rt-focus-ring));
+  }
+
+  &__pin-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, var(--rt-border-subtle) syn.px-to-rem(1), transparent syn.px-to-rem(1)),
+      linear-gradient(to bottom, var(--rt-border-subtle) syn.px-to-rem(1), transparent syn.px-to-rem(1));
+    background-size: syn.px-to-rem(32) syn.px-to-rem(32);
+  }
+
+  &__pin-marker {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    color: var(--rt-brand);
+    font-size: syn.$font-size-xl;
+    pointer-events: none;
+  }
+
+  &__pin-coords {
+    margin: 0;
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &--empty {
+      color: var(--rt-muted);
+    }
+  }
+}

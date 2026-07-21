@@ -1,0 +1,5 @@
+@use 'strip-unit' as strip;
+
+@function px-to-em($size, $base: 16px) {
+  @return #{strip.strip-unit($size) / strip.strip-unit($base)}em;
+}

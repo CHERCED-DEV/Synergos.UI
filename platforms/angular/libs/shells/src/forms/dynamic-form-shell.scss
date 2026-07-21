@@ -1,0 +1,382 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --sdf-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sdf-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sdf-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sdf-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --sdf-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sdf-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --sdf-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sdf-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sdf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --sdf-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sdf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --sdf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --sdf-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+  --sdf-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --sdf-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+
+  display: block;
+  max-width: 100%;
+  color: var(--sdf-text);
+}
+
+.syn-dform {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 2fr);
+  gap: syn.$space-6;
+  align-items: start;
+
+  @media (max-width: #{syn.px-to-rem(760)}) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__title {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  // ─── Task-list ───────────────────────────────────────────────────────────────
+  &__tasks {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__task-btn {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    width: 100%;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sdf-border);
+    border-radius: syn.$radius-md;
+    background: var(--sdf-surface);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+
+    &.is-active {
+      border-color: var(--sdf-brand);
+      background: var(--sdf-brand-soft);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+
+  &__task-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: syn.px-to-rem(24);
+    height: syn.px-to-rem(24);
+    border-radius: 50%;
+    background: var(--sdf-surface-muted);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__task-label {
+    flex: 1;
+    min-width: 0;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__tag {
+    flex: none;
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-sm;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    white-space: nowrap;
+
+    &--not-started {
+      background: var(--sdf-surface-muted);
+      color: var(--sdf-muted);
+    }
+
+    &--in-progress {
+      background: var(--sdf-brand-soft);
+      color: var(--sdf-brand);
+    }
+
+    &--completed {
+      background: var(--sdf-success-soft);
+      color: var(--sdf-success);
+    }
+  }
+
+  // ─── Panel ───────────────────────────────────────────────────────────────────
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-4;
+    padding: syn.$space-5;
+    border: syn.px-to-rem(1) solid var(--sdf-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--sdf-surface-muted);
+    min-width: 0;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ─── Error summary ─────────────────────────────────────────────────────────────
+  &__errors {
+    padding: syn.$space-4;
+    border: syn.px-to-rem(2) solid var(--sdf-danger);
+    border-radius: syn.$radius-md;
+    background: var(--sdf-danger-soft);
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+  }
+
+  &__errors-title {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+    color: var(--sdf-danger);
+  }
+
+  &__errors-list {
+    margin: 0;
+    padding-left: syn.$space-4;
+  }
+
+  &__errors-link {
+    color: var(--sdf-danger);
+    font-weight: syn.$font-weight-semibold;
+    text-decoration: underline;
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+  }
+
+  // ─── Fields ─────────────────────────────────────────────────────────────────
+  &__section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: syn.$space-4;
+
+    @media (max-width: #{syn.px-to-rem(560)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__section-title {
+    grid-column: 1 / -1;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+
+    &--full {
+      grid-column: 1 / -1;
+    }
+
+    &.has-error &__control,
+    &.has-error .syn-dform__control {
+      border-color: var(--sdf-danger);
+    }
+  }
+
+  &__label,
+  &__check-label {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__opt {
+    margin-left: syn.$space-1;
+    color: var(--sdf-muted);
+    font-weight: syn.$font-weight-regular;
+    font-style: normal;
+  }
+
+  &__help {
+    font-size: syn.$font-size-xs;
+    color: var(--sdf-text-secondary);
+  }
+
+  &__control {
+    width: 100%;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sdf-border);
+    border-radius: syn.$radius-md;
+    background: var(--sdf-surface);
+    color: inherit;
+    font: inherit;
+    font-size: syn.$font-size-sm;
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+  }
+
+  textarea.syn-dform__control {
+    resize: vertical;
+  }
+
+  &__radios {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__radio,
+  &__check {
+    display: flex;
+    align-items: flex-start;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    input {
+      margin-top: syn.px-to-rem(3);
+    }
+  }
+
+  &__check {
+    grid-column: 1 / -1;
+  }
+
+  &__file-name {
+    font-size: syn.$font-size-xs;
+    color: var(--sdf-text-secondary);
+  }
+
+  &__error {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--sdf-danger);
+  }
+
+  // ─── Check-answers ─────────────────────────────────────────────────────────────
+  &__review {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-4;
+  }
+
+  &__review-group {
+    border: syn.px-to-rem(1) solid var(--sdf-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--sdf-surface);
+    overflow: hidden;
+  }
+
+  &__review-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: syn.$space-3 syn.$space-4;
+    background: var(--sdf-surface-muted);
+  }
+
+  &__review-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__change {
+    border: none;
+    background: none;
+    color: var(--sdf-brand);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    text-decoration: underline;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+  }
+
+  &__answers {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-4 syn.$space-4;
+  }
+
+  &__answer-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+    gap: syn.$space-3;
+    padding: syn.$space-2 0;
+    border-bottom: syn.px-to-rem(1) solid var(--sdf-border-subtle);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    dt {
+      margin: 0;
+      font-size: syn.$font-size-sm;
+      font-weight: syn.$font-weight-semibold;
+      color: var(--sdf-text-secondary);
+    }
+
+    dd {
+      margin: 0;
+      font-size: syn.$font-size-sm;
+    }
+  }
+
+  // ─── Actions ─────────────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding-top: syn.$space-2;
+  }
+
+  &__btn {
+    padding: syn.$space-2 syn.$space-5;
+    border: syn.px-to-rem(1) solid var(--sdf-border);
+    border-radius: syn.$radius-md;
+    background: var(--sdf-surface);
+    color: inherit;
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sdf-focus-ring));
+
+    &--primary {
+      border-color: var(--sdf-brand);
+      background: var(--sdf-brand);
+      color: var(--sdf-brand-text);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-dform *,
+  .syn-dform *::before,
+  .syn-dform *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,36 @@
+@if (hasContent()) {
+  <!-- Contenedor de posicionamiento: los (pointerenter)/(pointerleave) son SOLO el atajo de
+       ratón. El interactivo real es el <button class="tooltip__trigger"> de abajo, que ya es
+       focusable de nativo y abre/cierra la burbuja con sus (focus)/(blur); el (keydown) de
+       aquí solo delega Escape. Un tabindex en este <span> añadiría una parada de tabulación
+       extra justo antes del botón que ya la tiene. -->
+  <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+  <span
+    class="tooltip"
+    [class]="'tooltip--' + position()"
+    [class.tooltip--open]="open()"
+    (pointerenter)="show()"
+    (pointerleave)="hide()"
+    (keydown)="onKeydown($event)"
+  >
+    <button
+      type="button"
+      class="tooltip__trigger"
+      [attr.aria-describedby]="open() ? bubbleId : null"
+      (focus)="show()"
+      (blur)="hide()"
+    >
+      {{ triggerText() }}
+    </button>
+
+    <span
+      class="tooltip__bubble"
+      [id]="bubbleId"
+      role="tooltip"
+      [attr.aria-hidden]="open() ? null : 'true'"
+    >
+      {{ tooltipText() }}
+      <span class="tooltip__arrow" aria-hidden="true"></span>
+    </span>
+  </span>
+}

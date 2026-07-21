@@ -1,0 +1,619 @@
+<div class="gov">
+  <!-- ─── Topbar: marca + role-switch + navegación por cara ────────────────────── -->
+  <header class="gov__bar">
+    <button
+      type="button"
+      class="gov__brand"
+      (click)="role() === 'officer' ? goToQueue() : backToCatalog()"
+      aria-label="Inicio del portal de trámites"
+    >
+      <span class="gov__brand-mark" aria-hidden="true">
+        <svg class="gov__brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+          <path d="M7 21h10" />
+          <path d="M12 3v18" />
+          <path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+        </svg>
+      </span>
+      <span class="gov__brand-name">GOV · Trámites</span>
+    </button>
+
+    <!--
+      El switch de perfil NO son tabs: cada perfil abre un journey completo
+      (portal ciudadano vs consola del funcionario), así que es navegación.
+      Perfil activo = aria-current="page"; el cambio se anuncia en la región
+      aria-live compartida del design system (setRole → announce() →
+      LiveAnnouncerService).
+    -->
+    <nav class="gov__roles" aria-label="Cambiar de perfil">
+      @for (r of roles; track r.key) {
+        <button
+          type="button"
+          class="gov__role"
+          [class.gov__role--active]="role() === r.key"
+          [attr.aria-current]="role() === r.key ? 'page' : null"
+          (click)="setRole(r.key)"
+        >
+          {{ r.label }}
+        </button>
+      }
+    </nav>
+
+    <nav class="gov__nav" aria-label="Secciones">
+      @if (role() === 'citizen') {
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'catalog'"
+          (click)="backToCatalog()"
+        >
+          Catálogo
+        </button>
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'applications' || view() === 'application'"
+          (click)="goToApplications()"
+        >
+          Mis solicitudes
+          @if (applications().length > 0) {
+            <span class="gov__badge" [attr.aria-label]="applications().length + ' solicitudes'">{{ applications().length }}</span>
+          }
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'queue' || view() === 'case'"
+          (click)="goToQueue()"
+        >
+          Cola de casos
+        </button>
+      }
+    </nav>
+  </header>
+
+  <!-- WCAG: los cambios de estado se anuncian sin recarga, pero la región aria-live YA NO
+       vive aquí. Estaba atada a un `signal`, y una señal no notifica cuando se le pone el
+       mismo valor (`Object.is`), así que el segundo "Esa solicitud no es suya" no mutaba el
+       DOM y el lector callaba. Ahora `announce()` delega en `LiveAnnouncerService`
+       (@synergos/shared), que mantiene UNA región a nivel de documento. No se deja también
+       la de aquí: dos regiones con el mismo texto se leen DOS veces. -->
+
+  @if (degraded() && citizenAccess() === 'ok' && officerAccess() === 'ok') {
+    <!-- No convivir con un panel de acceso ("Inicie sesión" del ciudadano o "no autorizado"
+         del funcionario): un 401/403 previo podría dejar el latch `degraded` encendido y se
+         verían dos verdades contradictorias a la vez. -->
+    <p class="gov__notice" role="status">
+      Mostrando <strong>datos de ejemplo</strong>. El backend de trámites conectará el catálogo,
+      las solicitudes y los casos reales.
+    </p>
+  }
+
+  @if (errorMessage()) {
+    <p class="gov__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ════════════════════ CATÁLOGO (SH-1 discovery) ════════════════════ -->
+  @if (view() === 'catalog') {
+    <section class="catalog" aria-label="Catálogo de trámites">
+      <div class="catalog__intro">
+        <h1 class="catalog__title">{{ heading() }}</h1>
+        <p class="catalog__lead">{{ subheading() }}</p>
+      </div>
+
+      <syn-discovery-shell
+        [config]="{
+          searchLabel: 'Buscar trámites',
+          searchPlaceholder: 'Ej.: pasaporte, licencia, Sisbén…',
+          searchButtonLabel: 'Buscar',
+          filtersHeading: 'Categoría',
+          clearLabel: 'Limpiar',
+          emptyMessage: 'No encontramos trámites con esa búsqueda. Pruebe con otra palabra o quite los filtros.',
+          loadingMessage: 'Buscando trámites…',
+          layout: 'list',
+          resultsNoun: { one: 'trámite', many: 'trámites' }
+        }"
+        [items]="services()"
+        [facets]="[
+          {
+            key: 'category',
+            label: 'Categoría',
+            values: [
+              { value: 'identidad', label: 'Identidad' },
+              { value: 'salud', label: 'Salud' },
+              { value: 'tributario', label: 'Tributario' },
+              { value: 'vehiculos', label: 'Vehículos' },
+              { value: 'empresa', label: 'Empresa' }
+            ]
+          }
+        ]"
+        [loading]="loading()"
+        [itemTemplate]="serviceCard"
+        (criteriachange)="onDiscoveryChange($event)"
+        (itemselect)="openService($event)"
+      />
+
+      <ng-template #serviceCard let-svc let-select="select">
+        <article class="svc-card">
+          <div class="svc-card__body">
+            <p class="svc-card__agency">{{ svc.agency }}</p>
+            <h2 class="svc-card__title">
+              <button type="button" class="svc-card__link" (click)="select()">{{ svc.name }}</button>
+            </h2>
+            <p class="svc-card__summary">{{ svc.summary }}</p>
+            <ul class="svc-card__meta" aria-label="Datos del trámite">
+              <li class="gv-tag">{{ categoryLabel(svc.category) }}</li>
+              <li class="gv-tag" [class.gv-tag--ok]="svc.feeMinor === 0">{{ feeLabel(svc.feeMinor, svc.currency) }}</li>
+              <li class="gv-tag">Respuesta en ~{{ svc.estimatedDays }} días hábiles</li>
+            </ul>
+          </div>
+          <button type="button" class="gv-btn gv-btn--outline" (click)="select()">Ver el trámite</button>
+        </article>
+      </ng-template>
+    </section>
+  }
+
+  <!-- ════════════════════ FICHA DEL TRÁMITE (task-list) ════════════════════ -->
+  @if (view() === 'service' && service(); as svc) {
+    <article class="ficha" aria-label="Ficha del trámite">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()"><svg class="gv-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>Volver al catálogo</button>
+
+      <header class="ficha__head">
+        <p class="ficha__agency">{{ svc.agency }}</p>
+        <h1 class="ficha__title">{{ svc.name }}</h1>
+        <p class="ficha__summary">{{ svc.summary }}</p>
+        <ul class="svc-card__meta" aria-label="Datos del trámite">
+          <li class="gv-tag">{{ categoryLabel(svc.category) }}</li>
+          <li class="gv-tag" [class.gv-tag--ok]="!hasFee()">{{ feeLabel(svc.feeMinor, svc.currency) }}</li>
+        </ul>
+      </header>
+
+      <div class="ficha__grid">
+        <div class="ficha__main">
+          <!-- Task-list de pasos del trámite (GOV.UK) -->
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-pasos">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-pasos">Cómo funciona</h2>
+            <ol class="steps">
+              @for (step of svc.steps; track step.id; let i = $index) {
+                <li class="steps__item">
+                  <span class="steps__num" aria-hidden="true">{{ i + 1 }}</span>
+                  <div class="steps__body">
+                    <p class="steps__title">{{ step.title }}</p>
+                    @if (step.detail) { <p class="steps__detail">{{ step.detail }}</p> }
+                  </div>
+                </li>
+              }
+            </ol>
+          </section>
+
+          @if (svc.eligibility.length > 0) {
+            <section class="ficha__section" aria-labelledby="{{ fieldId }}-elegib">
+              <h2 class="ficha__section-title" id="{{ fieldId }}-elegib">¿Le aplica?</h2>
+              <ul class="ficha__checklist">
+                @for (item of svc.eligibility; track item) {
+                  <li class="ficha__check-item">
+                    <svg class="ficha__check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-4-4" /></svg>
+                    {{ item }}
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-req">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-req">¿Qué necesita tener a la mano?</h2>
+            @if (svc.required.length > 0) {
+              <ul class="ficha__checklist">
+                @for (req of svc.required; track req) {
+                  <li class="ficha__check-item"><span aria-hidden="true">•</span> {{ req }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="ficha__text">Solo su documento de identidad. No necesita anexar papeles.</p>
+            }
+          </section>
+
+          <section class="ficha__section" aria-labelledby="{{ fieldId }}-cuesta">
+            <h2 class="ficha__section-title" id="{{ fieldId }}-cuesta">¿Cuánto cuesta?</h2>
+            @if (hasFee()) {
+              <p class="ficha__text"><strong>{{ formatFee(svc.feeMinor, svc.currency) }}</strong>. La tasa se paga en línea al radicar.</p>
+            } @else {
+              <p class="ficha__text"><strong>Nada.</strong> Este trámite es gratuito.</p>
+            }
+          </section>
+        </div>
+
+        <aside class="ficha__cta" aria-label="Iniciar">
+          <p class="ficha__cta-hint">El formulario se completa por tareas. Tarda unos 5 minutos.</p>
+          <button type="button" class="gv-btn gv-btn--brand gv-btn--block" (click)="startApplication()">Iniciar solicitud</button>
+        </aside>
+      </div>
+    </article>
+  }
+
+  <!-- ════════════════════ INICIAR SOLICITUD (SH-9 dynamic form) ════════════════════ -->
+  @if (view() === 'apply' && service(); as svc) {
+    <section class="apply" aria-label="Radicar solicitud">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="navigate('service', svc.id)"><svg class="gv-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>Volver a la ficha</button>
+      <p class="apply__subject">Está radicando: <strong>{{ svc.name }}</strong> — {{ svc.agency }}</p>
+
+      <syn-dynamic-form
+        [schema]="formSchema()"
+        [config]="formConfig"
+        [submitting]="submitting()"
+        (formsubmit)="onFormSubmit($event)"
+      />
+    </section>
+  }
+
+  <!-- ════════════════════ RADICADO (confirmation + QR) ════════════════════ -->
+  @if (view() === 'receipt' && confirmedApplication(); as app) {
+    <section class="receipt" aria-label="Comprobante de radicación">
+      <span class="receipt__check" aria-hidden="true">
+        <svg class="receipt__check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-4-4" /></svg>
+      </span>
+      <h1 class="receipt__title">Solicitud radicada</h1>
+      <p class="receipt__number">
+        Su número de radicado es <strong class="receipt__radicado">{{ app.reference }}</strong>
+      </p>
+
+      <!-- Reuses the published qr-code element (CUSTOM_ELEMENTS_SCHEMA). -->
+      <div class="receipt__qr">
+        <synergos-qr-code [attr.data]="app.reference" [attr.size]="160"></synergos-qr-code>
+      </div>
+
+      <dl class="receipt__detail">
+        <div><dt>Trámite</dt><dd>{{ app.serviceName }}</dd></div>
+        <div><dt>Estado</dt><dd><span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span></dd></div>
+        <div><dt>Etapa actual</dt><dd>{{ app.currentStage }}</dd></div>
+      </dl>
+
+      <div class="receipt__next">
+        <h2 class="receipt__next-title">¿Qué sigue?</h2>
+        <p class="ficha__text">
+          Guarde su número de radicado. Le avisamos por correo cuando cambie el estado. Puede ver el
+          avance cuando quiera en <strong>Mis solicitudes</strong>.
+        </p>
+      </div>
+
+      <div class="receipt__actions">
+        <button type="button" class="gv-btn gv-btn--brand" (click)="openApplication(app)">Ver mi solicitud</button>
+        <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">Volver al catálogo</button>
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ MIS SOLICITUDES (SH-4 account) ════════════════════ -->
+  @if (view() === 'applications') {
+    <section class="folder" aria-label="Mis solicitudes">
+      @if (citizenAccess() !== 'ok') {
+        <!-- El backend negó el acceso. NO se pinta la carpeta con datos de ejemplo: sería
+             mostrarle solicitudes que no son suyas. 'anon' → ofrecer login; 'forbidden' →
+             el login no ayuda (ya hay sesión), así que solo se explica. -->
+        <!-- WCAG 2.4.3 (Focus Order): el 401/403 llega mientras el usuario tiene el foco en
+             un control de la vista anterior, y `handleCitizenDenied` navega, así que ese
+             control se DESTRUYE y el foco cae a <body> — hay que tabular la página entera
+             para volver al "Iniciar sesión" que se le acaba de ofrecer. `tabindex="-1"` +
+             la ref son el enganche para que el componente enfoque el CONTENEDOR (no el
+             botón: enfocando el contenedor el lector lee título y texto ANTES que las
+             acciones). El foco solo debe moverse si la negativa vino de una acción del
+             usuario, y no en cada re-render, o el panel roba el foco. -->
+        <div class="signin" tabindex="-1" #signinPanel>
+          @if (citizenAccess() === 'anon') {
+            <h2 class="signin__title">Inicie sesión para ver sus solicitudes</h2>
+            <p class="signin__text">
+              Sus trámites están asociados a su cuenta. Los verá aquí en cuanto entre.
+            </p>
+            <div class="signin__actions">
+              <a class="gv-btn gv-btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+              <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">
+                Ver el catálogo de trámites
+              </button>
+            </div>
+          } @else {
+            <h2 class="signin__title">Su cuenta no tiene acceso a estas solicitudes</h2>
+            <p class="signin__text">
+              Solo puede ver las solicitudes radicadas con su cuenta. Si cree que es un
+              error, comuníquese con la entidad.
+            </p>
+            <div class="signin__actions">
+              <button type="button" class="gv-btn gv-btn--brand" (click)="backToCatalog()">
+                Ver el catálogo de trámites
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+      <!-- 403 sobre UN expediente: la carpeta propia sigue siendo legítima y se muestra,
+           con el aviso de que el expediente pedido no era suyo. Antes, aquí se pintaba
+           el expediente de otro bajo el id pedido. -->
+      @if (accessNotice()) {
+        <p class="gov__notice gov__notice--deny" role="status">{{ accessNotice() }}</p>
+      }
+      <syn-account-shell
+        [config]="accountConfig()"
+        [items]="applications()"
+        [loading]="loading()"
+        [itemTemplate]="applicationRow"
+        [detailTemplate]="applicationDetail"
+        (itemselect)="openApplication($event)"
+      />
+      }
+
+      <ng-template #applicationRow let-app>
+        <span class="app-row">
+          <span class="app-row__ref">{{ app.reference }}</span>
+          <span class="app-row__name">{{ app.serviceName }}</span>
+          <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
+        </span>
+      </ng-template>
+
+      <ng-template #applicationDetail let-app>
+        <div class="app-detail">
+          <h2 class="app-detail__title">{{ app.serviceName }}</h2>
+          <p class="app-detail__ref">{{ app.reference }} · {{ app.currentStage }}</p>
+          <p class="app-detail__hint">{{ statusHint(app.status) }}</p>
+          <button type="button" class="gv-btn gv-btn--brand" (click)="openApplication(app)">Ver seguimiento completo</button>
+        </div>
+      </ng-template>
+    </section>
+  }
+
+  <!-- ════════════════════ DETALLE DE SOLICITUD (timeline + docs + SH-7) ════════════════════ -->
+  @if (view() === 'application' && activeApplication(); as app) {
+    <section class="tracking" aria-label="Seguimiento de la solicitud">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="goToApplications()"><svg class="gv-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>Volver a mis solicitudes</button>
+
+      <header class="tracking__head">
+        <p class="tracking__ref">{{ app.reference }}</p>
+        <h1 class="tracking__title">{{ app.serviceName }}</h1>
+        <p class="tracking__status" role="status">
+          <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
+          <span class="tracking__stage">{{ app.currentStage }}</span>
+        </p>
+        <p class="tracking__hint">{{ statusHint(app.status) }}</p>
+      </header>
+
+      <div class="tracking__grid">
+        <div class="tracking__main">
+          <h2 class="tracking__section-title">Seguimiento</h2>
+          <syn-tracking-timeline
+            [stages]="applicationStages()"
+            ariaLabel="Etapas de la solicitud"
+          />
+
+          <h2 class="tracking__section-title">Documentos</h2>
+          @if (app.documents.length > 0) {
+            <ul class="doc-list" aria-label="Documentos de la solicitud">
+              @for (doc of app.documents; track doc.id) {
+                <li class="doc-list__item">
+                  <span class="doc-list__name">
+                    <svg class="doc-list__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
+                    <!-- Solo hay enlace si hay binario detrás (T6). Los adjuntos previos
+                         son metadata sin fichero: se muestran, pero no se ofrecen. -->
+                    @if (doc.downloadUrl) {
+                      <a class="doc-list__link" [href]="doc.downloadUrl" download>{{ doc.name }}</a>
+                      @if (documentSizeLabel(doc.sizeBytes); as size) {
+                        <span class="doc-list__size">{{ size }}</span>
+                      }
+                    } @else {
+                      {{ doc.name }}
+                    }
+                  </span>
+                  <span class="doc-list__status">{{ doc.status }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="ficha__text">Aún no ha adjuntado documentos a esta solicitud.</p>
+          }
+
+          <!-- Subir documento -->
+          <form class="upload" (submit)="$event.preventDefault(); uploadDocument()">
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Adjuntar un documento</span>
+              <input type="file" accept=".pdf,.jpg,.png" (change)="onDocumentFile($event)" />
+            </label>
+            @if (uploadName()) {
+              <p class="upload__pending">Listo para subir: <strong>{{ uploadName() }}</strong></p>
+            }
+            <!-- Se habilita con el FICHERO, no con el nombre: sin bytes no hay subida. -->
+            <button type="submit" class="gv-btn gv-btn--outline" [disabled]="!uploadFile() || loading()">
+              Subir documento
+            </button>
+          </form>
+        </div>
+
+        <aside class="tracking__aside" aria-label="Correspondencia">
+          <h2 class="tracking__section-title">Correspondencia</h2>
+          <syn-message-center
+            [config]="messageConfig"
+            [threads]="correspondence()"
+            [activeThread]="activeMessage()"
+            [sending]="sendingMessage()"
+            [threadTemplate]="messageRow"
+            [detailTemplate]="messageDetail"
+            (threadselect)="onThreadSelect($event)"
+            (send)="onSendMessage($event)"
+          />
+          <ng-template #messageRow let-msg>
+            <span class="msg-row">
+              <span class="msg-row__author">{{ msg.outgoing ? 'Usted' : msg.author }}</span>
+              <span class="msg-row__preview">{{ msg.body }}</span>
+            </span>
+          </ng-template>
+          <ng-template #messageDetail let-msg>
+            <div class="msg-detail">
+              <p class="msg-detail__author">{{ msg.outgoing ? 'Usted' : msg.author }}</p>
+              <p class="msg-detail__body">{{ msg.body }}</p>
+            </div>
+          </ng-template>
+        </aside>
+      </div>
+    </section>
+  }
+
+  <!-- ════════════════════ COLA DE CASOS (SH-5 console) ════════════════════ -->
+  @if (view() === 'queue') {
+    <section class="queue" aria-label="Cola de casos">
+      @if (officerAccess() !== 'ok') {
+        <!-- La consola expone PII de otros ciudadanos: si no hay rol de funcionario NO se
+             pinta con datos de ejemplo. 'anon' → ofrecer login; 'forbidden' → el login no
+             ayuda (hace falta que un admin dé el permiso), así que solo se explica. -->
+        <!-- WCAG 2.4.3: mismo enganche que el panel del ciudadano — `handleOfficerDenied`
+             navega y destruye el control enfocado (p.ej. la acción de una fila de la cola).
+             Ver el comentario largo en el panel de "Mis solicitudes". -->
+        <div class="signin" tabindex="-1" #signinPanel>
+          @if (officerAccess() === 'anon') {
+            <h2 class="signin__title">Inicie sesión como funcionario</h2>
+            <p class="signin__text">
+              La cola de casos es para funcionarios de la entidad. Inicie sesión con una
+              cuenta autorizada para verla.
+            </p>
+            <div class="signin__actions">
+              <a class="gv-btn gv-btn--brand" [href]="loginUrl()">Iniciar sesión</a>
+              <button type="button" class="gv-btn gv-btn--ghost" (click)="goToCitizenPortal()">
+                Ir al portal ciudadano
+              </button>
+            </div>
+          } @else {
+            <h2 class="signin__title">Su cuenta no tiene permiso de funcionario</h2>
+            <p class="signin__text">
+              Esta consola es solo para funcionarios de la entidad. Si necesita acceso,
+              solicite el rol al administrador.
+            </p>
+            <div class="signin__actions">
+              <button type="button" class="gv-btn gv-btn--brand" (click)="goToCitizenPortal()">
+                Ir al portal ciudadano
+              </button>
+            </div>
+          }
+        </div>
+      } @else {
+      <syn-console-shell
+        [config]="consoleConfig()"
+        [kpis]="consoleKpis()"
+        [rows]="queueCases()"
+        [columns]="consoleColumns"
+        [filters]="consoleFilters()"
+        [actions]="consoleActions"
+        [loading]="loading()"
+        [cellTemplate]="queueCell"
+        (filterchange)="onConsoleFilterChange($event)"
+        (rowaction)="onConsoleRowAction($event)"
+      />
+      }
+
+      <ng-template #queueCell let-row let-column="column">
+        @switch (column.key) {
+          @case ('status') {
+            <span class="status-tag status-tag--{{ row.status }}">{{ statusLabel(row.status) }}</span>
+          }
+          @case ('priority') {
+            <span class="prio prio--{{ row.priority }}">{{ priorityLabel(row.priority) }}</span>
+          }
+          @case ('sla') {
+            <span class="sla" [class.sla--overdue]="row.slaDaysLeft < 0">{{ slaLabel(row.slaDaysLeft) }}</span>
+          }
+          @case ('reference') { <strong>{{ row.reference }}</strong> }
+          @default { {{ row[column.key] }} }
+        }
+      </ng-template>
+    </section>
+  }
+
+  <!-- ════════════════════ REVISAR CASO + DECISIÓN (funcionario) ════════════════════ -->
+  @if (view() === 'case' && activeCase(); as kase) {
+    <section class="case" aria-label="Caso">
+      <button type="button" class="gv-btn gv-btn--ghost" (click)="backToQueue()"><svg class="gv-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>Volver a la cola</button>
+
+      <header class="tracking__head">
+        <p class="tracking__ref">{{ kase.application.reference }}</p>
+        <h1 class="tracking__title">{{ kase.application.serviceName }}</h1>
+        <p class="tracking__status">
+          <span class="status-tag status-tag--{{ kase.application.status }}">{{ statusLabel(kase.application.status) }}</span>
+          <span class="tracking__stage">{{ kase.application.currentStage }}</span>
+        </p>
+      </header>
+
+      <div class="case__grid">
+        <div class="case__main">
+          <h2 class="tracking__section-title">Solicitante</h2>
+          <p class="ficha__text">{{ kase.application.citizenName }}</p>
+
+          <h2 class="tracking__section-title">Respuestas del formulario</h2>
+          <dl class="answers answers--flat">
+            @for (answer of kase.answers; track answer.label) {
+              <div class="answers__row"><dt>{{ answer.label }}</dt><dd>{{ answer.value }}</dd></div>
+            } @empty {
+              <p class="ficha__text">Sin respuestas registradas.</p>
+            }
+          </dl>
+
+          @if (kase.documents.length > 0) {
+            <h2 class="tracking__section-title">Documentos</h2>
+            <ul class="doc-list" aria-label="Documentos del caso">
+              @for (doc of kase.documents; track doc.id) {
+                <li class="doc-list__item">
+                  <span class="doc-list__name">
+                    <svg class="doc-list__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></svg>
+                    <!-- El funcionario descarga el adjunto para poder decidir; el backend
+                         le da permiso por rol, no por ser el dueño del expediente. -->
+                    @if (doc.downloadUrl) {
+                      <a class="doc-list__link" [href]="doc.downloadUrl" download>{{ doc.name }}</a>
+                      @if (documentSizeLabel(doc.sizeBytes); as size) {
+                        <span class="doc-list__size">{{ size }}</span>
+                      }
+                    } @else {
+                      {{ doc.name }}
+                    }
+                  </span>
+                  <span class="doc-list__status">{{ doc.status }}</span>
+                </li>
+              }
+            </ul>
+          }
+
+          <h2 class="tracking__section-title">Historial</h2>
+          <syn-tracking-timeline [stages]="caseStages()" ariaLabel="Historial del caso" />
+        </div>
+
+        <aside class="case__actions" aria-label="Decisión">
+          <h2 class="tracking__section-title">Decisión</h2>
+          @if (kase.decision) {
+            <p class="case__decided">
+              Decisión registrada: <strong>{{ outcomeLabel(kase.decision.outcome) }}</strong>.
+              @if (kase.decision.note) { <span class="case__decided-note">“{{ kase.decision.note }}”</span> }
+            </p>
+          }
+          @if (!isClosed(kase.application.status)) {
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Nota (queda en el historial y le llega al ciudadano)</span>
+              <textarea class="gv-textarea" rows="3" [value]="decisionNote()" (input)="bind(decisionNote.set)($event)"></textarea>
+            </label>
+            <div class="case__buttons">
+              @for (outcome of caseOutcomes(); track outcome) {
+                <button
+                  type="button"
+                  class="gv-btn gv-btn--block"
+                  [class.gv-btn--brand]="outcome === 'approve'"
+                  [class.gv-btn--warn]="outcome === 'request-info'"
+                  [class.gv-btn--danger]="outcome === 'reject'"
+                  [disabled]="loading()"
+                  (click)="decide(outcome)"
+                >
+                  {{ outcomeLabel(outcome) }}
+                </button>
+              }
+            </div>
+            <p class="ficha__cta-hint">Solo se muestran las decisiones válidas. Cada una queda registrada.</p>
+          } @else {
+            <p class="case__closed">Caso cerrado. No admite más acciones.</p>
+          }
+        </aside>
+      </div>
+    </section>
+  }
+</div>

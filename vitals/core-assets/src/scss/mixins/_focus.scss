@@ -1,0 +1,52 @@
+@use '../tokens/colors' as *;
+@use '../tokens/motion' as *;
+@use '../functions/px-to-rem' as *;
+
+// ─── Focus Ring ────────────────────────────────────────────────────────────────
+// Consistent keyboard-navigation focus indicator.
+// Uses brand-300 at full opacity — visible but not aggressive.
+// All interactive components MUST include this mixin.
+
+// Ola 0 — los defaults width/offset consumen los tokens --syn-focus-ring-*
+// (doc 23), con fallback px-to-rem(2) para uso standalone. El color sigue
+// theme-aware vía --syn-color-focus-ring. :focus-visible con contraste ≥3:1.
+//
+// El fallback Sass era $color-brand-300 (#a5b4fc) y MEDÍA 1.99:1 contra blanco
+// y 1.91:1 contra surface-secondary claro — o sea que la ruta degradada (cuando
+// --syn-color-focus-ring no resuelve, p.ej. un elemento CDN montado donde no
+// cargó syn-tokens.css) pintaba un anillo invisible en los 5 temas claros.
+// El CMS ya había corregido esto EN EL TOKEN (:root usa brand-500, con el
+// comentario "brand-300 1.99 → brand-500 4.28"); este fallback se quedó atrás,
+// que es la copia derivada rancia de siempre. brand-500 mide 4.28 / 4.09 / 3.42
+// / 4.67 (blanco / claro / oscuro / canvas dark): pasa el 3:1 en las cuatro.
+@mixin focus-visible(
+  $ring-color:  var(--syn-color-focus-ring, #{$color-brand-500}),
+  $ring-width:  var(--syn-focus-ring-width, #{px-to-rem(2)}),
+  $ring-offset: var(--syn-focus-ring-offset, #{px-to-rem(2)})
+) {
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: $ring-width solid $ring-color;
+    outline-offset: $ring-offset;
+    // CSS var + fallback Sass: el literal era inmune al swap de duraciones
+    // bajo `prefers-reduced-motion` (syn-tokens.css).
+    transition: outline-offset var(--syn-duration-fast, #{$duration-fast}) $easing-smooth;
+  }
+}
+
+// ─── Danger Focus (for error-state inputs) ─────────────────────────────────────
+@mixin focus-visible-danger(
+  $ring-width:  px-to-rem(2),
+  $ring-offset: px-to-rem(2)
+) {
+  @include focus-visible(
+    // mismo caso que arriba: danger-300 (#fda4af) es un rosa claro que no
+    // sostiene 3:1 sobre superficie clara. El CMS ya usa danger-500 en :root.
+    var(--syn-color-focus-ring-danger, #{$color-danger-500}),
+    $ring-width,
+    $ring-offset
+  );
+}

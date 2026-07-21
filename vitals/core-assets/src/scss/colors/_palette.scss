@@ -1,0 +1,56 @@
+@use '../tokens/colors' as *;
+@use '../tokens/radius' as *;
+@use '../tokens/motion' as *;
+@use '../tokens/semantic' as *;
+@use '../tokens/spacing' as *;
+@use '../tokens/typography' as *;
+@use '../tokens/layout' as *;
+
+// Alias semánticos para uso STANDALONE (este archivo lo arrastra `_global.scss`,
+// que hoy no está cableado en ningún build).
+//
+// Antes esto era un ESPEJO del SSOT: 133 tokens --syn-* redeclarados a mano
+// —toda la rampa neutral/brand/accent, spacing, radios, tipografía— con sus
+// propios comentarios diciendo "espejo del CMS". De esos, 3 ya habían derivado
+// (las familias tipográficas habían perdido `system-ui`/`-apple-system` y
+// `consolas`). Nunca llegó al navegador porque nada compila este archivo, pero
+// era la misma mina que `_brand.scss`: en cuanto alguien cablee `_global.scss`,
+// se inlinea en los bundles y suplanta al `<link>` del CMS por orden de fuente.
+//
+// REGLA: el tema en runtime es del host
+// (`Synergos.CMS.Web/wwwroot/css/syn-tokens.css`). Acá NO se redeclara nada que
+// el SSOT ya defina — se consume con var(--syn-x). Lo vigila el gate G-2 de
+// `platforms/angular/tools/sync-tokens.mjs --check`.
+//
+// Sólo quedan los alias que el SSOT no define. Ojo: los mismos 14 los emite el
+// mixin `semantic-aliases` de `tokens/_brand.scss`, así que si `_global.scss`
+// llega a cablearse conviene unificarlos en una sola fuente.
+:root {
+  // ── Semantic surface ───────────────────────────────────────────────────────
+  --syn-surface:         #{$color-surface};
+  --syn-surface-subtle:  #{$color-surface-subtle};
+  --syn-surface-muted:   #{$color-surface-muted};
+  --syn-surface-inverse: #{$color-surface-inverse};
+
+  // ── Semantic text ──────────────────────────────────────────────────────────
+  --syn-text-primary:   #{$color-text-primary};
+  --syn-text-secondary: #{$color-text-secondary};
+  --syn-text-muted:     #{$color-text-muted};
+  --syn-text-disabled:  #{$color-text-disabled};
+  --syn-text-inverse:   #{$color-text-inverse};
+  --syn-text-brand:     #{$color-text-brand};
+
+  // ── Semantic border ────────────────────────────────────────────────────────
+  --syn-border-subtle:  #{$color-border-subtle};
+  --syn-border-default: #{$color-border-default};
+  --syn-border-strong:  #{$color-border-strong};
+  --syn-border-brand:   #{$color-border-brand};
+}
+
+// Fallback cuando no hay `data-theme` puesto. No declara tokens: sólo le dice
+// al UA qué esquema pintar, así que no compite con el SSOT.
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}

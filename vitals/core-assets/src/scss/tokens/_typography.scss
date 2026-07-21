@@ -1,0 +1,41 @@
+@use '../functions/px-to-rem' as *;
+
+$font-family-sans: 'Manrope', 'Segoe UI', sans-serif;
+$font-family-mono: 'JetBrains Mono', 'Cascadia Code', monospace;
+
+$font-size-xs: px-to-rem(12);
+$font-size-sm: px-to-rem(14);
+$font-size-base: px-to-rem(16);
+$font-size-lg: px-to-rem(18);
+$font-size-xl: px-to-rem(20);
+$font-size-2xl: px-to-rem(24);
+$font-size-3xl: px-to-rem(30);
+$font-size-4xl: px-to-rem(36);
+$font-size-5xl: px-to-rem(48);
+
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+$line-height-tight: 1.25;
+$line-height-snug: 1.3;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.625;
+
+$letter-spacing-display: -0.02em;    // Large display numbers (prices, hero metrics)
+$letter-spacing-tight:   -0.025em;
+$letter-spacing-normal:  0;
+$letter-spacing-wide:    0.025em;
+$letter-spacing-eyebrow: 0.08em;   // Uppercase labels, eyebrow text, overlines
+
+// ── Ola 0 — display tracking + peso (Manrope big & LIGHT · doc 23 · ADR 0094) ──
+// Espejo de --syn-tracking-*/--syn-font-weight-display/--syn-font-mono (CMS).
+// Rampa de tracking negativo SOLO para display ≥48px; nunca en body. Pesos
+// display 300–510: grande y LIGERO, nunca grande y bold (lee genérico).
+$tracking-tight:      -0.02em;   // display ≥48px
+$tracking-tighter:    -0.03em;   // display ≥72px
+$font-weight-display: 510;       // headings display (rango 300–510)
+// Mono "console marker" para eyebrows/labels (lidera ui-monospace).
+$font-family-mono-ui: ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;

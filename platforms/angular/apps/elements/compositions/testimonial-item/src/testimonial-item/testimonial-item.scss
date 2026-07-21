@@ -1,0 +1,134 @@
+@use 'scss' as syn;
+
+:host {
+  --tmi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --tmi-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --tmi-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --tmi-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --tmi-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --tmi-name-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --tmi-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --tmi-decorative-quote: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  display: block;
+}
+
+.testimonial-item {
+  @include syn.flex-column;
+  // Radio xl (20) intencional: anida dentro de testimonial-section (2xl=24),
+  // quedando una arista interior más cerrada que el contenedor. NO unificar a card.
+  @include syn.surface-panel(
+    syn.$space-lg,
+    var(--tmi-surface),
+    var(--tmi-border),
+    syn.px-to-rem(1),
+    syn.$radius-xl,
+    var(--tmi-shadow)
+  );
+
+  position: relative;
+  gap: syn.$space-lg;
+  height: 100%;
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+  &:hover {
+    box-shadow: var(--tmi-shadow-hover);
+    transform: translateY(syn.px-to-rem(-2));
+  }
+
+  &--dark,
+  &.sg-testimonial-item--dark {
+    --tmi-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-900});
+    --tmi-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --tmi-quote-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --tmi-name-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --tmi-role-color: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+    --tmi-decorative-quote: var(--syn-color-overlay-medium, #{syn.$color-neutral-700});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-testimonial-item--silver-gold,
+  &.sg-testimonial-item--silverGold {
+    --tmi-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+    --tmi-decorative-quote: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  }
+
+  &__quote {
+    position: relative;
+    margin: 0;
+    flex: 1 1 auto;
+
+    &::before {
+      content: '\201C';
+      position: absolute;
+      inset-block-start: syn.px-to-rem(-8);
+      inset-inline-end: 0;
+      font-size: syn.px-to-rem(64);
+      font-weight: syn.$font-weight-bold;
+      line-height: 1;
+      color: var(--tmi-decorative-quote);
+      pointer-events: none;
+      user-select: none;
+    }
+  }
+
+  &__quote-copy {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: var(--tmi-quote-color);
+    font-size: clamp(#{syn.$font-size-base}, 2vw, #{syn.$font-size-lg});
+    font-style: italic;
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
+
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__author {
+    @include syn.flex-start;
+
+    gap: syn.$space-sm;
+    margin: 0;
+    margin-top: auto;
+  }
+
+  &__meta {
+    @include syn.flex-column;
+
+    gap: syn.$space-xxs;
+  }
+
+  &__name {
+    color: var(--tmi-name-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__role {
+    color: var(--tmi-role-color);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .testimonial-item {
+    transition: none;
+  }
+
+  .testimonial-item:hover {
+    transform: none;
+  }
+}

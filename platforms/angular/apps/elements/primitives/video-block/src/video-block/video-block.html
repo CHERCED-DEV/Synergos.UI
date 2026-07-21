@@ -1,0 +1,20 @@
+@if (src()) {
+  <figure class="video-block">
+    <video
+      class="video-block__media"
+      [src]="src()"
+      [attr.title]="title() || null"
+      [attr.poster]="poster() || null"
+      [controls]="controls()"
+      [autoplay]="autoplay()"
+      [muted]="muted()"
+      [loop]="loop()"
+      playsinline
+      preload="metadata"
+    ></video>
+
+    @if (hasTitle()) {
+      <figcaption class="video-block__caption">{{ title() }}</figcaption>
+    }
+  </figure>
+}

@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-select-multi",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/select-multi/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:select-multi",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/select-multi",
+        "browser": "apps/elements/compositions/select-multi/src/main.ts",
+        "index": "apps/elements/compositions/select-multi/src/index.html",
+        "tsConfig": "apps/elements/compositions/select-multi/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4352 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/select-multi/src/**/*.ts",
+          "apps/elements/compositions/select-multi/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "elements-primitives-fab",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/primitives/fab/src",
+  "tags": [
+    "scope:elements",
+    "tier:primitive",
+    "type:app",
+    "element:fab",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/fab",
+        "browser": "apps/elements/primitives/fab/src/main.ts",
+        "index": "apps/elements/primitives/fab/src/index.html",
+        "tsConfig": "apps/elements/primitives/fab/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4327 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/primitives/fab/src/**/*.ts",
+          "apps/elements/primitives/fab/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

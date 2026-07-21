@@ -1,0 +1,28 @@
+<article class="testimonial-item" [class]="hostClasses()">
+  <blockquote class="testimonial-item__quote">
+    <div class="testimonial-item__quote-copy" [innerHTML]="quote()"></div>
+  </blockquote>
+
+  @if (hasMeta() || avatarSrc()) {
+    <footer class="testimonial-item__author">
+      <syn-avatar
+        [name]="name()"
+        [src]="avatarSrc()"
+        [alt]="resolvedAvatarAlt()"
+        size="lg"
+      />
+
+      @if (hasMeta()) {
+        <div class="testimonial-item__meta">
+          @if (name()) {
+            <strong class="testimonial-item__name">{{ name() }}</strong>
+          }
+
+          @if (role()) {
+            <span class="testimonial-item__role">{{ role() }}</span>
+          }
+        </div>
+      }
+    </footer>
+  }
+</article>

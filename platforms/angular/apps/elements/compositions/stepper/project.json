@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-stepper",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/stepper/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:stepper",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/stepper",
+        "browser": "apps/elements/compositions/stepper/src/main.ts",
+        "index": "apps/elements/compositions/stepper/src/index.html",
+        "tsConfig": "apps/elements/compositions/stepper/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4361 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/stepper/src/**/*.ts",
+          "apps/elements/compositions/stepper/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

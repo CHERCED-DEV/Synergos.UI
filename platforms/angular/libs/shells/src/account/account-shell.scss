@@ -1,0 +1,148 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --sha-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sha-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sha-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sha-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --sha-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sha-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --sha-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sha-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sha-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --sha-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sha-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--sha-text);
+}
+
+.syn-account {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-4;
+
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  // ─── Section nav ───────────────────────────────────────────────────────────
+  &__nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    padding-bottom: syn.$space-2;
+    border-bottom: syn.px-to-rem(1) solid var(--sha-border-subtle);
+  }
+
+  &__nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sha-border);
+    border-radius: syn.$radius-full;
+    background: var(--sha-surface);
+    color: var(--sha-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sha-focus-ring));
+
+    &.is-active {
+      border-color: var(--sha-brand);
+      background: var(--sha-brand);
+      color: var(--sha-brand-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: syn.px-to-rem(18);
+    padding: 0 syn.$space-1;
+    border-radius: syn.$radius-full;
+    background: var(--sha-brand-soft);
+    color: var(--sha-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ─── Inbox: list + detail ──────────────────────────────────────────────────
+  &__inbox {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: syn.$space-4;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(760)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__row {
+    display: block;
+    width: 100%;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sha-border);
+    border-radius: syn.$radius-md;
+    background: var(--sha-surface);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sha-focus-ring));
+
+    &.is-selected {
+      border-color: var(--sha-brand);
+      background: var(--sha-brand-soft);
+    }
+  }
+
+  &__detail-pane {
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--sha-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--sha-surface-muted);
+    min-width: 0;
+  }
+
+  &__placeholder,
+  &__empty {
+    margin: 0;
+    padding: syn.$space-4;
+    color: var(--sha-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__section {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-account *,
+  .syn-account *::before,
+  .syn-account *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

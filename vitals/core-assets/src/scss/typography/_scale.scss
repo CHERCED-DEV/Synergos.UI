@@ -1,0 +1,48 @@
+@use '../tokens/typography' as *;
+@use '../tokens/colors' as *;
+
+body {
+  font-family: $font-family-sans;
+  font-size: $font-size-base;
+  font-weight: $font-weight-regular;
+  line-height: $line-height-normal;
+  color: $color-neutral-900;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: $font-weight-bold;
+  line-height: $line-height-tight;
+  color: $color-neutral-900;
+}
+
+// Fluid heading scale: each heading scales between a mobile min and desktop max.
+// The viewport-relative mid value ensures smooth growth — no abrupt jumps.
+// Target: reaches max at ~lg breakpoint (992px / 62rem).
+h1 { font-size: clamp(#{$font-size-3xl}, 5vw, #{$font-size-5xl}); }  // 30px → 48px
+h2 { font-size: clamp(#{$font-size-2xl}, 4vw, #{$font-size-4xl}); }  // 24px → 36px
+h3 { font-size: clamp(#{$font-size-xl},  3vw, #{$font-size-3xl}); }  // 20px → 30px
+h4 { font-size: clamp(#{$font-size-lg},  2.5vw, #{$font-size-2xl}); } // 18px → 24px
+h5 { font-size: $font-size-lg; }    // 18px — fixed
+h6 { font-size: $font-size-base; }  // 16px — fixed
+
+p {
+  margin: 0;
+  line-height: $line-height-relaxed;
+}
+
+small {
+  font-size: $font-size-sm;
+}
+
+code,
+pre {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}

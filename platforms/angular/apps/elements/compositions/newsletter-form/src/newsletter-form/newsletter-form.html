@@ -1,0 +1,69 @@
+<section class="newsletter-form" [class]="hostClasses()">
+  @if (title() || intro()) {
+    <header class="newsletter-form__header">
+      @if (title()) {
+        <syn-heading
+          class="newsletter-form__heading"
+          [text]="title()"
+          [tone]="headingTone()"
+          level="h3"
+          size="lg"
+        />
+      }
+      @if (intro()) {
+        <div class="newsletter-form__intro" [innerHTML]="intro()"></div>
+      }
+    </header>
+  }
+
+  <form class="newsletter-form__form" (submit)="onSubmit($event)" novalidate>
+    <div class="newsletter-form__pill" [class.is-loading]="isSubmitting()">
+      <span class="newsletter-form__at" aria-hidden="true">@</span>
+      <input
+        class="newsletter-form__input"
+        type="email"
+        [placeholder]="placeholder()"
+        [value]="email()"
+        [disabled]="isSubmitting()"
+        autocomplete="email"
+        required
+        #emailInput
+        (input)="onEmailChange(emailInput.value)"
+        [attr.aria-label]="emailAriaLabel()"
+      />
+      <button
+        class="newsletter-form__submit"
+        type="submit"
+        [disabled]="isSubmitting()"
+        [attr.aria-busy]="isSubmitting() || null"
+      >
+        @if (isSubmitting()) {
+          <span class="newsletter-form__spinner" aria-hidden="true"></span>
+        } @else {
+          <span>{{ submitLabel() }}</span>
+          <span class="newsletter-form__arrow" aria-hidden="true">&#8594;</span>
+        }
+      </button>
+    </div>
+
+    <p class="newsletter-form__note">{{ noteText() }}</p>
+
+    @if (hasConsent()) {
+      <syn-checkbox
+        [label]="consentText()"
+        [checked]="consent()"
+        [disabled]="isSubmitting()"
+        (checkedChange)="onConsentChange($event)"
+      />
+    }
+  </form>
+
+  @if (hasFeedback()) {
+    <syn-alert
+      [title]="feedbackTitle()"
+      [description]="feedback()"
+      [tone]="feedbackTone()"
+      [dismissible]="false"
+    />
+  }
+</section>

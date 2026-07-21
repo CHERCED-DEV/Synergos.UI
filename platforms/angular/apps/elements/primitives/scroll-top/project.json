@@ -1,0 +1,46 @@
+{
+  "name": "elements-primitives-scroll-top",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/primitives/scroll-top/src",
+  "tags": [
+    "scope:elements",
+    "tier:primitive",
+    "type:app",
+    "element:scroll-top",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/scroll-top",
+        "browser": "apps/elements/primitives/scroll-top/src/main.ts",
+        "index": "apps/elements/primitives/scroll-top/src/index.html",
+        "tsConfig": "apps/elements/primitives/scroll-top/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4350 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/primitives/scroll-top/src/**/*.ts",
+          "apps/elements/primitives/scroll-top/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

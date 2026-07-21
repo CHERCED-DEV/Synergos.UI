@@ -1,0 +1,6279 @@
+{
+  "_comment": "Manually-declared public inputs for each element. Keep in sync with component source.",
+  "_convention": "camelCase names here → kebab-case HTML attributes on the Custom Element.",
+  "_empty_array": "Empty [] means element is built but inputs haven't been declared yet — not that it has no inputs.",
+  "hero": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Main heading text"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h1",
+      "description": "HTML heading tag: h1–h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Body copy / paragraph text"
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hero image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hero image alt text"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute (_self | _blank)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "banner": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Banner heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Banner body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA destination URL"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "eyebrow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional eyebrow copy used as a legacy override."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting image URL used outside CMS config."
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting image alt text."
+    },
+    {
+      "name": "secondaryCtaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy secondary CTA label override."
+    },
+    {
+      "name": "secondaryCtaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy secondary CTA URL override."
+    },
+    {
+      "name": "secondaryCtaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy secondary CTA target override."
+    }
+  ],
+  "card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card heading"
+    },
+    {
+      "name": "subtitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card subheading"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card body copy"
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Card image alt text"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA button label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CTA destination URL"
+    },
+    {
+      "name": "badgeText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Badge label text"
+    },
+    {
+      "name": "badgeType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Badge semantic type (info | warning | success)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Card layout variant"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "button-container": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Button visible text"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "solid",
+      "description": "Variante visual. Acepta el vocabulario del CMS (primary | secondary | outlined | ghost | neutral | emphasis) y el propio (solid | outline | ghost | danger | gradient); lo desconocido cae a solid."
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "sm | md | lg"
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "If set, renders as <a> instead of <button>"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target (_self | _blank)"
+    },
+    {
+      "name": "loading",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Loading state; disables interaction and shows the loading label"
+    },
+    {
+      "name": "loadingLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Text shown while loading (falls back to the button label)"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Disabled state"
+    }
+  ],
+  "section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "containerType",
+      "type": "string",
+      "required": false,
+      "default": "fluid",
+      "description": "Section width container mode"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "start",
+      "description": "Cross-axis alignment for the inner layout"
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "column",
+      "description": "Flex direction for the inner layout"
+    },
+    {
+      "name": "margin",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional CSS margin shorthand"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional CSS padding shorthand"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "1rem",
+      "description": "Gap between section children"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Layout variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "feature-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred number of columns"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of feature items with heading, body and optional icon"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
+    }
+  ],
+  "faq-section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of FAQ items with question, answer and optional initiallyExpanded"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "testimonial-section": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text"
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of testimonial items with name, quote, role and avatarSrc"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "logo-cloud": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the logo cloud."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Section heading text."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting introductory copy."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of logo items with src, alt, href and label."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 4,
+      "description": "Preferred number of columns."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "tab-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the tab group."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional group heading."
+    },
+    {
+      "name": "tabs",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of tabs with id, label, content and disabled."
+    },
+    {
+      "name": "activeId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initially selected tab id."
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "Tabs",
+      "description": "Accessible label for the tablist."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "banner-slider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the banner slider."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Slider heading text."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Slider supporting copy."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of slide objects."
+    },
+    {
+      "name": "autoplay",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Whether the slider should autoplay."
+    },
+    {
+      "name": "loop",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the slider should loop."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "data-table": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the data table."
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible table caption."
+    },
+    {
+      "name": "columns",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of column definitions."
+    },
+    {
+      "name": "rows",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of row records."
+    },
+    {
+      "name": "emptyLabel",
+      "type": "string",
+      "required": false,
+      "default": "No data available.",
+      "description": "Fallback label when the table is empty."
+    },
+    {
+      "name": "striped",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables striped row styling."
+    },
+    {
+      "name": "bordered",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables cell borders."
+    },
+    {
+      "name": "hoverable",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables hover styling."
+    },
+    {
+      "name": "compact",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Uses compact row spacing."
+    }
+  ],
+  "script-embed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the script embed."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "External script source URL."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "text/javascript",
+      "description": "Script MIME type."
+    },
+    {
+      "name": "inlineScript",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Inline script body to inject."
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "body",
+      "description": "Document target for script injection (head | body)."
+    },
+    {
+      "name": "async",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Sets the async script attribute."
+    },
+    {
+      "name": "defer",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Sets the defer script attribute."
+    },
+    {
+      "name": "scriptType",
+      "type": "string",
+      "required": false,
+      "default": "text/javascript",
+      "description": "Canonical CMS script type."
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS script payload or external URL."
+    }
+  ],
+  "angular-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the Angular host."
+    },
+    {
+      "name": "component",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Catalog alias or custom element tag to mount. Preferred over tagName."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional API endpoint injected into the hosted element props."
+    },
+    {
+      "name": "params",
+      "type": "json",
+      "required": false,
+      "description": "JSON object of lightweight params merged into hosted element props."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional script URL to load before mounting the hosted element."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy explicit custom element tag to render."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the hosted element."
+    },
+    {
+      "name": "textContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional text content for the hosted element."
+    }
+  ],
+  "mf-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the remote host."
+    },
+    {
+      "name": "component",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Remote exposed module name, catalog alias or custom element tag to mount."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional API endpoint injected into the hosted remote element props."
+    },
+    {
+      "name": "params",
+      "type": "json",
+      "required": false,
+      "description": "JSON object of lightweight params merged into hosted remote element props."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Preferred script URL to load before mounting."
+    },
+    {
+      "name": "remoteEntry",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy remote entry script URL to load before mounting."
+    },
+    {
+      "name": "exposedModule",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy exposed module name used as hosted component name."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Legacy explicit custom element tag exposed by the remote bundle."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the hosted remote element."
+    }
+  ],
+  "macro-host": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "contentType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Nested element alias to mount inside the macro host"
+    },
+    {
+      "name": "contentData",
+      "type": "json",
+      "required": false,
+      "description": "Nested element payload passed to the block mapper"
+    }
+  ],
+  "media-text": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media image URL"
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media image alt text"
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Main heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "mediaPosition",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Media placement (left | right)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "ctaTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "CTA target from CMS config."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
+    }
+  ],
+  "info-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text for the block"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key"
+    }
+  ],
+  "accordion": [
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accordion trigger heading"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accordion body content"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "▸",
+      "description": "Disclosure icon label"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "cta-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "primaryLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Primary action label"
+    },
+    {
+      "name": "primaryUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Primary action destination URL"
+    },
+    {
+      "name": "secondaryLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Secondary action label"
+    },
+    {
+      "name": "secondaryUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Secondary action destination URL"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Action alignment (left | center | right)"
+    },
+    {
+      "name": "primaryTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy primary CTA target override."
+    },
+    {
+      "name": "primaryVariant",
+      "type": "string",
+      "required": false,
+      "default": "solid",
+      "description": "Legacy primary CTA variant override."
+    },
+    {
+      "name": "secondaryTarget",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Legacy secondary CTA target override."
+    },
+    {
+      "name": "secondaryVariant",
+      "type": "string",
+      "required": false,
+      "default": "outline",
+      "description": "Legacy secondary CTA variant override."
+    }
+  ],
+  "button-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "buttons",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of button items. Overrides config.buttons when provided directly."
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Horizontal alignment (left | center | right)"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "sm",
+      "description": "Space between actions (xs | sm | md | lg)"
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "row",
+      "description": "Layout direction (row | column)"
+    }
+  ],
+  "feature-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Icon or symbol name"
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Feature heading text"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Feature body copy"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "stat-counter": [
+    {
+      "name": "value",
+      "type": "string",
+      "required": false,
+      "default": "0",
+      "description": "Main numeric value"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting label"
+    },
+    {
+      "name": "prefix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional prefix shown before the value"
+    },
+    {
+      "name": "suffix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional suffix shown after the value"
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional icon or symbol"
+    },
+    {
+      "name": "trend",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Trend direction (up | down | neutral)"
+    },
+    {
+      "name": "trendLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Trend supporting label"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "pricing-card": [
+    {
+      "name": "planName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Plan or tier name"
+    },
+    {
+      "name": "price",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Price label"
+    },
+    {
+      "name": "period",
+      "type": "string",
+      "required": false,
+      "default": "/mo",
+      "description": "Billing period label"
+    },
+    {
+      "name": "features",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of included feature strings"
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action label"
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Call-to-action destination URL"
+    },
+    {
+      "name": "highlighted",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Highlights the card visually"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "key-value": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the key-value item."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Label or key text."
+    },
+    {
+      "name": "value",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Value text."
+    },
+    {
+      "name": "helpText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional supporting copy."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "timeline-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the timeline item."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline item heading."
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline item body copy."
+    },
+    {
+      "name": "date",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Timeline date label."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "faq-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the FAQ item."
+    },
+    {
+      "name": "question",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Question or prompt text."
+    },
+    {
+      "name": "answer",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Answer or explanation text."
+    },
+    {
+      "name": "initiallyExpanded",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Controls the initial expanded state."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "testimonial-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the testimonial item."
+    },
+    {
+      "name": "quote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Quoted testimonial content."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author name."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author role or subtitle."
+    },
+    {
+      "name": "avatarSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author avatar URL."
+    },
+    {
+      "name": "avatarAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Author avatar alt text."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "gallery-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the gallery item."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media source URL."
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Media alt text."
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional caption text."
+    },
+    {
+      "name": "aspectRatio",
+      "type": "string",
+      "required": false,
+      "default": "4 / 3",
+      "description": "Aspect ratio token or CSS ratio."
+    }
+  ],
+  "logo-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the logo item."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Logo image URL."
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Logo image alt text."
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional logo destination URL."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional label for the logo."
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute."
+    }
+  ],
+  "alert-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the alert bar."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alert heading text."
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alert supporting copy."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Action label."
+    },
+    {
+      "name": "ctaUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Action destination URL."
+    },
+    {
+      "name": "tone",
+      "type": "string",
+      "required": false,
+      "default": "neutral",
+      "description": "Alert tone (neutral | brand | critical)."
+    },
+    {
+      "name": "dismissible",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the alert can be dismissed."
+    }
+  ],
+  "newsletter-form": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the newsletter form."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Form heading text."
+    },
+    {
+      "name": "intro",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting introductory copy."
+    },
+    {
+      "name": "placeholder",
+      "type": "string",
+      "required": false,
+      "default": "you@example.com",
+      "description": "Email input placeholder."
+    },
+    {
+      "name": "submitLabel",
+      "type": "string",
+      "required": false,
+      "default": "Subscribe",
+      "description": "Submit button label."
+    },
+    {
+      "name": "consentText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional consent or note text."
+    },
+    {
+      "name": "successMessage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Success feedback message."
+    },
+    {
+      "name": "errorMessage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Error feedback message."
+    },
+    {
+      "name": "actionUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional form action URL."
+    },
+    {
+      "name": "method",
+      "type": "string",
+      "required": false,
+      "default": "post",
+      "description": "Form submission method."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    }
+  ],
+  "social-share": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for social share links."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Navigation title."
+    },
+    {
+      "name": "pageUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Page URL used to generate share links."
+    },
+    {
+      "name": "links",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of social link objects."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "row",
+      "description": "Visual layout (row | stack)."
+    }
+  ],
+  "iframe-embed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the iframe embed."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Iframe source URL."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Iframe title attribute."
+    },
+    {
+      "name": "loading",
+      "type": "string",
+      "required": false,
+      "default": "lazy",
+      "description": "Native iframe loading mode."
+    },
+    {
+      "name": "allowFullscreen",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Enables the allowfullscreen attribute."
+    },
+    {
+      "name": "height",
+      "type": "string",
+      "required": false,
+      "default": "480",
+      "description": "Iframe height value."
+    }
+  ],
+  "external-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object for the external widget."
+    },
+    {
+      "name": "tagName",
+      "type": "string",
+      "required": false,
+      "default": "div",
+      "description": "Host tag name created for the widget."
+    },
+    {
+      "name": "scriptSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "External script source URL."
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "required": false,
+      "description": "JSON object mapped to attributes on the widget host."
+    },
+    {
+      "name": "textContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional text content for the widget host."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget script URL."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget tag or type."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS widget title payload."
+    },
+    {
+      "name": "endpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Canonical CMS endpoint passed to the widget."
+    }
+  ],
+  "container-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "containerType",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Container width mode"
+    },
+    {
+      "name": "maxWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit max-width value"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Inner padding token"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM id from CMS config."
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "ARIA label from CMS config."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key from CMS config."
+    }
+  ],
+  "grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred number of columns"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap size token (sm | md | lg)"
+    },
+    {
+      "name": "minColumnWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional auto-fit minimum column width"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "column": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "width",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit width value"
+    },
+    {
+      "name": "minWidth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional explicit minimum width value"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "stretch",
+      "description": "Column align-self value"
+    },
+    {
+      "name": "padding",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Inner spacing token"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap between column children"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "stack": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "direction",
+      "type": "string",
+      "required": false,
+      "default": "column",
+      "description": "Layout direction"
+    },
+    {
+      "name": "gap",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Gap size token"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "stretch",
+      "description": "Cross-axis alignment"
+    },
+    {
+      "name": "wrap",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Allows wrapping onto multiple rows"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    },
+    {
+      "name": "justify",
+      "type": "string",
+      "required": false,
+      "default": "start",
+      "description": "Justify-content override for stacked layouts."
+    }
+  ],
+  "divider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "horizontal",
+      "description": "Separator orientation (horizontal | vertical)"
+    },
+    {
+      "name": "inset",
+      "type": "string",
+      "required": false,
+      "default": "none",
+      "description": "Outer spacing token applied around the divider"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "spacer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Spacing token that controls the spacer size"
+    },
+    {
+      "name": "axis",
+      "type": "string",
+      "required": false,
+      "default": "vertical",
+      "description": "Spacer axis (vertical | horizontal)"
+    }
+  ],
+  "heading": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "paragraph": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "rich-text": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "eyebrow": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "quote": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "label": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "text-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Heading text content"
+    },
+    {
+      "name": "headingLevel",
+      "type": "string",
+      "required": false,
+      "default": "h2",
+      "description": "HTML heading tag: h1-h6"
+    },
+    {
+      "name": "body",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Supporting body copy"
+    },
+    {
+      "name": "alignment",
+      "type": "string",
+      "required": false,
+      "default": "left",
+      "description": "Text alignment (left | center)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "link-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "href",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Link destination URL"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible link text"
+    },
+    {
+      "name": "target",
+      "type": "string",
+      "required": false,
+      "default": "_self",
+      "description": "Link target attribute"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label override"
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Presentation variant key"
+    }
+  ],
+  "image-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Image source URL"
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Image alt text"
+    },
+    {
+      "name": "caption",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional caption text"
+    },
+    {
+      "name": "aspectRatio",
+      "type": "string",
+      "required": false,
+      "default": "auto",
+      "description": "Aspect ratio token or CSS ratio"
+    },
+    {
+      "name": "loading",
+      "type": "string",
+      "required": false,
+      "default": "lazy",
+      "description": "Native image loading mode"
+    }
+  ],
+  "video-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Video source URL"
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Video title or caption"
+    },
+    {
+      "name": "poster",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Poster image URL"
+    },
+    {
+      "name": "controls",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows the native video controls"
+    },
+    {
+      "name": "autoplay",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Starts playback automatically when allowed"
+    },
+    {
+      "name": "muted",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Mutes the media by default"
+    },
+    {
+      "name": "loop",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Loops playback continuously"
+    }
+  ],
+  "icon-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Icon or symbol name"
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Icon size token"
+    },
+    {
+      "name": "color",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional icon color token or CSS value"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label for assistive technology"
+    },
+    {
+      "name": "ariaHidden",
+      "type": "boolean",
+      "required": false,
+      "default": "false",
+      "description": "Marks the icon as decorative when true."
+    }
+  ],
+  "avatar": [
+    {
+      "name": "src",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Avatar image URL"
+    },
+    {
+      "name": "alt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Avatar image alt text"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Display name used for initials fallback"
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Avatar size token"
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "circle",
+      "description": "Avatar shape (circle | rounded | square)"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Presence status (online | offline | busy | away)"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "badge": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "text",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible badge text"
+    },
+    {
+      "name": "ariaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible label override"
+    },
+    {
+      "name": "tone",
+      "type": "string",
+      "required": false,
+      "default": "neutral",
+      "description": "Visual tone (neutral | brand | inverse)"
+    }
+  ],
+  "hello-world": [
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "default": "Hello, Synergos!",
+      "description": "Main heading text"
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Text to display"
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme (light | dark)"
+    }
+  ],
+  "feature-journey": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    }
+  ],
+  "insight-explorer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of insight items."
+    }
+  ],
+  "media-explorer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base experience configuration object from CMS."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Experience title."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "dark",
+      "description": "Theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Variant key."
+    },
+    {
+      "name": "elementId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "DOM element id."
+    },
+    {
+      "name": "defaultCategory",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initial category filter."
+    },
+    {
+      "name": "items",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of media items."
+    }
+  ],
+  "content-carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Carousel configuration: title, items[], autoplay, interval, theme."
+    }
+  ],
+  "quiz-flow": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Quiz configuration: title, subtitle, questions[], theme."
+    }
+  ],
+  "rating-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Rating widget configuration: title, subtitle, max, labels[], theme."
+    }
+  ],
+  "filter-board": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Filter board configuration: title, items[]{title,body,tags[]}, theme."
+    }
+  ],
+  "notification-stack": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Notification stack configuration: notifications[]{id,message,type,duration}, theme."
+    }
+  ],
+  "countdown-clock": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Countdown clock configuration: targetDate, label, theme."
+    }
+  ],
+  "product-card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product card configuration from CMS contract bridge."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product SKU resolved from CMS."
+    },
+    {
+      "name": "productUrlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product detail URL template with placeholders ({id}, {sku}, {slug})."
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial product name override."
+    },
+    {
+      "name": "imageSrc",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial product image override."
+    },
+    {
+      "name": "imageAlt",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Editorial image alt override."
+    },
+    {
+      "name": "showPrice",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the price section is rendered."
+    },
+    {
+      "name": "showBadge",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the product badge is rendered."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "vertical",
+      "description": "Card layout mode (vertical | horizontal)."
+    },
+    {
+      "name": "cardLayout",
+      "type": "string",
+      "required": false,
+      "default": "standard",
+      "description": "CMS compatibility alias for card layout (standard | vertical | horizontal)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "product-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product grid configuration from CMS contract bridge."
+    },
+    {
+      "name": "headingText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional grid heading."
+    },
+    {
+      "name": "categoryAlias",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Category alias used for product API filtering."
+    },
+    {
+      "name": "categoryFilter",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for category-based filtering."
+    },
+    {
+      "name": "productUrlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product detail URL template with placeholders ({id}, {sku}, {slug})."
+    },
+    {
+      "name": "maxItems",
+      "type": "number",
+      "required": false,
+      "default": 12,
+      "description": "Maximum items per page."
+    },
+    {
+      "name": "columns",
+      "type": "number",
+      "required": false,
+      "default": 3,
+      "description": "Preferred grid columns."
+    },
+    {
+      "name": "showFilters",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enables search/sort controls."
+    },
+    {
+      "name": "sortOrder",
+      "type": "string",
+      "required": false,
+      "default": "relevance",
+      "description": "Initial sort key."
+    },
+    {
+      "name": "sortBy",
+      "type": "string",
+      "required": false,
+      "default": "name",
+      "description": "CMS compatibility alias for initial sort mode."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "grid",
+      "description": "CMS compatibility layout hint emitted by current Web partials."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "product-detail": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Product detail configuration from CMS contract bridge."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Product SKU to fetch."
+    },
+    {
+      "name": "showVariantPicker",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows variant picker block."
+    },
+    {
+      "name": "showQuantitySelector",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows quantity selector block."
+    },
+    {
+      "name": "showRating",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Shows rating summary block."
+    },
+    {
+      "name": "showReviews",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for reviews placeholder rendering."
+    },
+    {
+      "name": "showRelated",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for related-products placeholder rendering."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "imageLeft",
+      "description": "Layout mode (imageLeft | imageRight | imageTop)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "cart-summary": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Cart summary configuration from CMS contract bridge."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Optional drawer title override."
+    },
+    {
+      "name": "summaryTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the cart summary title."
+    },
+    {
+      "name": "showCoupon",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "Enables coupon input controls."
+    },
+    {
+      "name": "checkoutUrl",
+      "type": "string",
+      "required": false,
+      "default": "/checkout",
+      "description": "Checkout destination URL."
+    },
+    {
+      "name": "checkoutEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for checkout destination."
+    },
+    {
+      "name": "continueShoppingUrl",
+      "type": "string",
+      "required": false,
+      "default": "/",
+      "description": "Continue shopping URL."
+    },
+    {
+      "name": "showShipping",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for shipping line rendering."
+    },
+    {
+      "name": "showTax",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "CMS compatibility flag for tax line rendering."
+    },
+    {
+      "name": "open",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "description": "External open-state override for drawer mode."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "cart-item": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Cart item configuration from CMS contract bridge."
+    },
+    {
+      "name": "item",
+      "type": "json",
+      "required": false,
+      "description": "Serialized CartItem object for direct rendering."
+    },
+    {
+      "name": "productSku",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility field for flat cart item payloads."
+    },
+    {
+      "name": "quantity",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility quantity field for flat cart item payloads."
+    },
+    {
+      "name": "unitPrice",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility unit price field for flat cart item payloads."
+    },
+    {
+      "name": "updateEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility endpoint field for server-driven cart updates."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "price-display": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Price display configuration from CMS contract bridge."
+    },
+    {
+      "name": "showOriginalPrice",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Show original/base price."
+    },
+    {
+      "name": "showDiscount",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Show discount badge/value."
+    },
+    {
+      "name": "priceSize",
+      "type": "string",
+      "required": false,
+      "default": "md",
+      "description": "Price typography size token."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "default": "COP",
+      "description": "ISO currency code."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "price",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Current product price."
+    },
+    {
+      "name": "originalPrice",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Original product price."
+    },
+    {
+      "name": "discount",
+      "type": "number",
+      "required": false,
+      "default": 0,
+      "description": "Discount percent value."
+    }
+  ],
+  "quantity-selector": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Quantity selector configuration from CMS contract bridge."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Accessible field label or visible caption for the quantity selector."
+    },
+    {
+      "name": "min",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Lower allowed quantity bound."
+    },
+    {
+      "name": "minQty",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility alias for the lower allowed quantity bound."
+    },
+    {
+      "name": "max",
+      "type": "number",
+      "required": false,
+      "default": 99,
+      "description": "Upper allowed quantity bound."
+    },
+    {
+      "name": "maxQty",
+      "type": "number",
+      "required": false,
+      "default": 99,
+      "description": "CMS compatibility alias for the upper allowed quantity bound."
+    },
+    {
+      "name": "step",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Increment/decrement step."
+    },
+    {
+      "name": "value",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "Initial quantity value."
+    },
+    {
+      "name": "initialQty",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "description": "CMS compatibility alias for the initial quantity value."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "variant-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Variant picker configuration from CMS contract bridge."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Visible group label or legend for the variant picker."
+    },
+    {
+      "name": "selectedValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Initial selected variant value or id."
+    },
+    {
+      "name": "variants",
+      "type": "json",
+      "required": false,
+      "description": "Serialized product variant list."
+    },
+    {
+      "name": "variantsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility JSON string emitted by current Web partials."
+    },
+    {
+      "name": "variantType",
+      "type": "string",
+      "required": false,
+      "default": "size",
+      "description": "Variant family to display (size | color | storage | custom)."
+    },
+    {
+      "name": "displayAs",
+      "type": "string",
+      "required": false,
+      "default": "buttons",
+      "description": "UI mode (buttons | swatches | dropdown)."
+    },
+    {
+      "name": "theme",
+      "type": "string",
+      "required": false,
+      "default": "light",
+      "description": "Color theme key."
+    },
+    {
+      "name": "variant",
+      "type": "string",
+      "required": false,
+      "default": "default",
+      "description": "Visual variant key."
+    },
+    {
+      "name": "variantKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "CMS compatibility alias for the visual variant key."
+    }
+  ],
+  "audio-player": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "audioFile",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Audio File\" del componente synergos-audio-player. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "trackTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Título mostrado destacado (campo \"Track Title\" del componente synergos-audio-player)"
+    },
+    {
+      "name": "artistName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Identificador o nombre mostrado (campo \"Artist Name\" del componente synergos-audio-player)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "autocomplete": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "placeholder",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto guía mostrado cuando el campo está vacío"
+    },
+    {
+      "name": "suggestionsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Suggestions Endpoint\" del componente synergos-autocomplete. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "avatar-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "avatarsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Avatars Json\" del componente synergos-avatar-group. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxVisible",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Visible\" del componente synergos-avatar-group. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "avatar-upload": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Upload Endpoint\" del componente synergos-avatar-upload. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "badge-group": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "badgesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Badges Json\" del componente synergos-badge-group. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Layout\" del componente synergos-badge-group. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "breadcrumb": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "itemsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Array de items serializado como JSON string"
+    },
+    {
+      "name": "includeStructuredData",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Include Structured Data\" del componente synergos-breadcrumb. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "calendar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Events Endpoint\" del componente synergos-calendar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "initialMonth",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Initial Month\" del componente synergos-calendar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "slidesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Slides Json\" del componente synergos-carousel. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "autoplayInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Autoplay Interval\" del componente synergos-carousel. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "chart-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "chartTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Título mostrado destacado (campo \"Chart Title\" del componente synergos-chart-bar)"
+    },
+    {
+      "name": "dataJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Data Json\" del componente synergos-chart-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Orientation\" del componente synergos-chart-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "code-block": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "code",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Code\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "language",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Language\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "showLineNumbers",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Show Line Numbers\" del componente synergos-code-block. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "color-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "initialColor",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Initial Color\" del componente synergos-color-picker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "paletteJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Palette Json\" del componente synergos-color-picker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "color-swatches": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "swatchesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Swatches Json\" del componente synergos-color-swatches. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Shape\" del componente synergos-color-swatches. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "comments-widget": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "provider",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Provider\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "threadId",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Thread Id\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "configNote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Config Note\" del componente synergos-comments-widget. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "cookie-consent": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "bannerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Banner Text\" del componente synergos-cookie-consent. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "acceptLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Accept Label\" del componente synergos-cookie-consent)"
+    },
+    {
+      "name": "rejectLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Reject Label\" del componente synergos-cookie-consent)"
+    },
+    {
+      "name": "settingsLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Settings Label\" del componente synergos-cookie-consent)"
+    },
+    {
+      "name": "policyLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Policy Link\" del componente synergos-cookie-consent. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "copy-button": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "copyText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Copy Text\" del componente synergos-copy-button. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "buttonLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Button Label\" del componente synergos-copy-button)"
+    },
+    {
+      "name": "feedbackLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Feedback Label\" del componente synergos-copy-button)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "countdown-digital": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "endDateTime",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"End Date Time\" del componente synergos-countdown-digital. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "showLabels",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Show Labels\" del componente synergos-countdown-digital)"
+    },
+    {
+      "name": "style",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Style\" del componente synergos-countdown-digital. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "data-grid": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "dataSource",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Data Source\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "columnsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Columns Json\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "pageSize",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Page Size\" del componente synergos-data-grid)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "date-picker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "initialDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Initial Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "minDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Min Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxDate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Date\" del componente synergos-date-picker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "drawer": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-drawer)"
+    },
+    {
+      "name": "drawerContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Drawer Content\" del componente synergos-drawer. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "side",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Side\" del componente synergos-drawer. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "dropdown": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-dropdown)"
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Options Json\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "selectedValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Selected Value\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "searchable",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Searchable\" del componente synergos-dropdown. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "dropzone": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "acceptedTypes",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Accepted Types\" del componente synergos-dropzone. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Upload Endpoint\" del componente synergos-dropzone. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "fab": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "iconKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Nombre del icono stock o URL del SVG custom (campo \"Icon Key\" del componente synergos-fab)"
+    },
+    {
+      "name": "actionLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "URL destino del form submit o action handler (campo \"Action Link\" del componente synergos-fab)"
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Position\" del componente synergos-fab. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "file-uploader": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "uploadEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Upload Endpoint\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "acceptedTypes",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Accepted Types\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxFileSizeMb",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Max File Size Mb\" del componente synergos-file-uploader)"
+    },
+    {
+      "name": "maxFiles",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Files\" del componente synergos-file-uploader. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "form-stepper": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Steps Json\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "submitEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Submit Endpoint\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "allowSkip",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Allow Skip\" del componente synergos-form-stepper. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "hero-banner": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Título mostrado destacado"
+    },
+    {
+      "name": "subtitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto secundario debajo del título"
+    },
+    {
+      "name": "media",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Media\" del componente synergos-hero-banner. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto del call-to-action (botón)"
+    },
+    {
+      "name": "ctaLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Cta Link\" del componente synergos-hero-banner. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "icon-label": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "iconKey",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Nombre del icono stock o URL del SVG custom (campo \"Icon Key\" del componente synergos-icon-label)"
+    },
+    {
+      "name": "labelText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Label Text\" del componente synergos-icon-label)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "kpi-card": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "kpiLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Kpi Label\" del componente synergos-kpi-card)"
+    },
+    {
+      "name": "kpiValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Kpi Value\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "kpiTrend",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Kpi Trend\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "kpiDelta",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Kpi Delta\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "kpiPeriod",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Kpi Period\" del componente synergos-kpi-card. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "lightbox-gallery": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "imagesJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Images Json\" del componente synergos-lightbox-gallery. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "columns",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Columns\" del componente synergos-lightbox-gallery. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "livestream": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "streamUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Stream Url\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "streamType",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Stream Type\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "viewerCountEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Viewer Count Endpoint\" del componente synergos-livestream. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "map-pin": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "centerLat",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Center Lat\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "centerLng",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Center Lng\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "zoomLevel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Zoom Level\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "pinsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Pins Json\" del componente synergos-map-pin. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "modal-trigger": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-modal-trigger)"
+    },
+    {
+      "name": "modalTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Título mostrado destacado (campo \"Modal Title\" del componente synergos-modal-trigger)"
+    },
+    {
+      "name": "modalContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Modal Content\" del componente synergos-modal-trigger. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "modalSize",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Modal Size\" del componente synergos-modal-trigger)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "notification-center": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "fetchEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Fetch Endpoint\" del componente synergos-notification-center. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "pollingInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Polling Interval\" del componente synergos-notification-center. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "notification-toast": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "message",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Message\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Type\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "durationMs",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Duration Ms\" del componente synergos-notification-toast. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "oembed": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "embedUrl",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Embed Url\" del componente synergos-oembed. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "otp-input": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "length",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Length\" del componente synergos-otp-input. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "pagination": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "totalItems",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Total Items\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "itemsPerPage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Items Per Page\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "currentPage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Current Page\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "urlTemplate",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Url Template\" del componente synergos-pagination. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "poll": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "question",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Question\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Options Json\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "voteEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Vote Endpoint\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "resultsEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Results Endpoint\" del componente synergos-poll. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "popover": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Trigger Label\" del componente synergos-popover)"
+    },
+    {
+      "name": "popoverContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Popover Content\" del componente synergos-popover. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "placement",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Placement\" del componente synergos-popover. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "progress-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "valueNow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Value Now\" del componente synergos-progress-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "valueMax",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Value Max\" del componente synergos-progress-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "qr-code": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "data",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Data\" del componente synergos-qr-code. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "size",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Tamaño: sm | md | lg | xl según escala del componente"
+    },
+    {
+      "name": "ecLevel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Ec Level\" del componente synergos-qr-code. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "quote-animated": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "quote",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Quote\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "attribution",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Attribution\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "animationMode",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Animation Mode\" del componente synergos-quote-animated. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "range-slider": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "minValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Min Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "step",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Step\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "initialValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Initial Value\" del componente synergos-range-slider. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "rating-stars": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "valueNow",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Value Now\" del componente synergos-rating-stars. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxStars",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Stars\" del componente synergos-rating-stars. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "rich-tooltip": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Trigger Text\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "tooltipContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Tooltip Content\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "placement",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Placement\" del componente synergos-rich-tooltip. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "scroll-top": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "scrollThreshold",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Scroll Threshold\" del componente synergos-scroll-top. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Position\" del componente synergos-scroll-top. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "search-box": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "searchPlaceholder",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto guía mostrado cuando el campo está vacío (campo \"Search Placeholder\" del componente synergos-search-box)"
+    },
+    {
+      "name": "searchEndpoint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Search Endpoint\" del componente synergos-search-box. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "searchParamName",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Identificador o nombre mostrado (campo \"Search Param Name\" del componente synergos-search-box)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "select-multi": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "optionsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Options Json\" del componente synergos-select-multi. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxSelections",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Selections\" del componente synergos-select-multi. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "separator": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "style",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Style\" del componente synergos-separator. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "share-bar": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "platforms",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Platforms\" del componente synergos-share-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "shareLink",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Share Link\" del componente synergos-share-bar. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "shareTitle",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Título mostrado destacado (campo \"Share Title\" del componente synergos-share-bar)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "signature-pad": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.)"
+    },
+    {
+      "name": "width",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Ancho explícito (CSS value: px / % / fr / auto)"
+    },
+    {
+      "name": "height",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alto explícito (CSS value)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "skeleton": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "shape",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Shape\" del componente synergos-skeleton. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "count",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Count\" del componente synergos-skeleton. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "social-proof": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "template",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Template\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "dataSource",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Data Source\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "rotationInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Rotation Interval\" del componente synergos-social-proof. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "splitter": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "leftContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Left Content\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "rightContent",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Right Content\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Orientation\" del componente synergos-splitter. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "stat-ticker": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "statValue",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Stat Value\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "statLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Stat Label\" del componente synergos-stat-ticker)"
+    },
+    {
+      "name": "statPrefix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Stat Prefix\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "statSuffix",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Stat Suffix\" del componente synergos-stat-ticker. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "stepper": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Steps Json\" del componente synergos-stepper. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "currentStep",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Current Step\" del componente synergos-stepper. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "tabs": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "tabsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Tabs Json\" del componente synergos-tabs. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "initialTab",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Initial Tab\" del componente synergos-tabs. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "tag": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "tagLabel",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Texto visible del elemento (botón, input, badge, etc.) (campo \"Tag Label\" del componente synergos-tag)"
+    },
+    {
+      "name": "tagColor",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Tag Color\" del componente synergos-tag. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "testimonial-carousel": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "testimonialsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Testimonials Json\" del componente synergos-testimonial-carousel. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "autoplayInterval",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Autoplay Interval\" del componente synergos-testimonial-carousel. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "timeline": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Events Json\" del componente synergos-timeline. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "orientation",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Orientation\" del componente synergos-timeline. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "timeline-horizontal": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "eventsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Events Json\" del componente synergos-timeline-horizontal. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "snapEnabled",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Snap Enabled\" del componente synergos-timeline-horizontal. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "toast-center": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "position",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Position\" del componente synergos-toast-center. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "maxVisible",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Max Visible\" del componente synergos-toast-center. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "tooltip": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "triggerText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Trigger Text\" del componente synergos-tooltip. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "tooltipText",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Tooltip Text\" del componente synergos-tooltip. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "tour-guide": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "stepsJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Steps Json\" del componente synergos-tour-guide. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "autoStart",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Auto Start\" del componente synergos-tour-guide. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "tree-view": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "treeJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Tree Json\" del componente synergos-tree-view. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "expandAll",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Expand All\" del componente synergos-tree-view. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "video-player": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "videoFile",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Video File\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "posterImage",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Poster Image\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "chaptersJson",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Chapters Json\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "enableAnalytics",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Enable Analytics\" del componente synergos-video-player. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
+  ],
+  "academy": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for academy."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    }
+  ],
+  "app-launcher": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for app-launcher."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "required": false,
+      "description": "Main heading rendered above the module."
+    },
+    {
+      "name": "searchLabel",
+      "type": "string",
+      "required": false,
+      "description": "Accessible label of the search field."
+    },
+    {
+      "name": "searchPlaceholder",
+      "type": "string",
+      "required": false,
+      "description": "Placeholder text of the search field."
+    },
+    {
+      "name": "ctaLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the primary call to action."
+    },
+    {
+      "name": "emptyLabel",
+      "type": "string",
+      "required": false,
+      "description": "Message shown when there is nothing to list."
+    },
+    {
+      "name": "allFiltersLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the option that clears every filter."
+    },
+    {
+      "name": "apps",
+      "type": "json",
+      "required": false,
+      "description": "JSON array of apps to list: {id, name, tagline, status, url, icon}."
+    }
+  ],
+  "blogs": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for blogs."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "user",
+      "type": "string",
+      "required": false,
+      "description": "Author identifier whose posts are listed."
+    },
+    {
+      "name": "viewerHandle",
+      "type": "string",
+      "required": false,
+      "description": "Handle of the signed-in reader, used for their own actions."
+    },
+    {
+      "name": "viewerName",
+      "type": "string",
+      "required": false,
+      "description": "Display name of the signed-in reader."
+    },
+    {
+      "name": "view",
+      "type": "string",
+      "required": false,
+      "description": "Initial view to render."
+    }
+  ],
+  "booking-wizard": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for booking-wizard."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "destinationLabel",
+      "type": "string",
+      "required": false,
+      "description": "Label of the destination field."
+    },
+    {
+      "name": "sessionKey",
+      "type": "string",
+      "required": false,
+      "description": "Key used to persist wizard progress across reloads."
+    }
+  ],
+  "ehr": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for ehr."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "clinic",
+      "type": "string",
+      "required": false,
+      "description": "Clinic identifier the records belong to."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "patient",
+      "type": "string",
+      "required": false,
+      "description": "Patient identifier to open on load."
+    },
+    {
+      "name": "copayMinor",
+      "type": "number",
+      "required": false,
+      "description": "Copay amount in minor units (cents)."
+    }
+  ],
+  "eventos": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for eventos."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "json",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "eventId",
+      "type": "string",
+      "required": false,
+      "description": "Event identifier to open on load."
+    },
+    {
+      "name": "feePercent",
+      "type": "number",
+      "required": false,
+      "description": "Service fee applied to the ticket price, as a percentage."
+    }
+  ],
+  "gov": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for gov."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "agency",
+      "type": "string",
+      "required": false,
+      "description": "Agency identifier the procedures belong to."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    }
+  ],
+  "realty": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for realty."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "required": false,
+      "description": "Viewer role; drives which actions and sections are offered."
+    },
+    {
+      "name": "operation",
+      "type": "string",
+      "required": false,
+      "description": "Listing operation to show: sale or rent."
+    },
+    {
+      "name": "layout",
+      "type": "string",
+      "required": false,
+      "description": "Layout variant used to present the listings."
+    },
+    {
+      "name": "defaultRate",
+      "type": "number",
+      "required": false,
+      "description": "Interest rate prefilled in the mortgage estimator."
+    }
+  ],
+  "pax-selector": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for pax-selector."
+    },
+    {
+      "name": "maxRooms",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of rooms selectable."
+    },
+    {
+      "name": "maxPerRoom",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of guests per room."
+    },
+    {
+      "name": "maxChildAge",
+      "type": "number",
+      "required": false,
+      "description": "Highest age still counted as a child."
+    },
+    {
+      "name": "initial",
+      "type": "json",
+      "required": false,
+      "description": "JSON with the initial occupancy selection."
+    }
+  ],
+  "seat-map": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for seat-map."
+    },
+    {
+      "name": "seatmap",
+      "type": "json",
+      "required": false,
+      "description": "JSON describing the seat layout: rows, seats and their state."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "maxSelectable",
+      "type": "number",
+      "required": false,
+      "description": "Maximum number of seats selectable at once."
+    }
+  ],
+  "seller": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for seller."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "sellerName",
+      "type": "string",
+      "required": false,
+      "description": "Seller display name shown in the console header."
+    },
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "description": "Main heading rendered above the module."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    }
+  ],
+  "storefront": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for storefront."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    }
+  ],
+  "travel-shell": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for travel-shell."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO 4217 currency code used to format amounts."
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "required": false,
+      "description": "Content scope (siteRoot) the module reads from."
+    },
+    {
+      "name": "traveler",
+      "type": "string",
+      "required": false,
+      "description": "Traveller identifier whose bookings are listed."
+    }
+  ]
+}

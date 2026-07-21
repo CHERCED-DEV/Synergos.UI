@@ -1,0 +1,155 @@
+<article class="product-card" [class]="hostClasses()">
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div
+      class="product-card__skeleton"
+      aria-busy="true"
+      [attr.aria-label]="loadingProductLabel()"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="product-card__skeleton-image"></div>
+      <div class="product-card__skeleton-content">
+        <div class="product-card__skeleton-line product-card__skeleton-line--title"></div>
+        <div class="product-card__skeleton-line product-card__skeleton-line--price"></div>
+        <div class="product-card__skeleton-line product-card__skeleton-line--cta"></div>
+      </div>
+    </div>
+  }
+
+  @if (!loading()) {
+    @let detailUrl = productUrl();
+
+    <!--
+      Media. El contenido cambia (foto o plato con monograma) pero el MARCO se
+      pinta siempre: antes, un producto sin foto no pintaba nada aquí y su
+      tarjeta quedaba más baja que las vecinas — la grilla harapienta. El plato
+      hereda el mismo --pc-aspect, así que ocupa exactamente el hueco que habría
+      ocupado la foto. Un solo <img> y un solo plato, reusados por outlet en la
+      rama con enlace y en la rama sin él.
+    -->
+    <ng-template #media>
+      @if (hasImage()) {
+        <img
+          [src]="imageSrc()"
+          [alt]="imageAlt()"
+          loading="lazy"
+          decoding="async"
+          class="product-card__img"
+          (error)="onImageError(imageSrc())"
+        />
+      } @else {
+        <span class="product-card__placeholder" aria-hidden="true">{{ monogram() }}</span>
+      }
+    </ng-template>
+
+    <div class="product-card__image">
+      @if (detailUrl) {
+        <a
+          class="product-card__image-link"
+          [href]="detailUrl"
+          [attr.aria-label]="viewDetailsAriaLabel()"
+          (click)="onProductLinkClick($event, 'image')"
+        >
+          <ng-container [ngTemplateOutlet]="media"></ng-container>
+        </a>
+      } @else {
+        <ng-container [ngTemplateOutlet]="media"></ng-container>
+      }
+      @if (hasBadge()) {
+        <div class="product-card__badge-overlay">
+          <syn-badge [text]="badge()" tone="brand" size="sm" />
+        </div>
+      }
+      @if (!inStock()) {
+        <div class="product-card__out-of-stock-overlay">
+          <span>{{ outOfStockLabel() }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Content -->
+    <div class="product-card__content">
+      @if (name()) {
+        <h3 class="product-card__name">
+          @if (detailUrl) {
+            <a
+              class="product-card__name-link"
+              [href]="detailUrl"
+              [attr.aria-label]="viewDetailsAriaLabel()"
+              (click)="onProductLinkClick($event, 'title')"
+            >
+              {{ name() }}
+            </a>
+          } @else {
+            {{ name() }}
+          }
+        </h3>
+      }
+
+      <!--
+        Rating compacto (doc 24 fila 53: UNA estrella + el número, no cinco).
+        Si el producto no tiene reseñas no se pinta NADA — ni "0,0" ni "Sin valoraciones":
+        la ausencia de prueba social no es una nota mala (ADR 0112/0114).
+      -->
+      @if (hasRating()) {
+        <p class="product-card__rating" [attr.aria-label]="ratingAriaLabel()">
+          <svg class="product-card__rating-star" viewBox="0 0 24 24" width="14" height="14"
+               fill="currentColor" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+          </svg>
+          <span class="product-card__rating-average" aria-hidden="true">{{ ratingAverageLabel() }}</span>
+          <span class="product-card__rating-count" aria-hidden="true">({{ rating()?.count }})</span>
+        </p>
+      }
+
+      <!-- Price -->
+      @if (hasPrice()) {
+        <div class="product-card__price-block">
+          @if (hasDiscount() && originalPrice()) {
+            <span class="product-card__price-original">
+              {{ formatPrice(originalPrice()!) }}
+            </span>
+            <span class="product-card__price-discount">
+              -{{ discount() }}%
+            </span>
+          }
+          <span class="product-card__price-current">
+            {{ formatPrice(price()!) }}
+          </span>
+        </div>
+      }
+
+      <!-- Add to cart. `showAddToCart` espeja la propiedad del CMS: el renderer Razor ya la
+           respetaba, y sin este gate montar el elemento resucitaba el botón donde el editor
+           lo había apagado. Default true (config()?.showAddToCart ?? true). -->
+      <div class="product-card__actions">
+        @if (showAddToCart()) {
+          <syn-button
+            [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
+            [ariaLabel]="(inStock() ? addToCartLabel() : outOfStockLabel()) + (name() ? ' - ' + name() : '')"
+            [disabled]="!inStock()"
+            variant="solid"
+            size="sm"
+            class="product-card__add-btn"
+            (pressed)="addToCart()"
+          />
+        }
+
+        @if (detailUrl) {
+          <a
+            class="product-card__details-link"
+            [href]="detailUrl"
+            [attr.aria-label]="viewDetailsAriaLabel()"
+            (click)="onProductLinkClick($event, 'details-link')"
+          >
+            {{ viewDetailsLabel() }}
+          </a>
+        }
+      </div>
+    </div>
+  }
+
+</article>

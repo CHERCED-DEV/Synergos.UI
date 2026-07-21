@@ -1,0 +1,93 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.banner-slider {
+  --bsl-body-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --bsl-panel-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --bsl-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --bsl-panel-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --bsl-panel-accent: color-mix(in srgb, var(--syn-color-action-primary, #{syn.$color-brand-500}) 10%, transparent);
+
+  @include syn.flex-column;
+  gap: syn.$space-lg;
+
+  &__header {
+    @include syn.flex-column;
+    gap: syn.$space-sm;
+  }
+
+  &__heading { display: block; }
+
+  &__body,
+  &__slide-body {
+    color: var(--bsl-body-text);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+
+    :first-child { margin-top: 0; }
+    :last-child { margin-bottom: 0; }
+  }
+
+  &__layout {
+    display: grid;
+    gap: syn.$space-lg;
+
+    @include syn.respond-to(md) {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+
+  &__carousel { display: block; }
+
+  &__panel {
+    @include syn.surface-panel(
+      syn.$space-lg,
+      syn.$color-neutral-0,
+      syn.$color-neutral-200,
+      syn.px-to-rem(1),
+      syn.$radius-xl,
+      syn.$shadow-xs
+    );
+    @include syn.flex-column;
+    gap: syn.$space-sm;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bsl-panel-surface) 92%, var(--bsl-panel-accent)) 0%,
+      var(--bsl-panel-surface) 100%
+    );
+    border-color: var(--bsl-panel-border);
+    box-shadow: var(--bsl-panel-shadow);
+  }
+
+  &__slide-heading { display: block; }
+
+  &__cta-link {
+    text-decoration: none;
+    align-self: flex-start;
+  }
+
+  &--light {
+    --bsl-body-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+    --bsl-panel-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+    --bsl-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  }
+
+  &--dark {
+    --bsl-body-text: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --bsl-panel-surface: var(--syn-color-surface-inverse, #{syn.$color-neutral-900});
+    --bsl-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --bsl-panel-shadow: var(--syn-shadow-modal, #{syn.$shadow-md});
+    --bsl-panel-accent: color-mix(in srgb, var(--syn-color-action-primary, #{syn.$color-brand-400}) 14%, transparent);
+  }
+
+  &--silver-gold {
+    --bsl-body-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+    --bsl-panel-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-0}) 94%, var(--syn-color-state-warning-surface, #{syn.$color-warning-100}));
+    --bsl-panel-border: color-mix(in srgb, var(--syn-color-border-strong, #{syn.$color-neutral-300}) 68%, var(--syn-color-state-warning-border, #{syn.$color-warning-300}));
+    --bsl-panel-accent: color-mix(in srgb, var(--syn-color-state-warning-surface, #{syn.$color-warning-100}) 45%, transparent);
+  }
+}

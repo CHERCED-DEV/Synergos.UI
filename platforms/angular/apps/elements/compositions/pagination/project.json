@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-pagination",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/pagination/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:pagination",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/pagination",
+        "browser": "apps/elements/compositions/pagination/src/main.ts",
+        "index": "apps/elements/compositions/pagination/src/index.html",
+        "tsConfig": "apps/elements/compositions/pagination/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4341 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/pagination/src/**/*.ts",
+          "apps/elements/compositions/pagination/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

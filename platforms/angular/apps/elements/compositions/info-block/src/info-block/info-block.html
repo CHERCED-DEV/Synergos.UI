@@ -1,0 +1,19 @@
+<div class="info-block" [class]="hostClasses()">
+  @if (title()) {
+    <syn-heading
+      class="info-block__title"
+      [text]="title()"
+      [tone]="headingTone()"
+      level="h3"
+      size="sm"
+    />
+  }
+  @if (body()) {
+    <p class="info-block__body">{{ body() }}</p>
+  }
+  @if (hasCta()) {
+    <a class="info-block__cta" [href]="ctaUrl()" rel="noopener noreferrer">
+      <syn-button [label]="ctaLabel()" variant="outline" size="sm" />
+    </a>
+  }
+</div>

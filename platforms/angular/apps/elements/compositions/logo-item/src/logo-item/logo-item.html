@@ -1,0 +1,38 @@
+@if (hasHref()) {
+  <syn-link
+    class="logo-item__link"
+    [href]="href()"
+    [target]="target()"
+    [ariaLabel]="resolvedAriaLabel()"
+    tone="neutral"
+    [underline]="false"
+  >
+    <span class="logo-item__frame">
+      @if (hasImage()) {
+        <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" decoding="async" />
+      }
+
+      @if (label()) {
+        <span class="logo-item__label">{{ label() }}</span>
+      } @else if (!hasImage()) {
+        <span class="logo-item__label">{{ resolvedAriaLabel() }}</span>
+      }
+    </span>
+  </syn-link>
+} @else {
+  <div
+    class="logo-item__frame"
+    [attr.aria-label]="hasImage() ? null : resolvedAriaLabel()"
+    [attr.role]="hasImage() ? null : 'img'"
+  >
+    @if (hasImage()) {
+      <img class="logo-item__image" [src]="src()" [alt]="resolvedAlt()" loading="lazy" decoding="async" />
+    }
+
+    @if (label()) {
+      <span class="logo-item__label">{{ label() }}</span>
+    } @else if (!hasImage()) {
+      <span class="logo-item__label">{{ resolvedAriaLabel() }}</span>
+    }
+  </div>
+}

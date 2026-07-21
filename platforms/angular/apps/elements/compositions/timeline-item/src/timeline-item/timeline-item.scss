@@ -1,0 +1,97 @@
+@use 'scss' as syn;
+
+:host {
+  --ti-gap: #{syn.$space-md};
+  --ti-content-padding: #{syn.$space-lg};
+  --ti-date-connector: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ti-content-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ti-content-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ti-content-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --ti-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
+  display: block;
+}
+
+.timeline-item {
+  @include syn.flex-column;
+
+  gap: var(--ti-gap);
+
+  @include syn.respond-to(sm) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+  }
+
+  &--dark,
+  &.sg-timeline-item--dark {
+    --ti-date-connector: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --ti-content-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-900});
+    --ti-content-border: var(--syn-color-border-default, #{syn.$color-neutral-700});
+    --ti-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
+  &--silver-gold,
+  &--silverGold,
+  &.sg-timeline-item--silver-gold,
+  &.sg-timeline-item--silverGold {
+    --ti-date-connector: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  }
+
+  &--compact,
+  &.sg-timeline-item--compact {
+    --ti-gap: #{syn.$space-sm};
+    --ti-content-padding: #{syn.$space-md};
+  }
+
+  &__date {
+    position: relative;
+    padding-inline-end: syn.$space-md;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset-block-start: syn.px-to-rem(48);
+      inset-inline-end: syn.px-to-rem(3);
+      inline-size: syn.px-to-rem(2);
+      block-size: 0;
+
+      @include syn.respond-to(sm) {
+        block-size: calc(100% - #{syn.px-to-rem(48)});
+        background: var(--ti-date-connector);
+      }
+    }
+  }
+
+  &__content {
+    @include syn.surface-panel(
+      var(--ti-content-padding),
+      var(--ti-content-surface),
+      var(--ti-content-border),
+      syn.px-to-rem(1),
+      syn.$radius-xl,
+      var(--ti-content-shadow)
+    );
+    @include syn.flex-column;
+
+    gap: syn.$space-sm;
+  }
+
+  &__heading {
+    display: block;
+  }
+
+  &__body {
+    color: var(--ti-body-color);
+    font-size: syn.$font-size-base;
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
+
+    :first-child {
+      margin-top: 0;
+    }
+
+    :last-child {
+      margin-bottom: 0;
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-calendar",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/calendar/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:calendar",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/calendar",
+        "browser": "apps/elements/modules/calendar/src/main.ts",
+        "index": "apps/elements/modules/calendar/src/index.html",
+        "tsConfig": "apps/elements/modules/calendar/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4310 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/calendar/src/**/*.ts",
+          "apps/elements/modules/calendar/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

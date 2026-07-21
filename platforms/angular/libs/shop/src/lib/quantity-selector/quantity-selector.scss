@@ -1,0 +1,127 @@
+@use 'scss' as syn;
+
+:host {
+  --qty-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --qty-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --qty-divider: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --qty-input-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --qty-input-focus-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+
+  --qty-button-text: var(--syn-color-action-ghost-text, #{syn.$color-neutral-700});
+  --qty-button-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --qty-button-hover-surface: var(--syn-color-action-ghost-surface-hover, #{syn.$color-neutral-50});
+  --qty-button-hover-text: var(--syn-color-action-ghost-text-hover, #{syn.$color-neutral-900});
+  --qty-button-active-surface: var(--syn-color-action-secondary-surface-hover, #{syn.$color-neutral-100});
+  --qty-button-disabled-text: var(--syn-color-action-disabled-text, #{syn.$color-neutral-400});
+  --qty-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-400});
+
+  display: inline-flex;
+  font-family: inherit;
+}
+
+.qty {
+  display: inline-flex;
+  align-items: stretch;
+  border: syn.px-to-rem(1) solid var(--qty-border);
+  border-radius: syn.$radius-md;
+  overflow: hidden;
+  background: var(--qty-surface);
+  height: syn.px-to-rem(40);
+  padding: 0;
+
+  &--dark,
+  &.sg-quantity-selector--dark {
+    --qty-surface: var(--syn-color-neutral-800, #{syn.$color-neutral-800});
+    --qty-border: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --qty-divider: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
+    --qty-input-text: var(--syn-color-neutral-0, #{syn.$color-neutral-0});
+    --qty-input-focus-surface: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+    --qty-button-text: var(--syn-color-neutral-200, #{syn.$color-neutral-200});
+    --qty-button-border: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --qty-button-hover-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --qty-button-hover-text: var(--syn-color-brand-200, #{syn.$color-brand-300});
+    --qty-button-active-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
+    --qty-button-disabled-text: var(--syn-color-neutral-500, #{syn.$color-neutral-500});
+  }
+
+  &__legend {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  &__btn {
+    @include syn.button-reset;
+
+    width: syn.px-to-rem(40);
+    flex-shrink: 0;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    color: var(--qty-button-text);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-medium;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      background syn.$duration-fast syn.$easing-default,
+      color syn.$duration-fast syn.$easing-default;
+
+    &:hover:not(:disabled) {
+      background: var(--qty-button-hover-surface);
+      color: var(--qty-button-hover-text);
+    }
+
+    &:active:not(:disabled) {
+      background: var(--qty-button-active-surface);
+    }
+
+    &:disabled {
+      color: var(--qty-button-disabled-text);
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--qty-focus-ring);
+      outline-offset: syn.px-to-rem(-2);
+    }
+  }
+
+  &__input {
+    width: syn.px-to-rem(52);
+    min-width: 0;
+    border: none;
+    border-left: syn.px-to-rem(1) solid var(--qty-divider);
+    border-right: syn.px-to-rem(1) solid var(--qty-divider);
+    text-align: center;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--qty-input-text);
+    background: transparent;
+    padding: 0;
+    appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      appearance: none;
+      margin: 0;
+    }
+
+    &:focus {
+      // SIN `outline: none`. Lo tenia, y dejaba como UNICO indicador de foco un cambio
+      // de fondo que mide 1.05:1 a 1.20:1 en los 7 temas: para quien navega con teclado,
+      // foco invisible. Es la gemela Angular del mismo bug que se arreglo en
+      // `syn-shop.css:619` del CMS — arreglar una copia y no la otra habria dejado el
+      // defecto vivo en la misma pagina de tienda, solo que en la otra mitad.
+      background: var(--qty-input-focus-surface);
+    }
+  }
+}

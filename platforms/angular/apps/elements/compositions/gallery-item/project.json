@@ -1,0 +1,67 @@
+{
+  "name": "elements-compositions-gallery-item",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/gallery-item/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:gallery-item",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/gallery-item",
+        "browser": "apps/elements/compositions/gallery-item/src/main.ts",
+        "index": "apps/elements/compositions/gallery-item/src/index.html",
+        "tsConfig": "apps/elements/compositions/gallery-item/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "150kb",
+              "maximumError": "300kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4240
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4240,
+        "staticFilePath": "dist/gallery-item/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/gallery-item/src/**/*.ts",
+          "apps/elements/compositions/gallery-item/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/gallery-item/tsconfig.spec.json"
+      }
+    }
+  }
+}

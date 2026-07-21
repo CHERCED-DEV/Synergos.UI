@@ -1,0 +1,67 @@
+{
+  "name": "elements-modules-tab-group",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/tab-group/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:tab-group",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/tab-group",
+        "browser": "apps/elements/modules/tab-group/src/main.ts",
+        "index": "apps/elements/modules/tab-group/src/index.html",
+        "tsConfig": "apps/elements/modules/tab-group/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "200kb",
+              "maximumError": "500kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4258
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4258,
+        "staticFilePath": "dist/tab-group/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/tab-group/src/**/*.ts",
+          "apps/elements/modules/tab-group/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/modules/tab-group/tsconfig.spec.json"
+      }
+    }
+  }
+}

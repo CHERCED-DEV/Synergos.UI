@@ -1,0 +1,106 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-option-list {
+  --syn-option-list-option-background: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-option-list-option-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-option-list-option-border-hover: var(--syn-color-border-strong, #{syn.$color-border-strong});
+  --syn-option-list-option-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-option-list-option-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --syn-option-list-option-selected-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-option-list-option-selected-border: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --syn-option-list-option-selected-shadow: 0 0 0 #{syn.px-to-rem(2)} var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  --syn-option-list-option-disabled-background: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-option-list-label-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-option-list-description-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --syn-option-list-selected-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-option-list-media-ring: var(--syn-color-border-subtle, #{syn.$color-border-subtle});
+
+  display: grid;
+  gap: syn.$space-sm;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-option-list--cards {
+  grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(220), 1fr));
+}
+
+.syn-option-list__option {
+  @include syn.focus-visible;
+
+  display: flex;
+  align-items: center;
+  gap: syn.$space-sm;
+  width: 100%;
+  border: syn.px-to-rem(1) solid var(--syn-option-list-option-border);
+  border-radius: syn.$radius-xl;
+  padding: syn.$space-md;
+  background: var(--syn-option-list-option-background);
+  box-shadow: var(--syn-option-list-option-shadow);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  &:hover:not(.syn-option-list__option--selected):not(:disabled) {
+    border-color: var(--syn-option-list-option-border-hover);
+    box-shadow: var(--syn-option-list-option-shadow-hover);
+    transform: translateY(syn.px-to-rem(-2));
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background: var(--syn-option-list-option-disabled-background);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+}
+
+.syn-option-list__option--selected {
+  border-color: var(--syn-option-list-option-selected-border);
+  background: var(--syn-option-list-option-selected-background);
+  box-shadow: var(--syn-option-list-option-selected-shadow);
+}
+
+.syn-option-list__image {
+  width: syn.px-to-rem(40);
+  height: syn.px-to-rem(40);
+  border-radius: syn.$radius-lg;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 syn.px-to-rem(1) var(--syn-option-list-media-ring);
+}
+
+.syn-option-list__copy {
+  display: grid;
+  gap: syn.$space-xxs;
+  flex: 1 1 auto;
+}
+
+.syn-option-list__label {
+  color: var(--syn-option-list-label-color);
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-option-list__description {
+  color: var(--syn-option-list-description-color);
+  font-size: syn.$font-size-sm;
+  line-height: syn.$line-height-relaxed;
+}
+
+.syn-option-list__selected {
+  color: var(--syn-option-list-selected-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+  flex-shrink: 0;
+}

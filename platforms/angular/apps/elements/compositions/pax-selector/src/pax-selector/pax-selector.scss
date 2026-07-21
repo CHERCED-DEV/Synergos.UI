@@ -1,0 +1,317 @@
+@use 'scss' as syn;
+
+:host {
+  --px-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --px-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --px-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --px-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --px-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --px-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --px-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --px-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --px-brand-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --px-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --px-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --px-step-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --px-step-border: var(--syn-color-border-default, #{syn.$color-neutral-300});
+  --px-step-text: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --px-step-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --px-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+}
+
+.pax-selector {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--px-border);
+  border-radius: syn.$radius-xl;
+  background: var(--px-surface);
+  box-shadow: var(--px-shadow);
+  color: var(--px-text);
+
+  &__header {
+    padding-bottom: syn.$space-2;
+    border-bottom: syn.px-to-rem(1) solid var(--px-border-subtle);
+  }
+
+  &__summary {
+    margin: 0;
+    color: var(--px-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__rooms {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__room {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--px-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--px-surface-muted);
+  }
+
+  &__room-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__room-title {
+    margin: 0;
+    color: var(--px-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__room-remove {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    padding: syn.$space-1 syn.$space-2;
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: var(--px-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+
+    &:hover {
+      color: var(--px-text);
+      background: var(--px-step-hover);
+    }
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  &__row-meta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    min-width: 0;
+  }
+
+  &__row-label {
+    color: var(--px-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__row-hint {
+    color: var(--px-muted);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__stepper {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    border: syn.px-to-rem(1) solid var(--px-step-border);
+    border-radius: syn.$radius-full;
+    background: var(--px-step-surface);
+    color: var(--px-step-text);
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+
+    &:hover:not(:disabled) {
+      background: var(--px-brand-soft);
+      border-color: var(--px-brand-surface);
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.94);
+    }
+
+    &:disabled {
+      color: var(--px-muted);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &__count {
+    min-width: syn.px-to-rem(28);
+    color: var(--px-text);
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  &__ages {
+    margin: 0;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--px-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--px-surface);
+  }
+
+  &__ages-legend {
+    padding: 0 syn.$space-1;
+    color: var(--px-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    letter-spacing: syn.$letter-spacing-wide;
+    text-transform: uppercase;
+  }
+
+  &__ages-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    @include syn.respond-to(sm) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  &__age {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  &__age-label {
+    flex: 0 0 auto;
+    color: var(--px-text-secondary);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
+  &__age-select {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--px-step-border);
+    border-radius: syn.$radius-md;
+    background: var(--px-surface);
+    color: var(--px-text);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+  }
+
+  &__age-remove {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border: 0;
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: var(--px-muted);
+    cursor: pointer;
+    transition: color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+
+    &:hover {
+      color: var(--px-text);
+      background: var(--px-step-hover);
+    }
+  }
+
+  &__footer {
+    display: flex;
+  }
+
+  &__add-room {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) dashed var(--px-step-border);
+    border-radius: syn.$radius-full;
+    background: transparent;
+    color: var(--px-step-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible(var(--px-focus-ring));
+
+    &:hover:not(:disabled) {
+      border-color: var(--px-brand-surface);
+      background: var(--px-brand-soft);
+    }
+
+    &:disabled {
+      color: var(--px-muted);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &__room-remove-label,
+  &__add-room-label {
+    line-height: syn.$line-height-snug;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pax-selector__step,
+  .pax-selector__room-remove,
+  .pax-selector__age-remove,
+  .pax-selector__age-select,
+  .pax-selector__add-room {
+    transition: none;
+  }
+
+  .pax-selector__step:active:not(:disabled) {
+    transform: none;
+  }
+}

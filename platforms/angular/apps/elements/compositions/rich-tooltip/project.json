@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-rich-tooltip",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/rich-tooltip/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:rich-tooltip",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/rich-tooltip",
+        "browser": "apps/elements/compositions/rich-tooltip/src/main.ts",
+        "index": "apps/elements/compositions/rich-tooltip/src/index.html",
+        "tsConfig": "apps/elements/compositions/rich-tooltip/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4349 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/rich-tooltip/src/**/*.ts",
+          "apps/elements/compositions/rich-tooltip/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

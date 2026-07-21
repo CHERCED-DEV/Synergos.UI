@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-livestream",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/livestream/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:livestream",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/livestream",
+        "browser": "apps/elements/modules/livestream/src/main.ts",
+        "index": "apps/elements/modules/livestream/src/index.html",
+        "tsConfig": "apps/elements/modules/livestream/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4334 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/livestream/src/**/*.ts",
+          "apps/elements/modules/livestream/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

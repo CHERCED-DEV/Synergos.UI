@@ -1,0 +1,1178 @@
+@use 'scss' as syn;
+
+/**
+ * Healthcare v2 — dual-portal clinical app (MyChart patient portal + Hyperspace EHR
+ * cockpit). The look is code (design line, doc 21 §1.1): 8pt grid, Manrope, tokens
+ * from @synergos/core-assets; the content is composed by the CMS + fed by the API.
+ * The reusable shells (SH-3/4/5/7 + tracking-timeline) bring their own scoped styles;
+ * these rules are the app frame + the patient/clinician-specific organisms only.
+ */
+
+:host {
+  --eh-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --eh-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --eh-surface-sunken: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  --eh-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --eh-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --eh-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --eh-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --eh-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --eh-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --eh-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --eh-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --eh-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+  // --eh-brand = acento SÓLIDO para CTAs/bordes/foco/badges (antes caía en un wash 12% → botón fantasma).
+  --eh-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --eh-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a un token inexistente
+  // → lavanda claro fijo en todos los temas). Ahora se oscurece en temas dark.
+  --eh-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el acento --eh-brand: misma familia action-primary → contraste correcto por tema.
+  --eh-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --eh-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --eh-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --eh-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --eh-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --eh-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --eh-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --eh-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.ehr {
+  --eh-sidebar-w: #{syn.px-to-rem(224)};
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: #{syn.px-to-rem(640)};
+  border: syn.px-to-rem(1) solid var(--eh-border);
+  border-radius: syn.$radius-xl;
+  background: var(--eh-surface-muted);
+  box-shadow: var(--eh-shadow);
+  color: var(--eh-text);
+  overflow: hidden;
+  font-size: syn.$font-size-sm;
+
+  /* The clinician portal gets a subtly cooler frame to signal "cockpit". */
+  &[data-portal='clinician'] {
+    --eh-surface-muted: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  }
+
+  &__sr-only {
+    position: absolute;
+    width: syn.px-to-rem(1);
+    height: syn.px-to-rem(1);
+    margin: syn.px-to-rem(-1);
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ─── Topbar ─────────────────────────────────────────────────────────────── */
+  &__topbar {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-3 syn.$space-lg;
+    background: var(--eh-surface);
+    border-bottom: syn.px-to-rem(1) solid var(--eh-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin-right: auto;
+  }
+
+  &__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: syn.$radius-md;
+    background: var(--eh-brand);
+    color: var(--eh-brand-text);
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__brand-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  &__brand-text {
+    font-weight: syn.$font-weight-semibold;
+    font-size: syn.$font-size-base;
+  }
+
+  &__nav-toggle {
+    display: none;
+    width: syn.px-to-rem(36);
+    height: syn.px-to-rem(36);
+    border: syn.px-to-rem(1) solid var(--eh-border);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    color: var(--eh-text);
+    cursor: pointer;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__roles {
+    display: inline-flex;
+    gap: syn.px-to-rem(2);
+    padding: syn.px-to-rem(3);
+    background: var(--eh-surface-sunken);
+    border-radius: syn.$radius-md;
+  }
+
+  &__role-btn {
+    padding: syn.$space-1 syn.$space-3;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--eh-text-secondary);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    &.is-active {
+      background: var(--eh-surface);
+      color: var(--eh-brand);
+      box-shadow: var(--eh-shadow);
+    }
+  }
+
+  /* ─── Layout ─────────────────────────────────────────────────────────────── */
+  &__layout {
+    display: grid;
+    grid-template-columns: var(--eh-sidebar-w) 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    padding: syn.$space-lg syn.$space-3;
+    background: var(--eh-surface);
+    border-right: syn.px-to-rem(1) solid var(--eh-border-subtle);
+  }
+
+  &__sidebar-title {
+    margin: 0 0 syn.$space-2;
+    padding: 0 syn.$space-2;
+    color: var(--eh-muted);
+    font-size: syn.$font-size-xs;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__nav {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__nav-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: syn.$space-2 syn.$space-3;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--eh-text-secondary);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--eh-surface-muted);
+    }
+
+    &.is-active {
+      background: var(--eh-brand-soft);
+      color: var(--eh-brand);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__main {
+    padding: syn.$space-lg;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  /* ─── Notices ────────────────────────────────────────────────────────────── */
+  &__notice {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface-sunken);
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-xs;
+
+    &--warn {
+      background: var(--eh-warn-soft);
+      color: var(--eh-warn);
+    }
+
+    &--error {
+      background: var(--eh-danger-soft);
+      color: var(--eh-danger);
+    }
+  }
+
+  /* ─── Headings ───────────────────────────────────────────────────────────── */
+  &__view-title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__view-sub {
+    margin: 0;
+    color: var(--eh-text-secondary);
+  }
+
+  &__panel-title {
+    margin: syn.$space-md 0 syn.$space-2;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__panel-text {
+    margin: 0 0 syn.$space-2;
+    color: var(--eh-text-secondary);
+  }
+
+  &__loading,
+  &__empty {
+    margin: 0;
+    padding: syn.$space-lg;
+    text-align: center;
+    color: var(--eh-muted);
+  }
+
+  &__back,
+  &__link {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--eh-brand);
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+  }
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__back-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  &__link {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    font-size: syn.$font-size-xs;
+  }
+
+  &__link-icon {
+    flex: none;
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+  }
+
+  /* ─── Buttons ────────────────────────────────────────────────────────────── */
+  &__btn {
+    padding: syn.$space-2 syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    color: var(--eh-text);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: var(--eh-brand);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--brand {
+      background: var(--eh-brand);
+      border-color: var(--eh-brand);
+      color: var(--eh-brand-text);
+    }
+
+    &--sm {
+      padding: syn.px-to-rem(6) syn.$space-3;
+      font-size: syn.$font-size-xs;
+    }
+  }
+
+  /* ─── Patient home cards ─────────────────────────────────────────────────── */
+  &__cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(240)}, 1fr));
+    gap: syn.$space-md;
+  }
+
+  &__card {
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-left: syn.px-to-rem(4) solid var(--eh-brand);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+
+    &[data-tone='success'] { border-left-color: var(--eh-success); }
+    &[data-tone='warning'] { border-left-color: var(--eh-warn); }
+    &[data-tone='danger'] { border-left-color: var(--eh-danger); }
+    &[data-tone='neutral'] { border-left-color: var(--eh-border); }
+
+    /* El riel izquierdo codifica el TONO de la tarjeta (éxito/aviso/peligro) y
+       todavía no sabemos cuál es: pintarlo de marca inventaría una urgencia
+       clínica que nadie ha dicho. Se apaga al gris de borde hasta que llegue el
+       dato — el ancho, que es lo que ocupa sitio, se conserva. */
+    &--skeleton { border-left-color: var(--eh-border-subtle); }
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__card-detail {
+    margin: 0;
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__card-cta {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--eh-brand);
+    font-weight: syn.$font-weight-semibold;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+  }
+
+  /* ─── Huesos del molde ────────────────────────────────────────────────────────
+     Medidas tomadas del contenido real (título de vista, subtítulo y tarjetas del
+     portal) para que la rejilla reserve su sitio y no se recoloque al llegar. */
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-md;
+    background: linear-gradient(
+      90deg,
+      var(--eh-skeleton-base) 0%,
+      var(--eh-skeleton-highlight) 50%,
+      var(--eh-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: ehr-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    &--title {
+      inline-size: syn.px-to-rem(240);
+      block-size: syn.px-to-rem(28);
+    }
+
+    &--sub {
+      inline-size: syn.px-to-rem(320);
+      max-inline-size: 100%;
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--card-title {
+      inline-size: 70%;
+      block-size: syn.px-to-rem(20);
+    }
+
+    &--card-detail {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(16);
+    }
+
+    /* Avatar del storyboard: redondo y del tamaño real de `__story-avatar`. */
+    &--story-avatar {
+      inline-size: 3rem;
+      block-size: 3rem;
+      border-radius: 50%;
+    }
+
+    /* Panel del cuerpo de la ficha. Alto generoso a propósito: lo que llega son
+       paneles de vitales/notas, no líneas de texto. */
+    &--panel {
+      block-size: 7.5rem;
+      inline-size: 100%;
+    }
+
+    &--card-cta {
+      inline-size: syn.px-to-rem(96);
+      block-size: syn.px-to-rem(16);
+    }
+  }
+
+  /* ─── Tabs (shared syn-tabs primitive; tablist only, rich panels below) ────── */
+  &__tabs-strip {
+    display: block;
+    margin-bottom: syn.$space-lg;
+
+    /*
+     * syn-tabs bundles a text tabpanel; this module renders its own rich @switch
+     * panels, so hide the primitive's (empty) panel and keep only the accessible
+     * tablist — roving tabindex + Arrow/Home/End + focus are inherited. Styling
+     * comes from the primitive's own --syn-tabs-* tokens (zero local hardcode).
+     */
+    ::ng-deep .syn-tabs__panel {
+      display: none;
+    }
+  }
+
+  /* ─── Chips ──────────────────────────────────────────────────────────────── */
+  &__chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__chip {
+    padding: syn.px-to-rem(4) syn.$space-3;
+    border-radius: syn.$radius-full;
+    background: var(--eh-surface-sunken);
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-xs;
+
+    &--warn {
+      background: var(--eh-danger-soft);
+      color: var(--eh-danger);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  /* ─── Forms ──────────────────────────────────────────────────────────────── */
+  &__field-label {
+    display: block;
+    margin: syn.$space-2 0 syn.px-to-rem(4);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__input,
+  &__textarea,
+  &__num,
+  &__search-input {
+    width: 100%;
+    min-height: var(--syn-control-h-md);
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border);
+    border-radius: var(--syn-radius-field);
+    background: var(--eh-surface);
+    color: var(--eh-text);
+    font: inherit;
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--eh-focus-ring);
+      outline-offset: syn.px-to-rem(1);
+    }
+  }
+
+  &__textarea {
+    resize: vertical;
+  }
+
+  &__check {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+  }
+
+  &__search {
+    display: flex;
+    gap: syn.$space-2;
+    align-items: center;
+  }
+
+  &__search-input {
+    flex: 1;
+  }
+
+  /* ─── Wizard scaffolding (e-Check-In) ────────────────────────────────────── */
+  &__steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__step {
+    padding: syn.px-to-rem(4) syn.$space-3;
+    border-radius: syn.$radius-full;
+    background: var(--eh-surface-sunken);
+    color: var(--eh-muted);
+    font-size: syn.$font-size-xs;
+
+    &.is-active { background: var(--eh-brand-soft); color: var(--eh-brand); font-weight: syn.$font-weight-semibold; }
+    &.is-done { color: var(--eh-success); }
+  }
+
+  &__checkin-panel {
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__wizard-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  /* ─── Confirmation ───────────────────────────────────────────────────────── */
+  &__confirm {
+    text-align: center;
+    padding: syn.$space-xl syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__confirm-glyph {
+    margin: 0 auto syn.$space-2;
+    width: syn.px-to-rem(44);
+    height: syn.px-to-rem(44);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--eh-success-soft);
+    color: var(--eh-success);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__confirm-icon {
+    inline-size: syn.px-to-rem(24);
+    block-size: syn.px-to-rem(24);
+  }
+
+  &__confirm-title {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__confirm-text {
+    margin: 0 0 syn.$space-md;
+    color: var(--eh-text-secondary);
+  }
+
+  /* ─── Results ────────────────────────────────────────────────────────────── */
+  &__results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__result {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__result-head {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: syn.$space-3;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  &__result-name { font-weight: syn.$font-weight-semibold; }
+
+  &__result-value {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__result-flag {
+    padding: syn.px-to-rem(1) syn.$space-2;
+    border-radius: syn.$radius-full;
+    font-size: syn.$font-size-xs;
+    background: var(--eh-success-soft);
+    color: var(--eh-success);
+
+    &[data-flag='high'],
+    &[data-flag='critical'] { background: var(--eh-danger-soft); color: var(--eh-danger); }
+    &[data-flag='low'] { background: var(--eh-warn-soft); color: var(--eh-warn); }
+  }
+
+  &__result-gauge {
+    position: relative;
+    height: syn.px-to-rem(4);
+    margin: syn.$space-2 0;
+    border-radius: syn.$radius-full;
+    background: var(--eh-surface-sunken);
+  }
+
+  &__result-gauge-fill {
+    position: absolute;
+    top: 50%;
+    width: syn.px-to-rem(10);
+    height: syn.px-to-rem(10);
+    border-radius: 50%;
+    background: var(--eh-brand);
+    transform: translate(-50%, -50%);
+  }
+
+  &__result-range,
+  &__result-panel {
+    margin: 0;
+    color: var(--eh-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__result-detail {
+    margin-top: syn.$space-2;
+    padding-top: syn.$space-2;
+    border-top: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__result-comment {
+    margin: 0;
+    font-style: italic;
+    color: var(--eh-text-secondary);
+  }
+
+  /* ─── Medications ────────────────────────────────────────────────────────── */
+  &__meds {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__med {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__med-name { margin: 0; font-weight: syn.$font-weight-semibold; }
+  &__med-freq { margin: 0; color: var(--eh-text-secondary); font-size: syn.$font-size-sm; }
+  &__med-inst,
+  &__med-meta { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
+
+  &__med-status {
+    padding: syn.px-to-rem(3) syn.$space-2;
+    border-radius: syn.$radius-full;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    background: var(--eh-warn-soft);
+    color: var(--eh-warn);
+
+    &[data-status='approved'] { background: var(--eh-success-soft); color: var(--eh-success); }
+    &[data-status='denied'] { background: var(--eh-danger-soft); color: var(--eh-danger); }
+  }
+
+  /* ─── Health maintenance ─────────────────────────────────────────────────── */
+  &__maint {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__maint-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-left: syn.px-to-rem(4) solid var(--eh-border);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+
+    &[data-status='overdue'] { border-left-color: var(--eh-danger); }
+    &[data-status='due'] { border-left-color: var(--eh-warn); }
+    &[data-status='complete'] { border-left-color: var(--eh-success); }
+  }
+
+  &__maint-name { margin: 0; font-weight: syn.$font-weight-semibold; }
+  &__maint-detail { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
+
+  /* ─── Billing ────────────────────────────────────────────────────────────── */
+  &__balance {
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__balance-label { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
+  &__balance-value { margin: syn.px-to-rem(2) 0 syn.$space-3; font-size: syn.$font-size-xl; font-weight: syn.$font-weight-bold; }
+
+  &__balance-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+  }
+
+  &__statement {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: syn.$font-size-sm;
+
+    th,
+    td {
+      padding: syn.$space-2 syn.$space-3;
+      text-align: left;
+      border-bottom: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    }
+
+    th { color: var(--eh-muted); font-weight: syn.$font-weight-medium; }
+    .is-end { text-align: right; font-variant-numeric: tabular-nums; }
+  }
+
+  /* ─── Console cell chips (SH-5) ──────────────────────────────────────────── */
+  &__state-chip {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    background: var(--eh-surface-sunken);
+    color: var(--eh-text-secondary);
+
+    &[data-tone='success'] { background: var(--eh-success-soft); color: var(--eh-success); }
+    &[data-tone='warning'] { background: var(--eh-warn-soft); color: var(--eh-warn); }
+    &[data-tone='danger'] { background: var(--eh-danger-soft); color: var(--eh-danger); }
+    &[data-kind='result'] { background: var(--eh-brand-soft); color: var(--eh-brand); }
+    &[data-kind='refill'] { background: var(--eh-warn-soft); color: var(--eh-warn); }
+    &[data-kind='cosign'] { background: var(--eh-surface-sunken); color: var(--eh-text-secondary); }
+  }
+
+  &__done { display: inline-flex; vertical-align: middle; color: var(--eh-success); }
+
+  &__done-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+  }
+
+  /* ─── Chart workspace ────────────────────────────────────────────────────── */
+  &__chart {
+    display: grid;
+    grid-template-columns: #{syn.px-to-rem(240)} 1fr;
+    gap: syn.$space-md;
+  }
+
+  &__storyboard {
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    height: fit-content;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__story-avatar {
+    margin: 0;
+    width: syn.px-to-rem(44);
+    height: syn.px-to-rem(44);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--eh-brand-soft);
+    color: var(--eh-brand);
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__story-name { margin: 0; font-size: syn.$font-size-base; font-weight: syn.$font-weight-bold; }
+  &__story-meta,
+  &__story-doc { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
+
+  &__story-alert {
+    margin: 0;
+    padding: syn.px-to-rem(4) syn.$space-2;
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-xs;
+    background: var(--eh-surface-sunken);
+    color: var(--eh-text-secondary);
+
+    &[data-sev='warning'] { background: var(--eh-danger-soft); color: var(--eh-danger); }
+  }
+
+  &__story-cta { margin-top: syn.$space-2; }
+
+  &__chart-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__avs {
+    margin: 0;
+    padding: syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--eh-success-soft);
+    color: var(--eh-success);
+    font-size: syn.$font-size-sm;
+  }
+
+  /* Vitals grid */
+  &__vitals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__vital {
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    font-size: syn.$font-size-xs;
+    color: var(--eh-muted);
+
+    span { display: block; }
+    strong { color: var(--eh-text); font-size: syn.$font-size-base; }
+  }
+
+  /* Notes / prescriptions */
+  &__notes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__note {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__note-head { margin: 0 0 syn.px-to-rem(2); font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__note-reason { margin: 0 0 syn.$space-2; color: var(--eh-brand); font-size: syn.$font-size-xs; }
+  &__note-soap,
+  &__note-rx { margin: 0 0 syn.px-to-rem(2); color: var(--eh-text-secondary); font-size: syn.$font-size-sm; }
+  &__note-warn { display: flex; align-items: center; gap: syn.$space-1; margin: syn.$space-2 0 0; color: var(--eh-danger); font-size: syn.$font-size-xs; font-weight: syn.$font-weight-medium; }
+
+  &__note-warn-icon {
+    flex: none;
+    inline-size: syn.px-to-rem(14);
+    block-size: syn.px-to-rem(14);
+  }
+
+  /* Evolution bars */
+  &__evo {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__evo-label {
+    margin: 0 0 syn.$space-2;
+    font-weight: syn.$font-weight-semibold;
+    font-size: syn.$font-size-sm;
+
+    span { color: var(--eh-muted); font-weight: syn.$font-weight-medium; }
+  }
+
+  &__evo-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: syn.$space-2;
+    height: syn.px-to-rem(96);
+  }
+
+  &__evo-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__evo-bar {
+    width: 100%;
+    max-width: syn.px-to-rem(40);
+    border-radius: syn.$radius-sm syn.$radius-sm 0 0;
+    background: var(--eh-brand);
+  }
+
+  &__evo-val { font-size: syn.$font-size-xs; color: var(--eh-muted); font-variant-numeric: tabular-nums; }
+
+  /* ─── Encounter (SOAP + e-Rx) ────────────────────────────────────────────── */
+  &__soap {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__vitals-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(100)}, 1fr));
+    gap: syn.$space-2;
+  }
+
+  &__erx {
+    margin: syn.$space-md 0;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+  }
+
+  &__erx-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(120)}, 1fr));
+    gap: syn.$space-2;
+    align-items: end;
+  }
+
+  &__erx-list {
+    list-style: none;
+    margin: syn.$space-2 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    font-size: syn.$font-size-sm;
+  }
+
+  /* ─── SH-3 schedule wizard steps ─────────────────────────────────────────── */
+  &__mode-toggle {
+    display: inline-flex;
+    gap: syn.px-to-rem(2);
+    padding: syn.px-to-rem(3);
+    margin-bottom: syn.$space-2;
+    background: var(--eh-surface-sunken);
+    border-radius: syn.$radius-md;
+  }
+
+  &__mode-btn {
+    padding: syn.$space-1 syn.$space-3;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    &.is-active { background: var(--eh-surface); color: var(--eh-brand); box-shadow: var(--eh-shadow); }
+  }
+
+  &__slots {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    max-height: syn.px-to-rem(280);
+    overflow-y: auto;
+  }
+
+  &__slot-date { margin: 0 0 syn.px-to-rem(4); font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+
+  &__slot-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+
+  &__slot {
+    padding: syn.px-to-rem(6) syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--eh-border);
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface);
+    color: var(--eh-text);
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    &.is-active { background: var(--eh-brand); border-color: var(--eh-brand); color: var(--eh-brand-text); }
+  }
+
+  /* ─── SH-4 visits / SH-7 threads templates ───────────────────────────────── */
+  &__visit-row,
+  &__thread-row {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    text-align: left;
+    width: 100%;
+  }
+
+  &__visit-date,
+  &__thread-name { font-weight: syn.$font-weight-semibold; }
+  &__visit-doctor { color: var(--eh-brand); font-size: syn.$font-size-xs; }
+  &__visit-reason,
+  &__thread-last { color: var(--eh-muted); font-size: syn.$font-size-xs; }
+
+  &__thread-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+
+  &__thread-unread {
+    padding: 0 syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--eh-brand);
+    color: var(--eh-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__thread-subject { font-size: syn.$font-size-sm; color: var(--eh-text-secondary); }
+
+  &__visit-detail,
+  &__thread-detail,
+  &__section-cta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__thread-with { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
+
+  &__thread-msgs {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__msg {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    max-width: 85%;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--eh-surface-sunken);
+
+    &.is-out {
+      align-self: flex-end;
+      background: var(--eh-brand-soft);
+    }
+  }
+
+  &__msg-author { font-size: syn.$font-size-xs; font-weight: syn.$font-weight-semibold; color: var(--eh-text-secondary); }
+  &__msg-body { font-size: syn.$font-size-sm; }
+  &__msg-time { font-size: syn.$font-size-xs; color: var(--eh-muted); }
+
+  /* ─── Responsive ─────────────────────────────────────────────────────────── */
+  @media (max-width: #{syn.px-to-rem(760)}) {
+    &__nav-toggle { display: inline-flex; }
+
+    &__layout { grid-template-columns: 1fr; }
+
+    &__sidebar {
+      display: none;
+      &.is-open { display: flex; }
+    }
+
+    &__chart { grid-template-columns: 1fr; }
+
+    &__storyboard { position: static; }
+  }
+}
+
+@keyframes ehr-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Motion reducida: el shimmer se apaga, no se acelera. Queda una superficie
+   teñida estática que sigue reservando el mismo sitio. */
+@media (prefers-reduced-motion: reduce) {
+  .ehr__bone {
+    animation: none;
+    background: var(--eh-skeleton-base);
+  }
+}

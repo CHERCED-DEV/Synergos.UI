@@ -1,0 +1,129 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-range-slider {
+  --syn-range-slider-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-range-slider-value-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-range-slider-track-height: #{syn.px-to-rem(6)};
+  --syn-range-slider-track-fill: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-range-slider-track-background: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-range-slider-focus-ring-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-range-slider-thumb-size: #{syn.px-to-rem(18)};
+  --syn-range-slider-thumb-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-range-slider-thumb-border: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-range-slider-thumb-shadow: var(--syn-shadow-card, #{syn.$shadow-sm});
+  --syn-range-slider-thumb-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+  --syn-range-slider-disabled-track: var(--syn-color-action-disabled-surface, #{syn.$color-neutral-200});
+  --syn-range-slider-disabled-thumb-border: var(--syn-color-action-disabled-border, #{syn.$color-neutral-300});
+  --syn-range-slider-disabled-thumb-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+
+  display: grid;
+  gap: syn.$space-xs;
+}
+
+.syn-range-slider__label {
+  color: var(--syn-range-slider-label-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+}
+
+.syn-range-slider__track {
+  display: grid;
+}
+
+.syn-range-slider__input {
+  width: 100%;
+  height: var(--syn-range-slider-track-height);
+  border-radius: syn.$radius-full;
+  background: linear-gradient(
+    90deg,
+    var(--syn-range-slider-track-fill) 0%,
+    var(--syn-range-slider-track-fill) var(--syn-range-progress, 0%),
+    var(--syn-range-slider-track-background) var(--syn-range-progress, 0%),
+    var(--syn-range-slider-track-background) 100%
+  );
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  &:focus-visible {
+    /* outline, no box-shadow: un box-shadow se DESCARTA en modo alto contraste
+       (forced-colors) y ahi el foco queda invisible. Ancho y offset por token, los
+       mismos que ya usa el mixin compartido y ahora tambien el CSS del CMS. */
+    outline: var(--syn-focus-ring-width, 2px) solid var(--syn-range-slider-focus-ring-surface);
+    outline-offset: var(--syn-focus-ring-offset, 2px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    background: linear-gradient(
+      90deg,
+      var(--syn-range-slider-disabled-track) 0%,
+      var(--syn-range-slider-disabled-track) 100%
+    );
+    opacity: 0.72;
+  }
+}
+
+.syn-range-slider__input::-webkit-slider-thumb {
+  width: var(--syn-range-slider-thumb-size);
+  height: var(--syn-range-slider-thumb-size);
+  border: syn.px-to-rem(2) solid var(--syn-range-slider-thumb-border);
+  border-radius: 50%;
+  background: var(--syn-range-slider-thumb-surface);
+  box-shadow: var(--syn-range-slider-thumb-shadow);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+}
+
+.syn-range-slider__input:hover:not(:disabled)::-webkit-slider-thumb {
+  transform: scale(1.08);
+  box-shadow: var(--syn-range-slider-thumb-shadow-hover);
+}
+
+.syn-range-slider__input:disabled::-webkit-slider-thumb {
+  border-color: var(--syn-range-slider-disabled-thumb-border);
+  background: var(--syn-range-slider-disabled-thumb-surface);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.syn-range-slider__input::-moz-range-thumb {
+  width: var(--syn-range-slider-thumb-size);
+  height: var(--syn-range-slider-thumb-size);
+  border: syn.px-to-rem(2) solid var(--syn-range-slider-thumb-border);
+  border-radius: 50%;
+  background: var(--syn-range-slider-thumb-surface);
+  box-shadow: var(--syn-range-slider-thumb-shadow);
+  cursor: pointer;
+  transition:
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+}
+
+.syn-range-slider__input:hover:not(:disabled)::-moz-range-thumb {
+  transform: scale(1.08);
+  box-shadow: var(--syn-range-slider-thumb-shadow-hover);
+}
+
+.syn-range-slider__input:disabled::-moz-range-thumb {
+  border-color: var(--syn-range-slider-disabled-thumb-border);
+  background: var(--syn-range-slider-disabled-thumb-surface);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.syn-range-slider__value {
+  color: var(--syn-range-slider-value-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-semibold;
+}

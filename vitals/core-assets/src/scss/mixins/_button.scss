@@ -1,0 +1,163 @@
+@use '../tokens/colors' as colors;
+@use '../tokens/spacing' as spacing;
+@use '../tokens/typography' as typography;
+@use '../tokens/radius' as radius;
+@use '../tokens/motion' as motion;
+@use '../functions/px-to-rem' as rem;
+@use 'focus';
+
+@mixin button-reset {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  text-decoration: none;
+}
+
+@mixin button-base(
+  $min-height: rem.px-to-rem(40),
+  $padding-y:  spacing.$space-xs,
+  $padding-x:  spacing.$space-md,
+  $radius:     radius.$radius-md,
+  $gap:        spacing.$space-xs,
+  $font-size:  typography.$font-size-base,
+  $font-weight: typography.$font-weight-semibold
+) {
+  @include button-reset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $gap;
+  min-height: $min-height;
+  padding: $padding-y $padding-x;
+  border: rem.px-to-rem(1) solid transparent;
+  border-radius: $radius;
+  font-size: $font-size;
+  font-weight: $font-weight;
+  line-height: typography.$line-height-tight;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: motion.$transition-colors;
+
+  @include focus.focus-visible;
+
+  // Principio 6 (doc 24): el press es MÁS rápido que el hover. Va aquí, en
+  // `button-base`, y no en `button-variant`, porque `.syn-button--gradient`
+  // no pasa por `button-variant` — desde la base lo cubren TODAS las variantes.
+  // Declararlo dentro de `:active` es lo que hace el efecto asimétrico:
+  // entrar al press usa estos 90ms, soltar vuelve a la transition de la base.
+  // Se decidió shorthand-en-token (no un token de duración nuevo) porque
+  // --syn-press-duration ya existía en el SSOT sin consumidores.
+  &:active:not(:disabled) {
+    transition: motion.$transition-press;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+@mixin button-variant(
+  $background,
+  $color,
+  $border-color:        transparent,
+  $hover-background:    $background,
+  $hover-color:         $color,
+  $hover-border-color:  $border-color,
+  $active-background:   $hover-background,
+  $active-color:        $hover-color,
+  $active-border-color: $hover-border-color,
+  $shadow:              none,
+  $shadow-hover:        none
+) {
+  background:  $background;
+  color:       $color;
+  border-color: $border-color;
+  box-shadow:  $shadow;
+
+  &:where(:hover, :focus-visible):not(:disabled) {
+    background:  $hover-background;
+    color:       $hover-color;
+    border-color: $hover-border-color;
+    box-shadow:  $shadow-hover;
+  }
+
+  &:active:not(:disabled) {
+    background:  $active-background;
+    color:       $active-color;
+    border-color: $active-border-color;
+    box-shadow:  none;
+  }
+}
+
+@mixin button-size($size: md) {
+  @if $size == sm {
+    min-height: rem.px-to-rem(32);
+    padding: spacing.$space-1 spacing.$space-sm;
+    font-size: typography.$font-size-sm;
+  } @else if $size == lg {
+    min-height: rem.px-to-rem(48);
+    padding: spacing.$space-sm spacing.$space-lg;
+    font-size: typography.$font-size-lg;
+  } @else if $size != md {
+    @warn "Unknown button size `#{$size}`. Expected `sm`, `md`, or `lg`.";
+  }
+}
+
+@mixin button-loading(
+  $placement:    after,
+  $size:         rem.px-to-rem(14),
+  $stroke-width: rem.px-to-rem(2),
+  $gap:          spacing.$space-xs,
+  $color:        currentColor
+) {
+  position: relative;
+
+  @keyframes syn-button-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  &::#{$placement} {
+    content: '';
+    display: inline-block;
+    width: $size;
+    height: $size;
+    flex: 0 0 $size;
+    border: $stroke-width solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    // La CSS var (no el literal) para que un override por-tema/vertical de
+    // --syn-duration-loop se respete. OJO: esto por sí solo NO resuelve
+    // reduced-motion, ver el @media de abajo.
+    animation: syn-button-spin var(--syn-duration-loop, #{motion.$duration-loop}) linear infinite;
+
+    @if $placement == before {
+      margin-right: $gap;
+    } @else {
+      margin-left: $gap;
+    }
+
+    // ── reduced-motion: por qué un @media y NO solo la var ──────────────────
+    // El swap global de syn-tokens.css lleva --syn-duration-loop a 0.01ms. Ese
+    // 0.01ms está razonado para TRANSITIONS y animaciones FINITAS: es
+    // imperceptible y aun así dispara transitionend/animationend, que es lo que
+    // evita dejar colgada la lógica encadenada a ese evento. En un
+    // `infinite` la semántica es otra: 0.01ms por vuelta son ~100.000
+    // vueltas/segundo — un ESTROBO, peor que el giro original y un riesgo real
+    // (WCAG 2.3.1, destellos). O sea que consumir la var sola solo PARECE el
+    // arreglo. Se corta la animación de raíz.
+    // (Va al final del bloque a propósito: una nested rule antes de las
+    // declaraciones dispara el deprecation `mixed-decls` de Sass.)
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      // Un aro con hueco y quieto se lee como spinner CONGELADO ("colgado").
+      // Cerrado, se lee como un indicador estático deliberado.
+      border-right-color: currentColor;
+      opacity: 0.6;
+    }
+  }
+}

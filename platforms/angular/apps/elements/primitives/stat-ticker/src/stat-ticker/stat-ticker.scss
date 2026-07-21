@@ -1,0 +1,44 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  text-align: center;
+}
+
+.syn-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--syn-space-xs, #{syn.$space-xs});
+}
+
+.syn-stat__value {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.08em;
+  font-family: var(--syn-font-family-heading, #{syn.$font-family-sans});
+  font-weight: var(--syn-font-weight-bold, #{syn.$font-weight-bold});
+  font-size: clamp(#{syn.$font-size-4xl}, 5vw, #{syn.$font-size-5xl});
+  line-height: var(--syn-line-height-tight, #{syn.$line-height-tight});
+  letter-spacing: var(--syn-letter-spacing-display, #{syn.$letter-spacing-display});
+  color: var(--syn-color-text-accent, var(--syn-color-brand-600, #{syn.$color-brand-600}));
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-stat__affix {
+  font-size: 0.55em;
+  font-weight: var(--syn-font-weight-bold, #{syn.$font-weight-bold});
+  opacity: 0.85;
+}
+
+.syn-stat__label {
+  margin: 0;
+  font-family: var(--syn-font-family-body, #{syn.$font-family-sans});
+  font-size: var(--syn-font-size-sm, #{syn.$font-size-sm});
+  font-weight: var(--syn-font-weight-semibold, #{syn.$font-weight-semibold});
+  letter-spacing: var(--syn-letter-spacing-eyebrow, #{syn.$letter-spacing-eyebrow});
+  text-transform: uppercase;
+  color: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+}

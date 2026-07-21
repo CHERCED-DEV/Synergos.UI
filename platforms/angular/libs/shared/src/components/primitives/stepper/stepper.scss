@@ -1,0 +1,74 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+// ─── Stepper ──────────────────────────────────────────────────────────────────
+
+.syn-stepper {
+  display: grid;
+  gap:     syn.$space-xs;
+}
+
+.syn-stepper__label {
+  color:       syn.$color-neutral-700;
+  font-size:   syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+}
+
+// Min-width for the input cell: wide enough to display 3–4 digit values comfortably
+$_input-min: syn.px-to-rem(80);
+
+.syn-stepper__control {
+  display:               inline-grid;
+  grid-template-columns: auto minmax($_input-min, 1fr) auto;
+  align-items:           center;
+  overflow:              hidden;
+  width:                 fit-content;
+  border:                syn.px-to-rem(1) solid syn.$color-neutral-300;
+  border-radius:         syn.$radius-full;
+  background:            syn.$color-neutral-0;
+  transition:            border-color syn.$duration-fast syn.$easing-smooth,
+                         box-shadow   syn.$duration-fast syn.$easing-smooth;
+
+  &:focus-within {
+    border-color: syn.$color-brand-400;
+    /* outline, no box-shadow: un box-shadow se DESCARTA en modo alto contraste
+       (forced-colors) y ahi el foco queda invisible. Ancho y offset por token, los
+       mismos que ya usa el mixin compartido y ahora tambien el CSS del CMS. */
+    outline: var(--syn-focus-ring-width, 2px) solid syn.$color-brand-100;
+    outline-offset: var(--syn-focus-ring-offset, 2px);
+  }
+}
+
+.syn-stepper__button {
+  @include syn.focus-visible;
+  border:      0;
+  min-width:   syn.px-to-rem(44);
+  min-height:  syn.px-to-rem(44);
+  background:  syn.$color-neutral-100;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+  cursor:      pointer;
+  transition:  background syn.$duration-fast syn.$easing-smooth;
+
+  &:hover:not(:disabled) { background: syn.$color-neutral-200; }
+  &:disabled { color: syn.$color-neutral-400; cursor: not-allowed; }
+}
+
+.syn-stepper__input {
+  border:      0;
+  width:       100%;
+  padding:     syn.$space-sm syn.$space-md;
+  color:       syn.$color-neutral-900;
+  font-size:   syn.$font-size-base;
+  font-weight: syn.$font-weight-medium;
+  text-align:  center;
+  appearance:  textfield;
+  background:  transparent;
+  outline:     0;
+
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    margin:     0;
+    appearance: none;
+  }
+}

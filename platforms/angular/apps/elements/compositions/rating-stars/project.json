@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-rating-stars",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/rating-stars/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:rating-stars",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/rating-stars",
+        "browser": "apps/elements/compositions/rating-stars/src/main.ts",
+        "index": "apps/elements/compositions/rating-stars/src/index.html",
+        "tsConfig": "apps/elements/compositions/rating-stars/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4348 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/rating-stars/src/**/*.ts",
+          "apps/elements/compositions/rating-stars/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

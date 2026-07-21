@@ -1,0 +1,111 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --sht-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sht-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sht-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sht-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sht-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+
+  display: block;
+  color: var(--sht-text);
+}
+
+.syn-timeline {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__heading {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__empty {
+    margin: 0;
+    color: var(--sht-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__stage {
+    position: relative;
+    display: flex;
+    gap: syn.$space-3;
+    padding-bottom: syn.$space-4;
+
+    // Connector line
+    &::before {
+      content: '';
+      position: absolute;
+      top: syn.px-to-rem(14);
+      left: syn.px-to-rem(5);
+      bottom: 0;
+      width: syn.px-to-rem(2);
+      background: var(--sht-border);
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    &.is-done .syn-timeline__marker {
+      border-color: var(--sht-success);
+      background: var(--sht-success);
+    }
+
+    &.is-current .syn-timeline__marker {
+      border-color: var(--sht-brand);
+      background: var(--sht-brand);
+      box-shadow: 0 0 0 syn.px-to-rem(4) var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+    }
+
+    &.is-current .syn-timeline__label {
+      font-weight: syn.$font-weight-bold;
+    }
+  }
+
+  &__marker {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    width: syn.px-to-rem(12);
+    height: syn.px-to-rem(12);
+    margin-top: syn.px-to-rem(4);
+    border: syn.px-to-rem(2) solid var(--sht-border);
+    border-radius: syn.$radius-full;
+    background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: syn.$font-size-sm;
+  }
+
+  &__date,
+  &__desc {
+    color: var(--sht-muted);
+    font-size: syn.$font-size-xs;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-timeline *,
+  .syn-timeline *::before,
+  .syn-timeline *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

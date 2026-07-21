@@ -1,0 +1,23 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: inherit;
+}
+
+.macro-host {
+  position: relative;
+
+  &__empty {
+    @include syn.flex-center;
+    min-height: syn.px-to-rem(100);
+    border: syn.px-to-rem(2) dashed syn.$color-neutral-300;
+    border-radius: syn.$radius-md;
+    color: syn.$color-neutral-400;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__container {
+    display: contents;
+  }
+}

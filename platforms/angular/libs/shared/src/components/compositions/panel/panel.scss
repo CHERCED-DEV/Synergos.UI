@@ -1,0 +1,113 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-panel {
+  --syn-panel-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-panel-border: transparent;
+  --syn-panel-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+  --syn-panel-hover-surface: var(--syn-color-overlay-subtle, #{syn.$color-overlay-subtle});
+
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             syn.$space-md;
+  border:          syn.px-to-rem(1) solid var(--syn-panel-border);
+  border-radius:   syn.$radius-lg;
+  background:      var(--syn-panel-background);
+  color:           var(--syn-panel-text);
+  box-shadow:      var(--syn-shadow-panel, #{syn.$shadow-sm});
+}
+
+.syn-panel--padding-sm { padding: syn.$space-sm; }
+.syn-panel--padding-md { padding: syn.$space-md; }
+.syn-panel--padding-lg { padding: syn.$space-lg; }
+
+.syn-panel--bordered {
+  --syn-panel-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+}
+
+.syn-panel--neutral {
+  --syn-panel-background: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-panel-text: var(--syn-color-text-primary, #{syn.$color-neutral-800});
+}
+
+.syn-panel--brand {
+  --syn-panel-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-panel-border: var(--syn-color-state-brand-border, #{syn.$color-brand-200});
+  --syn-panel-text: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+}
+
+.syn-panel--success {
+  --syn-panel-background: var(--syn-color-state-success-surface, #{syn.$color-success-100});
+  --syn-panel-border: var(--syn-color-state-success-border, #{syn.$color-success-200});
+  --syn-panel-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
+}
+
+.syn-panel--warning {
+  --syn-panel-background: var(--syn-color-state-warning-surface, #{syn.$color-warning-100});
+  --syn-panel-border: var(--syn-color-state-warning-border, #{syn.$color-warning-300});
+  --syn-panel-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
+}
+
+.syn-panel--critical {
+  --syn-panel-background: var(--syn-color-state-danger-surface, #{syn.$color-danger-100});
+  --syn-panel-border: var(--syn-color-state-danger-border, #{syn.$color-danger-200});
+  --syn-panel-text: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+}
+
+.syn-panel__main {
+  display: grid;
+  gap: syn.$space-sm;
+  flex: 1 1 auto;
+}
+
+.syn-panel__badge {
+  width: fit-content;
+}
+
+.syn-panel__header {
+  display: grid;
+  gap: syn.$space-xxs;
+}
+
+.syn-panel__title {
+  font-size:   syn.$font-size-base;
+  font-weight: syn.$font-weight-semibold;
+  line-height: syn.$line-height-tight;
+}
+
+.syn-panel__description {
+  font-size:   syn.$font-size-sm;
+  color:       inherit;
+  opacity:     0.82;
+  line-height: syn.$line-height-normal;
+}
+
+.syn-panel__content {
+  display: grid;
+  gap: syn.$space-sm;
+}
+
+.syn-panel__dismiss {
+  @include syn.focus-visible;
+  @include syn.flex-center;
+
+  flex:          0 0 auto;
+  width:         syn.px-to-rem(28);
+  height:        syn.px-to-rem(28);
+  border:        0;
+  border-radius: 50%;
+  padding:       0;
+  background:    transparent;
+  color:         currentColor;
+  font-size:     syn.$font-size-base;
+  opacity:       0.62;
+  cursor:        pointer;
+  transition:
+    opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  &:hover {
+    opacity:    1;
+    background: var(--syn-panel-hover-surface);
+  }
+}

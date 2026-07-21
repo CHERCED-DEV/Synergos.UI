@@ -1,0 +1,115 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.feature-item {
+  --syn-feature-item-background: transparent;
+  --syn-feature-item-border: transparent;
+  --syn-feature-item-shadow: none;
+  --syn-feature-item-shadow-hover: none;
+  --syn-feature-item-icon-background: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --syn-feature-item-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --syn-feature-item-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
+  @include syn.flex-column;
+
+  align-items: center;
+  gap: syn.$space-sm;
+  padding: syn.$space-lg;
+  text-align: center;
+  border: syn.px-to-rem(1) solid var(--syn-feature-item-border);
+  // Radio unificado al rol de card (lg = 14); aplica a la variante --card.
+  border-radius: var(--syn-card-radius, #{syn.$radius-lg});
+  background: var(--syn-feature-item-background);
+  box-shadow: var(--syn-feature-item-shadow);
+  transition:
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+  &.sg-feature-item--left {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  &.sg-feature-item--inline {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+
+    .feature-item__icon {
+      flex-shrink: 0;
+    }
+
+    .feature-item__copy {
+      @include syn.flex-column;
+
+      gap: syn.$space-xxs;
+    }
+  }
+
+  &.sg-feature-item--card {
+    --syn-feature-item-background: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+    --syn-feature-item-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+    --syn-feature-item-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+    --syn-feature-item-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-md});
+
+    &:hover {
+      box-shadow: var(--syn-feature-item-shadow-hover);
+      transform: translateY(syn.px-to-rem(-2));
+    }
+  }
+
+  &.sg-feature-item--accent {
+    --syn-feature-item-icon-background: var(--syn-color-surface-accent, #{syn.$color-accent-100});
+  }
+
+  &.sg-feature-item--dark {
+    --syn-feature-item-heading-color: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --syn-feature-item-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
+  &__icon {
+    @include syn.flex-center;
+
+    flex-shrink: 0;
+    width: syn.px-to-rem(52);
+    height: syn.px-to-rem(52);
+    border-radius: syn.$radius-md;
+    background-color: var(--syn-feature-item-icon-background);
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    img {
+      width: syn.px-to-rem(28);
+      height: syn.px-to-rem(28);
+      object-fit: contain;
+    }
+  }
+
+  &__heading {
+    margin: 0;
+    color: var(--syn-feature-item-heading-color);
+    @include syn.heading('xs');
+  }
+
+  &__body {
+    margin: 0;
+    color: var(--syn-feature-item-body-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .feature-item,
+  .feature-item__icon {
+    transition: none;
+  }
+
+  .feature-item.sg-feature-item--card:hover {
+    transform: none;
+  }
+}

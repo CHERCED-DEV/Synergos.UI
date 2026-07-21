@@ -1,0 +1,5 @@
+@mixin long-words($hyphens: auto) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: $hyphens;
+}

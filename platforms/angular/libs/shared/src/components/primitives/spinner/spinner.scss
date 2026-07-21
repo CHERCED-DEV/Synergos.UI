@@ -1,0 +1,69 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-spinner-host {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.syn-spinner {
+  display:       inline-block;
+  border-style:  solid;
+  border-radius: 50%;
+  border-color:  syn.$color-neutral-200;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  animation: syn-spinner-rotate syn.$duration-loop linear infinite;
+}
+
+.syn-spinner--sm {
+  width:        syn.px-to-rem(14);
+  height:       syn.px-to-rem(14);
+  border-width: syn.px-to-rem(2);
+}
+
+.syn-spinner--md {
+  width:        syn.px-to-rem(20);
+  height:       syn.px-to-rem(20);
+  border-width: syn.px-to-rem(2);
+}
+
+.syn-spinner--lg {
+  width:        syn.px-to-rem(28);
+  height:       syn.px-to-rem(28);
+  border-width: syn.px-to-rem(3);
+}
+
+// ── Color variants ───────────────────────────────────────────────────────────
+
+.syn-spinner--brand {
+  border-color:        syn.$color-brand-200;
+  border-top-color:    syn.$color-brand-500;
+  border-left-color:   transparent;
+  border-right-color:  transparent;
+  border-bottom-color: transparent;
+}
+
+.syn-spinner--neutral {
+  border-color:        syn.$color-neutral-200;
+  border-top-color:    syn.$color-neutral-700;
+  border-left-color:   transparent;
+  border-right-color:  transparent;
+  border-bottom-color: transparent;
+}
+
+.syn-spinner--inverse {
+  border-color:        syn.$color-overlay-inverse;
+  border-top-color:    syn.$color-neutral-0;
+  border-left-color:   transparent;
+  border-right-color:  transparent;
+  border-bottom-color: transparent;
+}
+
+@keyframes syn-spinner-rotate {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-spinner { animation-duration: 1.5s; }
+}

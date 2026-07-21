@@ -1,0 +1,107 @@
+@if (!hasImages()) {
+  <p class="lightbox-gallery__empty" role="status">
+    <svg class="lightbox-gallery__empty-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5" />
+      <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
+      <path d="m4 17 4.5-4.5L12 16l3.5-3.5L20 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <span class="lightbox-gallery__empty-text">{{ emptyLabel() }}</span>
+  </p>
+} @else {
+  <ul
+    class="lightbox-gallery__grid"
+    role="list"
+    [style.--lg-columns]="columns()"
+    aria-label="Galería de imágenes"
+  >
+    @for (image of images(); track $index) {
+      <li class="lightbox-gallery__item">
+        <button
+          type="button"
+          class="lightbox-gallery__thumb"
+          (click)="open($index)"
+          [attr.aria-label]="'Ampliar imagen ' + ($index + 1) + (image.caption ? ': ' + image.caption : '')"
+        >
+          <img
+            class="lightbox-gallery__thumb-img"
+            [src]="image.thumb"
+            [alt]="image.alt"
+            loading="lazy"
+            decoding="async"
+          />
+        </button>
+      </li>
+    }
+  </ul>
+
+  @if (activeImage(); as active) {
+    <!-- Backdrop: el (click) es SOLO el atajo de ratón para cerrar. La ruta de teclado es
+         Escape (y ArrowLeft/ArrowRight para navegar), que atiende el
+         (keydown)="onDialogKeydown($event)" de este mismo elemento (lightbox-gallery.ts:248).
+         El foco lo recibe el .lightbox__dialog de abajo, que ya es tabindex="-1" +
+         role="dialog". Un tabindex aquí crearía una parada de tabulación fantasma. -->
+    <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+    <div
+      class="lightbox"
+      (click)="onBackdropClick($event)"
+      (keydown)="onDialogKeydown($event)"
+    >
+      <div
+        class="lightbox__dialog"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="active.caption || active.alt || 'Imagen ampliada'"
+        tabindex="-1"
+      >
+        <header class="lightbox__bar">
+          <span class="lightbox__counter" aria-live="polite">{{ counterLabel() }}</span>
+          <button
+            type="button"
+            class="lightbox__close"
+            (click)="close()"
+            [attr.aria-label]="closeLabel()"
+          >
+            <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="lightbox__stage">
+          @if (images().length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--prev"
+              (click)="previous()"
+              aria-label="Imagen anterior"
+            >
+              <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          }
+
+          <figure class="lightbox__figure">
+            <img class="lightbox__image" [src]="active.src" [alt]="active.alt" decoding="async" />
+            @if (active.caption) {
+              <figcaption class="lightbox__caption">{{ active.caption }}</figcaption>
+            }
+          </figure>
+
+          @if (images().length > 1) {
+            <button
+              type="button"
+              class="lightbox__nav lightbox__nav--next"
+              (click)="next()"
+              aria-label="Imagen siguiente"
+            >
+              <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+}

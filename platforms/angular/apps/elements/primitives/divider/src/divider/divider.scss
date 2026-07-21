@@ -1,0 +1,25 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.divider {
+  display: block;
+  background: syn.$color-neutral-200;
+  flex-shrink: 0;
+
+  &.sg-divider--horizontal {
+    width: 100%;
+    height: syn.px-to-rem(1);
+  }
+
+  &.sg-divider--vertical {
+    width: syn.px-to-rem(1);
+    min-height: syn.$space-8;
+  }
+
+  &.sg-divider--dark {
+    background: syn.$color-neutral-700;
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "module": "preserve",
+    "lib": ["es2022", "dom"],
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@synergos/contracts": ["./vitals/contracts/src/index.ts"],
+      "@synergos/core": ["./vitals/core/src/index.ts"],
+      "@synergos/shared": ["./vitals/shared/src/index.ts"],
+      "@synergos/core-assets": ["./vitals/core-assets/src/index.ts"]
+    }
+  },
+  "compileOnSave": false
+}

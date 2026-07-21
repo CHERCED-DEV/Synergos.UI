@@ -1,0 +1,46 @@
+{
+  "name": "elements-modules-app-launcher",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/modules/app-launcher/src",
+  "tags": [
+    "scope:elements",
+    "tier:module",
+    "type:app",
+    "element:app-launcher",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/app-launcher",
+        "browser": "apps/elements/modules/app-launcher/src/main.ts",
+        "index": "apps/elements/modules/app-launcher/src/index.html",
+        "tsConfig": "apps/elements/modules/app-launcher/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4321 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/modules/app-launcher/src/**/*.ts",
+          "apps/elements/modules/app-launcher/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,2 @@
+# Angular has its own Nx workspace (needs Angular-specific executors)
+platforms/angular/

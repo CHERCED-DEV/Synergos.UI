@@ -1,0 +1,237 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shdt-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shdt-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shdt-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shdt-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shdt-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shdt-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shdt-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shdt-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shdt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --shdt-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shdt-text);
+}
+
+.syn-detail {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-lg;
+
+  &__back {
+    align-self: flex-start;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--shdt-brand);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+    text-decoration: underline;
+
+    @include syn.focus-visible(var(--shdt-focus-ring));
+  }
+
+  &__top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(syn.px-to-rem(240), 0.8fr);
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(920)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__top:not(:has(.syn-detail__cta)) {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+
+    @media (max-width: #{syn.px-to-rem(920)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  // ─── Gallery ───────────────────────────────────────────────────────────────
+  &__gallery {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  &__media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 4 / 3;
+    border: syn.px-to-rem(1) solid var(--shdt-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--shdt-surface-muted);
+    overflow: hidden;
+  }
+
+  &__media-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__media-placeholder {
+    font-size: syn.$font-size-4xl;
+    color: var(--shdt-muted);
+  }
+
+  &__strip {
+    display: flex;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+  }
+
+  &__thumb {
+    display: block;
+    width: syn.px-to-rem(56);
+    height: syn.px-to-rem(56);
+    padding: 0;
+    border: syn.px-to-rem(2) solid var(--shdt-border);
+    border-radius: syn.$radius-md;
+    background: var(--shdt-surface-muted);
+    cursor: pointer;
+    overflow: hidden;
+
+    @include syn.focus-visible(var(--shdt-focus-ring));
+
+    &.is-active {
+      border-color: var(--shdt-brand);
+    }
+  }
+
+  &__thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  // ─── Info column ───────────────────────────────────────────────────────────
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    min-width: 0;
+  }
+
+  &__eyebrow {
+    margin: 0;
+    color: var(--shdt-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: syn.$letter-spacing-eyebrow;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  &__subtitle {
+    margin: 0;
+    color: var(--shdt-text-secondary);
+  }
+
+  &__heading {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__specs-list {
+    display: grid;
+    gap: syn.px-to-rem(1);
+    margin: 0;
+    border: syn.px-to-rem(1) solid var(--shdt-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--shdt-border-subtle);
+    overflow: hidden;
+  }
+
+  &__spec {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--shdt-surface);
+  }
+
+  &__spec-label {
+    margin: 0;
+    color: var(--shdt-muted);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__spec-value {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+  }
+
+  // ─── Sticky CTA ────────────────────────────────────────────────────────────
+  &__cta {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--shdt-border);
+    border-radius: syn.$radius-lg;
+    background: var(--shdt-surface);
+    box-shadow: var(--shdt-shadow);
+  }
+
+  // ─── Tabs ──────────────────────────────────────────────────────────────────
+  &__tabs {
+    display: flex;
+    gap: syn.$space-2;
+    border-bottom: syn.px-to-rem(1) solid var(--shdt-border-subtle);
+  }
+
+  &__tab {
+    padding: syn.$space-2 syn.$space-3;
+    border: none;
+    border-bottom: syn.px-to-rem(2) solid transparent;
+    background: none;
+    color: var(--shdt-text-secondary);
+    font: inherit;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shdt-focus-ring));
+
+    &.is-active {
+      border-bottom-color: var(--shdt-brand);
+      color: var(--shdt-text);
+    }
+  }
+
+  &__tab-panel {
+    padding-top: syn.$space-3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-detail *,
+  .syn-detail *::before,
+  .syn-detail *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

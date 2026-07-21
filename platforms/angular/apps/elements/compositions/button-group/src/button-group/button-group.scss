@@ -1,0 +1,55 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  &--row {
+    flex-direction: row;
+  }
+
+  &--column {
+    flex-direction: column;
+    align-items: stretch;
+
+    .button-group__link,
+    .button-group__button-shell {
+      inline-size: 100%;
+    }
+  }
+
+  &--center {
+    justify-content: center;
+  }
+
+  &--right {
+    justify-content: flex-end;
+  }
+
+  &--gap-xs {
+    gap: syn.$space-xs;
+  }
+
+  &--gap-sm {
+    gap: syn.$space-sm;
+  }
+
+  &--gap-md {
+    gap: syn.$space-md;
+  }
+
+  &--gap-lg {
+    gap: syn.$space-lg;
+  }
+
+  &__link,
+  &__button-shell {
+    display: inline-flex;
+    text-decoration: none;
+  }
+}

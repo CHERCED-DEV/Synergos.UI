@@ -1,0 +1,1610 @@
+@use 'scss' as syn;
+
+:host {
+  --gv-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --gv-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --gv-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --gv-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --gv-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --gv-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --gv-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --gv-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --gv-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --gv-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el fondo sólido --gv-brand: misma familia action-primary → contraste correcto
+  --gv-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --gv-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --gv-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --gv-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --gv-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --gv-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --gv-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --gv-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+}
+
+.gov {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--gv-border);
+  border-radius: syn.$radius-xl;
+  background: var(--gv-surface);
+  box-shadow: var(--gv-shadow);
+  color: var(--gv-text);
+  font-size: syn.$font-size-base;
+
+  // ─── Topbar ────────────────────────────────────────────────────────────────
+  &__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+    padding-bottom: syn.$space-3;
+    border-bottom: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text);
+    font-weight: syn.$font-weight-bold;
+    font-size: syn.$font-size-lg;
+  }
+
+  &__brand-mark {
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(32);
+    height: syn.px-to-rem(32);
+    border-radius: syn.$radius-md;
+    background: var(--gv-brand);
+    color: var(--gv-brand-text);
+  }
+
+  &__brand-icon {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+  }
+
+  &__roles {
+    display: inline-flex;
+    gap: syn.px-to-rem(2);
+    padding: syn.px-to-rem(3);
+    border-radius: syn.$radius-full;
+    background: var(--gv-surface-muted);
+  }
+
+  &__role {
+    border: 0;
+    border-radius: syn.$radius-full;
+    padding: syn.$space-1 syn.$space-3;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text-secondary);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-sm;
+    transition: background var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+                color var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
+
+    &--active {
+      background: var(--gv-surface);
+      color: var(--gv-text);
+      box-shadow: var(--gv-shadow);
+    }
+  }
+
+  &__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    margin-left: auto;
+  }
+
+  &__nav-btn {
+    position: relative;
+    border: 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text-secondary);
+    font-weight: syn.$font-weight-medium;
+    font-size: syn.$font-size-sm;
+
+    &:hover { color: var(--gv-text); }
+    &--active { color: var(--gv-brand); }
+  }
+
+  &__badge {
+    display: inline-grid;
+    place-items: center;
+    min-width: syn.px-to-rem(18);
+    height: syn.px-to-rem(18);
+    margin-left: syn.$space-1;
+    padding: 0 syn.px-to-rem(5);
+    border-radius: syn.$radius-full;
+    background: var(--gv-brand);
+    color: var(--gv-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  // ─── Notices + a11y ────────────────────────────────────────────────────────
+  // (`&__sr-status` se fue con su <p>: la región aria-live la sirve ahora
+  //  LiveAnnouncerService, que estila la suya inline a nivel de documento.)
+
+  &__notice {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-brand-soft);
+    color: var(--gv-text);
+    font-size: syn.$font-size-sm;
+
+    // "Esa solicitud no es suya": no es una caída del sistema (por eso no es `__error`),
+    // pero sí una negativa — reusa los tokens de peligro, ya calibrados en los 7 temas.
+    &--deny {
+      margin-bottom: syn.$space-3;
+      background: var(--gv-danger-soft);
+      color: var(--gv-danger);
+    }
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-danger-soft);
+    color: var(--gv-danger);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__empty {
+    padding: syn.$space-lg;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+    list-style: none;
+  }
+
+  // ─── Search + chips ────────────────────────────────────────────────────────
+  &__search {
+    display: flex;
+    gap: syn.$space-2;
+    max-width: syn.px-to-rem(560);
+  }
+
+  &__search-input {
+    flex: 1;
+    min-width: 0;
+    border: syn.px-to-rem(1) solid var(--gv-border);
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--gv-surface);
+    color: var(--gv-text);
+    font: inherit;
+  }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+  }
+}
+
+// ─── Buttons / links / chips / tags ───────────────────────────────────────────
+.gv-btn {
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.$radius-md;
+  padding: syn.$space-2 syn.$space-md;
+  background: var(--gv-surface-muted);
+  cursor: pointer;
+  color: var(--gv-text);
+  font: inherit;
+  font-weight: syn.$font-weight-semibold;
+  font-size: syn.$font-size-sm;
+  transition: background var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+              color var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+              transform var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) { transform: translateY(syn.px-to-rem(-1)); }
+
+  &--brand {
+    background: var(--gv-brand);
+    color: var(--gv-brand-text);
+  }
+
+  &--outline {
+    background: var(--gv-surface);
+    border-color: var(--gv-border);
+  }
+
+  &--ghost {
+    background: none;
+    color: var(--gv-text-secondary);
+    align-self: flex-start;
+  }
+
+  &--warn {
+    background: var(--gv-warn-soft);
+    color: var(--gv-text);
+    border-color: var(--gv-warn);
+  }
+
+  &--danger {
+    background: var(--gv-danger-soft);
+    color: var(--gv-danger);
+    border-color: var(--gv-danger);
+  }
+
+  &--block {
+    display: block;
+    width: 100%;
+  }
+
+  &--sm { padding: syn.$space-1 syn.$space-2; }
+
+  &__icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    vertical-align: text-bottom;
+    margin-inline-end: syn.px-to-rem(4);
+  }
+}
+
+.gv-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--gv-brand);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  text-decoration: underline;
+}
+
+.gv-chip {
+  border: syn.px-to-rem(1) solid var(--gv-border);
+  border-radius: syn.$radius-full;
+  padding: syn.$space-1 syn.$space-3;
+  background: var(--gv-surface);
+  cursor: pointer;
+  color: var(--gv-text-secondary);
+  font-size: syn.$font-size-sm;
+
+  &--active {
+    background: var(--gv-brand);
+    border-color: var(--gv-brand);
+    color: var(--gv-brand-text);
+  }
+}
+
+.gv-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  background: var(--gv-surface-muted);
+  color: var(--gv-text-secondary);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-medium;
+  list-style: none;
+
+  &--ok {
+    background: var(--gv-success-soft);
+    color: var(--gv-success);
+  }
+}
+
+// Status tags — color + TEXT (never color alone; WCAG).
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-bold;
+  white-space: nowrap;
+
+  &--submitted {
+    background: var(--gv-brand-soft);
+    color: var(--gv-text);
+  }
+
+  &--in-review {
+    background: var(--gv-brand);
+    color: var(--gv-brand-text);
+  }
+
+  &--info-requested {
+    background: var(--gv-warn-soft);
+    color: var(--gv-text);
+  }
+
+  &--approved {
+    background: var(--gv-success-soft);
+    color: var(--gv-success);
+  }
+
+  &--rejected {
+    background: var(--gv-danger-soft);
+    color: var(--gv-danger);
+  }
+}
+
+// ─── Priority + SLA chips (officer queue cells) ───────────────────────────────
+.prio {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  background: var(--gv-surface-muted);
+  color: var(--gv-text-secondary);
+
+  &--high { background: var(--gv-warn-soft); color: var(--gv-text); }
+  &--urgent { background: var(--gv-danger-soft); color: var(--gv-danger); }
+}
+
+.sla {
+  font-size: syn.$font-size-sm;
+  white-space: nowrap;
+
+  &--overdue {
+    color: var(--gv-danger);
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+// ─── Fields ───────────────────────────────────────────────────────────────────
+.gv-field {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  min-width: syn.px-to-rem(200);
+  flex: 1 1 syn.px-to-rem(220);
+
+  &--sm { flex: 0 1 syn.px-to-rem(200); }
+  &--full { flex: 1 1 100%; }
+
+  &__label {
+    color: var(--gv-text);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &__opt {
+    color: var(--gv-muted);
+    font-weight: syn.$font-weight-regular;
+    font-style: normal;
+  }
+
+  &__hint {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-regular;
+  }
+}
+
+.gv-input,
+.gv-select,
+.gv-textarea {
+  border: syn.px-to-rem(1) solid var(--gv-border);
+  border-radius: syn.$radius-md;
+  padding: syn.$space-2 syn.$space-3;
+  background: var(--gv-surface);
+  color: var(--gv-text);
+  font: inherit;
+  font-size: syn.$font-size-sm;
+}
+
+.gv-textarea { resize: vertical; }
+
+.gv-check {
+  display: flex;
+  align-items: flex-start;
+  gap: syn.$space-2;
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  input {
+    margin-top: syn.px-to-rem(3);
+    width: syn.px-to-rem(16);
+    height: syn.px-to-rem(16);
+  }
+}
+
+// ─── Catálogo ─────────────────────────────────────────────────────────────────
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+
+  &__intro { max-width: syn.px-to-rem(640); }
+
+  &__title {
+    margin: 0 0 syn.$space-1;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__lead {
+    margin: 0;
+    color: var(--gv-text-secondary);
+  }
+
+  &__count {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.tramite-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface);
+  transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
+
+  &:hover { box-shadow: var(--gv-shadow); }
+
+  &__body {
+    flex: 1 1 syn.px-to-rem(340);
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__entity {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+  }
+
+  &__link {
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text);
+    font: inherit;
+    font-weight: syn.$font-weight-bold;
+    text-align: left;
+
+    &:hover { color: var(--gv-brand); }
+  }
+
+  &__summary {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+    margin: syn.$space-1 0 0;
+    padding: 0;
+  }
+}
+
+// ─── Ficha del trámite ───────────────────────────────────────────────────────
+.ficha {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__entity {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(220), syn.px-to-rem(280));
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(760)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__text {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    line-height: 1.6;
+  }
+
+  &__checklist {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__check-item {
+    display: flex;
+    gap: syn.$space-2;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    span { color: var(--gv-success); }
+  }
+
+  &__check-icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex-shrink: 0;
+    margin-block-start: syn.px-to-rem(2);
+    color: var(--gv-success);
+  }
+
+  &__cta {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+
+  &__cta-hint {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+}
+
+// ─── Wizard ───────────────────────────────────────────────────────────────────
+.wizard {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__subject {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface);
+  }
+
+  &__panel-title {
+    margin: 0;
+    padding: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-3;
+  }
+
+  &__file-fallback {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__declaration {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-left: syn.px-to-rem(3) solid var(--gv-brand);
+    background: var(--gv-surface-muted);
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-2;
+  }
+}
+
+.stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__step {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-1;
+    padding: syn.$space-1 syn.$space-2;
+    border-radius: syn.$radius-full;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-sm;
+
+    &--active {
+      background: var(--gv-brand-soft);
+      color: var(--gv-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+
+    &--done { color: var(--gv-success); }
+  }
+
+  &__num {
+    display: inline-grid;
+    place-items: center;
+    width: syn.px-to-rem(22);
+    height: syn.px-to-rem(22);
+    border-radius: syn.$radius-full;
+    background: var(--gv-surface-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__step--active &__num {
+    background: var(--gv-brand);
+    color: var(--gv-brand-text);
+  }
+}
+
+// ─── Check answers (GOV.UK) ───────────────────────────────────────────────────
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin: 0;
+
+  &__section {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-md;
+  }
+
+  &--flat &__section { border: 0; padding: 0; }
+
+  &__section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: syn.$space-2;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__row {
+    display: grid;
+    grid-template-columns: minmax(syn.px-to-rem(120), syn.px-to-rem(220)) 1fr;
+    gap: syn.$space-2;
+    padding: syn.$space-1 0;
+    border-bottom: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    font-size: syn.$font-size-sm;
+
+    &:last-child { border-bottom: 0; }
+
+    dt { color: var(--gv-muted); }
+    dd { margin: 0; color: var(--gv-text); overflow-wrap: anywhere; }
+  }
+}
+
+// ─── Documentos ───────────────────────────────────────────────────────────────
+.doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+
+  &__icon {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex-shrink: 0;
+    color: var(--gv-muted);
+  }
+
+  &__size {
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__remove {
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-lg;
+    line-height: 1;
+
+    &:hover { color: var(--gv-danger); }
+  }
+}
+
+// ─── Pago (stub) ─────────────────────────────────────────────────────────────
+.payment {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  max-width: syn.px-to-rem(400);
+
+  &__summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--gv-border);
+    border-radius: syn.$radius-md;
+    background: var(--gv-surface-muted);
+  }
+
+  &__label {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__amount {
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__ok {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-success-soft);
+    color: var(--gv-success);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+  }
+}
+
+// ─── Radicado (confirmation) ─────────────────────────────────────────────────
+.receipt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-lg 0;
+  text-align: center;
+
+  &__check {
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(56);
+    height: syn.px-to-rem(56);
+    border-radius: syn.$radius-full;
+    background: var(--gv-success-soft);
+    color: var(--gv-success);
+  }
+
+  &__check-icon {
+    inline-size: syn.px-to-rem(28);
+    block-size: syn.px-to-rem(28);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__number {
+    margin: 0;
+    color: var(--gv-text-secondary);
+  }
+
+  &__radicado {
+    display: inline-block;
+    margin-left: syn.$space-1;
+    padding: syn.$space-1 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-brand-soft);
+    color: var(--gv-text);
+    font-size: syn.$font-size-lg;
+    letter-spacing: 0.04em;
+  }
+
+  &__qr { display: flex; justify-content: center; }
+
+  &__detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin: 0;
+    padding: syn.$space-3;
+    min-width: min(syn.px-to-rem(380), 100%);
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    text-align: left;
+
+    div {
+      display: flex;
+      justify-content: space-between;
+      gap: syn.$space-3;
+      font-size: syn.$font-size-sm;
+    }
+
+    dt { color: var(--gv-muted); }
+    dd { margin: 0; font-weight: syn.$font-weight-semibold; }
+  }
+
+  &__next { max-width: syn.px-to-rem(480); }
+
+  &__next-title {
+    margin: 0 0 syn.$space-1;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: syn.$space-2;
+  }
+}
+
+// ─── Mi carpeta ───────────────────────────────────────────────────────────────
+// Hueco de identidad (401): lo que se ve en "Mis solicitudes" sin sesión. No es un
+// error ni una degradación — es una invitación, así que se estila como panel neutro
+// y no con --gv-danger.
+.signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-lg;
+  border: 1px solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface-muted);
+  text-align: center;
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__text {
+    max-width: syn.px-to-rem(420);
+    margin: 0;
+    color: var(--gv-text-secondary);
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: syn.$space-2;
+  }
+}
+
+.folder {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__lead {
+    margin: 0;
+    color: var(--gv-text-secondary);
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.case-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-3 syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+
+  &__body {
+    flex: 1 1 syn.px-to-rem(300);
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__radicado {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: 0.04em;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+  }
+
+  &__meta {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-xs;
+  }
+}
+
+// ─── Seguimiento / expediente ─────────────────────────────────────────────────
+.tracking,
+.expediente {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+}
+
+.tracking {
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+  }
+
+  &__days {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+}
+
+.subsanacion {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-warn);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-warn-soft);
+
+  .gv-btn { align-self: flex-start; }
+}
+
+.expediente {
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(240), syn.px-to-rem(320));
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(820)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+  }
+
+  &__actions {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__closed {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-sm;
+  }
+}
+
+// Native audited history (officer face).
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    display: flex;
+    gap: syn.$space-3;
+  }
+
+  &__dot {
+    flex: none;
+    width: syn.px-to-rem(12);
+    height: syn.px-to-rem(12);
+    margin-top: syn.px-to-rem(5);
+    border-radius: syn.$radius-full;
+    background: var(--gv-border);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-2;
+    margin: 0;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__date {
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__note {
+    margin: 0;
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__actor {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+  }
+}
+
+.status-dot--radicado { background: var(--gv-brand-soft); }
+.status-dot--en-revision { background: var(--gv-brand); }
+.status-dot--subsanacion { background: var(--gv-warn); }
+.status-dot--resuelto { background: var(--gv-success); }
+.status-dot--rechazado { background: var(--gv-danger); }
+
+// ─── Bandeja del funcionario ─────────────────────────────────────────────────
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+
+  &__title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__kpis {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-3;
+  }
+
+  &__table-wrap { overflow-x: auto; }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: syn.$font-size-sm;
+
+    th {
+      padding: syn.$space-2 syn.$space-3;
+      border-bottom: syn.px-to-rem(2) solid var(--gv-border);
+      color: var(--gv-text-secondary);
+      font-size: syn.$font-size-xs;
+      font-weight: syn.$font-weight-semibold;
+      text-align: left;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td {
+      padding: syn.$space-2 syn.$space-3;
+      border-bottom: syn.px-to-rem(1) solid var(--gv-border-subtle);
+      vertical-align: middle;
+    }
+  }
+
+  &__radicado {
+    font-weight: syn.$font-weight-semibold;
+    white-space: nowrap;
+  }
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  min-width: syn.px-to-rem(120);
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface);
+
+  &--warn { border-color: var(--gv-warn); }
+  &--ok { border-color: var(--gv-success); }
+
+  &__value {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__label {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-xs;
+  }
+}
+
+// ─── SH-1 discovery result card ───────────────────────────────────────────────
+.svc-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+  border-radius: syn.$radius-lg;
+  background: var(--gv-surface);
+
+  &__body {
+    flex: 1 1 syn.px-to-rem(320);
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__agency {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__title { margin: 0; font-size: syn.$font-size-lg; }
+
+  &__link {
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--gv-text);
+    font: inherit;
+    font-weight: syn.$font-weight-bold;
+    text-align: left;
+
+    &:hover { color: var(--gv-brand); }
+  }
+
+  &__summary { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+    margin: syn.$space-1 0 0;
+    padding: 0;
+  }
+}
+
+// ─── Ficha: task-list de pasos + agency/summary ───────────────────────────────
+.ficha {
+  &__agency {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  &__summary { margin: 0; color: var(--gv-text-secondary); line-height: 1.6; }
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item { display: flex; gap: syn.$space-3; }
+
+  &__num {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: syn.$radius-full;
+    background: var(--gv-brand-soft);
+    color: var(--gv-brand);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__body { display: flex; flex-direction: column; gap: syn.px-to-rem(2); }
+  &__title { margin: 0; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__detail { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+}
+
+// ─── Iniciar solicitud (SH-9 host) ────────────────────────────────────────────
+.apply {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__subject { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+}
+
+// ─── SH-4 rows / detail ───────────────────────────────────────────────────────
+.app-row {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-2;
+  width: 100%;
+
+  &__ref {
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: 0.03em;
+  }
+
+  &__name { flex: 1; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; overflow-wrap: anywhere; }
+}
+
+.app-detail {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+
+  &__title { margin: 0; font-size: syn.$font-size-lg; font-weight: syn.$font-weight-bold; }
+  &__ref { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
+  &__hint { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+  .gv-btn { align-self: flex-start; }
+}
+
+// ─── Detalle de solicitud: layout + correspondencia + upload ──────────────────
+.tracking {
+  &__ref {
+    margin: 0;
+    color: var(--gv-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    letter-spacing: 0.04em;
+  }
+
+  &__stage { color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(syn.px-to-rem(260), 1fr);
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(820)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main { display: flex; flex-direction: column; gap: syn.$space-3; }
+
+  &__aside {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+}
+
+.doc-list__status {
+  color: var(--gv-muted);
+  font-size: syn.$font-size-xs;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+// T6 — el adjunto con binario detrás se puede descargar; el enlace se distingue del
+// texto plano de los documentos previos (metadata sin fichero), que no son clicables.
+.doc-list__link {
+  color: var(--gv-brand);
+  text-decoration: underline;
+  text-underline-offset: syn.px-to-rem(2);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--gv-brand-strong, var(--gv-brand));
+  }
+}
+
+.doc-list__size {
+  margin-inline-start: syn.$space-1;
+  color: var(--gv-muted);
+  font-size: syn.$font-size-xs;
+  white-space: nowrap;
+}
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-2;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) dashed var(--gv-border);
+  border-radius: syn.$radius-md;
+
+  &__pending { margin: 0; color: var(--gv-text-secondary); font-size: syn.$font-size-sm; }
+  .gv-btn { align-self: flex-start; }
+}
+
+.msg-row {
+  display: flex;
+  flex-direction: column;
+  gap: syn.px-to-rem(2);
+  width: 100%;
+
+  &__author { font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__preview {
+    color: var(--gv-text-secondary);
+    font-size: syn.$font-size-xs;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.msg-detail {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-1;
+
+  &__author { margin: 0; font-weight: syn.$font-weight-semibold; font-size: syn.$font-size-sm; }
+  &__body { margin: 0; color: var(--gv-text); font-size: syn.$font-size-sm; line-height: 1.5; }
+}
+
+// ─── Revisar caso (funcionario) ───────────────────────────────────────────────
+.case {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(240), syn.px-to-rem(320));
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(820)}) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  &__main { display: flex; flex-direction: column; gap: syn.$space-3; }
+
+  &__actions {
+    position: sticky;
+    top: syn.$space-md;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--gv-surface-muted);
+  }
+
+  &__buttons { display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__decided {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--gv-surface);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__decided-note { display: block; color: var(--gv-text-secondary); font-style: italic; }
+  &__closed { margin: 0; color: var(--gv-muted); font-size: syn.$font-size-sm; }
+}
+
+// ─── Focus + motion ───────────────────────────────────────────────────────────
+.gov :focus-visible {
+  outline: syn.px-to-rem(2) solid var(--gv-focus-ring);
+  outline-offset: syn.px-to-rem(2);
+}
+
+// El contenedor del panel de acceso queda FUERA de esa regla.
+//
+// La regla de arriba es un selector de DESCENDIENTE, así que en cuanto el componente hace
+// `.focus()` sobre `.signin[tabindex="-1"]` el navegador lo cuenta como `:focus-visible`
+// (el foco programático SÍ matchea cuando la última interacción fue de teclado, que es
+// justo el escenario del 401/403) y el panel ENTERO se dibuja con un recuadro de 2px que se
+// lee como un fallo de render, no como foco. `realty` y `blogs` no tienen regla equivalente,
+// así que sus paneles no mostraban NADA: tres apps, tres conductas.
+//
+// Se unifican SIN anillo, y esa es la conducta correcta, no solo la consistente: el anillo
+// es el indicador de la navegación por teclado (WCAG 2.4.7) y aquí el usuario no tabuló
+// hasta el panel — lo trajo la app. El contenedor tiene `tabindex="-1"` justo para NO estar
+// en el orden de tabulación: nunca es un destino que el usuario deba poder ubicar. Lo que
+// debe verse enfocado son las acciones de dentro ("Iniciar sesión", "Ver el catálogo"), y
+// esas conservan su anillo porque siguen matcheando la regla de arriba. Es el mismo trato
+// que dan los contenedores de diálogo del CDK (`outline: 0`) al destino de foco inicial.
+.gov .signin:focus,
+.gov .signin:focus-visible {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gv-btn,
+  .gov__role,
+  .tramite-card {
+    transition: none !important;
+  }
+
+  .gv-btn:hover:not(:disabled) {
+    transform: none;
+  }
+}

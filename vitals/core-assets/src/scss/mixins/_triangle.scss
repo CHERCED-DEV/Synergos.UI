@@ -1,0 +1,44 @@
+@use 'sass:list';
+@use 'sass:meta';
+
+@mixin triangle($direction, $width, $height, $color) {
+  $allowed-directions: up, up-right, right, down-right, down, down-left, left, up-left;
+
+  @if list.index($allowed-directions, $direction) == null {
+    @error "Direction must be `up`, `up-right`, `right`, `down-right`, `down`, `down-left`, `left` or `up-left`.";
+  }
+
+  @if meta.type-of($color) != 'color' {
+    @error "`#{$color}` is not a valid color value for the `triangle` mixin.";
+  }
+
+  width: 0;
+  height: 0;
+  border-style: solid;
+
+  @if $direction == up {
+    border-color: transparent transparent $color transparent;
+    border-width: 0 ($width * 0.5) $height ($width * 0.5);
+  } @else if $direction == up-right {
+    border-color: transparent $color transparent transparent;
+    border-width: 0 $width $width 0;
+  } @else if $direction == right {
+    border-color: transparent transparent transparent $color;
+    border-width: ($height * 0.5) 0 ($height * 0.5) $width;
+  } @else if $direction == down-right {
+    border-color: transparent transparent $color transparent;
+    border-width: 0 0 $width $width;
+  } @else if $direction == down {
+    border-color: $color transparent transparent transparent;
+    border-width: $height ($width * 0.5) 0 ($width * 0.5);
+  } @else if $direction == down-left {
+    border-color: transparent transparent transparent $color;
+    border-width: $width 0 0 $width;
+  } @else if $direction == left {
+    border-color: transparent $color transparent transparent;
+    border-width: ($height * 0.5) $width ($height * 0.5) 0;
+  } @else if $direction == up-left {
+    border-color: $color transparent transparent transparent;
+    border-width: $width $width 0 0;
+  }
+}

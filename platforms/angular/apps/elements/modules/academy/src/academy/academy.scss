@@ -1,0 +1,1403 @@
+@use 'scss' as syn;
+
+:host {
+  --ac-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ac-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ac-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ac-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ac-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --ac-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --ac-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ac-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ac-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  // --ac-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
+  // un wash 12% → botón/hero fantasma: blanco sobre lavado ~1.1:1).
+  --ac-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --ac-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a
+  // --syn-color-state-brand-soft, token inexistente → siempre brand-100, no theme-aware).
+  --ac-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el botón --ac-brand: misma familia action-primary → contraste correcto
+  // (antes --syn-color-text-on-brand, token inexistente).
+  --ac-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --ac-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --ac-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --ac-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --ac-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --ac-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --ac-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+
+  display: block;
+  max-width: 100%;
+}
+
+.academy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--ac-border);
+  border-radius: syn.$radius-xl;
+  background: var(--ac-surface);
+  box-shadow: var(--ac-shadow);
+  color: var(--ac-text);
+  font-family: var(--syn-font-family-base, 'Manrope', system-ui, sans-serif);
+
+  // ─── Topbar + role switch ─────────────────────────────────────────────────
+  &__topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-md;
+    padding-bottom: syn.$space-sm;
+    border-bottom: syn.px-to-rem(1) solid var(--ac-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+    color: var(--ac-text);
+  }
+
+  &__brand-mark {
+    display: inline-flex;
+    align-items: center;
+    color: var(--ac-brand);
+
+    .academy__ico {
+      inline-size: syn.px-to-rem(24);
+      block-size: syn.px-to-rem(24);
+    }
+  }
+
+  // ─── Inline Lucide-style icons (currentColor, theme-aware) ──────────────────
+  &__ico {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    flex: none;
+  }
+
+  &__star {
+    inline-size: syn.px-to-rem(15);
+    block-size: syn.px-to-rem(15);
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  &__check {
+    inline-size: syn.px-to-rem(16);
+    block-size: syn.px-to-rem(16);
+    flex: none;
+    vertical-align: -0.15em;
+  }
+
+  &__qa-reply-ico {
+    inline-size: syn.px-to-rem(15);
+    block-size: syn.px-to-rem(15);
+    flex: none;
+    vertical-align: -0.1em;
+    color: var(--ac-muted);
+  }
+
+  &__card-glyph {
+    inline-size: syn.px-to-rem(40);
+    block-size: syn.px-to-rem(40);
+    color: var(--ac-muted);
+  }
+
+  &__roles {
+    display: inline-flex;
+    gap: syn.px-to-rem(4);
+    padding: syn.px-to-rem(4);
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+  }
+
+  &__role {
+    padding: syn.$space-xxs syn.$space-md;
+    border: none;
+    border-radius: syn.$radius-full;
+    background: none;
+    cursor: pointer;
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+
+    &.is-active {
+      background: var(--ac-surface);
+      color: var(--ac-brand);
+      box-shadow: var(--ac-shadow);
+    }
+  }
+
+  &__nav {
+    display: inline-flex;
+    gap: syn.$space-xs;
+    margin-inline-start: auto;
+  }
+
+  &__nav-btn {
+    padding: syn.$space-xxs syn.$space-sm;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: none;
+    cursor: pointer;
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+
+    &.is-active {
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
+  }
+
+  // ─── Notices ──────────────────────────────────────────────────────────────
+  &__degraded,
+  &__error {
+    margin: 0;
+    padding: syn.$space-xs syn.$space-sm;
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__degraded {
+    background: var(--ac-warn-soft);
+    color: var(--ac-text);
+  }
+
+  &__error {
+    background: color-mix(in srgb, var(--ac-danger) 12%, transparent);
+    color: var(--ac-danger);
+  }
+
+  // ─── Hero ─────────────────────────────────────────────────────────────────
+  &__hero {
+    // Vertical 48 / horizontal 32, no 24 por los cuatro lados. El padding estaba
+    // dimensionado para un titular de 24px; al pasar a 36 el aire de arriba y abajo se
+    // quedó corto —visible en navegador: el texto no se corta, pero la banda no crece
+    // con su contenido—. Más vertical que horizontal a propósito: en una banda ancha lo
+    // que falta es respiración arriba/abajo, y meter 48 a los lados solo estrecharía la
+    // línea de texto sin ganar nada. Los dos valores son de la escala de 8.
+    padding: syn.$space-2xl syn.$space-xl;
+    border-radius: syn.$radius-lg;
+    background: linear-gradient(135deg, var(--ac-brand) 0%, color-mix(in srgb, var(--ac-brand) 65%, #1e1b4b) 100%);
+    color: var(--ac-brand-text);
+  }
+
+  &__hero-title {
+    margin: 0;
+    // Escala FLUIDA, no un salto fijo. El suelo es el tamaño que ya había (24px), así que
+    // en móvil no cambia nada y no hay riesgo de desborde a 375px —el defecto de acabado
+    // más común de este repo—; el techo es 36px, que es donde un titular empieza a leerse
+    // como display y no como encabezado de sección. Sin media query: `clamp` lo resuelve
+    // solo y no hay breakpoint que mantener sincronizado.
+    font-size: clamp(#{syn.$font-size-2xl}, 4.2vw, #{syn.$font-size-4xl});
+    // Tracking negativo: a tamaño display las letras se separan ópticamente, y compensarlo
+    // es lo que distingue un titular compuesto de uno solo agrandado.
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
+  }
+
+  &__hero-sub {
+    margin: syn.$space-xxs 0 0;
+    opacity: 0.92;
+  }
+
+  &__catalog,
+  &__checkout,
+  &__learning,
+  &__certificate,
+  &__create,
+  &__console {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  // ─── Course card (SH-1 item template) ─────────────────────────────────────
+  &__card {
+    // Ancla del ::after estirado de __card-link.
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface);
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default}),
+                transform var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
+
+    &:hover {
+      box-shadow: var(--ac-shadow-pop);
+      transform: translateY(#{syn.px-to-rem(-2)});
+    }
+  }
+
+  &__card-cover {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    background: var(--ac-surface-muted);
+    font-size: syn.$font-size-2xl;
+  }
+
+  &__card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__card-free {
+    position: absolute;
+    inset-block-start: syn.$space-xs;
+    inset-inline-start: syn.$space-xs;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--ac-success);
+    color: var(--ac-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  &__card-body {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    padding: syn.$space-sm;
+  }
+
+  &__card-cat {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ac-muted);
+  }
+
+  &__card-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  // Stretched link: el disparador de "abrir curso". Es un <button> de verdad (focusable
+  // de nativo, Enter/Espacio) pero se pinta como el título y su ::after cubre la tarjeta
+  // entera, de modo que el ratón sigue abriendo desde cualquier punto. Una sola parada
+  // de tabulación por tarjeta.
+  &__card-link {
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+    }
+
+    // El anillo se dibuja sobre el ::after para que rodee la TARJETA, no solo el texto.
+    // Offset negativo porque .academy__card lleva overflow: hidden y lo recortaría.
+    &:focus-visible {
+      outline: none;
+    }
+
+    &:focus-visible::after {
+      outline: syn.px-to-rem(2) solid var(--ac-focus-ring);
+      outline-offset: syn.px-to-rem(-2);
+    }
+  }
+
+  &__card-instructor {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-text-secondary);
+  }
+
+  &__card-rating {
+    color: var(--ac-warn);
+    font-weight: 700;
+  }
+
+  &__card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.px-to-rem(4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__badge {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+  }
+
+  &__card-price {
+    display: flex;
+    align-items: baseline;
+    gap: syn.$space-xs;
+    margin-block-start: syn.px-to-rem(4);
+  }
+
+  &__price {
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    color: var(--ac-text);
+  }
+
+  &__price-list {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-muted);
+    text-decoration: line-through;
+  }
+
+  // ─── PDD body / outcomes / instructor / curriculum ────────────────────────
+  &__desc {
+    margin: 0;
+    color: var(--ac-text-secondary);
+    line-height: 1.6;
+  }
+
+  &__section-title {
+    margin: 0 0 syn.$space-xs;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
+  }
+
+  &__outcomes {
+    margin-block-start: syn.$space-md;
+  }
+
+  &__outcomes-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(#{syn.px-to-rem(220)}, 1fr));
+    gap: syn.$space-xxs syn.$space-md;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__outcome {
+    display: flex;
+    align-items: center;
+    gap: syn.px-to-rem(6);
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+
+    .academy__check {
+      color: var(--ac-success);
+    }
+  }
+
+  // ─── Buybox (sticky CTA) ──────────────────────────────────────────────────
+  &__buybox {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__buybox-price {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  &__buybox-note {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+    text-align: center;
+  }
+
+  // ─── Plans ────────────────────────────────────────────────────────────────
+  &__plans {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    &--wizard {
+      gap: syn.$space-sm;
+    }
+  }
+
+  &__plan {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    width: 100%;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    cursor: pointer;
+    text-align: start;
+
+    &.is-selected {
+      border-color: var(--ac-brand);
+      box-shadow: 0 0 0 #{syn.px-to-rem(1)} var(--ac-brand);
+    }
+  }
+
+  &__plan-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-xs;
+  }
+
+  &__plan-label {
+    font-weight: 700;
+  }
+
+  &__plan-price {
+    font-weight: syn.$font-weight-bold;
+    color: var(--ac-brand);
+  }
+
+  &__plan-inst,
+  &__plan-desc {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__plan-tag {
+    align-self: flex-start;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  &__plan-perks {
+    margin: syn.px-to-rem(4) 0 0;
+    padding-inline-start: syn.$space-md;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Curriculum accordion ─────────────────────────────────────────────────
+  &__curriculum {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+  }
+
+  &__curriculum-summary {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-muted);
+  }
+
+  &__module {
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    overflow: hidden;
+  }
+
+  &__module-head {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    width: 100%;
+    padding: syn.$space-sm;
+    border: none;
+    background: var(--ac-surface-muted);
+    cursor: pointer;
+    text-align: start;
+  }
+
+  &__module-title {
+    flex: 1;
+    font-weight: 700;
+  }
+
+  &__module-count {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__module-chevron {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+    flex: none;
+    color: var(--ac-brand);
+    transition: transform var(--syn-duration-base, #{syn.$duration-base}) var(--syn-easing-default, #{syn.$easing-default});
+
+    .academy__module.is-open & {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__lessons {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__lesson-row {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    padding: syn.$space-xs syn.$space-sm;
+    border-block-start: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__lesson-icon {
+    color: var(--ac-brand);
+  }
+
+  &__lesson-title {
+    flex: 1;
+  }
+
+  &__lesson-preview {
+    padding: syn.px-to-rem(1) syn.$space-xxs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+  }
+
+  &__lesson-dur {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  // ─── Instructor card ──────────────────────────────────────────────────────
+  &__instructor {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__instructor-head {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+  }
+
+  &__instructor-avatar,
+  &__instructor-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(56);
+    height: syn.px-to-rem(56);
+    border-radius: syn.$radius-full;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    object-fit: cover;
+  }
+
+  &__instructor-name {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
+  }
+
+  &__instructor-headline {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__instructor-bio {
+    margin: 0;
+    color: var(--ac-text-secondary);
+    line-height: 1.6;
+  }
+
+  &__instructor-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-md;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Forms ────────────────────────────────────────────────────────────────
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+  }
+
+  &__label {
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__input {
+    width: 100%;
+    min-height: var(--syn-control-h-md);
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: var(--syn-radius-field);
+    background: var(--ac-surface);
+    color: var(--ac-text);
+    font: inherit;
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--ac-focus-ring);
+      outline-offset: syn.px-to-rem(1);
+    }
+
+    &--search {
+      max-width: syn.px-to-rem(280);
+    }
+  }
+
+  &__textarea {
+    resize: vertical;
+  }
+
+  &__pay-methods {
+    display: inline-flex;
+    gap: syn.$space-xs;
+  }
+
+  &__pay {
+    padding: syn.$space-xs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    cursor: pointer;
+    font-weight: 600;
+
+    &.is-selected {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
+  }
+
+  // ─── Summary / review ─────────────────────────────────────────────────────
+  &__summary {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+  }
+
+  &__summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: syn.$space-md;
+    padding: syn.$space-xxs 0;
+    border-block-end: syn.px-to-rem(1) solid var(--ac-border-subtle);
+
+    dt {
+      color: var(--ac-muted);
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+      text-align: end;
+    }
+  }
+
+  // ─── Enrolled bridge ──────────────────────────────────────────────────────
+  &__enrolled {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-2xl syn.$space-lg;
+    text-align: center;
+  }
+
+  &__enrolled-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.px-to-rem(6);
+    margin: 0;
+    padding: syn.$space-xxs syn.$space-md;
+    border-radius: syn.$radius-full;
+    background: var(--ac-success-soft);
+    color: var(--ac-success);
+    font-weight: 700;
+  }
+
+  &__enrolled-title {
+    margin: 0;
+    font-size: syn.$font-size-2xl;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
+  }
+
+  &__enrolled-ref {
+    margin: 0;
+    color: var(--ac-text-secondary);
+
+    code {
+      font-weight: 700;
+      color: var(--ac-text);
+    }
+  }
+
+  // ─── Classroom / aula ─────────────────────────────────────────────────────
+  &__classroom {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: syn.$space-md;
+
+    @media (min-width: 60rem) {
+      grid-template-columns: #{syn.px-to-rem(320)} minmax(0, 1fr);
+    }
+  }
+
+  &__syllabus {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface-muted);
+    max-height: syn.px-to-rem(640);
+    overflow-y: auto;
+  }
+
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+  }
+
+  &__progress-bar {
+    display: block;
+    height: syn.px-to-rem(8);
+    border-radius: syn.$radius-full;
+    background: var(--ac-border);
+    overflow: hidden;
+
+    span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--ac-brand);
+      transition: inline-size var(--syn-duration-base, #{syn.$duration-base}) var(--syn-easing-default, #{syn.$easing-default});
+    }
+
+    &--sm {
+      height: syn.px-to-rem(6);
+    }
+  }
+
+  &__progress-label {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+    color: var(--ac-text-secondary);
+  }
+
+  &__syllabus-module {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+  }
+
+  &__syllabus-title {
+    margin: 0;
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ac-muted);
+  }
+
+  &__syllabus-lessons {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__syllabus-lesson {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    width: 100%;
+    padding: syn.$space-xs;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: none;
+    cursor: pointer;
+    text-align: start;
+    font-size: syn.$font-size-sm;
+
+    &.is-active {
+      background: var(--ac-brand-soft);
+      color: var(--ac-brand);
+    }
+
+    &.is-done .academy__syllabus-lesson-title {
+      color: var(--ac-muted);
+      text-decoration: line-through;
+    }
+  }
+
+  &__syllabus-check {
+    accent-color: var(--ac-brand);
+  }
+
+  &__syllabus-lesson-title {
+    flex: 1;
+  }
+
+  &__stage {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    min-width: 0;
+  }
+
+  &__player {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: syn.$radius-lg;
+    background: #0f172a;
+    overflow: hidden;
+
+    synergos-video-player {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__player-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xs;
+    color: color-mix(in srgb, #fff 78%, transparent);
+    text-align: center;
+
+    p {
+      margin: 0;
+      max-width: 70%;
+      font-size: syn.$font-size-sm;
+    }
+  }
+
+  &__player-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: syn.px-to-rem(48);
+    block-size: syn.px-to-rem(48);
+    color: var(--ac-muted);
+
+    .academy__ico {
+      inline-size: 100%;
+      block-size: 100%;
+    }
+  }
+
+  &__lesson-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    justify-content: space-between;
+  }
+
+  &__lesson-heading {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__lesson-actions {
+    display: inline-flex;
+    gap: syn.$space-xs;
+  }
+
+  // ─── Classroom content tabs → shared syn-tabs primitive (tablist only) ──────
+  &__tabctl {
+    display: block;
+
+    // Active-tab chrome tracks the academy brand token (composable override).
+    --syn-tabs-tab-color-active: var(--ac-brand);
+    --syn-tabs-tab-border-active: var(--ac-brand);
+
+    /*
+     * syn-tabs bundles a text tabpanel; this module renders its own rich @switch
+     * panels below in `&__tab-panel`, so hide the primitive's (empty) panel and
+     * keep only the accessible tablist — roving tabindex + Arrow/Home/End + focus
+     * are inherited. Styling comes from the primitive's own --syn-tabs-* tokens.
+     */
+    ::ng-deep .syn-tabs__panel {
+      display: none;
+    }
+  }
+
+  &__tab-panel {
+    padding-block-start: syn.$space-xs;
+  }
+
+  &__lesson-body {
+    margin: 0;
+    color: var(--ac-text-secondary);
+    line-height: 1.6;
+  }
+
+  // ─── Resources ────────────────────────────────────────────────────────────
+  &__resources {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__resource-link {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    text-decoration: none;
+    color: var(--ac-text);
+  }
+
+  &__resource-type {
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-sm;
+    background: var(--ac-brand-soft);
+    color: var(--ac-brand);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  &__resource-title {
+    flex: 1;
+    font-weight: 600;
+  }
+
+  &__resource-size {
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  // ─── Q&A + assignment ─────────────────────────────────────────────────────
+  &__qa,
+  &__assignment {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__qa-form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    align-items: flex-start;
+  }
+
+  &__qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__qa-item {
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface-muted);
+  }
+
+  &__qa-q,
+  &__qa-a {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+  }
+
+  &__qa-a {
+    margin-block-start: syn.px-to-rem(4);
+    color: var(--ac-text-secondary);
+  }
+
+  &__assignment-done {
+    margin: 0;
+    color: var(--ac-success);
+    font-weight: 600;
+  }
+
+  // ─── Mi aprendizaje (SH-4) ────────────────────────────────────────────────
+  &__learning-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-md;
+  }
+
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-xl;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
+  }
+
+  &__enroll-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: syn.$space-xs;
+  }
+
+  &__enroll-title {
+    font-weight: 700;
+  }
+
+  &__enroll-pct {
+    font-weight: syn.$font-weight-bold;
+    color: var(--ac-brand);
+  }
+
+  &__enroll-meta {
+    display: block;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__enroll-detail {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__enroll-detail-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__enroll-detail-meta {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Learning paths ───────────────────────────────────────────────────────
+  &__paths {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__path {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xs;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ac-surface);
+  }
+
+  &__path-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__path-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 700;
+  }
+
+  &__path-pct {
+    font-weight: syn.$font-weight-bold;
+    color: var(--ac-brand);
+  }
+
+  &__path-desc {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  &__path-courses {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(4);
+    margin: syn.$space-xxs 0 0;
+    padding-inline-start: syn.$space-md;
+  }
+
+  &__path-course {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font: inherit;
+    text-align: start;
+    text-decoration: underline;
+  }
+
+  // ─── Instructor console (SH-5) ────────────────────────────────────────────
+  &__console-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    margin-block-end: syn.$space-xs;
+  }
+
+  &__cell-strong {
+    display: block;
+    font-weight: 700;
+  }
+
+  &__cell-sub {
+    display: block;
+    font-size: syn.$font-size-xs;
+    color: var(--ac-muted);
+  }
+
+  &__cell-clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__pill {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--ac-surface-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+
+    &[data-status='published'],
+    &[data-status='done'] {
+      background: var(--ac-success-soft);
+      color: var(--ac-success);
+    }
+
+    &[data-status='draft'],
+    &[data-status='pending'] {
+      background: var(--ac-warn-soft);
+      color: var(--ac-warn);
+    }
+  }
+
+  &__performance {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-sm;
+  }
+
+  &__perf-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-xxs;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__perf-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid var(--ac-border-subtle);
+    border-radius: syn.$radius-md;
+  }
+
+  &__perf-title {
+    flex: 1;
+    min-width: syn.px-to-rem(160);
+    font-weight: 600;
+  }
+
+  &__perf-stat {
+    font-size: syn.$font-size-sm;
+    color: var(--ac-text-secondary);
+  }
+
+  // ─── Create result / certificate ──────────────────────────────────────────
+  &__create-done {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: syn.$space-sm;
+    padding: syn.$space-xl;
+    text-align: center;
+  }
+
+  // ─── Shared bits ──────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-xs;
+  }
+
+  &__back {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.px-to-rem(4);
+    align-self: flex-start;
+    padding: syn.$space-xxs syn.$space-xs;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font-weight: 600;
+  }
+
+  &__link {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ac-brand);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-md;
+    color: var(--ac-muted);
+    text-align: center;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-xs syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-md;
+    background: var(--ac-surface);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ac-text);
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &--primary {
+      border-color: var(--ac-brand);
+      background: var(--ac-brand);
+      color: var(--ac-brand-text);
+    }
+
+    &--ghost {
+      background: none;
+    }
+
+    &--done {
+      border-color: var(--ac-success);
+      background: var(--ac-success-soft);
+      color: var(--ac-success);
+    }
+
+    &--block {
+      width: 100%;
+    }
+
+    &--sm {
+      padding: syn.$space-xxs syn.$space-sm;
+      font-size: syn.$font-size-sm;
+    }
+  }
+}

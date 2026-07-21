@@ -1,0 +1,43 @@
+@use '../tokens/spacing' as spacing;
+
+// ─── Non-colour state signal — WCAG 1.4.1 (Use of Color) ───────────────────────
+//
+// Emits a leading glyph so a state is not carried by hue alone.
+//
+// ── Why generated content, and what it does NOT do ──
+// The glyph is CSS `content`. Mainstream engines do not expose generated content
+// as text to assistive tech, so the accessible name of the host is untouched —
+// no "warning warning" double announcement. That is the point: screen-reader
+// users already learn the state from the label/message text; this glyph is the
+// redundant signal for SIGHTED users who cannot rely on the hue.
+// Corollary: this mixin is NEVER the only carrier of a state. If a state is not
+// also named in text, fix the text — do not lean on the glyph.
+//
+// ── Colour ──
+// The glyph inherits `currentColor`, so the state's own text token paints it and
+// it is theme-aware for free. That inheritance MUST be verified per theme, since
+// each siteRoot theme redefines the state ramp. Measured across the 7 themes
+// (light, dark, silverGold, eventsNight, terraLux, scholar, meridian), worst
+// pairing is 4.82:1 — every one clears AA text (4.5:1) and AA non-text (3:1).
+//
+// ── Where this must NOT go ──
+// NOT into `_badge`. Badges are neutral|brand|inverse decorations, not semantic
+// states; a global `::before` there would inject glyphs into every non-semantic
+// chip in the system. Apply `state-icon` at the STATE selector of a component
+// (`.syn-input--error`, `[data-tone='degraded']`), never at a shared base.
+//
+// ── Glyph choice ──
+// Pass warning as `'\26A0 \FE0E'` — U+26A0 followed by VARIATION SELECTOR-15,
+// which forces monochrome TEXT presentation. Without VS15 the platform emoji
+// font may render a colour glyph, which would ignore `currentColor` and void
+// the contrast measurement above. Info (U+24D8 `ⓘ`) has no emoji presentation
+// and needs no selector.
+
+@mixin state-icon($glyph, $gap: spacing.$space-xxs) {
+  &::before {
+    content: $glyph;
+    margin-right: $gap;
+    // Decorative: it must never eat a click meant for the control it labels.
+    pointer-events: none;
+  }
+}

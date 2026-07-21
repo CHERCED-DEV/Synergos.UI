@@ -1,0 +1,14 @@
+@if (src()) {
+  <figure class="image-block">
+    <img
+      class="image-block__img"
+      [src]="src()"
+      [alt]="alt()"
+      [loading]="loading()"
+      [style.aspect-ratio]="aspectRatio()"
+    />
+    @if (hasCaption()) {
+      <figcaption class="image-block__caption">{{ caption() }}</figcaption>
+    }
+  </figure>
+}

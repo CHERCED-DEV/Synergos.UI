@@ -1,0 +1,28 @@
+@use 'scss' as syn;
+
+:host {
+  --carousel-stage-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --carousel-heading-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
+  display: block;
+  max-width: 100%;
+}
+
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+
+  &__header {
+    display: block;
+  }
+
+  &__heading {
+    display: block;
+    color: var(--carousel-heading-color);
+  }
+
+  &__viewport {
+    display: block;
+  }
+}

@@ -1,0 +1,27 @@
+@use '../tokens/colors' as colors;
+@use '../functions/px-to-rem' as rem;
+
+@mixin custom-scrollbar(
+  $thumb-color: colors.$color-neutral-400,
+  $track-color: colors.$color-neutral-100,
+  $size: rem.px-to-rem(10)
+) {
+  scrollbar-color: $thumb-color $track-color;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    width: $size;
+    height: $size;
+    background: $track-color;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border: rem.px-to-rem(2) solid $track-color;
+    border-radius: rem.px-to-rem(999);
+    background: $thumb-color;
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}

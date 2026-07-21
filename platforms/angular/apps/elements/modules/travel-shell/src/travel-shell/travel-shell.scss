@@ -1,0 +1,971 @@
+@use 'scss' as syn;
+
+:host {
+  --ts-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --ts-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --ts-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --ts-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --ts-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+  --ts-shadow-pop: var(--syn-shadow-overlay, #{syn.$shadow-md});
+  --ts-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --ts-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --ts-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --ts-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --ts-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+  // --ts-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
+  // un wash 12% pensado como fondo de chip → botón/CTA fantasma ~1.1:1).
+  --ts-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  // --ts-brand-soft = wash de marca THEME-AWARE para bandas/estados suaves (nav activo, crosssell, chip).
+  --ts-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  // Texto/ícono SOBRE el fill --ts-brand: misma familia action-primary → contraste correcto.
+  --ts-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --ts-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --ts-success: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --ts-success-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --ts-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --ts-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --ts-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+
+  display: block;
+  max-width: 100%;
+}
+
+.travel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+  padding: syn.$space-lg;
+  border: syn.px-to-rem(1) solid var(--ts-border);
+  border-radius: syn.$radius-xl;
+  background: var(--ts-surface);
+  box-shadow: var(--ts-shadow);
+  color: var(--ts-text);
+
+  // ─── Top bar ────────────────────────────────────────────────────────────
+  &__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding-bottom: syn.$space-3;
+    border-bottom: syn.px-to-rem(1) solid var(--ts-border-subtle);
+  }
+
+  &__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: 0;
+
+    &--btn {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      color: inherit;
+      padding: 0;
+    }
+  }
+
+  &__brand-mark {
+    color: var(--ts-brand);
+  }
+
+  // ─── Inline SVG icons (Lucide-style, inherit currentColor) ────────────────
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    line-height: 0;
+  }
+
+  &__icon-svg {
+    inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    flex: 0 0 auto;
+
+    &--sm { inline-size: syn.px-to-rem(16); block-size: syn.px-to-rem(16); }
+    &--lg { inline-size: syn.px-to-rem(28); block-size: syn.px-to-rem(28); }
+  }
+
+  &__brand-text {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  &__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+  }
+
+  &__nav-btn {
+    border: 0;
+    background: transparent;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+    color: var(--ts-text-secondary);
+    font: inherit;
+
+    &.is-active {
+      background: var(--ts-brand-soft);
+      color: var(--ts-brand);
+      font-weight: 600;
+    }
+  }
+
+  &__cart-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    background: var(--ts-surface);
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-full;
+    cursor: pointer;
+    color: var(--ts-text);
+    font: inherit;
+
+    &.is-active { border-color: var(--ts-brand); color: var(--ts-brand); }
+  }
+
+  &__cart-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: syn.px-to-rem(20);
+    height: syn.px-to-rem(20);
+    padding: 0 syn.px-to-rem(6);
+    border-radius: syn.$radius-full;
+    background: var(--ts-brand);
+    color: var(--ts-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  // ─── Notices / errors ─────────────────────────────────────────────────────
+  &__notice {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--ts-surface-muted);
+    color: var(--ts-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &--warn { background: var(--ts-warn-soft); color: var(--ts-text); }
+  }
+
+  &__error {
+    margin: 0;
+    padding: syn.$space-2 syn.$space-3;
+    border-radius: syn.$radius-md;
+    background: var(--ts-warn-soft);
+    color: var(--ts-danger);
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+  }
+
+  // ─── Headings ─────────────────────────────────────────────────────────────
+  &__heading {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: 700;
+  }
+
+  &__subheading {
+    margin: syn.$space-3 0 syn.$space-2;
+    font-size: syn.$font-size-base;
+    font-weight: 600;
+  }
+
+  &__link {
+    border: 0;
+    background: transparent;
+    color: var(--ts-brand);
+    cursor: pointer;
+    font: inherit;
+    padding: syn.$space-1 0;
+  }
+
+  &__empty {
+    margin: syn.$space-4 0;
+    padding: syn.$space-4;
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface-muted);
+    color: var(--ts-muted);
+    text-align: center;
+  }
+
+  // ─── Buttons ──────────────────────────────────────────────────────────────
+  &__btn {
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    background: var(--ts-surface);
+    padding: syn.$space-3 syn.$space-4;
+    border-radius: syn.$radius-md;
+    cursor: pointer;
+    color: var(--ts-text);
+    font: inherit;
+    font-weight: 600;
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    &--primary {
+      border-color: var(--ts-brand);
+      background: var(--ts-brand);
+      color: var(--ts-brand-text);
+    }
+
+    &--ghost { background: transparent; }
+    &--sm { padding: syn.$space-2 syn.$space-3; font-size: syn.$font-size-sm; }
+    &--block { display: block; width: 100%; }
+  }
+
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-3;
+  }
+
+  // ─── Home: hero + tabs + search ───────────────────────────────────────────
+  &__home {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__hero {
+    text-align: center;
+    padding: syn.$space-lg 0 syn.$space-2;
+  }
+
+  &__hero-title {
+    margin: 0 0 syn.$space-2;
+    // Escala FLUIDA, no un salto fijo. El suelo es el tamaño que ya había (24px), así que
+    // en móvil no cambia nada y no hay riesgo de desborde a 375px —el defecto de acabado
+    // más común de este repo—; el techo es 36px, que es donde un titular empieza a leerse
+    // como display y no como encabezado de sección. Sin media query: `clamp` lo resuelve
+    // solo y no hay breakpoint que mantener sincronizado.
+    font-size: clamp(#{syn.$font-size-2xl}, 4.2vw, #{syn.$font-size-4xl});
+    // Tracking negativo: a tamaño display las letras se separan ópticamente, y compensarlo
+    // es lo que distingue un titular compuesto de uno solo agrandado.
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
+  }
+
+  &__hero-sub {
+    margin: 0;
+    color: var(--ts-text-secondary);
+  }
+
+  &__tabs {
+    display: inline-flex;
+    align-self: center;
+    gap: syn.$space-1;
+    padding: syn.$space-1;
+    border-radius: syn.$radius-full;
+    background: var(--ts-surface-muted);
+  }
+
+  &__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-2;
+    border: 0;
+    background: transparent;
+    padding: syn.$space-2 syn.$space-4;
+    border-radius: syn.$radius-full;
+    cursor: pointer;
+    color: var(--ts-text-secondary);
+    font: inherit;
+    font-weight: 600;
+
+    &.is-active {
+      background: var(--ts-surface);
+      color: var(--ts-brand);
+      box-shadow: var(--ts-shadow);
+    }
+  }
+
+  &__tab-icon { display: inline-flex; align-items: center; }
+
+  &__search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface-muted);
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    min-width: syn.px-to-rem(160);
+
+    &--grow { flex: 1 1 syn.px-to-rem(240); }
+  }
+
+  &__field-lg {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin-bottom: syn.$space-3;
+  }
+
+  &__label {
+    font-size: syn.$font-size-sm;
+    font-weight: 600;
+    color: var(--ts-text-secondary);
+  }
+
+  &__input {
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--ts-surface);
+    color: var(--ts-text);
+    font: inherit;
+
+    &:focus-visible { outline: syn.px-to-rem(2) solid var(--ts-focus-ring); outline-offset: syn.px-to-rem(1); }
+  }
+
+  &__pax, &__daterange { display: block; }
+
+  &__search-btn { align-self: flex-end; min-height: syn.px-to-rem(42); }
+
+  // ─── Results (flights + generic) ──────────────────────────────────────────
+  &__results {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-md;
+  }
+
+  &__results-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  &__flight-list, &__cart-lines, &__drawer-items, &__fares, &__rates, &__amenities {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__flight-list { display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__flight {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding: syn.$space-3 syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface);
+
+    &.is-active { border-color: var(--ts-brand); box-shadow: 0 0 0 syn.px-to-rem(1) var(--ts-brand); }
+  }
+
+  &__flight-main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    align-items: flex-start;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    flex: 1 1 auto;
+  }
+
+  &__flight-route { font-weight: 700; font-size: syn.$font-size-base; }
+  &__flight-sub { color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
+
+  &__flight-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  &__flight-from { font-size: syn.$font-size-xs; color: var(--ts-muted); }
+  &__flight-amount { font-size: syn.$font-size-lg; font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
+
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-1;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__chip {
+    display: inline-block;
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ts-surface-muted);
+    color: var(--ts-text-secondary);
+    font-size: syn.$font-size-xs;
+
+    &--ok { background: var(--ts-success-soft); color: var(--ts-text); }
+  }
+
+  // ─── Fare families + seat map ─────────────────────────────────────────────
+  &__fare-panel {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface-muted);
+  }
+
+  &__fares {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(180), 1fr));
+    gap: syn.$space-3;
+  }
+
+  &__fare {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    align-items: flex-start;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface);
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+
+    &.is-active { border-color: var(--ts-brand); box-shadow: 0 0 0 syn.px-to-rem(2) var(--ts-brand-soft); }
+  }
+
+  &__fare-badge {
+    position: absolute;
+    top: syn.px-to-rem(-10);
+    right: syn.$space-3;
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ts-brand);
+    color: var(--ts-brand-text);
+    font-size: syn.$font-size-xs;
+    font-weight: 700;
+  }
+
+  &__fare-label { font-weight: 700; font-size: syn.$font-size-base; }
+  &__fare-price { font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
+
+  &__fare-perks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+  }
+
+  &__fare-perk {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ts-text-secondary);
+
+    .travel__icon-svg { color: var(--ts-success, var(--ts-brand)); }
+  }
+
+  &__seatmap-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__seatmap { display: block; }
+
+  &__seat-note {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    &--muted { color: var(--ts-muted); }
+  }
+
+  &__fare-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding-top: syn.$space-3;
+    border-top: syn.px-to-rem(1) solid var(--ts-border);
+  }
+
+  &__fare-total {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    font-weight: 700;
+    span:first-child { font-size: syn.$font-size-sm; color: var(--ts-muted); font-weight: 500; }
+    span:last-child { font-size: syn.$font-size-lg; }
+  }
+
+  // ─── Stay card (SH-8 list item) ───────────────────────────────────────────
+  &__stay-card {
+    display: flex;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface);
+  }
+
+  &__stay-media {
+    display: grid;
+    place-items: center;
+    width: syn.px-to-rem(64);
+    height: syn.px-to-rem(64);
+    border-radius: syn.$radius-md;
+    background: var(--ts-surface-muted);
+    font-size: syn.$font-size-xl;
+    flex: 0 0 auto;
+  }
+
+  &__stay-body { display: flex; flex-direction: column; gap: syn.$space-1; flex: 1 1 auto; }
+  &__stay-title { margin: 0; font-size: syn.$font-size-base; font-weight: 700; }
+
+  &__card-link {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  &__stay-sub { margin: 0; color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
+  &__stay-rating { display: inline-flex; align-items: center; gap: syn.$space-1; margin: 0; color: var(--ts-warn); font-size: syn.$font-size-sm; font-weight: 600; }
+
+  &__stay-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    margin-top: syn.$space-1;
+  }
+
+  &__stay-price { display: flex; flex-direction: column; align-items: flex-start; }
+
+  // ─── Stay detail (SH-2 slots) ─────────────────────────────────────────────
+  &__stay-desc { margin: 0 0 syn.$space-2; color: var(--ts-text-secondary); }
+  &__stay-address { display: flex; align-items: center; gap: syn.$space-1; margin: 0; font-size: syn.$font-size-sm; }
+
+  &__pdp-price { margin: 0; font-size: syn.$font-size-xl; font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
+  &__pdp-hint { margin: 0 0 syn.$space-3; font-size: syn.$font-size-xs; color: var(--ts-muted); }
+
+  &__rates { display: flex; flex-direction: column; gap: syn.$space-2; margin-bottom: syn.$space-3; }
+
+  &__rate {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    align-items: flex-start;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-md;
+    background: var(--ts-surface);
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+
+    &.is-active { border-color: var(--ts-brand); box-shadow: 0 0 0 syn.px-to-rem(1) var(--ts-brand); }
+  }
+
+  &__rate-room { font-weight: 700; }
+  &__rate-plan { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
+  &__rate-tags { margin: syn.px-to-rem(2) 0; }
+  &__rate-price { font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
+
+  &__amenities {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(160), 1fr));
+    gap: syn.$space-2;
+  }
+
+  &__amenity {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    color: var(--ts-text-secondary);
+
+    .travel__icon-svg { color: var(--ts-success, var(--ts-brand)); }
+  }
+
+  // ─── Cart ─────────────────────────────────────────────────────────────────
+  &__cart-page { display: flex; flex-direction: column; gap: syn.$space-md; }
+
+  &__cart-lines { display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__cart-line, &__drawer-item {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--ts-border-subtle);
+    border-radius: syn.$radius-md;
+    background: var(--ts-surface);
+  }
+
+  &__cart-icon { display: inline-flex; align-items: center; color: var(--ts-brand); flex: 0 0 auto; }
+  &__cart-main { display: flex; flex-direction: column; gap: syn.px-to-rem(2); flex: 1 1 auto; min-width: 0; }
+  &__cart-name { font-weight: 600; }
+  &__cart-sub { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
+  &__cart-price { font-weight: 700; white-space: nowrap; }
+
+  &__cart-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ts-muted);
+    padding: syn.$space-1;
+    flex: 0 0 auto;
+
+    &:hover { color: var(--ts-danger); }
+  }
+
+  &__crosssell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    padding: syn.$space-3 syn.$space-4;
+    border-radius: syn.$radius-md;
+    background: var(--ts-brand-soft);
+    color: var(--ts-text);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__cart-foot {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding-top: syn.$space-3;
+    border-top: syn.px-to-rem(1) solid var(--ts-border);
+  }
+
+  &__cart-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+  }
+
+  // ─── Checkout / review ────────────────────────────────────────────────────
+  &__form {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__radio {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    padding: syn.$space-2 0;
+  }
+
+  &__review { display: flex; flex-direction: column; gap: syn.$space-3; }
+
+  &__summary { margin: 0; display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+
+    dt { display: flex; align-items: center; gap: syn.$space-2; margin: 0; }
+    dd { margin: 0; font-weight: 600; }
+
+    &--total {
+      padding-top: syn.$space-2;
+      border-top: syn.px-to-rem(1) solid var(--ts-border);
+      font-size: syn.$font-size-base;
+      dt, dd { font-weight: syn.$font-weight-bold; }
+    }
+  }
+
+  &__ship-to { margin: 0; color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
+
+  // ─── Confirmation ─────────────────────────────────────────────────────────
+  &__confirmation {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  &__confirm-badge {
+    margin: 0 auto;
+    padding: syn.$space-2 syn.$space-4;
+    border-radius: syn.$radius-full;
+    background: var(--ts-success-soft);
+    color: var(--ts-text);
+    font-weight: 700;
+  }
+
+  &__confirm-code { margin: 0; font-size: syn.$font-size-2xl; font-weight: syn.$font-weight-bold; letter-spacing: 0.03em; }
+  &__confirm-order { margin: 0; color: var(--ts-text-secondary); }
+
+  // ─── Account: trips ───────────────────────────────────────────────────────
+  &__trip-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+    width: 100%;
+  }
+
+  &__trip-title { font-weight: 700; }
+
+  &__trip-status {
+    padding: syn.px-to-rem(2) syn.$space-2;
+    border-radius: syn.$radius-full;
+    background: var(--ts-surface-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: 600;
+
+    &[data-status='upcoming'] { background: var(--ts-brand-soft); color: var(--ts-brand); }
+    &[data-status='completed'] { background: var(--ts-success-soft); }
+    &[data-status='cancelled'] { background: var(--ts-warn-soft); color: var(--ts-danger); }
+  }
+
+  &__trip-dates { display: block; margin-top: syn.px-to-rem(2); font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
+
+  &__trip-detail { display: flex; flex-direction: column; gap: syn.$space-3; }
+  &__trip-meta { margin: 0; color: var(--ts-text-secondary); }
+  &__trip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: syn.$space-3; }
+  &__cancel-note { margin: 0; color: var(--ts-danger); font-size: syn.$font-size-sm; font-weight: 600; }
+
+  // ─── Cart drawer ──────────────────────────────────────────────────────────
+  &__drawer {
+    position: fixed;
+    top: syn.$space-md;
+    right: syn.$space-md;
+    z-index: 40;
+    width: min(syn.px-to-rem(360), calc(100vw - #{syn.$space-lg}));
+    max-height: calc(100vh - #{syn.$space-lg});
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-lg;
+    background: var(--ts-surface);
+    box-shadow: var(--ts-shadow-pop);
+  }
+
+  &__drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-3;
+  }
+
+  &__drawer-title { margin: 0; font-size: syn.$font-size-base; font-weight: 700; }
+  &__drawer-items { display: flex; flex-direction: column; gap: syn.$space-2; }
+
+  &__cart-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--ts-muted);
+    padding: syn.$space-1;
+
+    &:hover { color: var(--ts-text); }
+  }
+
+  // ─── Stay skeleton ────────────────────────────────────────────────────────
+  // Mirrors syn-detail-shell's `__top` grid (gallery / info / sticky CTA) and
+  // its 920px stack breakpoint, so the swap to the real shell does not reflow.
+  // Bones are decorative + `aria-hidden`; `&__sr` carries the announcement.
+  &__stay-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-lg;
+  }
+
+  &__stay-skeleton-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(syn.px-to-rem(240), 0.8fr);
+    gap: syn.$space-lg;
+    align-items: start;
+
+    @media (max-width: #{syn.px-to-rem(920)}) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  &__stay-skeleton-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    min-width: 0;
+  }
+
+  &__stay-skeleton-thumbs {
+    display: flex;
+    gap: syn.$space-2;
+  }
+
+  &__stay-skeleton-info,
+  &__stay-skeleton-cta {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    min-width: 0;
+  }
+
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(
+      90deg,
+      var(--ts-skeleton-base) 0%,
+      var(--ts-skeleton-highlight) 50%,
+      var(--ts-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: travel-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    // Text bones use `em` against the same font-size token as the node they
+    // stand in for, so they are exactly that line box.
+    &--back {
+      inline-size: syn.px-to-rem(140);
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--media {
+      inline-size: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: syn.$radius-lg;
+    }
+
+    &--thumb {
+      inline-size: syn.px-to-rem(56);
+      block-size: syn.px-to-rem(56);
+      border-radius: syn.$radius-md;
+    }
+
+    &--eyebrow {
+      inline-size: syn.px-to-rem(160);
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--title {
+      inline-size: 78%;
+      font-size: syn.$font-size-2xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--subtitle {
+      inline-size: 60%;
+      font-size: syn.$font-size-base;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--text {
+      inline-size: 100%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+
+      &:last-child {
+        inline-size: 72%;
+      }
+    }
+
+    &--price {
+      inline-size: syn.px-to-rem(120);
+      font-size: syn.$font-size-xl;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--rate {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(72);
+      border-radius: syn.$radius-md;
+    }
+
+    &--button {
+      inline-size: 100%;
+      block-size: syn.px-to-rem(40);
+      border-radius: syn.$radius-md;
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
+  }
+
+  // ─── Responsive ───────────────────────────────────────────────────────────
+  @include syn.respond-below(md) {
+    padding: syn.$space-md;
+
+    &__bar { flex-wrap: wrap; }
+    &__search { flex-direction: column; align-items: stretch; }
+    &__field, &__field--grow { min-width: 0; width: 100%; }
+    &__search-btn { width: 100%; }
+    &__flight { flex-direction: column; align-items: stretch; }
+    &__flight-price { align-items: flex-start; }
+  }
+}
+
+@keyframes travel-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .travel__bone {
+    animation: none;
+  }
+}

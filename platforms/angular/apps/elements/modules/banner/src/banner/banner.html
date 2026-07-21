@@ -1,0 +1,46 @@
+<div class="banner sg-banner" [class]="hostClasses()">
+  @if (hasImage()) {
+    <div class="banner__media">
+      <img class="banner__image" [src]="imageSrc()" [alt]="imageAlt()" loading="lazy" />
+    </div>
+  }
+
+  <div class="banner__content">
+    @if (eyebrow() || title() || body()) {
+      <div class="banner__copy">
+        @if (eyebrow()) {
+          <span class="banner__eyebrow">{{ eyebrow() }}</span>
+        }
+
+        @if (title()) {
+          <syn-heading
+            class="banner__title"
+            [text]="title()"
+            [tone]="headingTone()"
+            level="h3"
+            size="sm"
+          />
+        }
+
+        @if (body()) {
+          <p class="banner__body">{{ body() }}</p>
+        }
+      </div>
+    }
+  </div>
+
+  @if (hasCta() || hasSecondaryCta()) {
+    <div class="banner__actions">
+      @if (hasCta()) {
+        <a class="banner__cta-link" [href]="ctaUrl()" [target]="ctaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="ctaLabel()" variant="solid" size="md" />
+        </a>
+      }
+      @if (hasSecondaryCta()) {
+        <a class="banner__cta-link banner__cta-link--secondary" [href]="secondaryCtaUrl()" [target]="secondaryCtaTarget()" rel="noopener noreferrer">
+          <syn-button [label]="secondaryCtaLabel()" variant="outline" size="md" />
+        </a>
+      }
+    </div>
+  }
+</div>

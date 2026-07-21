@@ -1,0 +1,123 @@
+@use 'scss' as syn;
+
+:host {
+  display: block;
+  font-family: inherit;
+}
+
+.hero {
+  // Fallback canónico dark si el CMS no emite --syn-gradient-hero (namespace --sg- muerto).
+  --syn-hero-gradient-fallback: linear-gradient(135deg, #{syn.$color-neutral-900} 0%, #{syn.$color-neutral-800} 52%, #{syn.$color-brand-500} 100%);
+  --syn-hero-background: var(--syn-gradient-hero, var(--syn-hero-gradient-fallback));
+  --syn-hero-border: var(--syn-color-border-default, transparent);
+  --syn-hero-shadow: var(--syn-shadow-floating, #{syn.$shadow-xl});
+  --syn-hero-content-background: color-mix(in srgb, var(--syn-color-surface-overlay, #{syn.$color-neutral-0}) 82%, transparent);
+  --syn-hero-content-border: var(--syn-color-border-subtle, transparent);
+  --syn-hero-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-hero-content-shadow: var(--syn-shadow-panel, #{syn.$shadow-lg});
+
+  @include syn.flex-center;
+
+  position: relative;
+  min-height: clamp(#{syn.px-to-rem(320)}, 52vw, #{syn.px-to-rem(640)});
+  padding: syn.$space-xl syn.$space-lg;
+  background-color: var(--syn-color-surface-strong, #{syn.$color-neutral-900});
+  background-image: var(--syn-hero-background);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: syn.px-to-rem(1) solid var(--syn-hero-border);
+  border-radius: syn.$radius-2xl;
+  box-shadow: var(--syn-hero-shadow);
+  overflow: hidden;
+  isolation: isolate;
+
+  @include syn.respond-to(md) {
+    padding: syn.$space-12 syn.$space-xl;
+  }
+
+  // Theme override: the host applies `sg-hero--<theme>` (not `hero--<theme>`);
+  // also honor the canonical [data-theme] attribute set by the CMS host.
+  &.sg-hero--dark,
+  :host([data-theme='dark']) & {
+    --syn-hero-background: var(--syn-gradient-hero-dark, var(--syn-gradient-hero, var(--syn-hero-gradient-fallback)));
+    --syn-hero-border: var(--syn-color-border-inverse, transparent);
+    --syn-hero-content-background: color-mix(in srgb, var(--syn-color-surface-overlay, #{syn.$color-neutral-800}) 84%, transparent);
+    --syn-hero-content-border: var(--syn-color-border-inverse, transparent);
+    --syn-hero-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+  }
+
+  &.sg-hero--silver-gold,
+  :host([data-theme='silver-gold']) & {
+    --syn-hero-background: var(--syn-gradient-hero-silver-gold, var(--syn-gradient-hero, var(--syn-hero-gradient-fallback)));
+  }
+
+  // Host applies `sg-hero--<variant>`, so target the real class name.
+  &.sg-hero--overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    // Overlay canónico via canal ink (tema-aware) en vez del --sg- muerto.
+    background: rgb(var(--syn-channel-ink, #{syn.$color-neutral-900}) / 0.42);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: auto auto -20% -10%;
+    width: clamp(#{syn.px-to-rem(220)}, 30vw, #{syn.px-to-rem(380)});
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 44%, transparent) 0%, transparent 72%);
+    pointer-events: none;
+    opacity: 0.9;
+  }
+
+  &__content {
+    @include syn.flex-column-center;
+
+    position: relative;
+    z-index: 1;
+    gap: syn.$space-lg;
+    width: 100%;
+    max-width: syn.$max-width-hero;
+    padding: clamp(#{syn.$space-lg}, 3vw, #{syn.$space-xl});
+    padding-inline: clamp(#{syn.$space-md}, 4vw, #{syn.$space-xl});
+    border: syn.px-to-rem(1) solid var(--syn-hero-content-border);
+    border-radius: syn.$radius-2xl;
+    background: var(--syn-hero-content-background);
+    box-shadow: var(--syn-hero-content-shadow);
+    backdrop-filter: blur(var(--syn-surface-glass-blur, #{syn.px-to-rem(18)}));
+    text-align: center;
+  }
+
+  &__copy {
+    display: grid;
+    gap: syn.$space-md;
+    justify-items: center;
+  }
+
+  &__heading {
+    display: block;
+  }
+
+  &__body {
+    margin: 0;
+    max-width: syn.$max-width-article;
+    font-size: clamp(#{syn.$font-size-base}, 2.5vw, #{syn.$font-size-lg});
+    color: var(--syn-hero-body-color);
+    line-height: syn.$line-height-relaxed;
+    text-wrap: pretty;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+  }
+
+  &__cta-link {
+    text-decoration: none;
+  }
+}

@@ -1,0 +1,76 @@
+@use 'scss' as syn;
+
+:host {
+  --li-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --li-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --li-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --li-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --li-shadow-hover: var(--syn-shadow-card-hover, #{syn.$shadow-sm});
+  --li-label-color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+
+  display: block;
+}
+
+.logo-item {
+  &__link {
+    --syn-link-padding-y: 0;
+    --syn-link-padding-x: 0;
+    --syn-link-border-width: 0;
+    --syn-link-surface: transparent;
+    --syn-link-surface-hover: transparent;
+    --syn-link-color-neutral: inherit;
+    --syn-link-color-neutral-hover: inherit;
+
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  &__frame {
+    @include syn.flex-column-center;
+    @include syn.surface-panel(
+      syn.$space-md,
+      var(--li-surface),
+      var(--li-border),
+      syn.px-to-rem(1),
+      syn.$radius-lg,
+      var(--li-shadow)
+    );
+
+    gap: syn.$space-sm;
+    min-inline-size: syn.px-to-rem(160);
+    text-align: center;
+    transition:
+      box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default,
+      transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-default;
+
+    &:hover {
+      border-color: var(--li-border-hover);
+      box-shadow: var(--li-shadow-hover);
+      transform: translateY(syn.px-to-rem(-1));
+    }
+  }
+
+  &__image {
+    display: block;
+    max-inline-size: 100%;
+    max-block-size: syn.px-to-rem(56);
+    object-fit: contain;
+  }
+
+  &__label {
+    color: var(--li-label-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-item__frame {
+    transition: none;
+  }
+
+  .logo-item__frame:hover {
+    transform: none;
+  }
+}

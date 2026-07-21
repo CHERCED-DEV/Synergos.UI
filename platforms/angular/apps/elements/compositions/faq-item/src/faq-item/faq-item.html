@@ -1,0 +1,9 @@
+<div class="faq-item" [class]="hostClasses()">
+  <syn-accordion
+    [title]="question()"
+    [initiallyExpanded]="initiallyExpanded()"
+    [tone]="accordionTone()"
+  >
+    <div class="faq-item__answer" [innerHTML]="answer()"></div>
+  </syn-accordion>
+</div>

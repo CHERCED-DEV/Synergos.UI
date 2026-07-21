@@ -1,0 +1,296 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --shc-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --shc-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --shc-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --shc-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --shc-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --shc-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --shc-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --shc-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shc-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --shc-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shc-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --shc-up: var(--syn-color-state-success-surface, #{syn.$color-success-600});
+  --shc-up-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --shc-down: var(--syn-color-state-danger-surface, #{syn.$color-danger-600});
+  --shc-down-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+  color: var(--shc-text);
+}
+
+.syn-console {
+  display: grid;
+  grid-template-columns: minmax(syn.px-to-rem(180), syn.px-to-rem(220)) minmax(0, 1fr);
+  gap: syn.$space-4;
+  align-items: start;
+
+  @media (max-width: #{syn.px-to-rem(860)}) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  &__heading {
+    margin: 0 0 syn.$space-2;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  // ─── Sidebar nav ───────────────────────────────────────────────────────────
+  &__nav {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shc-border-subtle);
+    border-radius: syn.$radius-lg;
+    background: var(--shc-surface-muted);
+
+    @media (max-width: #{syn.px-to-rem(860)}) {
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+  }
+
+  &__nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-2;
+    padding: syn.$space-2 syn.$space-3;
+    border: none;
+    border-radius: syn.$radius-md;
+    background: none;
+    color: var(--shc-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    text-align: left;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shc-focus-ring));
+
+    &.is-active {
+      background: var(--shc-brand);
+      color: var(--shc-brand-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: syn.px-to-rem(18);
+    padding: 0 syn.$space-1;
+    border-radius: syn.$radius-full;
+    background: var(--shc-brand-soft);
+    color: var(--shc-text);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  // ─── Main column ───────────────────────────────────────────────────────────
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-4;
+    min-width: 0;
+  }
+
+  // ─── KPI band ──────────────────────────────────────────────────────────────
+  &__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(syn.px-to-rem(150), 1fr));
+    gap: syn.$space-3;
+  }
+
+  &__kpi {
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shc-border);
+    border-radius: syn.$radius-lg;
+    background: var(--shc-surface);
+  }
+
+  &__kpi-label {
+    margin: 0;
+    color: var(--shc-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-wide;
+  }
+
+  &__kpi-value {
+    margin: syn.$space-1 0 0;
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    letter-spacing: syn.$letter-spacing-tight;
+  }
+
+  &__kpi-foot {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    margin: syn.$space-1 0 0;
+  }
+
+  &__kpi-delta {
+    display: inline-flex;
+    padding: 0 syn.$space-1;
+    border-radius: syn.$radius-full;
+    background: var(--shc-surface-muted);
+    color: var(--shc-text-secondary);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+
+    &.is-up {
+      background: var(--shc-up-soft);
+      color: var(--shc-up);
+    }
+
+    &.is-down {
+      background: var(--shc-down-soft);
+      color: var(--shc-down);
+    }
+  }
+
+  &__kpi-hint {
+    color: var(--shc-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__reports {
+    min-width: 0;
+  }
+
+  // ─── Queue: filters + table ────────────────────────────────────────────────
+  &__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-2;
+    margin-bottom: syn.$space-3;
+  }
+
+  &__filter {
+    padding: syn.$space-1 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--shc-border);
+    border-radius: syn.$radius-full;
+    background: var(--shc-surface);
+    color: var(--shc-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shc-focus-ring));
+
+    &.is-active {
+      border-color: var(--shc-brand);
+      background: var(--shc-brand-soft);
+      color: var(--shc-text);
+      font-weight: syn.$font-weight-semibold;
+    }
+  }
+
+  &__table-wrap {
+    overflow-x: auto;
+    border: syn.px-to-rem(1) solid var(--shc-border-subtle);
+    border-radius: syn.$radius-lg;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--shc-surface);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__th {
+    padding: syn.$space-2 syn.$space-3;
+    border-bottom: syn.px-to-rem(1) solid var(--shc-border);
+    background: var(--shc-surface-muted);
+    color: var(--shc-muted);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: syn.$letter-spacing-wide;
+    white-space: nowrap;
+
+    &.is-end,
+    &--actions {
+      text-align: right;
+    }
+  }
+
+  &__tr + &__tr .syn-console__td {
+    border-top: syn.px-to-rem(1) solid var(--shc-border-subtle);
+  }
+
+  &__td {
+    padding: syn.$space-2 syn.$space-3;
+    vertical-align: middle;
+
+    &.is-end {
+      text-align: right;
+    }
+
+    &--actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: syn.$space-1;
+      white-space: nowrap;
+    }
+  }
+
+  &__action {
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--shc-border);
+    border-radius: syn.$radius-md;
+    background: var(--shc-surface);
+    color: var(--shc-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--shc-focus-ring));
+
+    &.is-primary {
+      border-color: var(--shc-brand);
+      background: var(--shc-brand);
+      color: var(--shc-brand-text);
+    }
+
+    &.is-danger {
+      border-color: var(--shc-down);
+      background: var(--shc-down-soft);
+      color: var(--shc-down);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) dashed var(--shc-border);
+    border-radius: syn.$radius-lg;
+    color: var(--shc-muted);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__section {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-console *,
+  .syn-console *::before,
+  .syn-console *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

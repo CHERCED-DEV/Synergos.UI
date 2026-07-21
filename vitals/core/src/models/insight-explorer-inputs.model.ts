@@ -1,0 +1,9 @@
+export interface InsightExplorerInputs {
+  config?: string;
+  title: string;
+  theme: string;
+  variant: string;
+  elementId: string;
+  /** Serialized JSON array of InsightItem */
+  items: string;
+}

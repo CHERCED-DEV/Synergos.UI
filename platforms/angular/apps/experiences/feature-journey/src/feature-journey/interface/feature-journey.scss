@@ -1,0 +1,193 @@
+@use 'scss' as syn;
+
+:host {
+  --fj-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --fj-step-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --fj-step-border-hover: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  --fj-step-surface-active: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
+  --fj-step-number-surface: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --fj-step-number-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-step-label: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-step-label-active: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --fj-panel-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --fj-panel-border: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --fj-panel-title: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --fj-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --fj-prev-border: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --fj-prev-text: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --fj-counter: var(--syn-color-text-muted, #{syn.$color-neutral-400});
+
+  display: block;
+  font-family: syn.$font-family-sans;
+}
+
+.feature-journey {
+  @include syn.flex-column;
+  gap: syn.$space-xl;
+
+  &__header { text-align: center; }
+
+  &__title {
+    font-size: syn.$font-size-2xl;
+    font-weight: syn.$font-weight-bold;
+    color: var(--fj-title);
+    margin: 0;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__nav {
+    display: flex;
+    gap: syn.$space-xs;
+    overflow-x: auto;
+    padding-bottom: syn.$space-xs;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  &__step {
+    @include syn.flex-column-center;
+    gap: syn.$space-xxs;
+    padding: syn.$space-sm syn.$space-md;
+    background: none;
+    border: syn.px-to-rem(1.5) solid var(--fj-step-border);
+    border-radius: syn.$radius-lg;
+    cursor: pointer;
+    flex: 1;
+    min-width: syn.px-to-rem(120);
+    text-align: center;
+    transition: syn.$transition-colors;
+
+    &:hover:not(:disabled) { border-color: var(--fj-step-border-hover); }
+    &--active,
+    &--completed {
+      background: var(--fj-step-surface-active);
+    }
+  }
+
+  &__step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: syn.px-to-rem(28);
+    height: syn.px-to-rem(28);
+    border-radius: 50%;
+    background: var(--fj-step-number-surface);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--fj-step-number-text);
+    flex-shrink: 0;
+    transition: syn.$transition-colors;
+
+    .feature-journey__step--active &,
+    .feature-journey__step--completed & {
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__step-label {
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-medium;
+    line-height: syn.$line-height-tight;
+    color: var(--fj-step-label);
+    transition: syn.$transition-colors;
+
+    .feature-journey__step--active &,
+    .feature-journey__step--completed & {
+      color: var(--fj-step-label-active);
+    }
+  }
+
+  &__panel {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: syn.$space-lg;
+    padding: syn.$space-xl;
+    background: var(--fj-panel-surface);
+    border: syn.px-to-rem(1) solid var(--fj-panel-border);
+    border-radius: syn.$radius-xl;
+    min-height: syn.px-to-rem(180);
+    align-items: start;
+  }
+
+  &__panel-icon {
+    font-size: syn.px-to-rem(48);
+    line-height: 1;
+    user-select: none;
+  }
+
+  &__panel-title {
+    font-size: syn.$font-size-xl;
+    font-weight: syn.$font-weight-bold;
+    color: var(--fj-panel-title);
+    margin: 0 0 syn.$space-sm;
+    line-height: syn.$line-height-tight;
+  }
+
+  &__panel-description {
+    font-size: syn.$font-size-base;
+    color: var(--fj-panel-body);
+    line-height: syn.$line-height-relaxed;
+    margin: 0;
+  }
+
+  &__controls {
+    @include syn.flex-between;
+    gap: syn.$space-md;
+  }
+
+  &__btn {
+    padding: syn.$space-sm syn.$space-lg;
+    border-radius: syn.$radius-md;
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    font-family: inherit;
+    cursor: pointer;
+    transition: syn.$transition-colors;
+    white-space: nowrap;
+
+    &--prev {
+      background: none;
+      border: syn.px-to-rem(1.5) solid var(--fj-prev-border);
+      color: var(--fj-prev-text);
+    }
+
+    &--next {
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      border: syn.px-to-rem(1.5) solid var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+  }
+
+  &__counter {
+    font-size: syn.$font-size-sm;
+    color: var(--fj-counter);
+    font-weight: syn.$font-weight-medium;
+    flex-shrink: 0;
+  }
+
+  &--dark {
+    --fj-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --fj-step-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 70%, transparent);
+    --fj-step-surface-active: color-mix(in srgb, var(--syn-color-state-brand-surface, #{syn.$color-brand-100}) 22%, transparent);
+    --fj-step-number-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 72%, white);
+    --fj-step-number-text: var(--syn-color-text-inverse, #{syn.$color-neutral-200});
+    --fj-step-label: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --fj-panel-surface: color-mix(in srgb, var(--syn-color-surface-primary, #{syn.$color-neutral-800}) 88%, transparent);
+    --fj-panel-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 72%, transparent);
+    --fj-panel-title: var(--syn-color-text-inverse, #{syn.$color-neutral-0});
+    --fj-panel-body: var(--syn-color-text-secondary, #{syn.$color-neutral-300});
+    --fj-prev-border: color-mix(in srgb, var(--syn-color-border-inverse, #{syn.$color-neutral-700}) 82%, transparent);
+    --fj-prev-text: var(--syn-color-text-inverse, #{syn.$color-neutral-200});
+    --fj-counter: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  }
+
+  @media (max-width: 640px) {
+    &__panel { grid-template-columns: 1fr; }
+    &__panel-icon { font-size: syn.px-to-rem(36); }
+    &__step-label { display: none; }
+  }
+}

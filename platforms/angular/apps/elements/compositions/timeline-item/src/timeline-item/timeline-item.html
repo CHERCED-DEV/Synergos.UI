@@ -1,0 +1,23 @@
+<article class="timeline-item" [class]="hostClasses()">
+  @if (hasDate()) {
+    <div class="timeline-item__date">
+      <syn-date-display [value]="date()" layout="stacked" />
+    </div>
+  }
+
+  <div class="timeline-item__content">
+    @if (headingText()) {
+      <syn-heading
+        class="timeline-item__heading"
+        [text]="headingText()"
+        [tone]="headingTone()"
+        level="h3"
+        size="sm"
+      />
+    }
+
+    @if (body()) {
+      <div class="timeline-item__body" [innerHTML]="body()"></div>
+    }
+  </div>
+</article>

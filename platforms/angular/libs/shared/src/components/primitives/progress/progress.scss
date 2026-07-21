@@ -1,0 +1,86 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
+.syn-progress-host {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-sm;
+  width: 100%;
+}
+
+.syn-progress {
+  position: relative;
+  flex: 1 1 auto;
+  overflow: hidden;
+  background: syn.$color-neutral-200;
+}
+
+.syn-progress--sm {
+  height:        syn.px-to-rem(4);
+  border-radius: syn.$radius-full;
+}
+
+.syn-progress--md {
+  height:        syn.px-to-rem(8);
+  border-radius: syn.$radius-full;
+}
+
+.syn-progress--lg {
+  height:        syn.px-to-rem(12);
+  border-radius: syn.$radius-full;
+}
+
+.syn-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width syn.$duration-base syn.$easing-out;
+}
+
+// Semantic tones — correct colors for each state
+.syn-progress--brand .syn-progress__bar {
+  background: syn.$color-brand-500;
+}
+
+.syn-progress--success .syn-progress__bar {
+  background: syn.$color-success-500;
+}
+
+.syn-progress--warning .syn-progress__bar {
+  background: syn.$color-warning-500;
+}
+
+.syn-progress--critical .syn-progress__bar {
+  background: syn.$color-danger-500;
+}
+
+.syn-progress--indeterminate .syn-progress__bar {
+  width: 40%;
+  animation: syn-progress-indeterminate syn.$duration-shimmer ease-in-out infinite;
+}
+
+.syn-progress__label {
+  min-width:   syn.px-to-rem(40);
+  font-size:   syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  color:       syn.$color-neutral-600;
+  text-align:  right;
+  white-space: nowrap;
+}
+
+@keyframes syn-progress-indeterminate {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(260%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-progress__bar {
+    transition: none;
+  }
+
+  .syn-progress--indeterminate .syn-progress__bar {
+    animation: none;
+    width: 60%;
+  }
+}

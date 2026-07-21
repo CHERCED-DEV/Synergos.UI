@@ -1,0 +1,67 @@
+{
+  "name": "elements-compositions-newsletter-form",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/newsletter-form/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:newsletter-form",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/newsletter-form",
+        "browser": "apps/elements/compositions/newsletter-form/src/main.ts",
+        "index": "apps/elements/compositions/newsletter-form/src/index.html",
+        "tsConfig": "apps/elements/compositions/newsletter-form/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "150kb",
+              "maximumError": "300kb"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": {
+        "port": 4248
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "port": 4248,
+        "staticFilePath": "dist/newsletter-form/browser"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/newsletter-form/src/**/*.ts",
+          "apps/elements/compositions/newsletter-form/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/newsletter-form/tsconfig.spec.json"
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "domains-shop-product-detail",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/domains/shop/product-detail/src",
+  "tags": ["scope:domains", "tier:module", "type:app", "element:product-detail", "domain:shop", "framework:angular"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/product-detail",
+        "browser": "apps/domains/shop/product-detail/src/main.ts",
+        "index": "apps/domains/shop/product-detail/src/index.html",
+        "tsConfig": "apps/domains/shop/product-detail/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": { "budgets": [{ "type": "initial", "maximumWarning": "350kb", "maximumError": "600kb" }] }
+      }
+    },
+    "serve": { "executor": "@angular/build:dev-server", "options": { "port": 4265 } },
+    "lint": { "executor": "@nx/eslint:lint", "options": { "lintFilePatterns": ["apps/domains/shop/product-detail/src/**/*.ts"] } }
+  }
+}

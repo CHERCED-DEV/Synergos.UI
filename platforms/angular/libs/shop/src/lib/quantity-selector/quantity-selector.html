@@ -1,0 +1,37 @@
+<fieldset class="qty" [class]="hostClasses()">
+  <legend class="qty__legend">{{ quantityLabel() }}</legend>
+
+  <button
+    class="qty__btn"
+    type="button"
+    [attr.aria-label]="decrementLabel()"
+    [disabled]="!canDecrement()"
+    (click)="decrement()"
+  >
+    &#8722;
+  </button>
+
+  <input
+    class="qty__input"
+    type="number"
+    [min]="min()"
+    [max]="max()"
+    [step]="step()"
+    [value]="quantity()"
+    [attr.aria-label]="ariaLabelledBy() ? null : quantityLabel()"
+    [attr.aria-labelledby]="ariaLabelledBy()"
+    inputmode="numeric"
+    (input)="onInput($event)"
+    (blur)="onInput($event)"
+  />
+
+  <button
+    class="qty__btn"
+    type="button"
+    [attr.aria-label]="incrementLabel()"
+    [disabled]="!canIncrement()"
+    (click)="increment()"
+  >
+    +
+  </button>
+</fieldset>

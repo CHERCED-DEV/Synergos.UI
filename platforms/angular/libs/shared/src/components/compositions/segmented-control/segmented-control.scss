@@ -1,0 +1,93 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-segmented-control {
+  --syn-segmented-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-segmented-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-segmented-option-surface: transparent;
+  --syn-segmented-option-color: var(--syn-color-text-secondary, #{syn.$color-text-secondary});
+  --syn-segmented-option-hover-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-option-hover-border: var(--syn-color-border-strong, #{syn.$color-border-strong});
+  --syn-segmented-option-hover-color: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-segmented-option-active-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-option-active-border: var(--syn-color-state-brand-border, #{syn.$color-brand-300});
+  --syn-segmented-option-active-color: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-segmented-option-active-shadow: var(--syn-shadow-card, #{syn.$shadow-xs});
+  --syn-segmented-disabled-color: var(--syn-color-text-disabled, #{syn.$color-text-disabled});
+
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: syn.$space-sm;
+}
+
+.syn-segmented-control__list {
+  display: flex;
+  gap: syn.$space-xs;
+  overflow: hidden;
+  padding: syn.$space-xxs;
+  border: syn.px-to-rem(1) solid var(--syn-segmented-border);
+  border-radius: syn.$radius-full;
+  background: var(--syn-segmented-surface);
+  box-shadow: inset 0 0 0 syn.px-to-rem(1) rgb(255 255 255 / 0.14);
+}
+
+.syn-segmented-control__option,
+.syn-segmented-control__nav {
+  @include syn.focus-visible;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-xs;
+  min-height: syn.px-to-rem(40);
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: syn.$radius-full;
+  padding: syn.$space-xs syn.$space-md;
+  background: var(--syn-segmented-option-surface);
+  color: var(--syn-segmented-option-color);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    border-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+    transform var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+  &:hover:not(:disabled):not(.syn-segmented-control__option--active) {
+    border-color: var(--syn-segmented-option-hover-border);
+    background: var(--syn-segmented-option-hover-surface);
+    color: var(--syn-segmented-option-hover-color);
+  }
+}
+
+.syn-segmented-control__option--active {
+  border-color: var(--syn-segmented-option-active-border);
+  background: var(--syn-segmented-option-active-surface);
+  color: var(--syn-segmented-option-active-color);
+  box-shadow: var(--syn-segmented-option-active-shadow);
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-segmented-control__option:disabled,
+.syn-segmented-control__nav:disabled {
+  color: var(--syn-segmented-disabled-color);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.syn-segmented-control--compact .syn-segmented-control__option,
+.syn-segmented-control--compact .syn-segmented-control__nav {
+  // WCAG 2.5.5 (AAA). La caja compacta se queda en 34px —es deliberada— y solo se
+  // expande el área de puntero. MEDIDO antes de incluirlo, porque el mixin avisa de
+  // que dos áreas adyacentes se solapan y gana la última del DOM: aquí NO pasa. El
+  // padding horizontal es `$space-sm` (16px) a cada lado más el texto, así que un
+  // segmento ya mide >44px de ancho y `max(100%, 44px)` es un no-op en ese eje. Solo
+  // crece en alto (34→44), donde no hay vecino con el que chocar.
+  @include syn.touch-target;
+
+  min-height: syn.px-to-rem(34);
+  padding: syn.$space-xxs syn.$space-sm;
+}

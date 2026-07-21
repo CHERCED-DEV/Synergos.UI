@@ -1,0 +1,46 @@
+{
+  "name": "elements-compositions-dropdown",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "sg",
+  "sourceRoot": "apps/elements/compositions/dropdown/src",
+  "tags": [
+    "scope:elements",
+    "tier:composition",
+    "type:app",
+    "element:dropdown",
+    "framework:angular"
+  ],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/dropdown",
+        "browser": "apps/elements/compositions/dropdown/src/main.ts",
+        "index": "apps/elements/compositions/dropdown/src/index.html",
+        "tsConfig": "apps/elements/compositions/dropdown/tsconfig.app.json"
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@angular/build:dev-server",
+      "options": { "port": 4325 }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/elements/compositions/dropdown/src/**/*.ts",
+          "apps/elements/compositions/dropdown/src/**/*.html"
+        ]
+      }
+    }
+  }
+}

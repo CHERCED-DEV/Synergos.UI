@@ -1,0 +1,15 @@
+@use '../functions/px-to-rem' as *;
+
+$bp-sm: px-to-rem(576);
+$bp-md: px-to-rem(768);
+$bp-lg: px-to-rem(992);
+$bp-xl: px-to-rem(1200);
+$bp-2xl: px-to-rem(1400);
+
+$breakpoints: (
+  'sm': $bp-sm,
+  'md': $bp-md,
+  'lg': $bp-lg,
+  'xl': $bp-xl,
+  '2xl': $bp-2xl,
+);

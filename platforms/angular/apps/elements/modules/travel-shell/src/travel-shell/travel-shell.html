@@ -1,0 +1,739 @@
+<section class="travel" aria-label="Synergos Viajes">
+  <!-- Reusable product glyph (Lucide-style, inherits currentColor) -->
+  <ng-template #productIconTpl let-kind>
+    @switch (kind) {
+      @case ('hotel') {
+        <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+      }
+      @case ('flight') {
+        <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+      }
+      @case ('car') {
+        <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
+      }
+    }
+  </ng-template>
+
+  <!-- ─── Top bar: brand + nav + cart ────────────────────────────────────── -->
+  <header class="travel__bar">
+    <button type="button" class="travel__brand travel__brand--btn" (click)="goHome()">
+      <span class="travel__brand-mark travel__icon" aria-hidden="true">
+        <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+      </span>
+      <span class="travel__brand-text">Synergos Viajes</span>
+    </button>
+
+    <nav class="travel__nav" aria-label="Navegación de viajes">
+      <button type="button" class="travel__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Buscar</button>
+      <button type="button" class="travel__nav-btn" [class.is-active]="view() === 'account'" (click)="goToAccount()">Mis viajes</button>
+      <button
+        type="button"
+        class="travel__cart-toggle"
+        [class.is-active]="cartOpen()"
+        [attr.aria-expanded]="cartOpen()"
+        [attr.aria-controls]="fieldId + '-cart'"
+        (click)="toggleCart()"
+      >
+        <span class="travel__icon" aria-hidden="true">
+          <svg class="travel__icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2"/><path d="M8 18V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v14"/><path d="M10 20h4"/><circle cx="8" cy="22" r="1"/><circle cx="16" cy="22" r="1"/></svg>
+        </span>
+        <span>Tu viaje</span>
+        @if (cartCount() > 0) {
+          <span class="travel__cart-count" [attr.aria-label]="cartCount() + ' ítems'">{{ cartCount() }}</span>
+        }
+      </button>
+    </nav>
+  </header>
+
+  <!-- Multi-tab live-session notice -->
+  @if (liveConflict()) {
+    <p class="travel__notice" role="status">
+      Otra pestaña tomó esta sesión de viaje. Tu carrito se sincronizó.
+    </p>
+  }
+
+  <!-- Mock-data degradation notice -->
+  @if (degraded()) {
+    <p class="travel__notice travel__notice--warn" role="status">
+      Mostrando datos de ejemplo: el motor de reservas aún no responde.
+    </p>
+  }
+
+  <!-- Global error live region -->
+  @if (errorMessage()) {
+    <p class="travel__error" role="alert">{{ errorMessage() }}</p>
+  }
+
+  <!-- ═══ HOME: buscador multi-tab (Estadías · Vuelos · Autos) ══════════════ -->
+  @if (view() === 'home') {
+    <div class="travel__home">
+      <div class="travel__hero">
+        <h1 class="travel__hero-title">{{ heading() }}</h1>
+        <p class="travel__hero-sub">{{ subheading() }}</p>
+      </div>
+
+      <div class="travel__tabs" role="tablist" aria-label="Tipo de producto">
+        @for (product of products; track product) {
+          <button
+            type="button"
+            role="tab"
+            class="travel__tab"
+            [class.is-active]="activeProduct() === product"
+            [attr.aria-selected]="activeProduct() === product"
+            (click)="selectProduct(product)"
+          >
+            <span class="travel__tab-icon travel__icon" aria-hidden="true">
+              <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: product }"></ng-container>
+            </span>
+            {{ productLabel(product) }}
+          </button>
+        }
+      </div>
+
+      <form class="travel__search" role="search" (submit)="$event.preventDefault(); search()">
+        <!-- Estadías -->
+        @if (activeProduct() === 'hotel') {
+          <div class="travel__field travel__field--grow">
+            <span class="travel__label" [id]="fieldId + '-hdest'">Destino</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-hdest'"
+              placeholder="¿A dónde vas? (ej. Cartagena)"
+              [value]="hotelDestination()" (input)="bind(hotelDestination.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hin'">Entrada</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-hin'"
+              [value]="hotelCheckIn()" (input)="bind(hotelCheckIn.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hout'">Salida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-hout'"
+              [value]="hotelCheckOut()" (input)="bind(hotelCheckOut.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-hpax'">Huéspedes</span>
+            <synergos-pax-selector
+              class="travel__pax"
+              [attr.aria-labelledby]="fieldId + '-hpax'"
+              [attr.initial]="hotelPaxJson()"
+              (occupancychange)="onHotelOccupancyChange($event)"
+            ></synergos-pax-selector>
+          </div>
+        }
+
+        <!-- Vuelos -->
+        @if (activeProduct() === 'flight') {
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-forig'">Origen</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-forig'"
+              placeholder="Ciudad o aeropuerto (BOG)"
+              [value]="flightOrigin()" (input)="bind(flightOrigin.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fdest'">Destino</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-fdest'"
+              placeholder="Ciudad o aeropuerto (CTG)"
+              [value]="flightDestination()" (input)="bind(flightDestination.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fdep'">Ida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-fdep'"
+              [value]="flightDepart()" (input)="bind(flightDepart.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fret'">Regreso</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-fret'"
+              [value]="flightReturn()" (input)="bind(flightReturn.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-fpax'">Pasajeros</span>
+            <synergos-pax-selector
+              class="travel__pax"
+              [attr.aria-labelledby]="fieldId + '-fpax'"
+              [attr.initial]="flightPaxJson()"
+              (occupancychange)="onFlightOccupancyChange($event)"
+            ></synergos-pax-selector>
+          </div>
+        }
+
+        <!-- Autos -->
+        @if (activeProduct() === 'car') {
+          <div class="travel__field travel__field--grow">
+            <span class="travel__label" [id]="fieldId + '-cloc'">Lugar de recogida</span>
+            <input class="travel__input" type="text" [attr.aria-labelledby]="fieldId + '-cloc'"
+              placeholder="Aeropuerto o ciudad"
+              [value]="carLocation()" (input)="bind(carLocation.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-cpick'">Recogida</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-cpick'"
+              [value]="carPickUp()" (input)="bind(carPickUp.set)($event)" />
+          </div>
+          <div class="travel__field">
+            <span class="travel__label" [id]="fieldId + '-cdrop'">Devolución</span>
+            <input class="travel__input" type="date" [attr.aria-labelledby]="fieldId + '-cdrop'"
+              [value]="carDropOff()" (input)="bind(carDropOff.set)($event)" />
+          </div>
+        }
+
+        <button
+          type="submit"
+          class="travel__btn travel__btn--primary travel__search-btn"
+          [disabled]="!canSearch() || loading()"
+        >
+          {{ loading() ? 'Buscando…' : 'Buscar' }}
+        </button>
+      </form>
+    </div>
+  }
+
+  <!-- ═══ VUELOS: cards + fare families + seat map ═════════════════════════ -->
+  @if (view() === 'flights') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Vuelos disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
+      </div>
+
+      @if (loading()) {
+        <syn-skeleton variant="list" [rows]="5" />
+      } @else if (offers().length === 0) {
+        <syn-empty-state
+          kind="no-results"
+          title="Sin vuelos"
+          message="No encontramos vuelos para esa ruta."
+          actionLabel="Modificar búsqueda"
+          (action)="goHome()"
+        />
+      } @else {
+        <ul class="travel__flight-list">
+          @for (offer of offers(); track offer.offerId) {
+            <li>
+              <article class="travel__flight" [class.is-active]="selectedFlightId() === offer.offerId">
+                <button type="button" class="travel__flight-main" (click)="selectFlight(offer)">
+                  <span class="travel__flight-route">{{ offer.title }}</span>
+                  <span class="travel__flight-sub">{{ offer.subtitle }}</span>
+                  @if (offer.badges.length > 0) {
+                    <span class="travel__chips">
+                      @for (badge of offer.badges; track badge) {
+                        <span class="travel__chip">{{ badge }}</span>
+                      }
+                    </span>
+                  }
+                </button>
+                <span class="travel__flight-price">
+                  <span class="travel__flight-from">desde</span>
+                  <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+                </span>
+              </article>
+            </li>
+          }
+        </ul>
+
+        <!-- Fare families + seat map for the selected flight -->
+        @if (selectedFlight(); as flight) {
+          <section class="travel__fare-panel" aria-label="Tarifas y asiento">
+            <h2 class="travel__heading">Elige tu tarifa — {{ flight.title }}</h2>
+            <ul class="travel__fares">
+              @for (fare of fareFamilies(); track fare.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="travel__fare"
+                    [class.is-active]="selectedFare()?.id === fare.id"
+                    [attr.aria-pressed]="selectedFare()?.id === fare.id"
+                    (click)="selectFare(fare)"
+                  >
+                    @if (fare.badge) {
+                      <span class="travel__fare-badge">{{ fare.badge }}</span>
+                    }
+                    <span class="travel__fare-label">{{ fare.label }}</span>
+                    <span class="travel__fare-price">{{ farePriceLabel(fare) }}</span>
+                    <ul class="travel__fare-perks">
+                      @for (perk of fare.perks; track perk) {
+                        <li class="travel__fare-perk">
+                          <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-4-4"/></svg>
+                          {{ perk }}
+                        </li>
+                      }
+                    </ul>
+                  </button>
+                </li>
+              }
+            </ul>
+
+            <div class="travel__seatmap-wrap">
+              <h3 class="travel__subheading">Selecciona tu asiento</h3>
+              @if (seatMapJson()) {
+                <synergos-seat-map
+                  class="travel__seatmap"
+                  [attr.seatmap]="seatMapJson()"
+                  [attr.currency]="currency()"
+                  [attr.maxSelectable]="1"
+                  (seatselect)="onSeatSelect($event)"
+                ></synergos-seat-map>
+              }
+              @if (selectedSeats().length > 0) {
+                <p class="travel__seat-note">Asiento seleccionado: <strong>{{ selectedSeats().join(', ') }}</strong></p>
+              } @else {
+                <p class="travel__seat-note travel__seat-note--muted">El asiento es opcional; puedes continuar sin elegir.</p>
+              }
+            </div>
+
+            <div class="travel__fare-foot">
+              <p class="travel__fare-total">
+                <span>Total tarifa</span>
+                <span>{{ selectedFare() ? farePriceLabel(selectedFare()!) : '' }}</span>
+              </p>
+              <button
+                type="button"
+                class="travel__btn travel__btn--primary"
+                [disabled]="!selectedFare()"
+                (click)="addFlightToCart()"
+              >
+                Agregar vuelo al viaje
+              </button>
+            </div>
+          </section>
+        }
+      }
+    </div>
+  }
+
+  <!-- ═══ ESTADÍAS: SH-8 results-map (lista ↔ mapa con geo) ════════════════ -->
+  @if (view() === 'stays') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Estadías disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
+      </div>
+
+      <syn-results-map
+        [items]="stayOffers()"
+        [loading]="loading()"
+        [geoOf]="stayGeoOf"
+        [pinLabelOf]="stayPinLabelOf"
+        [itemTemplate]="stayCard"
+        [config]="{
+          layout: 'split',
+          listLabel: 'Lista',
+          splitLabel: 'Lista y mapa',
+          mapLabel: 'Mapa',
+          mapAriaLabel: 'Mapa de estadías',
+          searchAreaLabel: 'Buscar en esta zona',
+          searchAsIMoveLabel: 'Buscar al mover el mapa',
+          emptyMessage: 'No encontramos estadías en esta zona.',
+          loadingMessage: 'Cargando estadías…'
+        }"
+        (pinselect)="openStay($event)"
+        (boundschange)="onStayBoundsChange($event)"
+      />
+
+      <ng-template #stayCard let-offer let-select="select">
+        <article class="travel__stay-card">
+          <div class="travel__stay-media" aria-hidden="true">
+            <svg class="travel__icon-svg travel__icon-svg--lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+          </div>
+          <div class="travel__stay-body">
+            <h3 class="travel__stay-title">
+              <button type="button" class="travel__card-link" (click)="select()">{{ offer.title }}</button>
+            </h3>
+            <p class="travel__stay-sub">{{ offer.subtitle }}</p>
+            @if (offer.rating) {
+              <p class="travel__stay-rating">
+                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                {{ offer.rating }} / 5
+              </p>
+            }
+            @if (offer.badges.length > 0) {
+              <ul class="travel__chips">
+                @for (badge of offer.badges; track badge) {
+                  <li class="travel__chip">{{ badge }}</li>
+                }
+              </ul>
+            }
+            <div class="travel__stay-foot">
+              <span class="travel__stay-price">
+                <span class="travel__flight-from">desde</span>
+                <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+              </span>
+              <button type="button" class="travel__btn travel__btn--sm travel__btn--primary" (click)="select()">
+                Ver detalle
+              </button>
+            </div>
+          </div>
+        </article>
+      </ng-template>
+    </div>
+  }
+
+  <!-- ═══ ESTADÍA (ficha): SH-2 detail-shell (galería + amenities + specs) ═ -->
+  @if (view() === 'stay') {
+    @if (stay(); as detail) {
+      <syn-detail-shell
+        [eyebrow]="detail.rating ? ('★ ' + detail.rating + ' · ' + detail.reviewCount + ' opiniones') : ''"
+        [title]="detail.title"
+        [subtitle]="detail.subtitle"
+        [media]="stayMedia()"
+        [specs]="staySpecs()"
+        [config]="{
+          backLabel: 'Volver a resultados',
+          specsHeading: 'Información del alojamiento',
+          relatedHeading: 'Amenidades',
+          galleryLabel: 'Fotos de ' + detail.title,
+          mediaPlaceholder: '🏨'
+        }"
+        [bodyTemplate]="stayBody"
+        [ctaTemplate]="stayCta"
+        [relatedTemplate]="stayAmenities"
+        (back)="backToStays()"
+      />
+
+      <ng-template #stayBody>
+        <p class="travel__stay-desc">{{ detail.description }}</p>
+        @if (detail.address) {
+          <p class="travel__stay-address">
+            <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            {{ detail.address }}
+          </p>
+        }
+      </ng-template>
+
+      <ng-template #stayCta>
+        <p class="travel__pdp-price">{{ stayPriceLabel() }}</p>
+        <p class="travel__pdp-hint">Precio por la estadía completa</p>
+
+        <div class="travel__rates" role="group" aria-label="Habitación y tarifa">
+          @for (rate of detail.rates; track rate.id) {
+            <button
+              type="button"
+              class="travel__rate"
+              [class.is-active]="selectedRate()?.id === rate.id"
+              [attr.aria-pressed]="selectedRate()?.id === rate.id"
+              (click)="selectRate(rate)"
+            >
+              <span class="travel__rate-room">{{ rate.roomLabel }}</span>
+              <span class="travel__rate-plan">{{ rate.rateLabel }}</span>
+              <span class="travel__rate-tags">
+                <span class="travel__chip" [class.travel__chip--ok]="rate.refundable">
+                  {{ rate.refundable ? 'Reembolsable' : 'No reembolsable' }}
+                </span>
+              </span>
+              <span class="travel__rate-price">{{ ratePriceLabel(rate) }}</span>
+            </button>
+          }
+        </div>
+
+        <button
+          type="button"
+          class="travel__btn travel__btn--primary travel__btn--block"
+          [disabled]="!selectedRate()"
+          (click)="addStayToCart()"
+        >
+          Agregar estadía al viaje
+        </button>
+      </ng-template>
+
+      <ng-template #stayAmenities>
+        <ul class="travel__amenities">
+          @for (amenity of detail.amenities; track amenity) {
+            <li class="travel__amenity">
+              <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-4-4"/></svg>
+              {{ amenity }}
+            </li>
+          }
+        </ul>
+      </ng-template>
+    } @else if (loading()) {
+      <!-- Mould of syn-detail-shell's __top grid: 4:3 gallery + info + CTA. -->
+      <div class="travel__stay-skeleton" aria-hidden="true">
+        <span class="travel__bone travel__bone--back"></span>
+        <div class="travel__stay-skeleton-top">
+          <div class="travel__stay-skeleton-gallery">
+            <span class="travel__bone travel__bone--media"></span>
+            <div class="travel__stay-skeleton-thumbs">
+              <span class="travel__bone travel__bone--thumb"></span>
+              <span class="travel__bone travel__bone--thumb"></span>
+              <span class="travel__bone travel__bone--thumb"></span>
+            </div>
+          </div>
+          <div class="travel__stay-skeleton-info">
+            <span class="travel__bone travel__bone--eyebrow"></span>
+            <span class="travel__bone travel__bone--title"></span>
+            <span class="travel__bone travel__bone--subtitle"></span>
+            <span class="travel__bone travel__bone--text"></span>
+            <span class="travel__bone travel__bone--text"></span>
+          </div>
+          <div class="travel__stay-skeleton-cta">
+            <span class="travel__bone travel__bone--price"></span>
+            <span class="travel__bone travel__bone--rate"></span>
+            <span class="travel__bone travel__bone--rate"></span>
+            <span class="travel__bone travel__bone--button"></span>
+          </div>
+        </div>
+      </div>
+      <p class="travel__sr" role="status">Cargando alojamiento…</p>
+    } @else if (!errorMessage()) {
+      <p class="travel__empty">No encontramos este alojamiento.</p>
+    }
+  }
+
+  <!-- ═══ CART: carrito de viaje multi-ítem (hotel + vuelo + auto) ═════════ -->
+  @if (view() === 'cart') {
+    <div class="travel__cart-page">
+      <h1 class="travel__heading">Tu viaje</h1>
+      @if (!hasCart()) {
+        <p class="travel__empty">Todavía no has agregado nada a tu viaje.</p>
+        <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Empezar a buscar</button>
+      } @else {
+        <ul class="travel__cart-lines">
+          @for (item of cartItems(); track item.id) {
+            <li class="travel__cart-line">
+              <span class="travel__cart-icon travel__icon" aria-hidden="true">
+                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
+              </span>
+              <div class="travel__cart-main">
+                <p class="travel__cart-name">{{ item.label }}</p>
+                <p class="travel__cart-sub">{{ itemSubtitle(item) }}</p>
+              </div>
+              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
+              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
+                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </li>
+          }
+        </ul>
+
+        @if (crossSell()) {
+          <div class="travel__crosssell" role="note">
+            <span>{{ crossSellLabel() }}</span>
+            <button type="button" class="travel__btn travel__btn--sm travel__btn--ghost" (click)="addCrossSell()">Agregar</button>
+          </div>
+        }
+
+        <div class="travel__cart-foot">
+          <p class="travel__cart-total">
+            <span>Total del viaje</span>
+            <span>{{ cartTotalLabel() }}</span>
+          </p>
+          <div class="travel__actions">
+            <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Seguir buscando</button>
+            <button type="button" class="travel__btn travel__btn--primary" (click)="goToCheckout()">Ir a pagar</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ═══ CHECKOUT: SH-3 checkout-wizard (viajeros → pago → revisar) ═══════ -->
+  @if (view() === 'checkout') {
+    <syn-checkout-wizard
+      [config]="checkoutConfig"
+      [stepTemplate]="checkoutStep"
+      [validity]="checkoutValidity()"
+      [instrument]="checkoutInstrument()"
+      (completed)="onCheckoutCompleted($event)"
+      (failed)="onCheckoutFailed($event)"
+      (exit)="goToCart()"
+    />
+
+    <ng-template #checkoutStep let-step>
+      @switch (step.id) {
+        @case ('viajeros') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Datos del viajero</legend>
+            <label class="travel__field-lg">
+              <span class="travel__label">Nombre completo</span>
+              <input class="travel__input" type="text" [value]="guestName()" (input)="bind(guestName.set)($event)"
+                [attr.aria-invalid]="guestName() && !guestNameValid() ? 'true' : null" />
+            </label>
+            <label class="travel__field-lg">
+              <span class="travel__label">Correo electrónico</span>
+              <input class="travel__input" type="email" [value]="guestEmail()" (input)="bind(guestEmail.set)($event)"
+                [attr.aria-invalid]="guestEmail() && !guestEmailValid() ? 'true' : null" />
+            </label>
+          </fieldset>
+        }
+        @case ('pago') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Método de pago</legend>
+            <label class="travel__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'card'" (change)="setPaymentMethod('card')" />
+              <span>Tarjeta de crédito / débito</span>
+            </label>
+            <label class="travel__radio">
+              <input type="radio" name="pay" [checked]="paymentMethod() === 'pse'" (change)="setPaymentMethod('pse')" />
+              <span>PSE — débito desde tu banco</span>
+            </label>
+            <p class="travel__notice">Demostración: no se realiza un cobro real. Un solo pago para todo el viaje.</p>
+          </fieldset>
+        }
+        @case ('revisar') {
+          <div class="travel__review">
+            <h2 class="travel__heading">Revisa tu viaje</h2>
+            <dl class="travel__summary">
+              @for (item of cartItems(); track item.id) {
+                <div class="travel__summary-row">
+                  <dt>
+                    <span class="travel__icon" aria-hidden="true">
+                      <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
+                    </span>
+                    {{ item.label }}
+                  </dt>
+                  <dd>{{ itemPriceLabel(item) }}</dd>
+                </div>
+              }
+              <div class="travel__summary-row travel__summary-row--total">
+                <dt>Total</dt>
+                <dd>{{ cartTotalLabel() }}</dd>
+              </div>
+            </dl>
+            <p class="travel__ship-to">Viajero: {{ guestName() }} · {{ guestEmail() }}</p>
+          </div>
+        }
+      }
+    </ng-template>
+  }
+
+  <!-- ═══ CONFIRMATION: SH-10 credential-wallet (voucher + PNR) ════════════ -->
+  @if (view() === 'confirmation') {
+    <div class="travel__confirmation">
+      <p class="travel__confirm-badge">Reserva confirmada</p>
+      <p class="travel__confirm-code">{{ confirmationCode() }}</p>
+      <p class="travel__confirm-order">Guarda tus credenciales para el check-in.</p>
+
+      <syn-credential-wallet
+        [config]="walletConfig"
+        [credentials]="confirmationCredentials()"
+      />
+
+      <div class="travel__actions">
+        <button type="button" class="travel__btn travel__btn--ghost" (click)="goToAccount()">Ver mis viajes</button>
+        <button type="button" class="travel__btn travel__btn--primary" (click)="startOver()">Planear otro viaje</button>
+      </div>
+    </div>
+  }
+
+  <!-- ═══ ACCOUNT: SH-4 account-shell (mis viajes + timeline + cancelar) ═══ -->
+  @if (view() === 'account') {
+    <syn-account-shell
+      [config]="accountConfig()"
+      [items]="trips()"
+      [loading]="tripsLoading()"
+      [section]="accountSection()"
+      [itemTemplate]="tripRow"
+      [detailTemplate]="tripDetail"
+      [sectionTemplate]="accountSectionTpl"
+      (sectionchange)="onAccountSectionChange($event)"
+      (itemselect)="onTripSelect($event)"
+    />
+
+    <ng-template #tripRow let-trip>
+      <span class="travel__trip-head">
+        <span class="travel__trip-title">{{ trip.title }}</span>
+        <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
+      </span>
+      <span class="travel__trip-dates">{{ trip.startDate }} → {{ trip.endDate }} · {{ tripTotalLabel(trip) }}</span>
+    </ng-template>
+
+    <ng-template #tripDetail let-trip>
+      <div class="travel__trip-detail">
+        <div class="travel__trip-head">
+          <span class="travel__trip-title">{{ trip.title }}</span>
+          <span class="travel__trip-status" [attr.data-status]="trip.status">{{ tripStatusLabel(trip.status) }}</span>
+        </div>
+        <p class="travel__trip-meta">{{ trip.destination }} · {{ tripTotalLabel(trip) }}</p>
+
+        <syn-tracking-timeline
+          heading="Estado del viaje"
+          [stages]="tripStages(trip)"
+          emptyMessage="Sin información de seguimiento."
+        />
+
+        <h3 class="travel__subheading">Credenciales del viaje</h3>
+        <syn-credential-wallet
+          [config]="{ referenceLabel: 'Reserva', expandLabel: 'Ver QR', collapseLabel: 'Ocultar' }"
+          [credentials]="tripCredentials(trip)"
+        />
+
+        <div class="travel__trip-actions">
+          @if (canCancel(trip)) {
+            <button type="button" class="travel__btn travel__btn--ghost travel__btn--sm" (click)="cancelTrip(trip)">
+              Cancelar reserva
+            </button>
+          }
+          @if (cancelReceipt(trip.ref); as receipt) {
+            <p class="travel__cancel-note" role="status">
+              Reserva cancelada@if (receipt.refundLabel) { · {{ receipt.refundLabel }} }
+            </p>
+          }
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #accountSectionTpl let-section>
+      @switch (section.id) {
+        @case ('credenciales') {
+          <syn-credential-wallet
+            [config]="{ heading: 'Todas tus credenciales', referenceLabel: 'Reserva', expandLabel: 'Ver QR y detalle', collapseLabel: 'Ocultar detalle', emptyMessage: 'Aún no tienes credenciales de viaje.' }"
+            [credentials]="walletCredentials()"
+          />
+        }
+        @case ('perfil') {
+          <fieldset class="travel__form">
+            <legend class="travel__heading">Mis datos</legend>
+            <p class="travel__notice">Estos datos prellenan el checkout.</p>
+            <label class="travel__field-lg">
+              <span class="travel__label">Nombre completo</span>
+              <input class="travel__input" type="text" [value]="guestName()" (input)="bind(guestName.set)($event)" />
+            </label>
+            <label class="travel__field-lg">
+              <span class="travel__label">Correo electrónico</span>
+              <input class="travel__input" type="email" [value]="guestEmail()" (input)="bind(guestEmail.set)($event)" />
+            </label>
+          </fieldset>
+        }
+      }
+    </ng-template>
+  }
+
+  <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->
+  @if (cartOpen()) {
+    <div class="travel__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Tu viaje">
+      <div class="travel__drawer-head">
+        <h2 class="travel__drawer-title">Tu viaje ({{ cartCount() }})</h2>
+        <button type="button" class="travel__cart-close" (click)="toggleCart()" aria-label="Cerrar">
+          <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      @if (!hasCart()) {
+        <p class="travel__empty">Todavía no has agregado nada.</p>
+      } @else {
+        <ul class="travel__drawer-items">
+          @for (item of cartItems(); track item.id) {
+            <li class="travel__drawer-item">
+              <span class="travel__cart-icon travel__icon" aria-hidden="true">
+                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
+              </span>
+              <div class="travel__cart-main">
+                <span class="travel__cart-name">{{ item.label }}</span>
+                <span class="travel__cart-sub">{{ itemSubtitle(item) }}</span>
+              </div>
+              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
+              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
+                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </li>
+          }
+        </ul>
+        <div class="travel__cart-foot">
+          <p class="travel__cart-total">
+            <span>Total</span>
+            <span>{{ cartTotalLabel() }}</span>
+          </p>
+          <button type="button" class="travel__btn travel__btn--ghost travel__btn--block" (click)="goToCart()">Ver tu viaje</button>
+          <button type="button" class="travel__btn travel__btn--primary travel__btn--block" (click)="goToCheckout()">Ir a pagar</button>
+        </div>
+      }
+    </div>
+  }
+</section>

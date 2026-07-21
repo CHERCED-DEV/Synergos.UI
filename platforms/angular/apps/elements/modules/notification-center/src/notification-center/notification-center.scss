@@ -1,0 +1,314 @@
+@use 'scss' as syn;
+
+:host {
+  --notif-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --notif-surface-unread: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --notif-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --notif-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --notif-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
+  --notif-title-color: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --notif-text-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --notif-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --notif-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
+  --notif-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
+  --notif-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --notif-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  --notif-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --notif-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+  --notif-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --notif-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
+
+  display: block;
+  max-width: 100%;
+}
+
+.notif {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-sm;
+  padding: syn.$space-md;
+  border: syn.px-to-rem(1) solid var(--notif-border);
+  border-radius: syn.$radius-xl;
+  background: var(--notif-surface);
+  box-shadow: var(--notif-shadow);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: syn.$space-sm;
+  }
+
+  &__title {
+    display: inline-flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    margin: 0;
+    color: var(--notif-title-color);
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__badge {
+    display: inline-grid;
+    place-items: center;
+    min-inline-size: syn.px-to-rem(20);
+    block-size: syn.px-to-rem(20);
+    padding-inline: syn.$space-xs;
+    border-radius: syn.$radius-full;
+    background: var(--notif-accent);
+    color: var(--notif-on-accent);
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  &__mark-all {
+    padding: syn.$space-xs syn.$space-sm;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--notif-accent-strong);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    cursor: pointer;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--notif-hover-surface);
+    }
+  }
+
+  &__status {
+    margin: 0;
+    color: var(--notif-status-color);
+    font-size: syn.$font-size-sm;
+
+    &--error {
+      color: var(--notif-error-color);
+    }
+  }
+
+  &__empty {
+    margin: 0;
+    padding-block: syn.$space-lg;
+    color: var(--notif-muted-color);
+    font-size: syn.$font-size-sm;
+    text-align: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: syn.$space-sm;
+    padding: syn.$space-sm;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-lg;
+    background: transparent;
+    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    &:hover {
+      background: var(--notif-hover-surface);
+    }
+
+    &--unread {
+      background: var(--notif-surface-unread);
+      border-color: var(--notif-border-subtle);
+    }
+  }
+
+  &__dot {
+    flex: none;
+    inline-size: syn.px-to-rem(8);
+    block-size: syn.px-to-rem(8);
+    margin-block-start: syn.px-to-rem(6);
+    border-radius: syn.$radius-full;
+    background: var(--notif-accent);
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+  }
+
+  &__item-title {
+    margin: 0;
+    color: var(--notif-title-color);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-semibold;
+    line-height: syn.$line-height-snug;
+  }
+
+  &__item-link {
+    color: var(--notif-accent-strong);
+    text-decoration: none;
+    border-radius: syn.$radius-sm;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  &__item-text {
+    margin: 0;
+    color: var(--notif-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
+  }
+
+  &__item-time {
+    margin: 0;
+    color: var(--notif-muted-color);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: syn.$space-1;
+  }
+
+  &__action {
+    display: grid;
+    place-items: center;
+    inline-size: syn.px-to-rem(32);
+    block-size: syn.px-to-rem(32);
+    padding: 0;
+    border: syn.px-to-rem(1) solid transparent;
+    border-radius: syn.$radius-md;
+    background: transparent;
+    color: var(--notif-muted-color);
+    cursor: pointer;
+    transition:
+      background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth,
+      color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
+
+    @include syn.focus-visible;
+
+    &:hover {
+      background: var(--notif-surface);
+      color: var(--notif-accent-strong);
+    }
+
+    &[aria-pressed='true'] {
+      color: var(--notif-accent);
+    }
+
+    &--dismiss:hover {
+      color: var(--notif-error-color);
+    }
+  }
+
+  &__action-icon {
+    inline-size: syn.px-to-rem(18);
+    block-size: syn.px-to-rem(18);
+  }
+
+  // ─── Loading skeleton ──────────────────────────────────────────────────────
+  // Mirrors `&__item` 1:1 (dot + body lines + two 32px actions) so the swap to
+  // the real list costs zero CLS. Every bone is decorative and `aria-hidden`;
+  // the announcement rides on `&__sr` below.
+  &__list--loading {
+    pointer-events: none;
+  }
+
+  &__item--skeleton:hover {
+    background: transparent;
+  }
+
+  &__bone {
+    display: block;
+    border-radius: syn.$radius-sm;
+    background: linear-gradient(
+      90deg,
+      var(--notif-skeleton-base) 0%,
+      var(--notif-skeleton-highlight) 50%,
+      var(--notif-skeleton-base) 100%
+    );
+    background-size: 200% 100%;
+    animation: notif-shimmer var(--syn-duration-shimmer, #{syn.$duration-shimmer})
+      syn.$easing-smooth infinite;
+
+    // Bone heights are expressed in `em` against the same font-size token the
+    // real node uses, so they track the type scale instead of drifting from it.
+    &--dot {
+      flex: none;
+      inline-size: syn.px-to-rem(8);
+      block-size: syn.px-to-rem(8);
+      margin-block-start: syn.px-to-rem(6);
+      border-radius: syn.$radius-full;
+    }
+
+    &--title {
+      inline-size: 58%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-snug}em;
+    }
+
+    &--text {
+      inline-size: 88%;
+      font-size: syn.$font-size-sm;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--time {
+      inline-size: syn.px-to-rem(72);
+      font-size: syn.$font-size-xs;
+      block-size: #{syn.$line-height-normal}em;
+    }
+
+    &--action {
+      inline-size: syn.px-to-rem(32);
+      block-size: syn.px-to-rem(32);
+      border-radius: syn.$radius-md;
+    }
+  }
+
+  &__sr {
+    @include syn.visually-hidden;
+  }
+}
+
+@keyframes notif-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif__bone {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif__mark-all,
+  .notif__item,
+  .notif__action {
+    transition: none;
+  }
+}

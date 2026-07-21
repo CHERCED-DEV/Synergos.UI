@@ -1,0 +1,15 @@
+<div class="text-block" [class]="hostClasses()">
+  @if (headingText()) {
+    <syn-heading
+      class="text-block__heading"
+      [text]="headingText()"
+      [level]="resolvedHeadingLevel()"
+      [align]="headingAlign()"
+      [tone]="headingTone()"
+      size="md"
+    />
+  }
+  @if (body()) {
+    <p class="text-block__body">{{ body() }}</p>
+  }
+</div>

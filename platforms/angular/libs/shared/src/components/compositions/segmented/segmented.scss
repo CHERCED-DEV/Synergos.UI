@@ -1,0 +1,95 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+// `syn-segmented` mirrors the `--syn-tabs-*` pill chrome but as a compact,
+// equal-width radiogroup. Everything is tokenised under `--syn-segmented-*` so a
+// consumer can retheme it (or a per-siteRoot theme can drift it) without a fork.
+.syn-segmented {
+  --syn-segmented-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-segmented-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-segmented-color: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  --syn-segmented-color-hover: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-segmented-color-active: var(--syn-color-state-brand-text, #{syn.$color-brand-600});
+  --syn-segmented-border-active: var(--syn-color-state-brand-border, #{syn.$color-brand-400});
+  --syn-segmented-surface-active: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-surface-hover: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-segmented-gap: #{syn.$space-1};
+  --syn-segmented-padding: #{syn.$space-xxs};
+  --syn-segmented-option-padding-y: #{syn.$space-sm};
+  --syn-segmented-option-padding-x: #{syn.$space-md};
+  --syn-segmented-radius: #{syn.$radius-full};
+  --syn-segmented-font-size: #{syn.$font-size-sm};
+
+  display: inline-flex;
+  gap: var(--syn-segmented-gap);
+  max-width: 100%;
+  padding: var(--syn-segmented-padding);
+  border: syn.px-to-rem(1) solid var(--syn-segmented-border);
+  border-radius: var(--syn-segmented-radius);
+  background: var(--syn-segmented-surface);
+
+  &[data-size='sm'] {
+    --syn-segmented-option-padding-y: #{syn.$space-xxs};
+    --syn-segmented-option-padding-x: #{syn.$space-sm};
+    --syn-segmented-font-size: #{syn.$font-size-xs};
+  }
+
+  &[data-size='lg'] {
+    --syn-segmented-option-padding-y: #{syn.$space-md};
+    --syn-segmented-option-padding-x: #{syn.$space-lg};
+    --syn-segmented-font-size: #{syn.$font-size-base};
+  }
+}
+
+.syn-segmented__option {
+  @include syn.focus-visible;
+
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: syn.$space-1;
+  min-width: 0;
+  padding: var(--syn-segmented-option-padding-y) var(--syn-segmented-option-padding-x);
+  border: syn.px-to-rem(1) solid transparent;
+  border-radius: var(--syn-segmented-radius);
+  background: transparent;
+  color: var(--syn-segmented-color);
+  font-size: var(--syn-segmented-font-size);
+  font-weight: syn.$font-weight-medium;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color syn.$duration-fast syn.$easing-smooth,
+    border-color syn.$duration-fast syn.$easing-smooth,
+    background-color syn.$duration-fast syn.$easing-smooth,
+    box-shadow syn.$duration-fast syn.$easing-smooth;
+
+  &:hover:not([aria-checked='true']):not(:disabled) {
+    color: var(--syn-segmented-color-hover);
+    background: var(--syn-segmented-surface-hover);
+  }
+
+  &[aria-checked='true'] {
+    color: var(--syn-segmented-color-active);
+    border-color: var(--syn-segmented-border-active);
+    background: var(--syn-segmented-surface-active);
+    box-shadow: inset 0 0 0 syn.px-to-rem(1) var(--syn-segmented-border-active);
+    font-weight: syn.$font-weight-semibold;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.syn-segmented__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .syn-segmented__option {
+    transition: none;
+  }
+}

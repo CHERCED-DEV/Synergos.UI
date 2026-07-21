@@ -1,0 +1,10 @@
+<span
+  class="icon-block"
+  [class]="hostClasses()"
+  [style.color]="color() || null"
+  [attr.role]="ariaHidden() ? 'presentation' : 'img'"
+  [attr.aria-hidden]="ariaHidden() ? 'true' : null"
+  [attr.aria-label]="ariaHidden() ? null : (ariaLabel() || icon() || null)"
+>
+  <i class="icon-block__icon" [class]="icon()"></i>
+</span>

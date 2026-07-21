@@ -1,0 +1,100 @@
+name: Design gates UI (token bridge parity + contraste por tema)
+
+# Gate G-1 (UI side) — Ola 2 del roadmap maestro
+# (refactor-docs/architecture/14-roadmap-maestro.md, repo CMS).
+#
+# Corre `sync:tokens:check` en cada PR/push que toque el bridge generado,
+# el script generador, o los estilos shared. BLOQUEA el merge si el
+# bridge `_tokens-bridge.scss` quedó STALE respecto a la fuente
+# `syn-tokens.css` (que vive en el repo SIBLING Synergos.CMS).
+#
+# NOTA RUNNER (G-4): hoy NO hay runner CI conectado. Este workflow queda
+# LISTO para cuando se conecte el remote del UI + el runner, y además
+# requiere checkout del repo CMS (cross-repo) para tener la fuente de
+# tokens. Hasta entonces el gate corre como pre-commit / a mano:
+#   cd platforms/angular && npm run sync:tokens:check
+#
+# CROSS-REPO: el job hace checkout de ESTE repo (UI) + del CMS sibling y
+# apunta `SYNERGOS_CMS_PATH` al CMS para que el check compare contra la
+# fuente real. Ajustar `repository:` + token cuando exista el remote CMS.
+
+# G-2 vigila CUALQUIER .scss/.css del repo, no sólo el bridge, así que los
+# filtros de path tienen que ser igual de anchos. Con la lista vieja —acotada a
+# `libs/shared/src/styles/**`— un cambio en `vitals/.../tokens/_brand.scss` NO
+# disparaba el workflow: el derivado rancio podía entrar sin que nada corriera.
+on:
+  pull_request:
+    paths:
+      - '**/*.scss'
+      - '**/*.css'
+      - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'tools/audit-themes.mjs'
+      - '.github/workflows/design-gates-ui.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '**/*.scss'
+      - '**/*.css'
+      - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'tools/audit-themes.mjs'
+      - '.github/workflows/design-gates-ui.yml'
+
+jobs:
+  tokens-bridge-parity:
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout UI (este repo)
+        uses: actions/checkout@v4
+        with:
+          path: Synergos.UI
+
+      # El check necesita la FUENTE de tokens, que vive en el CMS sibling.
+      # Ajustar repository: + token cuando exista el remote del CMS.
+      - name: Checkout CMS (sibling — fuente de tokens)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Synergos.CMS
+          path: Synergos.CMS
+          token: ${{ secrets.CMS_REPO_READ_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Token bridge parity (G-1)
+        # SYNERGOS_CMS_PATH apunta al CMS checkouteado para que el check
+        # use la fuente real en vez de la convención de sibling dirs.
+        run: |
+          SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS" \
+            node Synergos.UI/platforms/angular/tools/sync-tokens.mjs --check
+
+      # ── G-5 — contraste WCAG sobre las 8 rutas de render ──────────────────
+      #
+      # Corre DESPUÉS del check de paridad a propósito: si el bridge está stale,
+      # el fallo que interesa arreglar primero es ese, y un rojo de contraste
+      # encima solo añadiría ruido.
+      #
+      # Por qué existe este gate: el método anterior de vigilar el contraste era
+      # la inspección visual, y produjo un doc rector en el que OCHO de nueve
+      # filas estaban mal. El bloque `auto-dark` incluso llevaba escrito el aviso
+      # "quien toque un token de superficie aquí tiene que espejarlo" — y el
+      # propio cambio que lo rompió se lo saltó, dejando texto blanco sobre fondo
+      # casi blanco (1.046:1) durante quién sabe cuánto. Un aviso en prosa no es
+      # un gate.
+      #
+      # Mide 184 pares × 8 rutas: los 7 `data-theme` MÁS `prefers-color-scheme:
+      # dark` sin `data-theme`. Esa octava es justo la que se escapa de cualquier
+      # barrido que busque "los 7 temas", y es la que estaba rota.
+      #
+      # El script se autotestea antes de emitir cifras (negro/blanco DEBE dar
+      # 21.0000) y aborta con código 2 si su propio arnés falla — un arnés roto
+      # que igualmente imprime números da falsa confianza. Código 1 = hay fallos
+      # de contraste reales.
+      - name: Contraste por tema (G-5)
+        run: |
+          SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS"             node Synergos.UI/tools/audit-themes.mjs

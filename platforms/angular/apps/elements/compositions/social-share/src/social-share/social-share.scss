@@ -1,0 +1,21 @@
+@use 'scss' as syn;
+
+:host {
+  --syn-social-links-title-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
+  --syn-social-links-link-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --syn-social-links-link-surface-hover: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --syn-social-links-link-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --syn-social-links-link-border-hover: var(--syn-color-border-strong, #{syn.$color-neutral-300});
+  --syn-social-links-link-text: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --syn-social-links-link-text-hover: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+
+  display: block;
+}
+
+.social-share {
+  display: block;
+
+  &--stack {
+    max-width: min(100%, #{syn.px-to-rem(320)});
+  }
+}
