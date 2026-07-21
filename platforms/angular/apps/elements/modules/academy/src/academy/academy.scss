@@ -188,7 +188,16 @@
 
   &__hero-title {
     margin: 0;
-    font-size: syn.$font-size-2xl;
+    // Escala FLUIDA, no un salto fijo. El suelo es el tamaño que ya había (24px), así que
+    // en móvil no cambia nada y no hay riesgo de desborde a 375px —el defecto de acabado
+    // más común de este repo—; el techo es 36px, que es donde un titular empieza a leerse
+    // como display y no como encabezado de sección. Sin media query: `clamp` lo resuelve
+    // solo y no hay breakpoint que mantener sincronizado.
+    font-size: clamp(#{syn.$font-size-2xl}, 4.2vw, #{syn.$font-size-4xl});
+    // Tracking negativo: a tamaño display las letras se separan ópticamente, y compensarlo
+    // es lo que distingue un titular compuesto de uno solo agrandado.
+    letter-spacing: -0.02em;
+    line-height: 1.15;
     // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
     // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
     // justo para esto — grande y LIGERO, que es como lo componen los productos que
