@@ -88,6 +88,23 @@
         </h3>
       }
 
+      <!--
+        Rating compacto (doc 24 fila 53: UNA estrella + el número, no cinco).
+        Si el producto no tiene reseñas no se pinta NADA — ni "0,0" ni "Sin valoraciones":
+        la ausencia de prueba social no es una nota mala (ADR 0112/0114).
+      -->
+      @if (hasRating()) {
+        <p class="product-card__rating" [attr.aria-label]="ratingAriaLabel()">
+          <svg class="product-card__rating-star" viewBox="0 0 24 24" width="14" height="14"
+               fill="currentColor" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+          </svg>
+          <span class="product-card__rating-average" aria-hidden="true">{{ ratingAverageLabel() }}</span>
+          <span class="product-card__rating-count" aria-hidden="true">({{ rating()?.count }})</span>
+        </p>
+      }
+
       <!-- Price -->
       @if (hasPrice()) {
         <div class="product-card__price-block">

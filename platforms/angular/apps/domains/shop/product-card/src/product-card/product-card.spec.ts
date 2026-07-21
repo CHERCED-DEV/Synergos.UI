@@ -170,6 +170,48 @@ describe('ProductCardComponent', () => {
     });
   });
 
+  // ── Rating compacto (T10) ──────────────────────────────────────────────────
+  // Lo que importa no es que pinte la nota: es que NO pinte nada cuando no hay
+  // reseñas. Un "0,0" en cada tarjeta es la columna muerta que el proyecto ya
+  // arregló una vez en las facetas (ADR 0112/0114).
+  describe('rating compacto', () => {
+    it('no pinta NADA cuando el producto no trae rating', async () => {
+      component.product.set(makeProduct());
+      await settle();
+
+      expect(query('.product-card__rating')).toBeNull();
+    });
+
+    it('tampoco lo pinta si llega un agregado con cero reseñas', async () => {
+      // Defensa por si algún día el backend deja de omitir la clave: un agregado
+      // sin reseñas detrás no es una valoración.
+      component.product.set(makeProduct({ rating: { average: 0, count: 0 } }));
+      await settle();
+
+      expect(query('.product-card__rating')).toBeNull();
+    });
+
+    it('pinta UNA estrella con la nota y el conteo', async () => {
+      component.product.set(makeProduct({ rating: { average: 4.3, count: 12 } }));
+      await settle();
+
+      const rating = query('.product-card__rating');
+      expect(rating).toBeTruthy();
+      expect(rating?.querySelectorAll('svg').length).toBe(1);   // UNA, no cinco
+      expect(query('.product-card__rating-average')?.textContent?.trim()).toBe('4,3');
+      expect(query('.product-card__rating-count')?.textContent?.trim()).toBe('(12)');
+    });
+
+    it('la estrella es decorativa y el conjunto se anuncia en palabras', async () => {
+      component.product.set(makeProduct({ rating: { average: 5, count: 1 } }));
+      await settle();
+
+      expect(query('.product-card__rating-star')?.getAttribute('aria-hidden')).toBe('true');
+      // "5,0 de 5, 1 reseña" — en singular; "(1)" a secas no se lee.
+      expect(query('.product-card__rating')?.getAttribute('aria-label')).toBe('5,0 de 5, 1 reseña');
+    });
+  });
+
   // ── Los overlays ya no dependen de que HAYA foto ───────────────────────────
   describe('overlays sobre la media', () => {
     it('muestra el badge aunque el producto no tenga foto', async () => {

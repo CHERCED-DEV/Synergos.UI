@@ -166,6 +166,26 @@ export class ProductCardComponent {
    *  compartida con el storefront (que pinta el mismo plato). */
   readonly monogram = computed(() => monogramOf(this.name()));
 
+  /** Prueba social del producto, o `undefined` si no tiene reseñas.
+   *  El backend OMITE la clave cuando no hay ninguna (ADR 0114): no llega un `{average:0,
+   *  count:0}` que haya que distinguir de una nota real de cero. Aun así se exige `count > 0`,
+   *  porque un agregado sin reseñas detrás no es una valoración. */
+  readonly rating = computed(() => this.product()?.rating);
+  readonly hasRating = computed(() => (this.rating()?.count ?? 0) > 0);
+
+  /** La nota con UNA decimal y coma decimal, que es como se escribe en es-CO. */
+  readonly ratingAverageLabel = computed(() =>
+    new Intl.NumberFormat('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      .format(this.rating()?.average ?? 0),
+  );
+
+  /** Texto para el lector de pantalla: la estrella es decorativa y "4,3 (12)" no se lee solo. */
+  readonly ratingAriaLabel = computed(() => {
+    const count = this.rating()?.count ?? 0;
+    const reviews = count === 1 ? '1 reseña' : `${count} reseñas`;
+    return `${this.ratingAverageLabel()} de 5, ${reviews}`;
+  });
+
   readonly hasPrice     = computed(() => this.showPrice() && this.price() != null);
   readonly hasDiscount  = computed(() => (this.discount() ?? 0) > 0);
   readonly hasBadge     = computed(() => this.showBadge() && this.badge().length > 0);

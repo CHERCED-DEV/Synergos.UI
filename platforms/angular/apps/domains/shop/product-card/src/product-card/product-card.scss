@@ -261,6 +261,36 @@
     }
   }
 
+  /* Rating compacto: una estrella + la nota + el conteo, en una línea de texto.
+     Cinco estrellas ocupan el ancho de media tarjeta y obligan a leer una forma en vez
+     de un número; el doc 24 pide UNA estrella y la cifra. */
+  &__rating {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xxs;
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    /* Igual que los precios: sin esto la nota de cada tarjeta mide distinto y la
+       columna baila en la grilla. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__rating-star {
+    /* La estrella hereda el color del texto, así que sigue al tema sin un token propio
+       ni un HEX que se rompa en los 7. */
+    color: var(--pc-rating-star, var(--syn-color-state-warning-strong, #{syn.$color-warning-500}));
+    flex: 0 0 auto;
+  }
+
+  &__rating-average {
+    font-weight: syn.$font-weight-semibold;
+    color: var(--pc-title);
+  }
+
+  &__rating-count {
+    color: var(--pc-price-original);
+  }
+
   /* Cifras de ancho fijo: sin esto cada precio mide distinto y la columna de
      precios de la grilla baila de tarjeta en tarjeta. */
   &__price-block {
