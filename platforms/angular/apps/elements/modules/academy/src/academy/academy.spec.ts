@@ -240,6 +240,40 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(component.courses().length).toBeGreaterThan(0);
     expect(component.degraded()).toBe(true);
   });
+
+  // ── hero copy: the CMS composes it through the `config` JSON ──────────────────
+  // The CMS emitter folds every prop into ONE `config` attribute, so a key the
+  // sanitizer whitelist forgets is dropped in silence and the hero paints its
+  // baked default. This asserts the rendered <h1>/<p>, not the signals: only the
+  // DOM proves the value survived sanitize → computed → template.
+  it('paints the hero heading and subheading composed by the CMS via `config`', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    fixture.componentRef.setInput('config', { heading: 'X', subheading: 'Y' });
+    fixture.detectChanges();
+
+    const title = fixture.debugElement.query(By.css('.academy__hero-title'));
+    const sub = fixture.debugElement.query(By.css('.academy__hero-sub'));
+    expect(title.nativeElement.textContent.trim()).toBe('X');
+    expect(sub.nativeElement.textContent.trim()).toBe('Y');
+  });
+
+  // Control: with nothing composed the hero must look EXACTLY as it did before
+  // the keys existed — the change is additive, not a copy rewrite.
+  it('falls back to the baked hero copy when the CMS composes nothing', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const title = fixture.debugElement.query(By.css('.academy__hero-title'));
+    const sub = fixture.debugElement.query(By.css('.academy__hero-sub'));
+    expect(title.nativeElement.textContent.trim()).toBe('Aprende de verdad, a tu ritmo');
+    expect(sub.nativeElement.textContent.trim()).toBe(
+      'Cursos con proyectos reales, mentoría y certificado verificable.',
+    );
+  });
 });
 
 describe('AcademyApiClient', () => {

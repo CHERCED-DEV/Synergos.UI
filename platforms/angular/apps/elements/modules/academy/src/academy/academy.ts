@@ -111,6 +111,13 @@ export interface AcademyRuntimeConfig {
   readonly scope?: string;
   /** Initial cara. Default `student`. */
   readonly role?: AcademyRole;
+  /** Catalogue hero heading. Default `Aprende de verdad, a tu ritmo`. */
+  readonly heading?: string;
+  /**
+   * Catalogue hero subheading. Default
+   * `Cursos con proyectos reales, mentoría y certificado verificable.`
+   */
+  readonly subheading?: string;
 }
 
 /** Typed event map for the transaction bus (academy ↔ checkout ↔ classroom ↔ IA). */
@@ -128,6 +135,8 @@ const DEFAULT_API_BASE = '/api/academy';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'academy';
 const DEFAULT_ROLE: AcademyRole = 'student';
+const DEFAULT_HEADING = 'Aprende de verdad, a tu ritmo';
+const DEFAULT_SUBHEADING = 'Cursos con proyectos reales, mentoría y certificado verificable.';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: AcademyRole; label: string }[] = [
@@ -167,6 +176,8 @@ function sanitizeConfig(value: Partial<AcademyRuntimeConfig>): AcademyRuntimeCon
     currency: coerceTrimmedStringInput(value.currency),
     scope: coerceTrimmedStringInput(value.scope),
     role: coerceRole(value.role),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -217,6 +228,8 @@ export class AcademyElementComponent {
   readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -233,6 +246,20 @@ export class AcademyElementComponent {
   );
   readonly initialRole = computed<AcademyRole>(() =>
     resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
+    ),
   );
 
   readonly instanceId = (academyInstanceId += 1);

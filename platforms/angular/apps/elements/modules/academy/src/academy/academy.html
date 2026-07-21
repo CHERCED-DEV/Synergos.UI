@@ -67,8 +67,8 @@
     @if (view() === 'catalog') {
       <section class="academy__catalog">
         <div class="academy__hero">
-          <h1 class="academy__hero-title">Aprende de verdad, a tu ritmo</h1>
-          <p class="academy__hero-sub">Cursos con proyectos reales, mentoría y certificado verificable.</p>
+          <h1 class="academy__hero-title">{{ heading() }}</h1>
+          <p class="academy__hero-sub">{{ subheading() }}</p>
         </div>
 
         <syn-discovery-shell

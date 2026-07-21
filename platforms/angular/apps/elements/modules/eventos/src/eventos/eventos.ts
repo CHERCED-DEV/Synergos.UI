@@ -114,6 +114,10 @@ export interface EventosRuntimeConfig {
   readonly eventId?: string;
   /** Service-fee percentage applied on the ticket subtotal. Default 12. */
   readonly feePercent?: number;
+  /** Catalog hero heading. Default `Vive los mejores eventos, sin complicarte`. */
+  readonly heading?: string;
+  /** Catalog hero subheading rendered under the title. */
+  readonly subheading?: string;
 }
 
 /** Typed event map for the transaction bus (eventos ↔ checkout ↔ check-in ↔ IA). */
@@ -127,6 +131,9 @@ const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'eventos';
 const DEFAULT_ROLE: EventosRole = 'attendee';
 const DEFAULT_FEE_PERCENT = 12;
+const DEFAULT_HEADING = 'Vive los mejores eventos, sin complicarte';
+const DEFAULT_SUBHEADING =
+  'Conciertos, deportes, teatro y festivales · e-ticket con QR · check-in ágil';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EventosRole; label: string }[] = [
@@ -161,6 +168,8 @@ function sanitizeConfig(value: Partial<EventosRuntimeConfig>): EventosRuntimeCon
     role: normalizeRole(value.role),
     eventId: coerceTrimmedStringInput(value.eventId),
     feePercent: normalizeFee(value.feePercent),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -216,6 +225,8 @@ export class EventosElementComponent {
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly eventIdInput = input<string | undefined>(undefined, { alias: 'eventId' });
   readonly feePercentInput = input<string | number | undefined>(undefined, { alias: 'feePercent' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -246,6 +257,20 @@ export class EventosElementComponent {
   );
   readonly feePercent = computed(() =>
     resolveConfigValue(normalizeFee(this.feePercentInput()), this.config()?.feePercent, DEFAULT_FEE_PERCENT),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
+    ),
   );
 
   readonly instanceId = (eventosInstanceId += 1);

@@ -55,8 +55,8 @@
     <!-- ─── CATALOG: SH-1 discovery-shell ─────────────────────────────────── -->
     @if (view() === 'catalog') {
       <div class="eventos__hero">
-        <h1 class="eventos__hero-title">Vive los mejores eventos, sin complicarte</h1>
-        <p class="eventos__hero-sub">Conciertos, deportes, teatro y festivales · e-ticket con QR · check-in ágil</p>
+        <h1 class="eventos__hero-title">{{ heading() }}</h1>
+        <p class="eventos__hero-sub">{{ subheading() }}</p>
       </div>
 
       <syn-discovery-shell

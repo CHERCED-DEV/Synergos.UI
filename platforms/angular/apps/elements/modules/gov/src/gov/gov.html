@@ -99,8 +99,8 @@
   @if (view() === 'catalog') {
     <section class="catalog" aria-label="Catálogo de trámites">
       <div class="catalog__intro">
-        <h1 class="catalog__title">¿Qué trámite necesita hacer?</h1>
-        <p class="catalog__lead">Busque por nombre, entidad o palabra clave. Sin filas ni papeleo.</p>
+        <h1 class="catalog__title">{{ heading() }}</h1>
+        <p class="catalog__lead">{{ subheading() }}</p>
       </div>
 
       <syn-discovery-shell

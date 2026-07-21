@@ -52,8 +52,8 @@
   @if (view() === 'home') {
     <div class="storefront__home">
       <div class="storefront__hero">
-        <h1 class="storefront__hero-title">Todo lo que buscas, en un solo lugar</h1>
-        <p class="storefront__hero-sub">Envíos a todo el país · hasta 36 cuotas · compra protegida</p>
+        <h1 class="storefront__hero-title">{{ heading() }}</h1>
+        <p class="storefront__hero-sub">{{ subheading() }}</p>
         <form class="storefront__searchbar storefront__searchbar--hero" role="search" (submit)="$event.preventDefault(); submitHomeSearch()">
           <label class="storefront__sr-only" [attr.for]="fieldId + '-hq'">Buscar productos</label>
           <input

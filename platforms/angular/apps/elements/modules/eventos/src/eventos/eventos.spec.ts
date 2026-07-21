@@ -113,6 +113,28 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── el hero se COMPONE: el título del CMS llega por el JSON de `config` ───────
+  it('pinta el heading/subheading que manda el CMS por `config` (no el baked)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const host = fixture.nativeElement as HTMLElement;
+    // Baseline aditivo: sin config, el hero se ve EXACTAMENTE como antes.
+    expect(host.querySelector('.eventos__hero-title')?.textContent?.trim()).toBe(
+      'Vive los mejores eventos, sin complicarte',
+    );
+
+    // El emitter del CMS fusiona todo en UN atributo `config`; si el sanitizer no
+    // lista la clave, ésta desaparece en silencio y el <h1> vuelve al default.
+    fixture.componentRef.setInput('config', { heading: 'X', subheading: 'Y' });
+    fixture.detectChanges();
+
+    expect(component.config()?.heading).toBe('X');
+    expect(host.querySelector('.eventos__hero-title')?.textContent?.trim()).toBe('X');
+    expect(host.querySelector('.eventos__hero-sub')?.textContent?.trim()).toBe('Y');
+  });
+
   // ── happy: catálogo → ficha → carrito(+fees) → SH-3 wizard → confirm + QR ─────
   it('runs the full purchase lifecycle through the SH-3 wizard into e-tickets (happy case)', async () => {
     installMemoryStorage();

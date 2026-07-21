@@ -56,8 +56,8 @@
     <!-- ─── SEARCH: SH-1 discovery + SH-8 lista↔mapa ──────────────────────── -->
     @if (view() === 'search') {
       <div class="realty__hero">
-        <h1 class="realty__hero-title">Encuentra tu próximo hogar en Colombia</h1>
-        <p class="realty__hero-sub">Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita</p>
+        <h1 class="realty__hero-title">{{ heading() }}</h1>
+        <p class="realty__hero-sub">{{ subheading() }}</p>
         <div class="realty__ops" role="group" aria-label="Operación">
           @for (op of operations; track op.key) {
             <button

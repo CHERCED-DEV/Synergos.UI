@@ -100,12 +100,18 @@ export interface GovRuntimeConfig {
   readonly agency?: string;
   /** Storage / hash-route scope. Default `gov`. */
   readonly scope?: string;
+  /** Catalog hero heading. Default `¿Qué trámite necesita hacer?`. */
+  readonly heading?: string;
+  /** Catalog hero lead under the heading. */
+  readonly subheading?: string;
 }
 
 const DEFAULT_API_BASE = '/api/gov';
 const DEFAULT_ROLE: GovRole = 'citizen';
 const DEFAULT_AGENCY = '';
 const DEFAULT_SCOPE = 'gov';
+const DEFAULT_HEADING = '¿Qué trámite necesita hacer?';
+const DEFAULT_SUBHEADING = 'Busque por nombre, entidad o palabra clave. Sin filas ni papeleo.';
 /** Autoservicio de members del CMS (ADR 0034). Acepta un `returnUrl` relativo. */
 const LOGIN_PATH = '/account/login';
 
@@ -146,6 +152,8 @@ function sanitizeConfig(value: Partial<GovRuntimeConfig>): GovRuntimeConfig {
     role: coerceRole(value.role),
     agency: coerceTrimmedStringInput(value.agency),
     scope: coerceTrimmedStringInput(value.scope),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -190,6 +198,8 @@ export class GovElementComponent {
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly agencyInput = input<string | undefined>(undefined, { alias: 'agency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -210,6 +220,20 @@ export class GovElementComponent {
   );
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
+    ),
   );
 
   readonly instanceId = (govInstanceId += 1);

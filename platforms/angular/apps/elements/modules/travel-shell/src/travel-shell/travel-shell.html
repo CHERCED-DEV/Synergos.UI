@@ -68,8 +68,8 @@
   @if (view() === 'home') {
     <div class="travel__home">
       <div class="travel__hero">
-        <h1 class="travel__hero-title">Tu próximo viaje empieza aquí</h1>
-        <p class="travel__hero-sub">Estadías, vuelos y autos en un solo lugar · un solo pago</p>
+        <h1 class="travel__hero-title">{{ heading() }}</h1>
+        <p class="travel__hero-sub">{{ subheading() }}</p>
       </div>
 
       <div class="travel__tabs" role="tablist" aria-label="Tipo de producto">

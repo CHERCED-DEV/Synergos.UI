@@ -77,6 +77,10 @@ export interface StorefrontRuntimeConfig {
   readonly currency?: string;
   /** Storage scope for the session (typically the siteRoot). Default `storefront`. */
   readonly scope?: string;
+  /** Home hero heading. Default `Todo lo que buscas, en un solo lugar`. */
+  readonly heading?: string;
+  /** Home hero subheading. Default `Envíos a todo el país · hasta 36 cuotas · compra protegida`. */
+  readonly subheading?: string;
 }
 
 /** Typed event map for the transaction bus (storefront ↔ cart ↔ checkout ↔ IA). */
@@ -95,6 +99,8 @@ interface CartSellerGroup {
 const DEFAULT_API_BASE = '/api/shop';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'storefront';
+const DEFAULT_HEADING = 'Todo lo que buscas, en un solo lugar';
+const DEFAULT_SUBHEADING = 'Envíos a todo el país · hasta 36 cuotas · compra protegida';
 const DEFAULT_SELLER_GROUP = 'Synergos Market';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const SORT_OPTIONS: readonly { key: SortKey; label: string }[] = [
@@ -116,6 +122,8 @@ function sanitizeConfig(value: Partial<StorefrontRuntimeConfig>): StorefrontRunt
     apiBase: coerceTrimmedStringInput(value.apiBase),
     currency: coerceTrimmedStringInput(value.currency),
     scope: coerceTrimmedStringInput(value.scope),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -156,6 +164,8 @@ export class StorefrontElementComponent {
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -176,6 +186,20 @@ export class StorefrontElementComponent {
       coerceTrimmedStringInput(this.scopeInput()),
       this.config()?.scope,
       DEFAULT_SCOPE,
+    ),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
     ),
   );
 

@@ -120,6 +120,10 @@ export interface RealtyRuntimeConfig {
   readonly layout?: ResultsLayout;
   /** Default annual mortgage rate (E.A. %) seeded in the calculator. Default `12`. */
   readonly defaultRate?: number;
+  /** Hero heading. Default `Encuentra tu próximo hogar en Colombia`. */
+  readonly heading?: string;
+  /** Hero subheading below the title. Default `Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita`. */
+  readonly subheading?: string;
 }
 
 /** Typed event map for the transaction bus (realty ↔ visit ↔ lead ↔ IA). */
@@ -135,6 +139,8 @@ const DEFAULT_ROLE: RealtyRole = 'demand';
 const DEFAULT_OPERATION: Operation = 'sale';
 const DEFAULT_LAYOUT: ResultsLayout = 'split';
 const DEFAULT_RATE = 12;
+const DEFAULT_HEADING = 'Encuentra tu próximo hogar en Colombia';
+const DEFAULT_SUBHEADING = 'Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita';
 const MAX_SCHEDULE_ROWS = 12;
 const SESSION_TTL_MS = 30 * 60 * 1000;
 /** Autoservicio de members del CMS (ADR 0034). Acepta un `returnUrl` relativo. */
@@ -182,6 +188,8 @@ function sanitizeConfig(value: Partial<RealtyRuntimeConfig>): RealtyRuntimeConfi
     operation: coerceOperation(value.operation),
     layout: coerceLayout(value.layout),
     defaultRate: coerceRate(value.defaultRate),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -252,6 +260,8 @@ export class RealtyElementComponent {
   readonly operationInput = input<string | undefined>(undefined, { alias: 'operation' });
   readonly layoutInput = input<string | undefined>(undefined, { alias: 'layout' });
   readonly defaultRateInput = input<string | number | undefined>(undefined, { alias: 'defaultRate' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -277,6 +287,20 @@ export class RealtyElementComponent {
   );
   readonly initialRate = computed(() =>
     resolveConfigValue(coerceRate(this.defaultRateInput()), this.config()?.defaultRate, DEFAULT_RATE),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
+    ),
   );
 
   readonly instanceId = (realtyInstanceId += 1);

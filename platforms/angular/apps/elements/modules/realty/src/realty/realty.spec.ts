@@ -639,6 +639,51 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
 
     expect(document.activeElement).toBe(loginLink);
   });
+
+  // El CMS NO manda atributos sueltos: fusiona todos los props en UN `config='{...}'`.
+  // Al llegar, el sanitizer RECONSTRUYE el objeto clave por clave, así que toda clave que
+  // no esté en la whitelist se cae en silencio (sin error, sin warning) y la app pinta su
+  // <h1> baked. Este test mira el DOM renderizado, no el signal: es el único que atrapa
+  // que alguien quite `heading` de sanitizeConfig y deje el input() puesto (build verde,
+  // título hardcodeado igual).
+  it('pinta en el <h1> del hero el título que manda el CMS por `config`', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const heroTitle = (fixture.nativeElement as HTMLElement).querySelector('.realty__hero-title');
+    // Control: sin config el hero trae el default, o sea el <h1> existe y lo estamos leyendo.
+    expect(heroTitle?.textContent?.trim()).toBe('Encuentra tu próximo hogar en Colombia');
+
+    fixture.componentRef.setInput('config', { heading: 'X', subheading: 'Y' });
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.realty__hero-title')?.textContent?.trim(),
+    ).toBe('X');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.realty__hero-sub')?.textContent?.trim(),
+    ).toBe('Y');
+  });
+
+  // El mount real llega como STRING JSON en el atributo, no como objeto: el mismo camino
+  // que recorre DefaultSynHostEmitter.
+  it('acepta el `config` serializado tal cual lo emite el CMS', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    fixture.componentRef.setInput('config', JSON.stringify({ heading: 'Vive el Quindío' }));
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expect(component.heading()).toBe('Vive el Quindío');
+    // Lo que el CMS no manda NO se pierde: el subtítulo cae al default de la plantilla.
+    expect(component.subheading()).toBe(
+      'Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita',
+    );
+  });
 });
 
 describe('RealtyApiClient', () => {

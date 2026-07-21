@@ -103,6 +103,47 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(tabs.length).toBe(3);
   });
 
+  // ── hero copy: el CMS compone el título; sin config el default no cambia ─────
+  it('paints the hero title + lead composed by the CMS instead of a baked string', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const host = fixture.nativeElement as HTMLElement;
+
+    // 1) Sin config: la página se ve IDÉNTICA a antes (cambio puramente aditivo).
+    expect(host.querySelector('.travel__hero-title')?.textContent?.trim()).toBe(
+      'Tu próximo viaje empieza aquí',
+    );
+    expect(host.querySelector('.travel__hero-sub')?.textContent?.trim()).toBe(
+      'Estadías, vuelos y autos en un solo lugar · un solo pago',
+    );
+
+    // 2) Con config: el título del editor GANA. Este es el caso que el whitelist
+    //    de sanitizeConfig() descarta en silencio si alguien quita las claves —
+    //    ni error ni warning, sólo el <h1> hardcodeado de vuelta.
+    fixture.componentRef.setInput('config', { heading: 'X', subheading: 'Y' });
+    fixture.detectChanges();
+
+    expect(component.heading()).toBe('X');
+    expect(component.subheading()).toBe('Y');
+    expect(host.querySelector('.travel__hero-title')?.textContent?.trim()).toBe('X');
+    expect(host.querySelector('.travel__hero-sub')?.textContent?.trim()).toBe('Y');
+
+    // 3) La ruta REAL del CMS: DefaultSynHostEmitter fusiona todos los props en
+    //    UN atributo config='{...}', así que la clave debe sobrevivir al JSON.
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({ heading: 'Vuela con nosotros', subheading: 'Tarifas en vivo' }),
+    );
+    fixture.detectChanges();
+
+    expect(host.querySelector('.travel__hero-title')?.textContent?.trim()).toBe(
+      'Vuela con nosotros',
+    );
+    expect(host.querySelector('.travel__hero-sub')?.textContent?.trim()).toBe('Tarifas en vivo');
+  });
+
   // ── tabs: switching product tab clears results ───────────────────────────────
   it('switches product tab and resets the previous results (tabs case)', async () => {
     installMemoryStorage();

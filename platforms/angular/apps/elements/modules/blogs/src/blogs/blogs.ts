@@ -110,6 +110,15 @@ export interface BlogsRuntimeConfig {
   readonly viewerHandle?: string;
   /** The current viewer's display name (nav identity). Default `Tú`. */
   readonly viewerName?: string;
+  /**
+   * Título de la vista `feed`, compuesto en el CMS. Default `Inicio`.
+   *
+   * Las otras cinco vistas (search/notifications/compose/studio/subscribe) ya traen su
+   * `blogs__view-title`; el feed era la única sin `<h1>`, así que la página entera se
+   * quedaba sin encabezado de nivel superior. El CMS ya componía este texto y el
+   * sanitizer lo descartaba en silencio, que es el defecto que cierra esta clave.
+   */
+  readonly heading?: string;
   /** Initial view. Default `feed`. */
   readonly view?: BlogsView;
 }
@@ -127,6 +136,10 @@ const DEFAULT_API_BASE = '/api/blogs';
 const DEFAULT_SCOPE = 'blogs';
 const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
+// `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html:14),
+// igual que `Explorar` o `Notificaciones` titulan las suyas. Es el fallback cuando el CMS
+// no compone nada; con CMS delante gana el texto del editor.
+const DEFAULT_HEADING = 'Inicio';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 /** Login del CMS — mismo destino que usa Gobierno para el hueco de identidad. */
 const LOGIN_PATH = '/account/login';
@@ -176,6 +189,7 @@ function sanitizeConfig(value: Partial<BlogsRuntimeConfig>): BlogsRuntimeConfig 
     viewerHandle: coerceTrimmedStringInput(value.viewerHandle),
     viewerName: coerceTrimmedStringInput(value.viewerName),
     view: coerceView(value.view),
+    heading: coerceTrimmedStringInput(value.heading),
   });
 }
 
@@ -234,6 +248,7 @@ export class BlogsElementComponent {
   readonly viewerHandleInput = input<string | undefined>(undefined, { alias: 'viewerHandle' });
   readonly viewerNameInput = input<string | undefined>(undefined, { alias: 'viewerName' });
   readonly viewInput = input<string | undefined>(undefined, { alias: 'view' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -305,6 +320,13 @@ export class BlogsElementComponent {
       coerceTrimmedStringInput(this.viewerNameInput()),
       this.config()?.viewerName,
       mockViewer().displayName,
+    ),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
     ),
   );
   get viewer(): Author {

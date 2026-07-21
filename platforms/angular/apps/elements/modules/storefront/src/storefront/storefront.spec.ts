@@ -112,6 +112,46 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── config: el hero se COMPONE desde el CMS, no viene baked ──────────────────
+  // El emitter del CMS no manda atributos sueltos: fusiona todo en UN `config`
+  // JSON. Si `sanitizeConfig` deja de listar heading/subheading, las claves
+  // desaparecen EN SILENCIO (sin error ni warning) y el <h1> vuelve al texto
+  // hardcodeado. Este test monta por esa misma ruta —config como string JSON—
+  // para que esa regresión salga en rojo.
+  it('pinta en el hero el heading y el subheading que llegan en el JSON de config', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({ heading: 'X', subheading: 'Y' }),
+    );
+    fixture.detectChanges();
+
+    expect(component.heading()).toBe('X');
+    expect(component.subheading()).toBe('Y');
+
+    const title = fixture.debugElement.query(By.css('.storefront__hero-title'));
+    const sub = fixture.debugElement.query(By.css('.storefront__hero-sub'));
+    expect(title.nativeElement.textContent.trim()).toBe('X');
+    expect(sub.nativeElement.textContent.trim()).toBe('Y');
+  });
+
+  // ── config: sin CMS el hero queda IDÉNTICO (el cambio es puramente aditivo) ──
+  it('cae a los textos por defecto del hero cuando el CMS no manda nada', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const title = fixture.debugElement.query(By.css('.storefront__hero-title'));
+    const sub = fixture.debugElement.query(By.css('.storefront__hero-sub'));
+    expect(title.nativeElement.textContent.trim()).toBe('Todo lo que buscas, en un solo lugar');
+    expect(sub.nativeElement.textContent.trim()).toBe(
+      'Envíos a todo el país · hasta 36 cuotas · compra protegida',
+    );
+  });
+
   // ── happy: add → cart agrupado → SH-3 wizard → pay → confirm ─────────────────
   it('runs the full lifecycle through the SH-3 wizard to a confirmation (happy case)', async () => {
     installMemoryStorage();

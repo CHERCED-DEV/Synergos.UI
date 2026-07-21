@@ -86,6 +86,10 @@ export interface TravelShellRuntimeConfig {
   readonly scope?: string;
   /** Traveler id used to load "mis viajes". Optional. */
   readonly traveler?: string;
+  /** Home hero title. Default `Tu próximo viaje empieza aquí`. */
+  readonly heading?: string;
+  /** Home hero lead under the title. Default `Estadías, vuelos y autos en un solo lugar · un solo pago`. */
+  readonly subheading?: string;
 }
 
 /** Typed event map for the transaction bus (search ↔ cart ↔ checkout ↔ IA). */
@@ -106,6 +110,8 @@ interface ConfirmedVoucher {
 const DEFAULT_API_BASE = '/api/travel';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'travel';
+const DEFAULT_HEADING = 'Tu próximo viaje empieza aquí';
+const DEFAULT_SUBHEADING = 'Estadías, vuelos y autos en un solo lugar · un solo pago';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SECTIONS: readonly TravelAccountSection[] = ['viajes', 'credenciales', 'perfil'];
 
@@ -115,6 +121,8 @@ function sanitizeConfig(value: Partial<TravelShellRuntimeConfig>): TravelShellRu
     currency: coerceTrimmedStringInput(value.currency),
     scope: coerceTrimmedStringInput(value.scope),
     traveler: coerceTrimmedStringInput(value.traveler),
+    heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
   });
 }
 
@@ -187,6 +195,8 @@ export class TravelShellElementComponent {
   readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly travelerInput = input<string | undefined>(undefined, { alias: 'traveler' });
+  readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -214,6 +224,20 @@ export class TravelShellElementComponent {
       coerceTrimmedStringInput(this.travelerInput()),
       this.config()?.traveler,
       '',
+    ),
+  );
+  readonly heading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.headingInput()),
+      this.config()?.heading,
+      DEFAULT_HEADING,
+    ),
+  );
+  readonly subheading = computed(() =>
+    resolveConfigValue(
+      coerceTrimmedStringInput(this.subheadingInput()),
+      this.config()?.subheading,
+      DEFAULT_SUBHEADING,
     ),
   );
 

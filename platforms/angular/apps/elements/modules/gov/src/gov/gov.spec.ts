@@ -75,6 +75,38 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── El <h1> del hero se COMPONE desde el CMS, no está baked ───────────────────
+  // El defecto que cierra: el emitter fusiona TODOS los props en UN atributo
+  // `config='{...}'` (DefaultSynHostEmitter), y `sanitizeConfig` RECONSTRUYE el objeto
+  // clave por clave — toda clave ausente del whitelist DESAPARECE en silencio, sin error
+  // ni warning. El título del editor se descartaba y la app pintaba un <h1> hardcodeado,
+  // violando el principio rector nº1 ("componer, nunca hardcodear").
+  // Por eso el test entra por el MISMO camino que el mount del CMS (config como STRING
+  // JSON) y afirma sobre el DOM renderizado: un test que solo mirase el input() flat
+  // pasaría en verde con el whitelist roto.
+  it('compone el heading y el subheading del hero desde el config del CMS', async () => {
+    await createComponent();
+    expect(component.view()).toBe('catalog');
+
+    // Antes de que el CMS mande nada: los defaults = el texto que estaba baked.
+    expect(component.heading()).toBe('¿Qué trámite necesita hacer?');
+    expect(component.subheading()).toBe(
+      'Busque por nombre, entidad o palabra clave. Sin filas ni papeleo.',
+    );
+
+    // El mount del CMS llega SIEMPRE por el JSON de `config`, después de construir.
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({ heading: 'X', subheading: 'Y' }),
+    );
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.catalog__title')?.textContent?.trim()).toBe('X');
+    expect(host.querySelector('.catalog__lead')?.textContent?.trim()).toBe('Y');
+  });
+
   // ── happy: discovery → ficha → SH-9 form radica → receipt → mis solicitudes ───
   it('opens a service, radica the SH-9 form and lands the receipt (happy case)', async () => {
     await createComponent();

@@ -1132,6 +1132,49 @@ describe('BlogsElementComponent', () => {
       expect(e.visibility).not.toBe('hidden');
     }
   });
+  // ─── El <h1> del feed: lo compone el CMS ────────────────────────────────────
+  //
+  // Dos defectos distintos se cruzaban aquí. (1) El feed era la ÚNICA de las seis
+  // vistas sin `blogs__view-title`, así que /blogs cargaba sin un solo <h1> y su
+  // esquema arrancaba en h2. (2) El CMS SÍ componía el título y `sanitizeConfig` lo
+  // descartaba en silencio, porque reconstruye el objeto clave por clave y todo lo
+  // que no lista desaparece sin error ni warning.
+  //
+  // El assert mira el DOM RENDERIZADO, no el signal: si alguien quita `heading` del
+  // sanitizer y deja el `input()` puesto, el build sigue verde y el título vuelve a
+  // ser el default — y sólo un assert contra el <h1> se pone rojo.
+  describe('título compuesto del feed', () => {
+    it('CONTROL: sin config, el feed titula con el default de la app', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      const h1 = fixture.nativeElement.querySelector('.blogs__view-title');
+      // Que el control encuentre el h1 es lo que da valor al test siguiente: prueba
+      // que el selector acierta y que la vista por defecto es el feed. Si el header
+      // no renderizara, aquí falla en vez de dar un verde falso más abajo.
+      expect(h1).toBeTruthy();
+      expect(h1.textContent.trim()).toBe('Inicio');
+    });
+
+    it('pinta el título que el CMS manda en el JSON de `config`', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      // Como STRING, que es la ruta real del mount: el emitter fusiona todos los
+      // props en UN atributo `config='{...}'` y el transform hace JSON.parse. Un
+      // test que pase el objeto ya parseado no cubriría el camino de producción.
+      fixture.componentRef.setInput(
+        'config',
+        JSON.stringify({ heading: 'Conecta, publica y crece tu audiencia' }),
+      );
+      fixture.detectChanges();
+
+      expect(component.heading()).toBe('Conecta, publica y crece tu audiencia');
+      expect(fixture.nativeElement.querySelector('.blogs__view-title').textContent.trim()).toBe(
+        'Conecta, publica y crece tu audiencia',
+      );
+    });
+  });
 });
 
 describe('BlogsApiClient', () => {
@@ -1341,4 +1384,5 @@ describe('BlogsApiClient', () => {
     expect(page.posts.length).toBeGreaterThan(0);
     expect(client.degraded).toBe(true);
   });
+
 });
