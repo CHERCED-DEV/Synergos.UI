@@ -189,7 +189,12 @@
   &__hero-title {
     margin: 0;
     font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
   }
 
   &__hero-sub {
@@ -769,7 +774,12 @@
   &__enrolled-title {
     margin: 0;
     font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
   }
 
   &__enrolled-ref {
@@ -1091,7 +1101,12 @@
   &__heading {
     margin: 0;
     font-size: syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
+    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
+    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
+    // justo para esto — grande y LIGERO, que es como lo componen los productos que
+    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
+    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
+    font-weight: syn.$font-weight-display;
   }
 
   &__enroll-head {
