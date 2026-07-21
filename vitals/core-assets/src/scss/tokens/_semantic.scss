@@ -13,6 +13,14 @@
 $color-surface:          $color-neutral-0;    // Base: white card, panel, page background
 $color-surface-subtle:   $color-neutral-50;   // Slightly tinted: table headers, alt rows
 $color-surface-muted:    $color-neutral-100;  // Clearly tinted: disabled backgrounds, chips
+
+// Hueso de skeleton — RESPALDO del token `--syn-skeleton-base/-sheen`.
+// Espeja el default de `:root` en syn-tokens.css (1.50:1 / 1.90:1 sobre blanco) y NO
+// la escalera de superficies. Antes el respaldo era `$color-neutral-100` (#f1f5f9),
+// que da 1.046 sobre blanco: el defecto original seguía vivo allí donde no carga
+// syn-tokens.css — dev server y standalone/Storybook.
+$color-skeleton-base:  #d1d3d5;   // 1.50:1 sobre blanco
+$color-skeleton-sheen: #bbbcbe;   // 1.90:1 sobre blanco
 $color-surface-inverse:  $color-neutral-900;  // Dark surfaces: dark cards, dark sections
 
 // ── Text ─────────────────────────────────────────────────────────────────────

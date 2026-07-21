@@ -18,8 +18,8 @@
   --sl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --sl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
   --sl-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
-  --sl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-50});
-  --sl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
+  --sl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --sl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
 
   display: block;
   max-width: 100%;

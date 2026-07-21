@@ -19,8 +19,8 @@
   --bl-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
   --bl-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
   --bl-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
-  --bl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
-  --bl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
+  --bl-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --bl-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
 
   display: block;
   max-width: 100%;

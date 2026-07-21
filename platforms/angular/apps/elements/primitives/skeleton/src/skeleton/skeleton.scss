@@ -1,8 +1,8 @@
 @use 'scss' as syn;
 
 :host {
-  --sk-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
-  --sk-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
+  --sk-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --sk-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
   --sk-radius: var(--syn-radius-md, #{syn.$radius-md});
   --sk-gap: #{syn.$space-3};
 

@@ -15,8 +15,8 @@
   --notif-hover-surface: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
   --notif-status-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --notif-error-color: var(--syn-color-text-danger, #{syn.$color-danger-600});
-  --notif-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
-  --notif-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
+  --notif-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --notif-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
 
   display: block;
   max-width: 100%;

@@ -10,8 +10,8 @@
   --cw-author-color: var(--syn-color-text-primary, #{syn.$color-neutral-800});
   --cw-body-color: var(--syn-color-text-secondary, #{syn.$color-neutral-700});
   --cw-muted-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --cw-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
-  --cw-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
+  --cw-skeleton-base: var(--syn-skeleton-base, #{syn.$color-skeleton-base});
+  --cw-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-skeleton-sheen});
   --cw-accent: var(--syn-color-action-emphasis, #{syn.$color-brand-500});
   --cw-accent-strong: var(--syn-color-text-accent, #{syn.$color-brand-600});
   --cw-on-accent: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
