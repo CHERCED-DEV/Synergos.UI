@@ -32,12 +32,16 @@ import {
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
+import { resolvePublishVersion } from './lib/cdn-registry.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
 const CDN_ROOT = resolveCdnRoot(getArg('cdn'));
 const CDN_SYNERGOS = resolve(CDN_ROOT, 'synergos');
 const VERSION = getArg('version', readPackageVersion());
+// Un `--version=` explícito manda para TODOS los elementos del lote (salto deliberado).
+// Sin él, cada elemento resuelve la suya por contenido — ver el bucle de publicación.
+const EXPLICIT_VERSION = getArg('version', null);
 const CLEAN = process.argv.includes('--clean');
 const VERIFY = process.argv.includes('--verify');
 const ELEMENT_FILTER   = getArg('element');
@@ -77,7 +81,11 @@ if (ELEMENT_FILTER) {
 
 console.log(`\n${LOG_PREFIX}📦 Synergos CDN Publish (multi-framework)`);
 console.log(`${LOG_PREFIX}   CDN target: ${CDN_SYNERGOS}`);
-console.log(`${LOG_PREFIX}   Version:    ${VERSION}`);
+// Sin `--version` la versión NO es global: cada elemento resuelve la suya por contenido,
+// así que anunciar la del package.json como "Version" haría creer que se publica esa.
+console.log(EXPLICIT_VERSION
+  ? `${LOG_PREFIX}   Version:    ${EXPLICIT_VERSION} (forzada para todo el lote)`
+  : `${LOG_PREFIX}   Version:    por contenido, por elemento (base ${VERSION})`);
 if (ELEMENT_FILTER)   console.log(`${LOG_PREFIX}   Element:    ${ELEMENT_FILTER}`);
 if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework:  ${FRAMEWORK_FILTER}`);
 if (CLEAN) console.log(`${LOG_PREFIX}   Clean:      enabled`);
@@ -134,25 +142,43 @@ for (const entry of registry) {
     // CDN path: synergos/<element>/<framework>/latest/
     const targetDir = join(CDN_SYNERGOS, entry.name, platform.name, 'latest');
 
-    const manifest = buildManifest(entry, platform.name, VERSION, inputsData[entry.name] ?? []);
-
     // Build metadata — traces every published bundle to its source
     const bundleSize = statSync(bundlePath).size;
     const integrity  = sha256(bundlePath);
+
+    // La versión se decide POR ELEMENTO y por CONTENIDO. Con la del package.json todos
+    // reescribían el mismo slot `<name>/<fw>/0.1.0/`, que el CMS sirve `immutable,
+    // max-age=1y` ⇒ el bundle nuevo no llegaba al navegador. Mismo defecto que tenía
+    // publish-element (7c81402); aquí además importa que sea POR ELEMENTO: en un lote
+    // solo unos pocos bundles cambian, y subirles la versión a todos generaría URLs
+    // nuevas —y descargas— para los que no cambiaron.
+    const resolved = EXPLICIT_VERSION
+      ? { version: EXPLICIT_VERSION, unchanged: false }
+      : resolvePublishVersion({
+          cdnSynergosDir: CDN_SYNERGOS,
+          elementName: entry.name,
+          framework: platform.name,
+          integrity,
+          fallbackVersion: VERSION,
+        });
+    const elementVersion = resolved.version;
+
+    const manifest = buildManifest(entry, platform.name, elementVersion, inputsData[entry.name] ?? []);
+
     const meta = {
       element:   entry.name,
       framework: platform.name,
-      version:   VERSION,
+      version:   elementVersion,
       commit:    GIT_SHA,
       builtAt:   new Date().toISOString(),
       bundleSize,
       integrity,
     };
 
-    const majorAlias   = `v${VERSION.split('.')[0]}`;
+    const majorAlias   = `v${elementVersion.split('.')[0]}`;
 
     if (DRY_RUN) {
-      console.log(`${LOG_PREFIX}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} / ${majorAlias})`);
+      console.log(`${LOG_PREFIX}   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${elementVersion} / ${majorAlias})`);
     } else {
       // Helper: write bundle + manifest + meta to a CDN slot directory
       function publishSlot(dir) {
@@ -163,7 +189,7 @@ for (const entry of registry) {
       }
 
       // Exact semver slot (immutable — never overwrite once published)
-      publishSlot(join(CDN_SYNERGOS, entry.name, platform.name, VERSION));
+      publishSlot(join(CDN_SYNERGOS, entry.name, platform.name, elementVersion));
 
       // Major-pinned slot (updated each patch within the major)
       publishSlot(join(CDN_SYNERGOS, entry.name, platform.name, majorAlias));
@@ -171,10 +197,10 @@ for (const entry of registry) {
       // Latest slot (always the newest release — use in staging/dev)
       publishSlot(targetDir);
 
-      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${VERSION} | ${majorAlias} | latest)`);
+      console.log(`   ✅ ${entry.name} [${platform.name}] → ${entry.tag} (${elementVersion} | ${majorAlias} | latest)${resolved.unchanged ? ' — sin cambios' : ''}`);
     }
 
-    published.push({ ...entry, framework: platform.name });
+    published.push({ ...entry, framework: platform.name, version: elementVersion });
     elementPublished = true;
   }
 
@@ -256,10 +282,13 @@ if (published.length > 0) {
         implementations: {},
       });
     }
-    const majorAlias = `v${VERSION.split('.')[0]}`;
+    // La versión que se publicó para ESTE elemento — no la global del lote, que
+    // volvería a apuntar a 0.1.0 y desharía el versionado por contenido.
+    const itemVersion = item.version ?? VERSION;
+    const majorAlias = `v${itemVersion.split('.')[0]}`;
     byElement.get(item.name).implementations[item.framework] = {
-      latest: VERSION,
-      [majorAlias]: VERSION,
+      latest: itemVersion,
+      [majorAlias]: itemVersion,
     };
   }
 
