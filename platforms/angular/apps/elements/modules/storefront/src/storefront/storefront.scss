@@ -800,6 +800,96 @@
     font-size: syn.$font-size-sm;
   }
 
+  /* Formulario de opinión (T10). Calca la superficie del resumen de arriba para que se
+     lea como parte del mismo bloque y no como un injerto. */
+  &__review-form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+    border-radius: syn.$radius-lg;
+    background: var(--sf-surface-muted);
+  }
+
+  &__review-form-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--sf-text);
+  }
+
+  &__review-field {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+  }
+
+  &__review-label {
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+    color: var(--sf-text);
+  }
+
+  &__review-optional {
+    font-weight: syn.$font-weight-regular;
+    color: var(--sf-text-muted);
+  }
+
+  &__review-input,
+  &__review-textarea {
+    width: 100%;
+    padding: syn.$space-2 syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: var(--syn-radius-field, #{syn.$radius-md});
+    background: var(--sf-surface);
+    color: var(--sf-text);
+    font: inherit;
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--syn-color-focus-ring, #{syn.$color-brand-300});
+      outline-offset: syn.px-to-rem(2);
+    }
+  }
+
+  &__review-textarea {
+    resize: vertical;
+    min-height: syn.px-to-rem(96);
+  }
+
+  &__review-submit {
+    align-self: flex-start;
+    min-height: var(--syn-control-h-md, #{syn.px-to-rem(40)});
+    padding: 0 syn.$space-4;
+    border: 0;
+    border-radius: var(--syn-radius-field, #{syn.$radius-md});
+    /* Sólido, no un wash: el CTA fantasma es una de las grietas del doc 24. */
+    background: var(--syn-color-action-primary, #{syn.$color-brand-600});
+    color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    font-weight: syn.$font-weight-semibold;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--syn-color-focus-ring, #{syn.$color-brand-300});
+      outline-offset: syn.px-to-rem(2);
+    }
+  }
+
+  &__review-notice {
+    margin: 0;
+    font-size: syn.$font-size-sm;
+    color: var(--sf-text);
+
+    /* El error se distingue por COLOR y por el texto, nunca solo por color. */
+    &--error {
+      color: var(--syn-color-text-danger, #{syn.$color-danger-600});
+    }
+  }
+
   &__review-list,
   &__qa-list {
     display: flex;

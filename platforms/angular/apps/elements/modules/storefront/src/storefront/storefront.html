@@ -369,6 +369,71 @@
             ></synergos-rating-stars>
             <p class="storefront__review-count">{{ reviewSummary().count }} opiniones</p>
           </div>
+          <!--
+            Formulario de opinión. Solo existe si el SERVIDOR dice que este visitante puede
+            reseñar (compró el producto). A quien no puede no se le enseña: un formulario
+            que siempre rebota es peor que no ofrecerlo.
+          -->
+          @if (canReview()) {
+            <form class="storefront__review-form" (submit)="$event.preventDefault(); submitReview()">
+              <h4 class="storefront__review-form-title">Cuenta tu experiencia</h4>
+
+              <div class="storefront__review-field">
+                <span class="storefront__review-label" id="sf-review-rating">Tu calificación</span>
+                <synergos-rating-stars
+                  [attr.value]="reviewRating()"
+                  [attr.label]="'Tu calificación'"
+                  (ratingchange)="onReviewRatingChange($event)"
+                ></synergos-rating-stars>
+              </div>
+
+              <div class="storefront__review-field">
+                <label class="storefront__review-label" for="sf-review-title">
+                  Título <span class="storefront__review-optional">(opcional)</span>
+                </label>
+                <input
+                  id="sf-review-title"
+                  class="storefront__review-input"
+                  type="text"
+                  maxlength="80"
+                  [value]="reviewTitle()"
+                  (input)="onReviewTitleInput($event)"
+                />
+              </div>
+
+              <div class="storefront__review-field">
+                <label class="storefront__review-label" for="sf-review-body">Tu opinión</label>
+                <textarea
+                  id="sf-review-body"
+                  class="storefront__review-textarea"
+                  rows="4"
+                  maxlength="1000"
+                  [value]="reviewBody()"
+                  (input)="onReviewBodyInput($event)"
+                ></textarea>
+              </div>
+
+              <button
+                class="storefront__review-submit"
+                type="submit"
+                [disabled]="!reviewReady() || reviewSending()"
+              >
+                {{ reviewSending() ? 'Publicando…' : 'Publicar opinión' }}
+              </button>
+
+              <!-- role=status: el resultado se anuncia sin robar el foco. -->
+              @if (reviewNotice()) {
+                <p
+                  class="storefront__review-notice"
+                  [class.storefront__review-notice--error]="reviewFailed()"
+                  role="status"
+                >
+                  {{ reviewNotice() }}
+                </p>
+              }
+            </form>
+          }
+
           @if (pdp.reviews.length === 0) {
             <p class="storefront__empty">Aún no hay opiniones para este producto.</p>
           } @else {

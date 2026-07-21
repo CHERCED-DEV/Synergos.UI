@@ -770,6 +770,87 @@ export class StorefrontElementComponent {
     }
   }
 
+  // ─── Reseñar (T10 Ola B) ─────────────────────────────────────────────────────
+  //
+  // El formulario solo existe si el SERVIDOR dice que este visitante puede reseñar
+  // (`detail.canReview`: autenticado + orden pagada de este producto). No se deduce aquí:
+  // deducirlo sería ofrecer un formulario que rebota con 403.
+
+  readonly reviewRating = signal(0);
+  readonly reviewTitle = signal('');
+  readonly reviewBody = signal('');
+  readonly reviewSending = signal(false);
+  /** Mensaje al comprador tras enviar. Vacío = no se ha enviado nada aún. */
+  readonly reviewNotice = signal('');
+  readonly reviewFailed = signal(false);
+
+  readonly canReview = computed(() => this.detail()?.canReview === true);
+  /** Sin nota y sin texto no hay reseña que enviar. */
+  readonly reviewReady = computed(
+    () => this.reviewRating() >= 1 && this.reviewBody().trim().length > 0,
+  );
+
+  /** La estrella elegida llega por el CustomEvent `ratingchange` de `synergos-rating-stars`. */
+  onReviewRatingChange(event: Event): void {
+    const value = Number((event as CustomEvent<number>).detail);
+    this.reviewRating.set(Number.isFinite(value) ? Math.min(5, Math.max(1, Math.round(value))) : 0);
+  }
+
+  onReviewTitleInput(event: Event): void {
+    this.reviewTitle.set((event.target as HTMLInputElement).value);
+  }
+
+  onReviewBodyInput(event: Event): void {
+    this.reviewBody.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  async submitReview(): Promise<void> {
+    const product = this.detail()?.product;
+    if (!product || !this.reviewReady() || this.reviewSending()) {
+      return;
+    }
+
+    this.reviewSending.set(true);
+    this.reviewNotice.set('');
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.submitReview(this.apiBase(), product.id, {
+      rating: this.reviewRating(),
+      title: this.reviewTitle().trim(),
+      body: this.reviewBody().trim(),
+    });
+
+    this.reviewSending.set(false);
+
+    if (result.ok) {
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
+      this.reviewTitle.set('');
+      this.reviewBody.set('');
+      this.reviewRating.set(0);
+      // Se recarga la ficha para que la nota y la lista salgan del SERVIDOR y no de una
+      // suposición del cliente: si el envío editó una reseña previa, el conteo NO sube.
+      await this.loadProduct(product.id);
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    // Cada motivo dice la verdad. En particular el 403 NO ofrece volver a entrar: la sesión
+    // no es el problema, y sugerirlo manda al comprador a dar vueltas (ADR 0112).
+    switch (result.reason) {
+      case 'unauthenticated':
+        this.reviewNotice.set('Inicia sesión para dejar tu opinión.');
+        break;
+      case 'not-buyer':
+        this.reviewNotice.set('Solo quien compró este producto puede opinar sobre él.');
+        break;
+      case 'invalid':
+        this.reviewNotice.set('Revisa la calificación y el texto de tu opinión.');
+        break;
+      default:
+        this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
+    }
+  }
+
   // ─── Wishlist (favoritos) ────────────────────────────────────────────────────
   isWished(productId: string): boolean {
     return this.wishedIds().has(productId);

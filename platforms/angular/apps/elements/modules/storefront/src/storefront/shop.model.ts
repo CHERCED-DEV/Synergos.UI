@@ -108,7 +108,32 @@ export interface ProductDetail {
   readonly variants: readonly ProductVariant[];
   readonly reviews: readonly ProductReview[];
   readonly questions: readonly ProductQuestion[];
+  /**
+   * Si ESTE visitante puede dejar una reseña. Lo decide el servidor con el mismo gate que
+   * aplica el POST (autenticado + orden pagada de este producto). No se deduce en el cliente:
+   * deducirlo sería adivinar, y ofrecer un formulario que va a rebotar con 403.
+   */
+  readonly canReview: boolean;
 }
+
+/** Lo que el comprador escribe. El autor NO va aquí: lo pone el servidor desde la sesión. */
+export interface ReviewSubmission {
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+}
+
+/**
+ * Resultado del envío de una reseña.
+ *
+ * Es un resultado TIPADO y no una excepción a secas, y no degrada a mock por diseño:
+ * fingir una escritura que no ocurrió es peor que el error (ADR 0112). El motivo viaja
+ * para que la UI diga la verdad — un 403 no se arregla volviendo a entrar, así que no
+ * puede ofrecer login.
+ */
+export type ReviewSubmitResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: 'unauthenticated' | 'not-buyer' | 'invalid' | 'failed' };
 
 // ─── Faceted search ──────────────────────────────────────────────────────────
 

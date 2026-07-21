@@ -13,6 +13,8 @@ import {
   type ProductReview,
   type ProductVariant,
   type ReturnReceipt,
+  type ReviewSubmission,
+  type ReviewSubmitResult,
   type SearchCriteria,
   type SearchResult,
   type ShipmentStage,
@@ -92,6 +94,60 @@ export class ShopApiClient {
     } catch (error) {
       this.markDegraded('GET /api/shop/product/{id}', error);
       return mockDetail(id, currency);
+    }
+  }
+
+  // ─── Reseñas (T10 Ola B) ─────────────────────────────────────────────────────
+
+  /**
+   * Envía la reseña de un producto. Devuelve un resultado TIPADO.
+   *
+   * **No degrada a mock, y es la diferencia que importa.** El resto de este cliente cae a
+   * datos de ejemplo cuando el backend falla, y para una LECTURA es aceptable. Para una
+   * ESCRITURA sería fingir que se guardó algo que no se guardó — el fallo exacto que ADR 0112
+   * documenta en `gov.mockDecide`, donde la UI anunciaba una decisión que nunca se registró.
+   *
+   * El motivo se lee del STATUS, no de `error.name` ni de `instanceof`: aquel depende de que
+   * alguien recuerde tipar el error, y este último ni siquiera cruza bundles.
+   */
+  async submitReview(
+    apiBase: string,
+    sku: string,
+    submission: ReviewSubmission,
+  ): Promise<ReviewSubmitResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+
+    const url = `${apiBase}/products/${encodeURIComponent(sku)}/reviews`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: submission.rating,
+          title: submission.title,
+          body: submission.body,
+        }),
+      });
+
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'not-buyer' };
+        case 400:
+          return { ok: false, reason: 'invalid' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      // Red caída. NO es lo mismo que "no puedes reseñar": el mensaje debe invitar a
+      // reintentar, no acusar al comprador.
+      return { ok: false, reason: 'failed' };
     }
   }
 
@@ -545,6 +601,9 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): ProductDetai
     questions: rawQuestions
       .map((entry) => normalizeQuestion(entry))
       .filter((question): question is ProductQuestion => question !== null),
+    // Ausente ⇒ false. Un backend que no lo emita deja el formulario OCULTO, que es el
+    // fallo seguro: lo contrario ofrecería escribir a quien va a recibir un 403.
+    canReview: value['canReview'] === true,
   };
 }
 
@@ -1016,6 +1075,10 @@ function mockDetail(id: string, currency: string): ProductDetail {
         date: '2026-05-20',
       },
     ],
+    // En modo degradado NUNCA se ofrece reseñar: el backend que decide quién puede es
+    // justo el que no está respondiendo. Invitar a escribir aquí acabaría en un envío
+    // que se pierde.
+    canReview: false,
   };
 }
 

@@ -287,6 +287,108 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     component.navigate('checkout');
     expect(component.view()).toBe('cart');
   });
+
+  // ── Reseñar (T10 Ola B): el formulario y el envío ───────────────────────────
+  //
+  // Lo que se prueba aquí no es que el formulario pinte, sino DOS invariantes:
+  // (1) no se le ofrece a quien no puede reseñar, y (2) un envío que falla NO se
+  // anuncia como publicado. Fingir una escritura que no ocurrió es el fallo que
+  // ADR 0112 documenta en gov.mockDecide.
+  describe('reseñar', () => {
+    /** El cliente suelto: estos casos prueban el CONTRATO HTTP, sin montar el componente. */
+    function reviewClient(): ShopApiClient {
+      TestBed.configureTestingModule({ providers: [ShopApiClient] });
+      return TestBed.inject(ShopApiClient);
+    }
+
+    it('NO ofrece el formulario cuando el servidor dice que no se puede', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      // En modo degradado canReview es false por diseño: el backend que decide
+      // quién puede es justo el que no responde.
+      expect(component.canReview()).toBe(false);
+    });
+
+    it('un 403 NO se anuncia como publicado, y no invita a iniciar sesión', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve({ ok: false, status: 403 } as Response)),
+      );
+      const client = reviewClient();
+
+      const result = await client.submitReview('/api/shop', 'SKU-1', {
+        rating: 5,
+        title: 't',
+        body: 'b',
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.ok === false && result.reason).toBe('not-buyer');
+    });
+
+    it('distingue 401 (entra) de 403 (compraste) de 400 (revisa) de caída de red', async () => {
+      const client = reviewClient();
+      const cases: ReadonlyArray<readonly [number | 'network', string]> = [
+        [401, 'unauthenticated'],
+        [403, 'not-buyer'],
+        [400, 'invalid'],
+        [500, 'failed'],
+        ['network', 'failed'],
+      ];
+
+      for (const [status, expected] of cases) {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn(() =>
+            status === 'network'
+              ? Promise.reject(new Error('offline'))
+              : Promise.resolve({ ok: false, status } as Response),
+          ),
+        );
+        const result = await client.submitReview('/api/shop', 'SKU-1', {
+          rating: 4,
+          title: '',
+          body: 'x',
+        });
+        expect(result.ok === false && result.reason).toBe(expected);
+      }
+    });
+
+    it('un envío correcto se reporta como correcto', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)),
+      );
+      const client = reviewClient();
+
+      const result = await client.submitReview('/api/shop', 'SKU-1', {
+        rating: 5,
+        title: 'Bueno',
+        body: 'Cumple',
+      });
+
+      expect(result.ok).toBe(true);
+    });
+
+    it('sin nota o sin texto el envío ni se intenta', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      component.reviewRating.set(0);
+      component.reviewBody.set('algo');
+      expect(component.reviewReady()).toBe(false);
+
+      component.reviewRating.set(4);
+      component.reviewBody.set('   ');
+      expect(component.reviewReady()).toBe(false);
+
+      component.reviewBody.set('Cumple lo que promete.');
+      expect(component.reviewReady()).toBe(true);
+    });
+  });
 });
 
 describe('ShopApiClient', () => {
