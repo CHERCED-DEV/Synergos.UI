@@ -116,7 +116,11 @@
     }
 
     &:focus {
-      outline: none;
+      // SIN `outline: none`. Lo tenia, y dejaba como UNICO indicador de foco un cambio
+      // de fondo que mide 1.05:1 a 1.20:1 en los 7 temas: para quien navega con teclado,
+      // foco invisible. Es la gemela Angular del mismo bug que se arreglo en
+      // `syn-shop.css:619` del CMS — arreglar una copia y no la otra habria dejado el
+      // defecto vivo en la misma pagina de tienda, solo que en la otra mitad.
       background: var(--qty-input-focus-surface);
     }
   }

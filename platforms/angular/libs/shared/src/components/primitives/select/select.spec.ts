@@ -50,4 +50,41 @@ describe(SelectComponent.name, () => {
     expect(select.getAttribute('aria-describedby')).toContain(hint.id);
     expect(hint.textContent).toContain('Pick one');
   });
+
+  describe('autocomplete', () => {
+    function renderSelect(props: Record<string, unknown>): HTMLSelectElement {
+      const fixture = TestBed.createComponent(SelectComponent);
+      fixture.componentRef.setInput('options', [{ value: 'a', label: 'A' }]);
+      for (const [key, value] of Object.entries(props)) {
+        fixture.componentRef.setInput(key, value);
+      }
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    }
+
+    it('omits the attribute by default', () => {
+      expect(renderSelect({}).hasAttribute('autocomplete')).toBe(false);
+    });
+
+    it('emits country-name for a country dropdown', () => {
+      expect(renderSelect({ autocomplete: 'country-name' }).getAttribute('autocomplete')).toBe(
+        'country-name',
+      );
+    });
+
+    it('emits address-level1 for a departamento dropdown', () => {
+      expect(renderSelect({ autocomplete: 'address-level1' }).getAttribute('autocomplete')).toBe(
+        'address-level1',
+      );
+    });
+
+    it('treats a blank autocomplete as absent', () => {
+      expect(renderSelect({ autocomplete: '   ' }).hasAttribute('autocomplete')).toBe(false);
+    });
+
+    it('never emits inputmode — a select accepts no typed text', () => {
+      expect(renderSelect({ autocomplete: 'country-name' }).hasAttribute('inputmode')).toBe(false);
+    });
+  });
 });

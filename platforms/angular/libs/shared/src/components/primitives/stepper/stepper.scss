@@ -30,7 +30,11 @@ $_input-min: syn.px-to-rem(80);
 
   &:focus-within {
     border-color: syn.$color-brand-400;
-    box-shadow:   0 0 0 syn.px-to-rem(3) syn.$color-brand-100;
+    /* outline, no box-shadow: un box-shadow se DESCARTA en modo alto contraste
+       (forced-colors) y ahi el foco queda invisible. Ancho y offset por token, los
+       mismos que ya usa el mixin compartido y ahora tambien el CSS del CMS. */
+    outline: var(--syn-focus-ring-width, 2px) solid syn.$color-brand-100;
+    outline-offset: var(--syn-focus-ring-offset, 2px);
   }
 }
 

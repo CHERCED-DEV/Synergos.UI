@@ -43,4 +43,38 @@ describe(TextareaComponent.name, () => {
     expect(textarea.getAttribute('aria-describedby')).toContain(hint.id);
     expect(hint.textContent).toContain('Add details');
   });
+
+  describe('autocomplete', () => {
+    function renderTextarea(props: Record<string, unknown>): HTMLTextAreaElement {
+      const fixture = TestBed.createComponent(TextareaComponent);
+      for (const [key, value] of Object.entries(props)) {
+        fixture.componentRef.setInput(key, value);
+      }
+      fixture.detectChanges();
+
+      return fixture.nativeElement.querySelector('textarea') as HTMLTextAreaElement;
+    }
+
+    it('omits the attribute by default', () => {
+      expect(renderTextarea({}).hasAttribute('autocomplete')).toBe(false);
+    });
+
+    it('emits the token the consumer passes', () => {
+      expect(renderTextarea({ autocomplete: 'street-address' }).getAttribute('autocomplete')).toBe(
+        'street-address',
+      );
+    });
+
+    it('supports off for free-text boxes that must never be autofilled', () => {
+      expect(renderTextarea({ autocomplete: 'off' }).getAttribute('autocomplete')).toBe('off');
+    });
+
+    it('treats a blank autocomplete as absent', () => {
+      expect(renderTextarea({ autocomplete: '   ' }).hasAttribute('autocomplete')).toBe(false);
+    });
+
+    it('never emits inputmode — a textarea has no type to infer one from', () => {
+      expect(renderTextarea({}).hasAttribute('inputmode')).toBe(false);
+    });
+  });
 });

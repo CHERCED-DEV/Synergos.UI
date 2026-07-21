@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { coerceTrimmedStringInput } from '../../../utils/config-input.util';
 
 let textareaId = 0;
 
@@ -20,6 +21,7 @@ let textareaId = 0;
         [disabled]="disabled()"
         [required]="required()"
         [value]="value()"
+        [attr.autocomplete]="resolvedAutocomplete()"
         [attr.aria-invalid]="invalid() || null"
         [attr.aria-label]="ariaLabel() || label() || placeholder() || 'Text area'"
         [attr.aria-describedby]="describedByIds() || null"
@@ -43,6 +45,20 @@ export class TextareaComponent {
   readonly describedBy = input('');
   readonly placeholder = input('');
   readonly value = input('');
+
+  /**
+   * HTML `autocomplete` token. Applies to `<textarea>` and is omitted by default.
+   * The realistic values here are the multiline ones — `street-address` — plus `off`
+   * for free-text boxes (comments, notes, message bodies) that must never be autofilled.
+   *
+   * `inputmode` is deliberately NOT exposed: a textarea has no `type` to infer from and
+   * its content is prose, for which the default keyboard is already correct.
+   *
+   * Never label a field with a payment token (`cc-number`, `cc-csc`, ...) unless it
+   * literally collects that datum.
+   */
+  readonly autocomplete = input<string>('');
+
   readonly rows = input(4);
   readonly disabled = input(false);
   readonly invalid = input(false);
@@ -58,6 +74,10 @@ export class TextareaComponent {
     const ids = [this.describedBy().trim(), this.hint() ? this.hintId() : ''].filter(Boolean);
     return ids.join(' ');
   });
+
+  readonly resolvedAutocomplete = computed<string | null>(
+    () => coerceTrimmedStringInput(this.autocomplete()) ?? null,
+  );
 
   constructor() {
     textareaId += 1;

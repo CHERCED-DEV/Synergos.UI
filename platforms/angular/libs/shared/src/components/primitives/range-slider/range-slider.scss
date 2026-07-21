@@ -49,7 +49,11 @@
     opacity var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
   &:focus-visible {
-    box-shadow: 0 0 0 syn.px-to-rem(3) var(--syn-range-slider-focus-ring-surface);
+    /* outline, no box-shadow: un box-shadow se DESCARTA en modo alto contraste
+       (forced-colors) y ahi el foco queda invisible. Ancho y offset por token, los
+       mismos que ya usa el mixin compartido y ahora tambien el CSS del CMS. */
+    outline: var(--syn-focus-ring-width, 2px) solid var(--syn-range-slider-focus-ring-surface);
+    outline-offset: var(--syn-focus-ring-offset, 2px);
   }
 
   &:disabled {
