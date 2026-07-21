@@ -13,6 +13,73 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
+ * Decide bajo QUÉ versión publicar, mirando el contenido en vez de un número fijo.
+ *
+ * El problema que resuelve: todos los `package.json` dicen `0.1.0`, así que cada
+ * publicación reescribía el MISMO slot `<name>/<fw>/0.1.0/main.js` — y ese slot lo
+ * sirve el CMS con `Cache-Control: immutable, max-age=31536000`. Contenido nuevo bajo
+ * una URL que el navegador tiene PROHIBIDO revalidar: en local se tapa con
+ * Ctrl+Shift+R, pero con usuarios reales el bundle nuevo sencillamente no llega.
+ * `immutable` no era mentira del CMS; lo era del publisher, que reusaba la URL.
+ *
+ * Regla: misma integridad ⇒ misma versión (republicar es idempotente, no ensucia el
+ * histórico). Integridad distinta ⇒ sube el patch, que es una URL nueva y hace honesto
+ * al `immutable`. Las versiones viejas se quedan en disco a propósito: eso es lo que
+ * permite que una página ya servida siga cargando el bundle con el que se pintó.
+ *
+ * @param {object} options
+ * @param {string} options.cdnSynergosDir — ruta absoluta a `<cdn>/synergos`
+ * @param {string} options.elementName
+ * @param {string} options.framework
+ * @param {string} options.integrity     — SRI del bundle que se va a publicar
+ * @param {string} options.fallbackVersion — versión de partida si no hay nada publicado
+ * @returns {{ version: string, unchanged: boolean, reason: string }}
+ */
+export function resolvePublishVersion({
+  cdnSynergosDir, elementName, framework, integrity, fallbackVersion,
+}) {
+  const bump = (v) => {
+    const m = /^(\d+)\.(\d+)\.(\d+)/.exec(v ?? '');
+    if (!m) return fallbackVersion;
+    return `${m[1]}.${m[2]}.${Number(m[3]) + 1}`;
+  };
+
+  let current = null;
+  const registryPath = join(cdnSynergosDir, 'registry.json');
+  if (existsSync(registryPath)) {
+    try {
+      const doc = JSON.parse(readFileSync(registryPath, 'utf8'));
+      const el = Array.isArray(doc?.elements)
+        ? doc.elements.find((e) => e && e.name === elementName)
+        : null;
+      const impl = el?.implementations?.[framework];
+      if (impl?.latest) current = String(impl.latest);
+    } catch {
+      // Registry ilegible: no es motivo para pisar una versión. Se publica una nueva.
+    }
+  }
+
+  if (!current) {
+    return { version: fallbackVersion, unchanged: false, reason: 'first-publish' };
+  }
+
+  // ¿El contenido es el mismo que ya está publicado bajo esa versión?
+  const metaPath = join(cdnSynergosDir, elementName, framework, current, 'meta.json');
+  if (existsSync(metaPath)) {
+    try {
+      const meta = JSON.parse(readFileSync(metaPath, 'utf8'));
+      if (meta?.integrity && meta.integrity === integrity) {
+        return { version: current, unchanged: true, reason: 'same-content' };
+      }
+    } catch {
+      // meta.json ilegible ⇒ no se puede afirmar que sea el mismo contenido ⇒ subir.
+    }
+  }
+
+  return { version: bump(current), unchanged: false, reason: `content-changed (desde ${current})` };
+}
+
+/**
  * Add or update one element's entry in the CDN registry, preserving every
  * other element and any implementations already recorded for this one.
  *

@@ -35,7 +35,7 @@ import {
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest } from './lib/manifest-builder.mjs';
-import { upsertCdnRegistryEntry } from './lib/cdn-registry.mjs';
+import { upsertCdnRegistryEntry, resolvePublishVersion } from './lib/cdn-registry.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -156,21 +156,37 @@ if (!elementInputs || elementInputs.length === 0) {
     + ' the CMS will not know which config fields this element accepts.\n');
 }
 
-const manifest = buildManifest(entry, framework, VERSION, elementInputs ?? []);
-
 const bundleSize = statSync(bundlePath).size;
 const integrity  = sha256(bundlePath);
+
+// La versión se decide por CONTENIDO, no por el `0.1.0` del package.json — si no, cada
+// publicación reescribe el mismo slot inmutable y el bundle nuevo no llega al navegador.
+// Un `--version=` explícito manda siempre: sigue siendo la vía para un salto deliberado.
+const explicitVersion = getArg('version', null);
+const resolved = explicitVersion
+  ? { version: explicitVersion, unchanged: false, reason: 'explicit --version' }
+  : resolvePublishVersion({
+      cdnSynergosDir: CDN_SYNERGOS,
+      elementName,
+      framework,
+      integrity,
+      fallbackVersion: VERSION,
+    });
+const PUBLISH_VERSION = resolved.version;
+
+const manifest = buildManifest(entry, framework, PUBLISH_VERSION, elementInputs ?? []);
+
 const meta = {
   element:   elementName,
   framework,
-  version:   VERSION,
+  version:   PUBLISH_VERSION,
   commit:    GIT_SHA,
   builtAt:   new Date().toISOString(),
   bundleSize,
   integrity,
 };
 
-const majorAlias = `v${VERSION.split('.')[0]}`;
+const majorAlias = `v${PUBLISH_VERSION.split('.')[0]}`;
 
 /** Write bundle + manifest + meta to a CDN slot directory */
 function publishSlot(dir) {
@@ -181,10 +197,10 @@ function publishSlot(dir) {
 }
 
 if (DRY_RUN) {
-  console.log(`${LOG_PREFIX}   ✅ ${elementName} [${framework}] → ${entry.tag} (${VERSION} / ${majorAlias} / latest)`);
+  console.log(`${LOG_PREFIX}   ✅ ${elementName} [${framework}] → ${entry.tag} (${PUBLISH_VERSION} / ${majorAlias} / latest)`);
 } else {
   // Exact semver slot (immutable)
-  publishSlot(join(CDN_SYNERGOS, elementName, framework, VERSION));
+  publishSlot(join(CDN_SYNERGOS, elementName, framework, PUBLISH_VERSION));
   // Major-pinned slot
   publishSlot(join(CDN_SYNERGOS, elementName, framework, majorAlias));
   // Latest slot
@@ -196,10 +212,10 @@ if (DRY_RUN) {
     cdnSynergosDir: CDN_SYNERGOS,
     entry,
     framework,
-    version: VERSION,
+    version: PUBLISH_VERSION,
   });
 
-  console.log(`   ✅ ${elementName} [${framework}] → ${entry.tag} (${VERSION} | ${majorAlias} | latest)`);
+  console.log(`   ✅ ${elementName} [${framework}] → ${entry.tag} (${PUBLISH_VERSION} | ${majorAlias} | latest)${resolved.unchanged ? ' — sin cambios' : ''}`);
 
   if (upsert.ok) {
     console.log(`   📋 registry.json → ${upsert.created ? 'added' : 'updated'} "${entry.name}" (${framework})`);
