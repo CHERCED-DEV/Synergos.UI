@@ -357,6 +357,16 @@ export interface SavedSearch {
 /** `GET /api/realty/saved?user=` response. */
 export interface SavedResult {
   readonly searches: readonly SavedSearch[];
+  /**
+   * Los favoritos del member tal como los tiene el SERVIDOR. El backend siempre los
+   * emitía; el cliente los tiraba, y por eso un favorito no volvía nunca al recargar.
+   *
+   * OPCIONAL a propósito, y la diferencia importa: `undefined` significa "esta respuesta
+   * no trae la verdad" (el fallback degradado) y la UI conserva lo que ya tenía; `[]`
+   * significa "el servidor dice que no tienes ninguno" y la UI vacía. Degradar por
+   * AUSENCIA, nunca por NEGACIÓN (ADR 0112).
+   */
+  readonly favorites?: readonly string[];
 }
 
 /** `POST /api/realty/saved-search` request body. */

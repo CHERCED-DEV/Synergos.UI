@@ -323,6 +323,67 @@ export class RealtyApiClient {
     }
   }
 
+  // ─── Favoritos (escritura real — NO degrada) ─────────────────────────────────
+  //
+  // Estas dos son las únicas del cliente que NO caen a mock ante un fallo, y es a
+  // propósito: son ESCRITURAS. El catálogo puede enseñar inmuebles de ejemplo porque
+  // enseñar algo es mejor que una página en blanco; un favorito, no — devolver "ok"
+  // cuando el servidor no guardó nada es exactamente la mentira que la UI necesita
+  // dejar de contar. Se re-lanza TODO para que quien llama pueda revertir lo que ya
+  // pintó en optimista.
+
+  /**
+   * @throws {RealtyUnauthorizedError} si no hay sesión.
+   * @throws {Error} si el backend falla por cualquier otro motivo.
+   */
+  async addFavorite(apiBase: string, listingId: string): Promise<readonly string[] | undefined> {
+    return this.writeFavorite(`${apiBase}/favorite`, 'POST', listingId);
+  }
+
+  /**
+   * @throws {RealtyUnauthorizedError} si no hay sesión.
+   * @throws {Error} si el backend falla por cualquier otro motivo.
+   */
+  async removeFavorite(apiBase: string, listingId: string): Promise<readonly string[] | undefined> {
+    return this.writeFavorite(`${apiBase}/favorite`, 'DELETE', listingId);
+  }
+
+  /**
+   * Devuelve la lista AUTORITATIVA de favoritos que el backend emite tras la escritura
+   * (`FavoritesResponse`, RealtyController:352 y :370), o `undefined` si la respuesta no
+   * la trae.
+   *
+   * Antes esto era `Promise<void>` y la lista se tiraba, y eso abría un hueco real: si un
+   * `GET /saved` de rehidratación ganaba la carrera a la escritura, pintaba la foto
+   * ANTERIOR y el camino de éxito no repintaba nada — el favorito quedaba guardado en el
+   * servidor y apagado en la pantalla, sin recuperación hasta recargar. Con la lista del
+   * propio servidor, el éxito repinta la verdad y esa carrera deja de importar.
+   *
+   * `undefined` (no `[]`) cuando no viene: ausencia no es negación.
+   */
+  private async writeFavorite(
+    url: string,
+    method: string,
+    listingId: string,
+  ): Promise<readonly string[] | undefined> {
+    try {
+      // Sin `user` en el cuerpo: la identidad la pone la cookie y el backend IGNORA
+      // el `User` del DTO — ponerlo aquí solo reviviría el IDOR ya cerrado.
+      const data = await this.request(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listingId }),
+      });
+      const raw = (data as { favorites?: unknown })?.favorites;
+      return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === 'string') : undefined;
+    } catch (error) {
+      // Un 401/403 además OLVIDA la caché de búsquedas: la sesión se perdió y esa copia
+      // en memoria no es de nadie.
+      this.rethrowIfUserAuthError(error);
+      throw error;
+    }
+  }
+
   // ─── Agent desk (cartera + leads + agenda) ────────────────────────────────────
   //
   // La consola del agente expone PII de OTRAS personas: los leads son nombres, correos y
@@ -857,10 +918,16 @@ function normalizeSaved(value: unknown): SavedResult | null {
   if (!list) {
     return null;
   }
+  // Se distingue "no vino el campo" (no tocar los favoritos locales) de "vino vacío"
+  // (el servidor dice que no hay ninguno). Ver `SavedResult.favorites`.
+  const rawFavorites = isRecord(value) && Array.isArray(value['favorites']) ? value['favorites'] : null;
   return {
     searches: list
       .map((entry) => normalizeSavedSearch(entry))
       .filter((search): search is SavedSearch => search !== null),
+    favorites: rawFavorites
+      ? rawFavorites.map((entry) => readString(entry).trim()).filter((id) => id.length > 0)
+      : undefined,
   };
 }
 

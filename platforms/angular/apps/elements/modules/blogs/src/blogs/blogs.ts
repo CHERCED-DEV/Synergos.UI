@@ -119,6 +119,10 @@ interface BlogsBus extends Record<string, unknown> {
   readonly subscribed: { readonly creatorKey: string; readonly tierId: string };
 }
 
+/** Vistas que SÍ renderizan el panel `.blogs__signin`. En el resto, un 401 debe dejar
+ *  su aviso en el canal global o el usuario no ve absolutamente nada. */
+const VISTAS_CON_PANEL: readonly string[] = ['notifications', 'messages', 'saved', 'studio'];
+
 const DEFAULT_API_BASE = '/api/blogs';
 const DEFAULT_SCOPE = 'blogs';
 const DEFAULT_USER = 'me';
@@ -448,6 +452,17 @@ export class BlogsElementComponent {
   readonly savedPosts = signal<readonly Post[]>([]);
   readonly savedLoaded = signal(false);
   readonly savedSection = signal<'saved' | 'lists'>('saved');
+  /**
+   * Cola de persistencia POR POST: la siguiente llamada de un mismo post espera a que la
+   * anterior termine, para que el servidor las aplique en el orden en que se pulsaron.
+   * Ver {@link toggleSave}.
+   */
+  readonly #saveChains = new Map<string, Promise<void>>();
+  /** Última intención por post; una respuesta con token caducado no toca la UI. */
+  readonly #saveTokens = new Map<string, number>();
+  /** Último estado que el SERVIDOR confirmó por post. La vuelta atrás va aquí, no a la
+   *  foto optimista de pantalla. */
+  readonly #saveConfirmed = new Map<string, boolean>();
 
   // ─── Creator studio (SH-5) ────────────────────────────────────────────────────
   readonly studio = signal<StudioPayload | null>(null);
@@ -1013,8 +1028,110 @@ export class BlogsElementComponent {
     return this.savedIds().has(id);
   }
 
+  /**
+   * Marcador optimista CON vuelta atrás: se pinta, se persiste y, si el servidor dice que
+   * no, se deshace y se dice. Antes solo se pintaba — el post "guardado" desaparecía al
+   * recargar porque nunca salió una petición.
+   *
+   * Las dos señales se mueven SIEMPRE juntas (`savedIds` manda el icono, `savedPosts` la
+   * lista y el badge del nav): deshacer una sola dejaría el marcador encendido sobre una
+   * lista que ya no lo contiene, que es peor que la mentira original.
+   */
   toggleSave(post: Post): void {
     const saved = !this.savedIds().has(post.id);
+
+    // Foto EXACTA de lo que habría que deshacer. El índice importa: la lista de guardados
+    // llega ORDENADA del servidor, y reinsertar al frente tras un fallo dejaría el post en
+    // una posición donde nunca estuvo — "revertir" tiene que devolverlo a su sitio, no al
+    // primero. Se guarda la entrada que ya estaba (la de la lista, más rica que la del
+    // feed), no el `post` que llega por parámetro.
+    // ⚠️ La foto se toma del estado CONFIRMADO por el servidor, no del que hay en
+    // pantalla. El de pantalla puede llevar pintado lo que una pulsación anterior aún no
+    // ha persistido, y entonces "revertir" restauraba un estado que el servidor NUNCA
+    // tuvo — el defecto original reintroducido por el camino de vuelta atrás: marcador
+    // encendido, nada guardado, se pierde al recargar. Medido en las dos direcciones con
+    // doble pulsación y el backend caído.
+    const confirmado = this.#saveConfirmed.get(post.id);
+    const previousIndex = this.savedPosts().findIndex((entry) => entry.id === post.id);
+    const previousEntry = previousIndex >= 0 ? this.savedPosts()[previousIndex] : post;
+    const estadoPrevio = confirmado ?? previousIndex >= 0;
+
+    this.applySaved(post, saved);
+
+    // Token = la ÚLTIMA intención del usuario para ESTE post. Una respuesta cuyo token ya
+    // caducó no toca la UI: el usuario volvió a pulsar y esa pulsación es la dueña.
+    const token = (this.#saveTokens.get(post.id) ?? 0) + 1;
+    this.#saveTokens.set(post.id, token);
+
+    // Y la cola SERIALIZA por post: la petición N+1 no sale hasta que la N termina, así el
+    // servidor las aplica en el orden en que se pulsaron. Sin esto, un doble clic rápido
+    // puede llegar cruzado y el servidor queda guardando lo que el usuario acababa de
+    // quitar. Posts distintos = colas distintas: marcar dos seguidos sigue yendo en
+    // paralelo, no se estorban.
+    const previousCall = this.#saveChains.get(post.id) ?? Promise.resolve();
+    const chain = previousCall
+      // El fallo del anterior ya lo trató su propio `catch`; no debe romper la cola.
+      .catch(() => undefined)
+      .then(() => this.#api.setSaved(this.apiBase(), post.id, saved))
+      // El servidor lo aceptó: ESTE es el estado al que hay que volver si una pulsación
+      // posterior falla. Sin anotarlo, la vuelta atrás usaba la foto de pantalla, que
+      // puede llevar pintado algo que nadie ha persistido.
+      .then(() => {
+        this.#saveConfirmed.set(post.id, saved);
+      })
+      .catch((error: unknown) => {
+        if (this.#saveTokens.get(post.id) !== token) {
+          // Llegó tarde. Revertir aquí pelearía contra la pulsación más reciente, que ya
+          // pintó lo suyo y tiene su propia petición en la cola.
+          return;
+        }
+        // Un 401 no es "falló la red": es que no hay sesión. El panel de "Inicia sesión"
+        // que la app ya tiene vacía TODO lo personal (incluidos los guardados), así que el
+        // marcador optimista se va con ello — la reversión está incluida. Y anuncia por su
+        // cuenta: escribir además `errorMessage` metería un segundo aviso contradictorio.
+        const invitacion = saved
+          ? 'Inicia sesión para guardar este post.'
+          : 'Inicia sesión para gestionar tus guardados.';
+        if (this.handleUnauthenticated(error, invitacion)) {
+          // ⚠️ `handleUnauthenticated` enciende el panel "Inicia sesión", PERO ese panel
+          // solo se pinta dentro de las cuatro vistas personales (notificaciones,
+          // mensajes, guardados, estudio). El botón de guardar vive en la TARJETA DE
+          // POST, o sea en el feed — donde no hay panel. Sin esto, quien pulsa desde el
+          // feed ve el marcador encenderse, apagarse, y NADA más: la acción vuelve a
+          // mentir, ahora por omisión, y solo se entera quien usa lector de pantalla.
+          // Así que en las vistas sin panel la invitación se pinta en el aviso global,
+          // que ya existe y es `role="alert"`.
+          if (!VISTAS_CON_PANEL.includes(this.view())) {
+            this.errorMessage.set(invitacion);
+          }
+          return;
+        }
+        this.applySaved(previousEntry, estadoPrevio, previousIndex);
+        // Un único canal: `errorMessage` ya se pinta en un `role="alert"` vivo, que el
+        // lector anuncia solo. Llamar además a `announce()` lo diría dos veces.
+        this.errorMessage.set(
+          saved
+            ? 'No pudimos guardar el post. Intenta de nuevo.'
+            : 'No pudimos quitarlo de guardados. Intenta de nuevo.',
+        );
+      });
+
+    this.#saveChains.set(post.id, chain);
+    void chain.then(() => {
+      // Si nadie encadenó detrás, este post está quieto: se sueltan sus entradas para que
+      // los mapas no crezcan con cada post que el usuario toca en una sesión larga.
+      if (this.#saveChains.get(post.id) === chain) {
+        this.#saveChains.delete(post.id);
+        this.#saveTokens.delete(post.id);
+      }
+    });
+  }
+
+  /**
+   * Mueve las DOS señales del marcador a la vez. `at` solo se usa al revertir un
+   * "quitar": reinserta la entrada en el índice del que salió.
+   */
+  private applySaved(post: Post, saved: boolean, at?: number): void {
     this.savedIds.update((current) => {
       const next = new Set(current);
       if (saved) {
@@ -1025,10 +1142,17 @@ export class BlogsElementComponent {
       return next;
     });
     this.savedPosts.update((current) => {
-      if (saved) {
-        return current.some((entry) => entry.id === post.id) ? current : [post, ...current];
+      if (!saved) {
+        return current.filter((entry) => entry.id !== post.id);
       }
-      return current.filter((entry) => entry.id !== post.id);
+      if (current.some((entry) => entry.id === post.id)) {
+        return current;
+      }
+      // Se inserta sobre la lista ACTUAL, no sobre una copia congelada al pulsar: así una
+      // reacción o un patch que hayan llegado entretanto sobreviven a la reversión.
+      const next = [...current];
+      next.splice(Math.min(Math.max(at ?? 0, 0), next.length), 0, post);
+      return next;
     });
   }
 

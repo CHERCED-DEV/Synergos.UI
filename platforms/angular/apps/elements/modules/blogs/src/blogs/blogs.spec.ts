@@ -362,21 +362,248 @@ describe('BlogsElementComponent', () => {
     expect(component.searchResult()!.posts.length).toBeGreaterThan(0);
   });
 
-  // ── v2 guardados: bookmarking a post adds it to the saved collection ─────────
-  it('bookmarks a post into guardados and toggles it off idempotently', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  // ── v2 guardados: el marcador PERSISTE (no solo se enciende) ─────────────────
+  /**
+   * Una escritura de guardados que el servidor acepta. `204 No Content` a propósito: el
+   * `.json()` revienta, y si el cliente parseara el cuerpo un guardado bueno se leería
+   * como fallo y se revertiría.
+   */
+  function acceptedWrite(): Response {
+    return {
+      ok: true,
+      status: 204,
+      json: () => Promise.reject(new Error('no-body')),
+    } as unknown as Response;
+  }
+
+  function rejectedWrite(status: number): Response {
+    return { ok: false, status, json: () => Promise.resolve({}) } as Response;
+  }
+
+  /** Una escritura de `/saved` (POST o DELETE); el GET es la carga de la lista. */
+  function isSavedWrite(url: unknown, init?: RequestInit): boolean {
+    return String(url).includes('/saved') && String(init?.method ?? 'GET') !== 'GET';
+  }
+
+  it('guarda un post y la llamada LLEGA al servidor, con su método, ruta y cuerpo', async () => {
+    const calls: Array<{ url: string; method: string; body: string | null }> = [];
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (isSavedWrite(url, init)) {
+        calls.push({
+          url: String(url),
+          method: String(init?.method),
+          body: typeof init?.body === 'string' ? init.body : null,
+        });
+        return Promise.resolve(acceptedWrite());
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
     const post = component.posts()[0];
     expect(component.isSaved(post.id)).toBe(false);
 
     component.toggleSave(post);
+    await flushMicrotasks();
+
+    // Lo que se mide NO es que el icono se encienda —eso ya lo hacía mintiendo—, sino que
+    // salió la petición. Sin esto el test pasa igual con el arreglo entero borrado.
+    expect(calls).toHaveLength(1);
+    expect(calls[0].method).toBe('POST');
+    expect(calls[0].url).toContain('/saved');
+    expect(JSON.parse(calls[0].body ?? '{}')).toEqual({ postId: post.id });
     expect(component.isSaved(post.id)).toBe(true);
     expect(component.savedPosts().some((p) => p.id === post.id)).toBe(true);
 
     component.toggleSave(post);
+    await flushMicrotasks();
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1].method).toBe('DELETE');
+    expect(calls[1].url).toContain(`postId=${encodeURIComponent(post.id)}`);
     expect(component.isSaved(post.id)).toBe(false);
     expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
+  });
+
+  // ── el fallo DESHACE, y deja la lista exactamente como estaba ────────────────
+  it('si el servidor rechaza, revierte las DOS señales y devuelve el post a su posición', async () => {
+    let failWrites = false;
+    const savedFromServer = ['p-1', 'p-2', 'p-3'].map((id) => ({ ...MY_SAVED_POST, id }));
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      const u = String(url);
+      if (isSavedWrite(u, init)) {
+        return Promise.resolve(failWrites ? rejectedWrite(500) : acceptedWrite());
+      }
+      if (u.includes('/saved')) {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ posts: savedFromServer }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    component.go('saved');
+    await flushMicrotasks();
+    // Control: la lista llega ORDENADA del servidor — hay una posición que respetar.
+    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
+
+    failWrites = true;
+    const middle = component.savedPosts()[1];
+    component.toggleSave(middle);
+    // Optimista: desaparece al instante, sin esperar al servidor.
+    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-3']);
+
+    await flushMicrotasks();
+
+    // Y vuelve a SU sitio, no al principio: reinsertar al frente sería otra forma de
+    // mentir sobre una lista que el servidor ordenó.
+    expect(component.savedPosts().map((p) => p.id)).toEqual(['p-1', 'p-2', 'p-3']);
+    expect(component.isSaved('p-2')).toBe(true);
+    expect(component.errorMessage()).toContain('No pudimos');
+    // Un 500 no es un hueco de sesión: la invitación a iniciar sesión NO aparece.
+    expect(component.sessionAccess()).toBe('ok');
+  });
+
+  // ── 401 al guardar: revierte Y lleva a la invitación de sesión que ya existe ──
+  it('un 401 al guardar revierte el marcador y pide iniciar sesión (no un error genérico)', async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
+      isSavedWrite(url, init)
+        ? Promise.resolve(rejectedWrite(401))
+        : Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const post = component.posts()[0];
+    component.toggleSave(post);
+    expect(component.isSaved(post.id)).toBe(true);
+
+    await flushMicrotasks();
+    await settleAnnouncer();
+
+    expect(component.isSaved(post.id)).toBe(false);
+    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
+    expect(component.sessionAccess()).toBe('anon');
+    expect(lastLiveRegion()?.textContent ?? '').toContain('Inicia sesión');
+
+    // El botón de guardar vive en la TARJETA DE POST, o sea en el feed — y el panel
+    // `.blogs__signin` solo se pinta dentro de las cuatro vistas personales. Antes
+    // `errorMessage` se vaciaba siempre "para no duplicar el aviso", y el resultado era
+    // que quien pulsaba desde el feed no veía NADA: el marcador parpadeaba y se acabó.
+    // Solo se enteraba quien usa lector de pantalla — el arreglo funcionaba justo para
+    // quien no mira y fallaba para todos los demás.
+    expect(component.view()).not.toBe('saved');
+    expect(component.errorMessage()).toContain('Inicia sesión');
+
+    // Y que esté PINTADO, no solo en la señal.
+    fixture.detectChanges();
+    const avisos = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '.blogs__signin, .blogs__notice--error',
+    );
+    expect(avisos.length).toBeGreaterThan(0);
+  });
+
+  // ── respuestas cruzadas: la cola por post impone el orden en el SERVIDOR ─────
+  it('dos pulsaciones rápidas sobre el mismo post no se cruzan: se serializan', async () => {
+    const writes: Array<{ method: string; release: () => void }> = [];
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (isSavedWrite(url, init)) {
+        return new Promise<Response>((resolve) => {
+          writes.push({
+            method: String(init?.method),
+            release: () => resolve(acceptedWrite()),
+          });
+        });
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const post = component.posts()[0];
+    component.toggleSave(post); // guardar
+    component.toggleSave(post); // quitar, sin esperar a la primera
+    await flushMicrotasks();
+
+    // CONTROL: sin cola habría DOS peticiones en vuelo y el servidor podría aplicarlas al
+    // revés — quedaría guardado justo lo que el usuario acaba de quitar. Solo salió una.
+    expect(writes.map((w) => w.method)).toEqual(['POST']);
+    // La UI, en cambio, ya muestra la última intención: no espera al servidor.
+    expect(component.isSaved(post.id)).toBe(false);
+
+    writes[0].release();
+    await flushMicrotasks();
+
+    // La segunda sale DESPUÉS de que la primera termine: el servidor las ve pulsadas.
+    expect(writes.map((w) => w.method)).toEqual(['POST', 'DELETE']);
+    writes[1].release();
+    await flushMicrotasks();
+
+    expect(component.isSaved(post.id)).toBe(false);
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('el fallo de una pulsación ya superada NO revierte la más reciente', async () => {
+    const methods: string[] = [];
+    let firstWrite = true;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (isSavedWrite(url, init)) {
+        methods.push(String(init?.method));
+        if (firstWrite) {
+          firstWrite = false;
+          return Promise.resolve(rejectedWrite(500));
+        }
+        return Promise.resolve(acceptedWrite());
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const post = component.posts()[0];
+    component.toggleSave(post); // guardar — fallará
+    component.toggleSave(post); // quitar — esta es la intención vigente
+    await flushMicrotasks();
+
+    expect(methods).toEqual(['POST', 'DELETE']);
+    // Revertir el POST caído habría vuelto a ENCENDER el marcador que el usuario acababa
+    // de apagar, y encima con un error que ya no describe nada.
+    expect(component.isSaved(post.id)).toBe(false);
+    expect(component.savedPosts().some((p) => p.id === post.id)).toBe(false);
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('marcar dos posts distintos no encola uno detrás del otro', async () => {
+    const bodies: string[] = [];
+    const release: Array<() => void> = [];
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (isSavedWrite(url, init)) {
+        bodies.push(typeof init?.body === 'string' ? init.body : '');
+        return new Promise<Response>((resolve) => release.push(() => resolve(acceptedWrite())));
+      }
+      return Promise.reject(new Error('offline'));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const [first, second] = component.posts();
+    component.toggleSave(first);
+    component.toggleSave(second);
+    await flushMicrotasks();
+
+    // La cola es POR POST: serializar TODO haría que marcar rápido dos posts distintos se
+    // sintiera lento sin ninguna razón — no compiten por el mismo estado.
+    expect(bodies).toHaveLength(2);
+    expect(bodies.map((body) => JSON.parse(body).postId)).toEqual([first.id, second.id]);
+
+    release.forEach((resolve) => resolve());
+    await flushMicrotasks();
+
+    expect(component.isSaved(first.id)).toBe(true);
+    expect(component.isSaved(second.id)).toBe(true);
   });
 
   // ── v2 long-form: publishing an article inserts a postPage at the top ────────

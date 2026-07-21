@@ -1066,20 +1066,131 @@ export class RealtyElementComponent {
   }
 
   // ─── Favorites / shortlist ─────────────────────────────────────────────────────
+  //
+  // Optimista DE VERDAD: pintar ya, llamar al servidor, y si el servidor dice que no,
+  // DESPINTAR y decirlo. Antes solo existía el primer paso — la estrella se encendía,
+  // nadie llamaba a nadie, y al recargar no quedaba ni un favorito. Eso no era "UI
+  // optimista", era una señal local disfrazada de guardado.
+
+  /**
+   * Última intención por id. Un fallo solo revierte si SU intención sigue siendo la
+   * vigente: si el usuario ya volvió a pulsar, repintar el estado viejo le pisaría su
+   * última decisión, y es la escritura nueva —encolada detrás— la que manda.
+   */
+  readonly #favoriteSeq = new Map<string, number>();
+  /**
+   * Cola por id: serializa las escrituras del MISMO inmueble. Dos pulsaciones rápidas son
+   * un POST y un DELETE que pueden volver en cualquier orden; sin encadenarlas, el DELETE
+   * podía llegar antes y el servidor quedaba en "favorito" con la UI en "no". Encadenadas,
+   * el servidor las RECIBE en el orden en que el usuario las hizo y gana la última.
+   * Inmuebles distintos no se estorban: cada id tiene su cadena.
+   */
+  readonly #favoriteChain = new Map<string, Promise<unknown>>();
+  /**
+   * Último estado que el servidor CONFIRMÓ por id — el sitio exacto al que revierte un
+   * fallo. No basta con "lo que había justo antes de esta pulsación": si dos escrituras
+   * seguidas fallan las dos, ese valor sería el optimista de la primera (que el servidor
+   * nunca aceptó) y la UI quedaría mintiendo otra vez.
+   */
+  readonly #favoriteConfirmed = new Map<string, boolean>();
+
   isFavorite(id: string): boolean {
     return this.favoriteIds().includes(id);
   }
 
   toggleFavorite(id: string): void {
-    this.favoriteIds.update((ids) =>
-      ids.includes(id) ? ids.filter((entry) => entry !== id) : [...ids, id],
-    );
-    this.favoritechange.emit(this.favoriteCount());
+    this.applyFavorite(id, !this.isFavorite(id));
   }
 
   removeFavorite(id: string): void {
-    this.favoriteIds.update((ids) => ids.filter((entry) => entry !== id));
+    this.applyFavorite(id, false);
+  }
+
+  private applyFavorite(id: string, desired: boolean): void {
+    const previous = this.isFavorite(id);
+    if (previous === desired) {
+      return;
+    }
+    // Primera escritura de este id en la sesión: lo que hay AHORA es lo que tiene el
+    // servidor, así que sirve de suelo al que revertir.
+    if (!this.#favoriteConfirmed.has(id)) {
+      this.#favoriteConfirmed.set(id, previous);
+    }
+
+    this.setFavorite(id, desired);
     this.favoritechange.emit(this.favoriteCount());
+
+    const seq = (this.#favoriteSeq.get(id) ?? 0) + 1;
+    this.#favoriteSeq.set(id, seq);
+
+    const chained = (this.#favoriteChain.get(id) ?? Promise.resolve())
+      // El fallo de la anterior ya lo atendió su propio `catch`; aquí solo sirve para no
+      // romper la cola de las que vienen detrás.
+      .catch(() => undefined)
+      .then(() =>
+        desired
+          ? this.#api.addFavorite(this.apiBase(), id)
+          : this.#api.removeFavorite(this.apiBase(), id),
+      )
+      .then((autoritativa) => {
+        this.#favoriteConfirmed.set(id, desired);
+        // REPINTAR desde la verdad del servidor, no solo apuntarla en la contabilidad.
+        // Sin esto quedaba un hueco medido: si un `GET /saved` de rehidratación ganaba la
+        // carrera a esta escritura, pintaba la foto ANTERIOR y el éxito no corregía nada
+        // — el favorito guardado en el servidor y apagado en pantalla, sin recuperación
+        // en la sesión porque `loadSaved()` corta con `savedLoaded`. El backend ya emite
+        // la lista completa en la respuesta de la escritura; consumirla cierra la carrera.
+        // Solo se repinta si la lista CONCUERDA con lo que esta escritura pidió. Una
+        // respuesta que no incluye el id recién añadido (o que aún trae el recién
+        // borrado) no es autoritativa PARA ESTA escritura: es una foto anterior, y
+        // aplicarla desharía en pantalla lo que el usuario acaba de hacer.
+        // Ojo con `[]`: es truthy, así que sin esta comprobación una lista vacía
+        // borraba los favoritos locales.
+        if (autoritativa && autoritativa.includes(id) === desired) {
+          this.favoriteIds.set([...autoritativa]);
+          this.favoritechange.emit(this.favoriteCount());
+        }
+      })
+      .catch((error: unknown) => {
+        if (this.#favoriteSeq.get(id) !== seq) {
+          return;
+        }
+        this.setFavorite(id, this.#favoriteConfirmed.get(id) ?? previous);
+        this.favoritechange.emit(this.favoriteCount());
+        // Sin sesión no hay dónde guardarlo: el 401 lleva al panel "Inicia sesión" que la
+        // cuenta ya sabe pintar, no a un "algo falló" que no dice qué hacer. Y como
+        // `handleUnauthorized` limpia `errorMessage`, no se anuncian las dos cosas.
+        if (this.handleUnauthorized(error)) {
+          return;
+        }
+        this.errorMessage.set(
+          desired
+            ? 'No pudimos guardar el favorito. Intenta de nuevo.'
+            : 'No pudimos quitar el favorito. Intenta de nuevo.',
+        );
+      });
+    this.#favoriteChain.set(id, chained);
+  }
+
+  /**
+   * Adopta la lista de favoritos del servidor y REBASE el suelo de reversión: a partir de
+   * aquí, un fallo revierte a lo que el servidor acaba de confirmar, no a un optimista
+   * anterior. Las escrituras en vuelo siguen su curso —su `seq` decide— y como el servidor
+   * ya conoce su intención, converge igual.
+   */
+  private hydrateFavorites(favorites: readonly string[]): void {
+    this.favoriteIds.set([...favorites]);
+    this.#favoriteConfirmed.clear();
+    for (const id of favorites) {
+      this.#favoriteConfirmed.set(id, true);
+    }
+    this.favoritechange.emit(this.favoriteCount());
+  }
+
+  private setFavorite(id: string, on: boolean): void {
+    this.favoriteIds.update((ids) =>
+      on ? (ids.includes(id) ? ids : [...ids, id]) : ids.filter((entry) => entry !== id),
+    );
   }
 
   toggleCompare(): void {
@@ -1098,6 +1209,12 @@ export class RealtyElementComponent {
       .savedSearches(this.apiBase())
       .then((result) => {
         this.savedSearches.set(result.searches);
+        // Los favoritos del servidor son la verdad cuando VIENEN. Si la respuesta fue el
+        // fallback degradado no traen nada (`undefined`) y se conserva lo local: vaciar la
+        // lista porque el backend no contestó sería inventar un "no tienes ninguno".
+        if (result.favorites) {
+          this.hydrateFavorites(result.favorites);
+        }
         this.savedLoaded.set(true);
         this.unauthenticated.set(false);
       })
@@ -1196,6 +1313,24 @@ export class RealtyElementComponent {
     return parts.join(' · ');
   }
 
+  /**
+   * ⚠️ SIGUE SIENDO SOLO LOCAL, y a sabiendas: hoy NO hay dónde guardarlo. Medido contra
+   * el backend (2026-07-21), la alerta de una búsqueda guardada no existe en ninguna capa:
+   *
+   *  · `RealtyController` no expone ninguna ruta para modificar una búsqueda ya guardada
+   *    (solo `POST saved-search` para crearla y `GET saved/{id}/matches` para consultarla).
+   *  · El record `SavedSearch` de `Synergos.CMS.Interfaces` no tiene campo `Alert`.
+   *  · `ToSavedSearchDto` no emite `alert` — el `alert` que lee `normalizeSavedSearch`
+   *    nunca llega del servidor; sale del fallback del propio cliente.
+   *  · `ISavedSearchService` no tiene método de actualización.
+   *
+   * Cablearlo a un endpoint inventado sería cambiar una mentira por una peor (un 404
+   * silencioso). Para hacerlo de verdad hace falta, en este orden: campo `Alert` en el
+   * record + persistirlo en `IUserCollection` + método de actualización en
+   * `ISavedSearchService` + ruta con la misma identidad server-trusted (`RequireUser`) +
+   * `alert` en el DTO. Recién entonces esta acción puede seguir el patrón optimista de
+   * `applyFavorite`.
+   */
   toggleAlert(id: string): void {
     this.savedSearches.update((list) =>
       list.map((search) => (search.id === id ? { ...search, alert: !search.alert } : search)),

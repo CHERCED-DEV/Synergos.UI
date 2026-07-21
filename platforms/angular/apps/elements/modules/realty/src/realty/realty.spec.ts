@@ -138,17 +138,285 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   // ── favorites: toggling ♥ builds the shortlist ───────────────────────────────
   it('builds a favorites shortlist through the P11 toggle', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    // El catálogo sigue offline (cae al mock, que es lo que puebla `listings()`), pero
+    // /favorite responde OK: este test mide la lista, no la ruta de fallo — esa tiene la
+    // suya. Antes rechazaba TODO y el toggle iba en silencio por el camino del error.
+    vi.stubGlobal('fetch', favoriteAwareFetch());
     await createComponent();
 
     const listing = component.listings()[0];
     component.toggleFavorite(listing.id);
+    await flushMicrotasks();
     expect(component.favoriteCount()).toBe(1);
     expect(component.isFavorite(listing.id)).toBe(true);
     expect(component.favoriteListings().length).toBe(1);
 
     component.toggleFavorite(listing.id);
+    await flushMicrotasks();
     expect(component.favoriteCount()).toBe(0);
+  });
+
+  // ── favoritos: la persistencia REAL (camino feliz + reversión) ────────────────
+  //
+  // Lo que se mide aquí NO es que la estrella se encienda —eso ya lo hacía cuando la
+  // acción era mentira—, sino que el SERVIDOR reciba la escritura, y que cuando la
+  // rechaza la UI vuelva a su sitio en vez de quedarse encendida.
+
+  /** Las llamadas a /favorite que vio el servidor, en orden: método + cuerpo. */
+  function favoriteCalls(fetchMock: ReturnType<typeof vi.fn>): { method: string; listingId: string }[] {
+    return fetchMock.mock.calls
+      .filter(([url]) => String(url).includes('/favorite'))
+      .map(([, init]) => ({
+        method: String((init as RequestInit)?.method ?? 'GET'),
+        listingId: String(JSON.parse(String((init as RequestInit)?.body ?? '{}')).listingId ?? ''),
+      }));
+  }
+
+  /** Catálogo offline (→ mock) pero /favorite OK, salvo que se pida lo contrario. */
+  function favoriteAwareFetch(favoriteResponse?: () => Promise<Response>): ReturnType<typeof vi.fn> {
+    return vi.fn((url: string, init?: RequestInit) => {
+      if (String(url).includes('/favorite')) {
+        return (
+          favoriteResponse?.() ??
+          Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ favorites: [] }) } as Response)
+        );
+      }
+      void init;
+      return Promise.reject(new Error('offline'));
+    });
+  }
+
+  it('manda el favorito al servidor: POST al marcar y DELETE al desmarcar (happy)', async () => {
+    installMemoryStorage();
+    const fetchMock = favoriteAwareFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id);
+    await flushMicrotasks();
+
+    // La prueba de que la acción dejó de ser una señal local: hubo llamada, con el id.
+    expect(favoriteCalls(fetchMock)).toEqual([{ method: 'POST', listingId: listing.id }]);
+    expect(component.isFavorite(listing.id)).toBe(true);
+
+    component.toggleFavorite(listing.id);
+    await flushMicrotasks();
+    expect(favoriteCalls(fetchMock)).toEqual([
+      { method: 'POST', listingId: listing.id },
+      { method: 'DELETE', listingId: listing.id },
+    ]);
+    expect(component.isFavorite(listing.id)).toBe(false);
+  });
+
+  it('revierte el favorito y lo dice cuando el servidor lo rechaza', async () => {
+    installMemoryStorage();
+    const fetchMock = favoriteAwareFetch(() =>
+      Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id);
+    // Optimista: se pinta ANTES de que el servidor conteste.
+    expect(component.isFavorite(listing.id)).toBe(true);
+
+    await flushMicrotasks();
+    // …y como el servidor dijo que no, queda exactamente como estaba.
+    expect(component.isFavorite(listing.id)).toBe(false);
+    expect(component.favoriteCount()).toBe(0);
+    expect(component.errorMessage()).toContain('No pudimos guardar el favorito');
+    // Un fallo de escritura NO es "datos de ejemplo": ese aviso habla del catálogo.
+    expect(component.unauthenticated()).toBe(false);
+  });
+
+  it('quitar un favorito también se revierte si el servidor lo rechaza', async () => {
+    installMemoryStorage();
+    let failing = false;
+    const fetchMock = favoriteAwareFetch(() =>
+      failing
+        ? Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response)
+        : Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id);
+    await flushMicrotasks();
+    expect(component.isFavorite(listing.id)).toBe(true);
+
+    failing = true;
+    component.removeFavorite(listing.id);
+    await flushMicrotasks();
+    // Revierte al estado CONFIRMADO por el servidor (marcado), no al optimista.
+    expect(component.isFavorite(listing.id)).toBe(true);
+    expect(component.errorMessage()).toContain('No pudimos quitar el favorito');
+  });
+
+  it('un 401 al marcar favorito revierte Y lleva al panel de inicio de sesión', async () => {
+    installMemoryStorage();
+    const fetchMock = favoriteAwareFetch(() =>
+      Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id);
+    await flushMicrotasks();
+
+    expect(component.isFavorite(listing.id)).toBe(false);
+    expect(component.unauthenticated()).toBe(true);
+    expect(component.view()).toBe('account');
+    // Sin doble anuncio: manda la invitación a iniciar sesión, no un "algo falló" genérico.
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('dos pulsaciones rápidas sobre el mismo inmueble no se cruzan', async () => {
+    installMemoryStorage();
+    // La PRIMERA respuesta se retiene y se suelta DESPUÉS de la segunda: es justo el
+    // cruce que dejaría el servidor en "favorito" y la UI en "no".
+    const gates: (() => void)[] = [];
+    const fetchMock = favoriteAwareFetch(
+      () =>
+        new Promise<Response>((resolve) => {
+          gates.push(() =>
+            resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response),
+          );
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id); // marcar
+    component.toggleFavorite(listing.id); // desmarcar, sin esperar a la anterior
+    await flushMicrotasks();
+
+    // El encadenamiento por id impide que la segunda salga antes que la primera:
+    // hasta que el POST no vuelve, el DELETE ni se ha enviado.
+    expect(favoriteCalls(fetchMock)).toEqual([{ method: 'POST', listingId: listing.id }]);
+
+    gates.shift()?.();
+    await flushMicrotasks();
+    gates.shift()?.();
+    await flushMicrotasks();
+
+    // El servidor las recibió en el ORDEN en que el usuario las hizo, y gana la última.
+    expect(favoriteCalls(fetchMock)).toEqual([
+      { method: 'POST', listingId: listing.id },
+      { method: 'DELETE', listingId: listing.id },
+    ]);
+    expect(component.isFavorite(listing.id)).toBe(false);
+  });
+
+  it('un fallo VIEJO no pisa la última intención del usuario', async () => {
+    installMemoryStorage();
+    // El usuario pulsa tres veces seguidas. La PRIMERA escritura falla, pero para cuando
+    // se sabe, el usuario ya decidió otra cosa dos veces: revertir ahí le borraría su
+    // última decisión (que sí se guardó).
+    const outcomes = [false, true, true];
+    let call = 0;
+    const fetchMock = favoriteAwareFetch(() => {
+      const ok = outcomes[call] ?? true;
+      call += 1;
+      return Promise.resolve({
+        ok,
+        status: ok ? 200 : 500,
+        json: () => Promise.resolve({}),
+      } as Response);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id); // ON  — fallará
+    component.toggleFavorite(listing.id); // OFF
+    component.toggleFavorite(listing.id); // ON  — la que manda
+    await flushMicrotasks();
+
+    expect(favoriteCalls(fetchMock).map((entry) => entry.method)).toEqual([
+      'POST',
+      'DELETE',
+      'POST',
+    ]);
+    // Server y UI coinciden en la ÚLTIMA intención, y no se le echa la culpa de un
+    // fallo que quedó superado.
+    expect(component.isFavorite(listing.id)).toBe(true);
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('dos escrituras seguidas que fallan las dos dejan la UI donde está el SERVIDOR', async () => {
+    installMemoryStorage();
+    // El caso que distingue "revertir a lo que había antes de este clic" de "revertir a lo
+    // que el servidor confirmó". Ninguna de las dos escrituras llega: el servidor no tiene
+    // el favorito, así que la UI tampoco puede tenerlo. Revertir al estado previo del
+    // ÚLTIMO clic dejaría la estrella encendida sobre un servidor vacío — la misma mentira
+    // otra vez, solo que más difícil de ver.
+    const fetchMock = favoriteAwareFetch(() =>
+      Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const listing = component.listings()[0];
+    component.toggleFavorite(listing.id); // ON  — falla
+    component.toggleFavorite(listing.id); // OFF — falla también
+    await flushMicrotasks();
+
+    expect(component.isFavorite(listing.id)).toBe(false);
+    expect(component.favoriteCount()).toBe(0);
+  });
+
+  it('un fallo en un inmueble no revierte el favorito de otro', async () => {
+    installMemoryStorage();
+    const fetchMock = favoriteAwareFetch();
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    const [first, second] = component.listings();
+    component.toggleFavorite(first.id);
+    await flushMicrotasks();
+
+    // Ahora el segundo falla: solo ÉL debe desaparecer.
+    vi.stubGlobal(
+      'fetch',
+      favoriteAwareFetch(() =>
+        Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response),
+      ),
+    );
+    component.toggleFavorite(second.id);
+    await flushMicrotasks();
+
+    expect(component.isFavorite(first.id)).toBe(true);
+    expect(component.isFavorite(second.id)).toBe(false);
+    expect(component.favoriteCount()).toBe(1);
+  });
+
+  it('rehidrata los favoritos que ya tenía el servidor al abrir la cuenta', async () => {
+    installMemoryStorage();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/saved')
+          ? Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ searches: [], favorites: ['L-1', 'L-2'] }),
+            } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
+    await createComponent();
+
+    // Antes el cliente TIRABA `favorites` del GET /saved y el favorito no volvía nunca.
+    expect(component.favoriteCount()).toBe(0);
+    component.navigate('account');
+    await flushMicrotasks();
+    expect(component.favoriteCount()).toBe(2);
+    expect(component.isFavorite('L-1')).toBe(true);
   });
 
   // ── lead: contacting the agent lands a confirmation ──────────────────────────

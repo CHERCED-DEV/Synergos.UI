@@ -442,6 +442,38 @@ export class BlogsApiClient {
     }
   }
 
+  /**
+   * `POST /api/blogs/saved` `{ postId }` (guardar) / `DELETE /api/blogs/saved?postId=`
+   * (quitar) — persiste el marcador del member de la SESIÓN.
+   *
+   * **No degrada a mock, y ese es el punto.** El resto de rutas públicas se cae al mock
+   * porque enseñar un feed de ejemplo no le miente a nadie; aquí sí: tragarse el fallo
+   * dejaría el marcador encendido en pantalla sobre algo que no se guardó, y el usuario
+   * lo descubriría al recargar. El error sube para que la UI DESHAGA lo que pintó.
+   *
+   * @throws {BlogsUnauthorizedError} si no hay sesión.
+   */
+  async setSaved(apiBase: string, postId: string, saved: boolean): Promise<void> {
+    const url = saved
+      ? `${apiBase}/saved`
+      : `${apiBase}/saved?postId=${encodeURIComponent(postId)}`;
+    try {
+      await (saved
+        ? this.send(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postId }),
+          })
+        : this.send(url, { method: 'DELETE' }));
+    } catch (error) {
+      this.#logger.warn(
+        `Blogs API "${saved ? 'POST' : 'DELETE'} /api/blogs/saved" falló — el marcador se revierte.`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   // ─── Long-form article (`/write`) ────────────────────────────────────────────
 
   /** `POST /api/blogs/article` — publish a long-form post (`objectKind='postPage'`). */
@@ -499,6 +531,16 @@ export class BlogsApiClient {
   }
 
   private request(url: string, init: RequestInit): Promise<unknown> {
+    return this.send(url, init).then((response) => response.json());
+  }
+
+  /**
+   * El transporte crudo: mapea los estados de sesión a errores tipados y devuelve la
+   * `Response` SIN leer el cuerpo. `request()` la parsea; las mutaciones que no
+   * devuelven nada útil (`POST`/`DELETE /saved`) NO — un `204 No Content` legítimo
+   * revienta en `.json()`, y ese falso fallo revertiría un guardado que sí quedó.
+   */
+  private send(url: string, init: RequestInit): Promise<Response> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
@@ -516,7 +558,7 @@ export class BlogsApiClient {
         // le mostraría OTRA conversación — la mentira exacta que esto viene a cerrar.
         return Promise.reject(new BlogsForbiddenError(url));
       }
-      return response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`));
+      return response.ok ? response : Promise.reject(new Error(`HTTP ${response.status}`));
     });
   }
 
