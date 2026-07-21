@@ -34,6 +34,7 @@ function sanitizeProductCardConfig(
     imageAlt: coerceTrimmedStringInput(value.imageAlt),
     showPrice: coerceOptionalBooleanInput(value.showPrice),
     showBadge: coerceOptionalBooleanInput(value.showBadge),
+    showAddToCart: coerceOptionalBooleanInput(value.showAddToCart),
     layout: coerceStringEnumInput(value.layout, ['vertical', 'horizontal'] as const),
     cardLayout: coerceStringEnumInput(value.cardLayout, ['standard', 'vertical', 'horizontal'] as const),
     theme: coerceTrimmedStringInput(value.theme),
@@ -106,6 +107,7 @@ export class ProductCardComponent {
   readonly editorialImageAlt = computed(() => this.config()?.imageAlt ?? '');
   readonly showPrice         = computed(() => this.config()?.showPrice ?? true);
   readonly showBadge         = computed(() => this.config()?.showBadge ?? true);
+  readonly showAddToCart     = computed(() => this.config()?.showAddToCart ?? true);
 
   // ── API state ─────────────────────────────────────────────────────────────
   readonly product  = signal<Product | null>(null);

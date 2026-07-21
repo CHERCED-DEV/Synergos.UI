@@ -105,17 +105,21 @@
         </div>
       }
 
-      <!-- Add to cart -->
+      <!-- Add to cart. `showAddToCart` espeja la propiedad del CMS: el renderer Razor ya la
+           respetaba, y sin este gate montar el elemento resucitaba el botón donde el editor
+           lo había apagado. Default true (config()?.showAddToCart ?? true). -->
       <div class="product-card__actions">
-        <syn-button
-          [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
-          [ariaLabel]="(inStock() ? addToCartLabel() : outOfStockLabel()) + (name() ? ' - ' + name() : '')"
-          [disabled]="!inStock()"
-          variant="solid"
-          size="sm"
-          class="product-card__add-btn"
-          (pressed)="addToCart()"
-        />
+        @if (showAddToCart()) {
+          <syn-button
+            [label]="inStock() ? addToCartLabel() : outOfStockLabel()"
+            [ariaLabel]="(inStock() ? addToCartLabel() : outOfStockLabel()) + (name() ? ' - ' + name() : '')"
+            [disabled]="!inStock()"
+            variant="solid"
+            size="sm"
+            class="product-card__add-btn"
+            (pressed)="addToCart()"
+          />
+        }
 
         @if (detailUrl) {
           <a

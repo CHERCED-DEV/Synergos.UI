@@ -893,6 +893,14 @@ export interface ProductCardElementConfig {
   readonly imageAlt?:      string;
   readonly showPrice?:     boolean;
   readonly showBadge?:     boolean;
+  /**
+   * Muestra el botón "Añadir al carrito". Default `true`.
+   *
+   * Espeja la propiedad `showAddToCart` del elemento CMS `elementShopProductCard`, que el
+   * renderer Razor ya respetaba. Sin esta clave, montar el elemento resucitaba el botón en
+   * las tarjetas donde el editor lo había apagado.
+   */
+  readonly showAddToCart?: boolean;
   readonly layout?:        'vertical' | 'horizontal';
   readonly cardLayout?:    'standard' | 'vertical' | 'horizontal'; // CMS Web compatibility alias
   readonly theme?:         string;
