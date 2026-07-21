@@ -388,6 +388,71 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       component.reviewBody.set('Cumple lo que promete.');
       expect(component.reviewReady()).toBe(true);
     });
+
+    /** Ficha mínima para pintar la PDP, con el permiso que se quiera probar. */
+    function abrirFicha(canReview: boolean): void {
+      component.detail.set({
+        product: { ...PRODUCT_A, id: 'SKU-1' },
+        description: 'desc',
+        variants: [],
+        reviews: [],
+        questions: [],
+        canReview,
+      });
+      component.view.set('pdp');
+      fixture.detectChanges();
+    }
+
+    it('con permiso del servidor, el formulario se PINTA con sus partes', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      abrirFicha(true);
+
+      const form = fixture.nativeElement.querySelector('.storefront__review-form');
+      expect(form).toBeTruthy();
+      // Reusa el elemento de estrellas ya publicado, no un selector inventado.
+      expect(form.querySelector('synergos-rating-stars')).toBeTruthy();
+      expect(form.querySelector('#sf-review-title')).toBeTruthy();
+      expect(form.querySelector('#sf-review-body')).toBeTruthy();
+      // Sin nota ni texto no se puede enviar: el botón nace deshabilitado.
+      expect(form.querySelector('.storefront__review-submit').disabled).toBe(true);
+    });
+
+    it('sin permiso del servidor NO se pinta, aunque la ficha esté abierta', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      abrirFicha(false);
+
+      expect(fixture.nativeElement.querySelector('.storefront__review-form')).toBeNull();
+      // …y las opiniones existentes se siguen leyendo: ocultar el formulario no oculta el bloque.
+      expect(fixture.nativeElement.querySelector('.storefront__reviews')).toBeTruthy();
+    });
+
+    it('un 403 al enviar NO dice "publicada" y no ofrece iniciar sesión', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      abrirFicha(true);
+
+      component.reviewRating.set(5);
+      component.reviewBody.set('Cumple lo que promete.');
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 403 } as Response)));
+
+      await component.submitReview();
+
+      expect(component.reviewFailed()).toBe(true);
+      expect(component.reviewNotice()).toContain('compró');
+      // Los dos fallos que importan: anunciar una escritura que no ocurrió…
+      expect(component.reviewNotice()).not.toContain('publicada');
+      // …y mandar a iniciar sesión por un problema que no es de sesión.
+      expect(component.reviewNotice().toLowerCase()).not.toContain('inicia sesión');
+      // El texto se conserva: perder lo escrito por un rechazo sería castigar dos veces.
+      expect(component.reviewBody()).toBe('Cumple lo que promete.');
+    });
   });
 });
 
