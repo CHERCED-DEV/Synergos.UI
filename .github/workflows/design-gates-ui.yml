@@ -1,4 +1,4 @@
-name: Design gates UI (token bridge parity)
+name: Design gates UI (token bridge parity + contraste por tema)
 
 # Gate G-1 (UI side) — Ola 2 del roadmap maestro
 # (refactor-docs/architecture/14-roadmap-maestro.md, repo CMS).
@@ -28,6 +28,7 @@ on:
       - '**/*.scss'
       - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'tools/audit-themes.mjs'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
@@ -37,11 +38,12 @@ on:
       - '**/*.scss'
       - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
+      - 'tools/audit-themes.mjs'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema
     runs-on: ubuntu-latest
 
     steps:
@@ -70,3 +72,29 @@ jobs:
         run: |
           SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS" \
             node Synergos.UI/platforms/angular/tools/sync-tokens.mjs --check
+
+      # ── G-5 — contraste WCAG sobre las 8 rutas de render ──────────────────
+      #
+      # Corre DESPUÉS del check de paridad a propósito: si el bridge está stale,
+      # el fallo que interesa arreglar primero es ese, y un rojo de contraste
+      # encima solo añadiría ruido.
+      #
+      # Por qué existe este gate: el método anterior de vigilar el contraste era
+      # la inspección visual, y produjo un doc rector en el que OCHO de nueve
+      # filas estaban mal. El bloque `auto-dark` incluso llevaba escrito el aviso
+      # "quien toque un token de superficie aquí tiene que espejarlo" — y el
+      # propio cambio que lo rompió se lo saltó, dejando texto blanco sobre fondo
+      # casi blanco (1.046:1) durante quién sabe cuánto. Un aviso en prosa no es
+      # un gate.
+      #
+      # Mide 184 pares × 8 rutas: los 7 `data-theme` MÁS `prefers-color-scheme:
+      # dark` sin `data-theme`. Esa octava es justo la que se escapa de cualquier
+      # barrido que busque "los 7 temas", y es la que estaba rota.
+      #
+      # El script se autotestea antes de emitir cifras (negro/blanco DEBE dar
+      # 21.0000) y aborta con código 2 si su propio arnés falla — un arnés roto
+      # que igualmente imprime números da falsa confianza. Código 1 = hay fallos
+      # de contraste reales.
+      - name: Contraste por tema (G-5)
+        run: |
+          SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS"             node Synergos.UI/tools/audit-themes.mjs

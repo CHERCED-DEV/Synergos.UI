@@ -33,12 +33,25 @@
  *    arreglar lo que no está roto. Se excluyen y se dice que se excluyen.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const SSOT = resolve(AQUI, '../../Synergos.CMS/Synergos.CMS.Web/wwwroot/css/syn-tokens.css');
+// `SYNERGOS_CMS_PATH` es la convención del proyecto y el workflow de CI la exporta.
+// Sin honrarla esto funcionaba por casualidad —la ruta relativa coincide con el layout
+// del runner— y se habría roto en silencio el día que cambiara la disposición.
+const CMS = process.env.SYNERGOS_CMS_PATH || resolve(AQUI, '../../Synergos.CMS');
+const SSOT = resolve(CMS, 'Synergos.CMS.Web/wwwroot/css/syn-tokens.css');
+
+if (!existsSync(SSOT)) {
+  console.error('');
+  console.error('  x No encuentro el fichero de tokens:');
+  console.error('    ' + SSOT);
+  console.error('  Define SYNERGOS_CMS_PATH o corre esto con el CMS al lado del checkout.');
+  console.error('');
+  process.exit(2);
+}
 
 const args = process.argv.slice(2);
 const MOSTRAR_TODO = args.includes('--all');
