@@ -189,7 +189,7 @@
   &__hero-title {
     margin: 0;
     font-size: syn.$font-size-2xl;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   &__hero-sub {
@@ -359,7 +359,7 @@
 
   &__price {
     font-size: syn.$font-size-lg;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
     color: var(--ac-text);
   }
 
@@ -417,7 +417,7 @@
   &__buybox-price {
     margin: 0;
     font-size: syn.$font-size-2xl;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   &__buybox-note {
@@ -472,7 +472,7 @@
   }
 
   &__plan-price {
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
     color: var(--ac-brand);
   }
 
@@ -613,7 +613,7 @@
     background: var(--ac-brand-soft);
     color: var(--ac-brand);
     font-size: syn.$font-size-lg;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
     object-fit: cover;
   }
 
@@ -769,7 +769,7 @@
   &__enrolled-title {
     margin: 0;
     font-size: syn.$font-size-2xl;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   &__enrolled-ref {
@@ -1091,7 +1091,7 @@
   &__heading {
     margin: 0;
     font-size: syn.$font-size-xl;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   &__enroll-head {
@@ -1106,7 +1106,7 @@
   }
 
   &__enroll-pct {
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
     color: var(--ac-brand);
   }
 
@@ -1167,7 +1167,7 @@
   }
 
   &__path-pct {
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
     color: var(--ac-brand);
   }
 

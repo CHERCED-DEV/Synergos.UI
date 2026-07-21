@@ -241,7 +241,7 @@
   &__hero-title {
     margin: 0 0 syn.$space-2;
     font-size: syn.$font-size-2xl;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   &__hero-sub {
@@ -387,7 +387,7 @@
   }
 
   &__flight-from { font-size: syn.$font-size-xs; color: var(--ts-muted); }
-  &__flight-amount { font-size: syn.$font-size-lg; font-weight: 800; color: var(--ts-brand); }
+  &__flight-amount { font-size: syn.$font-size-lg; font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
 
   &__chips {
     display: flex;
@@ -457,7 +457,7 @@
   }
 
   &__fare-label { font-weight: 700; font-size: syn.$font-size-base; }
-  &__fare-price { font-weight: 800; color: var(--ts-brand); }
+  &__fare-price { font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
 
   &__fare-perks {
     list-style: none;
@@ -562,7 +562,7 @@
   &__stay-desc { margin: 0 0 syn.$space-2; color: var(--ts-text-secondary); }
   &__stay-address { display: flex; align-items: center; gap: syn.$space-1; margin: 0; font-size: syn.$font-size-sm; }
 
-  &__pdp-price { margin: 0; font-size: syn.$font-size-xl; font-weight: 800; color: var(--ts-brand); }
+  &__pdp-price { margin: 0; font-size: syn.$font-size-xl; font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
   &__pdp-hint { margin: 0 0 syn.$space-3; font-size: syn.$font-size-xs; color: var(--ts-muted); }
 
   &__rates { display: flex; flex-direction: column; gap: syn.$space-2; margin-bottom: syn.$space-3; }
@@ -587,7 +587,7 @@
   &__rate-room { font-weight: 700; }
   &__rate-plan { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
   &__rate-tags { margin: syn.px-to-rem(2) 0; }
-  &__rate-price { font-weight: 800; color: var(--ts-brand); }
+  &__rate-price { font-weight: syn.$font-weight-bold; color: var(--ts-brand); }
 
   &__amenities {
     display: grid;
@@ -666,7 +666,7 @@
     justify-content: space-between;
     margin: 0;
     font-size: syn.$font-size-lg;
-    font-weight: 800;
+    font-weight: syn.$font-weight-bold;
   }
 
   // ─── Checkout / review ────────────────────────────────────────────────────
@@ -703,7 +703,7 @@
       padding-top: syn.$space-2;
       border-top: syn.px-to-rem(1) solid var(--ts-border);
       font-size: syn.$font-size-base;
-      dt, dd { font-weight: 800; }
+      dt, dd { font-weight: syn.$font-weight-bold; }
     }
   }
 
@@ -727,7 +727,7 @@
     font-weight: 700;
   }
 
-  &__confirm-code { margin: 0; font-size: syn.$font-size-2xl; font-weight: 800; letter-spacing: 0.03em; }
+  &__confirm-code { margin: 0; font-size: syn.$font-size-2xl; font-weight: syn.$font-weight-bold; letter-spacing: 0.03em; }
   &__confirm-order { margin: 0; color: var(--ts-text-secondary); }
 
   // ─── Account: trips ───────────────────────────────────────────────────────
