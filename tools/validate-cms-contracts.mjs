@@ -234,6 +234,14 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementFormField',
   'elementCompFormBlock',
   'elementFormContainer',
+  // Pricing (server-rendered: no hay vista en Views/Partials/SynHost/ para
+  // ninguno de los dos, así que no montan web component)
+  'elementPricingPlan',
+  'elementPricingTable',
+  // Montador genérico: `ModuleMount.cshtml` emite <synergos-{moduleAlias}> con
+  // el alias que elige el editor (ADR 0096). Es el HOST, no un elemento con
+  // bundle propio — por diseño nunca tendrá entrada en el registro.
+  'elementSynModuleMount',
   // Corporate / Navigation (server-rendered, no CDN mount)
   'elementCorpContactInfo',
   'elementCorpMapEmbed',
