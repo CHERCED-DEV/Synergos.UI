@@ -19,8 +19,8 @@
   --eh-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --eh-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --eh-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --eh-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
-  --eh-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --eh-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
+  --eh-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
   // --eh-brand = acento SÓLIDO para CTAs/bordes/foco/badges (antes caía en un wash 12% → botón fantasma).
   --eh-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   // --eh-brand-soft = wash de marca THEME-AWARE para bandas/chips (antes apuntaba a un token inexistente

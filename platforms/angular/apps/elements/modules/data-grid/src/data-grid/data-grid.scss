@@ -16,8 +16,8 @@
   --dg-empty-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --dg-badge-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
   --dg-badge-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
-  --dg-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
-  --dg-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --dg-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
+  --dg-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
 
   display: block;
 }

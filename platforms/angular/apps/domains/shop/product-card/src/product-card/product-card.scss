@@ -49,7 +49,7 @@
   --pc-stock-chip-surface: var(--syn-color-surface-overlay, #{syn.$color-surface});
   --pc-stock-chip-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
 
-  --pc-skeleton-surface: var(--syn-color-surface-tertiary, #{syn.$color-neutral-100});
+  --pc-skeleton-surface: var(--syn-skeleton-base, #{syn.$color-neutral-100});
 
   display: flex;
   flex-direction: column;

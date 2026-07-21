@@ -1,8 +1,8 @@
 @use '../../../../../../../vitals/core-assets/src/scss' as syn;
 
 :host {
-  --skn-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
-  --skn-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --skn-base: var(--syn-skeleton-base, #{syn.$color-neutral-100});
+  --skn-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
 
   display: block;
   width: 100%;

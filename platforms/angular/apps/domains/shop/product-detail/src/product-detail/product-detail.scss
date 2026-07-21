@@ -34,8 +34,8 @@
   --pd-stock-low-text: var(--syn-color-state-warning-text, #{syn.$color-warning-600});
   --pd-stock-low-dot: var(--syn-color-warning-500, #{syn.$color-warning-500});
 
-  --pd-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
-  --pd-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-surface-muted});
+  --pd-skeleton-base: var(--syn-skeleton-base, #{syn.$color-surface-subtle});
+  --pd-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-surface-muted});
 
   --pd-error-text: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
 

@@ -11,8 +11,8 @@
   --pg-input-border-focus: var(--syn-color-border-accent, #{syn.$color-border-brand});
   --pg-input-focus-glow: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
 
-  --pg-skeleton-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
-  --pg-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-surface-muted});
+  --pg-skeleton-surface: var(--syn-skeleton-base, #{syn.$color-surface-subtle});
+  --pg-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-surface-muted});
   --pg-error: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
   --pg-empty: var(--syn-color-text-muted, #{syn.$color-text-muted});
 

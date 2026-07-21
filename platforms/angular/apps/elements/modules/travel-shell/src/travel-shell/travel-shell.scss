@@ -10,8 +10,8 @@
   --ts-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --ts-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --ts-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --ts-skeleton-base: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
-  --ts-skeleton-highlight: var(--syn-color-surface-tertiary, #{syn.$color-neutral-200});
+  --ts-skeleton-base: var(--syn-skeleton-base, #{syn.$color-neutral-50});
+  --ts-skeleton-highlight: var(--syn-skeleton-sheen, #{syn.$color-neutral-200});
   // --ts-brand = acento SÓLIDO para CTAs/bordes/foco (antes caía en --syn-color-state-brand-surface,
   // un wash 12% pensado como fondo de chip → botón/CTA fantasma ~1.1:1).
   --ts-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
