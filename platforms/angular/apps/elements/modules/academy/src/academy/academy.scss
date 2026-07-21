@@ -180,7 +180,13 @@
 
   // ─── Hero ─────────────────────────────────────────────────────────────────
   &__hero {
-    padding: syn.$space-lg;
+    // Vertical 48 / horizontal 32, no 24 por los cuatro lados. El padding estaba
+    // dimensionado para un titular de 24px; al pasar a 36 el aire de arriba y abajo se
+    // quedó corto —visible en navegador: el texto no se corta, pero la banda no crece
+    // con su contenido—. Más vertical que horizontal a propósito: en una banda ancha lo
+    // que falta es respiración arriba/abajo, y meter 48 a los lados solo estrecharía la
+    // línea de texto sin ganar nada. Los dos valores son de la escala de 8.
+    padding: syn.$space-2xl syn.$space-xl;
     border-radius: syn.$radius-lg;
     background: linear-gradient(135deg, var(--ac-brand) 0%, color-mix(in srgb, var(--ac-brand) 65%, #1e1b4b) 100%);
     color: var(--ac-brand-text);
