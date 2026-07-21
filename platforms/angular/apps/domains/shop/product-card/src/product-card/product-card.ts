@@ -166,10 +166,12 @@ export class ProductCardComponent {
    *  compartida con el storefront (que pinta el mismo plato). */
   readonly monogram = computed(() => monogramOf(this.name()));
 
-  /** Prueba social del producto, o `undefined` si no tiene reseñas.
-   *  El backend OMITE la clave cuando no hay ninguna (ADR 0114): no llega un `{average:0,
-   *  count:0}` que haya que distinguir de una nota real de cero. Aun así se exige `count > 0`,
-   *  porque un agregado sin reseñas detrás no es una valoración. */
+  /** Prueba social del producto, o nada si no tiene reseñas.
+   *  El backend manda `"rating": null` cuando no hay ninguna —comprobado en vivo; la clave
+   *  NO desaparece, aunque el contrato la declare opcional— y nunca un `{average:0,count:0}`
+   *  que habría que distinguir de una nota real de cero (ADR 0112/0114).
+   *  La guarda exige `count > 0` y no solo que el objeto llegue: así da igual si algún día
+   *  el backend cambia entre omitir, null o ceros. */
   readonly rating = computed(() => this.product()?.rating);
   readonly hasRating = computed(() => (this.rating()?.count ?? 0) > 0);
 
