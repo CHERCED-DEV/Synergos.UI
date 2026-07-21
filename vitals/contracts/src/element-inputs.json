@@ -283,7 +283,7 @@
       "type": "string",
       "required": false,
       "default": "solid",
-      "description": "solid | outline | ghost"
+      "description": "Variante visual. Acepta el vocabulario del CMS (primary | secondary | outlined | ghost | neutral | emphasis) y el propio (solid | outline | ghost | danger | gradient); lo desconocido cae a solid."
     },
     {
       "name": "size",

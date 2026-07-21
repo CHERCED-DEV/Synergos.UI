@@ -72,4 +72,42 @@ describe('ButtonContainerComponent', () => {
     expect(link).toBeTruthy();
     expect(link.querySelector('syn-button')?.getAttribute('ng-reflect-loading') ?? null).not.toBe('true');
   });
+
+  // ── Vocabulario de variantes del CMS ───────────────────────────────────────
+  //
+  // Este contenedor estrechaba el vocabulario a solid|outline|ghost y aplanaba a
+  // `solid` todo lo demás. Como el CMS publica primary|secondary|ghost|outlined|
+  // neutral|emphasis, un botón `secondary` se volvía primario AL HIDRATAR: el
+  // respaldo SSR pintaba syn-button--secondary y el elemento pintaba solid.
+  // Se afirma el mapeo completo, no sólo el caso que se reportó.
+
+  it.each([
+    ['primary', 'solid'],
+    ['secondary', 'outline'],
+    ['outlined', 'outline'],
+    ['ghost', 'ghost'],
+    ['neutral', 'ghost'],
+    ['emphasis', 'gradient'],
+    // El vocabulario propio del elemento sigue funcionando.
+    ['solid', 'solid'],
+    ['outline', 'outline'],
+    ['gradient', 'gradient'],
+    ['danger', 'danger'],
+    // Tolerancia a lo que llega por atributo DOM.
+    ['  Secondary  ', 'outline'],
+  ])('normaliza la variante %s del CMS a %s', (input, expected) => {
+    fixture.componentRef.setInput('config', { label: 'X', variant: input });
+    fixture.detectChanges();
+
+    expect(component.resolvedVariant()).toBe(expected);
+  });
+
+  // Control: si esto pasara, el test de arriba no probaría nada — un mapeo que
+  // acepta cualquier cosa no es un mapeo.
+  it('cae a solid ante una variante desconocida', () => {
+    fixture.componentRef.setInput('config', { label: 'X', variant: 'xxnoexiste' });
+    fixture.detectChanges();
+
+    expect(component.resolvedVariant()).toBe('solid');
+  });
 });

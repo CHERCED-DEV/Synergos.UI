@@ -10,10 +10,43 @@ import {
 } from '@synergos/shared';
 
 type ButtonSize = 'sm' | 'md' | 'lg';
-type ButtonVariant = 'solid' | 'outline' | 'ghost';
+/** El vocabulario COMPLETO que sabe pintar <syn-button>. */
+type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'danger' | 'gradient';
+
+/**
+ * El CMS publica su propio vocabulario de variantes desde `compDomVariant`
+ * (primary | secondary | ghost | outlined | neutral | emphasis), más ancho que
+ * el de <syn-button>. Este contenedor lo estrechaba a solid|outline|ghost y
+ * colapsaba a `solid` todo lo demás, así que un botón `secondary` se volvía
+ * primario justo al hidratar — el respaldo SSR decía una cosa y el elemento
+ * pintaba otra.
+ *
+ * Se acepta el vocabulario del CMS ADEMÁS del propio y se normaliza. Los pares
+ * están elegidos para que el token sea el MISMO que usa el CSS del SSR, de modo
+ * que hidratar no cambie el aspecto:
+ *   primary            → solid     (--syn-color-action-primary-*)
+ *   secondary/outlined → outline   (--syn-color-action-secondary-*; el SSR
+ *                                   pinta ambas con LA MISMA regla)
+ *   ghost              → ghost     (--syn-color-action-ghost-*)
+ *   emphasis           → gradient  (degradado de acento)
+ *   neutral            → ghost     (el SSR no le da regla propia: se queda en
+ *                                   el botón base, sin fondo)
+ */
+const VARIANT_ALIASES: Readonly<Record<string, ButtonVariant>> = {
+  solid: 'solid',
+  primary: 'solid',
+  outline: 'outline',
+  outlined: 'outline',
+  secondary: 'outline',
+  ghost: 'ghost',
+  neutral: 'ghost',
+  danger: 'danger',
+  gradient: 'gradient',
+  emphasis: 'gradient',
+};
 
 function resolveButtonVariant(value: string): ButtonVariant {
-  return value === 'outline' || value === 'ghost' ? value : 'solid';
+  return VARIANT_ALIASES[(value ?? '').trim().toLowerCase()] ?? 'solid';
 }
 
 function resolveButtonSize(value: string): ButtonSize {
