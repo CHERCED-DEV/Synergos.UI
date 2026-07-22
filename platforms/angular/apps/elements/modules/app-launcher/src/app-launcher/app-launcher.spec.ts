@@ -115,4 +115,43 @@ describe('AppLauncherElementComponent', () => {
     expect(detail!.url).toBe('/hoteles');
     expect(detail!.demoMode).toBe('deeplink');
   });
+
+  // ─── Título y subtítulo compuestos por el CMS ───────────────────────────────
+  //
+  // El Hub es la PORTADA del producto y pintaba su título de fábrica: el CMS mandaba
+  // la clave `heading` y `sanitizeAppLauncherConfig` sólo conserva `title`, así que el
+  // copy del editor se caía en silencio —el sanitizer reconstruye el objeto clave por
+  // clave y lo que no lista desaparece sin error ni warning—.
+  //
+  // El config se pasa como STRING JSON a propósito: es la ruta real del mount (el
+  // emitter fusiona todos los props en un solo atributo `config='{...}'`). Un test que
+  // pase el objeto ya parseado no cubre producción.
+  describe('título y subtítulo del CMS', () => {
+    it('CONTROL: sin config pinta el título de fábrica y NINGÚN subtítulo', async () => {
+      fixture.componentRef.setInput('apps', APPS);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.title()).toBe('Galería de aplicaciones');
+      expect(component.subtitle()).toBe('');
+      // El `@if` no debe dejar un <p> vacío: sin CMS el header queda como estaba.
+      expect(fixture.nativeElement.querySelector('.app-launcher__subtitle')).toBeNull();
+    });
+
+    it('pinta el título y el subtítulo que compone el editor', async () => {
+      fixture.componentRef.setInput('apps', APPS);
+      fixture.componentRef.setInput(
+        'config',
+        JSON.stringify({ title: 'Explora las apps', subtitle: 'Un motor, mil productos' }),
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.title()).toBe('Explora las apps');
+      expect(component.subtitle()).toBe('Un motor, mil productos');
+      expect(
+        fixture.nativeElement.querySelector('.app-launcher__subtitle').textContent.trim(),
+      ).toBe('Un motor, mil productos');
+    });
+  });
 });

@@ -1,6 +1,13 @@
 <section class="app-launcher" [attr.aria-label]="title()">
   <header class="app-launcher__header">
-    <syn-heading [text]="title()" level="h2" size="lg" class="app-launcher__heading" />
+    <!-- Título y subtítulo se agrupan para no romper el `space-between` del header:
+         el bloque de textos a la izquierda, el contador a la derecha. -->
+    <div class="app-launcher__titles">
+      <syn-heading [text]="title()" level="h2" size="lg" class="app-launcher__heading" />
+      @if (subtitle()) {
+        <p class="app-launcher__subtitle">{{ subtitle() }}</p>
+      }
+    </div>
     <p class="app-launcher__count" aria-live="polite">{{ resultLabel() }}</p>
   </header>
 

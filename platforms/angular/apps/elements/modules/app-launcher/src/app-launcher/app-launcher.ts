@@ -34,6 +34,13 @@ import {
  */
 export interface AppLauncherRuntimeConfig {
   readonly title?: string;
+  /**
+   * Línea de apoyo bajo el título. Sin default: si el CMS no compone nada, el `@if` del
+   * template no pinta el `<p>` y el header queda exactamente como estaba — el cambio es
+   * aditivo. El alias del ElementType es `subheading`; la traducción de nombre vive en
+   * `SynHost/AppLauncher.cshtml`, que es la frontera CMS↔componente.
+   */
+  readonly subtitle?: string;
   readonly searchLabel?: string;
   readonly searchPlaceholder?: string;
   readonly ctaLabel?: string;
@@ -218,6 +225,7 @@ function sanitizeAppLauncherConfig(
 ): Partial<AppLauncherRuntimeConfig> {
   return omitUndefinedProperties<AppLauncherRuntimeConfig>({
     title: coerceTrimmedStringInput(value.title),
+    subtitle: coerceTrimmedStringInput(value.subtitle),
     searchLabel: coerceTrimmedStringInput(value.searchLabel),
     searchPlaceholder: coerceTrimmedStringInput(value.searchPlaceholder),
     ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
@@ -244,6 +252,7 @@ export class AppLauncherElementComponent {
     transform: createConfigInputTransform<AppLauncherRuntimeConfig>(sanitizeAppLauncherConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
+  readonly subtitleInput = input<string | undefined>(undefined, { alias: 'subtitle' });
   readonly searchLabelInput = input<string | undefined>(undefined, { alias: 'searchLabel' });
   readonly searchPlaceholderInput = input<string | undefined>(undefined, {
     alias: 'searchPlaceholder',
@@ -255,6 +264,11 @@ export class AppLauncherElementComponent {
 
   readonly title = computed(() =>
     resolveConfigValue(this.titleInput(), this.config()?.title, 'Galería de aplicaciones'),
+  );
+  // Default vacío A PROPÓSITO: el Hub no tenía subtítulo, y un default de fábrica lo
+  // pintaría siempre. Con '' sólo aparece cuando el editor compone algo.
+  readonly subtitle = computed(() =>
+    resolveConfigValue(this.subtitleInput(), this.config()?.subtitle, ''),
   );
   readonly searchLabel = computed(() =>
     resolveConfigValue(this.searchLabelInput(), this.config()?.searchLabel, 'Buscar aplicaciones'),
