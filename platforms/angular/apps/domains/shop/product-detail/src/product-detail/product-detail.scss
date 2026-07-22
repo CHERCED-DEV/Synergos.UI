@@ -453,3 +453,15 @@
     background-position: -200% 0;
   }
 }
+
+// El shimmer es un bucle `infinite`, y `--syn-duration-shimmer` está DELIBERADAMENTE
+// fuera del swap global de reduced-motion: colapsar la duración de un bucle a 0.01ms no
+// lo apaga, lo convierte en un estroboscopio (~100.000 vueltas/s) — riesgo de WCAG 2.3.1
+// justo para quien pidió menos movimiento. Parar un bucle se hace con `animation: none`,
+// como ya hacen el primitivo `skeleton`, `ehr` y `comments-widget`.
+// Aquí además el shimmer usaba `syn.$duration-shimmer` como LITERAL Sass compilado: ni
+// siquiera una var que el swap pudiera alcanzar.
+@media (prefers-reduced-motion: reduce) {
+  .product-detail__skeleton-media::after,
+  .product-detail__skeleton-line::after { animation: none; }
+}
