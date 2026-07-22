@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { InitialDataService } from '@synergos/core';
 import {
@@ -298,10 +299,35 @@ export class ToastCenterElementComponent {
   constructor() {
     // Seed declared toasts into the queue whenever the declaration changes.
     // Re-seeding replaces the previously seeded set without touching the ids.
+    //
+    // The body MUST stay untracked: #syncTimers() reads visibleToasts() (and
+    // therefore #queue) plus #paused(), which made #queue a dependency of the
+    // very effect that writes #queue. That read-write cycle re-ran the seeding
+    // on EVERY queue mutation, which broke both paths:
+    //   - imperative: each push() / `synergos:toast` was reset back to the
+    //     declared seeds (usually none) before it could ever paint;
+    //   - declarative (the CMS-authored path): dismissing a declared toast
+    //     re-seeded it straight back, so the close button did nothing and an
+    //     auto-dismissed toast resurrected and re-armed its timer — an endless
+    //     flicker emitting a spurious `toastdismiss` once per duration window.
+    // The only legitimate trigger for re-seeding is a change in the declaration.
     effect(() => {
       const seeds = this.seedToasts();
-      this.#queue.set(seeds);
-      this.#syncTimers();
+      untracked(() => {
+        this.#queue.set(seeds);
+        this.#syncTimers();
+      });
+    });
+
+    // Timer reconciliation is its own effect: it tracks the visible slice and
+    // the pause flag but writes no signal, so it cannot feed back into seeding.
+    // This keeps auto-dismiss timers correct when the visible set shifts for a
+    // reason other than enqueue/remove (e.g. a maxVisible or position change),
+    // which used to ride along on the seeding effect above.
+    effect(() => {
+      this.visibleToasts();
+      this.#paused();
+      untracked(() => this.#syncTimers());
     });
 
     // Listen for runtime pushes dispatched on window.
