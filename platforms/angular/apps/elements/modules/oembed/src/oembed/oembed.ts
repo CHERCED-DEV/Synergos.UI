@@ -2,8 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  inject,
   input,
 } from '@angular/core';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -87,7 +89,13 @@ function youtubeId(url: URL): string {
     return url.pathname.slice(1).split('/')[0] ?? '';
   }
 
-  if (host.endsWith('youtube.com') || host === 'youtube-nocookie.com') {
+  // Sufijo EXACTO de subdominio (m./music./gaming.youtube.com), no `endsWith`
+  // a secas: `endsWith('youtube.com')` también aceptaba `notyoutube.com`.
+  if (
+    host === 'youtube.com' ||
+    host.endsWith('.youtube.com') ||
+    host === 'youtube-nocookie.com'
+  ) {
     const fromQuery = url.searchParams.get('v');
     if (fromQuery) {
       return fromQuery;
@@ -117,7 +125,18 @@ function vimeoId(url: URL): string {
   return '';
 }
 
-/** Resolve a raw URL into a provider + embeddable iframe `src`. */
+/**
+ * Resolve a raw URL into a provider + embeddable iframe `src`.
+ *
+ * ⚠️ ESTA FUNCIÓN ES LA FRONTERA DE SEGURIDAD del elemento, porque `rawUrl` es
+ * texto que PEGA EL EDITOR. La url que sale de aquí NUNCA es la que entró: se
+ * parsea la de entrada, se extrae un id, y se reemite sobre un ORIGEN LITERAL
+ * (`youtube-nocookie.com` / `player.vimeo.com`) con el id pasado por
+ * `encodeURIComponent`, que codifica `/ ? # :` y por tanto impide que el id se
+ * salga de su segmento de path o cambie el origen. Si no matchea ningún
+ * proveedor, `embedSrc` sale '' y la plantilla NO pinta el iframe (cae al enlace).
+ * Sólo por eso el `bypassSecurityTrustResourceUrl` de `safeEmbedSrc` es legítimo.
+ */
 export function resolveEmbed(rawUrl: string, title: string, aspectRatio: string): OembedResolved {
   const base: Omit<OembedResolved, 'provider' | 'embedSrc'> = { aspectRatio, title };
   const url = parseUrl(rawUrl.trim());
@@ -163,6 +182,8 @@ function sanitizeOembedConfig(value: Partial<OembedRuntimeConfig>): OembedRuntim
   host: { class: 'sg-oembed' },
 })
 export class OembedElementComponent {
+  readonly #sanitizer = inject(DomSanitizer);
+
   readonly config = input<OembedRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<OembedRuntimeConfig>(sanitizeOembedConfig),
   });
@@ -189,4 +210,25 @@ export class OembedElementComponent {
 
   readonly hasUrl = computed(() => this.embedUrl().length > 0);
   readonly isEmbeddable = computed(() => this.resolved().embedSrc.length > 0);
+
+  /**
+   * La MISMA url de `resolved().embedSrc`, envuelta para poder atarla al `src`
+   * del iframe.
+   *
+   * Angular trata el `src` de un <iframe> como *resource URL context*: exige un
+   * `SafeResourceUrl` y ante un string lanza NG0904 **durante la detección de
+   * cambios**, o sea que el componente reventaba en CADA render con una url
+   * embebible — no fallaba el vídeo, fallaba el elemento entero. Llevaba así
+   * desde siempre y no se veía porque su spec, que lo atrapaba en 2 casos, no
+   * tenía target `test` que lo ejecutara.
+   *
+   * El bypass es legítimo SÓLO porque se aplica sobre la url que PRODUCE
+   * `resolveEmbed` (origen literal + id `encodeURIComponent`), nunca sobre
+   * `embedUrl()`, que es la cadena cruda del editor. Ver la nota de seguridad
+   * en `resolveEmbed`. `resolved().embedSrc` sigue siendo string a propósito:
+   * ese es el contrato que prueba QUÉ url se construye.
+   */
+  readonly safeEmbedSrc = computed<SafeResourceUrl>(() =>
+    this.#sanitizer.bypassSecurityTrustResourceUrl(this.resolved().embedSrc),
+  );
 }

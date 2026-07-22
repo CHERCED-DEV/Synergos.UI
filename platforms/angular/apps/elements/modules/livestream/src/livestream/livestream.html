@@ -7,7 +7,7 @@
     @if (playerKind() === 'iframe') {
       <iframe
         class="livestream__media"
-        [src]="streamUrl()"
+        [src]="embedSrc()"
         [title]="hasTitle() ? title() : (isLive() ? liveLabel() : offlineLabel())"
         loading="lazy"
         referrerpolicy="strict-origin-when-cross-origin"

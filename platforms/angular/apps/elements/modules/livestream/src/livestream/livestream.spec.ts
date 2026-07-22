@@ -88,6 +88,17 @@ describe('livestream pure helpers', () => {
     expect(sanitizeStreamUrl(undefined)).toBe('');
   });
 
+  // Esta verja es la precondición del bypass de `embedSrc`: lo que se valida tiene que
+  // ser exactamente lo que se emite. Sin estos dos casos, devolver la cadena CRUDA en
+  // vez del href parseado pasaba desapercibido — las urls de arriba ya venían normalizadas.
+  it('sanitizeStreamUrl emits the parsed href and drops protocol-relative input', () => {
+    // Sin origen explícito no hay origen que validar: el navegador lo resolvería
+    // después contra otra base, así que nunca debe llegar al src del iframe.
+    expect(sanitizeStreamUrl('//evil.example.com/x')).toBe('');
+    // Normalización del parser (esquema en minúsculas + path raíz), no la cruda.
+    expect(sanitizeStreamUrl('HTTPS://x.example.com')).toBe('https://x.example.com/');
+  });
+
   it('resolvePlayerKind honors explicit type then falls back to extension sniffing', () => {
     expect(resolvePlayerKind('', undefined)).toBe('none');
     expect(resolvePlayerKind('https://x/clip.webm', undefined)).toBe('video');

@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -211,6 +212,7 @@ function sanitizeMapPinConfig(value: Partial<MapPinRuntimeConfig>): MapPinRuntim
 })
 export class MapPinElementComponent {
   readonly #initialData = inject(InitialDataService);
+  readonly #sanitizer = inject(DomSanitizer);
 
   readonly config = input<MapPinRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<MapPinRuntimeConfig>(sanitizeMapPinConfig),
@@ -283,6 +285,25 @@ export class MapPinElementComponent {
   /** Keyless OSM embed URL reflecting the current view. */
   readonly embedUrl = computed(() =>
     buildOsmEmbedUrl(this.viewLat(), this.viewLng(), this.zoomLevel(), this.hasPins()),
+  );
+
+  /**
+   * La MISMA url, envuelta para poder atarla al `src` del iframe.
+   *
+   * Angular trata el `src` de un <iframe> como *resource URL context*: exige un
+   * `SafeResourceUrl` y ante un string lanza NG0904 **durante la detección de cambios**,
+   * o sea que el componente reventaba en CADA render — no fallaba el mapa, fallaba el
+   * elemento entero. Llevaba así desde siempre y no se veía porque su spec, que lo
+   * atrapaba en los 4 casos, no tenía target `test` que lo ejecutara.
+   *
+   * El bypass es seguro POR CONSTRUCCIÓN, y esa es la única razón por la que se permite:
+   * `buildOsmEmbedUrl` no interpola ni una cadena del usuario — arma la query sólo con
+   * números (lat/lng/zoom, los tres pasados por `clamp`) sobre un origen literal de
+   * openstreetmap.org. ⚠️ Si algún día esa función acepta texto del editor, este bypass
+   * deja de ser legítimo y pasa a ser un XSS: habría que validar el origen antes.
+   */
+  readonly embedSrc = computed<SafeResourceUrl>(() =>
+    this.#sanitizer.bypassSecurityTrustResourceUrl(this.embedUrl()),
   );
 
   /** Full-map link for the "Ver mapa completo" affordance. */

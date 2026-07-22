@@ -98,4 +98,75 @@ describe('oembed pure helpers', () => {
     expect(resolveEmbed('not-a-url', 't', '16 / 9').provider).toBe('unknown');
     expect(resolveEmbed('ftp://youtube.com/watch?v=x', 't', '16 / 9').provider).toBe('unknown');
   });
+
+  it('resolveEmbed matches youtube by exact subdomain, not by suffix', () => {
+    // El allowlist de proveedores es lo que legitima el bypassSecurityTrustResourceUrl
+    // de `safeEmbedSrc`, así que un look-alike NO puede colarse como proveedor.
+    expect(resolveEmbed('https://notyoutube.com/watch?v=abc123', 't', '16 / 9').provider).toBe(
+      'unknown',
+    );
+    expect(resolveEmbed('https://m.youtube.com/watch?v=abc123', 't', '16 / 9').provider).toBe(
+      'youtube',
+    );
+  });
+
+  it('embedSrc NUNCA sale del origen literal, pegue el editor lo que pegue', () => {
+    // Este es el contrato que sostiene el `bypassSecurityTrustResourceUrl`:
+    // `embedSrc` sólo puede ser '' o una url sobre uno de DOS orígenes literales.
+    // Si algún día alguien reemite `rawUrl` en vez de reconstruirla, esto se cae.
+    const ORIGENES_PERMITIDOS = [
+      'https://www.youtube-nocookie.com/embed/',
+      'https://player.vimeo.com/video/',
+    ];
+
+    const hostiles = [
+      // Esquemas peligrosos directos.
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'vbscript:msgbox(1)',
+      // Look-alikes y sufijos de host.
+      'https://notyoutube.com/watch?v=abc',
+      'https://youtube.com.evil.com/watch?v=abc',
+      'https://evil.com/?v=abc',
+      'https://evil.youtu.be/abc',
+      'https://vimeo.com.evil.com/76979871',
+      // Payload dentro del id, que es la única parte que viene del editor.
+      'https://youtube.com/watch?v=javascript:alert(1)',
+      'https://youtube.com/watch?v=../../../evil',
+      'https://youtube.com/watch?v=@evil.com',
+      'https://youtube.com/watch?v=%2F%2Fevil.com',
+      'https://youtu.be/..%2F..%2Fevil',
+      'https://youtu.be/@evil.com',
+      "https://youtube.com/watch?v=x\"></iframe><script>alert(1)</script>",
+      'https://youtube.com/embed/#/../evil',
+    ];
+
+    for (const hostil of hostiles) {
+      const { embedSrc } = resolveEmbed(hostil, 't', '16 / 9');
+      if (embedSrc === '') {
+        continue;
+      }
+      expect(
+        ORIGENES_PERMITIDOS.some((origen) => embedSrc.startsWith(origen)),
+        `"${hostil}" produjo un embedSrc fuera del allowlist: "${embedSrc}"`,
+      ).toBe(true);
+      // Y el id jamás puede reintroducir un separador que lo saque de su segmento.
+      expect(embedSrc.slice('https://'.length)).not.toContain('//');
+    }
+  });
+
+  it('el id del editor sale percent-encoded — encodeURIComponent es LOAD-BEARING', () => {
+    // Valores exactos, no `toContain`: si alguien quita el encodeURIComponent de
+    // `resolveEmbed`, estas tres se caen. `%2F%2F` es la peligrosa — sin encodear
+    // produce `.../embed///evil.com`, que el navegador lee como cambio de host.
+    expect(resolveEmbed('https://youtube.com/watch?v=%2F%2Fevil.com', 't', '16 / 9').embedSrc).toBe(
+      'https://www.youtube-nocookie.com/embed/%2F%2Fevil.com',
+    );
+    expect(
+      resolveEmbed('https://youtube.com/watch?v=javascript:alert(1)', 't', '16 / 9').embedSrc,
+    ).toBe('https://www.youtube-nocookie.com/embed/javascript%3Aalert(1)');
+    expect(resolveEmbed('https://youtu.be/@evil.com', 't', '16 / 9').embedSrc).toBe(
+      'https://www.youtube-nocookie.com/embed/%40evil.com',
+    );
+  });
 });
