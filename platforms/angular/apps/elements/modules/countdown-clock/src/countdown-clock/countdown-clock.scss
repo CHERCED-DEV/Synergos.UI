@@ -32,8 +32,15 @@
   gap: syn.$space-md;
 
   &__rings {
-    display: grid;
-    grid-template-columns: repeat(4, auto);
+    // FLEX con envoltura, no grid. `repeat(4, auto)` forzaba CUATRO columnas pase lo que
+    // pase: los cuatro anillos piden ~544px y, montado en un hueco más estrecho, la fila
+    // se DESBORDABA por ambos lados — los anillos de los extremos se salían de la caja
+    // del host e invadían lo que hubiera al lado.
+    // `auto-fit` tampoco sirve aquí: sin una anchura de referencia en el contenedor
+    // resuelve a UNA columna y el reloj se apila en vertical. Flex envuelve según el
+    // espacio REAL disponible, que es lo que el `:host { max-width: 100% }` ya prometía.
+    display: flex;
+    flex-wrap: wrap;
     gap: clamp(#{syn.$space-md}, 4vw, #{syn.$space-xl});
     align-items: start;
     justify-content: center;
