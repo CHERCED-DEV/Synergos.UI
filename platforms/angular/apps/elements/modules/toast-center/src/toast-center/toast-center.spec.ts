@@ -75,6 +75,55 @@ describe('ToastCenterElementComponent', () => {
     expect(emitted?.reason).toBe('manual');
   });
 
+  it('should keep a dismissed seeded toast dismissed (no resurrection)', async () => {
+    fixture.componentRef.setInput('toasts', TOASTS);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.queue().length).toBe(3);
+
+    // Dismissing a DECLARED toast must not re-run the seeding effect: that is
+    // the CMS-authored path, where a resurrected toast means the close button
+    // does nothing and auto-dismiss loops forever.
+    component.dismiss('t1', 'manual');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.queue().some((toast) => toast.id === 't1')).toBe(false);
+    expect(component.queue().length).toBe(2);
+  });
+
+  it('should auto-dismiss a seeded toast exactly once, not on a loop', async () => {
+    const reasons: string[] = [];
+    component.toastdismiss.subscribe((detail) => reasons.push(detail.reason));
+    fixture.componentRef.setInput(
+      'toasts',
+      JSON.stringify([{ id: 'loop', message: 'ciclo', duration: 60 }]),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    // Long enough for ~8 duration windows: a re-seeding cycle would resurrect
+    // the toast and re-arm its timer, emitting one `timeout` per window forever.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(reasons).toEqual(['timeout']);
+    expect(component.queue().some((toast) => toast.id === 'loop')).toBe(false);
+  });
+
+  it('should enqueue from a synergos:toast window event (bridge case)', async () => {
+    window.dispatchEvent(
+      new CustomEvent('synergos:toast', {
+        detail: { id: 'evt', severity: 'success', message: 'Desde el evento', duration: 0 },
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.queue().some((toast) => toast.id === 'evt')).toBe(true);
+  });
+
   it('should replace a same-id push without duplicating (idempotent case)', () => {
     component.push({ id: 'dup', severity: 'info', message: 'Primero', duration: 0 });
     component.push({ id: 'dup', severity: 'success', message: 'Segundo', duration: 0 });
