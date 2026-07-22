@@ -361,8 +361,14 @@
     @include syn.flex-column;
     height: 100%;
     /* El shimmer es un bucle INFINITO, la categoría que más molesta a quien pidió menos
-     movimiento. El literal `1.6s` lo hacía inmune al swap global. */
-  animation: sg-shimmer var(--syn-duration-shimmer, 1.6s) infinite linear;
+       movimiento.
+
+       ⚠️ Cambiar el literal `1.6s` por la var NO lo arregló, aunque el comentario anterior
+       decía que sí: `--syn-duration-shimmer` está DELIBERADAMENTE fuera del swap global de
+       reduced-motion (colapsar un bucle infinito a 0.01ms no lo apaga, lo vuelve un
+       estroboscopio de ~100.000 vueltas/s — WCAG 2.3.1). Se cambió un literal inmune por
+       una variable igual de inmune. Un bucle se para abajo, con `animation: none`. */
+    animation: sg-shimmer var(--syn-duration-shimmer, 1.6s) infinite linear;
   }
 
   &__skeleton-image {
@@ -403,4 +409,11 @@
   0% { opacity: 1; }
   50% { opacity: 0.5; }
   100% { opacity: 1; }
+}
+
+// Para el shimmer del esqueleto. Ver la nota en `&__skeleton`: pasarlo a
+// `var(--syn-duration-shimmer)` no bastaba, porque ese token queda fuera del swap global
+// a propósito. Un bucle `infinite` solo se detiene con `animation: none`.
+@media (prefers-reduced-motion: reduce) {
+  .product-card__skeleton { animation: none; }
 }

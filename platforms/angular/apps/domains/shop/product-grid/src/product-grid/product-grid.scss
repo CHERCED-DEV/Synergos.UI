@@ -530,3 +530,10 @@
     background-position: -200% 0;
   }
 }
+
+// Ver la nota de product-detail: `--syn-duration-shimmer` NO entra en el swap global de
+// reduced-motion (colapsar un bucle infinito a 0.01ms lo vuelve un estroboscopio), y aquí
+// además era un LITERAL Sass. Un bucle se para con `animation: none`.
+@media (prefers-reduced-motion: reduce) {
+  .product-grid__skeleton::after { animation: none; }
+}
