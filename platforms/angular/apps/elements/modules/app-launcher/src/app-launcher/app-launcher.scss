@@ -33,9 +33,26 @@
     gap: syn.$space-2 syn.$space-md;
   }
 
+  // Agrupa título + subtítulo como UN hijo del header flex, para que el
+  // `justify-content: space-between` siga oponiendo textos ↔ contador.
+  &__titles {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-1;
+    min-width: 0; // deja que el subtítulo largo se parta en vez de empujar al contador
+  }
+
   &__heading {
     display: block;
     color: var(--al-title-color);
+  }
+
+  &__subtitle {
+    margin: 0;
+    max-width: 60ch; // medida de lectura; sin esto ocupa todo el ancho en desktop
+    color: var(--al-text-color);
+    font-size: syn.$font-size-sm;
+    line-height: syn.$line-height-normal;
   }
 
   &__count {
