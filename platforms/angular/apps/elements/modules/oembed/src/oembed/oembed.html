@@ -9,7 +9,7 @@
   >
     <iframe
       class="oembed__iframe"
-      [src]="resolved().embedSrc"
+      [src]="safeEmbedSrc()"
       [title]="resolved().title"
       [attr.data-provider]="resolved().provider"
       loading="lazy"

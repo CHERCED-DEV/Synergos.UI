@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import {
   coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
@@ -51,6 +52,8 @@ export type LivestreamPlayerKind = 'iframe' | 'video' | 'none';
 
 const VIDEO_EXTENSIONS = /\.(mp4|webm|ogg|ogv|mov|m3u8)(\?.*)?$/i;
 const ALLOWED_PROTOCOLS: readonly string[] = ['https:', 'http:'];
+/** Sólo URLs ABSOLUTAS http(s): sin origen explícito no hay nada que validar. */
+const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
 
 const DEFAULT_LOCALE = 'es-CO';
 const DEFAULT_LIVE_LABEL = 'EN VIVO';
@@ -74,19 +77,26 @@ function readNumber(value: unknown): number | null {
   return null;
 }
 
-/** Accept only http(s) URLs; everything else is treated as "no source". */
+/**
+ * Accept only ABSOLUTE http(s) URLs; everything else is treated as "no source".
+ *
+ * Ésta es la ÚNICA verja de la que depende el bypass de `embedSrc` (ver abajo), así
+ * que devuelve el `href` ya normalizado por el parser y NO la cadena cruda: lo que se
+ * valida y lo que se emite tienen que ser el MISMO string. Devolviendo `raw` se
+ * bendecía como resource URL una cadena que el validador nunca llegó a mirar — p.ej.
+ * un protocol-relative `//host/x`, que pasaba el chequeo de protocolo (resolvía a
+ * https contra la base centinela) y salía intacto para que el navegador lo re-parsease
+ * después contra OTRA base. Los esquemas ejecutables (`javascript:`, `data:`, `blob:`)
+ * no matchean `ABSOLUTE_HTTP_URL` y mueren aquí.
+ */
 export function sanitizeStreamUrl(value: string | undefined): string {
   const raw = coerceTrimmedStringInput(value);
-  if (!raw) {
+  if (!raw || !ABSOLUTE_HTTP_URL.test(raw)) {
     return '';
   }
   try {
-    const url = new URL(raw, 'https://invalid.local');
-    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
-      return '';
-    }
-    // Reject relative inputs that resolved against the sentinel base.
-    return url.origin === 'https://invalid.local' && !/^https?:\/\//i.test(raw) ? '' : raw;
+    const url = new URL(raw);
+    return ALLOWED_PROTOCOLS.includes(url.protocol) ? url.href : '';
   } catch {
     return '';
   }
@@ -130,6 +140,7 @@ function sanitizeLivestreamConfig(value: Partial<LivestreamRuntimeConfig>): Live
 })
 export class LivestreamElementComponent {
   readonly #destroyRef = inject(DestroyRef);
+  readonly #sanitizer = inject(DomSanitizer);
 
   readonly config = input<LivestreamRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<LivestreamRuntimeConfig>(sanitizeLivestreamConfig),
@@ -193,6 +204,35 @@ export class LivestreamElementComponent {
   );
 
   readonly hasPlayer = computed(() => this.playerKind() !== 'none');
+
+  /**
+   * La MISMA url de `streamUrl()`, envuelta para poder atarla al `src` del iframe.
+   *
+   * Angular trata el `src` de un <iframe> como *resource URL context*: exige un
+   * `SafeResourceUrl` y ante un string lanza NG0904 **durante la detección de cambios**,
+   * o sea que el componente reventaba ENTERO en cada render — no fallaba el reproductor,
+   * fallaba el elemento. Y reventaba justo en la rama por defecto: `resolvePlayerKind`
+   * manda a `iframe` todo lo que no huela a fichero de vídeo, que es el caso normal de un
+   * embed de proveedor. El `<video>` de al lado NO sufría esto (su `src` es MEDIA_URL, que
+   * sí acepta cadenas), y por eso los 2 casos rojos eran exactamente los del iframe.
+   *
+   * ⚠️ Aquí el bypass NO es seguro por construcción como en map-pin, donde la url se arma
+   * sólo con números clamp-eados sobre un origen literal. `streamUrl` es texto que teclea
+   * el editor (`Umbraco.TextBox`, sin regex de validación), así que el bypass se apoya
+   * ENTERO en `sanitizeStreamUrl`, que es la verja de verdad: sólo sobrevive una URL
+   * absoluta http(s), y devuelve el href ya parseado — lo validado y lo emitido son el
+   * mismo string. Eso descarta la clase de ataque que este contexto existe para frenar
+   * (`javascript:`, `data:`, `blob:`); un embed cross-origin http(s) queda aislado por
+   * same-origin policy y no puede tocar la página anfitriona.
+   *
+   * NO se filtra por allowlist de proveedores (youtube/vimeo/...) a propósito: el schema
+   * declara este campo como «HLS manifest, WebRTC signaling, iframe src», es decir
+   * agnóstico de proveedor por diseño. Cablear una lista de hosts contradiría el schema y
+   * rompería contenido publicado; la verja correcta a este nivel es el esquema, no el host.
+   */
+  readonly embedSrc = computed<SafeResourceUrl>(() =>
+    this.#sanitizer.bypassSecurityTrustResourceUrl(this.streamUrl()),
+  );
 
   /** Inline / config viewer seed. */
   readonly #inlineViewers = computed<number | null>(() => {
