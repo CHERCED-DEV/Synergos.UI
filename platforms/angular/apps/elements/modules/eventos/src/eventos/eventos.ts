@@ -767,6 +767,24 @@ export class EventosElementComponent {
   }
 
   // ─── Role switch ─────────────────────────────────────────────────────────────
+
+  /**
+   * Imagenes cuya carga FALLO. El `@if (...cover)` de la plantilla solo caia al
+   * placeholder cuando la URL venia VACIA -- nunca cuando daba 404. Un fallback que
+   * solo cubre "no hay URL" no cubre "la URL miente", que es el caso que se ve en
+   * pantalla: 32 de las 48 rutas /media/ sembradas no existen en disco.
+   */
+  readonly #imgFailed = signal<ReadonlySet<string>>(new Set());
+
+  onImageError(key: string): void {
+    this.#imgFailed.update((s) => new Set(s).add(key));
+  }
+
+  /** true si hay URL y ademas cargo. */
+  hasImage(url: string | null | undefined, key: string): boolean {
+    return !!url && !this.#imgFailed().has(key);
+  }
+
   setRole(role: EventosRole): void {
     if (this.role() === role) {
       return;
