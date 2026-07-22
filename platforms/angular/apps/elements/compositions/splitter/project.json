@@ -14,7 +14,9 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/splitter",
         "browser": "apps/elements/compositions/splitter/src/main.ts",
@@ -24,14 +26,20 @@
       "configurations": {
         "production": {
           "budgets": [
-            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+            {
+              "type": "initial",
+              "maximumWarning": "80kb",
+              "maximumError": "200kb"
+            }
           ]
         }
       }
     },
     "serve": {
       "executor": "@angular/build:dev-server",
-      "options": { "port": 4359 }
+      "options": {
+        "port": 4359
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
@@ -40,6 +48,12 @@
           "apps/elements/compositions/splitter/src/**/*.ts",
           "apps/elements/compositions/splitter/src/**/*.html"
         ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/splitter/tsconfig.spec.json"
       }
     }
   }

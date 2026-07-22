@@ -14,7 +14,9 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/separator",
         "browser": "apps/elements/primitives/separator/src/main.ts",
@@ -24,14 +26,20 @@
       "configurations": {
         "production": {
           "budgets": [
-            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+            {
+              "type": "initial",
+              "maximumWarning": "80kb",
+              "maximumError": "200kb"
+            }
           ]
         }
       }
     },
     "serve": {
       "executor": "@angular/build:dev-server",
-      "options": { "port": 4353 }
+      "options": {
+        "port": 4353
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
@@ -40,6 +48,12 @@
           "apps/elements/primitives/separator/src/**/*.ts",
           "apps/elements/primitives/separator/src/**/*.html"
         ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/primitives/separator/tsconfig.spec.json"
       }
     }
   }

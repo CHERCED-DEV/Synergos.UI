@@ -14,7 +14,9 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/share-bar",
         "browser": "apps/elements/compositions/share-bar/src/main.ts",
@@ -24,14 +26,20 @@
       "configurations": {
         "production": {
           "budgets": [
-            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+            {
+              "type": "initial",
+              "maximumWarning": "80kb",
+              "maximumError": "200kb"
+            }
           ]
         }
       }
     },
     "serve": {
       "executor": "@angular/build:dev-server",
-      "options": { "port": 4354 }
+      "options": {
+        "port": 4354
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
@@ -40,6 +48,12 @@
           "apps/elements/compositions/share-bar/src/**/*.ts",
           "apps/elements/compositions/share-bar/src/**/*.html"
         ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/share-bar/tsconfig.spec.json"
       }
     }
   }
