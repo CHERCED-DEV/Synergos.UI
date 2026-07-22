@@ -14,7 +14,9 @@
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{options.outputPath}"
+      ],
       "options": {
         "outputPath": "dist/code-block",
         "browser": "apps/elements/compositions/code-block/src/main.ts",
@@ -24,14 +26,20 @@
       "configurations": {
         "production": {
           "budgets": [
-            { "type": "initial", "maximumWarning": "80kb", "maximumError": "200kb" }
+            {
+              "type": "initial",
+              "maximumWarning": "80kb",
+              "maximumError": "200kb"
+            }
           ]
         }
       }
     },
     "serve": {
       "executor": "@angular/build:dev-server",
-      "options": { "port": 4313 }
+      "options": {
+        "port": 4313
+      }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
@@ -40,6 +48,12 @@
           "apps/elements/compositions/code-block/src/**/*.ts",
           "apps/elements/compositions/code-block/src/**/*.html"
         ]
+      }
+    },
+    "test": {
+      "executor": "@angular/build:unit-test",
+      "options": {
+        "tsConfig": "apps/elements/compositions/code-block/tsconfig.spec.json"
       }
     }
   }
