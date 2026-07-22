@@ -118,6 +118,9 @@ export function upsertCdnRegistryEntry({ cdnSynergosDir, entry, framework, versi
       alias: entry.alias,
       tag: entry.tag,
       tier: entry.tier,
+      ...(Array.isArray(entry.dependencies) && entry.dependencies.length > 0
+        ? { dependencies: [...entry.dependencies] }
+        : {}),
       implementations: {},
     };
     doc.elements.push(element);
@@ -126,6 +129,14 @@ export function upsertCdnRegistryEntry({ cdnSynergosDir, entry, framework, versi
     element.alias = entry.alias;
     element.tag = entry.tag;
     element.tier = entry.tier;
+    // `dependencies` viaja igual que los campos de identidad: manda el registro fuente.
+    // Se BORRA cuando el fuente ya no la declara — si no, una dependencia retirada
+    // sobreviviría para siempre en el registry de la CDN, que se actualiza in-place.
+    if (Array.isArray(entry.dependencies) && entry.dependencies.length > 0) {
+      element.dependencies = [...entry.dependencies];
+    } else {
+      delete element.dependencies;
+    }
     if (!element.implementations || typeof element.implementations !== 'object') {
       element.implementations = {};
     }

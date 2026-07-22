@@ -1,160 +1,929 @@
 [
-  { "name": "hero",                 "alias": "elementCompHero",              "tag": "synergos-hero",                 "tier": "module" },
-  { "name": "banner",               "alias": "elementCompCtaBanner",         "tag": "synergos-banner",               "tier": "module" },
-  { "name": "section",              "alias": "elementStructSection",         "tag": "synergos-section",              "tier": "module" },
-  { "name": "feature-grid",         "alias": "elementCompFeatureGrid",       "tag": "synergos-feature-grid",         "tier": "module" },
-  { "name": "faq-section",          "alias": "elementCompFaqList",           "tag": "synergos-faq-section",          "tier": "module" },
-  { "name": "testimonial-section",  "alias": "elementCompTestimonialList",   "tag": "synergos-testimonial-section",  "tier": "module" },
-  { "name": "logo-cloud",           "alias": "elementCompLogoCloud",         "tag": "synergos-logo-cloud",           "tier": "module" },
-  { "name": "tab-group",            "alias": "elementCorpTabGroup",          "tag": "synergos-tab-group",            "tier": "module" },
-  { "name": "banner-slider",        "alias": "elementCorpBannerSlider",      "tag": "synergos-banner-slider",        "tier": "module" },
-  { "name": "data-table",           "alias": "elementCorpDataTable",         "tag": "synergos-data-table",           "tier": "module" },
-  { "name": "script-embed",         "alias": "elementIntScriptEmbed",        "tag": "synergos-script-embed",         "tier": "module" },
-
-  { "name": "card",                 "alias": "elementCompCard",              "tag": "synergos-card",                 "tier": "composition" },
-  { "name": "media-text",           "alias": "elementCompMediaTextSplit",    "tag": "synergos-media-text",           "tier": "composition" },
-  { "name": "info-block",           "alias": "elementCompInfoBlock",         "tag": "synergos-info-block",           "tier": "composition" },
-  { "name": "accordion",            "alias": "elementCompAccordion",         "tag": "synergos-accordion",            "tier": "composition" },
-  { "name": "cta-group",            "alias": "elementActionCtaGroup",        "tag": "synergos-cta-group",            "tier": "composition" },
-  { "name": "button-group",         "alias": "elementActionButtonGroup",       "tag": "synergos-button-group",         "tier": "composition" },
-  { "name": "feature-item",         "alias": "elementInfoFeature",           "tag": "synergos-feature-item",         "tier": "composition" },
-  { "name": "stat-counter",         "alias": "elementInfoStat",              "tag": "synergos-stat-counter",         "tier": "composition" },
-  { "name": "pricing-card",         "alias": "elementInfoPricingCard",       "tag": "synergos-pricing-card",         "tier": "composition" },
-  { "name": "key-value",            "alias": "elementInfoKeyValue",          "tag": "synergos-key-value",            "tier": "composition" },
-  { "name": "timeline-item",        "alias": "elementInfoTimelineItem",      "tag": "synergos-timeline-item",        "tier": "composition" },
-  { "name": "faq-item",             "alias": "elementInfoFaqItem",           "tag": "synergos-faq-item",             "tier": "composition" },
-  { "name": "testimonial-item",     "alias": "elementInfoTestimonialItem",   "tag": "synergos-testimonial-item",     "tier": "composition" },
-  { "name": "gallery-item",         "alias": "elementMediaGalleryItem",      "tag": "synergos-gallery-item",         "tier": "composition" },
-  { "name": "logo-item",            "alias": "elementMediaLogoItem",         "tag": "synergos-logo-item",            "tier": "composition" },
-  { "name": "alert-bar",            "alias": "elementCorpAlertBar",          "tag": "synergos-alert-bar",            "tier": "composition" },
-  { "name": "newsletter-form",      "alias": "elementCorpNewsletterForm",    "tag": "synergos-newsletter-form",      "tier": "composition" },
-  { "name": "social-share",         "alias": "elementCorpSocialShare",       "tag": "synergos-social-share",         "tier": "composition" },
-  { "name": "iframe-embed",         "alias": "elementIntIframeEmbed",        "tag": "synergos-iframe-embed",         "tier": "composition" },
-  { "name": "external-widget",      "alias": "elementIntExternalWidget",     "tag": "synergos-external-widget",      "tier": "composition" },
-
-  { "name": "container-block",      "alias": "elementStructContainer",       "tag": "synergos-container-block",      "tier": "primitive" },
-  { "name": "grid",                 "alias": "elementStructGrid",            "tag": "synergos-grid",                 "tier": "primitive" },
-  { "name": "column",               "alias": "elementStructColumn",          "tag": "synergos-column",               "tier": "primitive" },
-  { "name": "stack",                "alias": "elementStructStack",           "tag": "synergos-stack",                "tier": "primitive" },
-  { "name": "divider",              "alias": "elementStructDivider",         "tag": "synergos-divider",              "tier": "primitive" },
-  { "name": "spacer",               "alias": "elementStructSpacer",          "tag": "synergos-spacer",               "tier": "primitive" },
-  { "name": "heading",              "alias": "elementTextHeading",           "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "paragraph",            "alias": "elementTextParagraph",         "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "rich-text",            "alias": "elementTextRichText",          "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "eyebrow",              "alias": "elementTextEyebrow",           "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "quote",                "alias": "elementTextQuote",             "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "label",                "alias": "elementTextLabel",             "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "text-block",           "alias": "elementTextBlock",             "tag": "synergos-text-block",           "tier": "primitive" },
-  { "name": "button-container",     "alias": "elementActionButton",          "tag": "synergos-button-container",     "tier": "primitive" },
-  { "name": "link-block",           "alias": "elementActionLink",            "tag": "synergos-link-block",           "tier": "primitive" },
-  { "name": "image-block",          "alias": "elementMediaImage",            "tag": "synergos-image-block",          "tier": "primitive" },
-  { "name": "video-block",          "alias": "elementMediaVideo",            "tag": "synergos-video-block",          "tier": "primitive" },
-  { "name": "icon-block",           "alias": "elementMediaIcon",             "tag": "synergos-icon-block",           "tier": "primitive" },
-  { "name": "avatar",               "alias": "elementMediaAvatar",           "tag": "synergos-avatar",               "tier": "primitive" },
-  { "name": "badge",                "alias": "elementInfoBadge",             "tag": "synergos-badge",                "tier": "primitive" },
-  { "name": "hello-world",          "alias": "elementTemplateHelloWorld",    "tag": "synergos-hello-world",          "tier": "primitive" },
-
-  { "name": "feature-journey",     "alias": "experienceFeatureJourney",     "tag": "synergos-feature-journey",     "tier": "module" },
-  { "name": "insight-explorer",    "alias": "experienceInsightExplorer",    "tag": "synergos-insight-explorer",    "tier": "module" },
-  { "name": "media-explorer",      "alias": "experienceMediaExplorer",      "tag": "synergos-media-explorer",      "tier": "module" },
-
-  { "name": "content-carousel",    "alias": "experienceContentCarousel",    "tag": "synergos-content-carousel",    "tier": "module" },
-  { "name": "quiz-flow",           "alias": "experienceQuizFlow",           "tag": "synergos-quiz-flow",           "tier": "module" },
-  { "name": "rating-widget",       "alias": "experienceRatingWidget",       "tag": "synergos-rating-widget",       "tier": "module" },
-  { "name": "filter-board",        "alias": "experienceFilterBoard",        "tag": "synergos-filter-board",        "tier": "module" },
-  { "name": "notification-stack",  "alias": "experienceNotificationStack",  "tag": "synergos-notification-stack",  "tier": "module" },
-  { "name": "countdown-clock",     "alias": "experienceCountdownClock",     "tag": "synergos-countdown-clock",     "tier": "module" },
-
-  { "name": "product-card",        "alias": "elementShopProductCard",       "tag": "synergos-product-card",         "tier": "composition" },
-  { "name": "product-grid",        "alias": "elementShopProductGrid",       "tag": "synergos-product-grid",         "tier": "module" },
-  { "name": "product-detail",      "alias": "elementShopProductDetail",     "tag": "synergos-product-detail",       "tier": "module" },
-  { "name": "cart-summary",        "alias": "elementShopCartSummary",       "tag": "synergos-cart-summary",         "tier": "module" },
-  { "name": "cart-item",           "alias": "elementShopCartItem",          "tag": "synergos-cart-item",            "tier": "composition" },
-  { "name": "price-display",       "alias": "elementShopPriceDisplay",      "tag": "synergos-price-display",        "tier": "primitive" },
-  { "name": "quantity-selector",   "alias": "elementShopQuantitySelector",  "tag": "synergos-quantity-selector",    "tier": "primitive" },
-  { "name": "variant-picker",      "alias": "elementShopVariantPicker",     "tag": "synergos-variant-picker",       "tier": "composition" },
-  { "name": "accordion",              "alias": "elementSynAccordion",          "tag": "synergos-accordion",         "tier": "composition" },
-  { "name": "academy",                "alias": "elementSynAcademy",            "tag": "synergos-academy",           "tier": "module" },
-  { "name": "app-launcher",           "alias": "elementSynAppLauncher",        "tag": "synergos-app-launcher",      "tier": "module" },
-  { "name": "audio-player",           "alias": "elementSynAudioPlayer",        "tag": "synergos-audio-player",      "tier": "module" },
-  { "name": "autocomplete",           "alias": "elementSynAutocomplete",       "tag": "synergos-autocomplete",      "tier": "composition" },
-  { "name": "avatar",                 "alias": "elementSynAvatar",             "tag": "synergos-avatar",            "tier": "primitive" },
-  { "name": "avatar-group",           "alias": "elementSynAvatarGroup",        "tag": "synergos-avatar-group",      "tier": "composition" },
-  { "name": "avatar-upload",          "alias": "elementSynAvatarUpload",       "tag": "synergos-avatar-upload",     "tier": "composition" },
-  { "name": "badge",                  "alias": "elementSynBadge",              "tag": "synergos-badge",             "tier": "primitive" },
-  { "name": "badge-group",            "alias": "elementSynBadgeGroup",         "tag": "synergos-badge-group",       "tier": "composition" },
-  { "name": "blogs",                  "alias": "elementSynBlogs",              "tag": "synergos-blogs",             "tier": "module" },
-  { "name": "booking-wizard",         "alias": "elementSynBookingWizard",      "tag": "synergos-booking-wizard",    "tier": "module" },
-  { "name": "breadcrumb",             "alias": "elementSynBreadcrumb",         "tag": "synergos-breadcrumb",        "tier": "primitive" },
-  { "name": "calendar",               "alias": "elementSynCalendar",           "tag": "synergos-calendar",          "tier": "module" },
-  { "name": "carousel",               "alias": "elementSynCarousel",           "tag": "synergos-carousel",          "tier": "module" },
-  { "name": "chart-bar",              "alias": "elementSynChartBar",           "tag": "synergos-chart-bar",         "tier": "module" },
-  { "name": "code-block",             "alias": "elementSynCodeBlock",          "tag": "synergos-code-block",        "tier": "composition" },
-  { "name": "color-picker",           "alias": "elementSynColorPicker",        "tag": "synergos-color-picker",      "tier": "composition" },
-  { "name": "color-swatches",         "alias": "elementSynColorSwatches",      "tag": "synergos-color-swatches",    "tier": "composition" },
-  { "name": "comments-widget",        "alias": "elementSynCommentsWidget",     "tag": "synergos-comments-widget",   "tier": "module" },
-  { "name": "cookie-consent",         "alias": "elementSynCookieConsent",      "tag": "synergos-cookie-consent",    "tier": "module" },
-  { "name": "copy-button",            "alias": "elementSynCopyButton",         "tag": "synergos-copy-button",       "tier": "primitive" },
-  { "name": "countdown-clock",        "alias": "elementSynCountdownClock",     "tag": "synergos-countdown-clock",   "tier": "module" },
-  { "name": "countdown-digital",      "alias": "elementSynCountdownDigital",   "tag": "synergos-countdown-digital", "tier": "module" },
-  { "name": "data-grid",              "alias": "elementSynDataGrid",           "tag": "synergos-data-grid",         "tier": "module" },
-  { "name": "date-picker",            "alias": "elementSynDatePicker",         "tag": "synergos-date-picker",       "tier": "composition" },
-  { "name": "divider",                "alias": "elementSynDivider",            "tag": "synergos-divider",           "tier": "primitive" },
-  { "name": "drawer",                 "alias": "elementSynDrawer",             "tag": "synergos-drawer",            "tier": "module" },
-  { "name": "dropdown",               "alias": "elementSynDropdown",           "tag": "synergos-dropdown",          "tier": "composition" },
-  { "name": "dropzone",               "alias": "elementSynDropzone",           "tag": "synergos-dropzone",          "tier": "module" },
-  { "name": "ehr",                    "alias": "elementSynEhr",                "tag": "synergos-ehr",               "tier": "module" },
-  { "name": "eventos",                "alias": "elementSynEventos",            "tag": "synergos-eventos",           "tier": "module" },
-  { "name": "fab",                    "alias": "elementSynFab",                "tag": "synergos-fab",               "tier": "primitive" },
-  { "name": "file-uploader",          "alias": "elementSynFileUploader",       "tag": "synergos-file-uploader",     "tier": "module" },
-  { "name": "form-stepper",           "alias": "elementSynFormStepper",        "tag": "synergos-form-stepper",      "tier": "composition" },
-  { "name": "gov",                    "alias": "elementSynGov",                "tag": "synergos-gov",               "tier": "module" },
-  { "name": "hero-banner",            "alias": "elementSynHeroBanner",         "tag": "synergos-hero-banner",       "tier": "module" },
-  { "name": "icon-label",             "alias": "elementSynIconLabel",          "tag": "synergos-icon-label",        "tier": "primitive" },
-  { "name": "kpi-card",               "alias": "elementSynKpiCard",            "tag": "synergos-kpi-card",          "tier": "module" },
-  { "name": "lightbox-gallery",       "alias": "elementSynLightboxGallery",    "tag": "synergos-lightbox-gallery",  "tier": "module" },
-  { "name": "livestream",             "alias": "elementSynLivestream",         "tag": "synergos-livestream",        "tier": "module" },
-  { "name": "map-pin",                "alias": "elementSynMapPin",             "tag": "synergos-map-pin",           "tier": "module" },
-  { "name": "modal-trigger",          "alias": "elementSynModalTrigger",       "tag": "synergos-modal-trigger",     "tier": "composition" },
-  { "name": "notification-center",    "alias": "elementSynNotificationCenter", "tag": "synergos-notification-center","tier": "module" },
-  { "name": "notification-toast",     "alias": "elementSynNotificationToast",  "tag": "synergos-notification-toast","tier": "module" },
-  { "name": "oembed",                 "alias": "elementSynOEmbed",             "tag": "synergos-oembed",            "tier": "module" },
-  { "name": "otp-input",              "alias": "elementSynOtpInput",           "tag": "synergos-otp-input",         "tier": "composition" },
-  { "name": "pagination",             "alias": "elementSynPagination",         "tag": "synergos-pagination",        "tier": "composition" },
-  { "name": "poll",                   "alias": "elementSynPoll",               "tag": "synergos-poll",              "tier": "module" },
-  { "name": "popover",                "alias": "elementSynPopover",            "tag": "synergos-popover",           "tier": "primitive" },
-  { "name": "progress-bar",           "alias": "elementSynProgressBar",        "tag": "synergos-progress-bar",      "tier": "primitive" },
-  { "name": "qr-code",                "alias": "elementSynQrCode",             "tag": "synergos-qr-code",           "tier": "primitive" },
-  { "name": "quote-animated",         "alias": "elementSynQuoteAnimated",      "tag": "synergos-quote-animated",    "tier": "module" },
-  { "name": "range-slider",           "alias": "elementSynRangeSlider",        "tag": "synergos-range-slider",      "tier": "composition" },
-  { "name": "rating-stars",           "alias": "elementSynRatingStars",        "tag": "synergos-rating-stars",      "tier": "composition" },
-  { "name": "realty",                 "alias": "elementSynRealty",             "tag": "synergos-realty",            "tier": "module" },
-  { "name": "pax-selector",           "alias": "elementSynPaxSelector",        "tag": "synergos-pax-selector",      "tier": "composition" },
-  { "name": "rich-tooltip",           "alias": "elementSynRichTooltip",        "tag": "synergos-rich-tooltip",      "tier": "composition" },
-  { "name": "scroll-top",             "alias": "elementSynScrollTop",          "tag": "synergos-scroll-top",        "tier": "primitive" },
-  { "name": "search-box",             "alias": "elementSynSearchBox",          "tag": "synergos-search-box",        "tier": "composition" },
-  { "name": "seat-map",               "alias": "elementSynSeatMap",            "tag": "synergos-seat-map",          "tier": "composition" },
-  { "name": "select-multi",           "alias": "elementSynSelectMulti",        "tag": "synergos-select-multi",      "tier": "composition" },
-  { "name": "seller",                 "alias": "elementSynSeller",             "tag": "synergos-seller",            "tier": "module" },
-  { "name": "separator",              "alias": "elementSynSeparator",          "tag": "synergos-separator",         "tier": "primitive" },
-  { "name": "share-bar",              "alias": "elementSynShareBar",           "tag": "synergos-share-bar",         "tier": "composition" },
-  { "name": "signature-pad",          "alias": "elementSynSignaturePad",       "tag": "synergos-signature-pad",     "tier": "composition" },
-  { "name": "skeleton",               "alias": "elementSynSkeleton",           "tag": "synergos-skeleton",          "tier": "primitive" },
-  { "name": "social-proof",           "alias": "elementSynSocialProof",        "tag": "synergos-social-proof",      "tier": "composition" },
-  { "name": "spacer",                 "alias": "elementSynSpacer",             "tag": "synergos-spacer",            "tier": "primitive" },
-  { "name": "splitter",               "alias": "elementSynSplitter",           "tag": "synergos-splitter",          "tier": "composition" },
-  { "name": "stat-ticker",            "alias": "elementSynStatTicker",         "tag": "synergos-stat-ticker",       "tier": "primitive" },
-  { "name": "stepper",                "alias": "elementSynStepper",            "tag": "synergos-stepper",           "tier": "composition" },
-  { "name": "storefront",             "alias": "elementSynStorefront",         "tag": "synergos-storefront",        "tier": "module" },
-  { "name": "tabs",                   "alias": "elementSynTabs",               "tag": "synergos-tabs",              "tier": "composition" },
-  { "name": "tag",                    "alias": "elementSynTag",                "tag": "synergos-tag",               "tier": "primitive" },
-  { "name": "testimonial-carousel",   "alias": "elementSynTestimonialCarousel","tag": "synergos-testimonial-carousel","tier": "module" },
-  { "name": "timeline",               "alias": "elementSynTimeline",           "tag": "synergos-timeline",          "tier": "module" },
-  { "name": "timeline-horizontal",    "alias": "elementSynTimelineHorizontal", "tag": "synergos-timeline-horizontal","tier": "composition" },
-  { "name": "toast-center",           "alias": "elementSynToastCenter",        "tag": "synergos-toast-center",      "tier": "module" },
-  { "name": "tooltip",                "alias": "elementSynTooltip",            "tag": "synergos-tooltip",           "tier": "primitive" },
-  { "name": "tour-guide",             "alias": "elementSynTourGuide",          "tag": "synergos-tour-guide",        "tier": "module" },
-  { "name": "travel-shell",           "alias": "elementSynTravelShell",        "tag": "synergos-travel-shell",      "tier": "module" },
-  { "name": "tree-view",              "alias": "elementSynTreeView",           "tag": "synergos-tree-view",         "tier": "module" },
-  { "name": "video-player",           "alias": "elementSynVideoPlayer",        "tag": "synergos-video-player",      "tier": "module" }
+  {
+    "name": "hero",
+    "alias": "elementCompHero",
+    "tag": "synergos-hero",
+    "tier": "module"
+  },
+  {
+    "name": "banner",
+    "alias": "elementCompCtaBanner",
+    "tag": "synergos-banner",
+    "tier": "module"
+  },
+  {
+    "name": "section",
+    "alias": "elementStructSection",
+    "tag": "synergos-section",
+    "tier": "module"
+  },
+  {
+    "name": "feature-grid",
+    "alias": "elementCompFeatureGrid",
+    "tag": "synergos-feature-grid",
+    "tier": "module"
+  },
+  {
+    "name": "faq-section",
+    "alias": "elementCompFaqList",
+    "tag": "synergos-faq-section",
+    "tier": "module"
+  },
+  {
+    "name": "testimonial-section",
+    "alias": "elementCompTestimonialList",
+    "tag": "synergos-testimonial-section",
+    "tier": "module"
+  },
+  {
+    "name": "logo-cloud",
+    "alias": "elementCompLogoCloud",
+    "tag": "synergos-logo-cloud",
+    "tier": "module"
+  },
+  {
+    "name": "tab-group",
+    "alias": "elementCorpTabGroup",
+    "tag": "synergos-tab-group",
+    "tier": "module"
+  },
+  {
+    "name": "banner-slider",
+    "alias": "elementCorpBannerSlider",
+    "tag": "synergos-banner-slider",
+    "tier": "module"
+  },
+  {
+    "name": "data-table",
+    "alias": "elementCorpDataTable",
+    "tag": "synergos-data-table",
+    "tier": "module"
+  },
+  {
+    "name": "script-embed",
+    "alias": "elementIntScriptEmbed",
+    "tag": "synergos-script-embed",
+    "tier": "module"
+  },
+  {
+    "name": "card",
+    "alias": "elementCompCard",
+    "tag": "synergos-card",
+    "tier": "composition"
+  },
+  {
+    "name": "media-text",
+    "alias": "elementCompMediaTextSplit",
+    "tag": "synergos-media-text",
+    "tier": "composition"
+  },
+  {
+    "name": "info-block",
+    "alias": "elementCompInfoBlock",
+    "tag": "synergos-info-block",
+    "tier": "composition"
+  },
+  {
+    "name": "accordion",
+    "alias": "elementCompAccordion",
+    "tag": "synergos-accordion",
+    "tier": "composition"
+  },
+  {
+    "name": "cta-group",
+    "alias": "elementActionCtaGroup",
+    "tag": "synergos-cta-group",
+    "tier": "composition"
+  },
+  {
+    "name": "button-group",
+    "alias": "elementActionButtonGroup",
+    "tag": "synergos-button-group",
+    "tier": "composition"
+  },
+  {
+    "name": "feature-item",
+    "alias": "elementInfoFeature",
+    "tag": "synergos-feature-item",
+    "tier": "composition"
+  },
+  {
+    "name": "stat-counter",
+    "alias": "elementInfoStat",
+    "tag": "synergos-stat-counter",
+    "tier": "composition"
+  },
+  {
+    "name": "pricing-card",
+    "alias": "elementInfoPricingCard",
+    "tag": "synergos-pricing-card",
+    "tier": "composition"
+  },
+  {
+    "name": "key-value",
+    "alias": "elementInfoKeyValue",
+    "tag": "synergos-key-value",
+    "tier": "composition"
+  },
+  {
+    "name": "timeline-item",
+    "alias": "elementInfoTimelineItem",
+    "tag": "synergos-timeline-item",
+    "tier": "composition"
+  },
+  {
+    "name": "faq-item",
+    "alias": "elementInfoFaqItem",
+    "tag": "synergos-faq-item",
+    "tier": "composition"
+  },
+  {
+    "name": "testimonial-item",
+    "alias": "elementInfoTestimonialItem",
+    "tag": "synergos-testimonial-item",
+    "tier": "composition"
+  },
+  {
+    "name": "gallery-item",
+    "alias": "elementMediaGalleryItem",
+    "tag": "synergos-gallery-item",
+    "tier": "composition"
+  },
+  {
+    "name": "logo-item",
+    "alias": "elementMediaLogoItem",
+    "tag": "synergos-logo-item",
+    "tier": "composition"
+  },
+  {
+    "name": "alert-bar",
+    "alias": "elementCorpAlertBar",
+    "tag": "synergos-alert-bar",
+    "tier": "composition"
+  },
+  {
+    "name": "newsletter-form",
+    "alias": "elementCorpNewsletterForm",
+    "tag": "synergos-newsletter-form",
+    "tier": "composition"
+  },
+  {
+    "name": "social-share",
+    "alias": "elementCorpSocialShare",
+    "tag": "synergos-social-share",
+    "tier": "composition"
+  },
+  {
+    "name": "iframe-embed",
+    "alias": "elementIntIframeEmbed",
+    "tag": "synergos-iframe-embed",
+    "tier": "composition"
+  },
+  {
+    "name": "external-widget",
+    "alias": "elementIntExternalWidget",
+    "tag": "synergos-external-widget",
+    "tier": "composition"
+  },
+  {
+    "name": "container-block",
+    "alias": "elementStructContainer",
+    "tag": "synergos-container-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "grid",
+    "alias": "elementStructGrid",
+    "tag": "synergos-grid",
+    "tier": "primitive"
+  },
+  {
+    "name": "column",
+    "alias": "elementStructColumn",
+    "tag": "synergos-column",
+    "tier": "primitive"
+  },
+  {
+    "name": "stack",
+    "alias": "elementStructStack",
+    "tag": "synergos-stack",
+    "tier": "primitive"
+  },
+  {
+    "name": "divider",
+    "alias": "elementStructDivider",
+    "tag": "synergos-divider",
+    "tier": "primitive"
+  },
+  {
+    "name": "spacer",
+    "alias": "elementStructSpacer",
+    "tag": "synergos-spacer",
+    "tier": "primitive"
+  },
+  {
+    "name": "heading",
+    "alias": "elementTextHeading",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "paragraph",
+    "alias": "elementTextParagraph",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "rich-text",
+    "alias": "elementTextRichText",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "eyebrow",
+    "alias": "elementTextEyebrow",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "quote",
+    "alias": "elementTextQuote",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "label",
+    "alias": "elementTextLabel",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "text-block",
+    "alias": "elementTextBlock",
+    "tag": "synergos-text-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "button-container",
+    "alias": "elementActionButton",
+    "tag": "synergos-button-container",
+    "tier": "primitive"
+  },
+  {
+    "name": "link-block",
+    "alias": "elementActionLink",
+    "tag": "synergos-link-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "image-block",
+    "alias": "elementMediaImage",
+    "tag": "synergos-image-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "video-block",
+    "alias": "elementMediaVideo",
+    "tag": "synergos-video-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "icon-block",
+    "alias": "elementMediaIcon",
+    "tag": "synergos-icon-block",
+    "tier": "primitive"
+  },
+  {
+    "name": "avatar",
+    "alias": "elementMediaAvatar",
+    "tag": "synergos-avatar",
+    "tier": "primitive"
+  },
+  {
+    "name": "badge",
+    "alias": "elementInfoBadge",
+    "tag": "synergos-badge",
+    "tier": "primitive"
+  },
+  {
+    "name": "hello-world",
+    "alias": "elementTemplateHelloWorld",
+    "tag": "synergos-hello-world",
+    "tier": "primitive"
+  },
+  {
+    "name": "feature-journey",
+    "alias": "experienceFeatureJourney",
+    "tag": "synergos-feature-journey",
+    "tier": "module"
+  },
+  {
+    "name": "insight-explorer",
+    "alias": "experienceInsightExplorer",
+    "tag": "synergos-insight-explorer",
+    "tier": "module"
+  },
+  {
+    "name": "media-explorer",
+    "alias": "experienceMediaExplorer",
+    "tag": "synergos-media-explorer",
+    "tier": "module"
+  },
+  {
+    "name": "content-carousel",
+    "alias": "experienceContentCarousel",
+    "tag": "synergos-content-carousel",
+    "tier": "module"
+  },
+  {
+    "name": "quiz-flow",
+    "alias": "experienceQuizFlow",
+    "tag": "synergos-quiz-flow",
+    "tier": "module"
+  },
+  {
+    "name": "rating-widget",
+    "alias": "experienceRatingWidget",
+    "tag": "synergos-rating-widget",
+    "tier": "module"
+  },
+  {
+    "name": "filter-board",
+    "alias": "experienceFilterBoard",
+    "tag": "synergos-filter-board",
+    "tier": "module"
+  },
+  {
+    "name": "notification-stack",
+    "alias": "experienceNotificationStack",
+    "tag": "synergos-notification-stack",
+    "tier": "module"
+  },
+  {
+    "name": "countdown-clock",
+    "alias": "experienceCountdownClock",
+    "tag": "synergos-countdown-clock",
+    "tier": "module"
+  },
+  {
+    "name": "product-card",
+    "alias": "elementShopProductCard",
+    "tag": "synergos-product-card",
+    "tier": "composition"
+  },
+  {
+    "name": "product-grid",
+    "alias": "elementShopProductGrid",
+    "tag": "synergos-product-grid",
+    "tier": "module"
+  },
+  {
+    "name": "product-detail",
+    "alias": "elementShopProductDetail",
+    "tag": "synergos-product-detail",
+    "tier": "module"
+  },
+  {
+    "name": "cart-summary",
+    "alias": "elementShopCartSummary",
+    "tag": "synergos-cart-summary",
+    "tier": "module"
+  },
+  {
+    "name": "cart-item",
+    "alias": "elementShopCartItem",
+    "tag": "synergos-cart-item",
+    "tier": "composition"
+  },
+  {
+    "name": "price-display",
+    "alias": "elementShopPriceDisplay",
+    "tag": "synergos-price-display",
+    "tier": "primitive"
+  },
+  {
+    "name": "quantity-selector",
+    "alias": "elementShopQuantitySelector",
+    "tag": "synergos-quantity-selector",
+    "tier": "primitive"
+  },
+  {
+    "name": "variant-picker",
+    "alias": "elementShopVariantPicker",
+    "tag": "synergos-variant-picker",
+    "tier": "composition"
+  },
+  {
+    "name": "accordion",
+    "alias": "elementSynAccordion",
+    "tag": "synergos-accordion",
+    "tier": "composition"
+  },
+  {
+    "name": "academy",
+    "alias": "elementSynAcademy",
+    "tag": "synergos-academy",
+    "tier": "module"
+  },
+  {
+    "name": "app-launcher",
+    "alias": "elementSynAppLauncher",
+    "tag": "synergos-app-launcher",
+    "tier": "module"
+  },
+  {
+    "name": "audio-player",
+    "alias": "elementSynAudioPlayer",
+    "tag": "synergos-audio-player",
+    "tier": "module"
+  },
+  {
+    "name": "autocomplete",
+    "alias": "elementSynAutocomplete",
+    "tag": "synergos-autocomplete",
+    "tier": "composition"
+  },
+  {
+    "name": "avatar",
+    "alias": "elementSynAvatar",
+    "tag": "synergos-avatar",
+    "tier": "primitive"
+  },
+  {
+    "name": "avatar-group",
+    "alias": "elementSynAvatarGroup",
+    "tag": "synergos-avatar-group",
+    "tier": "composition"
+  },
+  {
+    "name": "avatar-upload",
+    "alias": "elementSynAvatarUpload",
+    "tag": "synergos-avatar-upload",
+    "tier": "composition"
+  },
+  {
+    "name": "badge",
+    "alias": "elementSynBadge",
+    "tag": "synergos-badge",
+    "tier": "primitive"
+  },
+  {
+    "name": "badge-group",
+    "alias": "elementSynBadgeGroup",
+    "tag": "synergos-badge-group",
+    "tier": "composition"
+  },
+  {
+    "name": "blogs",
+    "alias": "elementSynBlogs",
+    "tag": "synergos-blogs",
+    "tier": "module"
+  },
+  {
+    "name": "booking-wizard",
+    "alias": "elementSynBookingWizard",
+    "tag": "synergos-booking-wizard",
+    "tier": "module",
+    "dependencies": [
+      "pax-selector"
+    ]
+  },
+  {
+    "name": "breadcrumb",
+    "alias": "elementSynBreadcrumb",
+    "tag": "synergos-breadcrumb",
+    "tier": "primitive"
+  },
+  {
+    "name": "calendar",
+    "alias": "elementSynCalendar",
+    "tag": "synergos-calendar",
+    "tier": "module"
+  },
+  {
+    "name": "carousel",
+    "alias": "elementSynCarousel",
+    "tag": "synergos-carousel",
+    "tier": "module"
+  },
+  {
+    "name": "chart-bar",
+    "alias": "elementSynChartBar",
+    "tag": "synergos-chart-bar",
+    "tier": "module"
+  },
+  {
+    "name": "code-block",
+    "alias": "elementSynCodeBlock",
+    "tag": "synergos-code-block",
+    "tier": "composition"
+  },
+  {
+    "name": "color-picker",
+    "alias": "elementSynColorPicker",
+    "tag": "synergos-color-picker",
+    "tier": "composition"
+  },
+  {
+    "name": "color-swatches",
+    "alias": "elementSynColorSwatches",
+    "tag": "synergos-color-swatches",
+    "tier": "composition"
+  },
+  {
+    "name": "comments-widget",
+    "alias": "elementSynCommentsWidget",
+    "tag": "synergos-comments-widget",
+    "tier": "module"
+  },
+  {
+    "name": "cookie-consent",
+    "alias": "elementSynCookieConsent",
+    "tag": "synergos-cookie-consent",
+    "tier": "module"
+  },
+  {
+    "name": "copy-button",
+    "alias": "elementSynCopyButton",
+    "tag": "synergos-copy-button",
+    "tier": "primitive"
+  },
+  {
+    "name": "countdown-clock",
+    "alias": "elementSynCountdownClock",
+    "tag": "synergos-countdown-clock",
+    "tier": "module"
+  },
+  {
+    "name": "countdown-digital",
+    "alias": "elementSynCountdownDigital",
+    "tag": "synergos-countdown-digital",
+    "tier": "module"
+  },
+  {
+    "name": "data-grid",
+    "alias": "elementSynDataGrid",
+    "tag": "synergos-data-grid",
+    "tier": "module"
+  },
+  {
+    "name": "date-picker",
+    "alias": "elementSynDatePicker",
+    "tag": "synergos-date-picker",
+    "tier": "composition"
+  },
+  {
+    "name": "divider",
+    "alias": "elementSynDivider",
+    "tag": "synergos-divider",
+    "tier": "primitive"
+  },
+  {
+    "name": "drawer",
+    "alias": "elementSynDrawer",
+    "tag": "synergos-drawer",
+    "tier": "module"
+  },
+  {
+    "name": "dropdown",
+    "alias": "elementSynDropdown",
+    "tag": "synergos-dropdown",
+    "tier": "composition"
+  },
+  {
+    "name": "dropzone",
+    "alias": "elementSynDropzone",
+    "tag": "synergos-dropzone",
+    "tier": "module"
+  },
+  {
+    "name": "ehr",
+    "alias": "elementSynEhr",
+    "tag": "synergos-ehr",
+    "tier": "module"
+  },
+  {
+    "name": "eventos",
+    "alias": "elementSynEventos",
+    "tag": "synergos-eventos",
+    "tier": "module",
+    "dependencies": [
+      "countdown-clock"
+    ]
+  },
+  {
+    "name": "fab",
+    "alias": "elementSynFab",
+    "tag": "synergos-fab",
+    "tier": "primitive"
+  },
+  {
+    "name": "file-uploader",
+    "alias": "elementSynFileUploader",
+    "tag": "synergos-file-uploader",
+    "tier": "module"
+  },
+  {
+    "name": "form-stepper",
+    "alias": "elementSynFormStepper",
+    "tag": "synergos-form-stepper",
+    "tier": "composition"
+  },
+  {
+    "name": "gov",
+    "alias": "elementSynGov",
+    "tag": "synergos-gov",
+    "tier": "module"
+  },
+  {
+    "name": "hero-banner",
+    "alias": "elementSynHeroBanner",
+    "tag": "synergos-hero-banner",
+    "tier": "module"
+  },
+  {
+    "name": "icon-label",
+    "alias": "elementSynIconLabel",
+    "tag": "synergos-icon-label",
+    "tier": "primitive"
+  },
+  {
+    "name": "kpi-card",
+    "alias": "elementSynKpiCard",
+    "tag": "synergos-kpi-card",
+    "tier": "module"
+  },
+  {
+    "name": "lightbox-gallery",
+    "alias": "elementSynLightboxGallery",
+    "tag": "synergos-lightbox-gallery",
+    "tier": "module"
+  },
+  {
+    "name": "livestream",
+    "alias": "elementSynLivestream",
+    "tag": "synergos-livestream",
+    "tier": "module"
+  },
+  {
+    "name": "map-pin",
+    "alias": "elementSynMapPin",
+    "tag": "synergos-map-pin",
+    "tier": "module"
+  },
+  {
+    "name": "modal-trigger",
+    "alias": "elementSynModalTrigger",
+    "tag": "synergos-modal-trigger",
+    "tier": "composition"
+  },
+  {
+    "name": "notification-center",
+    "alias": "elementSynNotificationCenter",
+    "tag": "synergos-notification-center",
+    "tier": "module"
+  },
+  {
+    "name": "notification-toast",
+    "alias": "elementSynNotificationToast",
+    "tag": "synergos-notification-toast",
+    "tier": "module"
+  },
+  {
+    "name": "oembed",
+    "alias": "elementSynOEmbed",
+    "tag": "synergos-oembed",
+    "tier": "module"
+  },
+  {
+    "name": "otp-input",
+    "alias": "elementSynOtpInput",
+    "tag": "synergos-otp-input",
+    "tier": "composition"
+  },
+  {
+    "name": "pagination",
+    "alias": "elementSynPagination",
+    "tag": "synergos-pagination",
+    "tier": "composition"
+  },
+  {
+    "name": "poll",
+    "alias": "elementSynPoll",
+    "tag": "synergos-poll",
+    "tier": "module"
+  },
+  {
+    "name": "popover",
+    "alias": "elementSynPopover",
+    "tag": "synergos-popover",
+    "tier": "primitive"
+  },
+  {
+    "name": "progress-bar",
+    "alias": "elementSynProgressBar",
+    "tag": "synergos-progress-bar",
+    "tier": "primitive"
+  },
+  {
+    "name": "qr-code",
+    "alias": "elementSynQrCode",
+    "tag": "synergos-qr-code",
+    "tier": "primitive"
+  },
+  {
+    "name": "quote-animated",
+    "alias": "elementSynQuoteAnimated",
+    "tag": "synergos-quote-animated",
+    "tier": "module"
+  },
+  {
+    "name": "range-slider",
+    "alias": "elementSynRangeSlider",
+    "tag": "synergos-range-slider",
+    "tier": "composition"
+  },
+  {
+    "name": "rating-stars",
+    "alias": "elementSynRatingStars",
+    "tag": "synergos-rating-stars",
+    "tier": "composition"
+  },
+  {
+    "name": "realty",
+    "alias": "elementSynRealty",
+    "tag": "synergos-realty",
+    "tier": "module"
+  },
+  {
+    "name": "pax-selector",
+    "alias": "elementSynPaxSelector",
+    "tag": "synergos-pax-selector",
+    "tier": "composition"
+  },
+  {
+    "name": "rich-tooltip",
+    "alias": "elementSynRichTooltip",
+    "tag": "synergos-rich-tooltip",
+    "tier": "composition"
+  },
+  {
+    "name": "scroll-top",
+    "alias": "elementSynScrollTop",
+    "tag": "synergos-scroll-top",
+    "tier": "primitive"
+  },
+  {
+    "name": "search-box",
+    "alias": "elementSynSearchBox",
+    "tag": "synergos-search-box",
+    "tier": "composition"
+  },
+  {
+    "name": "seat-map",
+    "alias": "elementSynSeatMap",
+    "tag": "synergos-seat-map",
+    "tier": "composition"
+  },
+  {
+    "name": "select-multi",
+    "alias": "elementSynSelectMulti",
+    "tag": "synergos-select-multi",
+    "tier": "composition"
+  },
+  {
+    "name": "seller",
+    "alias": "elementSynSeller",
+    "tag": "synergos-seller",
+    "tier": "module"
+  },
+  {
+    "name": "separator",
+    "alias": "elementSynSeparator",
+    "tag": "synergos-separator",
+    "tier": "primitive"
+  },
+  {
+    "name": "share-bar",
+    "alias": "elementSynShareBar",
+    "tag": "synergos-share-bar",
+    "tier": "composition"
+  },
+  {
+    "name": "signature-pad",
+    "alias": "elementSynSignaturePad",
+    "tag": "synergos-signature-pad",
+    "tier": "composition"
+  },
+  {
+    "name": "skeleton",
+    "alias": "elementSynSkeleton",
+    "tag": "synergos-skeleton",
+    "tier": "primitive"
+  },
+  {
+    "name": "social-proof",
+    "alias": "elementSynSocialProof",
+    "tag": "synergos-social-proof",
+    "tier": "composition"
+  },
+  {
+    "name": "spacer",
+    "alias": "elementSynSpacer",
+    "tag": "synergos-spacer",
+    "tier": "primitive"
+  },
+  {
+    "name": "splitter",
+    "alias": "elementSynSplitter",
+    "tag": "synergos-splitter",
+    "tier": "composition"
+  },
+  {
+    "name": "stat-ticker",
+    "alias": "elementSynStatTicker",
+    "tag": "synergos-stat-ticker",
+    "tier": "primitive"
+  },
+  {
+    "name": "stepper",
+    "alias": "elementSynStepper",
+    "tag": "synergos-stepper",
+    "tier": "composition"
+  },
+  {
+    "name": "storefront",
+    "alias": "elementSynStorefront",
+    "tag": "synergos-storefront",
+    "tier": "module"
+  },
+  {
+    "name": "tabs",
+    "alias": "elementSynTabs",
+    "tag": "synergos-tabs",
+    "tier": "composition"
+  },
+  {
+    "name": "tag",
+    "alias": "elementSynTag",
+    "tag": "synergos-tag",
+    "tier": "primitive"
+  },
+  {
+    "name": "testimonial-carousel",
+    "alias": "elementSynTestimonialCarousel",
+    "tag": "synergos-testimonial-carousel",
+    "tier": "module"
+  },
+  {
+    "name": "timeline",
+    "alias": "elementSynTimeline",
+    "tag": "synergos-timeline",
+    "tier": "module"
+  },
+  {
+    "name": "timeline-horizontal",
+    "alias": "elementSynTimelineHorizontal",
+    "tag": "synergos-timeline-horizontal",
+    "tier": "composition"
+  },
+  {
+    "name": "toast-center",
+    "alias": "elementSynToastCenter",
+    "tag": "synergos-toast-center",
+    "tier": "module"
+  },
+  {
+    "name": "tooltip",
+    "alias": "elementSynTooltip",
+    "tag": "synergos-tooltip",
+    "tier": "primitive"
+  },
+  {
+    "name": "tour-guide",
+    "alias": "elementSynTourGuide",
+    "tag": "synergos-tour-guide",
+    "tier": "module"
+  },
+  {
+    "name": "travel-shell",
+    "alias": "elementSynTravelShell",
+    "tag": "synergos-travel-shell",
+    "tier": "module",
+    "dependencies": [
+      "pax-selector"
+    ]
+  },
+  {
+    "name": "tree-view",
+    "alias": "elementSynTreeView",
+    "tag": "synergos-tree-view",
+    "tier": "module"
+  },
+  {
+    "name": "video-player",
+    "alias": "elementSynVideoPlayer",
+    "tag": "synergos-video-player",
+    "tier": "module"
+  }
 ]
