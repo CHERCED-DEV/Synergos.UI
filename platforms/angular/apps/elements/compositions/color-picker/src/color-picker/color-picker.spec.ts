@@ -85,6 +85,20 @@ describe('ColorPickerElementComponent', () => {
     expect(component.selected()).toBe('#0ea5e9');
   });
 
+  it('should render the hex field with exactly one leading # (no double hash)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const host: HTMLElement = fixture.nativeElement;
+    const input = host.querySelector<HTMLInputElement>('.color-picker__input');
+    // `draft()` carries the '#' by contract (maxlength=7 fits '#rrggbb', and the
+    // commit path asserts '#0ea5e9' below), so no decorative '#' may sit beside
+    // the field — that rendered '# #4f6ef7' to the user.
+    expect(input?.value).toBe('#4f6ef7');
+    expect(host.querySelector('.color-picker__hash')).toBeNull();
+    expect(host.textContent).not.toContain('# #');
+  });
+
   it('should let direct inputs override config (precedence)', async () => {
     fixture.componentRef.setInput('config', '{"label":"Desde config","initialColor":"#000000"}');
     fixture.componentRef.setInput('label', 'Directo');
@@ -105,7 +119,17 @@ describe('color-picker pure helpers', () => {
   });
 
   it('normalizePalette dedupes and drops invalid entries', () => {
-    expect(normalizePalette(['#fff', '#ffffff', 'bad', '#000'])).toEqual(['#ffffff', '#000000']);
+    // The sentinel for "invalid" must not be a hex triple. The previous fixture
+    // used 'bad', which is NOT invalid: b/a/d are hex digits and the leading '#'
+    // is optional by contract (see normalizeHex('4f6ef7') above, and the '#'
+    // rendered outside the field in color-picker.html — the user types the hex
+    // without it). So 'bad' legitimately expands to '#bbaadd'.
+    expect(normalizePalette(['#fff', '#ffffff', 'rebeccapurple', '#000'])).toEqual([
+      '#ffffff',
+      '#000000',
+    ]);
+    // Shorthand is expanded BEFORE the dedupe, so these three collapse to one.
+    expect(normalizePalette(['#bad', '#BBAADD', 'bad'])).toEqual(['#bbaadd']);
     expect(normalizePalette('not-array')).toEqual([]);
   });
 

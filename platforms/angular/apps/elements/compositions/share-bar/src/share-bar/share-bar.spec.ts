@@ -60,7 +60,10 @@ describe('ShareBarElementComponent', () => {
     fixture.detectChanges();
 
     const opened: string[] = [];
-    spyOn(window, 'open').and.callFake((u?: string | URL) => {
+    // `spyOn(...).and.callFake(...)` es sintaxis de JASMINE y este workspace corre Vitest:
+    // el spec no fallaba, NI SIQUIERA COMPILABA (`spyOn` no existe como global). Llevaba
+    // así desde que se escribió, invisible porque el proyecto no declaraba target `test`.
+    vi.spyOn(window, 'open').mockImplementation((u?: string | URL) => {
       opened.push(String(u));
       return null;
     });
@@ -75,11 +78,32 @@ describe('ShareBarElementComponent', () => {
 
     let copied: CopyLinkDetail | undefined;
     component.copylink.subscribe((detail) => (copied = detail));
+
+    // El portapapeles hay que STUBEARLO, no darlo por hecho: jsdom no implementa
+    // `navigator.clipboard` NI `document.execCommand`, así que las dos ramas de
+    // `writeClipboard` fallan y el componente reporta ok:false — correctamente, porque
+    // de verdad no pudo copiar. El componente no está roto; el test asumía un navegador.
+    // Stubeando la API se prueba lo que de verdad se quiere afirmar: que cuando el
+    // portapapeles SÍ funciona, se emite ok:true y el estado pasa a 'copied'.
+    const escrito: string[] = [];
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      clipboard: { writeText: (t: string) => { escrito.push(t); return Promise.resolve(); } },
+    });
+
     await component.onCopyLink();
 
+    expect(escrito).toEqual(['https://synergos.example/x']);
     expect(copied?.url).toBe('https://synergos.example/x');
     expect(copied?.ok).toBe(true);
     expect(component.copyState()).toBe('copied');
+
+    // Y la rama contraria, que es la que este entorno produce de forma natural: sin API
+    // de portapapeles el componente NO miente — reporta el fallo y lo refleja en su estado.
+    vi.unstubAllGlobals();
+    await component.onCopyLink();
+    expect(copied?.ok).toBe(false);
+    expect(component.copyState()).toBe('failed');
   });
 
   it('should let direct inputs override config (idempotent precedence)', () => {

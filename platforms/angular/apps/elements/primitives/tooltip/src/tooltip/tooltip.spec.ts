@@ -62,7 +62,10 @@ describe('TooltipElementComponent', () => {
     fixture.detectChanges();
     expect(component.open()).toBe(true);
 
-    const trigger = fixture.nativeElement.querySelector<HTMLButtonElement>('.tooltip__trigger');
+    // `nativeElement` está tipado `any`, y TS prohíbe argumentos de tipo en una llamada sin
+    // tipar (TS2347): el spec no compilaba. Se acota el host a HTMLElement, que es lo que es.
+    const host = fixture.nativeElement as HTMLElement;
+    const trigger = host.querySelector<HTMLButtonElement>('.tooltip__trigger');
     expect(trigger?.getAttribute('aria-describedby')).toBe(component.bubbleId);
 
     component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
@@ -89,10 +92,25 @@ describe('TooltipElementComponent', () => {
     component.hide();
     component.hide();
     expect(component.open()).toBe(false);
-    component.show();
-    component.show();
-    fixture.detectChanges();
-    expect(component.open()).toBe(true);
+
+    // ⚠️ `show()` NO abre de forma síncrona cuando hay retardo: programa un setTimeout con
+    // `delay()`, que tres líneas más arriba este mismo test afirma que vale 500. La versión
+    // anterior llamaba show() y exigía open()===true en el acto — se contradecía a sí misma
+    // y sólo podía pasar con delay 0. Nadie lo notó porque el proyecto no tenía target
+    // `test`. El componente estaba bien; el assert era el equivocado.
+    vi.useFakeTimers();
+    try {
+      component.show();
+      component.show();
+      // Antes de que venza el retardo sigue cerrado: esto es lo que hace que el test
+      // signifique algo — si alguien borrara el retardo, este assert se pondría rojo.
+      expect(component.open()).toBe(false);
+      vi.advanceTimersByTime(500);
+      fixture.detectChanges();
+      expect(component.open()).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

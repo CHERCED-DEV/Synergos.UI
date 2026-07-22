@@ -172,12 +172,38 @@ describe('autocomplete pure helpers', () => {
       99,
     ]);
 
-    expect(result.length).toBe(5);
+    // Contract: the dedupe key is `label::value` AFTER coercion. The 4th entry
+    // ({ label: 'Alpha' }, whose missing value falls back to the label) is
+    // therefore byte-identical to the 1st and is dropped; '' and null carry no
+    // label and are dropped too. 7 in -> 4 out.
+    //
+    // This spec asserted 5 and expected the duplicate Alpha back at index 3:
+    // it applied the drop-empties rule but not the dedupe rule named in its own
+    // title. The good contract is the one the component-level spec above already
+    // documents and verifies ("duplicate Bogotá deduped, empty dropped", 7 in ->
+    // 5 out) — rendering the same label+value twice would give the listbox two
+    // indistinguishable rows and two indistinguishable roving stops.
+    expect(result.length).toBe(4);
     expect(result[0]).toEqual({ label: 'Alpha', value: 'Alpha' });
     expect(result[1]).toEqual({ label: 'Beta', value: 'b' });
     expect(result[2]).toEqual({ label: 'gamma-only', value: 'gamma-only' });
-    expect(result[3]).toEqual({ label: 'Alpha', value: 'Alpha' });
-    expect(result[4]).toEqual({ label: '99', value: '99' });
+    expect(result[3]).toEqual({ label: '99', value: '99' });
+    expect(result.filter((suggestion) => suggestion.label === 'Alpha').length).toBe(1);
+  });
+
+  it('normalizeSuggestions keeps same-label suggestions that carry distinct values', () => {
+    // The dedupe must stay conservative: label and value together form the key,
+    // so two options a visitor can actually tell apart both survive.
+    const result = normalizeSuggestions([
+      { label: 'Santiago', value: 'santiago-cl' },
+      { label: 'Santiago', value: 'santiago-do' },
+    ]);
+
+    expect(result.length).toBe(2);
+    expect(result.map((suggestion) => suggestion.value)).toEqual([
+      'santiago-cl',
+      'santiago-do',
+    ]);
   });
 
   it('normalizeSuggestions returns [] for non-array input', () => {
