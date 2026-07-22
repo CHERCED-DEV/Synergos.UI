@@ -142,9 +142,15 @@
         <ng-template #eventBody>
           <div class="eventos__pdp-countdown">
             <span class="eventos__pdp-countdown-label">Faltan</span>
+            <!-- DASH-CASE, no camelCase: Angular Elements deriva `observedAttributes` en
+                 dash-case a partir del alias del input (targetDate → target-date), y además
+                 el DOM baja a minúsculas cualquier nombre de atributo. Escrito `targetDate`
+                 llegaba como `targetdate`, que no observa nadie: el reloj hidrataba y se
+                 quedaba en "Fecha del evento no disponible", dejando el rótulo "Faltan"
+                 colgando en la ficha. -->
             <synergos-countdown-clock
-              [attr.targetDate]="pdp.event.startsAt"
-              [attr.startedLabel]="'El evento ya comenzó'"
+              [attr.target-date]="pdp.event.startsAt"
+              [attr.started-label]="'El evento ya comenzó'"
             ></synergos-countdown-clock>
           </div>
           <p class="eventos__pdp-desc">{{ pdp.description }}</p>
@@ -267,7 +273,7 @@
               <synergos-seat-map
                 [attr.seatmap]="seatmapJson()"
                 [attr.currency]="currency()"
-                [attr.maxSelectable]="selectedTier()?.maxPerOrder || 6"
+                [attr.max-selectable]="selectedTier()?.maxPerOrder || 6"
                 (seatselect)="onSeatSelect($event)"
               ></synergos-seat-map>
               <p class="eventos__select-hint">

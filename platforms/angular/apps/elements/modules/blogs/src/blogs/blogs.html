@@ -169,13 +169,13 @@
         <synergos-comments-widget
           class="blogs__comments-embed"
           provider="rest"
-          [attr.threadId]="post.id"
+          [attr.thread-id]="post.id"
           title="Comentarios"
           submitLabel="Comentar"
           replyLabel="Responder"
           placeholder="Escribe un comentario…"
           locale="es-CO"
-          [attr.commentsEndpoint]="apiBase() + '/post/' + post.id"
+          [attr.comments-endpoint]="apiBase() + '/post/' + post.id"
         ></synergos-comments-widget>
 
         <!-- Native optimistic thread (source of truth for this SPA's state) -->
@@ -329,7 +329,7 @@
         title="Actividad reciente"
         emptyLabel="No tienes notificaciones."
         markAllLabel="Marcar todo como leído"
-        [attr.fetchEndpoint]="apiBase() + '/notifications'"
+        [attr.fetch-endpoint]="apiBase() + '/notifications'"
       ></synergos-notification-center>
 
       <syn-tabs
