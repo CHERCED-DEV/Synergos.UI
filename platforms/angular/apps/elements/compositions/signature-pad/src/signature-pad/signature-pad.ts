@@ -303,7 +303,15 @@ export class SignaturePadElementComponent {
       return '';
     }
 
-    return canvas.toDataURL('image/png');
+    // The method existing is not the same as the method producing an image.
+    // Where no 2D rasterizer is available (jsdom without the native `canvas`
+    // package, hardened/embedded WebViews) `toDataURL` is a real function that
+    // returns null, and a canvas that cannot be encoded yields the degenerate
+    // 'data:,'. Neither is a signature, so degrade by ABSENCE ('') rather than
+    // letting a non-string escape through a `string` contract onto every
+    // `signaturechange` consumer.
+    const encoded: unknown = canvas.toDataURL('image/png');
+    return typeof encoded === 'string' && encoded.startsWith('data:image/') ? encoded : '';
   }
 
   // ─── Internals ───────────────────────────────────────────────────────────────

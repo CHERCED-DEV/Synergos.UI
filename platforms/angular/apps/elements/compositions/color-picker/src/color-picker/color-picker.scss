@@ -60,7 +60,7 @@
   &__field {
     position: relative;
     display: grid;
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto 1fr;
     align-items: center;
     gap: syn.$space-xs;
   }
@@ -71,12 +71,6 @@
     font-weight: syn.$font-weight-semibold;
     letter-spacing: syn.$letter-spacing-wide;
     text-transform: uppercase;
-  }
-
-  &__hash {
-    color: var(--cp-muted-color);
-    font-family: syn.$font-family-mono;
-    font-size: syn.$font-size-sm;
   }
 
   &__input {

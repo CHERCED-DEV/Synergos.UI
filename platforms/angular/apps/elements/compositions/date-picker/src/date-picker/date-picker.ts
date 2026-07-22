@@ -325,8 +325,19 @@ export class DatePickerElementComponent {
   }
 
   /**
-   * In range mode after a check-in is chosen, a candidate check-out is also
-   * disabled when it precedes the check-in or violates `minStay`.
+   * In range mode after a check-in is chosen, a candidate check-out is
+   * disabled when it is too close to honor `minStay`.
+   *
+   * Only the FORWARD window is blocked. The check-in itself and every day
+   * before it stay live on purpose:
+   *  - `selectDay` re-anchors the range on an earlier pick, which is how the
+   *    user moves the arrival without hunting for "Limpiar"; blocking those
+   *    days makes that branch dead code and freezes every previous month.
+   *  - a disabled cell is not focusable, and the roving tabindex parks
+   *    `tabindex=0` on the check-in — blocking it leaves the grid with zero
+   *    tabbable cells, so no keyboard user could reach a check-out.
+   *  - `.date-picker__day:disabled` outranks `--selected` in the stylesheet,
+   *    so a blocked check-in renders struck-through and muted.
    */
   #blockedByRangeRules(iso: string): boolean {
     if (!this.isRange()) {
@@ -338,7 +349,11 @@ export class DatePickerElementComponent {
     if (!start || end) {
       return false;
     }
-    return nightsBetween(start, iso) < this.minStay();
+    const nights = nightsBetween(start, iso);
+    if (nights <= 0) {
+      return false;
+    }
+    return nights < this.minStay();
   }
 
   /** The 6×7 grid of days surrounding the current month. */
