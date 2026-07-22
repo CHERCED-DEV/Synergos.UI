@@ -738,6 +738,24 @@ export class AcademyElementComponent {
   }
 
   // ─── Role switch ─────────────────────────────────────────────────────────────
+  /**
+   * Imágenes cuya carga FALLÓ. El `@if (…avatar)` de la plantilla sólo caía a las
+   * iniciales cuando la URL venía VACÍA — nunca cuando daba 404, que es el caso real:
+   * `/media/academy/instructors/sofia.webp` no existe en disco y la ficha mostraba el
+   * icono de imagen rota del navegador con la rama de iniciales ahí al lado, escrita y
+   * sin poder alcanzarse. Un fallback que sólo cubre "no hay URL" no cubre "la URL miente".
+   */
+  readonly #imgFailed = signal<ReadonlySet<string>>(new Set());
+
+  onImageError(key: string): void {
+    this.#imgFailed.update((s) => new Set(s).add(key));
+  }
+
+  /** true si hay URL y además cargó. */
+  hasImage(url: string | null | undefined, key: string): boolean {
+    return !!url && !this.#imgFailed().has(key);
+  }
+
   setRole(role: AcademyRole): void {
     if (this.role() === role) {
       return;

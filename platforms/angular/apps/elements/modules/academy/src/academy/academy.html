@@ -98,8 +98,8 @@
         <ng-template #courseCard let-course let-select="select">
           <article class="academy__card">
             <div class="academy__card-cover">
-              @if (course.cover) {
-                <img class="academy__card-img" [src]="course.cover" [alt]="course.title" />
+              @if (hasImage(course.cover, 'cover-' + course.id)) {
+                <img class="academy__card-img" [src]="course.cover" [alt]="course.title" (error)="onImageError('cover-' + course.id)" />
               } @else {
                 <svg class="academy__card-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               }
@@ -278,8 +278,13 @@
       <ng-template #courseInstructor>
         <div class="academy__instructor">
           <div class="academy__instructor-head">
-            @if (detail.instructor.avatar) {
-              <img class="academy__instructor-avatar" [src]="detail.instructor.avatar" [alt]="detail.instructor.name" />
+            @if (hasImage(detail.instructor.avatar, 'instructor-' + detail.course.id)) {
+              <img
+                class="academy__instructor-avatar"
+                [src]="detail.instructor.avatar"
+                [alt]="detail.instructor.name"
+                (error)="onImageError('instructor-' + detail.course.id)"
+              />
             } @else {
               <span class="academy__instructor-initials" aria-hidden="true">{{ detail.instructor.name.charAt(0) }}</span>
             }
