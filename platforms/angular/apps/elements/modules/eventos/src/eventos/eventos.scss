@@ -376,7 +376,20 @@
   &__pdp-countdown {
     display: flex;
     align-items: center;
+    // El reloj es un custom element con tres diales de ancho fijo. Como ítem flex se
+    // encogía por debajo de su contenido (host 348px, contenido 544px) y los diales de
+    // los extremos se DESBORDABAN: "Días" se montaba sobre el rótulo "Faltan" y "Seg"
+    // aterrizaba encima de la tarjeta de tickets. El componente ya hace su parte
+    // (`:host { display:block; max-width:100% }`); lo que faltaba era no estrujarlo aquí.
+    flex-wrap: wrap;
     gap: syn.$space-sm;
+
+    // Línea completa para el reloj: es un bloque de cuatro anillos, no una palabra al
+    // lado del rótulo. Sin esto queda como ítem flex estrujado y su rejilla interna no
+    // tiene anchura real de la que partir para decidir cuántos anillos caben por fila.
+    > synergos-countdown-clock {
+      flex: 1 0 100%;
+    }
     padding: syn.$space-sm syn.$space-md;
     margin-bottom: syn.$space-md;
     background: var(--ev-surface-muted);
