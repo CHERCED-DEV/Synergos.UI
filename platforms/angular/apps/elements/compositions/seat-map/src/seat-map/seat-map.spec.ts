@@ -296,6 +296,87 @@ describe('SeatMapElementComponent', () => {
     expect(component.rows()[0].seats[0].features).toEqual(['exit-row', 'bulkhead']);
   });
 
+  // ── Pasillos (ADR 0127) ────────────────────────────────────────────────────
+
+  /** Una cabina de una sola fila con `count` butacas y la geometría dada. */
+  function cabin(count: number, aisleAfterColumns?: unknown): string {
+    return JSON.stringify({
+      ...(aisleAfterColumns === undefined ? {} : { aisleAfterColumns }),
+      rows: [
+        {
+          rowNumber: 30,
+          seats: Array.from({ length: count }, (_, i) => ({
+            id: `30-${i + 1}`,
+            type: 'middle',
+            available: true,
+          })),
+        },
+      ],
+    });
+  }
+
+  function aisleCount(): number {
+    return fixture.nativeElement.querySelectorAll('.seat-map__aisle').length;
+  }
+
+  it('un widebody 3-3-3 dibuja los DOS pasillos', () => {
+    // Era el defecto: con un solo entero, el bloque derecho se soldaba al
+    // central y la cabina se leía como un 3-6 que no existe en ningún avión.
+    seedWith(cabin(9, [3, 6]));
+
+    expect(component.aisleAfterColumns()).toEqual([3, 6]);
+    expect(aisleCount()).toBe(2);
+  });
+
+  it('un 1-2-1 dibuja los dos pasillos que rodean el bloque central', () => {
+    seedWith(cabin(4, [1, 3]));
+
+    expect(aisleCount()).toBe(2);
+  });
+
+  it('un solo número sigue valiendo: es la forma anterior del contrato', () => {
+    // `eventos` y `travel-shell` arman su carga con un entero, y hay cargas
+    // grabadas de demos. Ninguna puede romperse por admitir el arreglo.
+    seedWith(cabin(6, 3));
+
+    expect(component.aisleAfterColumns()).toEqual([3]);
+    expect(aisleCount()).toBe(1);
+  });
+
+  it('las posiciones se ordenan, se deduplican y se descarta la basura', () => {
+    // Llegan de un proveedor externo. La plantilla las compara mientras recorre
+    // la fila de izquierda a derecha, así que el orden no es cosmético.
+    seedWith(cabin(9, [6, '3', 6, 0, -2, 'no-es-un-numero', null]));
+
+    expect(component.aisleAfterColumns()).toEqual([3, 6]);
+    expect(aisleCount()).toBe(2);
+  });
+
+  it('NUNCA dibuja un pasillo después de la última butaca de la fila', () => {
+    // Una fila corta —una sección de suites al frente de una cabina 3-3-3—
+    // alcanza la posición del segundo pasillo justo en su último asiento. Ese
+    // hueco no separa nada y descuadra la fila respecto de las demás.
+    seedWith(cabin(6, [3, 6]));
+
+    expect(aisleCount()).toBe(1);
+  });
+
+  it('sin geometría declarada parte la fila más ancha por la mitad', () => {
+    // Es lo único deducible de las filas solas: dónde termina un bloque no se
+    // ve en la cuenta de butacas. Acierta en un narrowbody y en nada más.
+    seedWith(cabin(6));
+
+    expect(component.aisleAfterColumns()).toEqual([3]);
+    expect(aisleCount()).toBe(1);
+  });
+
+  it('una fila de dos butacas o menos no lleva pasillo', () => {
+    seedWith(cabin(2));
+
+    expect(component.aisleAfterColumns()).toEqual([]);
+    expect(aisleCount()).toBe(0);
+  });
+
   it('el aria del asiento nombra su clase y sus rasgos', () => {
     // Quien navega con lector de pantalla salta de botón en botón y no
     // necesariamente oyó el encabezado de la sección.

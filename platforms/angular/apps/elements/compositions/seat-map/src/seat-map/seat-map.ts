@@ -28,7 +28,7 @@ import {
  * price (extra-legroom and premium seats usually cost extra).
  *
  * Inputs are flat for CMS authoring convenience:
- *   - `seatmap` (JSON): the cabin layout (rows + aisle position);
+ *   - `seatmap` (JSON): the cabin layout (rows + aisle positions);
  *   - `currency` (ISO, default COP) for the per-seat price labels;
  *   - `maxSelectable` (default 1) for the number of seats a passenger may pick.
  *
@@ -45,8 +45,18 @@ export interface SeatMapRuntimeConfig {
 /** Raw layout payload (the `seatmap` config). */
 export interface SeatMapLayoutConfig {
   readonly rows?: readonly SeatRowConfig[];
-  /** Aisle is drawn after this many columns (1-based). Default: half the row. */
-  readonly aisleAfterColumns?: number;
+  /**
+   * Dónde van los pasillos, por índice de columna 1-based: `[3, 6]` dibuja uno
+   * tras la C y otro tras la F, que es un `3-3-3`.
+   *
+   * Acepta también **un solo número**, que era la forma anterior. Una cabina de
+   * un pasillo se sigue declarando `3` y se comporta igual que `[3]`; ninguna
+   * carga previa se rompe.
+   *
+   * Sin declarar, se parte la fila más ancha por la mitad — que acierta en un
+   * narrowbody y en nada más. Por eso el proveedor debería declararlo siempre.
+   */
+  readonly aisleAfterColumns?: number | readonly number[];
 }
 
 export interface SeatRowConfig {
@@ -206,6 +216,27 @@ export function seatFeatureLabel(feature: string): string {
 /** Rótulo es-CO de una clase de servicio. Una desconocida se muestra tal cual. */
 export function serviceClassLabel(serviceClass: string): string {
   return SERVICE_CLASS_LABELS[serviceClass] ?? serviceClass;
+}
+
+/**
+ * Normaliza las posiciones de pasillo: enteros positivos, sin repetidos y en
+ * orden ascendente.
+ *
+ * Acepta un número suelto además del arreglo, que es la forma que tenía el
+ * contrato antes de admitir widebodies. El orden importa porque la plantilla
+ * los compara contra el índice de columna mientras recorre la fila de
+ * izquierda a derecha.
+ */
+function readAisleColumns(value: unknown): readonly number[] {
+  const entries = Array.isArray(value) ? value : [value];
+  const seen = new Set<number>();
+  for (const entry of entries) {
+    const parsed = readNumber(entry);
+    if (parsed !== null && parsed > 0) {
+      seen.add(Math.trunc(parsed));
+    }
+  }
+  return [...seen].sort((a, b) => a - b);
 }
 
 /**
@@ -387,8 +418,15 @@ export class SeatMapElementComponent {
   /** The live set of selected seat ids (insertion order preserved). */
   readonly selected = signal<readonly string[]>([]);
 
-  /** Aisle is drawn after this 1-based column index (0 = no aisle). */
-  readonly aisleAfterColumns = signal(0);
+  /**
+   * Los pasillos, por índice de columna 1-based y en orden ascendente. Vacío =
+   * ningún pasillo.
+   *
+   * Es un ARREGLO porque un widebody tiene dos: con un solo valor, un `3-3-3`
+   * dibujaba el pasillo tras la C y nada entre F y G, y el bloque derecho se
+   * soldaba al central.
+   */
+  readonly aisleAfterColumns = signal<readonly number[]>([]);
 
   #seeded = false;
 
@@ -489,9 +527,20 @@ export class SeatMapElementComponent {
     return this.isSelected(seat) || !this.atSelectionLimit();
   }
 
-  /** True when the aisle gap should be drawn AFTER this seat's column. */
-  showAisleAfter(seat: Seat): boolean {
-    return this.aisleAfterColumns() > 0 && seat.column === this.aisleAfterColumns();
+  /**
+   * Si va un pasillo DESPUÉS de esta butaca.
+   *
+   * Nunca después de la última de la fila: ahí el hueco no separa nada y deja
+   * la fila descuadrada respecto de las demás. Importa desde que hay varios
+   * pasillos — una fila corta (una sección de suites al frente de una cabina
+   * `3-3-3`) alcanza la posición del segundo pasillo justo en su último
+   * asiento.
+   */
+  showAisleAfter(seat: Seat, row: SeatRow): boolean {
+    if (seat.column >= row.seats.length) {
+      return false;
+    }
+    return this.aisleAfterColumns().includes(seat.column);
   }
 
   priceLabel(seat: Seat): string {
@@ -627,13 +676,15 @@ export class SeatMapElementComponent {
     const rows = normalizeRows(raw);
     this.rows.set(rows);
 
-    const aisleRaw = isRecord(raw) ? readNumber(raw['aisleAfterColumns']) : null;
-    if (aisleRaw !== null && aisleRaw > 0) {
-      this.aisleAfterColumns.set(Math.trunc(aisleRaw));
+    const declared = isRecord(raw) ? readAisleColumns(raw['aisleAfterColumns']) : [];
+    if (declared.length > 0) {
+      this.aisleAfterColumns.set(declared);
     } else if (rows.length > 0) {
-      // Default: split the widest row roughly in half.
+      // Sin geometría declarada se parte la fila más ancha por la mitad. Acierta
+      // en un narrowbody y en nada más, pero es lo único deducible de las filas
+      // solas: dónde termina un bloque no se ve en la cuenta de butacas.
       const widest = rows.reduce((max, row) => Math.max(max, row.seats.length), 0);
-      this.aisleAfterColumns.set(widest > 2 ? Math.ceil(widest / 2) : 0);
+      this.aisleAfterColumns.set(widest > 2 ? [Math.ceil(widest / 2)] : []);
     }
   }
 

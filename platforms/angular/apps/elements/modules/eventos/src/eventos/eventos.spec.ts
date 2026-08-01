@@ -610,6 +610,103 @@ describe('EventosApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
+  /**
+   * El mapa lo dibuja `<synergos-seat-map>`, no este módulo: aquí la carga solo
+   * pasa de largo. Lo que el parser no copie se pierde EN SILENCIO —el mapa
+   * nunca ve la clave y no hay error en ningún lado—, así que el paso a través
+   * se verifica campo por campo.
+   */
+  it('el mapa de asientos del CMS pasa COMPLETO hacia el componente', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              event: { id: 'EVT-9', title: 'Vuelo demo', fromAmount: 1, currency: 'COP' },
+              venue: {
+                zones: [
+                  {
+                    id: 'z1',
+                    name: 'Cabina',
+                    amount: 0,
+                    seatmap: {
+                      // Un widebody trae DOS pasillos. Leído como entero, este
+                      // arreglo daba 0 y la cabina salía sin ninguno.
+                      aisleAfterColumns: [3, 6],
+                      rows: [
+                        {
+                          rowNumber: 20,
+                          serviceClass: 'business',
+                          seats: [
+                            {
+                              id: '20A',
+                              type: 'window',
+                              available: true,
+                              price: 90_000,
+                              features: ['exit-row', 'extra-legroom'],
+                            },
+                            { id: '20B', type: 'middle', available: false },
+                          ],
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const seatmap = (await client.event('/api/eventos', 'EVT-9', 'COP')).venue.zones[0].seatmap;
+
+    expect(client.degraded).toBe(false);
+    expect(seatmap.aisleAfterColumns).toEqual([3, 6]);
+    expect(seatmap.rows[0].serviceClass).toBe('business');
+    expect(seatmap.rows[0].seats[0].type).toBe('window');
+    expect(seatmap.rows[0].seats[0].features).toEqual(['exit-row', 'extra-legroom']);
+    // Una butaca sin rasgos no arrastra una clave muerta.
+    expect(seatmap.rows[0].seats[1].features).toBeUndefined();
+  });
+
+  it('el pasillo como número suelto sigue pasando: es la forma anterior', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              event: { id: 'EVT-8', title: 'Teatro', fromAmount: 1, currency: 'COP' },
+              venue: {
+                zones: [
+                  {
+                    id: 'z1',
+                    name: 'Platea',
+                    amount: 0,
+                    seatmap: {
+                      aisleAfterColumns: 3,
+                      rows: [{ rowNumber: 1, seats: [{ id: '1A', type: 'window' }] }],
+                    },
+                  },
+                ],
+              },
+            }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const detail = await client.event('/api/eventos', 'EVT-8', 'COP');
+
+    expect(detail.venue.zones[0].seatmap.aisleAfterColumns).toBe(3);
+  });
+
   it('degrades the wallet + create event to visible mocks', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
