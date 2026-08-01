@@ -1,4 +1,8 @@
-<section class="seat-map" aria-label="Mapa de asientos de la cabina">
+<section
+  class="seat-map"
+  [class.seat-map--compact]="density() === 'compact'"
+  aria-label="Mapa de asientos de la cabina"
+>
   <header class="seat-map__header">
     <p class="seat-map__summary" role="status" aria-live="polite">{{ summary() }}</p>
   </header>
@@ -58,7 +62,7 @@
                     />
                   }
                 </button>
-                @if (seat.price > 0) {
+                @if (showPrices() && seat.price > 0) {
                   <span class="seat-map__seat-price" aria-hidden="true">{{ priceLabel(seat) }}</span>
                 }
               </div>
@@ -72,6 +76,7 @@
       </div>
     </div>
 
+    @if (showLegend()) {
     <ul class="seat-map__legend" aria-label="Convenciones del mapa de asientos">
       <li class="seat-map__legend-item">
         <span class="seat-map__legend-swatch seat-map__legend-swatch--window" aria-hidden="true"></span>
@@ -101,6 +106,7 @@
         <span class="seat-map__legend-label">Seleccionado</span>
       </li>
     </ul>
+    }
   } @else {
     <p class="seat-map__empty">No hay un mapa de asientos configurado.</p>
   }

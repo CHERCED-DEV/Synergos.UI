@@ -377,6 +377,90 @@ describe('SeatMapElementComponent', () => {
     expect(aisleCount()).toBe(0);
   });
 
+  // ── Apariencia (ADR 0127) ──────────────────────────────────────────────────
+
+  it('la apariencia por defecto es la de antes de que existieran estos controles', () => {
+    // Un bloque ya colocado no puede cambiar de aspecto porque el contrato haya
+    // crecido: cómodo, con precios y con leyenda.
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(component.density()).toBe('comfortable');
+    expect(component.showPrices()).toBe(true);
+    expect(component.showLegend()).toBe(true);
+    expect(fixture.nativeElement.querySelector('.seat-map--compact')).toBeNull();
+    // 12A, 12F y 13A tienen recargo; las demás valen 0 y nunca rotulan.
+    expect(fixture.nativeElement.querySelectorAll('.seat-map__seat-price').length).toBe(3);
+    expect(fixture.nativeElement.querySelector('.seat-map__legend')).toBeTruthy();
+  });
+
+  it('la densidad compacta encoge el mapa pero NO le quita nada', () => {
+    // Es la diferencia entre apariencia y contenido: una cabina de 44 filas no
+    // cabe en un móvil, y la respuesta es achicarla, no esconder butacas.
+    fixture.componentRef.setInput('density', 'compact');
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(fixture.nativeElement.querySelector('.seat-map--compact')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('.seat-map__seat').length).toBe(9);
+    expect(component.totalSeats()).toBe(9);
+  });
+
+  it('una densidad que no existe cae en la cómoda en vez de quedar sin clase', () => {
+    // La escribe un editor desde un desplegable, pero el atributo lo puede poner
+    // cualquiera: un valor raro no puede dejar el mapa sin estilo.
+    fixture.componentRef.setInput('density', 'espaciosisima');
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(component.density()).toBe('comfortable');
+  });
+
+  it('apagar los precios los quita de la vista SIN quitarlos del aria', () => {
+    // El precio es real aunque no se rotule, y quien navega con lector de
+    // pantalla no tiene el resumen a la vista para compensarlo.
+    fixture.componentRef.setInput('showPrices', false);
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(fixture.nativeElement.querySelectorAll('.seat-map__seat-price').length).toBe(0);
+
+    const conPrecio: HTMLElement = fixture.nativeElement.querySelector('.seat-map__seat');
+    expect(conPrecio.getAttribute('aria-label')).toContain('45.000');
+    // Y el total sigue en el resumen: apagar la etiqueta no esconde el costo.
+    component.toggleSeat(component.rows()[0].seats[0]);
+    fixture.detectChanges();
+    expect(component.summary()).toContain('45.000');
+  });
+
+  it('apagar la leyenda la quita entera', () => {
+    fixture.componentRef.setInput('showLegend', false);
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(fixture.nativeElement.querySelector('.seat-map__legend')).toBeNull();
+    // Las butacas siguen ahí: es la explicación lo que se calla, no el mapa.
+    expect(fixture.nativeElement.querySelectorAll('.seat-map__seat').length).toBe(9);
+  });
+
+  it('la apariencia también llega por `config`, no solo por atributo', () => {
+    // Es como la emite el host cuando arma un solo objeto en vez de N atributos.
+    fixture.componentRef.setInput('config', {
+      density: 'compact',
+      showPrices: false,
+      showLegend: false,
+    });
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(component.density()).toBe('compact');
+    expect(component.showPrices()).toBe(false);
+    expect(component.showLegend()).toBe(false);
+  });
+
+  it('el atributo gana sobre `config`', () => {
+    fixture.componentRef.setInput('config', { density: 'compact', showLegend: false });
+    fixture.componentRef.setInput('showLegend', true);
+    seedWith(SAMPLE_SEATMAP);
+
+    expect(component.density()).toBe('compact');
+    expect(component.showLegend()).toBe(true);
+  });
+
   it('el aria del asiento nombra su clase y sus rasgos', () => {
     // Quien navega con lector de pantalla salta de botón en botón y no
     // necesariamente oyó el encabezado de la sección.
