@@ -6184,6 +6184,27 @@
       "type": "number",
       "required": false,
       "description": "Maximum number of seats selectable at once."
+    },
+    {
+      "name": "density",
+      "type": "string",
+      "required": false,
+      "default": "comfortable",
+      "description": "How much room the map takes: comfortable | compact. compact shrinks the seat, the gaps and the aisle without removing anything; a 44-row cabin does not fit on a phone. Anything else falls back to comfortable."
+    },
+    {
+      "name": "showPrices",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the per-seat surcharge label is drawn. Turn it off where the price does not distinguish seats — the total stays in the summary and the price stays in each seat's aria-label."
+    },
+    {
+      "name": "showLegend",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether the legend is drawn. The legend already derives from the payload (a map with no features explains none), so this is for maps embedded where the visitor has already seen the conventions."
     }
   ],
   "seller": [

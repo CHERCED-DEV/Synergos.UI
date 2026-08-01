@@ -11,7 +11,9 @@ import {
 import { InitialDataService } from '@synergos/core';
 import {
   IconComponent,
+  coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -30,7 +32,10 @@ import {
  * Inputs are flat for CMS authoring convenience:
  *   - `seatmap` (JSON): the cabin layout (rows + aisle positions);
  *   - `currency` (ISO, default COP) for the per-seat price labels;
- *   - `maxSelectable` (default 1) for the number of seats a passenger may pick.
+ *   - `maxSelectable` (default 1) for the number of seats a passenger may pick;
+ *   - `density` (`comfortable` | `compact`), `showPrices` y `showLegend`: la
+ *     apariencia que decide quien coloca el bloque. No cambian ni una butaca ni
+ *     un precio — solo cuánto ocupa el mapa y cuánto explica.
  *
  * The shared `@synergos/contracts` package does not (yet) declare a
  * `SeatMapElementConfig`; the canonical shape lives here next to the component
@@ -40,7 +45,19 @@ export interface SeatMapRuntimeConfig {
   readonly seatmap?: SeatMapLayoutConfig;
   readonly currency?: string;
   readonly maxSelectable?: number;
+  readonly density?: SeatMapDensity;
+  readonly showPrices?: boolean;
+  readonly showLegend?: boolean;
 }
+
+/**
+ * Cuánto espacio ocupa el mapa.
+ *
+ * `compact` no es solo estética: una cabina de 44 filas mide más de mil píxeles
+ * de alto y en un móvil deja el resumen y el botón de compra fuera de la
+ * pantalla. Encoge la butaca, los huecos y el pasillo — <b>no</b> quita nada.
+ */
+export type SeatMapDensity = 'comfortable' | 'compact';
 
 /** Raw layout payload (the `seatmap` config). */
 export interface SeatMapLayoutConfig {
@@ -142,6 +159,8 @@ export interface SeatSelection {
 
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_MAX_SELECTABLE = 1;
+const DENSITIES: readonly SeatMapDensity[] = ['comfortable', 'compact'];
+const DEFAULT_DENSITY: SeatMapDensity = 'comfortable';
 const SEAT_TYPES: readonly SeatType[] = ['window', 'aisle', 'middle', 'extra-legroom'];
 const COLUMN_LETTERS = 'ABCDEFGHJK'; // skip "I" (looks like 1), airline convention
 
@@ -362,6 +381,9 @@ function sanitizeSeatMapConfig(
     seatmap: isRecord(value.seatmap) ? (value.seatmap as SeatMapLayoutConfig) : undefined,
     currency: coerceTrimmedStringInput(value.currency),
     maxSelectable: coerceOptionalNumberInput(value.maxSelectable),
+    density: coerceStringEnumInput(value.density, DENSITIES),
+    showPrices: coerceOptionalBooleanInput(value.showPrices),
+    showLegend: coerceOptionalBooleanInput(value.showLegend),
   });
 }
 
@@ -389,6 +411,18 @@ export class SeatMapElementComponent {
     alias: 'maxSelectable',
     transform: coerceOptionalNumberInput,
   });
+  readonly densityInput = input<SeatMapDensity | undefined, unknown>(undefined, {
+    alias: 'density',
+    transform: (value: unknown) => coerceStringEnumInput(value, DENSITIES),
+  });
+  readonly showPricesInput = input<boolean | undefined, unknown>(undefined, {
+    alias: 'showPrices',
+    transform: coerceOptionalBooleanInput,
+  });
+  readonly showLegendInput = input<boolean | undefined, unknown>(undefined, {
+    alias: 'showLegend',
+    transform: coerceOptionalBooleanInput,
+  });
 
   /** Emits the full selection (seat ids) whenever it changes. */
   readonly seatselect = output<SeatSelection>();
@@ -411,6 +445,32 @@ export class SeatMapElementComponent {
     );
     return resolved >= 1 ? Math.trunc(resolved) : DEFAULT_MAX_SELECTABLE;
   });
+
+  readonly density = computed<SeatMapDensity>(() =>
+    resolveConfigValue(this.densityInput(), this.config()?.density, DEFAULT_DENSITY),
+  );
+
+  /**
+   * Si se rotula el precio bajo cada butaca.
+   *
+   * Se apaga cuando el precio no distingue nada —un recinto donde toda la zona
+   * cuesta lo mismo—: trescientas etiquetas idénticas no informan, tapan el
+   * mapa. El total sigue en el resumen, así que apagarlo no esconde el costo.
+   */
+  readonly showPrices = computed(() =>
+    resolveConfigValue(this.showPricesInput(), this.config()?.showPrices, true),
+  );
+
+  /**
+   * Si se dibuja la leyenda.
+   *
+   * Vale menos desde que se deriva del contenido —un mapa sin rasgos ya no
+   * explica rasgos—, pero sigue habiendo un caso: el mapa embebido en un paso
+   * de compra donde el visitante ya vio las convenciones.
+   */
+  readonly showLegend = computed(() =>
+    resolveConfigValue(this.showLegendInput(), this.config()?.showLegend, true),
+  );
 
   /** The resolved cabin rows (seeded once from config/attribute). */
   readonly rows = signal<readonly SeatRow[]>([]);
