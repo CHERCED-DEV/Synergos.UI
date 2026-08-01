@@ -11,11 +11,17 @@
         [attr.aria-label]="'Cabina con ' + totalSeats() + ' asientos, ' + availableSeats() + ' disponibles'"
         [attr.aria-rowcount]="rows().length"
       >
-        @for (row of rows(); track trackRow($index, row); let rowIndex = $index) {
-          <div class="seat-map__row" role="row" [attr.aria-rowindex]="rowIndex + 1">
-            <span class="seat-map__row-number" aria-hidden="true">{{ row.rowNumber }}</span>
+        @for (view of rowViews(); track trackRow($index, view.row); let rowIndex = $index) {
+          @if (view.sectionLabel !== null) {
+            <div class="seat-map__section" role="row">
+              <span class="seat-map__section-label" role="gridcell">{{ view.sectionLabel }}</span>
+            </div>
+          }
 
-            @for (seat of row.seats; track trackSeat($index, seat); let seatIndex = $index) {
+          <div class="seat-map__row" role="row" [attr.aria-rowindex]="rowIndex + 1">
+            <span class="seat-map__row-number" aria-hidden="true">{{ view.row.rowNumber }}</span>
+
+            @for (seat of view.row.seats; track trackSeat($index, seat); let seatIndex = $index) {
               <div
                 class="seat-map__cell"
                 role="gridcell"
@@ -28,12 +34,13 @@
                   [class.seat-map__seat--window]="seat.type === 'window'"
                   [class.seat-map__seat--aisle]="seat.type === 'aisle'"
                   [class.seat-map__seat--middle]="seat.type === 'middle'"
-                  [class.seat-map__seat--extra-legroom]="seat.type === 'extra-legroom'"
+                  [class.seat-map__seat--extra-legroom]="hasFeature(seat, 'extra-legroom')"
+                  [class.seat-map__seat--exit-row]="hasFeature(seat, 'exit-row')"
                   [class.seat-map__seat--selected]="isSelected(seat)"
                   [class.seat-map__seat--occupied]="!seat.available"
                   [class.seat-map__seat--has-price]="seat.price > 0"
                   [attr.data-seat-id]="fieldId + '-' + seat.id"
-                  [attr.aria-label]="seatAriaLabel(seat, row)"
+                  [attr.aria-label]="seatAriaLabel(seat, view.row)"
                   [attr.aria-pressed]="seat.available ? isSelected(seat) : null"
                   [attr.aria-disabled]="!seat.available ? 'true' : null"
                   [disabled]="!seat.available"
@@ -74,10 +81,17 @@
         <span class="seat-map__legend-swatch seat-map__legend-swatch--aisle" aria-hidden="true"></span>
         <span class="seat-map__legend-label">Pasillo</span>
       </li>
-      <li class="seat-map__legend-item">
-        <span class="seat-map__legend-swatch seat-map__legend-swatch--extra-legroom" aria-hidden="true"></span>
-        <span class="seat-map__legend-label">Espacio extra</span>
-      </li>
+      @for (feature of presentFeatures(); track trackFeature($index, feature)) {
+        <li class="seat-map__legend-item">
+          <span
+            class="seat-map__legend-swatch"
+            [class.seat-map__legend-swatch--extra-legroom]="feature === 'extra-legroom'"
+            [class.seat-map__legend-swatch--exit-row]="feature === 'exit-row'"
+            aria-hidden="true"
+          ></span>
+          <span class="seat-map__legend-label">{{ featureLabel(feature) }}</span>
+        </li>
+      }
       <li class="seat-map__legend-item">
         <span class="seat-map__legend-swatch seat-map__legend-swatch--occupied" aria-hidden="true"></span>
         <span class="seat-map__legend-label">Ocupado</span>
