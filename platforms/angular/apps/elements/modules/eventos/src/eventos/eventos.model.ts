@@ -161,22 +161,37 @@ export interface VenueZone {
   readonly seatmap: SeatMapPayload;
 }
 
-/** The seat-map layout payload handed to `<synergos-seat-map>`. */
+/**
+ * The seat-map layout payload handed to `<synergos-seat-map>`.
+ *
+ * Este módulo NO lo interpreta: lo recibe del CMS y se lo pasa al mapa. Por eso
+ * la forma tiene que seguir al contrato del mapa — lo que este tipo no declare,
+ * el parser lo descarta y no llega a la pantalla.
+ */
 export interface SeatMapPayload {
   readonly rows: readonly SeatMapRow[];
-  readonly aisleAfterColumns?: number;
+  /**
+   * Dónde van los pasillos, por índice de columna 1-based. Un widebody trae dos
+   * (`[3, 6]`); un número suelto es la forma anterior y se sigue aceptando.
+   */
+  readonly aisleAfterColumns?: number | readonly number[];
 }
 
 export interface SeatMapRow {
   readonly rowNumber: number | string;
   readonly seats: readonly SeatMapSeat[];
+  /** Clase de servicio de la fila. El mapa abre una sección cuando cambia. */
+  readonly serviceClass?: string;
 }
 
 export interface SeatMapSeat {
   readonly id: string;
+  /** POSICIÓN de la butaca. El confort viaja en `features`. */
   readonly type?: string;
   readonly available?: boolean;
   readonly price?: number;
+  /** Rasgos: `extra-legroom`, `exit-row`, … Vocabulario abierto. */
+  readonly features?: readonly string[];
 }
 
 /** The full event-page payload as returned by `GET /api/eventos/event/{id}`. */
