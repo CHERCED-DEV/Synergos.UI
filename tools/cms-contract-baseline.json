@@ -1,0 +1,59 @@
+{
+  "$comment": [
+    "Deuda CONOCIDA del acople CMS↔UI, aceptada a propósito y con fecha de",
+    "revisión. Mismo patrón que css-parity-allowlist.txt del repo CMS: no",
+    "esconde el problema, lo NOMBRA — el validador la sigue imprimiendo como",
+    "[BASELINE] en cada corrida, pero no la cuenta como fallo, para que el gate",
+    "pueda bloquear la deriva NUEVA en vez de estar rojo permanentemente por la",
+    "vieja (que es como un gate rojo se vuelve un gate que nadie mira).",
+    "",
+    "Cada entrada exige `reason`. Sacar una entrada de aquí es el acto de",
+    "cerrarla; el gate se pondrá rojo si el desajuste sigue vivo.",
+    "",
+    "Contexto: esta lista se levantó el 2026-08-01, la primera vez que el",
+    "validador corrió de verdad contra los dos repos. Hasta entonces salía 0 sin",
+    "validar nada cuando no encontraba el CMS, así que la deriva nunca se vio."
+  ],
+
+  "e1_registryAliasMissingFromCms": [
+    {
+      "alias": "elementSynPaxSelector",
+      "reason": "Elemento del vertical Viajes publicado al CDN sin su DocType. Un editor NO puede colocarlo: no existe en el backoffice. Falta decidir el schema (pax adultos/niños/infantes, límites por tarifa) antes de escribir el XML uSync.",
+      "owner": "CMS",
+      "action": "Autorar uSync/v9/ContentTypes/elementsynpaxselector.config"
+    },
+    {
+      "alias": "elementSynSeatMap",
+      "reason": "Igual que el anterior, para Eventos. ADR 0110 modela el ticket firmado pero el mapa de asientos como CONTENIDO no está modelado — el propio commit de la rebanada Eventos lo deja escrito como el siguiente paso.",
+      "owner": "CMS",
+      "action": "Autorar el DocType cuando se modelen tiers y aforo como contenido"
+    }
+  ],
+
+  "e2_cmsAliasMissingFromRegistry": [
+    {
+      "alias": "elementSynFaqSection",
+      "reason": "DocType + partial SynHost vivos, bundle inexistente. El editor SÍ puede colocarlo y el visitante ve el skeleton CDN-offline para siempre: el partial no pasa FallbackHtml, así que no hay SSR de respaldo.",
+      "owner": "UI",
+      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+    },
+    {
+      "alias": "elementSynFeatureGrid",
+      "reason": "Mismo caso que faq-section: colocable en el backoffice, sin nada que hidrate.",
+      "owner": "UI",
+      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+    },
+    {
+      "alias": "elementSynMediaText",
+      "reason": "Mismo caso. Es además el más barato de resolver por SSR — es media + texto, no necesita interactividad.",
+      "owner": "UI",
+      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+    },
+    {
+      "alias": "elementSynTestimonialSection",
+      "reason": "Mismo caso.",
+      "owner": "UI",
+      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+    }
+  ]
+}
