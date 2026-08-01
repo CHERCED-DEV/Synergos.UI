@@ -45,4 +45,7 @@ Thumbs.db
 **/wwwroot
 
 __screenshots__/
-.claude/
+# .claude local sigue ignorado (settings, worktrees), MENOS las skills:
+# compartidas al remoto para que las sesiones desde la tablet las tengan.
+.claude/*
+!.claude/skills/
