@@ -313,6 +313,18 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementMediaGallery',
   'elementMediaLogoCloud',
   'elementTextRichtext',
+  // Modelos de DATOS anidados, consumidos por un BlockList y proyectados a JSON
+  // por su fuente de catálogo. No montan web component Y TAMPOCO tienen partial
+  // Razor: no son "SSR-only", son una tercera categoría — el editor los llena
+  // dentro de la ficha de su padre y quien los pinta es el bundle del vertical
+  // (eventos, gov) leyéndolos ya proyectados desde la API.
+  // ADR 0117 (Eventos: localidades / agenda / zonas) y ADR 0123 (Gobierno:
+  // secciones y preguntas del formulario del trámite).
+  'elementEventTier',
+  'elementEventSession',
+  'elementEventZone',
+  'elementTramiteFormSection',
+  'elementTramiteFormField',
 ]);
 
 /**
