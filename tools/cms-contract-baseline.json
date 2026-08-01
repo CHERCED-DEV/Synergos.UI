@@ -14,7 +14,8 @@
     "validador corrió de verdad contra los dos repos. Hasta entonces salía 0 sin",
     "validar nada cuando no encontraba el CMS, así que la deriva nunca se vio.",
     "",
-    "Revision 2026-08-01 (2a): los cuatro de e2 conservan el desajuste pero ya no dejan la pantalla rota — tienen respaldo SSR. Los dos de e1 dejaron de ser deuda: son piezas que otro bundle embebe, no bloques de pagina (ADR 0126 del CMS)."
+    "Revision 2026-08-01 (2a): los cuatro de e2 conservan el desajuste pero ya no dejan la pantalla rota — tienen respaldo SSR. Los dos de e1 dejaron de ser deuda: son piezas que otro bundle embebe, no bloques de pagina (ADR 0126 del CMS).",
+    "Revision 2026-08-01 (3a): elementSynSeatMap SALE del baseline — ya tiene DocType. No contradice al ADR 0126 sino que lo enmienda (ADR 0127): el CMS lo CONFIGURA (que cabina, cuantas butacas, que moneda) y un proveedor exogeno lo LLENA. pax-selector se queda: es el caso puro, no tiene sentido fuera del wizard que lo embebe."
   ],
   "e1_registryAliasMissingFromCms": [
     {
@@ -22,12 +23,6 @@
       "reason": "NO es deuda (ADR 0126 del CMS). No es un bloque de pagina: lo EMBEBE booking-wizard, que lo declara como dependencia en este mismo registry, lo pinta en su plantilla (booking-wizard.html:70) y normaliza la ocupacion que emite. Suelto en una pagina, elegir dos adultos y un nino no significa nada: quien busca disponibilidad con esa ocupacion es el wizard. El registry declara que PUBLICA el CDN, no que puede colocar un editor.",
       "owner": "—",
       "action": "Ninguna. Se cierra cuando el registry pueda declarar la intencion (embeddedBy / standalone:false) y el validador deje de compararlo."
-    },
-    {
-      "alias": "elementSynSeatMap",
-      "reason": "NO es deuda (ADR 0126 del CMS). La entrada original decia 'autorar el DocType cuando se modelen tiers y aforo como contenido'; eso ya paso (ADR 0117) y al ir a escribirlo la premisa resulto falsa. Lo EMBEBE el modulo eventos: le pasa la carga JSON (eventos.ts:430) y escucha su CustomEvent seatselect (eventos.ts:1075) para meter el asiento al carrito. Con DocType, un editor podria soltar un mapa sin evento detras y sin nadie escuchando el evento — un control que responde y no hace nada.",
-      "owner": "—",
-      "action": "Ninguna. Un plano del recinto informativo seria otro bloque, con su DocType y su contenido: uno que no emita seatselect."
     }
   ],
   "e2_cmsAliasMissingFromRegistry": [
