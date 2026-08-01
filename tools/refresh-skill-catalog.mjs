@@ -26,7 +26,7 @@
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
@@ -34,7 +34,15 @@ import { fileURLToPath } from 'node:url';
 const ROOT_UI       = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT_REPO     = resolve(ROOT_UI, '..');
 
-const CDN_REGISTRY      = 'C:/LOCAL_CDN/synergos/registry.json';
+// Mismo override que catalog.mjs: CDN_ROOT gana, y si no, el default de
+// Windows. Antes esto era un literal `C:/LOCAL_CDN/...` sin escapatoria, así
+// que el script sólo podía correr en la máquina del arquitecto — y como está
+// al final de `release:angular`, la cadena de release entera era Windows-only.
+// `join`, no `resolve`: en Linux un default `C:/...` no es absoluto, y
+// resolve lo pegaría al cwd escupiendo rutas tipo `/workspace/ui/C:/LOCAL_CDN`
+// en el mensaje de error. join lo deja literal y el skip se lee claro.
+const CDN_ROOT          = process.env.CDN_ROOT ?? 'C:/LOCAL_CDN/synergos';
+const CDN_REGISTRY      = join(CDN_ROOT, 'registry.json');
 const RICH_CONFIGS      = resolve(ROOT_UI, 'vitals/contracts/src/element-config.contract.ts');
 const SCHEMA_MIRROR     = resolve(ROOT_UI, 'vitals/contracts/src/elements-syn.contract.ts');
 const ELEMENT_INPUTS    = resolve(ROOT_UI, 'vitals/contracts/src/element-inputs.json');
@@ -100,7 +108,10 @@ function kebabToPascal(kebab) {
 
 // ── Loaders ──────────────────────────────────────────────────────────────────
 
-const cdnRegistry = readJson(CDN_REGISTRY);
+// Los guards de main() comprobaban estas rutas, pero este módulo las leía
+// ANTES en el nivel superior: el proceso reventaba con un ENOENT crudo y los
+// mensajes de error nunca llegaban a imprimirse. Diferidos a main().
+let cdnRegistry;
 const elementRegistry = readJson(ELEMENT_REGISTRY);
 const elementInputs = readJson(ELEMENT_INPUTS);
 const richConfigs = parseRichConfigs(readText(RICH_CONFIGS));
@@ -346,15 +357,21 @@ NO editar este archivo a mano — auto-regenerado.
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
+  // Refrescar el catálogo de la skill es una COMODIDAD del entorno local, no
+  // un paso del release: la skill vive en `.claude/`, que está gitignorado.
+  // Antes su ausencia tumbaba `release:angular` entero. Ahora avisa y sale 0.
   if (!existsSync(CDN_REGISTRY)) {
-    console.error(`[refresh-skill-catalog] ERROR: CDN registry not found at ${CDN_REGISTRY}`);
-    console.error('  Run `npm run release:angular` first to publish bundles to CDN.');
-    process.exit(1);
+    console.warn(`[refresh-skill-catalog] SKIP — no hay registry del CDN en ${CDN_REGISTRY}`);
+    console.warn('  Publicá bundles primero, o apuntá CDN_ROOT a tu CDN local.');
+    return;
   }
   if (!existsSync(SKILL_DIR)) {
-    console.error(`[refresh-skill-catalog] ERROR: skill references dir not found at ${SKILL_DIR}`);
-    process.exit(1);
+    console.warn(`[refresh-skill-catalog] SKIP — no existe ${SKILL_DIR}`);
+    console.warn('  Normal fuera de la máquina del arquitecto: .claude/ está gitignorado.');
+    return;
   }
+
+  cdnRegistry = readJson(CDN_REGISTRY);
 
   console.log('[refresh-skill-catalog] Reading sources...');
   console.log(`  CDN registry:    ${cdnRegistry.elements.length} elements`);
