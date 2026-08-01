@@ -263,6 +263,42 @@
     line-height: syn.$line-height-snug;
   }
 
+  // ── Densidad compacta ──────────────────────────────────────────────────────
+  // Una cabina de 44 filas mide más de mil píxeles de alto: en un móvil deja el
+  // resumen y el botón de compra fuera de la pantalla. Encoge la butaca, los
+  // huecos y el pasillo — NO quita nada, y por eso el objetivo táctil sigue por
+  // encima del mínimo accesible.
+  &--compact {
+    gap: syn.$space-3;
+    padding: syn.$space-3;
+
+    .seat-map__cabin {
+      padding: syn.$space-2;
+    }
+
+    .seat-map__grid {
+      gap: syn.px-to-rem(4);
+    }
+
+    .seat-map__row {
+      gap: syn.px-to-rem(4);
+    }
+
+    .seat-map__row-number {
+      width: syn.px-to-rem(22);
+    }
+
+    .seat-map__aisle {
+      width: syn.$space-3;
+    }
+
+    .seat-map__seat {
+      width: syn.px-to-rem(32);
+      height: syn.px-to-rem(32);
+      border-radius: syn.$radius-sm;
+    }
+  }
+
   &__empty {
     margin: 0;
     padding: syn.$space-5;
