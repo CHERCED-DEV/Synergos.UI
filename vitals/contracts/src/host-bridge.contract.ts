@@ -33,11 +33,39 @@ export interface SynergosI18nBridge {
   t(key: string, fallback?: string): string;
 }
 
+/**
+ * Las variantes que el CMS publica hoy, en su casing LITERAL.
+ *
+ * El value que elige el editor es el `data-theme` del `<html>` es el nombre
+ * del bloque en `syn-tokens.css` — el mismo string, sin transformación
+ * (ADR 0101 del CMS). Por eso `silverGold` va en camelCase.
+ *
+ * Este contrato decía `"light" | "dark" | "silvergold"`: tres de las ocho, y
+ * la tercera todo-minúscula, una ortografía que no emite nadie. Un componente
+ * que ramificara por ese string no entraba nunca en la rama. El SCSS del
+ * repo (`_brand.scss`, `_tokens-bridge.scss`) siempre estuvo bien; el que
+ * mentía era este tipo.
+ *
+ * Unión abierta a propósito (`| (string & {})`): el CMS es el dueño de la
+ * lista, así que un tema nuevo allá no debe romper la compilación acá — pero
+ * el autocompletado sigue sugiriendo los ocho conocidos.
+ */
+export type SynergosThemeVariant =
+  | 'light'
+  | 'dark'
+  | 'silverGold'
+  | 'brand'
+  | 'eventsNight'
+  | 'terraLux'
+  | 'scholar'
+  | 'meridian'
+  | (string & {});
+
 export interface SynergosThemeBridge {
-  /** "light" | "dark" | "silvergold" — current. */
-  readonly variant: string;
-  /** All available variants. */
-  readonly available: readonly string[];
+  /** El `data-theme` activo, verbatim. Ver SynergosThemeVariant. */
+  readonly variant: SynergosThemeVariant;
+  /** Todas las variantes publicadas. `variant` SIEMPRE está dentro. */
+  readonly available: readonly SynergosThemeVariant[];
 }
 
 export interface SynergosBrandBridge {
