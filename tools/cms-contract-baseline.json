@@ -12,48 +12,48 @@
     "",
     "Contexto: esta lista se levantó el 2026-08-01, la primera vez que el",
     "validador corrió de verdad contra los dos repos. Hasta entonces salía 0 sin",
-    "validar nada cuando no encontraba el CMS, así que la deriva nunca se vio."
+    "validar nada cuando no encontraba el CMS, así que la deriva nunca se vio.",
+    "",
+    "Revision 2026-08-01 (2a): los cuatro de e2 conservan el desajuste pero ya no dejan la pantalla rota — tienen respaldo SSR. Los dos de e1 dejaron de ser deuda: son piezas que otro bundle embebe, no bloques de pagina (ADR 0126 del CMS)."
   ],
-
   "e1_registryAliasMissingFromCms": [
     {
       "alias": "elementSynPaxSelector",
-      "reason": "Elemento del vertical Viajes publicado al CDN sin su DocType. Un editor NO puede colocarlo: no existe en el backoffice. Falta decidir el schema (pax adultos/niños/infantes, límites por tarifa) antes de escribir el XML uSync.",
-      "owner": "CMS",
-      "action": "Autorar uSync/v9/ContentTypes/elementsynpaxselector.config"
+      "reason": "NO es deuda (ADR 0126 del CMS). No es un bloque de pagina: lo EMBEBE booking-wizard, que lo declara como dependencia en este mismo registry, lo pinta en su plantilla (booking-wizard.html:70) y normaliza la ocupacion que emite. Suelto en una pagina, elegir dos adultos y un nino no significa nada: quien busca disponibilidad con esa ocupacion es el wizard. El registry declara que PUBLICA el CDN, no que puede colocar un editor.",
+      "owner": "—",
+      "action": "Ninguna. Se cierra cuando el registry pueda declarar la intencion (embeddedBy / standalone:false) y el validador deje de compararlo."
     },
     {
       "alias": "elementSynSeatMap",
-      "reason": "Igual que el anterior, para Eventos. ADR 0110 modela el ticket firmado pero el mapa de asientos como CONTENIDO no está modelado — el propio commit de la rebanada Eventos lo deja escrito como el siguiente paso.",
-      "owner": "CMS",
-      "action": "Autorar el DocType cuando se modelen tiers y aforo como contenido"
+      "reason": "NO es deuda (ADR 0126 del CMS). La entrada original decia 'autorar el DocType cuando se modelen tiers y aforo como contenido'; eso ya paso (ADR 0117) y al ir a escribirlo la premisa resulto falsa. Lo EMBEBE el modulo eventos: le pasa la carga JSON (eventos.ts:430) y escucha su CustomEvent seatselect (eventos.ts:1075) para meter el asiento al carrito. Con DocType, un editor podria soltar un mapa sin evento detras y sin nadie escuchando el evento — un control que responde y no hace nada.",
+      "owner": "—",
+      "action": "Ninguna. Un plano del recinto informativo seria otro bloque, con su DocType y su contenido: uno que no emita seatselect."
     }
   ],
-
   "e2_cmsAliasMissingFromRegistry": [
     {
       "alias": "elementSynFaqSection",
-      "reason": "DocType + partial SynHost vivos, bundle inexistente. El editor SÍ puede colocarlo y el visitante ve el skeleton CDN-offline para siempre: el partial no pasa FallbackHtml, así que no hay SSR de respaldo.",
+      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
       "owner": "UI",
-      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+      "action": "Publicar el bundle. El respaldo SSR ya esta."
     },
     {
       "alias": "elementSynFeatureGrid",
-      "reason": "Mismo caso que faq-section: colocable en el backoffice, sin nada que hidrate.",
+      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
       "owner": "UI",
-      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+      "action": "Publicar el bundle. El respaldo SSR ya esta."
     },
     {
       "alias": "elementSynMediaText",
-      "reason": "Mismo caso. Es además el más barato de resolver por SSR — es media + texto, no necesita interactividad.",
+      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
       "owner": "UI",
-      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+      "action": "Publicar el bundle. El respaldo SSR ya esta."
     },
     {
       "alias": "elementSynTestimonialSection",
-      "reason": "Mismo caso.",
+      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
       "owner": "UI",
-      "action": "Publicar el bundle, o darle FallbackHtml SSR al partial"
+      "action": "Publicar el bundle. El respaldo SSR ya esta."
     }
   ]
 }
