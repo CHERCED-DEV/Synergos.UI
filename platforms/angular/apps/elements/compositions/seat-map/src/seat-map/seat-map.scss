@@ -23,6 +23,9 @@
   --sm-aisle-surface: var(--syn-color-neutral-100, #{syn.$color-neutral-100});
   --sm-legroom-border: var(--syn-color-success-500, #{syn.$color-success-500});
   --sm-legroom-surface: var(--syn-color-success-100, #{syn.$color-success-100});
+  // Fila de salida: tono de advertencia, porque conlleva requisitos (edad
+  // mínima, nada en el piso) y no solo comodidad.
+  --sm-exit-border: var(--syn-color-warning-500, #{syn.$color-warning-500});
 
   // Selected + occupied states.
   --sm-selected-surface: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
@@ -141,6 +144,13 @@
       background: var(--sm-legroom-surface);
     }
 
+    // La fila de salida casi siempre TAMBIÉN tiene espacio extra, así que no
+    // puede competir por el relleno: se distingue con un borde más marcado.
+    &--exit-row {
+      border-color: var(--sm-exit-border);
+      border-width: #{syn.px-to-rem(2)};
+    }
+
     &:hover:not(:disabled) {
       transform: translateY(#{syn.px-to-rem(-1)});
     }
@@ -230,6 +240,11 @@
       background: var(--sm-legroom-surface);
     }
 
+    &--exit-row {
+      border-color: var(--sm-exit-border);
+      border-width: #{syn.px-to-rem(2)};
+    }
+
     &--occupied {
       border-color: var(--sm-occupied-border);
       background: var(--sm-occupied-surface);
@@ -269,4 +284,28 @@
   .seat-map__seat:active:not(:disabled) {
     transform: none;
   }
+}
+
+// ── Encabezado de sección (clase de servicio) ────────────────────────────────
+// Solo aparece cuando la carga declara `serviceClass`; un mapa sin clases se ve
+// exactamente como antes.
+.seat-map__section {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-space-2, #{syn.$space-2});
+  margin: var(--syn-space-3, #{syn.$space-3}) 0 var(--syn-space-1, #{syn.$space-1});
+
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: #{syn.px-to-rem(1)} solid var(--syn-color-border-subtle, #{syn.$color-neutral-200});
+  }
+}
+
+.seat-map__section-label {
+  font-size: var(--syn-font-size-xs, #{syn.$font-size-xs});
+  font-weight: var(--syn-font-weight-semibold, #{syn.$font-weight-semibold});
+  letter-spacing: #{syn.px-to-rem(0.5)};
+  text-transform: uppercase;
+  color: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
 }

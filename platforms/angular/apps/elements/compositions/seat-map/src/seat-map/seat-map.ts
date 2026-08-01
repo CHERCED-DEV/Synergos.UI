@@ -52,15 +52,44 @@ export interface SeatMapLayoutConfig {
 export interface SeatRowConfig {
   readonly rowNumber?: number | string;
   readonly seats?: readonly SeatConfig[];
+  /**
+   * Clase de servicio de la fila: `first` | `business` | `premium` | `economy`
+   * en una cabina, o el nombre de la zona en un recinto. Vive en la FILA y no
+   * en la butaca porque las secciones de una cabina son rangos contiguos de
+   * filas — es donde el dato es verdad sin repetirse seis veces por fila.
+   *
+   * Vocabulario ABIERTO: cualquier cadena vale y se rotula tal cual si no es
+   * una de las conocidas. Una clase nueva de un proveedor no debe exigir
+   * republicar este bundle.
+   */
+  readonly serviceClass?: string;
 }
 
 export type SeatType = 'window' | 'aisle' | 'middle' | 'extra-legroom';
 
 export interface SeatConfig {
   readonly id?: string;
+  /**
+   * POSICIÓN de la butaca: `window` | `aisle` | `middle`.
+   *
+   * Acepta además el legado `extra-legroom`, que mezclaba posición con confort:
+   * cuando llega, se traduce a la feature del mismo nombre y la posición cae a
+   * `middle` — exactamente lo que hacía antes. Las cargas nuevas mandan la
+   * posición aquí y el confort en `features`, y así dejan de pisarse.
+   */
   readonly type?: string;
   readonly available?: boolean;
   readonly price?: number;
+  /**
+   * Rasgos que cambian lo que el pasajero recibe: `extra-legroom`, `exit-row`,
+   * `bulkhead`, `recline-limited`… Vocabulario ABIERTO — uno desconocido se
+   * pinta con su propio texto en vez de descartarse.
+   *
+   * `exit-row` se declara aparte de `extra-legroom` a propósito: una fila de
+   * salida tiene consecuencias regulatorias (edad mínima, nada en el piso) que
+   * "más espacio" no tiene.
+   */
+  readonly features?: readonly string[];
 }
 
 /** Internal, fully-resolved seat (always valid). */
@@ -73,12 +102,27 @@ export interface Seat {
   readonly column: number;
   /** Column letter (A, B, C …) derived from the column index. */
   readonly letter: string;
+  /** Rasgos normalizados (minúsculas, sin repetidos, sin vacíos). */
+  readonly features: readonly string[];
 }
 
 /** Internal, fully-resolved row. */
 export interface SeatRow {
   readonly rowNumber: string;
   readonly seats: readonly Seat[];
+  /** Clase de servicio normalizada, o null si la carga no la declara. */
+  readonly serviceClass: string | null;
+}
+
+/** Una fila con el encabezado de sección que le corresponde, si abre una. */
+export interface SeatRowView {
+  readonly row: SeatRow;
+  /**
+   * Rótulo de la sección que ESTA fila abre, o null si continúa la anterior.
+   * Se calcula al vuelo y no se guarda en la fila: es presentación, y una fila
+   * no sabe si es la primera de su tramo.
+   */
+  readonly sectionLabel: string | null;
 }
 
 /** Payload emitted on the `seatselect` CustomEvent. */
@@ -131,6 +175,60 @@ export function formatSeatPrice(amount: number, currency: string): string {
   }
 }
 
+/**
+ * Rasgos que este bundle sabe rotular. La lista es ABIERTA: uno que no esté
+ * aquí se pinta con su propio texto en vez de descartarse, porque el
+ * vocabulario lo pone el proveedor del mapa y no este componente.
+ */
+const FEATURE_LABELS: Readonly<Record<string, string>> = {
+  'extra-legroom': 'Espacio extra',
+  'exit-row': 'Fila de salida',
+  bulkhead: 'Mamparo',
+  'recline-limited': 'Reclinación limitada',
+};
+
+/**
+ * Clases de servicio conocidas. Misma regla: una desconocida se rotula tal cual
+ * en vez de descartarse.
+ */
+const SERVICE_CLASS_LABELS: Readonly<Record<string, string>> = {
+  first: 'Primera',
+  business: 'Ejecutiva',
+  premium: 'Premium',
+  economy: 'Económica',
+};
+
+/** Rótulo es-CO de un rasgo. Uno desconocido se muestra tal cual llegó. */
+export function seatFeatureLabel(feature: string): string {
+  return FEATURE_LABELS[feature] ?? feature;
+}
+
+/** Rótulo es-CO de una clase de servicio. Una desconocida se muestra tal cual. */
+export function serviceClassLabel(serviceClass: string): string {
+  return SERVICE_CLASS_LABELS[serviceClass] ?? serviceClass;
+}
+
+/**
+ * Normaliza la lista de rasgos: minúsculas, sin espacios, sin vacíos y sin
+ * repetidos, conservando el orden en que llegaron.
+ */
+function readFeatures(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const normalized = entry.trim().toLowerCase();
+    if (normalized !== '') {
+      seen.add(normalized);
+    }
+  }
+  return [...seen];
+}
+
 /** Human label for a seat type (es-CO), used in aria + the legend. */
 export function seatTypeLabel(type: SeatType): string {
   switch (type) {
@@ -181,7 +279,13 @@ function normalizeRow(entry: unknown, rowIndex: number): SeatRow | null {
       ? rowNumberRaw.trim()
       : String(readNumber(rowNumberRaw) ?? rowIndex + 1);
 
-  return { rowNumber, seats };
+  const serviceClassRaw = entry['serviceClass'];
+  const serviceClass =
+    typeof serviceClassRaw === 'string' && serviceClassRaw.trim() !== ''
+      ? serviceClassRaw.trim().toLowerCase()
+      : null;
+
+  return { rowNumber, seats, serviceClass };
 }
 
 function normalizeSeat(entry: unknown, seatIndex: number): Seat | null {
@@ -198,13 +302,25 @@ function normalizeSeat(entry: unknown, seatIndex: number): Seat | null {
   const priceRaw = readNumber(entry['price']);
   const price = priceRaw !== null && priceRaw > 0 ? priceRaw : 0;
 
+  // El legado mandaba `type: 'extra-legroom'`, que PISABA la posición. Se
+  // traduce a la feature del mismo nombre y la posición cae a 'middle' —
+  // exactamente lo que hacía antes, pero sin perder el rasgo.
+  const rawType = readSeatType(entry['type']);
+  const legacyLegroom = rawType === 'extra-legroom';
+
+  const features = readFeatures(entry['features']);
+  const merged = legacyLegroom && !features.includes('extra-legroom')
+    ? ['extra-legroom', ...features]
+    : features;
+
   return {
     id,
-    type: readSeatType(entry['type']),
+    type: legacyLegroom ? 'middle' : rawType,
     available: entry['available'] !== false,
     price,
     column,
     letter: columnLetter(column),
+    features: merged,
   };
 }
 
@@ -290,6 +406,44 @@ export class SeatMapElementComponent {
     ),
   );
 
+  /**
+   * Las filas con el encabezado de sección que abre cada una.
+   *
+   * El encabezado se emite cuando la clase de servicio CAMBIA respecto de la
+   * fila anterior, que es como una cabina se lee de verdad: tramos contiguos.
+   * Si la carga no declara ninguna clase, no se emite ni un encabezado y el
+   * mapa se ve exactamente como antes.
+   */
+  readonly rowViews = computed<readonly SeatRowView[]>(() => {
+    let previous: string | null = null;
+    return this.rows().map((row) => {
+      const opensSection = row.serviceClass !== null && row.serviceClass !== previous;
+      previous = row.serviceClass;
+      return {
+        row,
+        sectionLabel: opensSection ? serviceClassLabel(row.serviceClass!) : null,
+      };
+    });
+  });
+
+  /**
+   * Los rasgos PRESENTES en este mapa, para la leyenda.
+   *
+   * Se derivan del contenido y no de una lista fija: un mapa sin filas de
+   * salida no debe explicar qué es una fila de salida.
+   */
+  readonly presentFeatures = computed<readonly string[]>(() => {
+    const seen = new Set<string>();
+    for (const row of this.rows()) {
+      for (const seat of row.seats) {
+        for (const feature of seat.features) {
+          seen.add(feature);
+        }
+      }
+    }
+    return [...seen];
+  });
+
   /** Total price of the current selection. */
   readonly selectedTotal = computed(() => {
     const ids = new Set(this.selected());
@@ -358,6 +512,15 @@ export class SeatMapElementComponent {
       `Asiento ${row.rowNumber}${seat.letter}`,
       seatTypeLabel(seat.type),
     ];
+    // La clase de servicio va en el aria aunque el encabezado de sección ya la
+    // diga: quien navega con lector de pantalla salta de botón en botón y no
+    // necesariamente oyó el encabezado.
+    if (row.serviceClass !== null) {
+      parts.push(serviceClassLabel(row.serviceClass));
+    }
+    for (const feature of seat.features) {
+      parts.push(seatFeatureLabel(feature));
+    }
     if (seat.price > 0) {
       parts.push(this.priceLabel(seat));
     }
@@ -422,6 +585,20 @@ export class SeatMapElementComponent {
 
     event.preventDefault();
     this.focusSeat(targetRow.seats[nextSeat].id);
+  }
+
+  /** Si la butaca trae un rasgo. Lo usa la plantilla para las clases CSS. */
+  hasFeature(seat: Seat, feature: string): boolean {
+    return seat.features.includes(feature);
+  }
+
+  /** Rótulo es-CO de un rasgo, para la leyenda y el aria. */
+  featureLabel(feature: string): string {
+    return seatFeatureLabel(feature);
+  }
+
+  trackFeature(_index: number, feature: string): string {
+    return feature;
   }
 
   private focusSeat(seatId: string): void {
