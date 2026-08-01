@@ -45,7 +45,19 @@ import { fileURLToPath } from 'node:url';
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
 const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ROOT_CMS = resolve(ROOT_UI, '..', 'Synergos.CMS');
+
+// El CMS se busca, en orden: --cms-path=..., SYNERGOS_CMS_PATH, hermano.
+// Antes SOLO existía el hermano, así que en cualquier entorno que no fuera el
+// portátil del arquitecto —CI, contenedor— no lo encontraba y se saltaba.
+function resolveCmsRoot() {
+  const flag = process.argv.slice(2).find(a => a.startsWith('--cms-path='));
+  if (flag) return resolve(flag.slice('--cms-path='.length));
+  if (process.env.SYNERGOS_CMS_PATH) return resolve(process.env.SYNERGOS_CMS_PATH);
+  return resolve(ROOT_UI, '..', 'Synergos.CMS');
+}
+
+const ROOT_CMS      = resolveCmsRoot();
+const BASELINE_JSON = resolve(ROOT_UI, 'tools/cms-contract-baseline.json');
 
 const REGISTRY_JSON       = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
 const BLOCK_MAPPER_TS     = resolve(ROOT_UI,  'vitals/core/src/mappers/block.mapper.ts');
@@ -74,6 +86,15 @@ const USYNC_MACROS_CANDIDATES = [
 const args   = new Set(process.argv.slice(2));
 const strict = args.has('--strict');
 const json   = args.has('--json');
+
+// Un gate que no encuentra su entrada NO puede salir verde: eso es
+// exactamente cómo `contracts:validate` pasaba en CI sin comprobar nada.
+// Ahora la ausencia del CMS es un fallo, y quien la quiera tolerar lo pide
+// explícitamente (por ejemplo un `npm run build` local sin el hermano).
+const allowMissingCms = args.has('--allow-missing-cms');
+
+// Escotilla para inspeccionar la deuda completa, baseline incluida.
+const ignoreBaseline = args.has('--no-baseline');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -146,7 +167,13 @@ if (!USYNC_CONTENT) {
     '[validate-cms-contracts] No uSync ContentTypes directory was found.',
     'Checked paths:',
     ...USYNC_CONTENT_CANDIDATES.map((path) => `  - ${path}`),
-    'Skipping CMS cross-validation for this workspace snapshot.',
+    '',
+    'Apuntá al CMS con --cms-path=RUTA o SYNERGOS_CMS_PATH, o cloná el repo',
+    'como hermano. Si de verdad querés saltarte la validación cruzada (por',
+    'ejemplo un build local sin el CMS a mano), pasá --allow-missing-cms.',
+    allowMissingCms
+      ? 'Saltando la validación cruzada: --allow-missing-cms.'
+      : 'FALLO: un gate que no encuentra su entrada no puede pasar en verde.',
   ].join('\n');
 
   if (json) {
@@ -155,19 +182,21 @@ if (!USYNC_CONTENT) {
         {
           errors: { e1: [], e2: [] },
           warnings: { w0: [{ note: warning }] },
-          errorCount: 0,
-          warningCount: 1,
+          errorCount: allowMissingCms ? 0 : 1,
+          warningCount: allowMissingCms ? 1 : 0,
           skipped: true,
         },
         null,
         2,
       ),
     );
-  } else {
+  } else if (allowMissingCms) {
     console.warn(`${warning}\n`);
+  } else {
+    console.error(`${warning}\n`);
   }
 
-  process.exit(strict ? 1 : 0);
+  process.exit(allowMissingCms ? 0 : 1);
 }
 
 const registry = readJson(REGISTRY_JSON);
@@ -461,22 +490,74 @@ for (const entry of registry) {
   }
 }
 
+// ── Baseline ──────────────────────────────────────────────────────────────────
+//
+// La deuda ya conocida sale de la cuenta de errores pero NO de la salida: se
+// sigue imprimiendo como [BASELINE] en cada corrida. La idea es que el gate
+// pueda bloquear la deriva nueva sin estar rojo de forma permanente por la
+// vieja — un gate siempre rojo deja de leerse, y entonces no gatea nada.
+//
+// Una entrada del baseline que ya NO se corresponde con un desajuste vivo se
+// reporta como stale: significa que se arregló y hay que borrarla de la lista.
+
+const baseline = { e1: new Map(), e2: new Map() };
+
+if (!ignoreBaseline && existsSync(BASELINE_JSON)) {
+  const raw = readJson(BASELINE_JSON);
+  for (const e of raw.e1_registryAliasMissingFromCms ?? []) baseline.e1.set(e.alias, e);
+  for (const e of raw.e2_cmsAliasMissingFromRegistry ?? []) baseline.e2.set(e.alias, e);
+}
+
+const baselined = { e1: [], e2: [] };
+
+for (const key of ['e1', 'e2']) {
+  const kept = [];
+  for (const err of errors[key]) {
+    const known = baseline[key].get(err.alias);
+    if (known) baselined[key].push({ ...err, reason: known.reason, owner: known.owner });
+    else kept.push(err);
+  }
+  errors[key] = kept;
+}
+
+const staleBaseline = [
+  ...[...baseline.e1.keys()].filter(a => !baselined.e1.some(b => b.alias === a)),
+  ...[...baseline.e2.keys()].filter(a => !baselined.e2.some(b => b.alias === a)),
+];
+
 // ── Output ────────────────────────────────────────────────────────────────────
 
 const errorCount   = errors.e1.length + errors.e2.length;
 const warningCount = warnings.w1.length + warnings.w2.length + warnings.w3.length + warnings.w4.length + warnings.w5.length;
 
+const baselinedCount = baselined.e1.length + baselined.e2.length;
+
 if (json) {
-  console.log(JSON.stringify({ errors, warnings, errorCount, warningCount }, null, 2));
+  console.log(JSON.stringify(
+    { errors, warnings, baselined, staleBaseline, errorCount, warningCount }, null, 2));
 } else {
   console.log('\nSynergos CMS ↔ UI Contract Validator');
   console.log('─────────────────────────────────────');
+  console.log(`  CMS root:                ${ROOT_CMS}`);
   console.log(`  Registry entries:        ${registry.length}`);
   console.log(`  CMS ContentType aliases: ${cmsAliases.size}`);
   console.log(`  Macro aliases:           ${macroAliases.size}`);
   console.log(`  Block mapper aliases:    ${mapperAliases.size}`);
   console.log(`  Config field keys:       ${configFieldKeys.size}`);
   console.log();
+
+  if (baselinedCount > 0) {
+    console.log(`[BASELINE] Deuda conocida, no bloquea (${baselinedCount}) — tools/cms-contract-baseline.json:`);
+    for (const e of [...baselined.e1, ...baselined.e2])
+      console.log(`  · ${e.alias}  [${e.owner}]  ${e.reason}`);
+    console.log();
+  }
+
+  if (staleBaseline.length > 0) {
+    console.log(`[BASELINE STALE] Ya no hay desajuste — borralas del baseline (${staleBaseline.length}):`);
+    for (const a of staleBaseline) console.log(`  ✓ ${a}`);
+    console.log();
+  }
 
   if (errors.e1.length > 0) {
     console.log(`[E1] Registry aliases missing from CMS (${errors.e1.length}):`);
