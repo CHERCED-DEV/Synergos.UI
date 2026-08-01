@@ -15,6 +15,7 @@ import type {
   SynergosMemberBridge,
   SynergosBrandBridge,
   SynergosPageBridge,
+  SynergosThemeVariant,
 } from '@synergos/contracts';
 
 /** Resolve the global bridge. Returns null si no está poblado. */
@@ -60,8 +61,16 @@ export function getBrand(): SynergosBrandBridge {
   );
 }
 
-/** Theme variant ("light" | "dark" | "silvergold"). Default "light". */
-export function getTheme(): string {
+/**
+ * El `data-theme` activo, verbatim y con su casing literal — hoy uno de
+ * light / dark / silverGold / brand / eventsNight / terraLux / scholar /
+ * meridian. Default "light" cuando no hay host (standalone, Storybook).
+ *
+ * Ojo al comparar: es `silverGold` en camelCase, no `silvergold`. Si vas a
+ * ramificar, mejor `getTheme() === 'silverGold'` que un `toLowerCase()`, que
+ * te dejaría fuera de sync con el `[data-theme]` real del DOM.
+ */
+export function getTheme(): SynergosThemeVariant {
   return getBridge()?.theme?.variant ?? 'light';
 }
 
