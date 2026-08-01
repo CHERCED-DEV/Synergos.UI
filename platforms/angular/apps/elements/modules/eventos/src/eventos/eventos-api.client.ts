@@ -475,30 +475,58 @@ function readStatus(value: unknown): EventStatus {
   return 'on-sale';
 }
 
+/**
+ * Posiciones de pasillo del CMS. Acepta el arreglo (un widebody trae dos) y el
+ * número suelto de la forma anterior.
+ */
+function readAisleColumns(value: unknown): readonly number[] | number | undefined {
+  if (Array.isArray(value)) {
+    const columns = value.map(readNumber).filter((n) => n > 0);
+    return columns.length > 0 ? columns : undefined;
+  }
+  const single = readNumber(value);
+  return single > 0 ? single : undefined;
+}
+
+/**
+ * Traduce la carga `seatmap` del CMS.
+ *
+ * <b>Esto es un PASO A TRAVÉS, no una interpretación.</b> Este módulo no dibuja
+ * el mapa: se lo pasa a `<synergos-seat-map>`, que sí sabe. Lo que no se copie
+ * aquí se pierde en silencio — el mapa nunca ve la clave y no hay error en
+ * ningún lado. Por eso cada campo nuevo del contrato tiene que aparecer también
+ * en esta función.
+ */
 function readSeatMap(value: unknown): SeatMapPayload {
   if (!isRecord(value) || !Array.isArray(value['rows'])) {
     return { rows: [] };
   }
-  const aisle = readNumber(value['aisleAfterColumns']);
   return {
     rows: value['rows']
       .map((row) => (isRecord(row) ? row : null))
       .filter((row): row is Record<string, unknown> => row !== null)
       .map((row) => ({
         rowNumber: typeof row['rowNumber'] === 'number' ? row['rowNumber'] : readString(row['rowNumber']),
+        serviceClass: readString(row['serviceClass']) || undefined,
         seats: Array.isArray(row['seats'])
           ? row['seats']
               .map((seat) => (isRecord(seat) ? seat : null))
               .filter((seat): seat is Record<string, unknown> => seat !== null)
-              .map((seat) => ({
-                id: readString(seat['id']),
-                type: readString(seat['type']) || undefined,
-                available: seat['available'] !== false,
-                price: readNumber(seat['price']) || undefined,
-              }))
+              .map((seat) => {
+                const features = readStringArray(seat['features']);
+                return {
+                  id: readString(seat['id']),
+                  type: readString(seat['type']) || undefined,
+                  available: seat['available'] !== false,
+                  price: readNumber(seat['price']) || undefined,
+                  // Vacío se omite: el mapa trata la ausencia igual que la
+                  // lista vacía, y así no va una clave muerta por butaca.
+                  features: features.length > 0 ? features : undefined,
+                };
+              })
           : [],
       })),
-    aisleAfterColumns: aisle > 0 ? aisle : undefined,
+    aisleAfterColumns: readAisleColumns(value['aisleAfterColumns']),
   };
 }
 

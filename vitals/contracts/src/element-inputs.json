@@ -6171,7 +6171,7 @@
       "name": "seatmap",
       "type": "json",
       "required": false,
-      "description": "JSON describing the seat layout: rows, seats and their state. Optional per row: serviceClass (cabin section — first/business/premium/economy, or any provider vocabulary). Optional per seat: features[] (extra-legroom, exit-row, bulkhead, recline-limited, or any provider vocabulary). `type` carries the POSITION (window/aisle/middle); the legacy value extra-legroom is still accepted and folded into features."
+      "description": "JSON describing the seat layout: rows, seats and their state. Optional per row: serviceClass (cabin section — first/business/premium/economy, or any provider vocabulary). Optional per seat: features[] (extra-legroom, exit-row, bulkhead, recline-limited, or any provider vocabulary). `type` carries the POSITION (window/aisle/middle); the legacy value extra-legroom is still accepted and folded into features. aisleAfterColumns marks where the aisles go, by 1-based column index: an array ([3, 6] for a 3-3-3 widebody) or a single number for a one-aisle cabin. Omitted, the widest row is split in half."
     },
     {
       "name": "currency",
