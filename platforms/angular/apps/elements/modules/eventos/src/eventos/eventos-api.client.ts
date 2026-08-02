@@ -478,11 +478,16 @@ function readStatus(value: unknown): EventStatus {
 /**
  * Posiciones de pasillo del CMS. Acepta el arreglo (un widebody trae dos) y el
  * número suelto de la forma anterior.
+ *
+ * <b>Un arreglo vacío se conserva como vacío</b>, no se colapsa a `undefined`.
+ * En una FILA las dos cosas son distintas: `[]` es "esta fila no tiene ningún
+ * pasillo" —una sección de suites dentro de un widebody— y la ausencia es "usa
+ * los del mapa". Colapsarlas dejaría la sección corta dibujada con los pasillos
+ * de la larga, que es justo el defecto que esto viene a cerrar.
  */
 function readAisleColumns(value: unknown): readonly number[] | number | undefined {
   if (Array.isArray(value)) {
-    const columns = value.map(readNumber).filter((n) => n > 0);
-    return columns.length > 0 ? columns : undefined;
+    return value.map(readNumber).filter((n) => n > 0);
   }
   const single = readNumber(value);
   return single > 0 ? single : undefined;
@@ -508,6 +513,7 @@ function readSeatMap(value: unknown): SeatMapPayload {
       .map((row) => ({
         rowNumber: typeof row['rowNumber'] === 'number' ? row['rowNumber'] : readString(row['rowNumber']),
         serviceClass: readString(row['serviceClass']) || undefined,
+        aisleAfterColumns: readAisleColumns(row['aisleAfterColumns']),
         seats: Array.isArray(row['seats'])
           ? row['seats']
               .map((seat) => (isRecord(seat) ? seat : null))

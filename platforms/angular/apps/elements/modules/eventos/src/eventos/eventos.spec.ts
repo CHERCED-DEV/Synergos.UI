@@ -640,6 +640,8 @@ describe('EventosApiClient', () => {
                         {
                           rowNumber: 20,
                           serviceClass: 'business',
+                          // Su sección tiene otra distribución que el resto.
+                          aisleAfterColumns: [1],
                           seats: [
                             {
                               id: '20A',
@@ -666,6 +668,7 @@ describe('EventosApiClient', () => {
 
     expect(client.degraded).toBe(false);
     expect(seatmap.aisleAfterColumns).toEqual([3, 6]);
+    expect(seatmap.rows[0].aisleAfterColumns).toEqual([1]);
     expect(seatmap.rows[0].serviceClass).toBe('business');
     expect(seatmap.rows[0].seats[0].type).toBe('window');
     expect(seatmap.rows[0].seats[0].features).toEqual(['exit-row', 'extra-legroom']);
