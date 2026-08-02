@@ -72,6 +72,9 @@ export interface SeatMapLayoutConfig {
    *
    * Sin declarar, se parte la fila más ancha por la mitad — que acierta en un
    * narrowbody y en nada más. Por eso el proveedor debería declararlo siempre.
+   *
+   * Es el valor del MAPA: una fila que declara
+   * {@link SeatRowConfig.aisleAfterColumns} usa el suyo.
    */
   readonly aisleAfterColumns?: number | readonly number[];
 }
@@ -90,6 +93,17 @@ export interface SeatRowConfig {
    * republicar este bundle.
    */
   readonly serviceClass?: string;
+  /**
+   * Los pasillos de ESTA fila, cuando no son los del mapa.
+   *
+   * Una cabina real cambia de distribución entre secciones: la ejecutiva de un
+   * 787 es `1-2-1` y su turista `3-3-3`, y no hay un solo par de posiciones que
+   * sirva para las dos. Sin esto, una de las dos secciones se dibuja corrida.
+   *
+   * Sin declarar, la fila usa los del mapa — que es lo que hace toda cabina de
+   * una sola distribución, o sea casi todas.
+   */
+  readonly aisleAfterColumns?: number | readonly number[];
 }
 
 export type SeatType = 'window' | 'aisle' | 'middle' | 'extra-legroom';
@@ -139,6 +153,14 @@ export interface SeatRow {
   readonly seats: readonly Seat[];
   /** Clase de servicio normalizada, o null si la carga no la declara. */
   readonly serviceClass: string | null;
+  /**
+   * Los pasillos propios de la fila, o null para usar los del mapa.
+   *
+   * `null` y `[]` NO son lo mismo: `null` es "no dije nada, usa los del mapa";
+   * `[]` es "esta fila no tiene ningún pasillo", que es lo que declara una
+   * cabina de suites al frente de un widebody.
+   */
+  readonly aisles: readonly number[] | null;
 }
 
 /** Una fila con el encabezado de sección que le corresponde, si abre una. */
@@ -335,7 +357,15 @@ function normalizeRow(entry: unknown, rowIndex: number): SeatRow | null {
       ? serviceClassRaw.trim().toLowerCase()
       : null;
 
-  return { rowNumber, seats, serviceClass };
+  // La AUSENCIA de la clave (usa los del mapa) se distingue de un arreglo
+  // vacío (esta fila no tiene pasillos). readAisleColumns colapsa las dos en
+  // [], así que la diferencia se decide aquí, mirando si la clave vino.
+  const aisles =
+    entry['aisleAfterColumns'] === undefined || entry['aisleAfterColumns'] === null
+      ? null
+      : readAisleColumns(entry['aisleAfterColumns']);
+
+  return { rowNumber, seats, serviceClass, aisles };
 }
 
 function normalizeSeat(entry: unknown, seatIndex: number): Seat | null {
@@ -479,12 +509,15 @@ export class SeatMapElementComponent {
   readonly selected = signal<readonly string[]>([]);
 
   /**
-   * Los pasillos, por índice de columna 1-based y en orden ascendente. Vacío =
-   * ningún pasillo.
+   * Los pasillos del MAPA, por índice de columna 1-based y en orden ascendente.
+   * Vacío = ningún pasillo.
    *
    * Es un ARREGLO porque un widebody tiene dos: con un solo valor, un `3-3-3`
    * dibujaba el pasillo tras la C y nada entre F y G, y el bloque derecho se
    * soldaba al central.
+   *
+   * Una fila que declara los suyos —una sección con otra distribución— no lo
+   * usa. Ver {@link SeatRow.aisles}.
    */
   readonly aisleAfterColumns = signal<readonly number[]>([]);
 
@@ -590,17 +623,18 @@ export class SeatMapElementComponent {
   /**
    * Si va un pasillo DESPUÉS de esta butaca.
    *
-   * Nunca después de la última de la fila: ahí el hueco no separa nada y deja
-   * la fila descuadrada respecto de las demás. Importa desde que hay varios
-   * pasillos — una fila corta (una sección de suites al frente de una cabina
-   * `3-3-3`) alcanza la posición del segundo pasillo justo en su último
-   * asiento.
+   * La fila manda sobre el mapa cuando declara los suyos: una cabina cambia de
+   * distribución entre secciones —ejecutiva `1-2-1`, turista `3-3-3`— y no hay
+   * un solo par de posiciones que sirva para las dos.
+   *
+   * Nunca después de la última butaca de la fila: ahí el hueco no separa nada y
+   * deja la fila descuadrada respecto de las demás.
    */
   showAisleAfter(seat: Seat, row: SeatRow): boolean {
     if (seat.column >= row.seats.length) {
       return false;
     }
-    return this.aisleAfterColumns().includes(seat.column);
+    return (row.aisles ?? this.aisleAfterColumns()).includes(seat.column);
   }
 
   priceLabel(seat: Seat): string {

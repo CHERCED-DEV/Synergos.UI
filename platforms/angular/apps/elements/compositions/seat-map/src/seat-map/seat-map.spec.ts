@@ -377,6 +377,74 @@ describe('SeatMapElementComponent', () => {
     expect(aisleCount()).toBe(0);
   });
 
+  // ── Pasillos por FILA (cabina con dos distribuciones) ──────────────────────
+
+  /** Una fila suelta con `count` butacas y, si se da, sus propios pasillos. */
+  function row(rowNumber: number, count: number, aisleAfterColumns?: unknown) {
+    return {
+      rowNumber,
+      ...(aisleAfterColumns === undefined ? {} : { aisleAfterColumns }),
+      seats: Array.from({ length: count }, (_, i) => ({
+        id: `${rowNumber}-${i + 1}`,
+        type: 'middle',
+        available: true,
+      })),
+    };
+  }
+
+  function aislesInRow(index: number): number {
+    const rows = fixture.nativeElement.querySelectorAll('.seat-map__row');
+    return rows[index].querySelectorAll('.seat-map__aisle').length;
+  }
+
+  it('una cabina con DOS distribuciones dibuja cada sección con la suya', () => {
+    // Ejecutiva 1-2-1 sobre turista 3-3-3: es un 787 de verdad. Con una sola
+    // geometría, la sección corta salía corrida — el pasillo del mapa cae en
+    // medio del bloque central de las suites.
+    seedWith(
+      JSON.stringify({
+        aisleAfterColumns: [3, 6],
+        rows: [row(1, 4, [1, 3]), row(20, 9)],
+      }),
+    );
+
+    expect(aislesInRow(0)).toBe(2);
+    expect(aislesInRow(1)).toBe(2);
+    expect(component.rows()[0].aisles).toEqual([1, 3]);
+    // La fila que no declaró nada sigue con los del mapa.
+    expect(component.rows()[1].aisles).toBeNull();
+  });
+
+  it('una fila SIN pasillos propios se distingue de una que no declaró nada', () => {
+    // `[]` es "esta fila no tiene ningún pasillo" y `null` es "usa los del
+    // mapa". Colapsarlos dejaría sin forma de declarar una sección de butaca
+    // corrida dentro de una cabina que sí tiene pasillos.
+    seedWith(
+      JSON.stringify({
+        aisleAfterColumns: [3],
+        rows: [row(1, 6, []), row(2, 6)],
+      }),
+    );
+
+    expect(component.rows()[0].aisles).toEqual([]);
+    expect(aislesInRow(0)).toBe(0);
+    expect(aislesInRow(1)).toBe(1);
+  });
+
+  it('los pasillos de la fila también aceptan un número suelto y se sanean', () => {
+    seedWith(JSON.stringify({ rows: [row(1, 6, 2), row(2, 9, [6, '3', 0, 6])] }));
+
+    expect(component.rows()[0].aisles).toEqual([2]);
+    expect(component.rows()[1].aisles).toEqual([3, 6]);
+  });
+
+  it('la supresión del último pasillo también aplica a los de la fila', () => {
+    seedWith(JSON.stringify({ rows: [row(1, 4, [1, 4])] }));
+
+    // El 4 cae en la última butaca: colgaría del borde sin separar nada.
+    expect(aislesInRow(0)).toBe(1);
+  });
+
   // ── Apariencia (ADR 0127) ──────────────────────────────────────────────────
 
   it('la apariencia por defecto es la de antes de que existieran estos controles', () => {
