@@ -182,6 +182,11 @@ export interface SeatMapRow {
   readonly seats: readonly SeatMapSeat[];
   /** Clase de servicio de la fila. El mapa abre una sección cuando cambia. */
   readonly serviceClass?: string;
+  /**
+   * Los pasillos de ESTA fila, cuando su sección tiene otra distribución.
+   * Ausente usa los del mapa; `[]` declara una fila sin ningún pasillo.
+   */
+  readonly aisleAfterColumns?: number | readonly number[];
 }
 
 export interface SeatMapSeat {
