@@ -14,6 +14,11 @@ proceso escrito como prosa se olvida y uno que rompe el build se cumple.
 un comentario se arregla con la etiqueta `sin-ticket` en el PR. Exigir ticket para todo es lo que
 hace que la gente abra issues basura para saltar el gate.
 
+**Lo que el ticket garantiza es que la conversación pasó antes que el código. Nada más.** No es
+una autorización que haya que esperar por cada cosa que aparezca después, ni una unidad de
+trabajo que haya que respetar hasta el final: si al codificar la HU resulta ser otra cosa, eso se
+escribe en el ticket y se sigue.
+
 Cuatro tipos en `.github/ISSUE_TEMPLATE/`:
 
 - **🐛 Defecto** — y sobre todo *por qué los tests no lo vieron* y *qué mutación lo reproduce*.
@@ -21,9 +26,18 @@ Cuatro tipos en `.github/ISSUE_TEMPLATE/`:
 - **🔧 Mejora** — y *por qué ahora y no después*.
 - **🔍 Hallazgo** — encontré algo haciendo otra cosa.
 
-> **La regla que hace que no estorbe:** si encontrás algo mientras hacés otra cosa, **abrís un
-> Hallazgo y SEGUÍS con lo que estabas**. Un hallazgo no puede comerse la tarea; para eso existe
-> ese tipo, para soltarlo sin perderlo.
+> **La regla que hace que no estorbe:** lo que encontrás haciendo otra cosa se **anota y se
+> sigue**, por defecto en un **comentario del ticket que ya está abierto** — no en uno nuevo. Un
+> ticket nuevo es una espera nueva: alguien lo tiene que leer, refinar y aprobar.
+
+| | |
+|---|---|
+| **Comentario en el ticket abierto** | una dificultad · una decisión tomada sobre la marcha · algo que no cumpliste y por qué |
+| **Issue aparte** | otro puede tomarlo sin tocar lo tuyo · vive en otra área · se decidió NO hacerlo ahora y hay que poder encontrarlo en seis meses |
+
+> **Y el trabajo se termina igual.** Encontrar algo no autoriza a entregar a medias: sube el PR
+> completo con lo hallado anotado. Si de verdad hace falta un issue, se abre **después de subir,
+> no en vez de**.
 
 **Y lo que hace que el proyecto aprenda:** toda regla nueva se escribe en este fichero **en el
 mismo commit que la enseñó**. Una sesión nueva arranca fría — lo que no esté acá, no existe.
