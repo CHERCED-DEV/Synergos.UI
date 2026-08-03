@@ -36,6 +36,7 @@
     "release:svelte": "npm run build:svelte  && npm run contracts:validate && node tools/publish.mjs --framework svelte   --verify --clean",
     "release:vanilla": "npm run build:vanilla && npm run contracts:validate && node tools/publish.mjs --framework vanilla  --verify --clean",
     "// ─── PUBLISH (solo sube a CDN, sin build) ──────────────────────────────": "",
+    "build:cdn": "npm run build && node tools/build-cdn.mjs",
     "publish:cdn": "node tools/publish.mjs",
     "publish:runtime": "node tools/publish-runtime.mjs",
     "release:cdn": "node tools/release-cdn.mjs",

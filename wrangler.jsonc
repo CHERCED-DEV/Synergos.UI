@@ -1,0 +1,39 @@
+{
+  // ───────────────────────────────────────────────────────────────────────────
+  // Synergos.UI publicado como CDN.
+  //
+  // Este fichero es lo que faltaba: sin él, `npx wrangler deploy` no sabe qué
+  // desplegar y el build muere sin crear nada. (Pasó dos veces: una apuntando
+  // este flujo al repo del CMS —que además no puede correr en Workers, porque
+  // es ASP.NET— y otra acá antes de existir esta configuración.)
+  //
+  // Lo que se sirve son FICHEROS ESTÁTICOS. El Worker de `main` solo pone dos
+  // cabeceras; ver worker/index.js para por qué no alcanza un `_headers`.
+  // ───────────────────────────────────────────────────────────────────────────
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "synergos-ui",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-01",
+
+  "assets": {
+    // Lo produce `npm run build:cdn`. NO está versionado: se genera en cada
+    // despliegue a partir de las fuentes, que es lo que hace que el contenido
+    // publicado y el repo no puedan divergir.
+    "directory": "public",
+
+    // El binding es lo que deja al Worker pedirle el fichero a Cloudflare en
+    // vez de servirlo él. Sin esto habría que leer los ficheros a mano y se
+    // perdería el caché del borde.
+    "binding": "ASSETS",
+
+    // Un CDN no tiene páginas: lo que no existe es un 404, no un index.html
+    // disfrazado. Devolver 200 con HTML donde se pidió un .js es cómo se
+    // consiguen errores de sintaxis incomprensibles en el navegador del
+    // consumidor.
+    "not_found_handling": "404-page"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
