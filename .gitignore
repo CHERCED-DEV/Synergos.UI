@@ -49,3 +49,7 @@ __screenshots__/
 # compartidas al remoto para que las sesiones desde la tablet las tengan.
 .claude/*
 !.claude/skills/
+
+# El CDN publicado — se genera en cada despliegue (tools/build-cdn.mjs).
+# Versionarlo dejaria que el contenido publicado y las fuentes divergieran.
+public/
