@@ -4,6 +4,33 @@
 All code generation MUST follow `LLM.txt` in the workspace root.
 Architecture documentation is in `SynergosDocs/` — read before generating code.
 
+## El ticket va ANTES del código
+
+**Nada se codifica sin ticket.** Se abre, se discute, y recién ahí se escribe. Hay un gate de CI
+(`.github/workflows/ticket-first.yml`) que rechaza un PR sin issue referenciado — porque un
+proceso escrito como prosa se olvida y uno que rompe el build se cumple.
+
+**El umbral:** bloquea lo que cambia comportamiento, contrato o schema, y los defectos. Un typo o
+un comentario se arregla con la etiqueta `sin-ticket` en el PR. Exigir ticket para todo es lo que
+hace que la gente abra issues basura para saltar el gate.
+
+Cuatro tipos en `.github/ISSUE_TEMPLATE/`:
+
+- **🐛 Defecto** — y sobre todo *por qué los tests no lo vieron* y *qué mutación lo reproduce*.
+- **✨ Evolutivo** — qué problema del negocio, dónde vive, qué rechaza, cómo sabemos que quedó bien.
+- **🔧 Mejora** — y *por qué ahora y no después*.
+- **🔍 Hallazgo** — encontré algo haciendo otra cosa.
+
+> **La regla que hace que no estorbe:** si encontrás algo mientras hacés otra cosa, **abrís un
+> Hallazgo y SEGUÍS con lo que estabas**. Un hallazgo no puede comerse la tarea; para eso existe
+> ese tipo, para soltarlo sin perderlo.
+
+**Y lo que hace que el proyecto aprenda:** toda regla nueva se escribe en este fichero **en el
+mismo commit que la enseñó**. Una sesión nueva arranca fría — lo que no esté acá, no existe.
+
+Es el mismo proceso en los tres árboles: este repo, el CMS y las capacidades/orquestadores. Lo
+que cambia por repo es la definición de hecho (ver `.github/pull_request_template.md`).
+
 ## MCP Servers (auto-loaded from .mcp.json)
 - `angular-cli` → Angular CLI MCP (`npx @angular/cli mcp`)
 - `nx`          → Nx MCP (`npx nx-mcp@latest`)

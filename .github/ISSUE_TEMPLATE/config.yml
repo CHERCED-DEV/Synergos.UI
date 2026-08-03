@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contrato con el CMS
+    url: https://github.com/CHERCED-DEV/Synergos.CMS/tree/master/Synergos.CMS.Web/docs/contracts
+    about: La UI es la fuente de verdad del contrato (ADR 0083). Antes de abrir un ticket de drift, mirá los 5 contratos.
