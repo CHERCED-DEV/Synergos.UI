@@ -5,32 +5,36 @@ All code generation MUST follow `LLM.txt` in the workspace root.
 Architecture documentation is in `SynergosDocs/` — read the relevant doc before generating code.
 
 ## Stack
-- Multi-framework: Angular ~21 (main) + React, Svelte, Vanilla (POCs)
-- Nx 22.5.4 monorepo orchestrator
+- Angular ~21 — la única plataforma que publica elementos al CDN
+- Build propio: `platforms/angular/tools/build.mjs` (un NgtscProgram + un esbuild — **sin Nx**)
 - TypeScript ~5.9 (strict, private fields `#`)
 - SCSS with Sass modules (`@use` / `@forward`, never `@import`)
-- Vitest for unit tests
+- Tests Angular **suspendidos** (el runner era el executor de Nx; los `.spec.ts` siguen en el árbol — recablearlos a vitest es pendiente declarado)
+
+> **Historia multi-framework:** react/svelte/vanilla eran andamiaje sin elementos
+> publicados y se eliminaron. El contrato del CDN conserva `/angular/` en las rutas
+> y los tipos `FrameworkKind` siguen existiendo, así que otra plataforma puede
+> reintroducirse — hoy no existe ninguna.
 
 ## Project structure
 ```
-platforms/
-  angular/             → Main framework (Angular Elements catalog)
-    apps/elements/     → Web Components (primitives/, compositions/, modules/)
-    libs/core/         → Angular providers, tokens, interceptors, services
-    libs/shared/       → Angular design system (foundations/, components/, patterns/)
-    libs/core-assets/  → SCSS design tokens and mixins
-    libs/rendering/    → ElementRegistry, ComponentResolver, InputMapper
-    libs/integrations/ → CMS sync tooling
-    modules/           → Feature modules (Git submodules)
-  react/               → React POC (hero Web Component)
-  svelte/              → Svelte POC (hero Web Component)
-  vanilla/             → Vanilla JS POC (hero Web Component)
+platforms/angular/     → LA plataforma
+  apps/elements/       → Web Components (primitives/, compositions/, modules/)
+  apps/experiences/    → Experiencias interactivas ricas
+  libs/core/           → Angular providers, tokens, interceptors, services
+  libs/shared/         → Angular design system (foundations/, components/, patterns/)
+  libs/core-assets/    → SCSS design tokens and mixins
+  libs/rendering/      → ElementRegistry, ComponentResolver, InputMapper
+  libs/integrations/   → CMS sync tooling
+  modules/             → Feature modules (Git submodules)
+  tools/build.mjs      → El build unificado (--watch, --solo=a,b)
+  cdn.config.mjs       → Externals del CDN — contrato del navegador (antes en nx.json)
 vitals/
-  contracts/           → Pure TS interfaces (element taxonomy, CMS contracts)
+  contracts/           → Pure TS interfaces (element-registry.json, element-inputs.json)
   core/                → Agnostic utilities, mappers, bridge protocol
   core-assets/         → SCSS design tokens (source of truth)
-  shared/              → Constants, validators, test utilities
-tools/                 → Interactive CLI (npm run cli)
+tools/                 → build-runtime, build-cdn, publish, catalog, validadores
+public/                → Salida de build:cdn — lo sirve Cloudflare Workers (worker/ + wrangler.jsonc)
 SynergosDocs/          → Architecture docs
 LLM.txt                → Full AI governance rules
 ```
@@ -43,30 +47,50 @@ LLM.txt                → Full AI governance rules
 - Design system files: no `.component.ts` suffix → `button.ts`, `card.ts`, `data-grid.ts`
 - Feature files: `feature.container.ts`, `feature.store.ts`, `feature.api.ts`
 - Agnostic packages (vitals/) shared via tsconfig paths, NOT npm
-- Each framework has own node_modules/ — NO npm workspaces
-- vitals/ NEVER imports from any framework
+- `platforms/angular/` tiene su propio node_modules/ — la raíz NO es workspace de npm
+- vitals/ NUNCA importa de la plataforma
 - No circular dependencies
 
-## Scaffolding (run from platforms/angular/)
-```bash
-# New foundation
-npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
+## Crear un elemento nuevo (no hay generadores)
 
-# New component
-npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
+El build descubre los elementos por el **filesystem**: cada carpeta bajo
+`platforms/angular/apps/` con un `src/main.ts` es un elemento, y el nombre de la
+carpeta es su nombre en `dist/`. No hay `project.json` ni registro de build que tocar.
 
-# New pattern
-npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
+1. Carpeta: `platforms/angular/apps/elements/<tier>/<nombre>/src/`
+   (tier: `primitives/` | `compositions/` | `modules/`)
+2. `src/main.ts` con el patrón de bootstrap:
 
-# New feature module
-npx nx g @nx/angular:app appointments --directory=modules
+```ts
+import { createApplication } from '@angular/platform-browser';
+import { createCustomElement } from '@angular/elements';
+import { appConfig } from './app.config';
+import { MiElementoComponent } from './mi-elemento/mi-elemento';
+
+createApplication(appConfig).then((appRef) => {
+  if (!customElements.get('synergos-mi-elemento')) {
+    customElements.define(
+      'synergos-mi-elemento',
+      createCustomElement(MiElementoComponent, { injector: appRef.injector }),
+    );
+  }
+});
 ```
 
-## Build commands (from root)
+3. Entrada en `vitals/contracts/src/element-registry.json` — el campo `name`
+   gobierna la ruta CDN, no el tag.
+4. Sus inputs en `vitals/contracts/src/element-inputs.json`.
+5. `npm run build:angular` — el build lo encuentra solo. Para iterar:
+   `node tools/build.mjs --solo=mi-elemento` desde `platforms/angular/`.
+
+## Build commands
 ```bash
-npm run cli                    # Interactive CLI
-npm run build:angular          # Build all Angular elements
-npm run build:react            # Build React POC
-npm run build:svelte           # Build Svelte POC
-npm run build:vanilla          # Build Vanilla POC
+# Desde la raíz
+npm run build:angular          # Los 136 elementos + libs, AOT completo (~26 s)
+npm run build:runtime          # Runtime compartido (linker de Angular incluido)
+npm run build:cdn              # Arma public/ completo: vitals + elementos + runtime + registry + catálogo
+
+# Desde platforms/angular/
+npm run dev                    # build.mjs --watch (incremental, reusa el programa)
+node tools/build.mjs --solo=badge,hero   # solo esos elementos
 ```

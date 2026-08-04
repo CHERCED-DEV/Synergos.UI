@@ -24,7 +24,7 @@
 
 import { mkdir, stat, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 
@@ -36,6 +36,36 @@ const LIBS_DIST = path.join(NG_DIR, 'dist/libs');
 // esbuild lives in the Angular platform's node_modules
 const requireFromAngular = createRequire(path.join(NG_DIR, 'package.json'));
 const { build } = requireFromAngular('esbuild');
+
+// ── El linker de Angular ────────────────────────────────────────────────────
+// Los paquetes @angular/* de npm vienen en COMPILACIÓN PARCIAL (formato APF):
+// declaraciones ɵɵngDeclare* que alguien tiene que terminar de compilar. El
+// builder oficial les pasa este linker al empaquetar; este script no lo hacía,
+// y lo compensaba cargando el compilador JIT EN EL NAVEGADOR (los banners
+// `needsCompiler` + ng-compiler.js en cada página). Con el linker en build,
+// las declaraciones se resuelven acá y el navegador no compila nada.
+// (Y esto es lo que @babel/core hace en las devDeps del platform.)
+const { transformAsync } = requireFromAngular('@babel/core');
+const linkerBabel = await import(
+  pathToFileURL(path.join(NG_DIR, 'node_modules/@angular/compiler-cli/bundles/linker/babel/index.js')).href
+).then((m) => m.default ?? m.createEs2015LinkerPlugin ?? m);
+
+const linkerPlugin = {
+  name: 'angular-linker',
+  setup(b) {
+    b.onLoad({ filter: /node_modules.*\.m?js$/ }, async (args) => {
+      const code = await readFile(args.path, 'utf8');
+      // Solo los ficheros con declaraciones parciales pagan babel.
+      if (!code.includes('ɵɵngDeclare')) return null;
+      const out = await transformAsync(code, {
+        filename: args.path,
+        configFile: false, babelrc: false, compact: false,
+        plugins: [linkerBabel],
+      });
+      return { contents: out.code, loader: 'js' };
+    });
+  },
+};
 
 // ── CLI args ────────────────────────────────────────────────────────────────
 
@@ -62,13 +92,12 @@ function defaultBase(ngVersion) {
   return `__BASE_URL__/runtime/angular/${ngVersion}`;
 }
 
-// ── Angular externals (read from Angular nx.json — single source of truth) ──
+// ── Angular externals — la única fuente es el contrato del CDN ──────────────
+// (Vivían en el nx.json de Nx; con la purga tienen fichero propio, porque son
+// un contrato del navegador y no una opción de un build tool.)
 
-const NG_NX_JSON = JSON.parse(await readFile(path.join(NG_DIR, 'nx.json'), 'utf8'));
-const ALL_SG_EXTERNALS = NG_NX_JSON
-  .targetDefaults['@angular/build:application']
-  .configurations.production.externalDependencies;
-const ALL_ANGULAR_EXTERNALS = ALL_SG_EXTERNALS.filter(e => !e.startsWith('@synergos/'));
+const { EXTERNALS: ALL_SG_EXTERNALS, ANGULAR_EXTERNALS: ALL_ANGULAR_EXTERNALS } =
+  await import(pathToFileURL(path.join(NG_DIR, 'cdn.config.mjs')).href);
 
 // ── esbuild shared options ──────────────────────────────────────────────────
 
@@ -79,6 +108,12 @@ function esbuildOptions(outFile, dir, { needsCompiler = false } = {}) {
     minify: true,
     outfile: path.join(dir, outFile),
     absWorkingDir: NG_DIR,
+    // Producción DE VERDAD. Sin esto, el runtime publicado inicializaba
+    // ngDevMode y todo el CDN corría Angular en modo dev: contadores de
+    // perf y chequeos de debug en cada página, desde siempre. Lo destapó
+    // la purga al comparar tamaños contra el build nuevo.
+    define: { ngDevMode: 'false' },
+    plugins: [linkerPlugin],
     conditions: ['production', 'browser', 'module'],
     mainFields: ['browser', 'module', 'main'],
     // Inject compiler as static dependency so the browser loads it BEFORE
@@ -178,12 +213,14 @@ async function main() {
     await mkdir(dir, { recursive: true });
   }
 
-  const sgCoreEntry   = path.join(LIBS_DIST, 'core/fesm2022/synergos-core.mjs');
-  const sgSharedEntry = path.join(LIBS_DIST, 'shared/fesm2022/synergos-shared.mjs');
+  // Salen del build unificado (tools/build.mjs), ya en AOT COMPLETO: sin
+  // declaraciones parciales de ng-packagr, sin compilación JIT en el navegador.
+  const sgCoreEntry   = path.join(LIBS_DIST, 'sg-core.js');
+  const sgSharedEntry = path.join(LIBS_DIST, 'sg-shared.js');
 
   if (!isDryRun) {
-    await assertExists(sgCoreEntry,   '@synergos/core   fesm2022 — build Angular first');
-    await assertExists(sgSharedEntry, '@synergos/shared fesm2022 — build Angular first');
+    await assertExists(sgCoreEntry,   '@synergos/core — corré antes el build de Angular');
+    await assertExists(sgSharedEntry, '@synergos/shared — corré antes el build de Angular');
   }
 
   // ── Angular packages ───────────────────────────────────────────────────
@@ -196,12 +233,16 @@ async function main() {
   await buildModule('@angular/core/primitives/signals', ['@angular/core/primitives/signals'], ['@angular/core'],                                              'ng-primitives-signals.js', dir);
   await buildModule('@angular/core/primitives/event-dispatch', ['@angular/core/primitives/event-dispatch'], ['@angular/core'],                                'ng-primitives-event-dispatch.js', dir);
   await buildModule('@angular/compiler',          ['@angular/compiler'],          ['@angular/core'],                                                          'ng-compiler.js',         dir);
-  await buildModule('@angular/common',           ['@angular/common'],           ['@angular/core', '@angular/compiler'],                                      'ng-common.js',           dir, { needsCompiler: true });
-  await buildModule('@angular/common/http',      ['@angular/common/http'],      ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-common-http.js',      dir, { needsCompiler: true });
-  await buildModule('@angular/elements',         ['@angular/elements'],         ['@angular/core', '@angular/compiler'],                                      'ng-elements.js',         dir, { needsCompiler: true });
-  await buildModule('@angular/forms',            ['@angular/forms'],            ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-forms.js',            dir, { needsCompiler: true });
-  await buildModule('@angular/platform-browser', ['@angular/platform-browser'], ['@angular/core', '@angular/compiler', '@angular/common', '@angular/common/http'], 'ng-platform-browser.js', dir, { needsCompiler: true });
-  await buildModule('@angular/router',           ['@angular/router'],           ['@angular/core', '@angular/compiler', '@angular/common', '@angular/platform-browser'], 'ng-router.js', dir, { needsCompiler: true });
+  // Sin needsCompiler: los banners `import "@angular/compiler"` existían para
+  // que el navegador pudiera terminar de compilar las declaraciones parciales
+  // de ng-packagr. Con AOT completo en TODO el árbol no hay nada que compilar
+  // en runtime — y cada página se ahorra la descarga del compilador entero.
+  await buildModule('@angular/common',           ['@angular/common'],           ['@angular/core', '@angular/compiler'],                                      'ng-common.js',           dir);
+  await buildModule('@angular/common/http',      ['@angular/common/http'],      ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-common-http.js',      dir);
+  await buildModule('@angular/elements',         ['@angular/elements'],         ['@angular/core', '@angular/compiler'],                                      'ng-elements.js',         dir);
+  await buildModule('@angular/forms',            ['@angular/forms'],            ['@angular/core', '@angular/compiler', '@angular/common'],                    'ng-forms.js',            dir);
+  await buildModule('@angular/platform-browser', ['@angular/platform-browser'], ['@angular/core', '@angular/compiler', '@angular/common', '@angular/common/http'], 'ng-platform-browser.js', dir);
+  await buildModule('@angular/router',           ['@angular/router'],           ['@angular/core', '@angular/compiler', '@angular/common', '@angular/platform-browser'], 'ng-router.js', dir);
   await buildModule('rxjs',                      ['rxjs'],                      [],                                                                        'rxjs.js',                dir);
 
   // ── Synergos shared packages ───────────────────────────────────────────

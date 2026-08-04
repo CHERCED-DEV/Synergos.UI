@@ -28,7 +28,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 // ── Parse CLI or interactive ─────────────────────────────────────────────────
 
 let scope       = getArg('scope');
-let framework   = getArg('framework');
+let framework   = getArg('framework') || 'angular';   // la purga dejó una
 let elements    = getArg('element')?.split(',').map((e) => e.trim()) || [];
 let verify      = !process.argv.includes('--no-verify');
 let clean       = process.argv.includes('--clean');
@@ -46,28 +46,6 @@ if (!scope) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Clean env for running Nx in a nested (per-framework) workspace.
- *  Strips every NX_* var so the root workspace cannot bleed into the child. */
-function nxCleanEnv() {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([k]) => !k.startsWith('NX_')),
-  );
-  env.NX_DAEMON              = 'false';
-  env.NX_TUI                 = 'false';
-  env.NX_PLUGIN_NO_TIMEOUTS  = 'true';
-  return env;
-}
-
-/** Kill any Nx daemons that could interfere with nested workspace operations. */
-function stopNxDaemons(fw) {
-  const fwNx = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
-  const rootNx = resolve(ROOT, 'node_modules', 'nx', 'bin', 'nx.js');
-  const env = nxCleanEnv();
-  // Stop nested workspace daemon
-  try { execSync(`node "${fwNx}" daemon --stop`, { cwd: resolve(ROOT, 'platforms', fw), stdio: 'ignore', env, timeout: 10_000 }); } catch {}
-  // Stop root workspace daemon (VS Code Nx Console can start this)
-  try { execSync(`node "${rootNx}" daemon --stop`, { cwd: ROOT, stdio: 'ignore', env, timeout: 10_000 }); } catch {}
-}
 
 function run(cmd, label, cwd = ROOT, env) {
   console.log(`\n  ⚡ ${label}`);
@@ -86,37 +64,20 @@ function run(cmd, label, cwd = ROOT, env) {
   }
 }
 
-function nxBuild(fw, projectNames) {
-  const nxBin = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
-  const cwd   = resolve(ROOT, 'platforms', fw);
-
-  // When rebuildLibs is false, only build the element itself (deps come from cache)
-  const cacheFlag = rebuildLibs ? '--skip-nx-cache' : '';
-  const cmd = `node "${nxBin}" run-many --target=build --projects=${projectNames} --parallel=4 ${cacheFlag}`.trim();
-  return run(cmd, `Building ${projectNames.split(',').length} element(s) [${fw}]${rebuildLibs ? ' + libs' : ' (libs from cache)'}`, cwd, nxCleanEnv());
-}
-
-function resolveNxProjects(fw, elementList) {
-  const nxBin = resolve(ROOT, 'platforms', fw, 'node_modules', 'nx', 'bin', 'nx.js');
-  const cwd   = resolve(ROOT, 'platforms', fw);
-
-  const projects = [];
-  for (const el of elementList) {
-    try {
-      const result = execSync(
-        `node "${nxBin}" show projects --projects=tag:element:${el}`,
-        { cwd, encoding: 'utf-8', env: nxCleanEnv(), timeout: 30_000 },
-      ).trim();
-      if (result) projects.push(result);
-    } catch (err) {
-      if (err.killed) {
-        console.warn(`  ⚠ Timed out resolving "${el}" [${fw}] — is another Nx process running?`);
-      } else {
-        console.warn(`  ⚠ Could not resolve project for "${el}" [${fw}]`);
-      }
-    }
-  }
-  return projects;
+/**
+ * El build de una lista de elementos, con el motor de la purga.
+ *
+ * Antes esto resolvía tags de Nx a nombres de proyecto y lanzaba run-many
+ * (con parada de daemons incluida, porque Nx los dejaba colgados). Ahora el
+ * nombre del elemento ES el nombre de la carpeta —la misma fuente de verdad
+ * que usa tools/build.mjs— así que la resolución desaparece: se pasa la lista
+ * tal cual con --solo. Un elemento inexistente hace fallar el build con la
+ * lista de lo que no encontró, que es el mismo aviso que daba resolveNxProjects.
+ */
+function buildElements(elementList) {
+  const cwd = resolve(ROOT, 'platforms/angular');
+  const cmd = `node tools/build.mjs --solo=${elementList.join(',')}`;
+  return run(cmd, `Building ${elementList.length} element(s) [angular]`, cwd);
 }
 
 // ── Release flows ────────────────────────────────────────────────────────────
@@ -124,16 +85,8 @@ function resolveNxProjects(fw, elementList) {
 async function releaseElements() {
   console.log(`\n  📦 Releasing ${elements.length} element(s) [${framework}]...\n`);
 
-  // 0. Kill stale daemons that could interfere with nested workspace
-  stopNxDaemons(framework);
-
-  // 1. Build
-  const projects = resolveNxProjects(framework, elements);
-  if (!projects.length) {
-    console.error('  ❌ No Nx projects resolved. Aborting.');
-    process.exit(1);
-  }
-  if (!nxBuild(framework, projects.join(','))) return false;
+  // 1. Build — el nombre del elemento es el nombre de la carpeta; sin resolución
+  if (!buildElements(elements)) return false;
 
   // 2. Publish
   const publishFlags = [
@@ -194,7 +147,7 @@ async function releaseRuntime() {
 }
 
 async function releaseFull() {
-  console.log('\n  🔥 Full release — all frameworks + runtime...\n');
+  console.log('\n  🔥 Full release — Angular + runtime...\n');
   return run(`npm run release`, 'Full release pipeline');
 }
 

@@ -8,7 +8,7 @@ Cierra #
 
 <!-- Marcá solo lo que de verdad corriste. Un check falso es peor que uno vacío. -->
 
-- [ ] `nx build` del proyecto tocado, sin errores
+- [ ] `npm run build:angular` en verde (26s)
 - [ ] Si toqué `libs/shared` o el runtime: **`build:runtime` + `publish:runtime`** — un cambio
       compartido no se ve hasta republicar
 - [ ] Si cambia el contrato con el CMS: `npm run cms:validate` en verde (la UI es la fuente de

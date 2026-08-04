@@ -47,32 +47,32 @@ que cambia por repo es la definición de hecho (ver `.github/pull_request_templa
 
 ## MCP Servers (auto-loaded from .mcp.json)
 - `angular-cli` → Angular CLI MCP (`npx @angular/cli mcp`)
-- `nx`          → Nx MCP (`npx nx-mcp@latest`)
 
-## Key tools available via MCP
-- `angular-cli`: generate components, services, guards, pipes, directives, routes, specs
-- `nx`: workspace graph, affected projects, project details, run targets
 
 ## Workspace layout
 ```
-platforms/           → Framework workspaces (each with own node_modules)
-  angular/           → Angular ~21 (main framework, Elements catalog)
-  react/             → React POC (hero Web Component)
-  svelte/            → Svelte POC (hero Web Component)
-  vanilla/           → Vanilla JS POC (hero Web Component)
-vitals/              → Shared agnostic packages (consumed via tsconfig paths)
-  contracts/         → Pure TS interfaces (element taxonomy, CMS contracts)
-  core/              → Agnostic utilities, mappers, bridge protocol
-  core-assets/       → SCSS design tokens, mixins, typography
-  shared/            → Constants, validators, test utilities
-tools/               → Interactive CLI (`npm run cli`)
+platforms/angular/   → LA plataforma (Angular ~21, catálogo de 136 elementos)
+  apps/              → elementos + experiences; cada carpeta con src/main.ts ES un elemento
+  libs/              → core, shared (design system), core-assets, rendering, integrations
+  tools/build.mjs    → EL build: un NgtscProgram + un esbuild — 136 elementos en ~26 s
+  cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
+vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
+  contracts/         → interfaces puras (element-registry.json, element-inputs.json)
+  core/              → utilidades agnósticas, mappers, bridge protocol
+  core-assets/       → tokens SCSS, mixins, tipografía (fuente de verdad)
+tools/               → build-runtime, build-cdn, publish, catalog, validadores de contrato
+public/              → salida de `npm run build:cdn` — lo que sirve Cloudflare Workers
+worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 ```
 
 ## Quick reference
-- Stack: Angular ~21, Nx 22, TypeScript ~5.9, SCSS (Sass modules), Vitest
-- Multi-framework: Angular (main) + React, Svelte, Vanilla (POCs)
-- Agnostic aliases: `@synergos/contracts`, `@synergos/core`, `@synergos/shared`
-- Angular aliases: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
+- Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada uno de los 136 elementos era una "application" independiente (136 arranques del compilador, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento `/angular/` en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna.
+- Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
+- Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
+- Tests Angular: **suspendidos** (el runner era el executor de Nx). Los `.spec.ts` siguen en el árbol; recablearlos a vitest es un pendiente declarado. `npm test` corre solo los specs de la raíz (cdn-cache-policy).
+- Aliases agnósticos: `@synergos/contracts`, `@synergos/core` (desde `vitals/`)
+- Aliases Angular: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
 - Component prefix: `syn-`
 - State: `signal()` only — no BehaviorSubject, no Zone.js
 - Build output: CDN deployment (no local wwwroot)

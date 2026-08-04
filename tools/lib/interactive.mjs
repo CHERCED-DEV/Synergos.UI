@@ -87,9 +87,8 @@ function elementLabel(p) {
 export async function selectFramework({ includeAngular = true, includeVite = true, includeCancel = false } = {}) {
   const choices = [];
   if (includeAngular) choices.push({ name: 'Angular',  value: 'angular' });
-  if (includeVite)    choices.push({ name: 'React',    value: 'react' });
-  if (includeVite)    choices.push({ name: 'Svelte',   value: 'svelte' });
-  if (includeVite)    choices.push({ name: 'Vanilla',  value: 'vanilla' });
+  // react/svelte/vanilla se eliminaron en la purga de 2026-08-04 — la única
+  // plataforma con elementos publicados siempre fue Angular.
   if (includeCancel)  choices.push({ name: '← Cancelar', value: '__cancel' });
 
   return select({ message: '🏗  Framework:', choices });

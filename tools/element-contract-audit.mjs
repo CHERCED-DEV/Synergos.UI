@@ -113,21 +113,18 @@ function printSection(title, issues, formatter) {
 }
 
 /**
- * Scan every platform workspace for Nx projects tagged `element:<name>`.
+ * Los elementos implementados, leídos del FILESYSTEM de platforms/angular.
  *
- * The publish pipeline keys off this tag in two places, and both resolve it
- * against the registry `name`:
- *   - `publish-element.mjs` reads the tag, then looks up `registry[].name`.
- *   - `publish.mjs` walks the registry and resolves `dist/<name>`.
- *
- * So a project whose `element:` tag has no matching registry `name` cannot be
- * published by either path — and both fail quietly (one exits non-zero from a
- * per-project target, the other files it under "Skipped (not built)"). That is
- * how an element goes dormant without anyone noticing, so it is an error here.
+ * Antes esto escaneaba tags `element:<name>` en los project.json de Nx. Con la
+ * purga, la fuente de verdad es la misma que usa el build (tools/build.mjs):
+ * cada carpeta bajo apps/ con un src/main.ts es un elemento y su nombre de
+ * carpeta es su nombre en dist/. El check que protege sigue siendo el mismo —
+ * una implementación cuyo nombre no está en el registry no se puede publicar
+ * por ningún camino, y las dos rutas fallan en silencio.
  */
 function scanNxElementProjects() {
   const found = new Map();
-  const SKIP = new Set(['node_modules', 'dist', '.nx', '.angular', '.git']);
+  const APPS = resolve(PLATFORMS_DIR, 'angular/apps');
 
   function walk(dir) {
     let entries;
@@ -136,38 +133,19 @@ function scanNxElementProjects() {
     } catch {
       return;
     }
-
     for (const entry of entries) {
-      if (SKIP.has(entry.name)) continue;
+      if (!entry.isDirectory()) continue;
       const full = resolve(dir, entry.name);
-
-      if (entry.isDirectory()) {
-        walk(full);
-        continue;
-      }
-      if (entry.name !== 'project.json') continue;
-
-      let project;
       try {
-        project = JSON.parse(readFileSync(full, 'utf8'));
+        readFileSync(resolve(full, 'src/main.ts'));
+        found.set(entry.name, { project: entry.name, framework: 'angular', buildable: true });
       } catch {
-        continue;
+        walk(full);
       }
-
-      const tags = project.tags ?? [];
-      const elementTag = tags.find((tag) => tag.startsWith('element:'));
-      if (!elementTag) continue;
-
-      const frameworkTag = tags.find((tag) => tag.startsWith('framework:'));
-      found.set(elementTag.slice('element:'.length), {
-        project: project.name,
-        framework: frameworkTag ? frameworkTag.slice('framework:'.length) : 'unknown',
-        buildable: Boolean(project.targets?.build),
-      });
     }
   }
 
-  walk(PLATFORMS_DIR);
+  walk(APPS);
   return found;
 }
 

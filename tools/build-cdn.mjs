@@ -21,7 +21,7 @@
  *   node tools/build-cdn.mjs
  *   node tools/build-cdn.mjs --salida public
  */
-import { rm, mkdir, copyFile, access } from 'node:fs/promises';
+import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +36,34 @@ const log = (m) => console.log(`[build-cdn] ${m}`);
 async function existe(p) {
   try { await access(p); return true; } catch { return false; }
 }
+
+const correr = (cmd, args, cwd = ROOT) => execFileSync(cmd, args, { cwd, stdio: 'inherit' });
+
+// ── 0. Dependencias + compilación ────────────────────────────────────────────
+//
+// ESTE PASO EXISTE PORQUE EL BUILD NO ERA REPRODUCIBLE DESDE UN CLON LIMPIO.
+// La raíz NO es un workspace de npm: platforms/angular tiene su propio
+// package.json y su propio lock, y un `npm ci` en la raíz lo deja vacío. Lo
+// destapó el primer build en un entorno limpio (Cloudflare), no un test.
+//
+// (La lógica de "plataformas omitidas" que vivía acá murió con la purga de
+// 2026-08-04: react/svelte/vanilla ya no existen en el árbol.)
+const NG = join(ROOT, 'platforms/angular');
+if (await existe(join(NG, 'node_modules'))) {
+  log('platforms/angular: dependencias ya instaladas');
+} else {
+  log('platforms/angular: instalando dependencias…');
+  correr('npm', ['ci', '--no-audit', '--no-fund'], NG);
+}
+
+log('compilando contratos…');
+correr('npm', ['run', 'build:vitals']);
+
+log('compilando elementos (un compilador, un esbuild)…');
+correr('npm', ['run', 'build:angular']);
+
+log('compilando runtime (con el linker de Angular)…');
+correr('npm', ['run', 'build:runtime']);
 
 // ── 1. Empezar de cero ───────────────────────────────────────────────────────
 //

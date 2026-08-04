@@ -100,17 +100,22 @@ All design system components must be:
 
 ## Scaffolding a new component
 
-```bash
+No hay generadores (Nx se purgó): el fichero se crea a mano y el build lo
+compila porque `libs/shared` entra entero al programa del compilador
+(receta general: `AGENTS.md`).
+
+```
 # Foundation
-npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
+libs/shared/src/components/foundations/button/button.ts   (+ button.scss, button.spec.ts)
 
 # Component
-npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
+libs/shared/src/components/card/card.ts
 
 # Pattern
-npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
+libs/shared/src/components/patterns/data-grid/data-grid.ts
 ```
 
+Sin sufijo `.component.ts`, `standalone: true`, `OnPush`, prefijo `syn-`.
 Then export from `libs/shared/src/index.ts`:
 
 ```typescript
@@ -122,13 +127,10 @@ export { CardComponent }   from './components/patterns/card/card';
 
 ## SCSS System Setup
 
-Add to the project's `project.json` build options:
-
-```json
-"stylePreprocessorOptions": {
-  "includePaths": ["libs/core-assets/src"]
-}
-```
+No hay nada que configurar por componente: el build (`tools/build.mjs`) compila
+todo SCSS vía `transformResource` con los `includePaths` ya apuntando a los
+tokens (`vitals/core-assets/src`). Los `project.json` donde esto se configuraba
+murieron con la purga de Nx.
 
 Use in component SCSS:
 

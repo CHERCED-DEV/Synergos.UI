@@ -21,10 +21,14 @@ export const PACKAGE_JSON  = resolve(ROOT, 'package.json');
 
 // ── Framework constants ──────────────────────────────────────────────────────
 
-export const ALL_FRAMEWORKS = ['angular', 'react', 'svelte', 'vanilla'];
+export const ALL_FRAMEWORKS = ['angular'];
 
 // ── Platform dist configurations ─────────────────────────────────────────────
-// Where each framework puts its built bundles and how to resolve them.
+// Angular es LA plataforma (purga 2026-08-04). El array se conserva —no una
+// constante suelta— porque publish.mjs, manifest-gen y catalog iteran sobre él,
+// y porque el contrato del CDN conserva el segmento de framework en las rutas:
+// si algún día vuelve otra plataforma, se añade una entrada acá y el pipeline
+// entero la reconoce.
 
 export const PLATFORMS = [
   {
@@ -35,31 +39,6 @@ export const PLATFORMS = [
       resolve(ROOT, 'platforms/angular/dist', elementName, 'browser', 'main.js'),
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/angular/dist', elementName),
-  },
-  {
-    name: 'react',
-    distDir: resolve(ROOT, 'platforms/react/dist'),
-    // React/Svelte/Vanilla: dist/<element>/main.js
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/react/dist', elementName, 'main.js'),
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/react/dist', elementName),
-  },
-  {
-    name: 'svelte',
-    distDir: resolve(ROOT, 'platforms/svelte/dist'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/svelte/dist', elementName, 'main.js'),
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/svelte/dist', elementName),
-  },
-  {
-    name: 'vanilla',
-    distDir: resolve(ROOT, 'platforms/vanilla/dist'),
-    resolveBundlePath: (elementName) =>
-      resolve(ROOT, 'platforms/vanilla/dist', elementName, 'main.js'),
-    elementDistDir: (elementName) =>
-      resolve(ROOT, 'platforms/vanilla/dist', elementName),
   },
 ];
 
