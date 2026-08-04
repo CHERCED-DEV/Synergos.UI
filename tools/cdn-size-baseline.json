@@ -1,0 +1,701 @@
+{
+  "medido": "2026-08-04",
+  "nota": "Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs.",
+  "elementos": {
+    "academy": {
+      "tier": "module",
+      "bytes": 350537,
+      "gzip": 58293
+    },
+    "accordion": {
+      "tier": "composition",
+      "bytes": 17082,
+      "gzip": 4435
+    },
+    "alert-bar": {
+      "tier": "composition",
+      "bytes": 12983,
+      "gzip": 2912
+    },
+    "app-launcher": {
+      "tier": "module",
+      "bytes": 33145,
+      "gzip": 7236
+    },
+    "audio-player": {
+      "tier": "module",
+      "bytes": 28748,
+      "gzip": 5971
+    },
+    "autocomplete": {
+      "tier": "composition",
+      "bytes": 23848,
+      "gzip": 5996
+    },
+    "avatar": {
+      "tier": "primitive",
+      "bytes": 16059,
+      "gzip": 3894
+    },
+    "avatar-group": {
+      "tier": "composition",
+      "bytes": 19016,
+      "gzip": 4692
+    },
+    "avatar-upload": {
+      "tier": "composition",
+      "bytes": 28578,
+      "gzip": 6844
+    },
+    "badge": {
+      "tier": "primitive",
+      "bytes": 1845,
+      "gzip": 853
+    },
+    "badge-group": {
+      "tier": "composition",
+      "bytes": 23244,
+      "gzip": 5155
+    },
+    "banner": {
+      "tier": "module",
+      "bytes": 18963,
+      "gzip": 4041
+    },
+    "banner-slider": {
+      "tier": "module",
+      "bytes": 19011,
+      "gzip": 4420
+    },
+    "blogs": {
+      "tier": "module",
+      "bytes": 308720,
+      "gzip": 53423
+    },
+    "booking-wizard": {
+      "tier": "module",
+      "bytes": 46830,
+      "gzip": 9614
+    },
+    "breadcrumb": {
+      "tier": "primitive",
+      "bytes": 14326,
+      "gzip": 3338
+    },
+    "button-container": {
+      "tier": "primitive",
+      "bytes": 11902,
+      "gzip": 2662
+    },
+    "button-group": {
+      "tier": "composition",
+      "bytes": 13100,
+      "gzip": 3003
+    },
+    "calendar": {
+      "tier": "module",
+      "bytes": 24531,
+      "gzip": 6201
+    },
+    "card": {
+      "tier": "composition",
+      "bytes": 19155,
+      "gzip": 4098
+    },
+    "carousel": {
+      "tier": "module",
+      "bytes": 12965,
+      "gzip": 3216
+    },
+    "cart-item": {
+      "tier": "composition",
+      "bytes": 35445,
+      "gzip": 7131
+    },
+    "cart-summary": {
+      "tier": "module",
+      "bytes": 62476,
+      "gzip": 10875
+    },
+    "chart-bar": {
+      "tier": "module",
+      "bytes": 23727,
+      "gzip": 5235
+    },
+    "code-block": {
+      "tier": "composition",
+      "bytes": 20451,
+      "gzip": 4821
+    },
+    "color-picker": {
+      "tier": "composition",
+      "bytes": 21161,
+      "gzip": 5218
+    },
+    "color-swatches": {
+      "tier": "composition",
+      "bytes": 21311,
+      "gzip": 5214
+    },
+    "column": {
+      "tier": "primitive",
+      "bytes": 10833,
+      "gzip": 2356
+    },
+    "comments-widget": {
+      "tier": "module",
+      "bytes": 30857,
+      "gzip": 6749
+    },
+    "container-block": {
+      "tier": "primitive",
+      "bytes": 11474,
+      "gzip": 2386
+    },
+    "cookie-consent": {
+      "tier": "module",
+      "bytes": 26847,
+      "gzip": 5850
+    },
+    "copy-button": {
+      "tier": "primitive",
+      "bytes": 16831,
+      "gzip": 4017
+    },
+    "countdown-clock": {
+      "tier": "module",
+      "bytes": 17028,
+      "gzip": 4197
+    },
+    "countdown-digital": {
+      "tier": "module",
+      "bytes": 17101,
+      "gzip": 4127
+    },
+    "cta-group": {
+      "tier": "composition",
+      "bytes": 12704,
+      "gzip": 2585
+    },
+    "data-grid": {
+      "tier": "module",
+      "bytes": 28809,
+      "gzip": 6728
+    },
+    "data-table": {
+      "tier": "module",
+      "bytes": 18695,
+      "gzip": 4277
+    },
+    "date-picker": {
+      "tier": "composition",
+      "bytes": 28927,
+      "gzip": 6774
+    },
+    "divider": {
+      "tier": "primitive",
+      "bytes": 10359,
+      "gzip": 2219
+    },
+    "drawer": {
+      "tier": "module",
+      "bytes": 19739,
+      "gzip": 4757
+    },
+    "dropdown": {
+      "tier": "composition",
+      "bytes": 26315,
+      "gzip": 6004
+    },
+    "dropzone": {
+      "tier": "module",
+      "bytes": 29656,
+      "gzip": 6909
+    },
+    "ehr": {
+      "tier": "module",
+      "bytes": 288484,
+      "gzip": 51162
+    },
+    "eventos": {
+      "tier": "module",
+      "bytes": 338469,
+      "gzip": 56882
+    },
+    "external-widget": {
+      "tier": "composition",
+      "bytes": 11041,
+      "gzip": 2427
+    },
+    "eyebrow": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "fab": {
+      "tier": "primitive",
+      "bytes": 18452,
+      "gzip": 4337
+    },
+    "faq-item": {
+      "tier": "composition",
+      "bytes": 10807,
+      "gzip": 2298
+    },
+    "faq-section": {
+      "tier": "module",
+      "bytes": 13272,
+      "gzip": 3140
+    },
+    "feature-grid": {
+      "tier": "module",
+      "bytes": 16916,
+      "gzip": 3916
+    },
+    "feature-item": {
+      "tier": "composition",
+      "bytes": 14347,
+      "gzip": 3082
+    },
+    "feature-journey": {
+      "tier": "module",
+      "bytes": 22546,
+      "gzip": 5098
+    },
+    "file-uploader": {
+      "tier": "module",
+      "bytes": 27172,
+      "gzip": 6280
+    },
+    "form-stepper": {
+      "tier": "composition",
+      "bytes": 30158,
+      "gzip": 6079
+    },
+    "gallery-item": {
+      "tier": "composition",
+      "bytes": 13323,
+      "gzip": 2862
+    },
+    "gov": {
+      "tier": "module",
+      "bytes": 288953,
+      "gzip": 47665
+    },
+    "grid": {
+      "tier": "primitive",
+      "bytes": 11471,
+      "gzip": 2438
+    },
+    "heading": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "hero": {
+      "tier": "module",
+      "bytes": 16194,
+      "gzip": 3727
+    },
+    "hero-banner": {
+      "tier": "module",
+      "bytes": 18072,
+      "gzip": 4174
+    },
+    "icon-block": {
+      "tier": "primitive",
+      "bytes": 10544,
+      "gzip": 2251
+    },
+    "icon-label": {
+      "tier": "primitive",
+      "bytes": 16619,
+      "gzip": 3835
+    },
+    "iframe-embed": {
+      "tier": "composition",
+      "bytes": 11192,
+      "gzip": 2418
+    },
+    "image-block": {
+      "tier": "primitive",
+      "bytes": 11807,
+      "gzip": 2510
+    },
+    "info-block": {
+      "tier": "composition",
+      "bytes": 14183,
+      "gzip": 3134
+    },
+    "insight-explorer": {
+      "tier": "module",
+      "bytes": 24413,
+      "gzip": 5834
+    },
+    "key-value": {
+      "tier": "composition",
+      "bytes": 11631,
+      "gzip": 2477
+    },
+    "kpi-card": {
+      "tier": "module",
+      "bytes": 18848,
+      "gzip": 4618
+    },
+    "label": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "lightbox-gallery": {
+      "tier": "module",
+      "bytes": 24830,
+      "gzip": 5773
+    },
+    "link-block": {
+      "tier": "primitive",
+      "bytes": 11363,
+      "gzip": 2445
+    },
+    "livestream": {
+      "tier": "module",
+      "bytes": 20533,
+      "gzip": 5112
+    },
+    "logo-cloud": {
+      "tier": "module",
+      "bytes": 19003,
+      "gzip": 4346
+    },
+    "logo-item": {
+      "tier": "composition",
+      "bytes": 14161,
+      "gzip": 3011
+    },
+    "map-pin": {
+      "tier": "module",
+      "bytes": 21403,
+      "gzip": 5305
+    },
+    "media-explorer": {
+      "tier": "module",
+      "bytes": 29967,
+      "gzip": 6091
+    },
+    "media-text": {
+      "tier": "composition",
+      "bytes": 16134,
+      "gzip": 3491
+    },
+    "modal-trigger": {
+      "tier": "composition",
+      "bytes": 20272,
+      "gzip": 4685
+    },
+    "newsletter-form": {
+      "tier": "composition",
+      "bytes": 24779,
+      "gzip": 5564
+    },
+    "notification-center": {
+      "tier": "module",
+      "bytes": 27904,
+      "gzip": 6194
+    },
+    "notification-toast": {
+      "tier": "module",
+      "bytes": 20671,
+      "gzip": 5043
+    },
+    "oembed": {
+      "tier": "module",
+      "bytes": 16310,
+      "gzip": 4126
+    },
+    "otp-input": {
+      "tier": "composition",
+      "bytes": 17171,
+      "gzip": 4390
+    },
+    "pagination": {
+      "tier": "composition",
+      "bytes": 20918,
+      "gzip": 4966
+    },
+    "paragraph": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "pax-selector": {
+      "tier": "composition",
+      "bytes": 30184,
+      "gzip": 6011
+    },
+    "poll": {
+      "tier": "module",
+      "bytes": 23037,
+      "gzip": 5461
+    },
+    "popover": {
+      "tier": "primitive",
+      "bytes": 20041,
+      "gzip": 4635
+    },
+    "price-display": {
+      "tier": "primitive",
+      "bytes": 16185,
+      "gzip": 3190
+    },
+    "product-card": {
+      "tier": "composition",
+      "bytes": 32859,
+      "gzip": 7072
+    },
+    "product-detail": {
+      "tier": "module",
+      "bytes": 90463,
+      "gzip": 13764
+    },
+    "product-grid": {
+      "tier": "module",
+      "bytes": 44660,
+      "gzip": 8632
+    },
+    "progress-bar": {
+      "tier": "primitive",
+      "bytes": 15061,
+      "gzip": 3485
+    },
+    "qr-code": {
+      "tier": "primitive",
+      "bytes": 19723,
+      "gzip": 5899
+    },
+    "quantity-selector": {
+      "tier": "primitive",
+      "bytes": 16862,
+      "gzip": 3911
+    },
+    "quote": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "quote-animated": {
+      "tier": "module",
+      "bytes": 22763,
+      "gzip": 5207
+    },
+    "range-slider": {
+      "tier": "composition",
+      "bytes": 20401,
+      "gzip": 4792
+    },
+    "rating-stars": {
+      "tier": "composition",
+      "bytes": 19060,
+      "gzip": 4617
+    },
+    "realty": {
+      "tier": "module",
+      "bytes": 349920,
+      "gzip": 59160
+    },
+    "rich-text": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "rich-tooltip": {
+      "tier": "composition",
+      "bytes": 21244,
+      "gzip": 4487
+    },
+    "script-embed": {
+      "tier": "module",
+      "bytes": 3276,
+      "gzip": 1271
+    },
+    "scroll-top": {
+      "tier": "primitive",
+      "bytes": 14282,
+      "gzip": 3510
+    },
+    "search-box": {
+      "tier": "composition",
+      "bytes": 22282,
+      "gzip": 5178
+    },
+    "seat-map": {
+      "tier": "composition",
+      "bytes": 30980,
+      "gzip": 7327
+    },
+    "section": {
+      "tier": "module",
+      "bytes": 15089,
+      "gzip": 3277
+    },
+    "select-multi": {
+      "tier": "composition",
+      "bytes": 27782,
+      "gzip": 6215
+    },
+    "seller": {
+      "tier": "module",
+      "bytes": 138576,
+      "gzip": 25786
+    },
+    "separator": {
+      "tier": "primitive",
+      "bytes": 12937,
+      "gzip": 2810
+    },
+    "share-bar": {
+      "tier": "composition",
+      "bytes": 19106,
+      "gzip": 5171
+    },
+    "signature-pad": {
+      "tier": "composition",
+      "bytes": 21597,
+      "gzip": 5113
+    },
+    "skeleton": {
+      "tier": "primitive",
+      "bytes": 14239,
+      "gzip": 3377
+    },
+    "social-proof": {
+      "tier": "composition",
+      "bytes": 17186,
+      "gzip": 4095
+    },
+    "social-share": {
+      "tier": "composition",
+      "bytes": 11993,
+      "gzip": 2808
+    },
+    "spacer": {
+      "tier": "primitive",
+      "bytes": 1972,
+      "gzip": 928
+    },
+    "splitter": {
+      "tier": "composition",
+      "bytes": 18555,
+      "gzip": 4281
+    },
+    "stack": {
+      "tier": "primitive",
+      "bytes": 11646,
+      "gzip": 2438
+    },
+    "stat-ticker": {
+      "tier": "primitive",
+      "bytes": 13260,
+      "gzip": 3124
+    },
+    "stepper": {
+      "tier": "composition",
+      "bytes": 22385,
+      "gzip": 5282
+    },
+    "storefront": {
+      "tier": "module",
+      "bytes": 269455,
+      "gzip": 45061
+    },
+    "tab-group": {
+      "tier": "module",
+      "bytes": 14778,
+      "gzip": 3350
+    },
+    "tabs": {
+      "tier": "composition",
+      "bytes": 18047,
+      "gzip": 4430
+    },
+    "tag": {
+      "tier": "primitive",
+      "bytes": 16178,
+      "gzip": 3692
+    },
+    "testimonial-carousel": {
+      "tier": "module",
+      "bytes": 26599,
+      "gzip": 5998
+    },
+    "testimonial-item": {
+      "tier": "composition",
+      "bytes": 15323,
+      "gzip": 3320
+    },
+    "testimonial-section": {
+      "tier": "module",
+      "bytes": 16744,
+      "gzip": 3932
+    },
+    "text-block": {
+      "tier": "primitive",
+      "bytes": 12354,
+      "gzip": 2663
+    },
+    "timeline": {
+      "tier": "module",
+      "bytes": 15887,
+      "gzip": 3581
+    },
+    "timeline-horizontal": {
+      "tier": "composition",
+      "bytes": 17388,
+      "gzip": 4006
+    },
+    "timeline-item": {
+      "tier": "composition",
+      "bytes": 13631,
+      "gzip": 2941
+    },
+    "toast-center": {
+      "tier": "module",
+      "bytes": 25186,
+      "gzip": 6013
+    },
+    "tooltip": {
+      "tier": "primitive",
+      "bytes": 16167,
+      "gzip": 3640
+    },
+    "tour-guide": {
+      "tier": "module",
+      "bytes": 23731,
+      "gzip": 5534
+    },
+    "travel-shell": {
+      "tier": "module",
+      "bytes": 259700,
+      "gzip": 44580
+    },
+    "tree-view": {
+      "tier": "module",
+      "bytes": 20272,
+      "gzip": 5035
+    },
+    "variant-picker": {
+      "tier": "composition",
+      "bytes": 22067,
+      "gzip": 4834
+    },
+    "video-block": {
+      "tier": "primitive",
+      "bytes": 12297,
+      "gzip": 2681
+    },
+    "video-player": {
+      "tier": "module",
+      "bytes": 28934,
+      "gzip": 5990
+    }
+  }
+}
