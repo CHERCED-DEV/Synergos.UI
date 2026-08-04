@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+} from '@angular/core';
+import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import type { ComponentTranslations } from '@synergos/contracts';
 import {
   BadgeComponent,
@@ -7,8 +15,10 @@ import {
   coerceStringRecordInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
+  isDirectVideoUrl,
   omitUndefinedProperties,
   resolveConfigValue,
+  resolveEmbedSrc,
   resolveHeadingTone,
 } from '@synergos/shared';
 import { MediaState } from '../application/media.state';
@@ -44,6 +54,7 @@ function sanitizeMediaExplorerConfig(
 })
 export class MediaExplorerComponent {
   readonly #state = new MediaState();
+  readonly #sanitizer = inject(DomSanitizer);
 
   readonly config = input<Partial<MediaExplorerConfig> | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<MediaExplorerConfig>(sanitizeMediaExplorerConfig),
@@ -99,6 +110,58 @@ export class MediaExplorerComponent {
       if (cat) filterByCategory(this.#state, cat);
     }
   });
+
+  /**
+   * Qué se puede pintar con el `videoUrl` del item seleccionado.
+   *
+   * ─────────────────────────────────────────────────────────────────────────
+   * ESTO EXISTE PORQUE LA PLANTILLA ATABA `[src]="current.videoUrl"` A UN
+   * <iframe>, Y ESO REVENTABA EL ELEMENTO ENTERO (issue #10).
+   *
+   * Angular trata el `src` de un <iframe> como *resource URL context*: exige un
+   * `SafeResourceUrl` y ante un string lanza NG0904 **durante la detección de
+   * cambios**, así que no fallaba el vídeo — se caía el render completo.
+   *
+   * `videoUrl` llega del input `items`, que es un JSON que escribe el editor y
+   * que el adapter parsea con un `as MediaItem[]` a pelo. O sea: texto sin
+   * validar. Por eso NO vale envolverlo en `bypassSecurityTrustResourceUrl` y
+   * seguir — eso apaga el error y deja pasar un `javascript:…` a un iframe con
+   * `allow="clipboard-write; encrypted-media"`.
+   * ─────────────────────────────────────────────────────────────────────────
+   *
+   * Tres destinos, y cada uno resuelve su seguridad de forma distinta:
+   *
+   *   `embed` → proveedor reconocido. La url se REEMITE sobre un origen
+   *             literal (ver `resolveEmbedSrc`), y sólo por eso el bypass de
+   *             `safeEmbedSrc` es legítimo.
+   *   `file`  → fichero servido directo. Va a <video>, que para Angular es
+   *             *URL context* y se sanea solo: sin bypass y sin riesgo.
+   *   `none`  → no se pinta reproductor. Se cae al póster, que ya existía.
+   *
+   * El `none` no es un caso de error: es lo que pasa con cualquier url que no
+   * sepamos embeber, y el elemento se ve bien igual.
+   */
+  readonly videoKind = computed<'embed' | 'file' | 'none'>(() => {
+    const url = this.selectedItem()?.videoUrl ?? '';
+    if (resolveEmbedSrc(url).embedSrc) return 'embed';
+    if (isDirectVideoUrl(url)) return 'file';
+    return 'none';
+  });
+
+  /** La url reconstruida, envuelta para poder atarla al `src` del iframe. */
+  readonly safeEmbedSrc = computed<SafeResourceUrl>(() =>
+    this.#sanitizer.bypassSecurityTrustResourceUrl(
+      resolveEmbedSrc(this.selectedItem()?.videoUrl ?? '').embedSrc,
+    ),
+  );
+
+  /**
+   * La url del fichero, cruda a propósito.
+   *
+   * No se envuelve: Angular sanea `video[src]` por su cuenta, y envolverla
+   * sería apagar justo la comprobación que acá sí queremos que corra.
+   */
+  readonly fileSrc = computed(() => this.selectedItem()?.videoUrl ?? '');
 
   select(id: string): void { selectMedia(this.#state, id); }
   play(): void { activatePlayer(this.#state); }

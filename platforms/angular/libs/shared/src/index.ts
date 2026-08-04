@@ -1,6 +1,7 @@
 // Public API Surface of @synergos/shared
 export * from './utils/class-names.util';
 export * from './utils/config-input.util';
+export * from './utils/embed-url.util';
 export * from './utils/form.util';
 export * from './utils/monogram.util';
 export { ClickOutsideDirective } from './directives/click-outside.directive';
