@@ -1,7 +1,7 @@
 <div
   class="media-explorer"
   [class]="hostClasses()"
-  [id]="elementId() || null"
+  [attr.id]="elementId() || null"
 >
   @if (title()) {
     <div class="media-explorer__header">

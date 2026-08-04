@@ -50,7 +50,7 @@
               class="banner-slider__cta-link"
               [href]="slide.ctaUrl"
               [target]="slide.ctaTarget"
-              [rel]="resolvedRel(slide) || null"
+              [attr.rel]="resolvedRel(slide) || null"
             >
               <syn-button [label]="slide.ctaLabel" variant="solid" size="md" />
             </a>

@@ -1,7 +1,7 @@
 <div
   class="insight-explorer"
   [class]="hostClasses()"
-  [id]="elementId() || null"
+  [attr.id]="elementId() || null"
 >
   @if (title()) {
     <div class="insight-explorer__header">
