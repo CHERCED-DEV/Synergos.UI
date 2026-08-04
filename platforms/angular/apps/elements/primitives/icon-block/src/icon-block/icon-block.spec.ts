@@ -21,7 +21,7 @@ describe('IconBlockComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  // CUARENTENA #1 — DESACUERDO REAL: el spec dice decorativo por defecto (role=presentation); el componente resuelve ariaHidden a false, o sea role=img. Decidir cual manda es una decision de accesibilidad, no un arreglo de test.
+  // CUARENTENA #12 — DESACUERDO REAL: el spec dice decorativo por defecto (role=presentation); el componente resuelve ariaHidden a false, o sea role=img. Decidir cual manda es una decision de accesibilidad, no un arreglo de test.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should be decorative by default (role=presentation, aria-hidden=true)', async () => {
     fixture.detectChanges();

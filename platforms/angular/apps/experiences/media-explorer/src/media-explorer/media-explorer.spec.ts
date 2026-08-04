@@ -113,7 +113,7 @@ describe('MediaExplorerComponent', () => {
     expect(poster).toBeTruthy();
   });
 
-  // CUARENTENA #1 — DEFECTO REAL, no rot: [src]="current.videoUrl" es un string crudo en un <iframe> y Angular lanza NG0904. livestream y oembed lo hacen bien con bypassSecurityTrustResourceUrl.
+  // CUARENTENA #10 — DEFECTO REAL, no rot: [src]="current.videoUrl" es un string crudo en un <iframe> y Angular lanza NG0904. livestream y oembed lo hacen bien con bypassSecurityTrustResourceUrl.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should activate iframe on play button click', async () => {
     fixture.componentRef.setInput('items', JSON.stringify(SAMPLE_ITEMS));
@@ -165,7 +165,7 @@ describe('MediaExplorerComponent', () => {
     expect(component.items()[0].id).toBe('demo-2');
   });
 
-  // CUARENTENA #1 — DEFECTO REAL, no rot: [src]="current.videoUrl" es un string crudo en un <iframe> y Angular lanza NG0904. livestream y oembed lo hacen bien con bypassSecurityTrustResourceUrl.
+  // CUARENTENA #13 — rot: el spec busca .media-explorer__panel-title, que el template ya no emite.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should render title when provided', async () => {
     fixture.componentRef.setInput('title', 'Galería de demos');

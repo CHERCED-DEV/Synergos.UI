@@ -41,7 +41,7 @@ describe('FeatureJourneyComponent', () => {
     expect(steps[1]?.classList).not.toContain('feature-journey__step--active');
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should display active step content in panel', async () => {
     fixture.detectChanges();
@@ -51,7 +51,7 @@ describe('FeatureJourneyComponent', () => {
     expect(title?.textContent?.trim()).toBe(JOURNEY_STEPS[0].title);
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should advance to next step on next button click', async () => {
     fixture.detectChanges();
@@ -67,7 +67,7 @@ describe('FeatureJourneyComponent', () => {
     expect(title?.textContent?.trim()).toBe(JOURNEY_STEPS[1].title);
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should disable prev button on first step', async () => {
     fixture.detectChanges();
@@ -77,7 +77,7 @@ describe('FeatureJourneyComponent', () => {
     expect(prevBtn?.disabled).toBe(true);
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should disable next button on last step', async () => {
     fixture.componentRef.setInput('variant', 'default');
@@ -108,7 +108,7 @@ describe('FeatureJourneyComponent', () => {
     expect(steps[2]?.classList).toContain('feature-journey__step--active');
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should mark previous steps as completed when advancing', async () => {
     fixture.detectChanges();
@@ -134,7 +134,7 @@ describe('FeatureJourneyComponent', () => {
     expect(counter?.textContent?.trim()).toBe(`1 / ${JOURNEY_STEPS.length}`);
   });
 
-  // CUARENTENA #1 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
+  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should render title when provided', async () => {
     fixture.componentRef.setInput('title', 'Cómo funciona Synergos');

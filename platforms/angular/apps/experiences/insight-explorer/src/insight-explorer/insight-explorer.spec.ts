@@ -38,7 +38,7 @@ describe('InsightExplorerComponent', () => {
     expect(cards[1]?.classList).not.toContain('insight-explorer__card--active');
   });
 
-  // CUARENTENA #1 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
+  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should display selected item details in panel', async () => {
     await fixture.whenStable();
@@ -46,7 +46,7 @@ describe('InsightExplorerComponent', () => {
     expect(title?.textContent?.trim()).toBe(DEFAULT_INSIGHTS[0].title);
   });
 
-  // CUARENTENA #1 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
+  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should select a different item on card click', async () => {
     await fixture.whenStable();
@@ -60,7 +60,7 @@ describe('InsightExplorerComponent', () => {
     expect(title?.textContent?.trim()).toBe(DEFAULT_INSIGHTS[2].title);
   });
 
-  // CUARENTENA #1 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
+  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should mark clicked card as active', async () => {
     await fixture.whenStable();
@@ -85,7 +85,7 @@ describe('InsightExplorerComponent', () => {
     expect(features.length).toBe(DEFAULT_INSIGHTS[0].features.length);
   });
 
-  // CUARENTENA #1 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
+  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
   // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
   it.skip('should render title when provided', async () => {
     fixture.componentRef.setInput('title', '¿Qué incluye?');
