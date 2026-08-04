@@ -21,6 +21,31 @@ describe('InsightExplorerComponent', () => {
     fixture.detectChanges();
   });
 
+  /**
+   * Los selectores del DOM de HOY, en un sitio (issue #13).
+   *
+   * `.insight-explorer__panel-title` dejo de existir cuando el panel paso a
+   * <syn-heading>. Y el click sobre `.insight-explorer__card` dejo de
+   * seleccionar por una razon mas sutil:
+   *
+   *   > `<syn-card>` pone su (click) en el <article> INTERNO, no en el host.
+   *   > Un `.click()` sobre el host despacha el evento ahi y no baja: el
+   *   > listener nunca se entera. La tarjeta parecia inerte.
+   *
+   * Por eso hay dos nodos y cada asercion mira el que le toca: se CLICA el
+   * <article>, y la clase --active se comprueba en el HOST.
+   */
+  const panelTitulo = (): string | undefined =>
+    fixture.nativeElement
+      .querySelector('.insight-explorer__panel-header .syn-heading__title')
+      ?.textContent?.trim();
+
+  const clicarTarjeta = (i: number): void => {
+    const article = fixture.nativeElement.querySelectorAll('.insight-explorer__card .syn-card')[i];
+    if (!article) throw new Error(`no hay tarjeta en la posicion ${i}`);
+    (article as HTMLElement).click();
+  };
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -38,37 +63,38 @@ describe('InsightExplorerComponent', () => {
     expect(cards[1]?.classList).not.toContain('insight-explorer__card--active');
   });
 
-  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should display selected item details in panel', async () => {
+  it('should display selected item details in panel', async () => {
     await fixture.whenStable();
-    const title = fixture.nativeElement.querySelector('.insight-explorer__panel-title');
-    expect(title?.textContent?.trim()).toBe(DEFAULT_INSIGHTS[0].title);
+
+    // El titulo del panel lo pinta <syn-heading>, no un .panel-title propio. Se
+    // comprueba el TEXTO: el refactor cambio quien lo pinta, no el requisito de
+    // que el panel muestre el item seleccionado.
+    expect(panelTitulo()).toBe(DEFAULT_INSIGHTS[0].title);
+    const desc = fixture.nativeElement.querySelector('.insight-explorer__panel-description');
+    expect(desc?.textContent?.trim()).toBe(DEFAULT_INSIGHTS[0].description);
   });
 
-  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should select a different item on card click', async () => {
+  it('should select a different item on card click', async () => {
     await fixture.whenStable();
-    const cards = fixture.nativeElement.querySelectorAll('.insight-explorer__card');
-    cards[2].click();
+
+    clicarTarjeta(2);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.selectedId()).toBe(DEFAULT_INSIGHTS[2].id);
-    const title = fixture.nativeElement.querySelector('.insight-explorer__panel-title');
-    expect(title?.textContent?.trim()).toBe(DEFAULT_INSIGHTS[2].title);
+    expect(panelTitulo()).toBe(DEFAULT_INSIGHTS[2].title);
   });
 
-  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should mark clicked card as active', async () => {
+  it('should mark clicked card as active', async () => {
     await fixture.whenStable();
-    const cards = fixture.nativeElement.querySelectorAll('.insight-explorer__card');
-    cards[1].click();
+
+    clicarTarjeta(1);
     fixture.detectChanges();
     await fixture.whenStable();
 
+    // La clase --active vive en el HOST <syn-card>, no en el <article> que
+    // recibe el click. Son dos nodos distintos y hay que mirar el que toca.
+    const cards = fixture.nativeElement.querySelectorAll('.insight-explorer__card');
     expect(cards[1]?.classList).toContain('insight-explorer__card--active');
     expect(cards[0]?.classList).not.toContain('insight-explorer__card--active');
   });
@@ -85,14 +111,14 @@ describe('InsightExplorerComponent', () => {
     expect(features.length).toBe(DEFAULT_INSIGHTS[0].features.length);
   });
 
-  // CUARENTENA #13 — el spec busca .insight-explorer__panel-title, que no existe en el template; y el click sobre .insight-explorer__card ya no selecciona.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should render title when provided', async () => {
+  it('should render title when provided', async () => {
     fixture.componentRef.setInput('title', '¿Qué incluye?');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const title = fixture.nativeElement.querySelector('.insight-explorer__title');
+    const title = fixture.nativeElement.querySelector(
+      '.insight-explorer__header .syn-heading__title',
+    );
     expect(title?.textContent?.trim()).toBe('¿Qué incluye?');
   });
 

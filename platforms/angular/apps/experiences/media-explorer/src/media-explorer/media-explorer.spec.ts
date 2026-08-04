@@ -163,14 +163,17 @@ describe('MediaExplorerComponent', () => {
     expect(component.items()[0].id).toBe('demo-2');
   });
 
-  // CUARENTENA #13 — rot: el spec busca .media-explorer__panel-title, que el template ya no emite.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should render title when provided', async () => {
+  it('should render title when provided', async () => {
     fixture.componentRef.setInput('title', 'Galería de demos');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const title = fixture.nativeElement.querySelector('.media-explorer__title');
+    // Lo pinta <syn-heading> dentro de __header. Se acota al header a
+    // proposito: el titulo del item seleccionado usa otro <syn-heading> dentro
+    // de __info, y un selector suelto cazaria el primero que apareciera.
+    const title = fixture.nativeElement.querySelector(
+      '.media-explorer__header .syn-heading__title',
+    );
     expect(title?.textContent?.trim()).toBe('Galería de demos');
   });
 

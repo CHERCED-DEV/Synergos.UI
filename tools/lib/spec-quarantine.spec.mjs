@@ -36,11 +36,17 @@ const LIBS = path.join(REPO, 'platforms/angular/libs');
  *
  *   14 → 13  el NG0904 de `media-explorer` (#10) — el único roto en producción
  *   13 → 12  el `id="null"` de `container-block` (#11)
+ *   12 →  1  los 11 specs que asertaban contra un DOM que ya no existía (#13)
  *
- * Los 12 que quedan son 11 de rot (#13) y la decisión de accesibilidad de
- * `icon-block` (#12).
+ * **El que queda no es deuda técnica: es una decisión sin tomar.** `icon-block`
+ * (#12) — el spec dice decorativo por defecto (`role="presentation"`), el
+ * componente dice `role="img"`. Cuál manda es accesibilidad, no código, y
+ * ponerlo verde eligiendo el lado cómodo sería borrar la pregunta.
+ *
+ * Que quede UNO es lo que hace que este gate siga sirviendo: con doce, subir el
+ * número no dolía. Con uno, cualquier `skip` nuevo se ve.
  */
-const EN_CUARENTENA = 12;
+const EN_CUARENTENA = 1;
 
 function specs(raiz) {
   const encontrados = [];
@@ -67,7 +73,7 @@ describe('cuarentena de specs Angular', () => {
     expect(todos.length).toBeGreaterThanOrEqual(240);
   });
 
-  it(`hay exactamente ${EN_CUARENTENA} tests saltados, ni uno más`, () => {
+  it(`hay exactamente ${EN_CUARENTENA} test${EN_CUARENTENA === 1 ? '' : 's'} saltado${EN_CUARENTENA === 1 ? '' : 's'}, ni uno más`, () => {
     const saltados = todos.flatMap((f) => {
       const src = readFileSync(f, 'utf8');
       return [...src.matchAll(/^\s*(?:it|test)\.skip\(/gm)].map(() => path.relative(REPO, f));
