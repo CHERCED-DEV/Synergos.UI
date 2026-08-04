@@ -1,0 +1,61 @@
+name: Tests UI (tools + 240 specs de Angular)
+
+# Issue #1 — los specs vuelven a ser un gate.
+#
+# Durante la purga de Nx los 240 `*.spec.ts` quedaron en el árbol sin correr:
+# el runner ERA el executor de Nx. Este workflow los devuelve al CI.
+#
+# Los specs se COMPILAN antes de correr (`tools/build-specs.mjs`), con el mismo
+# ngtsc que publica los elementos. No es una preferencia de estilo: los signal
+# inputs de Angular no existen en JIT, y este repo prohíbe `@Input()`. Un
+# transpilador al vuelo hace que los tests corran y mientan. La explicación
+# entera está en la cabecera de `platforms/angular/tools/build-specs.mjs`.
+#
+# Va en un fichero aparte de `design-gates-ui.yml` porque aquel filtra por
+# `**/*.scss` — unos triggers pensados para el bridge de tokens, que dejarían
+# fuera cualquier cambio de TypeScript.
+
+on:
+  pull_request:
+    paths:
+      - 'platforms/angular/**'
+      - 'vitals/**'
+      - 'tools/**'
+      - 'package.json'
+      - '.github/workflows/tests-ui.yml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'platforms/angular/**'
+      - 'vitals/**'
+      - 'tools/**'
+      - 'package.json'
+      - '.github/workflows/tests-ui.yml'
+
+jobs:
+  tests:
+    name: npm test — tools + specs de Angular
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # La raíz NO es un workspace de npm: platforms/angular tiene su propio
+      # package.json y su propio lock. Un `npm ci` en la raíz lo deja vacío —
+      # lo destapó el primer build en un entorno limpio, no un test.
+      - name: Dependencias
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --no-audit --no-fund --prefix platforms/angular
+
+      # Corre los dos: los gates de tools/lib (política de caché, presupuesto de
+      # tamaño, cuarentena) y los 240 specs de la plataforma.
+      - name: npm test
+        run: npm test

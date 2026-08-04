@@ -70,7 +70,9 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 - **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento `/angular/` en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna.
 - Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests Angular: **suspendidos** (el runner era el executor de Nx). Los `.spec.ts` siguen en el árbol; recablearlos a vitest es un pendiente declarado. `npm test` corre solo los specs de la raíz (cdn-cache-policy).
+- Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los 240 specs de la plataforma — 1327 pasando, 14 en cuarentena. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
+  - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
+  - La cuarentena tiene techo: `tools/lib/spec-quarantine.spec.mjs` exige que los `it.skip` sean exactamente 14 y que cada uno lleve su motivo. Añadir el 15º rompe el build; arreglar uno, también — obliga a bajar el número.
 - Aliases agnósticos: `@synergos/contracts`, `@synergos/core` (desde `vitals/`)
 - Aliases Angular: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
 - Component prefix: `syn-`

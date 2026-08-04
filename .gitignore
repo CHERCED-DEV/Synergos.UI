@@ -56,3 +56,6 @@ public/
 
 # Intermedio del build unificado (tools/build.mjs) — JS compilado, regenerable.
 .cdn-out/
+
+# Specs de Angular compilados AOT para vitest (issue #1) — se regeneran
+.test-out/
