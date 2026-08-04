@@ -2605,8 +2605,8 @@
       "name": "ariaHidden",
       "type": "boolean",
       "required": false,
-      "default": "false",
-      "description": "Marks the icon as decorative when true."
+      "default": "true",
+      "description": "Decorative by default: the icon is hidden from assistive tech. Set false only when the icon carries meaning no nearby text conveys, and pair it with ariaLabel."
     }
   ],
   "avatar": [
