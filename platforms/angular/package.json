@@ -7,7 +7,9 @@
     "build": "node tools/build.mjs",
     "dev": "node tools/build.mjs --watch",
     "build:solo": "node tools/build.mjs --solo=",
-    "test": "echo 'Tests de Angular suspendidos tras la purga de Nx (pendiente declarado: recablear a vitest). Los specs siguen en el arbol.' && exit 1",
+    "test": "node tools/build-specs.mjs && npx --prefix ../.. vitest run --config vitest.config.ts",
+    "test:watch": "node tools/build-specs.mjs && npx --prefix ../.. vitest --config vitest.config.ts",
+    "build:specs": "node tools/build-specs.mjs",
     "lint": "npx eslint apps libs",
     "sync:tokens": "node tools/sync-tokens.mjs",
     "sync:tokens:check": "node tools/sync-tokens.mjs --check"

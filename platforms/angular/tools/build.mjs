@@ -34,25 +34,21 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, watch } from 'node:fs';
 import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { createRequire } from 'node:module';
 
 import { EXTERNALS, ANGULAR_EXTERNALS, BUNDLED_SYNERGOS } from '../cdn.config.mjs';
+// El compilador y su configuración viven en tools/ngtsc.mjs desde que
+// `build-specs.mjs` pasó a necesitar EXACTAMENTE los mismos: si los tests
+// compilaran con reglas distintas de las de producción, un test verde no diría
+// nada del artefacto que se publica. Ver la cabecera de ese fichero.
+import {
+  NG_DIR, REPO, requireLocal, ts,
+  opcionesTs as opcionesTsBase, crearHost, hostDiag, analizar,
+} from './ngtsc.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const NG_DIR = path.resolve(__dirname, '..');            // platforms/angular
-const REPO = path.resolve(NG_DIR, '../..');              // raíz del repo
 const OUT_TSC = path.join(NG_DIR, '.cdn-out');           // TS compilado (intermedio)
 const DIST = path.join(NG_DIR, 'dist');
-const CORE_ASSETS = path.join(REPO, 'vitals/core-assets/src');
 
-// Las herramientas se resuelven desde ESTE workspace, no desde la raíz: son
-// las versiones que pinea el package-lock de Angular.
-const requireLocal = createRequire(path.join(NG_DIR, 'package.json'));
-const ts = requireLocal('typescript');
-const sass = requireLocal('sass');
 const esbuild = requireLocal('esbuild');
-const { NgtscProgram, readConfiguration } = requireLocal('@angular/compiler-cli');
 
 const WATCH = process.argv.includes('--watch');
 const soloArg = process.argv.find((a) => a.startsWith('--solo='));
@@ -103,86 +99,24 @@ const LIB_ENTRIES = {
   shared: path.join(NG_DIR, 'libs/shared/src/index.ts'),
 };
 
-function opcionesTs() {
-  const { options, errors } = readConfiguration(path.join(NG_DIR, 'tsconfig.json'), {
-    // El intermedio: JS moderno con los imports intactos, que esbuild resuelve.
-    outDir: OUT_TSC,
-    rootDir: REPO,          // vitals/ entra al programa vía paths — el root las abarca
-    declaration: false,
-    declarationMap: false,
-    sourceMap: false,
-    skipLibCheck: true,
-    types: [],
-  });
-  if (errors.length) {
-    throw new Error(ts.formatDiagnostics(errors, hostDiag()));
-  }
-  return options;
-}
-
-const hostDiag = () => ({
-  getCurrentDirectory: () => NG_DIR,
-  getCanonicalFileName: (f) => f,
-  getNewLine: () => '\n',
-});
-
-/**
- * El host que enseña al compilador a leer SCSS.
- *
- * Es el único puente no-trivial: ngtsc no sabe de sass. `transformResource`
- * es el mismo gancho que usa el builder oficial de Angular — cada styleUrl y
- * cada bloque `styles:` inline pasa por acá y sale como CSS plano que el
- * compilador inserta en el componente.
- */
-function crearHost(options) {
-  const host = ts.createCompilerHost(options, true);
-  host.readResource = (file) => readFileSync(file, 'utf-8');
-  host.transformResource = async (data, context) => {
-    if (context.type !== 'style') return null;
-    const desde = context.resourceFile ?? context.containingFile;
-    const css = sass.compileString(data, {
-      // `@use 'scss' as syn` (el puente de tokens de vitals) resuelve por
-      // loadPaths; los relativos, por la URL del propio fichero.
-      loadPaths: [CORE_ASSETS, path.dirname(desde)],
-      url: pathToFileURL(desde),
-      style: 'compressed',
-      silenceDeprecations: ['import'],
-    });
-    return { content: css.css };
-  };
-  return host;
-}
+const opcionesTs = () => opcionesTsBase(OUT_TSC);
 
 /** Dónde queda el JS emitido de un fuente TS. */
 const emitido = (src) =>
   path.join(OUT_TSC, path.relative(REPO, src)).replace(/\.ts$/, '.js');
 
-function compilar(apps, oldProgram) {
+async function compilar(apps, oldProgram) {
   const rootNames = [...apps.map((a) => a.main), ...Object.values(LIB_ENTRIES)];
   const options = opcionesTs();
   const host = crearHost(options);
-  const program = new NgtscProgram(rootNames, options, host, oldProgram);
 
-  return program.compiler.analyzeAsync().then(() => {
-    const diags = [
-      ...program.getTsSyntacticDiagnostics(),
-      ...program.getTsSemanticDiagnostics(),
-      ...program.getNgSemanticDiagnostics(),
-    ].filter((d) => d.category === ts.DiagnosticCategory.Error);
-
-    if (diags.length) {
-      console.error(ts.formatDiagnosticsWithColorAndContext(diags, hostDiag()));
-      throw new Error(`${diags.length} errores de compilación`);
-    }
-
-    const { transformers } = program.compiler.prepareEmit();
-    program.getTsProgram().emit(undefined, (fileName, text) => {
-      mkdirSync(path.dirname(fileName), { recursive: true });
-      writeFileSync(fileName, text);
-    }, undefined, false, transformers);
-
-    return program;
+  const { program, emitir } = await analizar(rootNames, options, host, oldProgram);
+  emitir((fileName, text) => {
+    mkdirSync(path.dirname(fileName), { recursive: true });
+    writeFileSync(fileName, text);
   });
+
+  return program;
 }
 
 // Los JSON que los contratos importan (element-registry.json vía
