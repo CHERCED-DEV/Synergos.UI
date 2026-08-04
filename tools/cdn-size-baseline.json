@@ -379,8 +379,8 @@
     },
     "media-explorer": {
       "tier": "module",
-      "bytes": 29967,
-      "gzip": 6091
+      "bytes": 31061,
+      "gzip": 6388
     },
     "media-text": {
       "tier": "composition",
@@ -409,8 +409,8 @@
     },
     "oembed": {
       "tier": "module",
-      "bytes": 16310,
-      "gzip": 4126
+      "bytes": 15358,
+      "gzip": 3726
     },
     "otp-input": {
       "tier": "composition",

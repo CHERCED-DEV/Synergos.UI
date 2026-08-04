@@ -113,9 +113,7 @@ describe('MediaExplorerComponent', () => {
     expect(poster).toBeTruthy();
   });
 
-  // CUARENTENA #10 — DEFECTO REAL, no rot: [src]="current.videoUrl" es un string crudo en un <iframe> y Angular lanza NG0904. livestream y oembed lo hacen bien con bypassSecurityTrustResourceUrl.
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should activate iframe on play button click', async () => {
+  it('should activate iframe on play button click', async () => {
     fixture.componentRef.setInput('items', JSON.stringify(SAMPLE_ITEMS));
     fixture.detectChanges();
     await fixture.whenStable();
@@ -262,5 +260,96 @@ describe('parseMediaItems', () => {
     expect(result).not.toBeNull();
     expect(result!.length).toBe(3);
     expect(result![0].id).toBe('demo-1');
+  });
+});
+
+/**
+ * El reproductor y su frontera de seguridad (issue #10).
+ *
+ * La plantilla ataba `[src]="current.videoUrl"` —un string del editor— al `src`
+ * de un <iframe>, y Angular lanzaba NG0904 durante la detección de cambios: no
+ * fallaba el vídeo, se caía el render entero del elemento.
+ *
+ * El arreglo NO es envolver la url en `bypassSecurityTrustResourceUrl`: eso
+ * apaga el error y deja pasar un `javascript:` a un iframe con
+ * `allow="clipboard-write; encrypted-media"`. Es reemitirla sobre un origen
+ * literal, y sólo entonces envolverla.
+ */
+describe('MediaExplorerComponent — el reproductor', () => {
+  let fixture: ComponentFixture<MediaExplorerComponent>;
+  let component: MediaExplorerComponent;
+
+  const conVideo = (videoUrl: string): MediaItem[] => [
+    { ...SAMPLE_ITEMS[0], id: 'uno', videoUrl },
+  ];
+
+  const montar = async (items: MediaItem[]) => {
+    fixture.componentRef.setInput('items', JSON.stringify(items));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [MediaExplorerComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(MediaExplorerComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('un embed reconocido pinta iframe, y con la url RECONSTRUIDA', async () => {
+    await montar(conVideo('https://www.youtube.com/embed/abc123'));
+    component.play();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const iframe = fixture.nativeElement.querySelector('.media-explorer__iframe');
+    expect(iframe).toBeTruthy();
+    // Lo que hace legítimo el bypass: el origen es el nuestro, no el que entró.
+    expect(iframe.getAttribute('src')).toBe(
+      'https://www.youtube-nocookie.com/embed/abc123',
+    );
+  });
+
+  it('un fichero directo pinta <video>, NO iframe', async () => {
+    // El contrato del elemento dice «embed URL or direct video URL». Un fichero
+    // en un iframe funcionaría de casualidad; en <video> es lo correcto, y
+    // además Angular sanea `video[src]` solo.
+    await montar(conVideo('https://cdn.ejemplo.com/clip.mp4'));
+    component.play();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('.media-explorer__video')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.media-explorer__iframe')).toBeNull();
+  });
+
+  it('una url hostil NO llega a ningún reproductor', async () => {
+    // El caso que el arreglo existe para impedir. Antes: NG0904 y el elemento
+    // entero caído. Con un bypass ingenuo: `javascript:` dentro de un iframe.
+    await montar(conVideo('javascript:alert(1)'));
+    component.play();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.videoKind()).toBe('none');
+    expect(fixture.nativeElement.querySelector('.media-explorer__iframe')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.media-explorer__video')).toBeNull();
+    expect(fixture.nativeElement.innerHTML).not.toContain('javascript:');
+  });
+
+  it('y tampoco ofrece el botón de play: un control muerto promete lo que no va a pasar', async () => {
+    await montar(conVideo('https://ejemplo.com/una-pagina-cualquiera'));
+
+    expect(component.videoKind()).toBe('none');
+    expect(fixture.nativeElement.querySelector('.media-explorer__play-btn')).toBeNull();
+  });
+
+  it('sin item seleccionado no revienta al preguntar por el reproductor', async () => {
+    // `videoKind` se evalúa en cada render, también antes de que haya datos.
+    expect(component.videoKind()).toBe('none');
   });
 });

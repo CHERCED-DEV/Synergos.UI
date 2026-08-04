@@ -111,6 +111,9 @@
   &__player { @include syn.flex-column; gap: syn.$space-lg; }
   &__video-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--me-video-surface); border-radius: syn.$radius-lg; overflow: hidden; }
   &__iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+  // Mismo hueco que el iframe: las dos ramas del reproductor ocupan el
+  // contenedor entero, así que pasar de una a otra no mueve el layout.
+  &__video { position: absolute; inset: 0; width: 100%; height: 100%; border: none; object-fit: contain; background: #000; }
   &__poster { position: absolute; inset: 0; cursor: pointer; @include syn.flex-center; }
   &__poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
   &__play-btn {

@@ -11,6 +11,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  resolveEmbedSrc,
 } from '@synergos/shared';
 
 /**
@@ -73,96 +74,24 @@ export function normalizeAspectRatio(value: unknown): string {
   return DEFAULT_ASPECT_RATIO;
 }
 
-function parseUrl(value: string): URL | null {
-  try {
-    return new URL(value);
-  } catch {
-    return null;
-  }
-}
-
-/** Pull a YouTube video id from the common URL shapes, or '' if none. */
-function youtubeId(url: URL): string {
-  const host = url.hostname.replace(/^www\./, '').toLowerCase();
-
-  if (host === 'youtu.be') {
-    return url.pathname.slice(1).split('/')[0] ?? '';
-  }
-
-  // Sufijo EXACTO de subdominio (m./music./gaming.youtube.com), no `endsWith`
-  // a secas: `endsWith('youtube.com')` también aceptaba `notyoutube.com`.
-  if (
-    host === 'youtube.com' ||
-    host.endsWith('.youtube.com') ||
-    host === 'youtube-nocookie.com'
-  ) {
-    const fromQuery = url.searchParams.get('v');
-    if (fromQuery) {
-      return fromQuery;
-    }
-    const path = url.pathname.split('/').filter(Boolean);
-    // /embed/<id>, /shorts/<id>, /live/<id>
-    if (path.length >= 2 && ['embed', 'shorts', 'live', 'v'].includes(path[0])) {
-      return path[1];
-    }
-  }
-
-  return '';
-}
-
-/** Pull a numeric Vimeo id, or '' if none. */
-function vimeoId(url: URL): string {
-  const host = url.hostname.replace(/^www\./, '').toLowerCase();
-  if (host !== 'vimeo.com' && host !== 'player.vimeo.com') {
-    return '';
-  }
-  const segments = url.pathname.split('/').filter(Boolean);
-  for (const segment of segments) {
-    if (/^\d+$/.test(segment)) {
-      return segment;
-    }
-  }
-  return '';
-}
-
 /**
  * Resolve a raw URL into a provider + embeddable iframe `src`.
  *
- * ⚠️ ESTA FUNCIÓN ES LA FRONTERA DE SEGURIDAD del elemento, porque `rawUrl` es
- * texto que PEGA EL EDITOR. La url que sale de aquí NUNCA es la que entró: se
- * parsea la de entrada, se extrae un id, y se reemite sobre un ORIGEN LITERAL
- * (`youtube-nocookie.com` / `player.vimeo.com`) con el id pasado por
- * `encodeURIComponent`, que codifica `/ ? # :` y por tanto impide que el id se
- * salga de su segmento de path o cambie el origen. Si no matchea ningún
- * proveedor, `embedSrc` sale '' y la plantilla NO pinta el iframe (cae al enlace).
- * Sólo por eso el `bypassSecurityTrustResourceUrl` de `safeEmbedSrc` es legítimo.
+ * ⚠️ LA FRONTERA DE SEGURIDAD YA NO VIVE ACÁ: se movió a `resolveEmbedSrc` en
+ * `@synergos/shared` cuando apareció el segundo consumidor —`media-explorer`,
+ * que tenía este mismo defecto sin arreglar (issue #10)—. Duplicar una
+ * allowlist es la peor de las opciones: dos copias que se separan en silencio
+ * es cómo se consigue un agujero en la que nadie está mirando.
+ *
+ * Lo que queda acá es lo que sólo le importa a este elemento: pegarle el título
+ * y el aspect-ratio. El razonamiento de por qué el
+ * `bypassSecurityTrustResourceUrl` de `safeEmbedSrc` es legítimo está entero en
+ * la cabecera de `embed-url.util.ts`, y sigue siendo el mismo: la url que sale
+ * NUNCA es la que entró.
  */
 export function resolveEmbed(rawUrl: string, title: string, aspectRatio: string): OembedResolved {
-  const base: Omit<OembedResolved, 'provider' | 'embedSrc'> = { aspectRatio, title };
-  const url = parseUrl(rawUrl.trim());
-  if (!url || (url.protocol !== 'http:' && url.protocol !== 'https:')) {
-    return { provider: 'unknown', embedSrc: '', ...base };
-  }
-
-  const yt = youtubeId(url);
-  if (yt) {
-    return {
-      provider: 'youtube',
-      embedSrc: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(yt)}`,
-      ...base,
-    };
-  }
-
-  const vimeo = vimeoId(url);
-  if (vimeo) {
-    return {
-      provider: 'vimeo',
-      embedSrc: `https://player.vimeo.com/video/${encodeURIComponent(vimeo)}`,
-      ...base,
-    };
-  }
-
-  return { provider: 'unknown', embedSrc: '', ...base };
+  const { provider, embedSrc } = resolveEmbedSrc(rawUrl);
+  return { provider, embedSrc, aspectRatio, title };
 }
 
 function sanitizeOembedConfig(value: Partial<OembedRuntimeConfig>): OembedRuntimeConfig {

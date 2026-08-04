@@ -31,8 +31,13 @@ const REPO = path.resolve(import.meta.dirname, '../..');
 const APPS = path.join(REPO, 'platforms/angular/apps');
 const LIBS = path.join(REPO, 'platforms/angular/libs');
 
-/** Lo que había el día que se reconectaron los specs. Baja este número al arreglar uno. */
-const EN_CUARENTENA = 14;
+/**
+ * Lo que queda en cuarentena. Baja este número al arreglar uno.
+ *
+ * 14 → 13: se arregló el NG0904 de `media-explorer` (#10), que era el único de
+ * los tres defectos reales que estaba roto en producción.
+ */
+const EN_CUARENTENA = 13;
 
 function specs(raiz) {
   const encontrados = [];

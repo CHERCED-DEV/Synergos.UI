@@ -81,15 +81,34 @@
       @if (selectedItem(); as current) {
         <section class="media-explorer__player" aria-live="polite" [attr.aria-label]="videoPlayerLabel()">
           <div class="media-explorer__video-wrap">
-            @if (isPlayerActive() && current.videoUrl) {
+            <!--
+              El reproductor sale sólo si SABEMOS con qué pintarlo. `videoKind`
+              decide, y cada rama resuelve su seguridad distinto — ver la nota
+              larga en media-explorer.ts. Atar `current.videoUrl` crudo al src
+              del iframe reventaba el elemento entero con NG0904 (issue #10).
+            -->
+            @if (isPlayerActive() && videoKind() === 'embed') {
               <iframe
                 class="media-explorer__iframe"
-                [src]="current.videoUrl"
+                [src]="safeEmbedSrc()"
                 [title]="current.title"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                referrerpolicy="strict-origin-when-cross-origin"
                 allowfullscreen
                 loading="lazy"
               ></iframe>
+            } @else if (isPlayerActive() && videoKind() === 'file') {
+              <!-- Sin bypass: Angular sanea `video[src]` solo, y envolverlo
+                   apagaría justo la comprobación que acá sí queremos. -->
+              <video
+                class="media-explorer__video"
+                [src]="fileSrc()"
+                [attr.poster]="current.thumbnailSrc || null"
+                [attr.aria-label]="current.title"
+                controls
+                autoplay
+                playsinline
+              ></video>
             } @else {
               <div class="media-explorer__poster">
                 @if (current.thumbnailSrc) {
@@ -100,7 +119,13 @@
                     loading="lazy"
                   />
                 }
-                @if (current.videoUrl) {
+                <!--
+                  El botón se gatea por `videoKind`, no por `current.videoUrl`:
+                  con una url que no sabemos embeber, el botón salía igual y al
+                  pulsarlo no pasaba nada. Un control muerto es peor que no
+                  tenerlo — promete algo que no va a ocurrir.
+                -->
+                @if (videoKind() !== 'none') {
                   <button
                     type="button"
                     class="media-explorer__play-btn"
