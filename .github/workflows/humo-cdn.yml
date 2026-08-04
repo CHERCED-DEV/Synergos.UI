@@ -1,0 +1,55 @@
+name: Humo del CDN (después de desplegar)
+
+# Issue #9 — nadie comprobaba el CDN después de desplegarlo.
+#
+# Cloudflare despliega en cada push a master y el build sale verde. Verde
+# significa «se subieron los ficheros», NO «el CDN funciona». La diferencia ya
+# mordió, el mismo día del estreno: Cloudflare servía los assets antes de
+# invocar al Worker, así que la política de caché entera era letra muerta y NO
+# había CORS — el CMS, que vive en otro origen, no habría podido ejecutar ni un
+# bundle. Los 17 tests de política de caché estaban en verde; lo que fallaba era
+# que nadie llamaba a la función.
+#
+# POR QUÉ ESTO VIVE EN UN WORKFLOW QUE SONDEA, y no en un hook de Cloudflare:
+# Workers Builds no expone un «después del deploy» al que colgarse. Así que se
+# sondea, y no a ciegas — se espera a que el CDN sirva EL COMMIT de este push,
+# que `publish.mjs` escribe en el meta.json de cada elemento. Un humo inmediato
+# le pegaría a la versión anterior y la daría por buena.
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  # Para poder correrlo contra el CDN cuando se sospecha algo, sin empujar nada.
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL pública del CDN'
+        required: false
+        default: 'https://synergos-ui.synergos-labs.workers.dev'
+
+jobs:
+  humo:
+    name: El CDN responde como debe
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # El humo NO necesita dependencias: usa fetch de Node y los módulos del
+      # repo. Instalar aquí sólo añadiría una forma más de que falle por algo
+      # que no es el CDN.
+      - name: Humo contra la URL pública
+        env:
+          URL: ${{ github.event.inputs.url || 'https://synergos-ui.synergos-labs.workers.dev' }}
+        run: |
+          # El SHA corto es el que publish.mjs escribe en meta.json.
+          SHA="$(git rev-parse --short HEAD)"
+          echo "Esperando a que el CDN sirva $SHA…"
+          node tools/humo-cdn.mjs "$URL" --sha "$SHA" --intentos 30
