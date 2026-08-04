@@ -32,6 +32,8 @@
     "manifest:gen": "node tools/manifest-gen.mjs",
     "manifest:validate": "node tools/manifest-gen.mjs --validate",
     "element:audit": "node tools/element-contract-audit.mjs",
+    "size:check": "node tools/check-size-budget.mjs",
+    "size:baseline": "node tools/check-size-budget.mjs --update",
     "cms:validate": "node tools/validate-cms-contracts.mjs",
     "cms:sync": "node tools/cms-sync.mjs",
     "cms:sync:check": "node tools/cms-sync.mjs --dry-run",

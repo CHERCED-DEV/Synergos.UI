@@ -170,4 +170,16 @@ if (runtime.estado !== RUNTIME_OK) {
   process.exit(1);
 }
 
+// ── 6. Que lo que hay quepa ──────────────────────────────────────────────────
+//
+// El presupuesto de tamaño corre ACÁ y no antes porque acá es donde existe lo
+// que hay que medir: el bundle publicado. Sobre las fuentes no se puede decir
+// nada — el defecto que esto caza (un external que se empaquetó) sólo aparece
+// después de que esbuild resolvió qué queda dentro. Ver issue #8.
+log('revisando el presupuesto de tamaño…');
+execFileSync('node', [join(ROOT, 'tools', 'check-size-budget.mjs'), '--cdn', SALIDA], {
+  cwd: ROOT,
+  stdio: 'inherit',
+});
+
 log(`✓ listo en ${SALIDA}`);
