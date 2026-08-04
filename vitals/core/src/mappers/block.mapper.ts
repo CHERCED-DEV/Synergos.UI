@@ -914,6 +914,26 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-travel-shell',
     map: (d) => toRecord(d),
   },
+  elementSynFaqSection: {
+    tag: 'synergos-faq-section',
+    map: (d) => toRecord(d),
+  },
+  elementSynFeatureGrid: {
+    tag: 'synergos-feature-grid',
+    map: (d) => toRecord(d),
+  },
+  elementSynMediaText: {
+    tag: 'synergos-media-text',
+    map: (d) => toRecord(d),
+  },
+  elementSynModuleMount: {
+    tag: 'synergos-module-mount',
+    map: (d) => toRecord(d),
+  },
+  elementSynTestimonialSection: {
+    tag: 'synergos-testimonial-section',
+    map: (d) => toRecord(d),
+  },
 };
 
 export function mapBlockToElementResult(block: BlockConfig): BlockMappingResult {

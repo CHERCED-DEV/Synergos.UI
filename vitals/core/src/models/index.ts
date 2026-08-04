@@ -142,3 +142,4 @@ export * from './seat-map-inputs.model';
 export * from './seller-inputs.model';
 export * from './storefront-inputs.model';
 export * from './travel-shell-inputs.model';
+export * from './module-mount-inputs.model';

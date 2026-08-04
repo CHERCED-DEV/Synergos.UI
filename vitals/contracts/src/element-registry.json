@@ -925,5 +925,35 @@
     "alias": "elementSynVideoPlayer",
     "tag": "synergos-video-player",
     "tier": "module"
+  },
+  {
+    "name": "faq-section",
+    "alias": "elementSynFaqSection",
+    "tag": "synergos-faq-section",
+    "tier": "module"
+  },
+  {
+    "name": "feature-grid",
+    "alias": "elementSynFeatureGrid",
+    "tag": "synergos-feature-grid",
+    "tier": "module"
+  },
+  {
+    "name": "media-text",
+    "alias": "elementSynMediaText",
+    "tag": "synergos-media-text",
+    "tier": "composition"
+  },
+  {
+    "name": "module-mount",
+    "alias": "elementSynModuleMount",
+    "tag": "synergos-module-mount",
+    "tier": "module"
+  },
+  {
+    "name": "testimonial-section",
+    "alias": "elementSynTestimonialSection",
+    "tag": "synergos-testimonial-section",
+    "tier": "module"
   }
 ]

@@ -107,6 +107,47 @@ const TIER_BY_NAME = new Map([
   ['testimonial-carousel', 'module'], ['timeline', 'module'],
   ['toast-center', 'module'], ['tour-guide', 'module'], ['tree-view', 'module'],
   ['video-player', 'module'],
+
+  // ── Las verticales completas (issue #3) ────────────────────────────────────
+  //
+  // Faltaban las de abajo, y el default de `composition` NO era una
+  // aproximación razonable: era una regresión silenciosa. El registry ya las
+  // declaraba bien como `module`, y sincronizar las habría SOBREESCRITO con el
+  // valor por defecto — o sea que `cms-sync` no corregía el drift, lo metía.
+  //
+  // Y no es cosmético. El presupuesto de tamaño (issue #8) elige el techo POR
+  // TIER, así que degradar un `module` a `composition` le baja el techo de
+  // 72 KB a 44 KB. Se comprobó corriendo el sync de verdad:
+  //
+  //     ✗ booking-wizard: 45.7 KB > 44.0 KB (tier composition) — 1.04× el techo
+  //
+  // Los otros diez sobrevivían sólo porque tienen excepción nombrada: la avería
+  // quedaba tapada por casualidad, no por diseño.
+  //
+  // Cada una es una APLICACIÓN entera montada en una página —una tienda, una
+  // historia clínica, un portal de trámites—, no un elemento compuesto.
+  ['academy', 'module'], ['app-launcher', 'module'], ['blogs', 'module'],
+  ['booking-wizard', 'module'], ['ehr', 'module'], ['eventos', 'module'],
+  ['gov', 'module'], ['realty', 'module'], ['seller', 'module'],
+  ['storefront', 'module'], ['travel-shell', 'module'],
+
+  // Estas cuatro entran NUEVAS al registry, y su tier no se elige libre: el
+  // mismo `name` ya existe bajo un alias `elementComp*`, y `publish.mjs`
+  // deduplica por nombre quedándose con la primera. Con tiers distintos, el
+  // tier publicado dependería del ORDEN del array — así que se copia el que ya
+  // tiene la entrada existente.
+  ['faq-section', 'module'],          // ya existe como elementCompFaqList [module]
+  ['feature-grid', 'module'],         // ya existe como elementCompFeatureGrid [module]
+  ['testimonial-section', 'module'],  // ya existe como elementCompTestimonialList [module]
+  ['media-text', 'composition'],      // ya existe como elementCompMediaTextSplit [composition]
+
+  // Sin precedente en el registry. Su propio DocType lo dice: «Monta una app
+  // Angular completa (módulo) en la página».
+  ['module-mount', 'module'],
+
+  // Ya salía bien por el default, pero explícito no avisa — y no se puede
+  // degradar sin que alguien lo escriba.
+  ['seat-map', 'composition'],
 ]);
 
 // ── XML parsing helpers ──────────────────────────────────────────────────────
