@@ -6,12 +6,12 @@ import path from 'node:path';
  * La cuarentena de specs no puede crecer sola (issue #1).
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * POR QUÉ EXISTE ESTE GATE.
+ * POR QUÉ EXISTE ESTE GATE, Y POR QUÉ SIGUE EXISTIENDO CON LA LISTA VACÍA.
  *
- * Al reconectar los 240 specs, 14 quedaron en rojo. Ninguno por el harness: 12
- * porque el DOM que asertan ya no existe —el template se refactorizó mientras
- * los tests no corrían, que es exactamente lo que el ticket predijo— y 2 porque
- * encontraron defectos de verdad.
+ * Al reconectar los 240 specs, 14 quedaron en rojo. Ninguno por el harness: 11
+ * porque el DOM que asertaban ya no existía —el template se refactorizó
+ * mientras los tests no corrían, que es lo que el ticket predijo (#13)— y 3
+ * porque encontraron defectos y desacuerdos de verdad (#10, #11, #12).
  *
  * Se saltaron en vez de reescribirlos, porque reescribir una aserción para que
  * coincida con el código convierte un desacuerdo real en verde y borra el
@@ -20,10 +20,13 @@ import path from 'node:path';
  *   > Un `skip` es gratis de añadir y nadie audita la lista. A los seis meses
  *   > son 40, la suite está verde y no prueba nada.
  *
- * Así que el número está escrito acá. Añadir el 15º pone el build en rojo y
- * obliga a justificarlo; arreglar uno también, y obliga a bajar el número. Las
- * dos direcciones cuestan lo mismo a propósito — si sólo doliera subir, la
- * lista nunca bajaría.
+ * Los 14 se cerraron uno a uno y hoy la lista está en CERO. El gate se queda,
+ * porque cero es el único número que se defiende solo: con la lista vacía,
+ * cualquier `skip` que aparezca tiene que justificarse en el commit que lo trae
+ * — que es exactamente la conversación que este fichero existe para forzar.
+ *
+ * Las dos direcciones cuestan lo mismo a propósito. Si sólo doliera subir, la
+ * lista nunca bajaría; fue bajar de 14 a 0 lo que probó que la simetría sirve.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -32,21 +35,19 @@ const APPS = path.join(REPO, 'platforms/angular/apps');
 const LIBS = path.join(REPO, 'platforms/angular/libs');
 
 /**
- * Lo que queda en cuarentena. Baja este número al arreglar uno.
+ * Lo que queda en cuarentena. Sube este número sólo con un ticket que lo diga.
  *
  *   14 → 13  el NG0904 de `media-explorer` (#10) — el único roto en producción
  *   13 → 12  el `id="null"` de `container-block` (#11)
  *   12 →  1  los 11 specs que asertaban contra un DOM que ya no existía (#13)
+ *    1 →  0  `icon-block` decorativo por defecto (#12) — lo decidió el arquitecto
  *
- * **El que queda no es deuda técnica: es una decisión sin tomar.** `icon-block`
- * (#12) — el spec dice decorativo por defecto (`role="presentation"`), el
- * componente dice `role="img"`. Cuál manda es accesibilidad, no código, y
- * ponerlo verde eligiendo el lado cómodo sería borrar la pregunta.
- *
- * Que quede UNO es lo que hace que este gate siga sirviendo: con doce, subir el
- * número no dolía. Con uno, cualquier `skip` nuevo se ve.
+ * El último no era deuda técnica sino una decisión sin tomar, y por eso fue el
+ * que más tardó: el spec decía `role="presentation"` y el componente
+ * `role="img"`. Ponerlo verde eligiendo el lado cómodo habría borrado la
+ * pregunta en vez de contestarla.
  */
-const EN_CUARENTENA = 1;
+const EN_CUARENTENA = 0;
 
 function specs(raiz) {
   const encontrados = [];

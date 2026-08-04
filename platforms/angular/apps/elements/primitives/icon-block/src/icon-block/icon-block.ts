@@ -45,7 +45,25 @@ export class IconBlockComponent {
   readonly ariaLabel = computed(() =>
     resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, ''),
   );
-  readonly ariaHidden = computed(() => resolveConfigValue(this.ariaHiddenInput(), this.config()?.ariaHidden, false));
+  /**
+   * DECORATIVO POR DEFECTO (issue #12).
+   *
+   * El default era `false` —o sea `role="img"`— y el spec afirmaba lo
+   * contrario desde siempre. Convivieron en silencio porque los tests no
+   * corrian (issue #1).
+   *
+   * Manda el spec, y por dos razones. La convencion: un icono suele acompanar
+   * a un texto que ya dice lo mismo, asi que anunciarlo duplica; el default
+   * seguro es callar y quien necesite que hable lo pide. Y una de este repo:
+   * `Icon.cshtml` del CMS —que renderiza este mismo DocType SSR-nativo— ya
+   * hacia `isDecorative = string.IsNullOrWhiteSpace(alt)`. Las dos mitades del
+   * elemento decian cosas distintas; ahora dicen la misma.
+   *
+   * El fallback a `icon()` para el aria-label se queda: sirve cuando alguien
+   * pide `ariaHidden="false"` sin etiqueta, y un `role="img"` SIN nombre
+   * accesible es peor que uno con un nombre pobre.
+   */
+  readonly ariaHidden = computed(() => resolveConfigValue(this.ariaHiddenInput(), this.config()?.ariaHidden, true));
 
   readonly hostClasses = computed(() => `sg-icon-block--${this.size()}`);
 }
