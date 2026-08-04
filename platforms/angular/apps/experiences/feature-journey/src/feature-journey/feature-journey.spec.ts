@@ -20,6 +20,31 @@ describe('FeatureJourneyComponent', () => {
     fixture.detectChanges();
   });
 
+  /**
+   * Los selectores del DOM de HOY, en un sitio.
+   *
+   * Las clases que buscaba este spec —`.feature-journey__panel-title`,
+   * `.feature-journey__btn--next`— dejaron de emitirse cuando el panel y los
+   * controles pasaron a <syn-heading> y <syn-button>. Los tests llevaban desde
+   * entonces asertando contra un DOM que no existe, y nadie lo vio porque el
+   * runner se fue con la purga de Nx (issue #13).
+   *
+   * Centralizarlos es lo que hace que el proximo refactor de la plantilla
+   * cueste una linea y no seis.
+   */
+  const panelTitulo = (): string | undefined =>
+    fixture.nativeElement
+      .querySelector('.feature-journey__panel-content .syn-heading__title')
+      ?.textContent?.trim();
+
+  // Prev y next se distinguen por su variante, no por su posicion: `outline` es
+  // el de volver y `solid` el de avanzar. Un nth-child se rompe el dia que
+  // alguien meta algo entre medias — y el contador ya vive ahi.
+  const botonAnterior = (): HTMLButtonElement =>
+    fixture.nativeElement.querySelector('.feature-journey__controls .syn-button--outline');
+  const botonSiguiente = (): HTMLButtonElement =>
+    fixture.nativeElement.querySelector('.feature-journey__controls .syn-button--solid');
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -41,58 +66,53 @@ describe('FeatureJourneyComponent', () => {
     expect(steps[1]?.classList).not.toContain('feature-journey__step--active');
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should display active step content in panel', async () => {
+  it('should display active step content in panel', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const title = fixture.nativeElement.querySelector('.feature-journey__panel-title');
-    expect(title?.textContent?.trim()).toBe(JOURNEY_STEPS[0].title);
+    // El titulo del panel lo pinta <syn-heading>, no un .panel-title propio.
+    // Se comprueba el TEXTO y no que el nodo exista: el refactor cambio quien
+    // lo pinta, no el requisito de que el panel muestre el paso activo.
+    expect(panelTitulo()).toBe(JOURNEY_STEPS[0].title);
+    const desc = fixture.nativeElement.querySelector('.feature-journey__panel-description');
+    expect(desc?.textContent?.trim()).toBe(JOURNEY_STEPS[0].description);
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should advance to next step on next button click', async () => {
+  it('should advance to next step on next button click', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const nextBtn = fixture.nativeElement.querySelector('.feature-journey__btn--next');
-    nextBtn.click();
+    botonSiguiente().click();
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.activeIndex()).toBe(1);
-    const title = fixture.nativeElement.querySelector('.feature-journey__panel-title');
-    expect(title?.textContent?.trim()).toBe(JOURNEY_STEPS[1].title);
+    expect(panelTitulo()).toBe(JOURNEY_STEPS[1].title);
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should disable prev button on first step', async () => {
+  it('should disable prev button on first step', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const prevBtn = fixture.nativeElement.querySelector('.feature-journey__btn--prev');
-    expect(prevBtn?.disabled).toBe(true);
+    expect(botonAnterior().disabled).toBe(true);
+    expect(botonSiguiente().disabled).toBe(false);
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should disable next button on last step', async () => {
-    fixture.componentRef.setInput('variant', 'default');
+  it('should disable next button on last step', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    // Navigate to last step
-    const lastIndex = JOURNEY_STEPS.length - 1;
-    goToStep(component['_FeatureJourneyComponent__state' as never] as never, lastIndex);
+    // Se navega por la API PUBLICA. El test viejo alcanzaba el estado privado
+    // por su nombre mangled (`_FeatureJourneyComponent__state`), que depende de
+    // como compile el bundler: bajo el build AOT salia undefined y el fallo era
+    // un TypeError dentro de goToStep, no la asercion que el test queria hacer.
+    component.goToStep(JOURNEY_STEPS.length - 1);
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.isLast()).toBe(true);
-    const nextBtn = fixture.nativeElement.querySelector('.feature-journey__btn--next');
-    expect(nextBtn?.disabled).toBe(true);
+    expect(botonSiguiente().disabled).toBe(true);
+    expect(botonAnterior().disabled).toBe(false);
   });
 
   it('should navigate to a specific step on step button click', async () => {
@@ -108,15 +128,13 @@ describe('FeatureJourneyComponent', () => {
     expect(steps[2]?.classList).toContain('feature-journey__step--active');
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should mark previous steps as completed when advancing', async () => {
+  it('should mark previous steps as completed when advancing', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const nextBtn = fixture.nativeElement.querySelector('.feature-journey__btn--next');
-    nextBtn.click();
-    nextBtn.click();
+    botonSiguiente().click();
+    fixture.detectChanges();
+    botonSiguiente().click();
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -134,14 +152,14 @@ describe('FeatureJourneyComponent', () => {
     expect(counter?.textContent?.trim()).toBe(`1 / ${JOURNEY_STEPS.length}`);
   });
 
-  // CUARENTENA #13 — el spec busca .feature-journey__panel-title y .feature-journey__btn--next; el template ya no emite ninguna de las dos (usa <syn-heading>).
-  // Se salta, no se reescribe: la asercion queda intacta para quien lo retome.
-  it.skip('should render title when provided', async () => {
+  it('should render title when provided', async () => {
     fixture.componentRef.setInput('title', 'Cómo funciona Synergos');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const title = fixture.nativeElement.querySelector('.feature-journey__title');
+    const title = fixture.nativeElement.querySelector(
+      '.feature-journey__header .syn-heading__title',
+    );
     expect(title?.textContent?.trim()).toBe('Cómo funciona Synergos');
   });
 
