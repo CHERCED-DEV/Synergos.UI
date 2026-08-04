@@ -91,6 +91,12 @@ npm run build:runtime          # Runtime compartido (linker de Angular incluido)
 npm run build:cdn              # Arma public/ completo: vitals + elementos + runtime + registry + catálogo
 npm test                       # Gates de tools/lib + los 240 specs de Angular (compila AOT primero)
 
+# El ciclo editor→navegador (issue #2)
+npm run dev:cdn                     # sirve el CDN entero desde el watch incremental
+npm run dev:cdn -- --solo=badge     # sólo ese elemento — arranca en segundos
+#   El CMS lo consume por su ruta normal, sin código de desarrollo:
+#     SYNERGOS_CDN_MODE=Http · SYNERGOS_CDN_URL=http://localhost:4321
+
 # Desde platforms/angular/
 npm run dev                    # build.mjs --watch (incremental, reusa el programa)
 node tools/build.mjs --solo=badge,hero   # solo esos elementos

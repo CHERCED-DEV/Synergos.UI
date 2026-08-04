@@ -64,7 +64,6 @@ async function main() {
     message: 'What do you want to do?',
     choices: [
       { name: '🔥 Dev CDN (hot reload)', value: 'dev-cdn' },
-      { name: '� Stop Dev CDN', value: 'dev-cdn-stop' },
       { name: '�🚀 Release to CDN', value: 'release-cdn' },
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
@@ -86,28 +85,16 @@ async function main() {
 
   if (action === 'dev-cdn') {
     const answers = await interactiveDevCdnFull();
-    const elementsArg = answers.elements.join(',');
 
-    if (answers.framework === 'angular') {
-      const flags = [
-        `--element=${elementsArg}`,
-        answers.livereload ? '--livereload' : '',
-        answers.skipRuntime ? '--skip-runtime' : '',
-      ].filter(Boolean).join(' ');
-      run(`node tools/dev-cdn.mjs ${flags}`);
-    } else {
-      const flags = [
-        `--element=${elementsArg}`,
-        `--framework=${answers.framework}`,
-        answers.livereload ? '--livereload' : '',
-      ].filter(Boolean).join(' ');
-      run(`node tools/dev-cdn-vite.mjs ${flags}`);
-    }
-    return;
-  }
+    // Sin bifurcación por framework: sólo Angular publica elementos desde la
+    // purga, y `dev-cdn-vite.mjs` ya no existe en el árbol — este menú seguía
+    // ofreciéndolo y habría fallado con «cannot find module».
+    const flags = [
+      answers.elements.length ? `--solo=${answers.elements.join(',')}` : '',
+      answers.livereload === false ? '--sin-livereload' : '',
+    ].filter(Boolean).join(' ');
 
-  if (action === 'dev-cdn-stop') {
-    run('node tools/dev-cdn-stop.mjs');
+    run(`node tools/dev-cdn.mjs ${flags}`);
     return;
   }
 

@@ -28,7 +28,6 @@
     "// ─── HERRAMIENTAS ──────────────────────────────────────────────────────": "",
     "skill:refresh": "node tools/refresh-skill-catalog.mjs",
     "dev:cdn": "node tools/dev-cdn.mjs",
-    "dev:cdn:stop": "node tools/dev-cdn-stop.mjs",
     "clean:dist": "node tools/clean-dist.mjs",
     "manifest:gen": "node tools/manifest-gen.mjs",
     "manifest:validate": "node tools/manifest-gen.mjs --validate",
