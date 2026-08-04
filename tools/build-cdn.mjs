@@ -22,9 +22,12 @@
  *   node tools/build-cdn.mjs --salida public
  */
 import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -75,21 +78,22 @@ log(`limpiando ${SALIDA}`);
 await rm(SALIDA, { recursive: true, force: true });
 await mkdir(SALIDA, { recursive: true });
 
-// ── 2. Publicar con la herramienta de siempre ────────────────────────────────
-//
-// `--cdn` es el parámetro que `publish.mjs` ya aceptaba. Todo lo que hace este
-// script es dárselo apuntando adentro del repo en vez de a una carpeta de
-// Windows.
-log('publicando elementos y registry…');
-execFileSync('node', [join(ROOT, 'tools', 'publish.mjs'), '--cdn', SALIDA], {
-  cwd: ROOT,
-  stdio: 'inherit',
-});
-
-// ── 3. El runtime compartido, con URLs RELATIVAS ─────────────────────────────
+// ── 2. El runtime compartido, con URLs RELATIVAS ─────────────────────────────
 //
 // Los elementos Angular lo necesitan; sin él cargan y se rompen al arrancar,
 // con un error que habla de módulos y no dice "falta el runtime".
+//
+// VA ANTES QUE LOS ELEMENTOS, Y ESO NO ES COSMÉTICO (issue #7). `publish.mjs`
+// comprueba si el runtime está en el CDN y avisa si no. Publicándolo después,
+// la comprobación se hacía cuando la respuesta **no podía ser otra**: en cada
+// build salía «Angular runtime NOT found» y era mentira — se publicaba veinte
+// líneas más abajo, correctamente.
+//
+//   > Un ⚠ que siempre sale y nunca significa nada entrena a saltarse los ⚠,
+//   > incluidos los de la vez que sí.
+//
+// Se arregla el CUÁNDO, no la comprobación: el orden real es que el runtime
+// existe antes que lo que depende de él.
 //
 // `--base=/synergos` es lo que hace portátil el despliegue. Sin él, el
 // import-map sale con el origen cableado —`https://synergos-static-local/…`,
@@ -117,6 +121,17 @@ if (await existe(join(ROOT, 'tools', 'publish-runtime.mjs'))) {
   );
 }
 
+// ── 3. Publicar con la herramienta de siempre ────────────────────────────────
+//
+// `--cdn` es el parámetro que `publish.mjs` ya aceptaba. Todo lo que hace este
+// script es dárselo apuntando adentro del repo en vez de a una carpeta de
+// Windows.
+log('publicando elementos y registry…');
+execFileSync('node', [join(ROOT, 'tools', 'publish.mjs'), '--cdn', SALIDA], {
+  cwd: ROOT,
+  stdio: 'inherit',
+});
+
 // ── 4. La vitrina ────────────────────────────────────────────────────────────
 //
 // `catalog.html` es lo ÚNICO visitable de este despliegue: el resto son
@@ -136,6 +151,22 @@ if (await existe(join(ROOT, 'catalog.html'))) {
 const registry = join(SALIDA, 'synergos', 'registry.json');
 if (!(await existe(registry))) {
   console.error(`[build-cdn] ✗ no se generó ${registry}. El despliegue estaría vacío.`);
+  process.exit(1);
+}
+
+// Y que ese algo pueda arrancar. El aviso de `publish.mjs` es un ⚠ porque ahí
+// el runtime puede llegar después —lo publica otro comando—; acá es un ✗,
+// porque este script ES quien lo publica. Si al terminar no está, no hay nadie
+// más que lo vaya a poner.
+//
+// Cierra además el agujero del paso 2: la publicación del runtime está detrás
+// de un `if (existe(publish-runtime.mjs))` que, de faltar el fichero, se salta
+// en silencio y produce un CDN completo y muerto.
+const runtime = revisarRuntime(join(SALIDA, 'synergos'), existsSync);
+if (runtime.estado !== RUNTIME_OK) {
+  console.error(`[build-cdn] ✗ el runtime compartido no quedó publicado.`);
+  for (const linea of runtime.lineas) console.error(`[build-cdn]   ${linea}`);
+  console.error('[build-cdn]   Los elementos cargarían y se romperían al arrancar.');
   process.exit(1);
 }
 

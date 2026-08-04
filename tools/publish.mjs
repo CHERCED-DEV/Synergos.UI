@@ -33,6 +33,7 @@ import {
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
 import { resolvePublishVersion } from './lib/cdn-registry.mjs';
+import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -94,19 +95,17 @@ console.log('');
 // ── Runtime validation gate ──────────────────────────────────────────────────
 // Angular elements require the shared runtime (import-map.json) to be published
 // first. Warn early if it's missing to avoid broken CDN deployments.
+//
+// La pregunta sólo tiene sentido si el runtime YA tuvo su oportunidad de estar.
+// Cuando quien llama es `build-cdn.mjs`, eso lo garantiza el orden de los pasos
+// —el runtime se publica antes que los elementos—; cuando se corre este script
+// a mano contra un CDN existente, el aviso es la única red que hay.
 
 if (!DRY_RUN) {
-  const runtimeLatest = resolve(CDN_SYNERGOS, 'runtime', 'angular', 'latest', 'import-map.json');
-  const runtimeGlob   = resolve(CDN_SYNERGOS, 'runtime', 'angular');
-  const hasLatest     = existsSync(runtimeLatest);
-  const hasAnyRuntime = existsSync(runtimeGlob);
-
-  if (!hasLatest && !hasAnyRuntime) {
-    console.warn(`${LOG_PREFIX}   ⚠ Angular runtime NOT found in CDN.`);
-    console.warn(`${LOG_PREFIX}     Run first: node tools/build-runtime.mjs && node tools/publish-runtime.mjs`);
-    console.warn(`${LOG_PREFIX}     Angular elements will NOT work without the shared runtime.\n`);
-  } else if (!hasLatest) {
-    console.warn(`${LOG_PREFIX}   ⚠ Runtime exists but 'latest' slot is missing. Consider re-publishing runtime.\n`);
+  const { estado, lineas } = revisarRuntime(CDN_SYNERGOS, existsSync);
+  if (estado !== RUNTIME_OK) {
+    for (const linea of lineas) console.warn(`${LOG_PREFIX}   ⚠ ${linea}`);
+    console.warn('');
   }
 }
 
