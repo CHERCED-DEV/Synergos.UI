@@ -6296,5 +6296,41 @@
       "required": false,
       "description": "Traveller identifier whose bookings are listed."
     }
+  ],
+  "module-mount": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+    },
+    {
+      "name": "moduleAlias",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Module Alias\" del componente synergos-module-mount. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "moduleInitialRoute",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Campo \"Module Initial Route\" del componente synergos-module-mount. Editor: editar manualmente para enriquecer documentación."
+    },
+    {
+      "name": "moduleHeightHint",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Alto explícito (CSS value) (campo \"Module Height Hint\" del componente synergos-module-mount)"
+    },
+    {
+      "name": "integration",
+      "type": "string",
+      "required": false,
+      "default": "",
+      "description": "Hook opcional para integración custom — vacío por default"
+    }
   ]
 }
