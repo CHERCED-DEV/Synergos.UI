@@ -82,14 +82,17 @@ function elementLabel(p) {
 
 /**
  * Prompt user to select a framework.
- * @param {{ includeAngular?: boolean, includeVite?: boolean }} options
+ * Con una sola plataforma queda casi vacío, y así se queda a propósito: el
+ * contrato del CDN conserva el segmento `/angular/` y `FrameworkKind` sigue
+ * existiendo, así que reintroducir otra es posible. `includeVite` murió con la
+ * purga — pedía react/svelte/vanilla, que ya no existen, y devolvía una lista
+ * de opciones VACÍA a quien lo llamara.
+ *
+ * @param {{ includeCancel?: boolean }} options
  */
-export async function selectFramework({ includeAngular = true, includeVite = true, includeCancel = false } = {}) {
-  const choices = [];
-  if (includeAngular) choices.push({ name: 'Angular',  value: 'angular' });
-  // react/svelte/vanilla se eliminaron en la purga de 2026-08-04 — la única
-  // plataforma con elementos publicados siempre fue Angular.
-  if (includeCancel)  choices.push({ name: '← Cancelar', value: '__cancel' });
+export async function selectFramework({ includeCancel = false } = {}) {
+  const choices = [{ name: 'Angular', value: 'angular' }];
+  if (includeCancel) choices.push({ name: '← Cancelar', value: '__cancel' });
 
   return select({ message: '🏗  Framework:', choices });
 }
@@ -152,83 +155,26 @@ export async function askLiveReload() {
 }
 
 /**
- * Prompt for skip-runtime toggle (Angular only).
- */
-export async function askSkipRuntime() {
-  return confirm({
-    message: '⏩ Skip runtime check? (use if runtime already published)',
-    default: true,
-  });
-}
-
-/**
- * Full interactive flow for dev-cdn (Angular).
- * Returns parsed args object matching what the scripts expect.
- */
-export async function interactiveDevCdn() {
-  console.log('\n  🚀 Synergos Dev CDN — Interactive Mode\n');
-
-  const elements = await selectElements('angular');
-  const livereload = await askLiveReload();
-  const skipRuntime = await askSkipRuntime();
-
-  console.log('');
-  console.log('  ─'.repeat(30));
-  console.log(`  Elements   : ${elements.join(', ')}`);
-  console.log(`  LiveReload : ${livereload ? 'yes' : 'no'}`);
-  console.log(`  Runtime    : ${skipRuntime ? 'skip' : 'verify'}`);
-  console.log('  ─'.repeat(30));
-  console.log('');
-
-  return { elements, livereload, skipRuntime };
-}
-
-/**
- * Full interactive flow for dev-cdn-vite (React/Svelte/Vanilla).
- * Returns parsed args object matching what the scripts expect.
- */
-export async function interactiveDevCdnVite() {
-  console.log('\n  🚀 Synergos Dev CDN (Vite) — Interactive Mode\n');
-
-  const framework = await selectFramework({ includeAngular: false, includeVite: true });
-  const elements = await selectElements(framework);
-  const livereload = await askLiveReload();
-
-  console.log('');
-  console.log('  ─'.repeat(30));
-  console.log(`  Framework  : ${framework}`);
-  console.log(`  Elements   : ${elements.join(', ')}`);
-  console.log(`  LiveReload : ${livereload ? 'yes' : 'no'}`);
-  console.log('  ─'.repeat(30));
-  console.log('');
-
-  return { framework, elements, livereload };
-}
-
-/**
  * Full interactive flow that picks Angular vs Vite-based.
  * Returns { mode, ...args } where mode is 'angular' or 'vite'.
  */
 export async function interactiveDevCdnFull() {
   console.log('\n  🚀 Synergos Dev CDN — Interactive Mode\n');
 
-  const framework = await selectFramework();
-  const elements = await selectElements(framework);
+  // Ya no se pregunta el framework: sólo Angular publica elementos desde la
+  // purga. Ni `skipRuntime`: el dev-cdn lo construye solo si falta, así que
+  // «saltárselo» era ofrecer un pie del que tirar.
+  const elements = await selectElements('angular');
   const livereload = await askLiveReload();
-  const skipRuntime = framework === 'angular' ? await askSkipRuntime() : false;
 
   console.log('');
   console.log('  ─'.repeat(30));
-  console.log(`  Framework  : ${framework}`);
   console.log(`  Elements   : ${elements.join(', ')}`);
   console.log(`  LiveReload : ${livereload ? 'yes' : 'no'}`);
-  if (framework === 'angular') {
-    console.log(`  Runtime    : ${skipRuntime ? 'skip' : 'verify'}`);
-  }
   console.log('  ─'.repeat(30));
   console.log('');
 
-  return { framework, elements, livereload, skipRuntime };
+  return { elements, livereload };
 }
 
 // ── Release flows ────────────────────────────────────────────────────────────
