@@ -152,7 +152,7 @@ Cada elemento listado tiene:
 - **\`alias\`**: el alias CMS uSync (\`elementSyn{Pascal}\`) que aparece en los
   ContentTypes XMLs de \`Synergos.CMS.Web/uSync/v9/ContentTypes/\`.
 - **\`framework\`(s)**: el(los) framework(s) en los que el bundle está publicado
-  (angular | react | svelte | vanilla). Hoy todos son angular.
+  Hoy la única plataforma es angular (purga 2026-08-04).
 - **\`shape rich\`** (cuando existe): el contract canónico editorial 3-way mirror
   C# \`CdnConfig\` ↔ TypeScript \`{Name}ElementConfig\` ↔ Web Component \`config\`
   prop. Vive en \`vitals/contracts/src/element-config.contract.ts\` (manual).

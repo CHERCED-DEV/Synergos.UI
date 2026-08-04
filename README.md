@@ -1,152 +1,159 @@
 # Synergos UI
 
-Multi-framework Web Components platform for the **Synergos** ecosystem — delivers decoupled widgets consumed by Umbraco CMS via CDN.
+Web Components de **Angular** publicados a un CDN — widgets desacoplados que el CMS Umbraco de **Synergos** consume vía `<script type="module">` e import-map.
 
 ```
 synergos/
   cms/    → Umbraco CMS (host, Razor views)
   api/    → .NET Backend APIs
-  ui/     → This repository (Multi-framework + Nx)
+  ui/     → Este repositorio (Angular Elements → CDN)
 ```
+
+> **Historia multi-framework:** las plataformas react/svelte/vanilla eran andamiaje
+> sin elementos publicados y se eliminaron, igual que Nx (cada uno de los 136
+> elementos era una "application" independiente = 136 arranques del compilador de
+> Angular, con el caché además deshabilitado; el build tardaba minutos y murió por
+> timeout en Cloudflare). El contrato del CDN conserva el segmento `/angular/` en
+> las rutas y los tipos `FrameworkKind` siguen existiendo, así que reintroducir
+> otra plataforma sigue siendo posible — hoy no existe ninguna otra.
 
 ---
 
-## Architecture
+## Arquitectura
 
 ```
 synergos-ui/
-├── platforms/                # Framework workspaces (isolated node_modules)
-│   ├── angular/              # Main framework — Angular Elements catalog
-│   │   ├── apps/elements/    # Web Components (primitives/, compositions/, modules/)
-│   │   ├── libs/core/        # Providers, tokens, environment config
-│   │   ├── libs/shared/      # Design system (foundations/, components/, patterns/)
-│   │   ├── libs/core-assets/ # SCSS tokens and mixins
-│   │   ├── libs/rendering/   # ElementRegistry, ComponentResolver, InputMapper
-│   │   ├── libs/integrations/# CMS sync tooling
-│   │   └── modules/          # Git submodules (independent business modules)
-│   ├── react/                # React POC (hero Web Component)
-│   ├── svelte/               # Svelte POC (hero Web Component)
-│   └── vanilla/              # Vanilla JS POC (hero Web Component)
-├── vitals/                   # Agnostic packages (shared via tsconfig paths)
-│   ├── contracts/            # Pure TS interfaces (element taxonomy, CMS contracts)
-│   ├── core/                 # Agnostic utilities, mappers, bridge protocol
-│   ├── core-assets/          # SCSS design tokens (source of truth)
-│   └── shared/               # Constants, validators, test utilities
-├── tools/                    # Interactive CLI
-├── nx.json                   # Root Nx orchestrator
-├── tsconfig.base.json        # Agnostic path aliases
-└── package.json              # Root scripts + Nx
+├── platforms/angular/        # LA plataforma — catálogo de 136 elementos
+│   ├── apps/elements/        # Web Components (primitives/, compositions/, modules/)
+│   ├── apps/experiences/     # Experiencias interactivas ricas
+│   ├── libs/core/            # Providers, tokens, environment config
+│   ├── libs/shared/          # Design system (foundations/, components/, patterns/)
+│   ├── libs/core-assets/     # Tokens SCSS y mixins
+│   ├── libs/rendering/       # ElementRegistry, ComponentResolver, InputMapper
+│   ├── libs/integrations/    # CMS sync tooling
+│   ├── modules/              # Git submodules (módulos de negocio independientes)
+│   ├── tools/build.mjs       # EL build: un NgtscProgram + un esbuild (~26 s)
+│   └── cdn.config.mjs        # Externals del CDN — contrato del navegador
+├── vitals/                   # Paquetes agnósticos (compartidos via tsconfig paths)
+│   ├── contracts/            # Interfaces TS puras (element-registry.json, element-inputs.json)
+│   ├── core/                 # Utilidades agnósticas, mappers, bridge protocol
+│   └── core-assets/          # Tokens SCSS (fuente de verdad)
+├── tools/                    # build-runtime, build-cdn, publish, catalog, validadores
+├── public/                   # Salida de build:cdn — lo que se sirve como CDN
+├── worker/                   # Cloudflare Worker que sirve public/
+├── wrangler.jsonc            # Config del Worker
+├── tsconfig.base.json        # Aliases agnósticos
+└── package.json              # Scripts raíz
 ```
 
-### How it works in production
+### Cómo funciona en producción
 
-1. Each element is built independently as a Custom Element (`synergos-*`)
-2. Build output is deployed to CDN
-3. Umbraco Razor views load the CDN bundle via `<script type="module">`
-4. Multiple frameworks can produce the same element — CMS selects the implementation
+1. Cada elemento se compila como Custom Element (`synergos-*`) en un bundle propio de ~2 KB
+2. Lo pesado (Angular, `@synergos/core`, `@synergos/shared`) queda FUERA del bundle como
+   bare import y lo resuelve el import-map del runtime compartido — veinte elementos en
+   una página comparten UN solo Angular
+3. `npm run build:cdn` arma `public/` completo (vitals + elementos + runtime + registry +
+   catálogo) y Cloudflare Workers lo sirve
+4. Las vistas Razor de Umbraco cargan el bundle vía `<script type="module">`
 
-### Dependency flow
+### Flujo de dependencias
 
 ```
-vitals/contracts   → Pure interfaces (the WHAT)
+vitals/contracts   → Interfaces puras (el QUÉ)
        ↓
-vitals/core        → Agnostic implementations (the HOW) + bridge protocol
+vitals/core        → Implementaciones agnósticas (el CÓMO) + bridge protocol
        ↓
-vitals/shared      → Utilities, constants, validators
+vitals/core-assets → Tokens SCSS (el LOOK)
        ↓
-vitals/core-assets → SCSS tokens (the LOOK)
-       ↓
-┌────────┬───────┬────────┬─────────┐
-│angular │ react │ svelte │ vanilla │  → Each consumes vitals/ above
-└────────┴───────┴────────┴─────────┘
+platforms/angular/ → Consume vitals/ vía tsconfig paths
 ```
 
 ---
 
-## Tech stack
+## Stack
 
-| Tool | Version |
+| Herramienta | Versión / rol |
 |---|---|
 | Angular | ~21.1 (Zoneless, Standalone APIs, Signals) |
-| React | 19 (POC) |
-| Svelte | 5 (POC) |
-| Nx | 22.5 |
+| Build | `platforms/angular/tools/build.mjs` — @angular/compiler-cli (AOT) + esbuild, sin Nx |
 | TypeScript | ~5.9 |
 | SCSS | Sass modules (`@use` / `@forward`) |
-| Testing | Vitest |
+| Testing | Vitest — solo specs de la raíz; los tests de Angular están suspendidos (pendiente: recablear a vitest) |
+| Hosting CDN | Cloudflare Workers (`wrangler.jsonc` + `worker/index.js`) |
 
 ---
 
-## Getting started
+## Primeros pasos
 
-### Prerequisites
+### Prerequisitos
 - Node.js >= 20
 - npm >= 10
 
-### Install all frameworks
+### Instalación
+
+La raíz NO es un workspace de npm — `platforms/angular/` tiene su propio lockfile:
 
 ```bash
-npm run setup
+npm ci
+npm ci --prefix platforms/angular
 ```
 
-Or install individually:
-
-```bash
-npm run setup:angular
-npm run setup:react
-npm run setup:svelte
-npm run setup:vanilla
-```
+(`npm run build:cdn` verifica e instala las dependencias de la plataforma él solo.)
 
 ### Build
 
 ```bash
-npm run build                # Build all frameworks
-npm run build:angular        # Build Angular elements only
-npm run build:react          # Build React POC
-npm run build:svelte         # Build Svelte POC
-npm run build:vanilla        # Build Vanilla POC
+npm run build                # vitals + elementos Angular + runtime
+npm run build:angular        # Los 136 elementos + libs, AOT completo (~26 s)
+npm run build:runtime        # Runtime compartido (Angular + sg-core + sg-shared)
+npm run build:cdn            # Arma public/ completo para servir como CDN
 ```
 
-### Interactive CLI
+Iteración local (desde `platforms/angular/`):
 
 ```bash
-npm run cli
-# or
-npm run c
+npm run dev                            # build.mjs --watch — incremental, reusa el programa
+node tools/build.mjs --solo=badge,hero # solo esos elementos
 ```
 
-Menu flow: Action > Framework > Tier > Elements > Execute
+### Crear un elemento nuevo
 
-### Test & Lint
+No hay generadores: carpeta en `platforms/angular/apps/elements/<tier>/<nombre>/src/`
+con un `main.ts` (patrón `createApplication` → `createCustomElement` →
+`customElements.define`), entrada en `vitals/contracts/src/element-registry.json` y sus
+inputs en `element-inputs.json`. El build lo descubre solo por el filesystem.
+Receta completa: `AGENTS.md`.
+
+### Test
 
 ```bash
-npm test                     # Test all
-npm run lint                 # Lint all
+npm test                     # Solo specs de la raíz (cdn-cache-policy)
 ```
 
-### Dependency graph
+Los tests unitarios de Angular están **suspendidos** desde la purga de Nx (el runner era
+el executor `@angular/build:unit-test`). Los `.spec.ts` siguen en el árbol; recablearlos
+a vitest con compilación Angular es un pendiente declarado, no un olvido.
+
+### Release
 
 ```bash
-npm run graph
+npm run release:cdn          # build + validate + publish (tools/release-cdn.mjs)
+npm run contracts:validate   # el gate: registry × mappers × models × inputs
 ```
 
 ---
 
-## Agnostic packages (vitals/)
+## Paquetes agnósticos (vitals/)
 
-Shared via `tsconfig.base.json` path aliases — consumed directly from source, no npm linking:
+Compartidos vía aliases de `tsconfig.base.json` — consumidos directo del source, sin npm:
 
-| Package | Alias | Purpose |
+| Paquete | Alias | Propósito |
 |---|---|---|
-| `vitals/contracts/` | `@synergos/contracts` | Pure TS interfaces, element taxonomy |
-| `vitals/core/` | `@synergos/core` | Mappers, bridge protocol, utilities |
-| `vitals/core-assets/` | — | SCSS design tokens, mixins |
-| `vitals/shared/` | `@synergos/shared` | Constants, validators |
+| `vitals/contracts/` | `@synergos/contracts` | Interfaces TS puras, taxonomía de elementos |
+| `vitals/core/` | `@synergos/core` | Mappers, bridge protocol, utilidades |
+| `vitals/core-assets/` | — | Tokens SCSS, mixins |
 
-### SCSS usage
-
-Each framework configures `includePaths` pointing to `vitals/core-assets/src`:
+### Uso de SCSS
 
 ```scss
 @use 'scss' as syn;
@@ -159,47 +166,46 @@ Each framework configures `includePaths` pointing to `vitals/core-assets/src`:
 
 ---
 
-## Angular libraries (platforms/angular/libs/)
+## Librerías Angular (platforms/angular/libs/)
 
-| Library | Alias | Purpose |
+| Librería | Alias | Propósito |
 |---|---|---|
 | `libs/core/` | `@synergos/core` | Providers, tokens, environment, services |
 | `libs/shared/` | `@synergos/shared` | Design system components |
-| `libs/core-assets/` | `@synergos/core-assets` | SCSS tokens (Angular copy) |
+| `libs/core-assets/` | `@synergos/core-assets` | Tokens SCSS (copia Angular) |
 | `libs/rendering/` | `@synergos/rendering` | Element rendering pipeline |
 | `libs/integrations/` | `@synergos/integrations` | CMS sync tooling |
 
----
-
-## Conventions
-
-| Convention | Rule |
-|---|---|
-| File naming | `kebab-case` |
-| Component selector prefix | `syn-` |
-| Custom element tag | `synergos-<name>` |
-| Change detection | `OnPush` everywhere |
-| Zone.js | Disabled — `provideZonelessChangeDetection()` |
-| State | Angular Signals |
-| Styles | SCSS with `@use` (no `@import`) |
-| Exports | All public API through `src/index.ts` |
+En el navegador, `@synergos/core` y `@synergos/shared` se resuelven por import-map al
+runtime compartido; el resto se empaqueta dentro del elemento que lo usa
+(ver `platforms/angular/cdn.config.mjs`).
 
 ---
 
-## Project tags (Nx)
+## Convenciones
 
-| Tag | Meaning |
+| Convención | Regla |
 |---|---|
-| `framework:angular` | Angular workspace |
-| `framework:react` | React workspace |
-| `framework:svelte` | Svelte workspace |
-| `framework:vanilla` | Vanilla JS workspace |
-| `framework:agnostic` | Agnostic package (vitals/) |
-| `scope:elements` | Element apps |
-| `scope:core` | Core infrastructure |
-| `scope:shared` | Shared/reusable |
-| `scope:contracts` | TS interfaces |
-| `scope:core-assets` | SCSS tokens |
-| `tier:primitive` | Basic element |
-| `tier:composition` | Composed element |
-| `tier:module` | Full module element |
+| Nombres de fichero | `kebab-case` |
+| Prefijo de selector | `syn-` |
+| Tag del custom element | `synergos-<name>` |
+| Change detection | `OnPush` en todo |
+| Zone.js | Deshabilitado — `provideZonelessChangeDetection()` |
+| Estado | Angular Signals |
+| Estilos | SCSS con `@use` (nunca `@import`) |
+| Exports | Todo el API público por `src/index.ts` |
+
+---
+
+## Layout del CDN publicado
+
+El layout no cambió con la purga — `tools/publish.mjs` sigue intacto:
+
+```
+synergos/<name>/angular/{semver, vN, latest}/
+  main.js + manifest.json + meta.json
+registry.json      → índice global de elementos publicados
+contracts.json     → contrato para el CI del CMS
+```
+
+Documentación completa del pipeline: `SynergosDocs/BUILD_PIPELINE.md`.

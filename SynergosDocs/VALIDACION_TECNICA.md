@@ -1,3 +1,5 @@
+> ⚠️ **OBSOLETO desde la purga de Nx (2026-08-04).** Este documento describe la arquitectura de build anterior. El build actual: `platforms/angular/tools/build.mjs` — ver BUILD_PIPELINE.md.
+
 # SYNERGOS.UI — VALIDACIÓN TÉCNICA EMPÍRICA
 
 > Segunda pasada. Basada en lectura directa de código fuente, ejecución de herramientas y

@@ -1,231 +1,115 @@
-# Synergos.UI — Scripts de NPM (Raíz)
+# Synergos.UI — Scripts de NPM
 
-> Referencia rápida de los scripts disponibles en el `package.json` raíz.
-> Todos los scripts pueden lanzarse desde el CLI interactivo (`npm run cli`).
-
----
-
-## CLI
-
-| Script | Descripción |
-|---|---|
-| `npm run cli` / `npm run c` | CLI interactivo — Dev CDN, Release, Build, Test, Lint, Graph, Setup |
-| `npm run catalog` | Genera o actualiza el catálogo HTML de elementos |
+> Tabla real post-purga de Nx (2026-08-04). Murieron todas las variantes
+> `:react` / `:svelte` / `:vanilla`, `graph`, y todo lo que invocaba `nx`.
+> El detalle de cada pieza del pipeline: `BUILD_PIPELINE.md`.
 
 ---
 
-## BUILD
+## BUILD (raíz)
 
-### Todo
-
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm run build` | Build completo: Angular + runtime + React + Svelte + vanilla (en ese orden) |
+| `npm run build` | Build completo: vitals + elementos Angular + runtime (en ese orden) |
+| `npm run build:vitals` | Compila los paquetes agnósticos (`tools/build-vitals.mjs`) |
+| `npm run build:angular` | Los 136 elementos + libs, AOT completo, **~26 s** (`platforms/angular/tools/build.mjs`) |
+| `npm run build:runtime` | Runtime compartido con el linker de Angular (`tools/build-runtime.mjs`) |
+| `npm run build:cdn` | Arma `public/` completo: vitals + elementos + runtime + registry + catálogo (`tools/build-cdn.mjs`) |
 
-### Angular
+### Desde `platforms/angular/`
 
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm run build:angular` | Build todos los scopes Angular: elements + experiences + cms-adapter (paralelo=6) |
-| `npm run build:angular:elements` | Solo elementos + cms-adapter (excluye experiences) |
-| `npm run build:angular:experiences` | Solo experiences Angular (paralelo=3) |
-| `npm run build:angular:dev` | Elementos en modo development (sin optimización, con sourcemaps) |
-| `npm run build:angular:changed` | Solo proyectos afectados por cambios (`nx affected`) |
-| `npm run build:angular:stable` | Build secuencial paralelo=1 (para entornos con recursos limitados) |
-
-### Runtime Angular (bundle compartido CDN)
-
-| Script | Descripción |
-|---|---|
-| `npm run build:runtime` | Compila el runtime Angular compartido (`tools/build-runtime.mjs`) |
-| `npm run build:runtime:dry` | Simula el build sin escribir archivos |
-
-### Frameworks cross-platform (React, Svelte, Vanilla)
-
-| Script | Descripción |
-|---|---|
-| `npm run build:react` | Build todos los proyectos React (tag:framework:react) |
-| `npm run build:svelte` | Build todos los proyectos Svelte (tag:framework:svelte) |
-| `npm run build:vanilla` | Build todos los proyectos Vanilla JS (tag:framework:vanilla) |
-
-### Experiences (cross-framework)
-
-| Script | Descripción |
-|---|---|
-| `npm run build:experiences:cross` | Build las 6 experiences cross-framework (React+Svelte+Vanilla) en paralelo — usa `tag:scope:experiences` |
-| `npm run build:experiences` | Build experiencias Angular + las 6 cross-framework (todo en secuencia) |
+| `npm run build` | Lo mismo que `build:angular` de la raíz |
+| `npm run dev` | `build.mjs --watch` — incremental, reusa el programa del compilador |
+| `node tools/build.mjs --solo=badge,hero` | Solo esos elementos (dev) |
+| `npm run lint` | ESLint plano sobre `apps` y `libs` (prefijos `syn`/`sg`) |
+| `npm run sync:tokens` / `sync:tokens:check` | Sincroniza / verifica tokens SCSS |
 
 ---
 
-## RELEASE
+## PUBLISH y RELEASE
 
-Un "release" es `build` + `contracts:validate` + `publish:cdn`. Nunca hacer publish sin validate.
-
-### Release interactivo (recomendado)
-
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm run release:cdn` | Lanza el release interactivo (`tools/release-cdn.mjs`) |
-| `npm run cli` → "Release to CDN" | Mismo flujo desde el CLI principal |
+| `npm run publish:cdn` | Publica artefactos ya buildeados (`tools/publish.mjs` — el ÚNICO que escribe al CDN) |
+| `npm run publish:runtime` | Publica solo el runtime compartido (`tools/publish-runtime.mjs`) |
+| `npm run publish:element` | Publica un elemento específico (`tools/publish-element.mjs`) |
+| `npm run release:cdn` | Release interactivo: build + validate + publish (`tools/release-cdn.mjs`) |
 
-El release interactivo soporta 4 scopes:
-
-| Scope | Qué hace |
-|---|---|
-| 🎯 Specific elements | Build + publish solo N elementos seleccionados |
-| 🏗 Entire framework | Build + publish todos los elementos de un framework |
-| 📚 Runtime only | Build + publish solo Angular shared runtime |
-| 🔥 Everything | Pipeline completo: build all + validate + publish all + verify + clean |
-
-Después de elegir scope incluye: selección de framework, picker de elementos,
-toggle de verificación de integridad, toggle de limpieza de dist, y confirmación final.
-
-### Release directo (scripts npm)
-
-| Script | Descripción |
-|---|---|
-| `npm run release` | Release completo todos los frameworks |
-| `npm run release:angular` | Release Angular: build + runtime + validate + publish |
-| `npm run release:react` | Release React: build + validate + publish |
-| `npm run release:svelte` | Release Svelte: build + validate + publish |
-| `npm run release:vanilla` | Release Vanilla: build + validate + publish |
-| `npm run release:experiences` | Release todas las experiences (Angular + cross-framework) |
-| `npm run release:element` | Release de un elemento específico (requiere build previo) |
+> Nunca publish sin `contracts:validate` en verde.
 
 ---
 
-## PUBLISH (sin build)
+## VALIDATE — el gate
 
-Solo suben artefactos ya buildeados. Usar únicamente si el build ya fue validado.
-
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm run publish:cdn` | Publica artefactos al CDN (`tools/publish.mjs`) |
-| `npm run publish:runtime` | Publica solo el runtime Angular al CDN (`tools/publish-runtime.mjs`) |
-
-> **Destino actual:** `C:\LOCAL_CDN` (hardcodeado en `tools/publish.mjs`).
-> Para producción real, parametrizar via `SYNERGOS_CDN` / `SYNERGOS_CDN_ORIGIN` en variables de entorno.
+| `npm run contracts:validate` | El gate completo: `sync:tokens:check` + `element:audit` + `manifest:validate` + `cms:validate` + `cms:sync:check` |
+| `npm run element:audit` | Registry × mappers × models × inputs en sync |
+| `npm run manifest:validate` | Falla si algún elemento tiene `inputs` vacío |
+| `npm run cms:validate` | Valida los resolvers del CMS contra el registry (cross-repo) |
+| `npm run cms:sync` / `cms:sync:check` | Sincroniza / verifica el contrato con el CMS |
+| `npm run sync:tokens` / `sync:tokens:check` | Alias raíz de los sync de tokens de la plataforma |
 
 ---
 
 ## TEST
 
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm test` | Tests de todos los frameworks |
-| `npm run test:angular` | Tests Angular con Vitest (`nx run-many --target=test`) |
-| `npm run test:react` | Tests React |
-| `npm run test:svelte` | Tests Svelte |
-| `npm run test:vanilla` | Tests Vanilla |
+| `npm test` | **Solo los specs de la raíz** (`tools/lib/` — cdn-cache-policy) |
 
----
-
-## LINT
-
-| Script | Descripción |
-|---|---|
-| `npm run lint` | Lint todos los frameworks |
-| `npm run lint:angular` | Lint Angular (incluye boundary checks por tags Nx) |
-| `npm run lint:react` | Lint React |
-| `npm run lint:svelte` | Lint Svelte |
-| `npm run lint:vanilla` | Lint Vanilla |
-
----
-
-## VALIDATE
-
-Gate de integridad. Ejecutar antes de cualquier publish.
-
-| Script | Descripción |
-|---|---|
-| `npm run contracts:validate` | `element:audit` + `manifest:validate` (el gate completo) |
-| `npm run element:audit` | Valida registry × mappers × models × inputs (64/64 entradas) |
-| `npm run manifest:validate` | Valida el manifest CDN generado |
-| `npm run contracts:export` | Exporta contratos TypeScript para consumo externo |
+> Los tests unitarios de Angular están **suspendidos**: el runner era el
+> executor de Nx (`@angular/build:unit-test`). Los `.spec.ts` siguen en el
+> árbol; recablearlos a vitest con compilación Angular es un pendiente
+> declarado, no un olvido.
 
 ---
 
 ## HERRAMIENTAS
 
-| Script | Descripción |
+| Script | Qué hace |
 |---|---|
-| `npm run dev:cdn` | Dev CDN Angular — watch + rebuild + sync a CDN local |
-| `npm run dev:cdn:react` | Dev CDN React — watch via Vite |
-| `npm run dev:cdn:svelte` | Dev CDN Svelte — watch via Vite |
-| `npm run dev:cdn:vanilla` | Dev CDN Vanilla — watch via Vite |
-| `npm run manifest:gen` | Genera `element-manifest.json` para el CDN |
-| `npm run clean:dist` | Limpia directorios `dist/` en todos los frameworks |
-| `npm run graph` | Visualiza el grafo Nx del workspace raíz |
-| `npm run graph:angular` | Visualiza el grafo Nx del workspace Angular |
-
-> **Dev CDN**: Sin argumentos abre modo interactivo (picker de framework + elementos).
-> Con flags: `node tools/dev-cdn.mjs --element=hero --livereload --skip-runtime`
-> Ver `DEV_CDN_MODE.md` para documentación completa.
+| `npm run dev:cdn` | Dev CDN — watch + rebuild + sync a CDN local (`tools/dev-cdn.mjs`) |
+| `npm run catalog` | Genera el catálogo HTML de elementos (`tools/catalog.mjs`) |
 
 ---
 
-## SETUP (primera instalación)
+## Qué murió con la purga (para que nadie lo busque)
 
-| Script | Descripción |
-|---|---|
-| `npm run setup` | Instala `node_modules` en todos los frameworks |
-| `npm run setup:angular` | `cd platforms/angular && npm install` |
-| `npm run setup:react` | `cd platforms/react && npm install` |
-| `npm run setup:svelte` | `cd platforms/svelte && npm install` |
-| `npm run setup:vanilla` | `cd platforms/vanilla && npm install` |
-
-> Cada framework tiene sus propios `node_modules` aislados. `npm install` en la raíz
-> NO instala las dependencias de los frameworks. Siempre usar `npm run setup` para
-> una instalación limpia completa.
+- `build:react` / `build:svelte` / `build:vanilla` y todas las variantes
+  `test:*` / `lint:*` / `release:*` / `setup:*` / `dev:cdn:*` de esas
+  plataformas — las plataformas mismas se eliminaron.
+- `graph` / `graph:*` — no hay grafo Nx que visualizar.
+- Los dos `nx.json`, todos los `project.json` y `ng-package.json`,
+  `patches/` (parcheaba a Nx), `tools/run.mjs`, `tools/dev-cdn-vite.mjs`,
+  `vitals/shared`.
+- De las devDeps: `nx`, `@nx/*`, `@angular/build`, `@angular/cli`,
+  `@angular-devkit/*`, `@schematics/angular`, `ng-packagr`, `cross-env`,
+  `patch-package`, `tsx`, `@swc*`.
 
 ---
 
-## Flujos típicos de desarrollo
+## Flujos típicos
 
-### Dev CDN — desarrollo en caliente contra el CMS (recomendado)
+### Iterar sobre un elemento
 
 ```bash
-# Modo interactivo — elige framework, elementos, LiveReload
-npm run cli
-# → "Dev CDN (hot reload)" → Angular → pick elements → LiveReload: yes
-
-# O directo desde terminal:
-node tools/dev-cdn.mjs --element=alert-bar --livereload
-
-# Cross-framework (React/Svelte/Vanilla):
-node tools/dev-cdn-vite.mjs --element=pricing-card --framework=react --livereload
-
-# Todos los elementos Angular con LiveReload:
-node tools/dev-cdn.mjs  # → interactive → ALL → LiveReload: yes
+cd platforms/angular
+node tools/build.mjs --solo=alert-bar     # o npm run dev para watch
 ```
 
-### Release unitario — publicar un elemento a CDN
+### Release completo al CDN
 
 ```bash
-# Modo interactivo:
-npm run release:cdn
-# → "Specific elements" → Angular → pick alert-bar → Verify: yes → Proceed
-
-# O con flags:
-node tools/release-cdn.mjs --scope=elements --framework=angular --element=hero,card
+npm run build            # vitals + elementos + runtime
+npm run contracts:validate
+npm run release:cdn      # o publish:cdn si ya validaste
 ```
 
-### Release de un framework completo
+### Armar el CDN servible (Cloudflare)
 
 ```bash
-npm run release:cdn
-# → "Entire framework" → React → Verify: yes → Clean: no → Proceed
-
-# O directo:
-npm run release:react
-```
-
-### Release completo
-
-```bash
-npm run release:cdn
-# → "Everything (full release)" → Proceed
-
-# O directo:
-npm run release
+npm run build:cdn        # deja public/ listo; wrangler.jsonc + worker/ lo sirven
 ```

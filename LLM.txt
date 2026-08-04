@@ -9,27 +9,27 @@
 
 ## 1. REPOSITORY STRUCTURE RULES
 
-Multi-framework workspace with isolated dependencies per framework:
+Una sola plataforma publica elementos: Angular. (Las plataformas react/svelte/
+vanilla eran andamiaje sin elementos publicados y se eliminaron junto con Nx;
+ver sección 12 para la historia y cómo se reintroduciría otra.)
 
-- platforms/           → Framework workspaces (each with own node_modules/)
-  - platforms/angular/ → Main framework — Angular Elements catalog
-    - apps/elements/     → Web Components (primitives/, compositions/, modules/)
-    - apps/experiences/  → Rich interactive experiences (tier:experience) — see section 15
-    - libs/core/         → Angular-specific providers, tokens, interceptors, services
-    - libs/shared/       → Angular design system: foundations/, components/, patterns/
-    - libs/core-assets/  → SCSS tokens + mixins (Angular copy)
-    - libs/rendering/    → ElementRegistry, ComponentResolver, InputMapper
-    - libs/integrations/ → CMS sync tooling
-    - modules/           → Git submodules (independent Angular module repos)
-  - platforms/react/   → React POC (hero Web Component)
-  - platforms/svelte/  → Svelte POC (hero Web Component)
-  - platforms/vanilla/ → Vanilla JS POC (hero Web Component)
+- platforms/angular/   → LA plataforma (node_modules propio — la raíz NO es workspace npm)
+  - apps/elements/     → Web Components (primitives/, compositions/, modules/)
+  - apps/experiences/  → Rich interactive experiences — see section 15
+  - libs/core/         → Angular-specific providers, tokens, interceptors, services
+  - libs/shared/       → Angular design system: foundations/, components/, patterns/
+  - libs/core-assets/  → SCSS tokens + mixins (Angular copy)
+  - libs/rendering/    → ElementRegistry, ComponentResolver, InputMapper
+  - libs/integrations/ → CMS sync tooling
+  - modules/           → Git submodules (independent Angular module repos)
+  - tools/build.mjs    → EL build: un NgtscProgram + un esbuild (--watch, --solo=a,b)
+  - cdn.config.mjs     → Externals del CDN — contrato del navegador (antes en nx.json)
 - vitals/              → Agnostic packages (consumed via tsconfig paths, NOT npm)
-  - vitals/contracts/  → Pure TS interfaces (element taxonomy, CMS contracts)
+  - vitals/contracts/  → Pure TS interfaces (element-registry.json, element-inputs.json)
   - vitals/core/       → Agnostic utilities, mappers, bridge protocol
   - vitals/core-assets/→ SCSS design tokens, mixins, typography (source of truth)
-  - vitals/shared/     → Constants, validators, test utilities
-- tools/               → Interactive CLI for multi-framework builds
+- tools/               → build-runtime, build-cdn, publish, catalog, validadores
+- public/              → Salida de build:cdn — servida por Cloudflare Workers (worker/)
 - SynergosDocs/        → Architectural documentation — READ before generating code
 - LLM.txt              → This file
 
@@ -39,7 +39,6 @@ NEVER create files outside these directories without explicit user instruction.
 ## 2. DEPENDENCY RULES
 
 ### Agnostic layer (vitals/) — flows downward only:
-  vitals/shared    →  vitals/core, vitals/contracts
   vitals/core      →  vitals/contracts
   vitals/contracts →  (nothing)
   vitals/core-assets → (nothing — SCSS only)
@@ -52,15 +51,15 @@ NEVER create files outside these directories without explicit user instruction.
   libs/core        →  (nothing inside angular workspace)
   libs/core-assets →  (nothing)
 
-### Cross-layer (all frameworks → vitals):
-  Any framework may import from vitals/ via @synergos/contracts, @synergos/core, @synergos/shared
+### Cross-layer (platform → vitals):
+  platforms/angular/ importa de vitals/ vía @synergos/contracts y @synergos/core
+  (@synergos/shared resuelve a platforms/angular/libs/shared — ya no existe vitals/shared)
 
 FORBIDDEN:
-  - vitals/ importing from any framework
+  - vitals/ importing from the platform
   - libs/core importing from libs/shared
   - libs/shared importing from any module
   - modules importing from other modules
-  - One framework importing from another framework
   - circular dependencies of any kind
 
 Verify import direction before writing any import statement.
@@ -234,27 +233,34 @@ Spec files are colocated with the source file they test:
 Every new file added to libs/ or modules/ MUST have a spec file.
 
 Unit test rules:
-  - Use Vitest (configured in workspace)
   - Test public API only — no testing of private signals directly
   - Mock inject() dependencies with TestBed.overrideProvider
   - No HTTP in unit tests — use provideHttpClientTesting()
+
+ESTADO ACTUAL: el runner de tests de Angular está SUSPENDIDO desde la purga de
+Nx (era el executor @angular/build:unit-test). Los .spec.ts se siguen
+escribiendo y quedan en el árbol; recablearlos a vitest con compilación Angular
+es un pendiente declarado. Los specs de la raíz (tools/lib/) sí corren con
+`npm test`.
 
 
 ## 10. CODE GENERATION WORKFLOW
 
 When creating or modifying code:
   1. Read SynergosDocs/ARCHITECTURE.md — understand where the code belongs
-  2. For Angular: run generators from platforms/angular/ directory
-  3. Apply all naming conventions from section 4 to generated output
-  4. Export new symbols from the library's src/index.ts
-  5. Create the colocated .spec.ts file
-  6. Verify import directions comply with section 2
+  2. Create files by hand — NO hay generadores (Nx se purgó); follow section 4 naming
+  3. Export new symbols from the library's src/index.ts
+  4. Create the colocated .spec.ts file
+  5. Verify import directions comply with section 2
 
-Scaffolding cheatsheet (run from platforms/angular/):
-  Foundation:  npx nx g @nx/angular:component button --project=shared --path=libs/shared/src/components/foundations
-  Component:   npx nx g @nx/angular:component card --project=shared --path=libs/shared/src/components
-  Pattern:     npx nx g @nx/angular:component data-grid --project=shared --path=libs/shared/src/components/patterns
-  Feature app: npx nx g @nx/angular:app appointments --directory=modules
+Scaffolding (a mano — el build descubre por filesystem, ver AGENTS.md):
+  Design system: crear carpeta + fichero en libs/shared/src/components/{foundations|.|patterns}/<name>/<name>.ts
+                 y exportar desde libs/shared/src/index.ts
+  Elemento CDN:  carpeta apps/elements/<tier>/<nombre>/src/ con main.ts
+                 (createApplication → createCustomElement → customElements.define),
+                 entrada en vitals/contracts/src/element-registry.json,
+                 inputs en element-inputs.json — build.mjs lo encuentra solo
+  Verificar:     npm run build:angular (~26 s) o node tools/build.mjs --solo=<nombre>
 
 
 ## 11. MODULE CREATION RULES
@@ -267,53 +273,47 @@ Every Angular feature module must:
   - Full guide: SynergosDocs/MODULE_CREATION_GUIDE.md
 
 
-## 12. MULTI-FRAMEWORK RULES
+## 12. PLATFORM RULES (antes "multi-framework")
 
-This workspace supports multiple frameworks, each producing Custom Elements:
-
-  - Angular: main framework — reference implementation for the full element catalog
-      Status: production-ready | Catalog: primitives + compositions + modules
-  - React: production alternative — selected elements only
-      Status: production-ready pattern | Elements: compositions tier focus
-  - Svelte: production alternative — selected elements only
-      Status: production-ready pattern | Elements: compositions + primitives
-  - Vanilla: production alternative — selected elements only
-      Status: production-ready pattern | Elements: primitives tier focus
+HOY una sola plataforma publica elementos: Angular. Las plataformas react/
+svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron en la
+purga de Nx. La visión multi-framework queda como HISTORIA con la puerta
+abierta: el contrato del CDN conserva el segmento `/angular/` en las rutas y
+los tipos `FrameworkKind` ('angular' | 'react' | 'svelte' | 'vanilla') siguen
+existiendo en vitals/contracts — reintroducir otra plataforma es posible, pero
+no inventes que existe una.
 
 Platform rules:
-  - All frameworks produce `synergos-*` Custom Elements with identical public API
+  - Angular produce los Custom Elements `synergos-*` — bootstrap:
+      createApplication() + createCustomElement() from @angular/elements
   - Agnostic packages (vitals/) are shared via tsconfig path aliases, NOT npm
-  - Each framework resolves @synergos/* through its own libs/ first (NOT directly to vitals/)
+  - La plataforma resuelve @synergos/* por sus propias libs/ primero
     Exception: @synergos/contracts always points to vitals/contracts (no platform override)
-  - Each framework has isolated node_modules/ — NO npm workspaces
-  - Bridge protocol (vitals/core/src/bridge/) defines cross-framework interop
+  - platforms/angular/ tiene node_modules propio — NO npm workspaces en la raíz
+  - Bridge protocol (vitals/core/src/bridge/) define la interop con el host
   - Build output goes to CDN — no local wwwroot/ directory
-  - Nx orchestrates all frameworks from root via project.json tags
+  - El build es platforms/angular/tools/build.mjs — descubre elementos por
+    filesystem (toda carpeta bajo apps/ con src/main.ts), sin project.json ni tags
 
-Tags:
-  - framework:angular | framework:react | framework:svelte | framework:vanilla
-  - scope:elements | scope:experiences | scope:cms-adapter | scope:rendering | scope:integrations | scope:libs | scope:vitals
-  - tier:primitive | tier:composition | tier:module | tier:experience
-
-Scope boundary rule (enforced by ESLint @nx/enforce-module-boundaries):
-  - scope:elements CANNOT import scope:rendering or scope:integrations
-  - scope:cms-adapter (macro-host only) MAY import any scope
-  - scope:rendering and scope:integrations are libs — NOT elements
+Boundary rules (los tags Nx y @nx/enforce-module-boundaries murieron con la purga;
+estas fronteras siguen vigentes por convención y por el build):
+  - apps/elements NO importan libs/rendering ni libs/integrations
+  - libs/rendering y libs/integrations son libs — NO elementos
+  - La frontera empaquetado/externo la vigila cdn.config.mjs: qué queda fuera
+    del bundle (EXTERNALS, resuelto por import-map) y qué se empaqueta — un
+    import que la viole se ve en el tamaño del bundle publicado
+  - El lint plano (eslint.config.mjs) conserva los prefijos syn/sg de selectores
   - Decision tree for code placement: SynergosDocs/WHERE_DOES_THIS_GO.md
-
-Platform-specific bootstrap patterns (do NOT cross-pollinate):
-  - Angular: createApplication() + createCustomElement() from @angular/elements
-  - React: HTMLElement subclass + createRoot() in connectedCallback
-  - Svelte: <svelte:options customElement="synergos-*" /> compiler directive
-  - Vanilla: HTMLElement subclass + manual render() in connectedCallback
 
 
 ## 13. CDN, MANIFEST, AND VERSIONING RULES
 
 Every Custom Element published to the CDN must have:
-  - A compiled IIFE bundle: dist/{name}/{framework}/main.js
+  - A compiled ESM bundle: dist/{name}/browser/main.js (externals de cdn.config.mjs
+    como bare imports — los resuelve el import-map del runtime)
   - A manifest.json: { tag, alias, framework, version, tier, entryScript, inputs: [] }
   - Published to three CDN slots: /{semver}/ (immutable) + /v{major}/ (stable) + /latest/ (staging)
+  - El segmento {framework} de la ruta CDN es siempre `angular` hoy (ver sección 12)
 
 Manifest rules:
   - manifest.json is the formal contract between CDN and CMS (Umbraco)
@@ -331,7 +331,7 @@ Versioning rules:
 
 Publishing rules:
   - tools/publish.mjs is the ONLY script that writes to the CDN
-  - Never write to CDN directly from component code or nx targets
+  - Never write to CDN directly from component code or build scripts
   - Element registration in element-registry.json is required BEFORE publishing
   - tools/catalog.mjs generates a visual HTML catalog: npm run catalog
 
@@ -421,9 +421,11 @@ They have internal state, multi-step navigation, or user-driven content switchin
   - CMS block type key: experience<PascalName>
 
 ### Current experiences:
-  - experienceFeatureJourney   → synergos-feature-journey   (port 4260)
-  - experienceInsightExplorer  → synergos-insight-explorer  (port 4261)
-  - experienceMediaExplorer    → synergos-media-explorer    (port 4262, dark default)
+  - experienceFeatureJourney   → synergos-feature-journey
+  - experienceInsightExplorer  → synergos-insight-explorer
+  - experienceMediaExplorer    → synergos-media-explorer  (dark default)
+  (los puertos de dev server por proyecto murieron con Nx — iterar con
+   node tools/build.mjs --solo=<nombre> o npm run dev:cdn)
 
 
 ## 14. WHAT NOT TO GENERATE

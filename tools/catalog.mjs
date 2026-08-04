@@ -40,7 +40,7 @@ if (existsSync(cdnRegistryPath)) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const FRAMEWORKS  = ['angular', 'react', 'svelte', 'vanilla'];
+const FRAMEWORKS  = ['angular'];   // la purga dejó UNA plataforma
 const TIER_ORDER  = { module: 0, composition: 1, primitive: 2 };
 const TIER_COLORS = { module: '#6366f1', composition: '#0ea5e9', primitive: '#10b981' };
 

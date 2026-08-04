@@ -40,17 +40,6 @@ function unique(arr) {
   return [...new Set(arr)].sort();
 }
 
-/** Clean env for running Nx in a nested (per-framework) workspace.
- *  Strips every NX_* var so the root workspace cannot bleed into the child. */
-function nxCleanEnv() {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([k]) => !k.startsWith('NX_')),
-  );
-  env.NX_DAEMON              = 'false';
-  env.NX_TUI                 = 'false';
-  env.NX_PLUGIN_NO_TIMEOUTS  = 'true';
-  return env;
-}
 
 function run(cmd, cwd = WORKSPACE_ROOT, env) {
   try {
@@ -124,12 +113,6 @@ async function main() {
 
   if (action === 'release-cdn') {
     run('node tools/release-cdn.mjs');
-    return;
-  }
-
-  if (action === 'graph') {
-    console.log('\n  Opening Nx graph...\n');
-    run('npx nx graph');
     return;
   }
 
@@ -236,24 +219,18 @@ async function main() {
     return;
   }
 
-  // Step 5: Execute — route to the correct nested workspace per framework
-  // Angular/React/Svelte/Vanilla each have their own Nx workspace under platforms/<fw>/
-  const byFramework = new Map();
-  for (const p of selected) {
-    const fw = p.framework || 'unknown';
-    if (!byFramework.has(fw)) byFramework.set(fw, []);
-    byFramework.get(fw).push(p.name);
-  }
+  // Step 5: Execute — el motor de la purga. Una plataforma, una fuente de
+  // verdad: el nombre del elemento ES el nombre de su carpeta, así que no hay
+  // resolución de tags ni workspaces anidados de Nx que consultar.
+  const nombres = selected.map((p) => p.element || p.name).join(',');
+  const ngDir = resolve(WORKSPACE_ROOT, 'platforms/angular');
 
-  for (const [fw, names] of byFramework) {
-    const projectNames = names.join(',');
-    const platformDir = resolve(WORKSPACE_ROOT, 'platforms', fw);
-    const nxBin = resolve(platformDir, 'node_modules', 'nx', 'bin', 'nx.js');
-
-    // Use the nested workspace's own Nx binary so it finds the projects
-    const cmd = `node "${nxBin}" run-many --target=${action} --projects=${projectNames}`;
-    console.log(`\n  Running [${fw}]: ${cmd}\n`);
-    run(cmd, platformDir, nxCleanEnv());
+  if (action === 'build') {
+    run(`node tools/build.mjs --solo=${nombres}`, ngDir);
+  } else {
+    // test está suspendido tras la purga (lo dice el propio script) y lint
+    // corre sobre el árbol entero: la granularidad por elemento era de Nx.
+    run(`npm run ${action}`, ngDir);
   }
 }
 

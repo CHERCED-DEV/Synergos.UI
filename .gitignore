@@ -53,3 +53,6 @@ __screenshots__/
 # El CDN publicado — se genera en cada despliegue (tools/build-cdn.mjs).
 # Versionarlo dejaria que el contenido publicado y las fuentes divergieran.
 public/
+
+# Intermedio del build unificado (tools/build.mjs) — JS compilado, regenerable.
+.cdn-out/

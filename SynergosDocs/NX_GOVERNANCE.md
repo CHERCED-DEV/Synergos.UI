@@ -1,3 +1,5 @@
+> ⚠️ **OBSOLETO desde la purga de Nx (2026-08-04).** Este documento describe la arquitectura de build anterior. El build actual: `platforms/angular/tools/build.mjs` — ver BUILD_PIPELINE.md.
+
 # Nx Governance
 
 ## Dual-Workspace Model
