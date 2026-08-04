@@ -30,7 +30,15 @@
     // disfrazado. Devolver 200 con HTML donde se pidió un .js es cómo se
     // consiguen errores de sintaxis incomprensibles en el navegador del
     // consumidor.
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+
+    // Sin esto, Cloudflare sirve el asset ANTES de invocar al Worker: si el
+    // fichero existe, `worker/index.js` nunca corre. Lo destapó el primer
+    // despliegue en vivo: todo respondía `max-age=0, must-revalidate` y sin
+    // CORS — o sea, la política de caché entera (immutable en semver, 300s en
+    // latest, 60s en registry) era letra muerta. El coste es una invocación
+    // por request de asset; es exactamente lo que este Worker existe para hacer.
+    "run_worker_first": true
   },
 
   "observability": {
