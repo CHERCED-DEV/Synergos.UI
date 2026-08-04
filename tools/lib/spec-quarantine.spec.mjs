@@ -34,10 +34,13 @@ const LIBS = path.join(REPO, 'platforms/angular/libs');
 /**
  * Lo que queda en cuarentena. Baja este número al arreglar uno.
  *
- * 14 → 13: se arregló el NG0904 de `media-explorer` (#10), que era el único de
- * los tres defectos reales que estaba roto en producción.
+ *   14 → 13  el NG0904 de `media-explorer` (#10) — el único roto en producción
+ *   13 → 12  el `id="null"` de `container-block` (#11)
+ *
+ * Los 12 que quedan son 11 de rot (#13) y la decisión de accesibilidad de
+ * `icon-block` (#12).
  */
-const EN_CUARENTENA = 13;
+const EN_CUARENTENA = 12;
 
 function specs(raiz) {
   const encontrados = [];

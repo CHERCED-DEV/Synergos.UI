@@ -180,6 +180,18 @@ describe('MediaExplorerComponent', () => {
     expect(el?.className).toContain('sg-media-explorer--dark');
   });
 
+  it('should NOT set the id attribute when elementId is empty', async () => {
+    // El caso negativo, que es el que destapa el defecto: con `[id]` —property
+    // binding— poner `null` no quita el atributo, lo escribe con la cadena
+    // "null". El positivo de abajo pasaba igual, porque poner un id sí
+    // funcionaba; lo que no funcionaba era NO ponerlo (issue #11).
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const el = fixture.nativeElement.querySelector('.media-explorer');
+    expect(el?.getAttribute('id')).toBeNull();
+  });
+
   it('should apply elementId as id attribute', async () => {
     fixture.componentRef.setInput('elementId', 'demos-section');
     fixture.detectChanges();

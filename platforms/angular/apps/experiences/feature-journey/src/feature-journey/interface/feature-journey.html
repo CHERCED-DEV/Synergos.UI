@@ -1,7 +1,7 @@
 <div
   class="feature-journey"
   [class]="hostClasses()"
-  [id]="elementId() || null"
+  [attr.id]="elementId() || null"
 >
   @if (title()) {
     <div class="feature-journey__header">
