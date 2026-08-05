@@ -6,11 +6,13 @@ import { fileURLToPath } from 'node:url';
 import {
   computeE1,
   computeE2,
+  computeE4,
   applyBaseline,
   validateBaselineShape,
   staleExclusions,
   listasNoPermitidas,
   LISTAS_PERMITIDAS,
+  PLACEMENT_SIN_DOCTYPE,
 } from './cms-contract-rules.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -37,6 +39,46 @@ describe('computeE1 — alias del registry sin ContentType', () => {
   it('filtra: solo los que faltan', () => {
     const r = computeE1([el('a'), el('b'), el('c')], new Set(['b']));
     expect(r.map(e => e.alias)).toEqual(['a', 'c']);
+  });
+
+  it('`placement` distinto de docType no exige DocType', () => {
+    for (const p of PLACEMENT_SIN_DOCTYPE) {
+      expect(computeE1([{ ...el('x'), placement: p }], new Set())).toEqual([]);
+    }
+  });
+
+  it('sin `placement` sigue exigiendolo — el default no puede ser el permisivo', () => {
+    expect(computeE1([el('x')], new Set())).toHaveLength(1);
+  });
+
+  it('un `placement` inventado NO silencia: solo valen los tres conocidos', () => {
+    expect(computeE1([{ ...el('x'), placement: 'loQueSea' }], new Set())).toHaveLength(1);
+  });
+});
+
+describe('computeE4 — dos alias con el mismo nombre', () => {
+  it('sin duplicados, nada', () => {
+    expect(computeE4([el('a', 'uno'), el('b', 'dos')])).toEqual([]);
+  });
+
+  it('delata el par y nombra los dos alias', () => {
+    const r = computeE4([el('elementCompX', 'x'), el('elementSynX', 'x')]);
+    expect(r).toHaveLength(1);
+    expect(r[0].name).toBe('x');
+    expect(r[0].aliases).toEqual(['elementCompX', 'elementSynX']);
+  });
+
+  it('tres alias con el mismo nombre son UN hallazgo, no dos', () => {
+    const r = computeE4([el('a', 'x'), el('b', 'x'), el('c', 'x')]);
+    expect(r).toHaveLength(1);
+    expect(r[0].aliases).toHaveLength(3);
+  });
+
+  it('el registry REAL del repo no tiene duplicados sin declarar', () => {
+    const reg = JSON.parse(readFileSync(resolve(AQUI, '..', '..', 'vitals/contracts/src/element-registry.json'), 'utf8'));
+    // Los seis vivos tienen los DOS DocTypes en el CMS: consolidarlos es
+    // decision del CMS. Lo que este test fija es que no CREZCAN.
+    expect(computeE4(reg).length).toBeLessThanOrEqual(6);
   });
 });
 

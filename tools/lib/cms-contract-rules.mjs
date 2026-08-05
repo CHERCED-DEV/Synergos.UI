@@ -13,10 +13,23 @@
 
 // ── Las dos comprobaciones que bloquean ──────────────────────────────────────
 
+/**
+ * Cómo llega un elemento a una página. Sólo `docType` exige ContentType propio.
+ *
+ * Existe porque durante meses el validador tuvo que elegir entre gritar por
+ * piezas que estaban bien o callarse por las que no. `pax-selector` lo embebe
+ * `booking-wizard`, `text-block` es lo que montan otros cinco alias, y las
+ * experiencias `tier=module` las coloca `elementSynModuleMount` por alias
+ * (ADR 0096). Ninguna necesita DocType, y sin poder decirlo el registry las
+ * convertía en deuda falsa.
+ */
+export const PLACEMENT_SIN_DOCTYPE = new Set(['embedded', 'shared', 'moduleMount']);
+
 /** [E1] Alias en el registry sin ContentType en uSync. */
 export function computeE1(registry, cmsAliases) {
   return registry
     .filter(e => !cmsAliases.has(e.alias))
+    .filter(e => !PLACEMENT_SIN_DOCTYPE.has(e.placement))
     .map(e => ({
       alias: e.alias,
       name: e.name,
@@ -24,6 +37,26 @@ export function computeE1(registry, cmsAliases) {
       tag: e.tag,
       note: 'Alias in element-registry.json but not found in any uSync ContentType .config',
     }));
+}
+
+/**
+ * [E4] Dos entradas del registry con el mismo `name`.
+ *
+ * `publish.mjs` deduplica por nombre y gana la primera, así que cuál de los dos
+ * alias acaba publicado depende del ORDEN del array — que no es una decisión
+ * que nadie haya tomado. Salen de migraciones a `elementSyn*` en las que el
+ * alias viejo nunca se retiró.
+ */
+export function computeE4(registry) {
+  const porNombre = new Map();
+  for (const e of registry) {
+    if (!porNombre.has(e.name)) porNombre.set(e.name, []);
+    porNombre.get(e.name).push(e.alias);
+  }
+  return [...porNombre.entries()]
+    .filter(([, aliases]) => aliases.length > 1)
+    .map(([name, aliases]) => ({ alias: aliases.join(' + '), name, aliases }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** [E2] ContentType con prefijo de elemento que el registry no declara. */

@@ -205,14 +205,6 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-feature-grid',
     map: (d) => toRecord(mapFeatureGridData(d as unknown as FeatureGridElementData)),
   },
-  elementCompFaqList: {
-    tag: 'synergos-faq-section',
-    map: (d) => toRecord(mapFaqSectionData(d as unknown as FaqListElementData)),
-  },
-  elementCompTestimonialList: {
-    tag: 'synergos-testimonial-section',
-    map: (d) => toRecord(mapTestimonialSectionData(d as unknown as TestimonialListElementData)),
-  },
   elementCompLogoCloud: {
     tag: 'synergos-logo-cloud',
     map: (d) => toRecord(mapLogoCloudData(d as unknown as LogoCloudElementData)),
@@ -350,7 +342,7 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-text-block',
     map: (d) => toRecord(mapTextBlockData(d as unknown as Record<string, unknown>)),
   },
-  elementTextRichText: {
+  elementTextRichtext: {
     tag: 'synergos-text-block',
     map: (d) => toRecord(mapTextBlockData(d as unknown as Record<string, unknown>)),
   },
@@ -371,10 +363,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   elementInfoStat: {
     tag: 'synergos-stat-counter',
     map: (d) => toRecord(mapStatCounterData(d as unknown as Record<string, unknown>)),
-  },
-  elementCompAccordion: {
-    tag: 'synergos-accordion',
-    map: (d) => toRecord(mapAccordionData(d as unknown as Record<string, unknown>)),
   },
   elementMediaAvatar: {
     tag: 'synergos-avatar',
@@ -417,10 +405,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   experienceMediaExplorer: {
     tag: 'synergos-media-explorer',
     map: (d) => toRecord(mapMediaExplorerData(d as unknown as MediaExplorerElementData)),
-  },
-  experienceCountdownClock: {
-    tag: 'synergos-countdown-clock',
-    map: (d) => toRecord(mapCountdownClockData(d as Record<string, unknown>)),
   },
 
   // ── Layout Presets ──────────────────────────────────────────────────────────

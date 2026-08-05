@@ -9,6 +9,11 @@
  * Checks performed:
  *   [E1] Element aliases in element-registry.json that have no matching uSync
  *        ContentType .config (alias not found in CMS) → likely broken reference
+ *        Se exceptúan las entradas con `placement` distinto de `docType`: hay
+ *        piezas que no se colocan por DocType propio y el registry ya lo dice
+ *        —`embedded` (la embebe otro bundle), `shared` (es la implementación de
+ *        otras entradas), `moduleMount` (la coloca elementSynModuleMount por
+ *        alias, ADR 0096). Antes eran deuda falsa en el baseline.
  *
  *   [E2] uSync ContentType configs with aliases starting "element" or "experience"
  *        that are NOT in element-registry.json → orphaned element types in CMS
@@ -28,6 +33,13 @@
  *   [W5] Deprecated wrapper-component aliases (angular-host, mf-host, macro-host) found
  *        in element-registry.json — they should have been removed.
  *
+ *   [W6] Dos entradas del registry con el mismo `name`. `publish.mjs` deduplica
+ *        por nombre y gana la PRIMERA del array, así que cuál alias acaba
+ *        publicado depende del orden — que no es una decisión que nadie tomó.
+ *        Salen de migraciones a `elementSyn*` donde el alias viejo no se retiró.
+ *        Es warning y no error porque en los seis vivos AMBOS DocTypes existen
+ *        en el CMS: consolidarlos es decisión del CMS, no de este repo.
+ *
  * Usage:
  *   node tools/validate-cms-contracts.mjs
  *   node tools/validate-cms-contracts.mjs --strict   (exit 1 on warnings too)
@@ -45,6 +57,7 @@ import { fileURLToPath } from 'node:url';
 import {
   computeE1,
   computeE2,
+  computeE4,
   applyBaseline,
   validateBaselineShape,
   staleExclusions,
@@ -319,7 +332,6 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementInfoTimelineList',
   'elementMediaGallery',
   'elementMediaLogoCloud',
-  'elementTextRichtext',
   // Modelos de DATOS anidados, consumidos por un BlockList y proyectados a JSON
   // por su fuente de catálogo. No montan web component Y TAMPOCO tienen partial
   // Razor: no son "SSR-only", son una tercera categoría — el editor los llena
@@ -351,7 +363,7 @@ const CMS_INTERNAL_ALIASES = new Set([
 const DEPRECATED_NAMES = new Set(['angular-host', 'mf-host', 'macro-host']);
 
 const errors   = { e1: [], e2: [] };
-const warnings = { w1: [], w2: [], w3: [], w4: [], w5: [] };
+const warnings = { w1: [], w2: [], w3: [], w4: [], w5: [], w6: [] };
 
 // [E1] Registry alias with no matching CMS element type
 errors.e1.push(...computeE1(registry, cmsAliases));
@@ -424,6 +436,9 @@ if (configFieldKeys.size > 0) {
   }
 }
 
+// [W6] Dos entradas del registry con el mismo `name` (issue #16)
+warnings.w6.push(...computeE4(registry));
+
 // [W5] Deprecated wrapper-component names still in registry
 for (const entry of registry) {
   if (DEPRECATED_NAMES.has(entry.name)) {
@@ -478,7 +493,7 @@ for (const key of ['e1', 'e2']) {
 // ── Output ────────────────────────────────────────────────────────────────────
 
 const errorCount   = errors.e1.length + errors.e2.length;
-const warningCount = warnings.w1.length + warnings.w2.length + warnings.w3.length + warnings.w4.length + warnings.w5.length;
+const warningCount = warnings.w1.length + warnings.w2.length + warnings.w3.length + warnings.w4.length + warnings.w5.length + warnings.w6.length;
 
 const baselinedCount = baselined.e1.length + baselined.e2.length;
 
@@ -561,6 +576,13 @@ if (json) {
     console.log(`[W5] Deprecated wrapper-component names in registry (${warnings.w5.length}):`);
     for (const w of warnings.w5)
       console.log(`  ⚠ ${w.name} (${w.alias}): ${w.note}`);
+    console.log();
+  }
+
+  if (warnings.w6.length > 0) {
+    console.log(`[W6] Dos alias del registry con el mismo nombre — publish.mjs deduplica y gana el primero del array (${warnings.w6.length}):`);
+    for (const w of warnings.w6)
+      console.log(`  ⚠ ${w.name}: ${w.aliases.join('  |  ')}`);
     console.log();
   }
 
