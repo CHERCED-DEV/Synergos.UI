@@ -74,12 +74,51 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los 240 specs de la plataforma — 1327 pasando, 14 en cuarentena. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
+- Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los specs de la plataforma, **con la cuarentena en cero** — y eso no es una foto, lo defiende `spec-quarantine`. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
-  - La cuarentena tiene techo: `tools/lib/spec-quarantine.spec.mjs` exige que los `it.skip` sean exactamente 14 y que cada uno lleve su motivo. Añadir el 15º rompe el build; arreglar uno, también — obliga a bajar el número.
+
 - Aliases agnósticos: `@synergos/contracts`, `@synergos/core` (desde `vitals/`)
 - Aliases Angular: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
 - Component prefix: `syn-`
 - State: `signal()` only — no BehaviorSubject, no Zone.js
 - Build output: CDN deployment (no local wwwroot)
 - Full rules: see `LLM.txt`
+
+## Los gates, y qué vigila cada uno
+
+Todos corren con `npm test` (los de `tools/lib`, sin SDK ni red) o con su comando.
+**Cada uno se escribió viéndolo fallar primero** — un gate que nadie vio en rojo no
+está vigilando nada.
+
+| gate | vigila | se ve fallar si… |
+|---|---|---|
+| `cdn-cache-policy` | qué puede llevar `immutable` | pones caché larga en una ruta que se mueve |
+| `cdn-runtime-check` | que el runtime esté antes que quien lo necesita | se publica el runtime después de los elementos (#7) |
+| `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida | un external se empaqueta dentro de un elemento (#8) |
+| `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
+| `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
+| `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
+| `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
+
+Comandos que no cuelgan de `npm test`:
+
+```bash
+npm run contracts:validate    # sync:tokens · element:audit · manifest · cms:validate · cms:sync:check
+npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
+npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
+npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
+```
+
+En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL commit
+de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
+del CMS sibling — que es público, así que **sin `token:`**, ver #14).
+
+**Dos reglas que costaron caro y no se deducen leyendo el código:**
+
+1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
+   property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
+   `[class.…]` y `[style.…]` lo eliminan. Lo vigila `template-bindings` (#11).
+2. **`cms-sync` ADIVINA el tier de lo que no conoce.** Si un `elementSyn*` nuevo no está en
+   `TIER_BY_NAME`, le pone `composition` y **sobreescribe** el del registry. Como el
+   presupuesto de tamaño elige el techo por tier, eso degrada un `module` de 72 KB a
+   44 KB en silencio. Antes de correr `cms:sync`, mirá los WARN (#3).

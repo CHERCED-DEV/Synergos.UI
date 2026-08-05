@@ -58,12 +58,21 @@
 
 | Script | Qué hace |
 |---|---|
-| `npm test` | **Solo los specs de la raíz** (`tools/lib/` — cdn-cache-policy) |
+| `npm test` | Los dos: gates de `tools/lib` + los specs de Angular |
+| `npm run test:tools` | Sólo los gates de `tools/lib` — sin SDK, sin red, < 1 s |
+| `npm run test:angular` | Sólo la plataforma (compila AOT primero, ~35 s) |
+| `npm run size:check` | El presupuesto de tamaño contra `public/` |
+| `npm run size:baseline` | Regenera el registro de tamaños — el diff va en el commit que lo causó |
+| `npm run humo:cdn -- <url> [--sha <commit>]` | Humo contra la **URL pública**, nunca contra sí mismo |
 
-> Los tests unitarios de Angular están **suspendidos**: el runner era el
-> executor de Nx (`@angular/build:unit-test`). Los `.spec.ts` siguen en el
-> árbol; recablearlos a vitest con compilación Angular es un pendiente
-> declarado, no un olvido.
+> **Los specs de Angular se COMPILAN antes de correr** (`platforms/angular/tools/build-specs.mjs`),
+> con el mismo ngtsc que publica los elementos. No es preferencia de estilo: los
+> **signal inputs de Angular no funcionan en JIT** — `setInput()` no llega nunca al
+> `input()` y devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe
+> `@Input()`, cualquier transpilador al vuelo haría que los tests **corran y mientan**.
+>
+> La cuarentena de `it.skip` está en **cero** y lo defiende `tools/lib/spec-quarantine.spec.mjs`:
+> añadir uno rompe el build si no lleva su motivo y su ticket.
 
 ---
 
@@ -71,8 +80,12 @@
 
 | Script | Qué hace |
 |---|---|
-| `npm run dev:cdn` | Dev CDN — watch + rebuild + sync a CDN local (`tools/dev-cdn.mjs`) |
+| `npm run dev:cdn` | Sirve el CDN entero desde el watch incremental (`tools/dev-cdn.mjs`) — ver `DEV_CDN_MODE.md` |
 | `npm run catalog` | Genera el catálogo HTML de elementos (`tools/catalog.mjs`) |
+
+> `dev:cdn` **no sincroniza nada**: traduce la ruta y lee de `dist/`. Acepta
+> `--solo=a,b`, `--puerto N` y `--sin-livereload`, y se para con Ctrl-C. El CMS lo
+> consume por su ruta normal — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL`.
 
 ---
 
@@ -88,6 +101,23 @@
 - De las devDeps: `nx`, `@nx/*`, `@angular/build`, `@angular/cli`,
   `@angular-devkit/*`, `@schematics/angular`, `ng-packagr`, `cross-env`,
   `patch-package`, `tsx`, `@swc*`.
+
+### Y lo que murió al rehacer `dev-cdn` (issue #2)
+
+- `npm run dev:cdn:stop` y `tools/dev-cdn-stop.mjs` — el nuevo `dev:cdn` es **un
+  proceso** y se para con Ctrl-C. No hay nada que señalizar.
+- `tools/lib/dev-servers.mjs` y su `__dev-servers.json` — existía para que el CMS
+  supiera qué puerto servía qué elemento, porque antes había un servidor por
+  elemento. Con un solo origen sirviendo el CDN entero, sobra. (Su cabecera decía
+  que el CMS lo vigilaba con un `FileSystemWatcher`; se comprobó y **el CMS nunca
+  implementó eso**.)
+- Los flags `--element=`, `--framework=` y `--skip-runtime` → hoy son `--solo=`,
+  nada, y nada: el runtime se construye solo si falta.
+
+### Lo que se AÑADIÓ en la misma tanda
+
+`test:tools`, `test:angular`, `size:check`, `size:baseline`, `humo:cdn`. Ver la
+tabla de gates en `CLAUDE.md`.
 
 ---
 
