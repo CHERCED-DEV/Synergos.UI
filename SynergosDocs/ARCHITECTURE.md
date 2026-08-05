@@ -238,5 +238,11 @@ npm run build:cdn                 → arma public/ entero, y es lo que despliega
 - [FEATURE_ARCHITECTURE.md](FEATURE_ARCHITECTURE.md) — Módulos y experiencias, capa por capa
 
 > Los que llevan banner (`EXPERIENCES`, `ONBOARDING`, `OUTPUT_POLICY`,
-> `NX_GOVERNANCE`, `WHERE_DOES_THIS_GO`, y las dos auditorías) describen el repo
-> anterior a la purga. Están para consultar el porqué, no el cómo.
+> `WHERE_DOES_THIS_GO`, `TROUBLESHOOTING`, `MCP_SETUP`) describen el repo anterior
+> a la purga. Están para consultar el porqué, no el cómo.
+>
+> Las dos auditorías (`AUDITORIA_ARQUITECTONICA`, `VALIDACION_TECNICA`), el
+> `PLAN_EJECUCION` que salió de ellas y `NX_GOVERNANCE` se borraron: eran 2 051
+> líneas describiendo un repo con Nx y cuatro plataformas, y un banner no frena a
+> quien llega por `grep`. Viven en el historial —`git show 30c21c9:SynergosDocs/…`—
+> que es donde va lo que ya no describe nada.

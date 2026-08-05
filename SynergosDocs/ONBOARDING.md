@@ -192,7 +192,6 @@ See [`EXPERIENCES.md`](EXPERIENCES.md) for full examples per framework.
 |----------|---------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, layers, dependency rules |
 | [EXPERIENCES.md](EXPERIENCES.md) | All 9 experiences, architecture per framework, creation guide |
-| [NX_GOVERNANCE.md](NX_GOVERNANCE.md) | Dual Nx model, project naming, tags |
 | [BUILD_PIPELINE.md](BUILD_PIPELINE.md) | Build, test, lint, publish commands |
 | [SCRIPTS.md](SCRIPTS.md) | npm scripts quick reference |
 | [OUTPUT_POLICY.md](OUTPUT_POLICY.md) | Build artifacts, CDN structure, cleanup |
