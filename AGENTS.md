@@ -9,7 +9,7 @@ Architecture documentation is in `SynergosDocs/` — read the relevant doc befor
 - Build propio: `platforms/angular/tools/build.mjs` (un NgtscProgram + un esbuild — **sin Nx**)
 - TypeScript ~5.9 (strict, private fields `#`)
 - SCSS with Sass modules (`@use` / `@forward`, never `@import`)
-- Tests: vitest. Los 240 specs de Angular se **compilan AOT** antes de correr (`tools/build-specs.mjs`) — los signal inputs no existen en JIT, así que un transpilador al vuelo haría que los tests corran y mientan
+- Tests: vitest. Los specs de Angular se **compilan AOT** antes de correr (`tools/build-specs.mjs`) — los signal inputs no existen en JIT, así que un transpilador al vuelo haría que los tests corran y mientan
 
 > **Historia multi-framework:** react/svelte/vanilla eran andamiaje sin elementos
 > publicados y se eliminaron. El contrato del CDN conserva `/angular/` en las rutas
@@ -89,7 +89,7 @@ createApplication(appConfig).then((appRef) => {
 npm run build:angular          # Los 136 elementos + libs, AOT completo (~26 s)
 npm run build:runtime          # Runtime compartido (linker de Angular incluido)
 npm run build:cdn              # Arma public/ completo: vitals + elementos + runtime + registry + catálogo
-npm test                       # Gates de tools/lib + los 240 specs de Angular (compila AOT primero)
+npm test                       # Gates de tools/lib + los specs de Angular (compila AOT primero)
 
 # El ciclo editor→navegador (issue #2)
 npm run dev:cdn                     # sirve el CDN entero desde el watch incremental
