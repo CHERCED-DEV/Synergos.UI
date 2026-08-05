@@ -15,7 +15,19 @@
     "validar nada cuando no encontraba el CMS, así que la deriva nunca se vio.",
     "",
     "Revision 2026-08-01 (2a): los cuatro de e2 conservan el desajuste pero ya no dejan la pantalla rota — tienen respaldo SSR. Los dos de e1 dejaron de ser deuda: son piezas que otro bundle embebe, no bloques de pagina (ADR 0126 del CMS).",
-    "Revision 2026-08-01 (3a): elementSynSeatMap SALE del baseline — ya tiene DocType. No contradice al ADR 0126 sino que lo enmienda (ADR 0127): el CMS lo CONFIGURA (que cabina, cuantas butacas, que moneda) y un proveedor exogeno lo LLENA. pax-selector se queda: es el caso puro, no tiene sentido fuera del wizard que lo embebe."
+    "Revision 2026-08-01 (3a): elementSynSeatMap SALE del baseline — ya tiene DocType. No contradice al ADR 0126 sino que lo enmienda (ADR 0127): el CMS lo CONFIGURA (que cabina, cuantas butacas, que moneda) y un proveedor exogeno lo LLENA. pax-selector se queda: es el caso puro, no tiene sentido fuera del wizard que lo embebe.",
+    "",
+    "Revision 2026-08-05 (issue #16): entran 20 desajustes que NO son nuevos.",
+    "Llevaban meses silenciados por tres listas cableadas en el propio validador",
+    "—SCHEMA_MANAGED_ALIASES, LEGACY_RENAMED_ALIASES y UI_ONLY_ALIASES— que no",
+    "imprimian, no exigian motivo y no caducaban. La primera se justificaba con",
+    "`ElementTypeInitializer`, una clase que no existe en el CMS y que el",
+    "proyecto ademas prohibe (CLAUDE.md §0.A, principios 2 y 4). Al borrarlas,",
+    "cada desajuste queda aqui con el hecho VERIFICADO contra el arbol del CMS,",
+    "no con la explicacion que traia la lista: de los 14 alias que",
+    "LEGACY_RENAMED_ALIASES daba por 'ya migrados a elementSyn*', solo UNO lo",
+    "estaba. Salen los cuatro de e2 —faq-section, feature-grid, media-text y",
+    "testimonial-section ya estan en el registry, el desajuste se cerro."
   ],
   "e1_registryAliasMissingFromCms": [
     {
@@ -23,32 +35,127 @@
       "reason": "NO es deuda (ADR 0126 del CMS). No es un bloque de pagina: lo EMBEBE booking-wizard, que lo declara como dependencia en este mismo registry, lo pinta en su plantilla (booking-wizard.html:70) y normaliza la ocupacion que emite. Suelto en una pagina, elegir dos adultos y un nino no significa nada: quien busca disponibilidad con esa ocupacion es el wizard. El registry declara que PUBLICA el CDN, no que puede colocar un editor.",
       "owner": "—",
       "action": "Ninguna. Se cierra cuando el registry pueda declarar la intencion (embeddedBy / standalone:false) y el validador deje de compararlo."
+    },
+    {
+      "alias": "elementCompAccordion",
+      "reason": "DUPLICADO verificado: `elementSynAccordion` existe en el CMS Y en este mismo registry. La entrada vieja sobrevivio a la migracion. La lista borrada decia que se conservaba por payloads antiguos de la DB — eso puede seguir siendo cierto para el MAPPER, pero el registry declara lo que PUBLICA el CDN, y publicar dos veces el mismo acordeon con dos alias no lo es.",
+      "owner": "arquitecto",
+      "action": "Borrar la entrada del registry si ningun contenido publicado la referencia. El mapper puede quedarse."
+    },
+    {
+      "alias": "elementCompFaqList",
+      "reason": "DUPLICADO verificado, mismo caso que elementCompAccordion: `elementSynFaqSection` ya esta en el registry, y el CMS ademas tiene `elementInfoFaqList` (SSR, sin bundle). Tres nombres para un FAQ, dos de ellos en el registry.",
+      "owner": "arquitecto",
+      "action": "Borrar la entrada del registry si ningun contenido publicado la referencia."
+    },
+    {
+      "alias": "elementStructSection",
+      "reason": "El CMS resuelve este concepto con presets de Layout Composer, no con un bundle: existe `elementLayoutSection`, server-rendered (ADR 0017). La lista borrada afirmaba que el CMS habia migrado a `elementSynSection`; ese alias NO existe en el CMS. El desajuste es real y la explicacion anterior era falsa.",
+      "owner": "arquitecto",
+      "action": "Decidir si el bundle sobra (el layout lo pinta el CMS) o si el preset debe montarlo."
+    },
+    {
+      "alias": "elementStructContainer",
+      "reason": "Mismo caso que elementStructSection: el CMS tiene `elementLayoutContainer` (preset SSR), no `elementSynContainer`.",
+      "owner": "arquitecto",
+      "action": "Decidir junto con el resto de los Struct*."
+    },
+    {
+      "alias": "elementStructGrid",
+      "reason": "Mismo caso que elementStructSection: el CMS tiene `elementLayoutGrid` (preset SSR), no `elementSynGrid`.",
+      "owner": "arquitecto",
+      "action": "Decidir junto con el resto de los Struct*."
+    },
+    {
+      "alias": "elementStructColumn",
+      "reason": "Mismo caso que elementStructSection: el CMS tiene `elementLayoutColumn` (preset SSR), no `elementSynColumn` — que es justo el ejemplo que la lista borrada usaba para afirmar lo contrario.",
+      "owner": "arquitecto",
+      "action": "Decidir junto con el resto de los Struct*."
+    },
+    {
+      "alias": "elementStructStack",
+      "reason": "Mismo caso que elementStructSection: el CMS tiene `elementLayoutStack` (preset SSR), no `elementSynStack`.",
+      "owner": "arquitecto",
+      "action": "Decidir junto con el resto de los Struct*."
+    },
+    {
+      "alias": "elementCompLogoCloud",
+      "reason": "El CMS lo tiene con OTRO alias y server-rendered: `elementMediaLogoCloud`. No hay `elementSynLogoCloud` en ningun lado.",
+      "owner": "arquitecto",
+      "action": "Alinear el alias del registry con el del CMS, o declarar que el bundle no aplica porque es SSR."
+    },
+    {
+      "alias": "elementTextRichText",
+      "reason": "DESAJUSTE DE CAPITALIZACION, verificado: el CMS tiene `elementTextRichtext` (t minuscula) y este registry declara `elementTextRichText`. Es inerte hoy —el CMS no tiene partial SynHost para el, asi que es SSR y nunca monta bundle— pero es exactamente la clase de defecto que este validador existe para ver, y estaba silenciado por las dos puntas a la vez: el alias del CMS en CMS_INTERNAL_ALIASES y el del registry en LEGACY_RENAMED_ALIASES. Ninguna de las dos listas sabia de la otra.",
+      "owner": "arquitecto",
+      "action": "Unificar la capitalizacion. El CMS es el lado autoritativo del alias."
+    },
+    {
+      "alias": "elementCompTestimonialList",
+      "reason": "Sin contraparte de ningun tipo en el CMS: no hay `elementCompTestimonialList`, ni `elementSynTestimonialList`, ni equivalente SSR. La lista borrada lo daba por migrado; no lo esta. (Existe `elementSynTestimonialSection`, que es otra cosa y ya esta en el registry.)",
+      "owner": "arquitecto",
+      "action": "Borrar del registry o crear el DocType."
+    },
+    {
+      "alias": "elementIntScriptEmbed",
+      "reason": "Sin contraparte de ningun tipo en el CMS. La lista borrada lo daba por migrado a `elementSynScriptEmbed`; ese alias no existe.",
+      "owner": "arquitecto",
+      "action": "Borrar del registry o crear el DocType."
+    },
+    {
+      "alias": "elementIntIframeEmbed",
+      "reason": "Sin contraparte de ningun tipo en el CMS. La lista borrada lo daba por migrado a `elementSynIframeEmbed`; ese alias no existe.",
+      "owner": "arquitecto",
+      "action": "Borrar del registry o crear el DocType."
+    },
+    {
+      "alias": "elementIntExternalWidget",
+      "reason": "Sin contraparte de ningun tipo en el CMS. La lista borrada lo daba por migrado a `elementSynExternalWidget`; ese alias no existe.",
+      "owner": "arquitecto",
+      "action": "Borrar del registry o crear el DocType."
+    },
+    {
+      "alias": "experienceFeatureJourney",
+      "reason": "Publicado al CDN y sin DocType propio, pero es `tier=module`, asi que un editor SI puede colocarlo: lo monta `elementSynModuleMount` por alias (ADR 0096 del CMS, Views/Partials/SynHost/ModuleMount.cshtml). No es una pieza inalcanzable — es el mecanismo previsto para las apps completas.",
+      "owner": "—",
+      "action": "Ninguna, salvo que se decida darle DocType propio para que aparezca en el catalogo del editor sin escribir el alias."
+    },
+    {
+      "alias": "experienceInsightExplorer",
+      "reason": "Igual que experienceFeatureJourney: publicado, `tier=module`, colocable via `elementSynModuleMount` (ADR 0096).",
+      "owner": "—",
+      "action": "Ninguna."
+    },
+    {
+      "alias": "experienceMediaExplorer",
+      "reason": "Igual que experienceFeatureJourney: publicado, `tier=module`, colocable via `elementSynModuleMount` (ADR 0096).",
+      "owner": "—",
+      "action": "Ninguna."
+    },
+    {
+      "alias": "experienceCountdownClock",
+      "reason": "Igual que experienceFeatureJourney: publicado, `tier=module`, colocable via `elementSynModuleMount` (ADR 0096). Sobrevivio a la purga de plataformas porque se reimplemento en Angular (apps/elements/modules/countdown-clock); las otras cuatro `experience*` NO, y por eso salieron del registry en este mismo commit.",
+      "owner": "—",
+      "action": "Ninguna."
+    },
+    {
+      "alias": "elementCompInfoBlock",
+      "reason": "Publicado al CDN y NO colocable: no tiene DocType y es `tier=composition`, asi que `elementSynModuleMount` —que solo monta `tier=module`— tampoco lo alcanza. Un bundle que se sirve y que ningun editor puede poner en una pagina. Estaba silenciado alegando que `ElementTypeInitializer` lo crearia al arrancar; esa clase no existe.",
+      "owner": "arquitecto",
+      "action": "Crear el DocType o sacarlo del registry. Es una de las tres piezas realmente inalcanzables."
+    },
+    {
+      "alias": "elementActionButtonGroup",
+      "reason": "Publicado al CDN y NO colocable, igual que elementCompInfoBlock: sin DocType y `tier=composition`. Es el alias del hallazgo CF-09 de la vieja VALIDACION_TECNICA, que lo describia como un mismatch entre dos aliases: no hay tal: hay un solo alias y cero lado del CMS.",
+      "owner": "arquitecto",
+      "action": "Crear el DocType o sacarlo del registry."
+    },
+    {
+      "alias": "elementTextBlock",
+      "reason": "Publicado al CDN y NO colocable: sin DocType y `tier=primitive`. Tercera de las tres piezas inalcanzables. Ojo, el CMS SI tiene DocType de texto (`elementTextRichtext`), pero con otro alias y server-rendered.",
+      "owner": "arquitecto",
+      "action": "Crear el DocType o sacarlo del registry."
     }
   ],
-  "e2_cmsAliasMissingFromRegistry": [
-    {
-      "alias": "elementSynFaqSection",
-      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
-      "owner": "UI",
-      "action": "Publicar el bundle. El respaldo SSR ya esta."
-    },
-    {
-      "alias": "elementSynFeatureGrid",
-      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
-      "owner": "UI",
-      "action": "Publicar el bundle. El respaldo SSR ya esta."
-    },
-    {
-      "alias": "elementSynMediaText",
-      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
-      "owner": "UI",
-      "action": "Publicar el bundle. El respaldo SSR ya esta."
-    },
-    {
-      "alias": "elementSynTestimonialSection",
-      "reason": "El DocType y el partial SynHost siguen vivos y el bundle sigue sin existir, asi que el desajuste es real. Lo que cambio es el DANO: el partial ya pasa FallbackHtml, asi que el visitante ve HTML semantico e indexable en vez del skeleton CDN-offline. Queda como mejora progresiva pendiente, no como pantalla rota.",
-      "owner": "UI",
-      "action": "Publicar el bundle. El respaldo SSR ya esta."
-    }
-  ]
+  "e2_cmsAliasMissingFromRegistry": []
 }

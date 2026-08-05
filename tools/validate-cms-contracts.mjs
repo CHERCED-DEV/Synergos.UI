@@ -42,6 +42,14 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  computeE1,
+  computeE2,
+  applyBaseline,
+  validateBaselineShape,
+  staleExclusions,
+} from './lib/cms-contract-rules.mjs';
+
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
 const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -261,7 +269,6 @@ const CMS_INTERNAL_ALIASES = new Set([
   // Forms (server-side form rendering pipeline)
   'elementFormEmbed',
   'elementFormField',
-  'elementCompFormBlock',
   'elementFormContainer',
   // Pricing (server-rendered: no hay vista en Views/Partials/SynHost/ para
   // ninguno de los dos, así que no montan web component)
@@ -278,9 +285,9 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementCorpTabPanel',
   'elementNavItem',
   'elementNavGroup',
-  // Deprecated wrapper-component arch — still in DB, removed by CleanupLegacyTypes on next bump
-  'elementIntAngularHost',
-  'elementIntMfHost',
+  // Deprecated wrapper-component arch — still in DB, removed by CleanupLegacyTypes on next bump.
+  // `elementIntAngularHost` y `elementIntMfHost` ya no estan en el CMS: los delato
+  // el chequeo de exclusiones rancias del issue #16 y salieron de esta lista.
   'elementIntIframeHost',
   'elementIntScriptHost',
   // Layout presets (server-rendered Umbraco layouts — Block Grid sections)
@@ -327,70 +334,16 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementTramiteFormField',
 ]);
 
-/**
- * UI registry entries that intentionally have no matching CMS element type.
- * Suppresses [E1] for development templates / prototype elements.
- */
-const UI_ONLY_ALIASES = new Set([
-  'elementTemplateHelloWorld', // development placeholder — not a real CMS element type
-]);
-
-/**
- * Legacy registry aliases retained for backward compat con payloads viejos
- * del CMS. El CMS ya migró estos elementos a `elementSyn*` (e.g.
- * elementStructColumn → elementSynColumn) pero el registry + block.mapper.ts
- * mantienen los nombres viejos porque podrían existir en DB content cards
- * publicadas hace tiempo. Cuando el operador haga full re-publish del
- * content tree, estos quedan obsoletos y se pueden remover en una pasada
- * de cleanup.
- *
- * Suppresses [E1] (registry alias not in CMS) sin pretender que están vivos.
- */
-const LEGACY_RENAMED_ALIASES = new Set([
-  // Structural — renamed to elementSyn*
-  'elementStructSection',
-  'elementStructContainer',
-  'elementStructGrid',
-  'elementStructColumn',
-  'elementStructStack',
-  // Composition — renamed to elementSyn*
-  'elementCompAccordion',
-  'elementCompFaqList',
-  'elementCompTestimonialList',
-  'elementCompLogoCloud',
-  // Integration — renamed to elementSyn*
-  'elementIntScriptEmbed',
-  'elementIntIframeEmbed',
-  'elementIntExternalWidget',
-  // Info — renamed to elementSyn*
-  'elementInfoPricingCard',
-  // Text — renamed to elementSyn*
-  'elementTextRichText',
-]);
-
-/**
- * Aliases managed by the code-first schema (ElementTypeInitializer) that will
- * be created in Umbraco on first startup but may not have uSync exports yet.
- * These had stale Delete tombstones removed; once the app runs, uSync will
- * export them and they will appear in cmsAliases automatically.
- * Suppresses [E1] until the next application startup.
- */
-const SCHEMA_MANAGED_ALIASES = new Set([
-  // Structural / textual (code-first, tombstone cleaned up)
-  'elementCompInfoBlock',
-  'elementActionButtonGroup',
-  'elementTextBlock',
-  // Experiences (code-first, tombstone cleaned up)
-  'experienceFeatureJourney',
-  'experienceInsightExplorer',
-  'experienceMediaExplorer',
-  'experienceContentCarousel',
-  'experienceQuizFlow',
-  'experienceRatingWidget',
-  'experienceFilterBoard',
-  'experienceNotificationStack',
-  'experienceCountdownClock',
-]);
+// NOTA (issue #16). Acá vivían tres listas más —`UI_ONLY_ALIASES`,
+// `LEGACY_RENAMED_ALIASES` y `SCHEMA_MANAGED_ALIASES`— que silenciaban 27
+// aliases del [E1]. Ninguna se imprimía, ninguna exigía motivo y ninguna
+// caducaba. La última se justificaba con `ElementTypeInitializer`, una clase
+// que NO existe en el CMS y que además el proyecto prohíbe (CLAUDE.md §0.A,
+// principios 2 y 4: schema vía uSync, cero seeders en boot).
+//
+// Lo que quedaba vivo se movió a `cms-contract-baseline.json`, que sí hace las
+// tres cosas. Que no vuelvan a aparecer lo defiende
+// `tools/lib/cms-contract-rules.spec.mjs`.
 
 // ── Run checks ────────────────────────────────────────────────────────────────
 
@@ -401,34 +354,15 @@ const errors   = { e1: [], e2: [] };
 const warnings = { w1: [], w2: [], w3: [], w4: [], w5: [] };
 
 // [E1] Registry alias with no matching CMS element type
-for (const entry of registry) {
-  if (
-    !cmsAliases.has(entry.alias)
-    && !UI_ONLY_ALIASES.has(entry.alias)
-    && !SCHEMA_MANAGED_ALIASES.has(entry.alias)
-    && !LEGACY_RENAMED_ALIASES.has(entry.alias)
-  ) {
-    errors.e1.push({
-      alias: entry.alias,
-      name:  entry.name,
-      tier:  entry.tier,
-      tag:   entry.tag,
-      note:  'Alias in element-registry.json but not found in any uSync ContentType .config',
-    });
-  }
-}
+errors.e1.push(...computeE1(registry, cmsAliases));
 
 // [E2] CMS element/experience types not in registry
-const elementPrefixes = ['element', 'experience'];
-for (const alias of cmsAliases) {
-  const isElement = elementPrefixes.some(p => alias.startsWith(p));
-  if (isElement && !registryAliases.has(alias) && !CMS_INTERNAL_ALIASES.has(alias)) {
-    errors.e2.push({
-      alias,
-      note: 'uSync ContentType alias matches element/experience prefix but not in element-registry.json',
-    });
-  }
-}
+errors.e2.push(...computeE2(cmsAliases, registryAliases, CMS_INTERNAL_ALIASES));
+
+// [E3] Entradas de CMS_INTERNAL_ALIASES cuyo alias ya no existe en el CMS.
+// No bloquea —no hay desajuste, hay basura— pero se REPORTA, que es justo lo
+// que ninguna de las tres listas borradas hacía (issue #16).
+const exclusionesRancias = staleExclusions(CMS_INTERNAL_ALIASES, cmsAliases);
 
 // [W1] Registry alias with no mapper in block.mapper.ts
 for (const entry of registry) {
@@ -466,7 +400,6 @@ for (const entry of registry) {
 // Intentional exclusions: elements that are server-rendered (no CDN config) or UI-only templates.
 const CONFIG_EXEMPT_NAMES = new Set([
   'accordion',     // server-rendered composition — no CDN/macro mount path
-  'hello-world',   // UI-only development template
 ]);
 
 if (configFieldKeys.size > 0) {
@@ -516,26 +449,31 @@ const baseline = { e1: new Map(), e2: new Map() };
 
 if (!ignoreBaseline && existsSync(BASELINE_JSON)) {
   const raw = readJson(BASELINE_JSON);
+
+  // Una baseline sin `reason` es una lista de silencio con otro nombre — el
+  // defecto del issue #16. Se comprueba acá y es un fallo duro: no tiene
+  // sentido seguir si el mecanismo que autoriza el silencio está roto.
+  const problemas = validateBaselineShape(raw);
+  if (problemas.length > 0) {
+    console.error('\n[BASELINE INVÁLIDA] toda entrada exige `alias` y `reason`:');
+    for (const p of problemas) console.error(`  ✗ ${p}`);
+    console.error();
+    process.exit(2);
+  }
+
   for (const e of raw.e1_registryAliasMissingFromCms ?? []) baseline.e1.set(e.alias, e);
   for (const e of raw.e2_cmsAliasMissingFromRegistry ?? []) baseline.e2.set(e.alias, e);
 }
 
 const baselined = { e1: [], e2: [] };
+const staleBaseline = [];
 
 for (const key of ['e1', 'e2']) {
-  const kept = [];
-  for (const err of errors[key]) {
-    const known = baseline[key].get(err.alias);
-    if (known) baselined[key].push({ ...err, reason: known.reason, owner: known.owner });
-    else kept.push(err);
-  }
-  errors[key] = kept;
+  const r = applyBaseline(errors[key], baseline[key]);
+  errors[key] = r.kept;
+  baselined[key] = r.baselined;
+  staleBaseline.push(...r.stale);
 }
-
-const staleBaseline = [
-  ...[...baseline.e1.keys()].filter(a => !baselined.e1.some(b => b.alias === a)),
-  ...[...baseline.e2.keys()].filter(a => !baselined.e2.some(b => b.alias === a)),
-];
 
 // ── Output ────────────────────────────────────────────────────────────────────
 
@@ -568,6 +506,12 @@ if (json) {
   if (staleBaseline.length > 0) {
     console.log(`[BASELINE STALE] Ya no hay desajuste — borralas del baseline (${staleBaseline.length}):`);
     for (const a of staleBaseline) console.log(`  ✓ ${a}`);
+    console.log();
+  }
+
+  if (exclusionesRancias.length > 0) {
+    console.log(`[EXCLUSIÓN STALE] Alias en CMS_INTERNAL_ALIASES que ya no existe en el CMS — borralos (${exclusionesRancias.length}):`);
+    for (const a of exclusionesRancias) console.log(`  ✓ ${a}`);
     console.log();
   }
 
