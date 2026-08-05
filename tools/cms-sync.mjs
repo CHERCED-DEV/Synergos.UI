@@ -148,6 +148,12 @@ const TIER_BY_NAME = new Map([
   // Ya salía bien por el default, pero explícito no avisa — y no se puede
   // degradar sin que alguien lo escriba.
   ['seat-map', 'composition'],
+
+  // Estrenaron DocType al cerrar el issue #16: eran bundles publicados que
+  // ningún editor podía colocar. El tier coincide con el que ya traían en el
+  // registry; se escribe igual, porque el default no avisa.
+  ['button-group', 'composition'],
+  ['info-block', 'composition'],
 ]);
 
 // ── XML parsing helpers ──────────────────────────────────────────────────────

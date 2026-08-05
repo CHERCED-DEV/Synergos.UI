@@ -276,11 +276,11 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-testimonial-item',
     map: (d) => toRecord(mapTestimonialItemData(d as unknown as TestimonialItemElementData)),
   },
-  elementCompInfoBlock: {
+  elementSynInfoBlock: {
     tag: 'synergos-info-block',
     map: (d) => toRecord(mapInfoBlockData(d as unknown as Record<string, unknown>)),
   },
-  elementActionButtonGroup: {
+  elementSynButtonGroup: {
     tag: 'synergos-button-group',
     map: (d) => toRecord(mapButtonGroupData(d as unknown as Record<string, unknown>)),
   },

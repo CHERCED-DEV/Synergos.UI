@@ -117,6 +117,15 @@ export interface SynBreadcrumbSchema {
   readonly integration?: string;
 }
 
+/** elementSynButtonGroup — tier:composition → tag:<synergos-button-group> */
+export interface SynButtonGroupSchema {
+  readonly buttonsJson?: string;
+  readonly alignment?: string;
+  readonly direction?: string;
+  readonly gap?: string;
+  readonly integration?: string;
+}
+
 /** elementSynCalendar — tier:module → tag:<synergos-calendar> */
 export interface SynCalendarSchema {
   readonly eventsEndpoint?: string;
@@ -338,6 +347,17 @@ export interface SynHeroBannerSchema {
 export interface SynIconLabelSchema {
   readonly iconKey?: string;
   readonly labelText?: string;
+  readonly integration?: string;
+}
+
+/** elementSynInfoBlock — tier:composition → tag:<synergos-info-block> */
+export interface SynInfoBlockSchema {
+  readonly title?: string;
+  readonly body?: string;
+  readonly ctaLabel?: string;
+  readonly ctaUrl?: string;
+  readonly variant?: string;
+  readonly theme?: string;
   readonly integration?: string;
 }
 
