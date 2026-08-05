@@ -52,63 +52,20 @@
     "Se intento tambien sacar del registry los cinco elementStruct* y logo-cloud,",
     "y element:audit lo rechazo con razon: mientras el componente Angular exista,",
     "el registry tiene que declararlo. Sacarlos exige borrar tambien el componente,",
-    "y eso ya no es alinear el contrato sino decidir producto."
+    "y eso ya no es alinear el contrato sino decidir producto.",
+    "",
+    "Revision 2026-08-05 (4a, issue #16): VACIA. Los nueve que quedaban eran la",
+    "misma pregunta —un bundle que se publica y que nada puede colocar— y se",
+    "respondio borrando componente y entrada a la vez, que era una de las dos",
+    "salidas que el propio baseline nombraba. Cinco elementStruct* y logo-cloud",
+    "porque el CMS ya pinta ese concepto SSR (Layout Composer, ADR 0017, y ningun",
+    "preset emite <synergos-*>); script-embed, iframe-embed y external-widget",
+    "porque no tenian contraparte de ningun tipo y nadie los pidio.",
+    "",
+    "Que este fichero este vacio NO significa que sobre: significa que hoy no hay",
+    "deuda conocida, y que la proxima que aparezca sera deriva NUEVA. Es la",
+    "primera vez que el gate puede decir eso."
   ],
-  "e1_registryAliasMissingFromCms": [
-    {
-      "alias": "elementStructSection",
-      "reason": "El CMS pinta este concepto SSR con los presets de Layout Composer (ADR 0017) — se comprobo que NINGUN preset elementLayout* emite un <synergos-*>, asi que este bundle se publica y no lo monta nada. La lista borrada lo daba por migrado a elementSyn*; ese alias no existe. NO se saco del registry porque element:audit exige la correspondencia en los dos sentidos: mientras el componente Angular exista en apps/elements, tiene que tener entrada. La decision es de producto y son las dos unicas salidas: darle DocType, o borrar componente y entrada juntos.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementStructContainer",
-      "reason": "El CMS pinta este concepto SSR con los presets de Layout Composer (ADR 0017) — se comprobo que NINGUN preset elementLayout* emite un <synergos-*>, asi que este bundle se publica y no lo monta nada. La lista borrada lo daba por migrado a elementSyn*; ese alias no existe. NO se saco del registry porque element:audit exige la correspondencia en los dos sentidos: mientras el componente Angular exista en apps/elements, tiene que tener entrada. La decision es de producto y son las dos unicas salidas: darle DocType, o borrar componente y entrada juntos.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementStructGrid",
-      "reason": "El CMS pinta este concepto SSR con los presets de Layout Composer (ADR 0017) — se comprobo que NINGUN preset elementLayout* emite un <synergos-*>, asi que este bundle se publica y no lo monta nada. La lista borrada lo daba por migrado a elementSyn*; ese alias no existe. NO se saco del registry porque element:audit exige la correspondencia en los dos sentidos: mientras el componente Angular exista en apps/elements, tiene que tener entrada. La decision es de producto y son las dos unicas salidas: darle DocType, o borrar componente y entrada juntos.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementStructColumn",
-      "reason": "El CMS pinta este concepto SSR con los presets de Layout Composer (ADR 0017) — se comprobo que NINGUN preset elementLayout* emite un <synergos-*>, asi que este bundle se publica y no lo monta nada. La lista borrada usaba justo este caso —elementStructColumn -> elementSynColumn— como ejemplo de migracion hecha; elementSynColumn no existe y el concepto vive como elementLayoutColumn. NO se saco del registry porque element:audit exige la correspondencia en los dos sentidos: mientras el componente Angular exista en apps/elements, tiene que tener entrada. La decision es de producto y son las dos unicas salidas: darle DocType, o borrar componente y entrada juntos.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementStructStack",
-      "reason": "El CMS pinta este concepto SSR con los presets de Layout Composer (ADR 0017) — se comprobo que NINGUN preset elementLayout* emite un <synergos-*>, asi que este bundle se publica y no lo monta nada. La lista borrada lo daba por migrado a elementSyn*; ese alias no existe. NO se saco del registry porque element:audit exige la correspondencia en los dos sentidos: mientras el componente Angular exista en apps/elements, tiene que tener entrada. La decision es de producto y son las dos unicas salidas: darle DocType, o borrar componente y entrada juntos.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementCompLogoCloud",
-      "reason": "El CMS lo tiene SSR y con otro alias: elementMediaLogoCloud. No hay elementSynLogoCloud en ningun lado. Mismo dilema que los elementStruct*: el bundle se publica y nada lo monta, y no se saca del registry porque el componente Angular sigue en el arbol.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementIntScriptEmbed",
-      "reason": "Publicado y sin DocType, y a diferencia de los otros seis aca NO hay evidencia en ninguna direccion: el CMS no tiene contraparte SSR, ni otro alias, ni preset que lo cubra. Bloque de integracion legitimo que nadie pidio.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementIntIframeEmbed",
-      "reason": "Igual que elementIntScriptEmbed: publicado, sin DocType, sin contraparte de ningun tipo en el CMS y sin evidencia de que deba tenerla.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    },
-    {
-      "alias": "elementIntExternalWidget",
-      "reason": "Igual que elementIntScriptEmbed: publicado, sin DocType, sin contraparte de ningun tipo en el CMS y sin evidencia de que deba tenerla.",
-      "owner": "arquitecto",
-      "action": "Darle DocType (como button-group e info-block) o retirar componente + entrada del registry a la vez."
-    }
-  ],
+  "e1_registryAliasMissingFromCms": [],
   "e2_cmsAliasMissingFromRegistry": []
 }

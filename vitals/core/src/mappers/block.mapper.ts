@@ -7,23 +7,17 @@ import type {
   HeroElementData,
   CardElementData,
   CtaBannerElementData,
-  SectionElementData,
   FeatureGridElementData,
   FaqListElementData,
   TestimonialListElementData,
-  LogoCloudElementData,
   MediaTextSplitElementData,
   MacroHostElementData,
   TabGroupElementData,
   BannerSliderElementData,
   DataTableElementData,
-  ScriptEmbedElementData,
   AngularHostElementData,
   MfHostElementData,
   ContainerElementData,
-  GridElementData,
-  ColumnElementData,
-  StackElementData,
   DividerElementData,
   SpacerElementData,
   ButtonElementData,
@@ -42,8 +36,6 @@ import type {
   AlertBarElementData,
   NewsletterFormElementData,
   SocialShareElementData,
-  IframeEmbedElementData,
-  ExternalWidgetElementData,
   FeatureJourneyElementData,
   InsightExplorerElementData,
   MediaExplorerElementData,
@@ -52,17 +44,14 @@ import type {
 import { mapHeroData } from './hero.mapper';
 import { mapCardData } from './card.mapper';
 import { mapBannerData } from './banner.mapper';
-import { mapSectionData } from './section.mapper';
 import { mapFeatureGridData } from './feature-grid.mapper';
 import { mapFaqSectionData } from './faq-section.mapper';
 import { mapTestimonialSectionData } from './testimonial-section.mapper';
-import { mapLogoCloudData } from './logo-cloud.mapper';
 import { mapMediaTextData } from './media-text.mapper';
 import { mapMacroHostData } from './macro-host.mapper';
 import { mapTabGroupData } from './tab-group.mapper';
 import { mapBannerSliderData } from './banner-slider.mapper';
 import { mapDataTableData } from './data-table.mapper';
-import { mapScriptEmbedData } from './script-embed.mapper';
 import { mapAngularHostData } from './angular-host.mapper';
 import { mapMfHostData } from './mf-host.mapper';
 import { mapCtaGroupData } from './cta-group.mapper';
@@ -73,9 +62,6 @@ import { mapFaqItemData } from './faq-item.mapper';
 import { mapTestimonialItemData } from './testimonial-item.mapper';
 import { mapInfoBlockData } from './info-block.mapper';
 import { mapButtonGroupData } from './button-group.mapper';
-import { mapContainerBlockData } from './container-block.mapper';
-import { mapGridData } from './grid.mapper';
-import { mapStackData } from './stack.mapper';
 import { mapButtonContainerData } from './button-container.mapper';
 import { mapIconBlockData } from './icon-block.mapper';
 import { mapImageBlockData } from './image-block.mapper';
@@ -91,9 +77,6 @@ import { mapLogoItemData } from './logo-item.mapper';
 import { mapAlertBarData } from './alert-bar.mapper';
 import { mapNewsletterFormData } from './newsletter-form.mapper';
 import { mapSocialShareData } from './social-share.mapper';
-import { mapIframeEmbedData } from './iframe-embed.mapper';
-import { mapExternalWidgetData } from './external-widget.mapper';
-import { mapColumnData } from './column.mapper';
 import { mapDividerData } from './divider.mapper';
 import { mapSpacerData } from './spacer.mapper';
 import { mapFeatureJourneyData } from './feature-journey.mapper';
@@ -197,17 +180,9 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-banner',
     map: (d) => toRecord(mapBannerData(d as unknown as CtaBannerElementData)),
   },
-  elementStructSection: {
-    tag: 'synergos-section',
-    map: (d) => toRecord(mapSectionData(d as unknown as SectionElementData)),
-  },
   elementCompFeatureGrid: {
     tag: 'synergos-feature-grid',
     map: (d) => toRecord(mapFeatureGridData(d as unknown as FeatureGridElementData)),
-  },
-  elementCompLogoCloud: {
-    tag: 'synergos-logo-cloud',
-    map: (d) => toRecord(mapLogoCloudData(d as unknown as LogoCloudElementData)),
   },
   elementCorpTabGroup: {
     tag: 'synergos-tab-group',
@@ -220,10 +195,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   elementCorpDataTable: {
     tag: 'synergos-data-table',
     map: (d) => toRecord(mapDataTableData(d as unknown as DataTableElementData)),
-  },
-  elementIntScriptEmbed: {
-    tag: 'synergos-script-embed',
-    map: (d) => toRecord(mapScriptEmbedData(d as unknown as ScriptEmbedElementData)),
   },
   elementIntAngularHost: {
     tag: 'synergos-angular-host',
@@ -278,22 +249,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   },
 
   // ── Primitives ──────────────────────────────────────────────────────────────
-  elementStructContainer: {
-    tag: 'synergos-container-block',
-    map: (d) => toRecord(mapContainerBlockData(d as unknown as ContainerElementData)),
-  },
-  elementStructGrid: {
-    tag: 'synergos-grid',
-    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
-  },
-  elementStructColumn: {
-    tag: 'synergos-column',
-    map: (d) => toRecord(mapColumnData(d as unknown as ColumnElementData)),
-  },
-  elementStructStack: {
-    tag: 'synergos-stack',
-    map: (d) => toRecord(mapStackData(d as unknown as StackElementData)),
-  },
   elementStructDivider: {
     tag: 'synergos-divider',
     map: (d) => toRecord(mapDividerData(d as unknown as DividerElementData)),
@@ -384,14 +339,6 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-social-share',
     map: (d) => toRecord(mapSocialShareData(d as unknown as SocialShareElementData)),
   },
-  elementIntIframeEmbed: {
-    tag: 'synergos-iframe-embed',
-    map: (d) => toRecord(mapIframeEmbedData(d as unknown as IframeEmbedElementData)),
-  },
-  elementIntExternalWidget: {
-    tag: 'synergos-external-widget',
-    map: (d) => toRecord(mapExternalWidgetData(d as unknown as ExternalWidgetElementData)),
-  },
 
   // ── Experiences ─────────────────────────────────────────────────────────────
   experienceFeatureJourney: {
@@ -409,35 +356,11 @@ const REGISTRY: Record<string, MapperEntry> = {
 
   // ── Layout Presets ──────────────────────────────────────────────────────────
   // Structural grid wrappers — DOM compositions only, blockClass carries preset semantics.
-  layoutPreset1Col: {
-    tag: 'synergos-section',
-    map: (d) => toRecord(mapSectionData(d as unknown as SectionElementData)),
-  },
-  layoutPreset2ColEqual: {
-    tag: 'synergos-grid',
-    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
-  },
-  layoutPreset3ColEqual: {
-    tag: 'synergos-grid',
-    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
-  },
-  layoutPreset4ColEqual: {
-    tag: 'synergos-grid',
-    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
-  },
-  layoutPresetMainSidebar: {
-    tag: 'synergos-grid',
-    map: (d) => toRecord(mapGridData(d as unknown as GridElementData)),
-  },
 
   // ── Corporate (new) ─────────────────────────────────────────────────────────
   elementCorpContactInfo: {
     tag: 'synergos-contact-info',
     map: (d) => toRecord(mapInfoBlockData(d as unknown as Parameters<typeof mapInfoBlockData>[0])),
-  },
-  elementCorpMapEmbed: {
-    tag: 'synergos-map-embed',
-    map: (d) => toRecord(mapIframeEmbedData(d as unknown as IframeEmbedElementData)),
   },
   elementCorpMissionBlock: {
     tag: 'synergos-mission-block',
@@ -485,10 +408,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   },
 
   // ── Forms ────────────────────────────────────────────────────────────────────
-  elementFormEmbed: {
-    tag: 'synergos-form-embed',
-    map: (d) => toRecord(mapIframeEmbedData(d as unknown as IframeEmbedElementData)),
-  },
   elementCompFormBlock: {
     tag: 'synergos-form-block',
     map: (d) => toRecord(mapInfoBlockData(d as unknown as Parameters<typeof mapInfoBlockData>[0])),

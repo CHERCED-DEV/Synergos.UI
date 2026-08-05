@@ -79,10 +79,6 @@ export interface TestimonialListElementData extends BaseElementData {
   collection?: ContentCollection;
 }
 
-export interface LogoCloudElementData extends BaseElementData {
-  collection?: ContentCollection;
-  text?: ContentText;
-}
 
 export interface MediaTextSplitElementData extends BaseElementData {
   text?: ContentText;
@@ -204,18 +200,8 @@ export interface TestimonialItemElementData extends BaseElementData {
 
 // ── Integration Elements (c9) ────────────────────────────────────────────────
 
-export interface ScriptEmbedElementData extends BaseElementData {
-  script?: BehaviorScript;
-}
 
-export interface IframeEmbedElementData extends BaseElementData {
-  embed?: ContentEmbed;
-}
 
-export interface ExternalWidgetElementData extends BaseElementData {
-  embed?: ContentEmbed;
-  async?: BehaviorAsync;
-}
 
 /** @deprecated Pre-Block Grid wrapper-component architecture — do not use. */
 export interface AngularHostElementData extends BaseElementData {

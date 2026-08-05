@@ -124,17 +124,6 @@ export interface LogoCloudItemConfig {
   readonly target?: string;
 }
 
-/** Mirror of LogoCloudCdnConfig. */
-export interface LogoCloudElementConfig {
-  readonly headingText?: string;
-  readonly body?: string;
-  readonly columns?: number;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly items?: ReadonlyArray<LogoCloudItemConfig>;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of TestimonialSectionCdnConfig — item shape. */
 export interface TestimonialSectionItemConfig {
@@ -190,21 +179,6 @@ export interface DataTableElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of SectionCdnConfig. */
-export interface SectionElementConfig {
-  readonly headingText?: string;
-  readonly headingLevel?: string;
-  readonly containerType?: string;
-  readonly alignment?: string;
-  readonly direction?: string;
-  readonly margin?: string;
-  readonly padding?: string;
-  readonly gap?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of CardCdnConfig. */
 export interface CardElementConfig {
@@ -318,14 +292,6 @@ export interface GalleryItemElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of IframeEmbedCdnConfig. */
-export interface IframeEmbedElementConfig {
-  readonly src?: string;
-  readonly title?: string;
-  readonly height?: string;
-  readonly allowFullscreen?: boolean;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of InfoBlockCdnConfig. */
 export interface InfoBlockElementConfig {
@@ -412,14 +378,6 @@ export interface TimelineItemElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of ExternalWidgetCdnConfig. */
-export interface ExternalWidgetElementConfig {
-  readonly src?: string;
-  readonly type?: string;
-  readonly title?: string;
-  readonly endpoint?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of StatCdnConfig. */
 export interface StatElementConfig {
@@ -469,31 +427,7 @@ export interface ButtonContainerElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of ColumnCdnConfig. */
-export interface ColumnElementConfig {
-  readonly width?: string;
-  readonly minWidth?: string;
-  readonly alignment?: string;
-  readonly padding?: string;
-  readonly gap?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly translations?: ComponentTranslations;
-}
 
-/** Mirror of ContainerBlockCdnConfig. */
-export interface ContainerBlockElementConfig {
-  readonly elementId?: string;
-  readonly ariaLabel?: string;
-  readonly containerType?: string;
-  readonly maxWidth?: string;
-  readonly padding?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of DividerCdnConfig. */
 export interface DividerElementConfig {
@@ -505,16 +439,6 @@ export interface DividerElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of GridCdnConfig. */
-export interface GridElementConfig {
-  readonly columns?: number;
-  readonly gap?: string;
-  readonly minColumnWidth?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of IconBlockCdnConfig. */
 export interface IconBlockElementConfig {
@@ -554,18 +478,6 @@ export interface SpacerElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of StackCdnConfig. */
-export interface StackElementConfig {
-  readonly direction?: string;
-  readonly gap?: string;
-  readonly alignment?: string;
-  readonly justify?: string;
-  readonly wrap?: boolean;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of TextBlockCdnConfig. */
 export interface TextBlockElementConfig {
@@ -591,12 +503,6 @@ export interface VideoBlockElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of ScriptEmbedCdnConfig. */
-export interface ScriptEmbedElementConfig {
-  readonly scriptType?: string;
-  readonly content?: string;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of AvatarCdnConfig. */
 export interface AvatarElementConfig {
@@ -676,7 +582,6 @@ export const ELEMENT_CONFIG_FIELDS = {
   stack:              ['variant', 'theme'],
   divider:            ['variant', 'theme'],
   spacer:             [],
-  'container-block':  ['elementId', 'ariaLabel', 'variant', 'theme'],
   // Primitives
   badge:              ['text', 'tone', 'ariaLabel'],
   'button-container': ['label', 'href', 'target'],
@@ -705,7 +610,6 @@ export const ELEMENT_CONFIG_FIELDS = {
   'banner-slider':    ['headingText', 'body', 'variant', 'theme'],
   'faq-section':      ['headingText', 'theme'],
   'feature-grid':     ['headingText', 'variant', 'theme'],
-  'logo-cloud':       ['headingText', 'body', 'variant', 'theme'],
   'testimonial-section': ['headingText', 'theme'],
   'tab-group':        ['title', 'ariaLabel', 'variant', 'theme'],
   'data-table':       ['caption'],
@@ -713,9 +617,6 @@ export const ELEMENT_CONFIG_FIELDS = {
   'button-group':     ['alignment', 'direction', 'gap'],
   'newsletter-form':  ['title', 'intro', 'placeholder', 'submitLabel', 'consentText', 'successMessage', 'errorMessage', 'actionUrl', 'method', 'theme'],
   'social-share':     ['title', 'pageUrl', 'layout'],
-  'iframe-embed':     ['src', 'title', 'height', 'allowFullscreen'],
-  'external-widget':  ['src', 'type', 'title', 'endpoint'],
-  'script-embed':     ['scriptType', 'content'],
   // Experiences — structural config only, no item arrays
   'feature-journey':      ['title', 'theme', 'variant', 'elementId'],
   'insight-explorer':     ['title', 'theme', 'variant', 'elementId'],
@@ -746,7 +647,6 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'data-table':           ['headers', 'rows', 'translations'],
   'faq-section':          ['items', 'translations'],
   'feature-grid':         ['items', 'translations'],
-  'logo-cloud':           ['items', 'translations'],
   'social-share':         ['links', 'translations'],
   'testimonial-section':  ['items', 'translations'],
   // All remaining — translations only
@@ -756,7 +656,6 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   stack:                  ['translations'],
   divider:                ['translations'],
   spacer:                 ['translations'],
-  'container-block':      ['translations'],
   badge:                  ['translations'],
   'button-container':     ['translations'],
   'icon-block':           ['translations'],
@@ -782,9 +681,6 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'tab-group':            ['translations'],
   'alert-bar':            ['translations'],
   'newsletter-form':      ['translations'],
-  'iframe-embed':         ['translations'],
-  'external-widget':      ['translations'],
-  'script-embed':         ['translations'],
   'feature-journey':      ['translations'],
   'insight-explorer':     ['translations'],
   'media-explorer':       ['translations'],
@@ -967,13 +863,8 @@ export interface MfHostElementConfig {
 /** Maps each element type key to its config interface. */
 export type ElementConfigMap = {
   // Structural
-  'section':              SectionElementConfig;
-  'column':               ColumnElementConfig;
-  'grid':                 GridElementConfig;
-  'stack':                StackElementConfig;
   'divider':              DividerElementConfig;
   'spacer':               SpacerElementConfig;
-  'container-block':      ContainerBlockElementConfig;
   // Primitives
   'badge':                BadgeElementConfig;
   'button-container':     ButtonContainerElementConfig;
@@ -1002,7 +893,6 @@ export type ElementConfigMap = {
   'banner-slider':        BannerSliderElementConfig;
   'faq-section':          FaqSectionElementConfig;
   'feature-grid':         FeatureGridElementConfig;
-  'logo-cloud':           LogoCloudElementConfig;
   'testimonial-section':  TestimonialSectionElementConfig;
   'tab-group':            TabGroupElementConfig;
   'data-table':           DataTableElementConfig;
@@ -1010,9 +900,6 @@ export type ElementConfigMap = {
   'button-group':         ButtonGroupElementConfig;
   'newsletter-form':      NewsletterFormElementConfig;
   'social-share':         SocialShareElementConfig;
-  'iframe-embed':         IframeEmbedElementConfig;
-  'external-widget':      ExternalWidgetElementConfig;
-  'script-embed':         ScriptEmbedElementConfig;
   // Experiences
   'feature-journey':      FeatureJourneyElementConfig;
   'insight-explorer':     InsightExplorerElementConfig;
@@ -1042,7 +929,6 @@ export type CollectionElementType =
   | 'data-table'
   | 'faq-section'
   | 'feature-grid'
-  | 'logo-cloud'
   | 'social-share'
   | 'testimonial-section';
 
