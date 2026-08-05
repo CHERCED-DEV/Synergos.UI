@@ -27,7 +27,9 @@
     "no con la explicacion que traia la lista: de los 14 alias que",
     "LEGACY_RENAMED_ALIASES daba por 'ya migrados a elementSyn*', solo UNO lo",
     "estaba. Salen los cuatro de e2 —faq-section, feature-grid, media-text y",
-    "testimonial-section ya estan en el registry, el desajuste se cerro."
+    "testimonial-section ya estan en el registry, el desajuste se cerro.",
+    "",
+    "Revision 2026-08-05 (2a, issue #16): salen elementCompInfoBlock y elementActionButtonGroup — ya tienen DocType, y de paso se renombraron a elementSyn* porque los bloques CDN-hosted lo exigen (ADR 0015): 88 de los 90 del grupo Syn (CDN) ya lo cumplian. Se corrige el motivo de elementTextBlock, que yo habia dado por inalcanzable y no lo es."
   ],
   "e1_registryAliasMissingFromCms": [
     {
@@ -139,22 +141,10 @@
       "action": "Ninguna."
     },
     {
-      "alias": "elementCompInfoBlock",
-      "reason": "Publicado al CDN y NO colocable: no tiene DocType y es `tier=composition`, asi que `elementSynModuleMount` —que solo monta `tier=module`— tampoco lo alcanza. Un bundle que se sirve y que ningun editor puede poner en una pagina. Estaba silenciado alegando que `ElementTypeInitializer` lo crearia al arrancar; esa clase no existe.",
-      "owner": "arquitecto",
-      "action": "Crear el DocType o sacarlo del registry. Es una de las tres piezas realmente inalcanzables."
-    },
-    {
-      "alias": "elementActionButtonGroup",
-      "reason": "Publicado al CDN y NO colocable, igual que elementCompInfoBlock: sin DocType y `tier=composition`. Es el alias del hallazgo CF-09 de la vieja VALIDACION_TECNICA, que lo describia como un mismatch entre dos aliases: no hay tal: hay un solo alias y cero lado del CMS.",
-      "owner": "arquitecto",
-      "action": "Crear el DocType o sacarlo del registry."
-    },
-    {
       "alias": "elementTextBlock",
-      "reason": "Publicado al CDN y NO colocable: sin DocType y `tier=primitive`. Tercera de las tres piezas inalcanzables. Ojo, el CMS SI tiene DocType de texto (`elementTextRichtext`), pero con otro alias y server-rendered.",
-      "owner": "arquitecto",
-      "action": "Crear el DocType o sacarlo del registry."
+      "reason": "NO es deuda, y mi lectura anterior era falsa. text-block es la IMPLEMENTACION COMPARTIDA de cinco alias que SI tienen DocType en el CMS: elementTextHeading, elementTextParagraph, elementTextEyebrow, elementTextQuote y elementTextLabel se sirven todos con este bundle (build:cdn lo dice: \"Implementacion compartida: heading/paragraph/rich-text/eyebrow/quote/label <- text-block\"). Que no tenga DocType propio es correcto: no es un bloque que se coloque, es lo que montan los que si se colocan. Mismo caso que elementSynPaxSelector (ADR 0126).",
+      "owner": "—",
+      "action": "Ninguna. Se cierra cuando el registry pueda declarar la intencion (implements/standalone:false) y el validador deje de compararlo — el mismo cierre que pax-selector."
     }
   ],
   "e2_cmsAliasMissingFromRegistry": []

@@ -79,7 +79,7 @@
   },
   {
     "name": "info-block",
-    "alias": "elementCompInfoBlock",
+    "alias": "elementSynInfoBlock",
     "tag": "synergos-info-block",
     "tier": "composition"
   },
@@ -97,7 +97,7 @@
   },
   {
     "name": "button-group",
-    "alias": "elementActionButtonGroup",
+    "alias": "elementSynButtonGroup",
     "tag": "synergos-button-group",
     "tier": "composition"
   },
