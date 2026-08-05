@@ -433,22 +433,6 @@ export interface StatElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of PricingCardCdnConfig. */
-export interface PricingCardElementConfig {
-  readonly title?: string;
-  readonly price?: string;
-  readonly period?: string;
-  readonly description?: string;
-  readonly ctaLabel?: string;
-  readonly ctaUrl?: string;
-  readonly badgeText?: string;
-  readonly badgeTone?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly theme?: string;
-  readonly featured?: boolean;
-  readonly translations?: ComponentTranslations;
-}
 
 // ---------------------------------------------------------------------------
 // Primitive-tier configs (c3*–c7* — structural and atomic)
@@ -661,50 +645,9 @@ export interface MediaExplorerElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of ContentCarouselCdnConfig. */
-export interface ContentCarouselElementConfig {
-  readonly title?: string;
-  readonly theme?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly elementId?: string;
-  readonly autoplay?: boolean;
-  readonly interval?: number;
-  readonly translations?: ComponentTranslations;
-}
 
-/** Mirror of QuizFlowCdnConfig. */
-export interface QuizFlowElementConfig {
-  readonly title?: string;
-  readonly theme?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly elementId?: string;
-  readonly submitLabel?: string;
-  readonly translations?: ComponentTranslations;
-}
 
-/** Mirror of FilterBoardCdnConfig. */
-export interface FilterBoardElementConfig {
-  readonly title?: string;
-  readonly theme?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly elementId?: string;
-  readonly defaultFilter?: string;
-  readonly translations?: ComponentTranslations;
-}
 
-/** Mirror of RatingWidgetCdnConfig. */
-export interface RatingWidgetElementConfig {
-  readonly title?: string;
-  readonly theme?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly elementId?: string;
-  readonly maxRating?: number;
-  readonly translations?: ComponentTranslations;
-}
 
 /** Mirror of CountdownClockCdnConfig. */
 export interface CountdownClockElementConfig {
@@ -718,16 +661,6 @@ export interface CountdownClockElementConfig {
   readonly translations?: ComponentTranslations;
 }
 
-/** Mirror of NotificationStackCdnConfig. */
-export interface NotificationStackElementConfig {
-  readonly title?: string;
-  readonly theme?: string;
-  readonly variant?: string;
-  readonly tone?: string; // runtime compatibility alias
-  readonly elementId?: string;
-  readonly maxItems?: number;
-  readonly translations?: ComponentTranslations;
-}
 
 // ---------------------------------------------------------------------------
 // ELEMENT_CONFIG_FIELDS
@@ -766,7 +699,6 @@ export const ELEMENT_CONFIG_FIELDS = {
   'testimonial-item': ['quote', 'name', 'role', 'avatarSrc', 'avatarAlt', 'theme'],
   'gallery-item':     ['src', 'alt', 'caption'],
   'logo-item':        ['src', 'alt', 'href', 'label', 'target'],
-  'pricing-card':     ['title', 'price', 'period', 'description', 'ctaLabel', 'ctaUrl', 'badgeText', 'badgeTone', 'variant', 'theme', 'featured'],
   // Modules
   hero:               ['headingText', 'headingLevel', 'body', 'imageSrc', 'imageAlt', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
   banner:             ['title', 'body', 'ctaLabel', 'ctaUrl', 'ctaTarget', 'variant', 'theme'],
@@ -788,12 +720,7 @@ export const ELEMENT_CONFIG_FIELDS = {
   'feature-journey':      ['title', 'theme', 'variant', 'elementId'],
   'insight-explorer':     ['title', 'theme', 'variant', 'elementId'],
   'media-explorer':       ['title', 'theme', 'variant', 'elementId', 'defaultCategory'],
-  'content-carousel':     ['title', 'theme', 'variant', 'elementId', 'autoplay', 'interval'],
-  'quiz-flow':            ['title', 'theme', 'variant', 'elementId', 'submitLabel'],
-  'filter-board':         ['title', 'theme', 'variant', 'elementId', 'defaultFilter'],
-  'rating-widget':        ['title', 'theme', 'variant', 'elementId', 'maxRating'],
   'countdown-clock':      ['title', 'theme', 'variant', 'elementId', 'targetDate', 'expiredText'],
-  'notification-stack':   ['title', 'theme', 'variant', 'elementId', 'maxItems'],
   // Shop — e-commerce components (cf000001–cf000008)
   'product-card':         ['productSku', 'productUrlTemplate', 'name', 'imageSrc', 'imageAlt', 'showPrice', 'showBadge', 'layout', 'cardLayout', 'theme', 'variant', 'variantKey'],
   'product-grid':         ['headingText', 'categoryAlias', 'categoryFilter', 'productUrlTemplate', 'maxItems', 'columns', 'showFilters', 'sortOrder', 'sortBy', 'layout', 'theme', 'variant', 'variantKey'],
@@ -850,7 +777,6 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'testimonial-item':     ['translations'],
   'gallery-item':         ['translations'],
   'logo-item':            ['translations'],
-  'pricing-card':         ['translations'],
   hero:                   ['translations'],
   banner:                 ['translations'],
   'tab-group':            ['translations'],
@@ -862,12 +788,7 @@ export const ELEMENT_CONFIG_JSON_FIELDS = {
   'feature-journey':      ['translations'],
   'insight-explorer':     ['translations'],
   'media-explorer':       ['translations'],
-  'content-carousel':     ['translations'],
-  'quiz-flow':            ['translations'],
-  'filter-board':         ['translations'],
-  'rating-widget':        ['translations'],
   'countdown-clock':      ['translations'],
-  'notification-stack':   ['translations'],
   // Shop
   'product-card':         ['translations'],
   'product-grid':         ['translations'],
@@ -1075,7 +996,6 @@ export type ElementConfigMap = {
   'testimonial-item':     TestimonialItemElementConfig;
   'gallery-item':         GalleryItemElementConfig;
   'logo-item':            LogoItemElementConfig;
-  'pricing-card':         PricingCardElementConfig;
   // Modules
   'hero':                 HeroElementConfig;
   'banner':               BannerElementConfig;
@@ -1097,12 +1017,7 @@ export type ElementConfigMap = {
   'feature-journey':      FeatureJourneyElementConfig;
   'insight-explorer':     InsightExplorerElementConfig;
   'media-explorer':       MediaExplorerElementConfig;
-  'content-carousel':     ContentCarouselElementConfig;
-  'quiz-flow':            QuizFlowElementConfig;
-  'filter-board':         FilterBoardElementConfig;
-  'rating-widget':        RatingWidgetElementConfig;
   'countdown-clock':      CountdownClockElementConfig;
-  'notification-stack':   NotificationStackElementConfig;
   // Shop (cf000001–cf000008)
   'product-card':         ProductCardElementConfig;
   'product-grid':         ProductGridElementConfig;

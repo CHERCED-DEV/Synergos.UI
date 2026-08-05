@@ -114,12 +114,6 @@
     "tier": "composition"
   },
   {
-    "name": "pricing-card",
-    "alias": "elementInfoPricingCard",
-    "tag": "synergos-pricing-card",
-    "tier": "composition"
-  },
-  {
     "name": "key-value",
     "alias": "elementInfoKeyValue",
     "tag": "synergos-key-value",
@@ -306,12 +300,6 @@
     "tier": "primitive"
   },
   {
-    "name": "hello-world",
-    "alias": "elementTemplateHelloWorld",
-    "tag": "synergos-hello-world",
-    "tier": "primitive"
-  },
-  {
     "name": "feature-journey",
     "alias": "experienceFeatureJourney",
     "tag": "synergos-feature-journey",
@@ -327,36 +315,6 @@
     "name": "media-explorer",
     "alias": "experienceMediaExplorer",
     "tag": "synergos-media-explorer",
-    "tier": "module"
-  },
-  {
-    "name": "content-carousel",
-    "alias": "experienceContentCarousel",
-    "tag": "synergos-content-carousel",
-    "tier": "module"
-  },
-  {
-    "name": "quiz-flow",
-    "alias": "experienceQuizFlow",
-    "tag": "synergos-quiz-flow",
-    "tier": "module"
-  },
-  {
-    "name": "rating-widget",
-    "alias": "experienceRatingWidget",
-    "tag": "synergos-rating-widget",
-    "tier": "module"
-  },
-  {
-    "name": "filter-board",
-    "alias": "experienceFilterBoard",
-    "tag": "synergos-filter-board",
-    "tier": "module"
-  },
-  {
-    "name": "notification-stack",
-    "alias": "experienceNotificationStack",
-    "tag": "synergos-notification-stack",
     "tier": "module"
   },
   {
