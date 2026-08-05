@@ -71,7 +71,12 @@ describe('cuarentena de specs Angular', () => {
   it('los specs siguen en el árbol y se encuentran', () => {
     // Si esto baja de golpe es que alguien movió o borró specs — que es el otro
     // modo de que una suite se quede callada.
-    expect(todos.length).toBeGreaterThanOrEqual(240);
+    //
+    // Bajó de 240 a 232 al cerrar el issue #16: se borraron nueve elementos que
+    // se publicaban al CDN y que ningún editor podía colocar, y sus specs se
+    // fueron con ellos. El listón se baja EN el commit que lo causa y no antes
+    // — que es la diferencia entre contabilizar una pérdida y taparla.
+    expect(todos.length).toBeGreaterThanOrEqual(232);
   });
 
   it(`hay exactamente ${EN_CUARENTENA} test${EN_CUARENTENA === 1 ? '' : 's'} saltado${EN_CUARENTENA === 1 ? '' : 's'}, ni uno más`, () => {

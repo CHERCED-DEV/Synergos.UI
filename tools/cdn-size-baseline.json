@@ -1,5 +1,5 @@
 {
-  "medido": "2026-08-04",
+  "medido": "2026-08-05",
   "nota": "Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs.",
   "elementos": {
     "academy": {
@@ -64,8 +64,8 @@
     },
     "banner-slider": {
       "tier": "module",
-      "bytes": 19011,
-      "gzip": 4420
+      "bytes": 19029,
+      "gzip": 4421
     },
     "blogs": {
       "tier": "module",
@@ -137,20 +137,10 @@
       "bytes": 21311,
       "gzip": 5214
     },
-    "column": {
-      "tier": "primitive",
-      "bytes": 10833,
-      "gzip": 2356
-    },
     "comments-widget": {
       "tier": "module",
       "bytes": 30857,
       "gzip": 6749
-    },
-    "container-block": {
-      "tier": "primitive",
-      "bytes": 11474,
-      "gzip": 2386
     },
     "cookie-consent": {
       "tier": "module",
@@ -222,11 +212,6 @@
       "bytes": 338469,
       "gzip": 56882
     },
-    "external-widget": {
-      "tier": "composition",
-      "bytes": 11041,
-      "gzip": 2427
-    },
     "eyebrow": {
       "tier": "primitive",
       "bytes": 12354,
@@ -259,8 +244,8 @@
     },
     "feature-journey": {
       "tier": "module",
-      "bytes": 22546,
-      "gzip": 5098
+      "bytes": 22540,
+      "gzip": 5092
     },
     "file-uploader": {
       "tier": "module",
@@ -281,11 +266,6 @@
       "tier": "module",
       "bytes": 288953,
       "gzip": 47665
-    },
-    "grid": {
-      "tier": "primitive",
-      "bytes": 11471,
-      "gzip": 2438
     },
     "heading": {
       "tier": "primitive",
@@ -312,11 +292,6 @@
       "bytes": 16619,
       "gzip": 3835
     },
-    "iframe-embed": {
-      "tier": "composition",
-      "bytes": 11192,
-      "gzip": 2418
-    },
     "image-block": {
       "tier": "primitive",
       "bytes": 11807,
@@ -329,8 +304,8 @@
     },
     "insight-explorer": {
       "tier": "module",
-      "bytes": 24413,
-      "gzip": 5834
+      "bytes": 24678,
+      "gzip": 5918
     },
     "key-value": {
       "tier": "composition",
@@ -362,11 +337,6 @@
       "bytes": 20533,
       "gzip": 5112
     },
-    "logo-cloud": {
-      "tier": "module",
-      "bytes": 19003,
-      "gzip": 4346
-    },
     "logo-item": {
       "tier": "composition",
       "bytes": 14161,
@@ -379,8 +349,8 @@
     },
     "media-explorer": {
       "tier": "module",
-      "bytes": 31061,
-      "gzip": 6388
+      "bytes": 31055,
+      "gzip": 6377
     },
     "media-text": {
       "tier": "composition",
@@ -512,11 +482,6 @@
       "bytes": 21244,
       "gzip": 4487
     },
-    "script-embed": {
-      "tier": "module",
-      "bytes": 3276,
-      "gzip": 1271
-    },
     "scroll-top": {
       "tier": "primitive",
       "bytes": 14282,
@@ -531,11 +496,6 @@
       "tier": "composition",
       "bytes": 30980,
       "gzip": 7327
-    },
-    "section": {
-      "tier": "module",
-      "bytes": 15089,
-      "gzip": 3277
     },
     "select-multi": {
       "tier": "composition",
@@ -586,11 +546,6 @@
       "tier": "composition",
       "bytes": 18555,
       "gzip": 4281
-    },
-    "stack": {
-      "tier": "primitive",
-      "bytes": 11646,
-      "gzip": 2438
     },
     "stat-ticker": {
       "tier": "primitive",

@@ -12,21 +12,9 @@
     "tier": "module"
   },
   {
-    "name": "section",
-    "alias": "elementStructSection",
-    "tag": "synergos-section",
-    "tier": "module"
-  },
-  {
     "name": "feature-grid",
     "alias": "elementCompFeatureGrid",
     "tag": "synergos-feature-grid",
-    "tier": "module"
-  },
-  {
-    "name": "logo-cloud",
-    "alias": "elementCompLogoCloud",
-    "tag": "synergos-logo-cloud",
     "tier": "module"
   },
   {
@@ -45,12 +33,6 @@
     "name": "data-table",
     "alias": "elementCorpDataTable",
     "tag": "synergos-data-table",
-    "tier": "module"
-  },
-  {
-    "name": "script-embed",
-    "alias": "elementIntScriptEmbed",
-    "tag": "synergos-script-embed",
     "tier": "module"
   },
   {
@@ -148,42 +130,6 @@
     "alias": "elementCorpSocialShare",
     "tag": "synergos-social-share",
     "tier": "composition"
-  },
-  {
-    "name": "iframe-embed",
-    "alias": "elementIntIframeEmbed",
-    "tag": "synergos-iframe-embed",
-    "tier": "composition"
-  },
-  {
-    "name": "external-widget",
-    "alias": "elementIntExternalWidget",
-    "tag": "synergos-external-widget",
-    "tier": "composition"
-  },
-  {
-    "name": "container-block",
-    "alias": "elementStructContainer",
-    "tag": "synergos-container-block",
-    "tier": "primitive"
-  },
-  {
-    "name": "grid",
-    "alias": "elementStructGrid",
-    "tag": "synergos-grid",
-    "tier": "primitive"
-  },
-  {
-    "name": "column",
-    "alias": "elementStructColumn",
-    "tag": "synergos-column",
-    "tier": "primitive"
-  },
-  {
-    "name": "stack",
-    "alias": "elementStructStack",
-    "tag": "synergos-stack",
-    "tier": "primitive"
   },
   {
     "name": "divider",
