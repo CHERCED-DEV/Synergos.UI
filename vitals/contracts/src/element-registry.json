@@ -24,18 +24,6 @@
     "tier": "module"
   },
   {
-    "name": "faq-section",
-    "alias": "elementCompFaqList",
-    "tag": "synergos-faq-section",
-    "tier": "module"
-  },
-  {
-    "name": "testimonial-section",
-    "alias": "elementCompTestimonialList",
-    "tag": "synergos-testimonial-section",
-    "tier": "module"
-  },
-  {
     "name": "logo-cloud",
     "alias": "elementCompLogoCloud",
     "tag": "synergos-logo-cloud",
@@ -81,12 +69,6 @@
     "name": "info-block",
     "alias": "elementSynInfoBlock",
     "tag": "synergos-info-block",
-    "tier": "composition"
-  },
-  {
-    "name": "accordion",
-    "alias": "elementCompAccordion",
-    "tag": "synergos-accordion",
     "tier": "composition"
   },
   {
@@ -229,9 +211,10 @@
   },
   {
     "name": "rich-text",
-    "alias": "elementTextRichText",
+    "alias": "elementTextRichtext",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "placement": "shared"
   },
   {
     "name": "eyebrow",
@@ -255,7 +238,8 @@
     "name": "text-block",
     "alias": "elementTextBlock",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "placement": "shared"
   },
   {
     "name": "button-container",
@@ -303,25 +287,22 @@
     "name": "feature-journey",
     "alias": "experienceFeatureJourney",
     "tag": "synergos-feature-journey",
-    "tier": "module"
+    "tier": "module",
+    "placement": "moduleMount"
   },
   {
     "name": "insight-explorer",
     "alias": "experienceInsightExplorer",
     "tag": "synergos-insight-explorer",
-    "tier": "module"
+    "tier": "module",
+    "placement": "moduleMount"
   },
   {
     "name": "media-explorer",
     "alias": "experienceMediaExplorer",
     "tag": "synergos-media-explorer",
-    "tier": "module"
-  },
-  {
-    "name": "countdown-clock",
-    "alias": "experienceCountdownClock",
-    "tag": "synergos-countdown-clock",
-    "tier": "module"
+    "tier": "module",
+    "placement": "moduleMount"
   },
   {
     "name": "product-card",
@@ -717,7 +698,8 @@
     "name": "pax-selector",
     "alias": "elementSynPaxSelector",
     "tag": "synergos-pax-selector",
-    "tier": "composition"
+    "tier": "composition",
+    "placement": "embedded"
   },
   {
     "name": "rich-tooltip",
