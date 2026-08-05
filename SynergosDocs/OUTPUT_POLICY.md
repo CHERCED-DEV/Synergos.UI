@@ -1,3 +1,8 @@
+> ⚠️ **DESACTUALIZADO desde la purga (2026-08-04).** Describe salidas de cuatro
+> plataformas, `ng-packagr` y un CDN en `C:\LOCAL_CDN`. Hoy la única salida es `dist/`
+> (Angular, un esbuild) y el CDN se arma en `public/synergos/` con `npm run build:cdn`.
+> Ver `BUILD_PIPELINE.md` y `CDN_RUNTIME.md`.
+
 # Output Policy
 
 ## Artifact Lifecycle

@@ -1,3 +1,7 @@
+> ⚠️ **DESACTUALIZADO desde la purga de plataformas (2026-08-04).** El árbol de decisión
+> todavía enruta hacia `platforms/react|svelte|vanilla`, que no existen. Hoy la respuesta
+> es siempre `platforms/angular/` — ver `ARCHITECTURE.md` para dónde dentro de él.
+
 # Where Does This Go?
 
 Decision tree for placing new code in Synergos UI.

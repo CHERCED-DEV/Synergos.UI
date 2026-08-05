@@ -1,3 +1,7 @@
+> ⚠️ **DESACTUALIZADO desde la purga de Nx (2026-08-04) — no sigas los comandos de abajo.**
+> Usan `npx nx run` y `project.json`, y ninguno de los dos existe. **Empezá por `CLAUDE.md`**,
+> que sí está al día; los scripts reales están en `SCRIPTS.md` y el build en `BUILD_PIPELINE.md`.
+
 # Onboarding Guide
 
 ## Prerequisites

@@ -7,7 +7,7 @@ El runtime compartido es un conjunto de bundles ESM pre-construidos que se carga
 ## Estructura en CDN
 
 ```
-LOCAL_CDN/synergos/
+public/synergos/                      ← la raíz del CDN; lo arma `npm run build:cdn`
   runtime/angular/{version}/          ← bundles compartidos + import-map
     ng-core.js                        ← @angular/core
     ng-compiler.js                    ← @angular/compiler (JIT linker)
@@ -32,8 +32,12 @@ LOCAL_CDN/synergos/
 | Comando | Qué hace |
 |---|---|
 | `npm run build:runtime` | Compila los 11 bundles del runtime con esbuild → `dist/runtime/angular/{version}/` |
-| `npm run publish:runtime` | Copia `dist/runtime/` → `LOCAL_CDN/synergos/runtime/` y genera `import-map.json` con URLs CDN absolutas |
-| `npm run release:angular` | Pipeline completo: build elements → build runtime → validate contracts → publish runtime → publish elements |
+| `npm run publish:runtime` | Copia `dist/runtime/` → `<cdn>/synergos/runtime/` y genera `import-map.json` con URLs CDN absolutas |
+| `npm run build:cdn` | Pipeline completo: build elements → build runtime → **publish runtime** → publish elements → presupuesto de tamaño. Pasa `--cdn=public`, así que la raíz es `public/synergos/` |
+
+> El destino lo manda `--cdn=` (o `SYNERGOS_CDN`). Invocando `publish:runtime` a
+> pelo cae al default heredado `C:\LOCAL_CDN`; el pipeline real nunca lo usa
+> porque `build:cdn` siempre pasa `public`. `release:angular` murió con la purga.
 
 ## Cómo funciona
 
@@ -47,7 +51,8 @@ LOCAL_CDN/synergos/
 
 ### 2. Publish (`tools/publish-runtime.mjs`)
 
-- Copia los bundles a `LOCAL_CDN/synergos/runtime/angular/{version}/` y `latest/`.
+- Copia los bundles a `<cdn>/synergos/runtime/angular/{version}/` y `latest/` — con
+  el pipeline real, `public/synergos/runtime/angular/…`.
 - Reescribe `import-map.json` reemplazando `__BASE_URL__` con la URL CDN real.
 - Variable de entorno `SYNERGOS_CDN_ORIGIN` (default: `https://synergos-static-local`) define el origen CDN.
 

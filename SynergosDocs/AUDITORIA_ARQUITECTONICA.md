@@ -1,3 +1,8 @@
+> ⚠️ **HISTÓRICO — auditoría del repo ANTERIOR a la purga (2026-08-04).** Describe el
+> monorepo con Nx y cuatro plataformas; hoy no hay Nx y sólo queda Angular. Se conserva
+> porque el plan que salió de ella explica **por qué** el repo es como es.
+> Para el estado actual: `CLAUDE.md`, `ARCHITECTURE.md`, `BUILD_PIPELINE.md`.
+
 # SYNERGOS.UI — AUDITORÍA ARQUITECTÓNICA EXHAUSTIVA
 
 ---

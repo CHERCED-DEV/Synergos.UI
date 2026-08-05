@@ -1,3 +1,8 @@
+> ⚠️ **DESACTUALIZADO desde la purga de plataformas (2026-08-04).** El catálogo y los
+> ejemplos de abajo incluyen experiencias de `platforms/react|svelte|vanilla`, que ya no
+> existen — sólo quedan las de Angular. Las referencias a `project.json` tampoco aplican:
+> el build descubre cada elemento por su `src/main.ts`. Ver `ARCHITECTURE.md`.
+
 # Synergos Experiences
 
 Experiences are complex interactive Web Components that go beyond the static element catalog. They implement multi-step flows, reactive state, timers, filters, and user interaction patterns that justify their own independent bundles.

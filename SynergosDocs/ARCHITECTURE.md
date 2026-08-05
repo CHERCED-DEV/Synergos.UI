@@ -2,16 +2,25 @@
 
 ## Overview
 
-Synergos UI is a **multi-framework monorepo** that produces independently deployable Web Components consumed by Umbraco CMS via a local CDN.
+Synergos UI produces independently deployable Web Components consumed by Umbraco CMS via CDN.
 
 ```
 synergos/
 ├── cms/        → Umbraco CMS (Razor host, layout, routing)
 ├── api/        → .NET REST APIs
-└── ui/         → This repository (multi-framework monorepo)
+└── ui/         → This repository
 ```
 
-Angular is the primary framework (full element catalog + experiences). React, Svelte, and Vanilla produce **experiences** — complex interactive Custom Elements that are not present in Angular's catalog.
+**Angular first.** Todo el catálogo se construye en Angular, y es la única
+plataforma que vive en el repo desde la purga del 2026-08-04: `platforms/react`,
+`platforms/svelte` y `platforms/vanilla` se eliminaron con sus experiencias.
+
+Lo que **no** cambió es la superficie de acople: el CMS carga un `<script>` y usa
+una etiqueta `<synergos-*>`, y el segmento de framework sigue en la ruta del CDN
+(`/synergos/<el>/angular/<slot>/main.js`). Ese diseño se conserva a propósito —
+si un cliente pide una funcionalidad que ya existe en otro framework, empalmarla
+es publicar bajo otro segmento, no rehacer el contrato. Hoy el único valor vivo
+es `angular`.
 
 ---
 
@@ -34,30 +43,35 @@ Angular is the primary framework (full element catalog + experiences). React, Sv
 
 Two levels:
 
-**Agnostic (`vitals/`)** — shared across all frameworks:
+**Agnostic (`vitals/`)** — sin dependencias de framework:
 - `vitals/contracts` — pure TypeScript interfaces, element registry, config contracts
 - `vitals/core` — logger, mappers, bridge protocol, environment
-- `vitals/shared` — utility functions, Vite base build config
 - `vitals/core-assets` — SCSS design tokens (source of truth)
 
-**Framework-specific (`platforms/*/libs/`)** — extends vitals with framework features:
-- Angular: `libs/core/` (providers, interceptors, tokens), `libs/shared/` (components, directives, pipes), `libs/rendering/` (ElementRegistry, ComponentResolver)
-- React: `libs/core/` (React hooks — `useLogger`, `createLogger`), `libs/shared/` (`Button`, `classNames`)
-- Svelte: `libs/core/` (`createLogger`, Svelte store-based logger), `libs/shared/` (utilities)
-- Vanilla: `libs/core/` (`createLogger`), `libs/shared/` (`classNames`)
+> `vitals/shared` ya no existe: era la config base de Vite para las plataformas
+> IIFE, y se fue con ellas.
+
+**Angular (`platforms/angular/libs/`)** — extiende vitals:
+- `libs/core/` — providers, interceptors, tokens
+- `libs/shared/` — components, directives, pipes (foundations/, components/, patterns/)
+- `libs/rendering/` — ElementRegistry, ComponentResolver, InputMapper
+- `libs/integrations/` — CMS sync tooling
+- `libs/shells/`, `libs/shop/`, `libs/transaction-engine/` — dominio
 
 ### Layer 2 — Design System
 
 Element hierarchy:
 
-| Tier | Purpose | Frameworks | Examples |
-|------|---------|-----------|---------|
-| **Primitive** | Smallest building blocks | Angular | `button`, `text-block`, `image-block`, `badge`, `icon-block` |
-| **Composition** | Grouped primitives forming a unit | Angular, React, Svelte | `card`, `pricing-card`, `accordion`, `cta-group` |
-| **Module** | Full sections with layout and logic | Angular | `hero`, `feature-grid`, `faq-section`, `banner-slider` |
-| **Experience** | Complex interactive widgets | Angular, React, Svelte, Vanilla | `feature-journey`, `quiz-flow`, `rating-widget`, `countdown-clock` |
+| Tier | Purpose | Examples |
+|------|---------|---------|
+| **Primitive** | Smallest building blocks | `button`, `text-block`, `image-block`, `badge`, `icon-block` |
+| **Composition** | Grouped primitives forming a unit | `card`, `pricing-card`, `accordion`, `cta-group` |
+| **Module** | Full sections with layout and logic | `hero`, `feature-grid`, `faq-section`, `banner-slider` |
 
-> **Experiences are not duplicated across frameworks.** Each experience is owned by exactly one framework. Cross-framework experiences (React, Svelte, Vanilla) fill gaps not covered by Angular's catalog.
+> **El registry sólo conoce esos tres tiers**, y el presupuesto de tamaño tiene un
+> techo por cada uno (issue #8). Las **experiencias** —`feature-journey`,
+> `insight-explorer`, `media-explorer`— viven en `apps/experiences/` y entran al
+> registry como `module`, no como un cuarto tier.
 
 ### Layer 3 — Feature Architecture (`modules/`)
 
@@ -74,51 +88,29 @@ Business features as independent modules (Git submodules). Each module:
 ```
 Synergos.UI/
 ├── platforms/
-│   ├── angular/                   → Primary framework
-│   │   ├── apps/elements/         → Angular Elements (Web Components)
-│   │   │   ├── primitives/        → button, text-block, image-block, ...
-│   │   │   ├── compositions/      → card, media-text, cta-group, ...
-│   │   │   └── modules/           → hero, banner, feature-grid, ...
-│   │   ├── apps/experiences/      → Angular Experiences
-│   │   │   ├── feature-journey/   → 5-step interactive journey (signals-based)
-│   │   │   ├── insight-explorer/  → Data exploration widget
-│   │   │   └── media-explorer/    → Media browsing experience
-│   │   ├── libs/
-│   │   │   ├── core/              → Angular providers, interceptors, tokens
-│   │   │   ├── shared/            → Angular components (foundations/, components/, patterns/)
-│   │   │   ├── core-assets/       → SCSS tokens (Angular copy)
-│   │   │   ├── rendering/         → ElementRegistry, ComponentResolver, InputMapper
-│   │   │   └── integrations/      → CMS sync tooling
-│   │   └── modules/               → Business feature modules (Git submodules)
-│   │
-│   ├── react/                     → React Web Components
-│   │   ├── apps/elements/         → pricing-card, stat-counter
-│   │   ├── apps/experiences/      → Cross-framework experiences
-│   │   │   ├── content-carousel/  → Sliding carousel with autoplay, dot nav
-│   │   │   └── quiz-flow/         → Multi-phase quiz (intro→quiz→results)
-│   │   └── libs/                  → core (useLogger, createLogger), shared (Button, classNames)
-│   │
-│   ├── svelte/                    → Svelte Web Components
-│   │   ├── apps/elements/         → accordion, avatar
-│   │   ├── apps/experiences/      → Cross-framework experiences
-│   │   │   ├── rating-widget/     → Star rating with hover, submit, feedback
-│   │   │   └── filter-board/      → Tag-filtered card grid with counts
-│   │   └── libs/                  → core (createLogger), shared (classNames)
-│   │
-│   └── vanilla/                   → Vanilla JS Web Components
-│       ├── apps/elements/         → hello-world (template)
-│       ├── apps/experiences/      → Cross-framework experiences
-│       │   ├── notification-stack/ → Observer-pattern notification stack
-│       │   └── countdown-clock/   → Live countdown with setInterval
-│       └── libs/                  → core (createLogger), shared (classNames)
+│   └── angular/                   → la única plataforma
+│       ├── apps/elements/         → Angular Elements (Web Components)
+│       │   ├── primitives/        → button, text-block, image-block, ...   (27)
+│       │   ├── compositions/      → card, media-text, cta-group, ...       (45)
+│       │   └── modules/           → hero, banner, feature-grid, ...        (53)
+│       ├── apps/experiences/      → feature-journey, insight-explorer, media-explorer
+│       ├── apps/domains/          → shop/ (product-card, cart-summary, variant-picker, ...)
+│       ├── libs/
+│       │   ├── core/              → providers, interceptors, tokens
+│       │   ├── shared/            → components (foundations/, components/, patterns/)
+│       │   ├── rendering/         → ElementRegistry, ComponentResolver, InputMapper
+│       │   ├── integrations/      → CMS sync tooling
+│       │   └── shells/ shop/ transaction-engine/
+│       ├── modules/               → Business feature modules (Git submodules)
+│       └── tools/                 → build.mjs, build-specs.mjs, ngtsc.mjs, sync-tokens.mjs
 │
-├── vitals/                        → Agnostic packages (all frameworks)
+├── vitals/                        → Paquetes agnósticos
 │   ├── contracts/                 → Interfaces, element-registry.json, element-inputs.json
 │   ├── core/                      → Logger, mappers, bridge, environment
-│   ├── core-assets/               → SCSS design tokens (source of truth)
-│   └── shared/                    → Utilities, Vite base config
+│   └── core-assets/               → SCSS design tokens (source of truth)
 │
-├── tools/                         → CLI, publish, build-runtime, clean scripts
+├── tools/                         → build-cdn, publish, build-runtime, dev-cdn, humo-cdn, gates
+├── worker/ + wrangler.jsonc       → Cloudflare Workers: sirve public/ con caché y CORS
 └── SynergosDocs/                  → This documentation
 ```
 
@@ -142,25 +134,27 @@ vitals packages
   → depend on nothing (pure, agnostic)
 ```
 
-Cross-framework rule: **frameworks never depend on each other**. All shared logic lives in `vitals/`.
-
-Experience rule: **no experience is duplicated across frameworks**. Angular owns feature-journey, insight-explorer, media-explorer. React owns content-carousel, quiz-flow. Svelte owns rating-widget, filter-board. Vanilla owns notification-stack, countdown-clock.
+La regla de agnosticismo sobrevive a la purga y no es decorativa: lo compartido
+vive en `vitals/`, sin imports de framework. Es lo que hace que empalmar otra
+plataforma siga siendo posible sin desenredar el design system.
 
 ---
 
 ## Experience Architecture Pattern
 
-Every experience — regardless of framework — follows the same 4-layer folder structure:
+Cada experiencia sigue la misma estructura de 4 capas:
 
 ```
 src/<experience-name>/
 ├── domain/           → Pure types, constants, business rules (no framework deps)
-├── application/      → Business logic, state management (framework-idiomatic)
+├── application/      → Business logic, state management (Angular signals)
 ├── infrastructure/   → Config interfaces, adapter functions (CMS → domain model)
-└── interface/        → UI component (Angular component, React FC, Svelte component, render fn)
+└── interface/        → UI component
 ```
 
-This mirrors Angular's own experience architecture. See [EXPERIENCES.md](EXPERIENCES.md) for full detail.
+El detalle por capa está en [FEATURE_ARCHITECTURE.md](FEATURE_ARCHITECTURE.md).
+`EXPERIENCES.md` lleva banner: su catálogo todavía enumera experiencias de las
+plataformas eliminadas.
 
 ---
 
@@ -177,41 +171,24 @@ Components never call APIs directly. Containers orchestrate services.
 
 ---
 
-## Multi-Framework Model
+## El acople con el CMS
 
-### How it works
-
-Every element produces a `synergos-*` Custom Element (Web Component). The CMS doesn't know or care which framework built it — it just loads a `<script>` and uses the tag:
+Cada elemento produce un Custom Element `synergos-*`. El CMS no sabe qué lo
+construyó — carga un `<script>` y usa la etiqueta:
 
 ```html
-<script src="/synergos/hero/angular/latest/main.js"></script>
+<script type="module" src="/synergos/hero/angular/latest/main.js"></script>
 <synergos-hero config='{"title":"Welcome"}'></synergos-hero>
-
-<script src="/synergos/quiz-flow/react/latest/main.js"></script>
-<synergos-quiz-flow config='{"title":"Test","questions":[...]}'></synergos-quiz-flow>
 ```
 
-### Framework assignment
+El bundle es **ESM**, no autocontenido: Angular y las libs compartidas se
+resuelven desde el **runtime compartido** (11 bundles) vía import map, que el CMS
+inyecta *inline* en el `<head>`. Por eso cada elemento pesa ~5-15 KB en vez de
+arrastrar el framework entero. Ver [CDN_RUNTIME.md](CDN_RUNTIME.md).
 
-| Framework | Owns |
-|---|---|
-| **Angular** | Full element catalog (primitives, compositions, modules) + 3 angular experiences |
-| **React** | `content-carousel`, `quiz-flow` |
-| **Svelte** | `rating-widget`, `filter-board` |
-| **Vanilla** | `notification-stack`, `countdown-clock` |
-
-### Bundle model
-
-| Framework | Format | Runtime strategy |
-|---|---|---|
-| Angular | ESM | Shared CDN runtime (11 bundles, loaded once via import map) |
-| React | IIFE | Self-contained (includes React 19, ~180 KB gz) |
-| Svelte | IIFE | Self-contained (includes Svelte runtime, ~15 KB gz) |
-| Vanilla | IIFE | Self-contained (no framework, ~3 KB gz) |
-
-### Shared build infrastructure
-
-React, Svelte, and Vanilla share a Vite base config (`vitals/shared/src/build/vite-base.ts`) that produces IIFE bundles. Angular uses its own `@angular/build:application` executor with external deps and import map.
+> El segmento `angular` de la ruta es el punto de extensión que deja el diseño
+> multi-framework: publicar el mismo nombre bajo otro segmento no toca el
+> contrato ni el CMS. Hoy no hay ninguno.
 
 ---
 
@@ -241,22 +218,25 @@ npm run build:cdn                 → arma public/ entero, y es lo que despliega
 | Technology | Version | Notes |
 |---|---|---|
 | Angular | ~21.1 | Zoneless, Standalone, Signals, OnPush |
-| React | 19 | Experiences: content-carousel, quiz-flow |
-| Svelte | 5 | Experiences: rating-widget, filter-board |
-| Nx | 22.5 | Dual-workspace model (root + Angular) |
 | TypeScript | ~5.9 | Strict mode |
-| SCSS | Sass modules | `@use`/`@forward` only |
-| Vitest | latest | Unit tests (all frameworks) |
-| Vite | 6.x | Build tool (React, Svelte, Vanilla) |
+| esbuild | ^0.27 | El bundler, invocado desde `tools/build.mjs` (no hay Vite, no hay Nx) |
+| ngtsc | de Angular | AOT — compila elementos **y specs**, ver `tools/ngtsc.mjs` |
+| SCSS | Sass ^1.97 | `@use`/`@forward` only |
+| Vitest | ^4.0 | Unit tests, sobre los specs ya compilados AOT |
+| Wrangler | 4.118.0 | Pineado (issue #4) — sirve `public/` en Cloudflare Workers |
 
 ---
 
 ## Related Documents
 
-- [EXPERIENCES.md](EXPERIENCES.md) — Experiences layer: architecture, creation guide, all 9 experiences
-- [NX_GOVERNANCE.md](NX_GOVERNANCE.md) — Dual Nx model, project naming, tag strategy
-- [OUTPUT_POLICY.md](OUTPUT_POLICY.md) — Build artifacts, CDN structure, cleanup
-- [BUILD_PIPELINE.md](BUILD_PIPELINE.md) — Build, test, lint, publish commands
-- [ONBOARDING.md](ONBOARDING.md) — Setup guide for new developers
+- [BUILD_PIPELINE.md](BUILD_PIPELINE.md) — Build, test, lint, publish
+- [SCRIPTS.md](SCRIPTS.md) — La tabla de scripts npm, post-purga
+- [CDN_RUNTIME.md](CDN_RUNTIME.md) — Runtime compartido, import map
+- [DEV_CDN_MODE.md](DEV_CDN_MODE.md) — El ciclo editor→navegador
+- [ELEMENT_CONTRACT.md](ELEMENT_CONTRACT.md) — El contrato con el CMS
 - [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) — SCSS tokens, component patterns
-- [CDN_RUNTIME.md](CDN_RUNTIME.md) — Angular shared CDN runtime, import map
+- [FEATURE_ARCHITECTURE.md](FEATURE_ARCHITECTURE.md) — Módulos y experiencias, capa por capa
+
+> Los que llevan banner (`EXPERIENCES`, `ONBOARDING`, `OUTPUT_POLICY`,
+> `NX_GOVERNANCE`, `WHERE_DOES_THIS_GO`, y las dos auditorías) describen el repo
+> anterior a la purga. Están para consultar el porqué, no el cómo.

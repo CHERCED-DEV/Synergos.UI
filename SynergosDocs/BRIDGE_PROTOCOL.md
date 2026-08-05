@@ -1,5 +1,9 @@
 # Synergos Bridge Protocol
 
+> ⚠️ **Rutas de ejemplo desactualizadas desde la purga (2026-08-04).** El protocolo y sus
+> interfaces siguen vigentes; lo que caducó son los ficheros que se citan como ejemplo,
+> varios de plataformas ya eliminadas. La fuente viva es `vitals/core`.
+
 > Estado actual: **interfaces sin implementaciones activas**.
 > Fecha de re-evaluación: **2027-04** (12 meses desde la auditoría de 2026-04).
 
