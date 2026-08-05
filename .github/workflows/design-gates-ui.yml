@@ -8,15 +8,18 @@ name: Design gates UI (token bridge parity + contraste por tema)
 # bridge `_tokens-bridge.scss` quedó STALE respecto a la fuente
 # `syn-tokens.css` (que vive en el repo SIBLING Synergos.CMS).
 #
-# NOTA RUNNER (G-4): hoy NO hay runner CI conectado. Este workflow queda
-# LISTO para cuando se conecte el remote del UI + el runner, y además
-# requiere checkout del repo CMS (cross-repo) para tener la fuente de
-# tokens. Hasta entonces el gate corre como pre-commit / a mano:
-#   cd platforms/angular && npm run sync:tokens:check
+# RUNNER (G-4): CONECTADO y funcionando. Esta nota decía lo contrario —
+# «hoy NO hay runner CI conectado» — y era cierta cuando se escribió, pero
+# dejó de serlo sin que nadie la corrigiera. El coste fue concreto: el
+# workflow llevaba tres días en rojo por otra causa (issue #14) y este
+# párrafo lo explicaba away, así que nadie miró.
+#
+# Un rojo permanente que un comentario justifica es la misma trampa del
+# issue #7 en otra forma: entrena a no mirar los rojos.
 #
 # CROSS-REPO: el job hace checkout de ESTE repo (UI) + del CMS sibling y
 # apunta `SYNERGOS_CMS_PATH` al CMS para que el check compare contra la
-# fuente real. Ajustar `repository:` + token cuando exista el remote CMS.
+# fuente real. El CMS es público, así que el checkout no lleva `token:`.
 
 # G-2 vigila CUALQUIER .scss/.css del repo, no sólo el bridge, así que los
 # filtros de path tienen que ser igual de anchos. Con la lista vieja —acotada a
@@ -53,13 +56,20 @@ jobs:
           path: Synergos.UI
 
       # El check necesita la FUENTE de tokens, que vive en el CMS sibling.
-      # Ajustar repository: + token cuando exista el remote del CMS.
+      #
+      # SIN `token:` A PROPÓSITO (issue #14). Llevaba `secrets.CMS_REPO_READ_TOKEN`,
+      # que nunca se configuró, así que `actions/checkout` recibía una cadena
+      # vacía y abortaba con «Input required and not supplied: token» — en el
+      # paso 2 de 5, o sea que G-1, G-2 y G-5 no llegaban a ejecutarse nunca.
+      #
+      # `CHERCED-DEV/Synergos.CMS` es PÚBLICO: el GITHUB_TOKEN por defecto del
+      # job basta para clonarlo. El día que pase a privado, este paso volverá a
+      # fallar — y ahí el fallo será legítimo y dirá la verdad.
       - name: Checkout CMS (sibling — fuente de tokens)
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/Synergos.CMS
           path: Synergos.CMS
-          token: ${{ secrets.CMS_REPO_READ_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
