@@ -158,12 +158,16 @@ raíz no es workspace de npm y un `npm ci` en la raíz deja
 
 ## 6. Tests
 
-- **Angular: suspendidos.** El runner era el executor de Nx
-  (`@angular/build:unit-test`). Los `.spec.ts` siguen en el árbol y se siguen
-  escribiendo; recablearlos a vitest con compilación Angular es un pendiente
-  declarado, no un olvido.
-- **Raíz: corren.** `npm test` ejecuta los specs de `tools/lib/`
-  (cdn-cache-policy).
+- **Angular: corren** (issue #1). El runner era el executor de Nx
+  (`@angular/build:unit-test`); hoy es vitest sobre specs **compilados AOT** por
+  `platforms/angular/tools/build-specs.mjs` — el mismo ngtsc que publica los
+  elementos. No es preferencia de estilo: los signal inputs de Angular **no
+  funcionan en JIT**, así que un transpilador al vuelo haría que los tests corran
+  y mientan. `npm run test:angular` (~35 s).
+- **Raíz: corren.** `npm run test:tools` ejecuta los gates de `tools/lib/` — sin
+  SDK, sin red, < 1 s.
+- `npm test` corre los dos. La cuarentena de `it.skip` está en **cero** y lo
+  defiende `tools/lib/spec-quarantine.spec.mjs`.
 - Lint: `npm run lint` desde `platforms/angular/` (eslint plano — conserva los
   prefijos `syn`/`sg`; los boundary-checks por tags murieron con Nx, ver
   `LLM.txt` §12 para qué los reemplaza).

@@ -34,7 +34,8 @@
 |---|---|
 | `npm run publish:cdn` | Publica artefactos ya buildeados (`tools/publish.mjs` — el ÚNICO que escribe al CDN) |
 | `npm run publish:runtime` | Publica solo el runtime compartido (`tools/publish-runtime.mjs`) |
-| `npm run publish:element` | Publica un elemento específico (`tools/publish-element.mjs`) |
+| `npm run publish:cdn -- --element hero` | Publica un solo elemento — es el mismo `publish.mjs` con filtro; no hay script aparte |
+| `npm run release` | Encadenado: `build` + `contracts:validate` + `publish:runtime` + `publish.mjs` |
 | `npm run release:cdn` | Release interactivo: build + validate + publish (`tools/release-cdn.mjs`) |
 
 > Nunca publish sin `contracts:validate` en verde.

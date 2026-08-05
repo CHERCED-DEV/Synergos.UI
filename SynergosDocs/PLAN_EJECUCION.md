@@ -1,3 +1,8 @@
+> ⚠️ **HISTÓRICO — plan escrito ANTES de la purga (2026-08-04).** Sus pasos editan
+> `nx.json` y corren `nx affected`; ninguna de las dos cosas existe. Se conserva como
+> registro de las decisiones que llevaron al repo actual, no como trabajo pendiente:
+> lo pendiente vive en los issues de GitHub.
+
 # SYNERGOS.UI — PLAN DE EJECUCIÓN CONTROLADA
 
 > Basado en las auditorías AUDITORIA_ARQUITECTONICA.md y VALIDACION_TECNICA.md.

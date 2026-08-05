@@ -3,7 +3,7 @@
 This document covers two related architecture patterns:
 
 1. **Feature modules** — Angular business-domain applications in `modules/`
-2. **Cross-framework experiences** — interactive Web Components in `apps/experiences/` (all frameworks)
+2. **Experiences** — interactive Web Components in `apps/experiences/`
 
 Both follow a layered architecture that separates domain logic from UI concerns.
 
@@ -240,11 +240,17 @@ When a feature module grows large enough, it can be extracted:
 
 ---
 
-# Cross-Framework Experience Architecture
+# Experience Architecture
 
-Experiences are complex interactive Web Components in `apps/experiences/`. They follow the same **domain / application / infrastructure / interface** layering regardless of framework.
+Experiences are complex interactive Web Components in `apps/experiences/`. They follow the same **domain / application / infrastructure / interface** layering.
 
-## Folder structure (all frameworks)
+> ⚠️ **Las secciones de React, Svelte y Vanilla son históricas.** Esas plataformas
+> se eliminaron en la purga del 2026-08-04 y las experiencias que se citan ya no
+> existen en el repo. Se conservan porque documentan cómo se empalmaría otra
+> plataforma si un cliente lo pidiera: el layering es el mismo y el contrato
+> `config` no cambia. **Lo vigente es la sección de Angular.**
+
+## Folder structure
 
 ```
 src/<experience-name>/
@@ -263,7 +269,7 @@ src/<experience-name>/
 | `infrastructure/` | `domain/` (types only) | `application/`, any framework |
 | `interface/` | All three layers, framework UI | Nothing external |
 
-## Angular experience
+## Angular experience  *(la vigente)*
 
 State lives in a plain class using Angular signals. Use-cases are standalone functions that receive the state instance:
 
@@ -287,7 +293,7 @@ export class FeatureJourneyComponent {
 }
 ```
 
-## React experience
+## React experience  *(histórico — plataforma eliminada)*
 
 State lives in custom hooks using `useState` or `useReducer`. Multi-step flows use `useReducer`:
 
@@ -309,7 +315,7 @@ export function QuizFlow({ config = '' }: QuizFlowProps) {
 
 > Use `useLogger` (React hook) inside the component, not `createLogger` at module level.
 
-## Svelte experience
+## Svelte experience  *(histórico — plataforma eliminada)*
 
 State uses Svelte 5 runes (`$state`, `$derived`, `$derived.by`). Config parsing goes in `$derived.by` to stay reactive:
 
@@ -330,7 +336,7 @@ The `main.ts` entry just imports the `.svelte` file — Svelte's compiler regist
 import './filter-board/interface/FilterBoard.svelte';
 ```
 
-## Vanilla JS experience
+## Vanilla JS experience  *(histórico — plataforma eliminada)*
 
 State lives in a class with a pub-sub subscribe/notify pattern. The `interface/` render function returns a cleanup function:
 
@@ -374,5 +380,5 @@ This means: CMS contract changes → only the adapter changes. Domain and interf
 
 ---
 
-> For the full experiences catalog, creation guide, and per-framework examples, see [EXPERIENCES.md](EXPERIENCES.md).
+> `EXPERIENCES.md` lleva banner: su catálogo enumera experiencias de las plataformas eliminadas. Las tres vigentes son `feature-journey`, `insight-explorer` y `media-explorer`, todas Angular.
 

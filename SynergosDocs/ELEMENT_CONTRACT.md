@@ -50,7 +50,7 @@ This document defines the formal contract between the Synergos.UI Web Component 
 ```
 /synergos/hero/angular/v1/main.js         ← Production: locked to major v1
 /synergos/hero/angular/latest/main.js     ← Staging: always latest release
-/synergos/hero/react/v0/main.js           ← Production: React hero at v0
+/synergos/hero/angular/0.1.0/main.js      ← Production: pinned, cacheable como immutable
 ```
 
 ---
@@ -82,11 +82,19 @@ Every element + framework combination has a `manifest.json` co-located with `mai
 |-------|------|-------------|
 | `tag` | string | Custom Element tag name (`synergos-*`) |
 | `alias` | string | Umbraco content type alias (`elementComp*`) |
-| `framework` | string | `angular` \| `react` \| `svelte` \| `vanilla` |
+| `framework` | string | El segmento de plataforma. Hoy siempre `angular` — ver la nota de abajo |
 | `version` | string | Full semver (e.g. `"1.2.3"`) |
 | `tier` | string | `primitive` \| `composition` \| `module` |
 | `entryScript` | string | Always `"main.js"` |
 | `inputs` | array | Declared public inputs (see below) |
+
+> **Sobre `framework`.** El campo y el segmento de ruta siguen en el contrato, y
+> el CMS los resuelve igual que siempre; lo que cambió es que desde la purga del
+> 2026-08-04 el único valor que se publica es `angular` — `react`, `svelte` y
+> `vanilla` se eliminaron del repo. **El campo no se quita**: es lo que permite
+> publicar el mismo nombre desde otra plataforma sin tocar el CMS, que es el caso
+> de uso por el que existe. Un consumidor no debe cablear `angular`: debe leerlo
+> de `implementations` en el registry.
 
 ### Input Descriptor Fields
 
@@ -119,8 +127,7 @@ The top-level registry file lists all elements and their available implementatio
       "tag": "synergos-hero",
       "tier": "module",
       "implementations": {
-        "angular": { "latest": "1.2.3", "v1": "1.2.3" },
-        "react":   { "latest": "0.3.0", "v0": "0.3.0" }
+        "angular": { "latest": "1.2.3", "v1": "1.2.3" }
       }
     }
   ]
