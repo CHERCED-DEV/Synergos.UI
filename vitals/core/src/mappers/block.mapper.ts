@@ -81,7 +81,6 @@ import { mapIconBlockData } from './icon-block.mapper';
 import { mapImageBlockData } from './image-block.mapper';
 import { mapLinkBlockData } from './link-block.mapper';
 import { mapTextBlockData } from './text-block.mapper';
-import { mapPricingCardData } from './pricing-card.mapper';
 import { mapStatCounterData } from './stat-counter.mapper';
 import { mapAccordionData } from './accordion.mapper';
 import { mapAvatarData } from './avatar.mapper';
@@ -97,15 +96,9 @@ import { mapExternalWidgetData } from './external-widget.mapper';
 import { mapColumnData } from './column.mapper';
 import { mapDividerData } from './divider.mapper';
 import { mapSpacerData } from './spacer.mapper';
-import { mapHelloWorldData } from './hello-world.mapper';
 import { mapFeatureJourneyData } from './feature-journey.mapper';
 import { mapInsightExplorerData } from './insight-explorer.mapper';
 import { mapMediaExplorerData } from './media-explorer.mapper';
-import { mapContentCarouselData } from './content-carousel.mapper';
-import { mapQuizFlowData } from './quiz-flow.mapper';
-import { mapRatingWidgetData } from './rating-widget.mapper';
-import { mapFilterBoardData } from './filter-board.mapper';
-import { mapNotificationStackData } from './notification-stack.mapper';
 import { mapCountdownClockData } from './countdown-clock.mapper';
 import { mapProductCardData } from './product-card.mapper';
 import { mapProductGridData } from './product-grid.mapper';
@@ -375,10 +368,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   },
 
   // ── Cross-framework elements ────────────────────────────────────────────────
-  elementInfoPricingCard: {
-    tag: 'synergos-pricing-card',
-    map: (d) => toRecord(mapPricingCardData(d as unknown as Record<string, unknown>)),
-  },
   elementInfoStat: {
     tag: 'synergos-stat-counter',
     map: (d) => toRecord(mapStatCounterData(d as unknown as Record<string, unknown>)),
@@ -415,10 +404,6 @@ const REGISTRY: Record<string, MapperEntry> = {
     tag: 'synergos-external-widget',
     map: (d) => toRecord(mapExternalWidgetData(d as unknown as ExternalWidgetElementData)),
   },
-  elementTemplateHelloWorld: {
-    tag: 'synergos-hello-world',
-    map: (d) => toRecord(mapHelloWorldData(d as unknown as Record<string, unknown>)),
-  },
 
   // ── Experiences ─────────────────────────────────────────────────────────────
   experienceFeatureJourney: {
@@ -432,26 +417,6 @@ const REGISTRY: Record<string, MapperEntry> = {
   experienceMediaExplorer: {
     tag: 'synergos-media-explorer',
     map: (d) => toRecord(mapMediaExplorerData(d as unknown as MediaExplorerElementData)),
-  },
-  experienceContentCarousel: {
-    tag: 'synergos-content-carousel',
-    map: (d) => toRecord(mapContentCarouselData(d as Record<string, unknown>)),
-  },
-  experienceQuizFlow: {
-    tag: 'synergos-quiz-flow',
-    map: (d) => toRecord(mapQuizFlowData(d as Record<string, unknown>)),
-  },
-  experienceRatingWidget: {
-    tag: 'synergos-rating-widget',
-    map: (d) => toRecord(mapRatingWidgetData(d as Record<string, unknown>)),
-  },
-  experienceFilterBoard: {
-    tag: 'synergos-filter-board',
-    map: (d) => toRecord(mapFilterBoardData(d as Record<string, unknown>)),
-  },
-  experienceNotificationStack: {
-    tag: 'synergos-notification-stack',
-    map: (d) => toRecord(mapNotificationStackData(d as Record<string, unknown>)),
   },
   experienceCountdownClock: {
     tag: 'synergos-countdown-clock',

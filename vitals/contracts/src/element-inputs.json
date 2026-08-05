@@ -1301,70 +1301,6 @@
       "description": "Color theme (light | dark)"
     }
   ],
-  "pricing-card": [
-    {
-      "name": "planName",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "description": "Plan or tier name"
-    },
-    {
-      "name": "price",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "description": "Price label"
-    },
-    {
-      "name": "period",
-      "type": "string",
-      "required": false,
-      "default": "/mo",
-      "description": "Billing period label"
-    },
-    {
-      "name": "features",
-      "type": "json",
-      "required": false,
-      "description": "JSON array of included feature strings"
-    },
-    {
-      "name": "ctaLabel",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "description": "Call-to-action label"
-    },
-    {
-      "name": "ctaUrl",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "description": "Call-to-action destination URL"
-    },
-    {
-      "name": "highlighted",
-      "type": "boolean",
-      "required": false,
-      "default": false,
-      "description": "Highlights the card visually"
-    },
-    {
-      "name": "variant",
-      "type": "string",
-      "required": false,
-      "default": "default",
-      "description": "Presentation variant key"
-    },
-    {
-      "name": "theme",
-      "type": "string",
-      "required": false,
-      "default": "light",
-      "description": "Color theme (light | dark)"
-    }
-  ],
   "key-value": [
     {
       "name": "config",
@@ -2689,29 +2625,6 @@
       "description": "Visual tone (neutral | brand | inverse)"
     }
   ],
-  "hello-world": [
-    {
-      "name": "heading",
-      "type": "string",
-      "required": false,
-      "default": "Hello, Synergos!",
-      "description": "Main heading text"
-    },
-    {
-      "name": "message",
-      "type": "string",
-      "required": false,
-      "default": "",
-      "description": "Text to display"
-    },
-    {
-      "name": "theme",
-      "type": "string",
-      "required": false,
-      "default": "light",
-      "description": "Color theme (light | dark)"
-    }
-  ],
   "feature-journey": [
     {
       "name": "config",
@@ -2837,46 +2750,6 @@
       "type": "json",
       "required": false,
       "description": "JSON array of media items."
-    }
-  ],
-  "content-carousel": [
-    {
-      "name": "config",
-      "type": "json",
-      "required": false,
-      "description": "Carousel configuration: title, items[], autoplay, interval, theme."
-    }
-  ],
-  "quiz-flow": [
-    {
-      "name": "config",
-      "type": "json",
-      "required": false,
-      "description": "Quiz configuration: title, subtitle, questions[], theme."
-    }
-  ],
-  "rating-widget": [
-    {
-      "name": "config",
-      "type": "json",
-      "required": false,
-      "description": "Rating widget configuration: title, subtitle, max, labels[], theme."
-    }
-  ],
-  "filter-board": [
-    {
-      "name": "config",
-      "type": "json",
-      "required": false,
-      "description": "Filter board configuration: title, items[]{title,body,tags[]}, theme."
-    }
-  ],
-  "notification-stack": [
-    {
-      "name": "config",
-      "type": "json",
-      "required": false,
-      "description": "Notification stack configuration: notifications[]{id,message,type,duration}, theme."
     }
   ],
   "countdown-clock": [

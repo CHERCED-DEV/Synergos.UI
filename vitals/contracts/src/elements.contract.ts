@@ -269,11 +269,6 @@ export interface DataTableElementData extends BaseElementData {
 
 // ── Additional Elements (UI-aligned) ────────────────────────────────────────
 
-export interface PricingCardElementData extends BaseElementData {
-  text?: ContentText;
-  cta?: ContentCta;
-  badge?: ContentBadge;
-}
 
 export interface AccordionElementData extends BaseElementData {
   collection?: ContentCollection;
@@ -301,30 +296,15 @@ export interface MediaExplorerElementData extends BaseElementData {
   collection?: ContentCollection;
 }
 
-export interface ContentCarouselElementData extends BaseElementData {
-  text?: ContentText;
-}
 
-export interface QuizFlowElementData extends BaseElementData {
-  text?: ContentText;
-}
 
-export interface FilterBoardElementData extends BaseElementData {
-  text?: ContentText;
-}
 
-export interface RatingWidgetElementData extends BaseElementData {
-  text?: ContentText;
-}
 
 export interface CountdownClockElementData extends BaseElementData {
   text?: ContentText;
   date?: ContentDate;
 }
 
-export interface NotificationStackElementData extends BaseElementData {
-  text?: ContentText;
-}
 
 // ── Element Registry ─────────────────────────────────────────────────────────
 
