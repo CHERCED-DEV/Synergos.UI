@@ -160,10 +160,13 @@ modules/appointments/
 │   │   ├── appointments.model.ts        # interfaces
 │   │   ├── app.config.ts
 │   │   └── app.routes.ts
-│   ├── main.ts              # standalone bootstrap
+│   ├── main.ts              # standalone bootstrap — y el build lo descubre por AQUÍ
 │   └── index.ts             # mountModule export
-└── project.json
 ```
+
+> No hay `project.json`: el build encuentra los elementos recorriendo el
+> filesystem — cada carpeta bajo `apps/` con un `src/main.ts` es un elemento, y el
+> nombre de la carpeta es su nombre en `dist/`. No hay registro que actualizar.
 
 Large modules with multiple views can add subfolders per view:
 

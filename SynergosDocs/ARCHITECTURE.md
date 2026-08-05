@@ -218,13 +218,16 @@ React, Svelte, and Vanilla share a Vite base config (`vitals/shared/src/build/vi
 ## Production Deployment
 
 ```
-npm run release
-  ├── npm run build               → Compile all frameworks
-  ├── npm run contracts:validate  → Gate: registry ↔ mappers ↔ models ↔ inputs
-  ├── npm run publish:runtime     → Publish Angular shared runtime + import-map.json
-  └── node tools/publish.mjs --clean
+npm run build:cdn                 → arma public/ entero, y es lo que despliega Cloudflare
+  ├── build:vitals + build:angular  → los elementos (un NgtscProgram, un esbuild)
+  ├── build:runtime                 → el runtime compartido + import-map.json
+  ├── publish-runtime.mjs           → PRIMERO el runtime: lo que depende de él va después
+  ├── publish.mjs                   → los elementos y el registry
+  └── check-size-budget.mjs         → el presupuesto de tamaño (issue #8)
         ↓
-  C:\LOCAL_CDN\synergos\<element>\<framework>\latest\main.js
+  public/synergos/<element>/angular/{latest|v0|<versión>}/main.js
+        ↓
+  Cloudflare Workers lo sirve (worker/index.js pone caché y CORS)
         ↓
   Umbraco Razor partial loads <script> from CDN
         ↓
