@@ -319,17 +319,35 @@ To test an element locally before publishing:
 ```bash
 # Build a specific element
 cd platforms/angular
-unset NX_WORKSPACE_ROOT_PATH && node_modules/.bin/nx run elements-modules-feature-grid:build
+node tools/build.mjs --solo=feature-grid
 
-# The output is at: dist/feature-grid/main.js
-# Serve locally with any static server:
-npx serve dist/feature-grid --port 4300
+# The output is at: dist/feature-grid/browser/main.js
 ```
 
-Then reference it in a local HTML test file:
+Para probarlo de verdad, lo mejor no es un servidor estático suelto: **el elemento
+necesita el runtime compartido**, porque Angular y `@synergos/*` quedan fuera del
+bundle y los resuelve el import-map. Servir sólo `main.js` da un elemento que carga
+y se rompe al arrancar, con un error que habla de módulos.
+
+```bash
+npm run dev:cdn -- --solo=feature-grid   # desde la raíz
+```
+
+Eso sirve el layout completo del CDN —bundle + runtime + registry— en
+`http://localhost:4321`, y recompila al guardar. Ver `DEV_CDN_MODE.md`.
+
+Then reference it in a local HTML test file. **El import-map va primero y va INLINE**
+— no con `src=`: los import maps externos apenas tienen soporte, y es también lo que
+hace el CMS (ver el bloque de Razor más arriba). Si el `<script>` del elemento corre
+antes, el navegador no sabe resolver `@angular/core`.
 
 ```html
-<script src="http://localhost:4300/main.js" defer></script>
+<!-- pegá aquí el contenido de: -->
+<!-- http://localhost:4321/synergos/runtime/angular/latest/import-map.json -->
+<script type="importmap">{ "imports": { "@angular/core": "…" } }</script>
+
+<script type="module"
+        src="http://localhost:4321/synergos/feature-grid/angular/latest/main.js"></script>
 <synergos-feature-grid config='{"headingText":"Test","items":[]}'></synergos-feature-grid>
 ```
 
