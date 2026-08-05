@@ -74,11 +74,13 @@ describe('computeE4 — dos alias con el mismo nombre', () => {
     expect(r[0].aliases).toHaveLength(3);
   });
 
-  it('el registry REAL del repo no tiene duplicados sin declarar', () => {
+  it('el registry REAL del repo no tiene NINGUN duplicado', () => {
     const reg = JSON.parse(readFileSync(resolve(AQUI, '..', '..', 'vitals/contracts/src/element-registry.json'), 'utf8'));
-    // Los seis vivos tienen los DOS DocTypes en el CMS: consolidarlos es
-    // decision del CMS. Lo que este test fija es que no CREZCAN.
-    expect(computeE4(reg).length).toBeLessThanOrEqual(6);
+    // Este liston empezo en <=6 y hoy es cero. Los seis eran el gemelo SSR de
+    // un bloque CDN, y no sobraban: sobraba declararlos en un registro que dice
+    // que PUBLICA el CDN. Con la lista limpia el gate puede exigir cero, que es
+    // lo unico que impide que vuelva a crecer.
+    expect(computeE4(reg)).toEqual([]);
   });
 });
 

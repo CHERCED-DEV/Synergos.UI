@@ -276,6 +276,22 @@ const VALID_TIERS = new Set(['primitive', 'composition', 'module', 'experience']
  * Adding an alias here suppresses the [E2] warning for that type.
  */
 const CMS_INTERNAL_ALIASES = new Set([
+  // El GEMELO SSR de un bloque CDN (issue #16). Cada uno de estos seis tiene un
+  // `elementSyn*` que renderiza el MISMO concepto por SynHost, y durante meses
+  // los dos estuvieron en el registry con el mismo `name` — así que cuál se
+  // publicaba dependía del orden del array, porque `publish.mjs` deduplica por
+  // nombre y gana el primero. No son duplicados que sobren: el editor elige
+  // entre pintar en servidor o montar el bundle, y su wrapper lo demuestra
+  // (`Elements/...` contra `SynHost/...`). Lo que sobraba era declararlos en un
+  // registro que existe para decir qué PUBLICA el CDN. Su entrada en
+  // block.mapper.ts sí se queda: es lo que permite que un render en cliente los
+  // resuelva al mismo tag.
+  'elementMediaAvatar',        // ↔ elementSynAvatar
+  'elementInfoBadge',          // ↔ elementSynBadge
+  'elementStructDivider',      // ↔ elementSynDivider
+  'elementCompFeatureGrid',    // ↔ elementSynFeatureGrid
+  'elementCompMediaTextSplit', // ↔ elementSynMediaText
+  'elementStructSpacer',       // ↔ elementSynSpacer
   // Blog (server-rendered article blocks — no web component)
   'elementCompArticleList',
   'elementCompBlogHighlight',

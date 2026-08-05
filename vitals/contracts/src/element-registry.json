@@ -12,12 +12,6 @@
     "tier": "module"
   },
   {
-    "name": "feature-grid",
-    "alias": "elementCompFeatureGrid",
-    "tag": "synergos-feature-grid",
-    "tier": "module"
-  },
-  {
     "name": "tab-group",
     "alias": "elementCorpTabGroup",
     "tag": "synergos-tab-group",
@@ -39,12 +33,6 @@
     "name": "card",
     "alias": "elementCompCard",
     "tag": "synergos-card",
-    "tier": "composition"
-  },
-  {
-    "name": "media-text",
-    "alias": "elementCompMediaTextSplit",
-    "tag": "synergos-media-text",
     "tier": "composition"
   },
   {
@@ -132,18 +120,6 @@
     "tier": "composition"
   },
   {
-    "name": "divider",
-    "alias": "elementStructDivider",
-    "tag": "synergos-divider",
-    "tier": "primitive"
-  },
-  {
-    "name": "spacer",
-    "alias": "elementStructSpacer",
-    "tag": "synergos-spacer",
-    "tier": "primitive"
-  },
-  {
     "name": "heading",
     "alias": "elementTextHeading",
     "tag": "synergos-text-block",
@@ -215,18 +191,6 @@
     "name": "icon-block",
     "alias": "elementMediaIcon",
     "tag": "synergos-icon-block",
-    "tier": "primitive"
-  },
-  {
-    "name": "avatar",
-    "alias": "elementMediaAvatar",
-    "tag": "synergos-avatar",
-    "tier": "primitive"
-  },
-  {
-    "name": "badge",
-    "alias": "elementInfoBadge",
-    "tag": "synergos-badge",
     "tier": "primitive"
   },
   {
