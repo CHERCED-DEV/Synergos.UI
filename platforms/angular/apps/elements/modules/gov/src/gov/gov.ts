@@ -54,6 +54,7 @@ import {
   type ApplicationDetail,
   type ApplicationStatus,
   type ApplicationSummary,
+  type GovActNotification,
   type DecisionOutcome,
   type GovCase,
   type GovForm,
@@ -331,6 +332,42 @@ export class GovElementComponent {
   readonly submitting = signal(false);
   readonly confirmedApplication = signal<ApplicationSummary | null>(null);
 
+  // ─── Actos notificados (HU CMS#62 · #20) ────────────────────────────────────
+  readonly notifications = signal<readonly GovActNotification[]>([]);
+  readonly notificationsLoaded = signal(false);
+  readonly openingId = signal('');
+  /** El acto abierto en el panel de detalle. */
+  readonly openedAct = signal<GovActNotification | null>(null);
+  /**
+   * Falló ABRIR. Es su propio estado y no el `errorMessage` general a propósito:
+   * lo que se rompió no es la pantalla, es el acto de acusar recibo — y de eso
+   * depende un plazo legal, así que se dice donde la persona lo va a leer.
+   */
+  readonly openError = signal('');
+
+  /** Actos que todavía no ha abierto: es el número que importa en la bandeja. */
+  readonly unopenedCount = computed(
+    () => this.notifications().filter((act) => !act.opened).length,
+  );
+
+  readonly notificationsConfig = computed<AccountShellConfig>(() => ({
+    heading: 'Mis notificaciones',
+    navLabel: 'Secciones de notificaciones',
+    sections: [
+      {
+        id: 'actos',
+        label: 'Actos administrativos',
+        kind: 'inbox',
+        badge: this.unopenedCount() || undefined,
+      },
+    ],
+    inboxEmptyTitle: 'No tienes actos notificados',
+    inboxEmptyMessage:
+      'Cuando una entidad le ponga en conocimiento una decisión, aparecerá aquí.',
+    inboxLoadingMessage: 'Cargando tus notificaciones…',
+    detailPlaceholder: 'Elige un acto para abrirlo.',
+  }));
+
   // ─── Comprobante de radicación (SH-11) ──────────────────────────────────────
   // El rótulo es del dominio —acá el número se llama RADICADO, y llamarlo
   // «referencia» delante de un ciudadano es perder la palabra con la que va a
@@ -380,6 +417,95 @@ export class GovElementComponent {
     { id: 'ver', label: 'Ver mi solicitud', kind: 'primary' },
     { id: 'catalogo', label: 'Volver al catálogo' },
   ];
+
+  // ─── Bandeja de actos ───────────────────────────────────────────────────────
+
+  async goToNotifications(): Promise<void> {
+    this.navigate('notifications');
+    await this.loadNotifications();
+  }
+
+  async loadNotifications(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const list = await this.#api.notifications(this.apiBase());
+      this.notifications.set(list);
+      this.notificationsLoaded.set(true);
+    } catch (error) {
+      if (
+        this.handleCitizenDenied(error, {
+          scope: 'folder',
+          anonAnnouncement: 'Inicie sesión para ver sus notificaciones.',
+        })
+      ) {
+        return;
+      }
+      this.errorMessage.set('No pudimos cargar tus notificaciones.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /**
+   * Abrir un acto. **Aquí empieza a correr el término.**
+   *
+   * Tres reglas que vienen de la HU y no se negocian:
+   *
+   * 1. Sólo por gesto explícito de la persona. Nada de abrir al renderizar ni al
+   *    pasar el ratón: un acceso que la persona no pidió le arranca un plazo que
+   *    no sabe que empezó.
+   * 2. **El primer acceso es el que cuenta.** Si ya está abierto no se vuelve a
+   *    pedir — dos fechas para un acto le dan un argumento a quien recurre tarde.
+   * 3. Si falla, **falla a la vista**. Pintar el cuerpo igual le diría que ya
+   *    acusó recibo cuando la entidad no registró nada.
+   */
+  async onOpenAct(act: GovActNotification): Promise<void> {
+    this.openError.set('');
+
+    if (act.opened) {
+      // Ya tiene su fecha: se muestra la que hay, no se pide otra.
+      this.openedAct.set(act);
+      return;
+    }
+    if (this.openingId()) {
+      return;
+    }
+
+    this.openingId.set(act.id);
+    try {
+      const opened = await this.#api.openNotification(this.apiBase(), act.id);
+      this.openedAct.set(opened);
+      this.notifications.update((list) =>
+        list.map((entry) => (entry.id === opened.id ? opened : entry)),
+      );
+    } catch (error) {
+      if (this.handleCitizenDenied(error, { scope: 'record' })) {
+        return;
+      }
+      this.openError.set(
+        'No pudimos registrar la apertura de este acto. No se abrió y el término no ha empezado: intenta de nuevo.',
+      );
+      void error;
+    } finally {
+      this.openingId.set('');
+    }
+  }
+
+  /** Selección en la bandeja: mostrar sin abrir. Abrir es un gesto aparte. */
+  onActSelect(act: GovActNotification): void {
+    this.openError.set('');
+    this.openedAct.set(act.opened ? act : null);
+    this.selectedAct.set(act);
+  }
+
+  readonly selectedAct = signal<GovActNotification | null>(null);
+
+  actDeadlineLabel(act: GovActNotification): string {
+    if (!act.acknowledgeBefore) {
+      return '';
+    }
+    return `Acuse antes de ${this.formatDate(act.acknowledgeBefore)}`;
+  }
 
   onReceiptAction(id: string): void {
     const app = this.confirmedApplication();
@@ -698,6 +824,13 @@ export class GovElementComponent {
           void this.loadApplications();
         }
         return;
+      case 'notifications':
+        // Cargar la BANDEJA no abre nada: el listado no trae el cuerpo y abrir es
+        // un POST explícito. Por eso sí se puede disparar desde el router.
+        if (!this.notificationsLoaded()) {
+          void this.loadNotifications();
+        }
+        return;
       case 'application':
         if (param) {
           void this.loadApplication(param);
@@ -731,6 +864,8 @@ export class GovElementComponent {
         return `${base}/radicado`;
       case 'applications':
         return `${base}/mis-solicitudes`;
+      case 'notifications':
+        return `${base}/mis-notificaciones`;
       case 'application':
         return `${base}/solicitud/${encodeURIComponent(param)}`;
       case 'queue':

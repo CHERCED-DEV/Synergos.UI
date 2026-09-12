@@ -61,6 +61,21 @@
             <span class="gov__badge" [attr.aria-label]="applications().length + ' solicitudes'">{{ applications().length }}</span>
           }
         </button>
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'notifications'"
+          (click)="goToNotifications()"
+        >
+          Notificaciones
+          @if (unopenedCount() > 0) {
+            <span
+              class="gov__badge"
+              [attr.aria-label]="unopenedCount() + ' actos sin abrir'"
+              >{{ unopenedCount() }}</span
+            >
+          }
+        </button>
       } @else {
         <button
           type="button"
@@ -266,6 +281,94 @@
       [artifactTemplate]="radicadoQr"
       (action)="onReceiptAction($event)"
     />
+  }
+
+  <!-- ══════════════ MIS NOTIFICACIONES · actos administrativos ══════════════ -->
+  <!-- HU CMS#62 (#20). Tres reglas que aquí se vuelven visibles y no se negocian:
+       1. El listado trae el TÍTULO, nunca el cuerpo. Si lo trajera, el acuse sería
+          decoración y el término no empezaría nunca.
+       2. Abrir es un gesto EXPLÍCITO (un botón, un POST). Nada de abrir al pintar
+          ni al pasar el ratón: un acceso que la persona no pidió le arranca un
+          plazo que no sabe que empezó.
+       3. Si abrir falla, se dice. Pintar el cuerpo igual le diría que ya acusó
+          recibo cuando la entidad no registró nada. -->
+  @if (view() === 'notifications') {
+    <section class="folder" aria-label="Mis notificaciones">
+      @if (citizenAccess() !== 'ok') {
+        <div class="folder__access" role="status">
+          @if (citizenAccess() === 'anon') {
+            <h2 class="folder__title">Inicie sesión para ver sus notificaciones</h2>
+            <a class="gv-btn gv-btn--brand" href="/account/login">Iniciar sesión</a>
+          } @else {
+            <h2 class="folder__title">Estas notificaciones no son suyas</h2>
+            <p class="ficha__text">Volver a iniciar sesión no cambia esto.</p>
+          }
+        </div>
+      } @else {
+        <syn-account-shell
+          [config]="notificationsConfig()"
+          [items]="notifications()"
+          [loading]="loading()"
+          [itemTemplate]="actoRow"
+          [detailTemplate]="actoDetalle"
+          (itemselect)="onActSelect($event)"
+        />
+
+        <ng-template #actoRow let-acto>
+          <span class="acto__head">
+            <span class="acto__title">{{ acto.title }}</span>
+            @if (!acto.opened) {
+              <span class="acto__pill acto__pill--nuevo">Sin abrir</span>
+            }
+          </span>
+          <span class="acto__meta">
+            Radicado {{ acto.reference }} · notificado el {{ formatDate(acto.notifiedAt) }}
+          </span>
+          @if (actDeadlineLabel(acto)) {
+            <span class="acto__deadline">{{ actDeadlineLabel(acto) }}</span>
+          }
+        </ng-template>
+
+        <ng-template #actoDetalle let-acto>
+          <article class="acto">
+            <h3 class="acto__detail-title">{{ acto.title }}</h3>
+            <p class="acto__meta">Radicado {{ acto.reference }}</p>
+
+            @if (acto.opened) {
+              <p class="acto__acuse" role="status">
+                Usted abrió este acto el <strong>{{ formatDate(acto.openedAt) }}</strong>.
+                Desde esa fecha corre el término.
+              </p>
+              <div class="acto__body">{{ acto.body }}</div>
+              @if (acto.documentRef) {
+                <p class="ficha__text">Documento adjunto: {{ acto.documentRef }}</p>
+              }
+            } @else {
+              <!-- El cuerpo NO está en pantalla: el backend no lo manda hasta abrir. -->
+              <p class="ficha__text">
+                Al abrir este acto quedará registrada la fecha de acceso y
+                <strong>empezará a correr el término</strong> para responder o recurrir.
+              </p>
+              @if (actDeadlineLabel(acto)) {
+                <p class="acto__deadline">{{ actDeadlineLabel(acto) }}</p>
+              }
+              <button
+                type="button"
+                class="gv-btn gv-btn--brand"
+                [disabled]="openingId() === acto.id"
+                (click)="onOpenAct(acto)"
+              >
+                {{ openingId() === acto.id ? 'Abriendo…' : 'Abrir y acusar recibo' }}
+              </button>
+            }
+
+            @if (openError()) {
+              <p class="acto__error" role="alert">{{ openError() }}</p>
+            }
+          </article>
+        </ng-template>
+      }
+    </section>
   }
 
   <!-- ════════════════════ MIS SOLICITUDES (SH-4 account) ════════════════════ -->

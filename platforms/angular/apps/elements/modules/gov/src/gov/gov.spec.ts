@@ -1045,4 +1045,128 @@ describe('GovApiClient (v2 contract)', () => {
     expect(services.length).toBeGreaterThan(0);
     expect(client.degraded).toBe(true);
   });
+
+  // ─── Actos administrativos notificados (HU CMS#62 · #20) ──────────────────────
+  //
+  // Lo que se prueba acá no es que la pantalla pinte: es que las TRES reglas que
+  // sostienen un plazo legal se cumplan. Si alguna se rompe, el acuse deja de
+  // probar nada y el término empieza (o no empieza) cuando no debe.
+  describe('bandeja de actos notificados', () => {
+    /** Un acto sin abrir, como lo manda el backend: SIN cuerpo. */
+    const SIN_ABRIR = {
+      id: 'act-1',
+      caseId: 'case-1',
+      reference: 'RAD-2026-000481',
+      title: 'Resolución 1042 de 2026',
+      body: null,
+      documentRef: null,
+      notifiedAt: '2026-09-01T14:00:00Z',
+      acknowledgeBefore: '2026-09-16T23:59:59Z',
+      openedAt: null,
+      openedWith: null,
+      opened: false,
+    };
+
+    const ABIERTO = {
+      ...SIN_ABRIR,
+      body: 'Se resuelve conceder lo solicitado.',
+      openedAt: '2026-09-11T10:30:00Z',
+      openedWith: 'IdentityToken',
+      opened: true,
+    };
+
+    function clientWith(handler: (url: string, init?: RequestInit) => unknown): GovApiClient {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(handler(url, init)),
+          }),
+        ),
+      );
+      return createClient();
+    }
+
+    it('vacío: sin actos la bandeja no inventa nada', async () => {
+      const client = clientWith(() => ({ notifications: [] }));
+
+      await expect(client.notifications('/api/gov')).resolves.toEqual([]);
+    });
+
+    it('el listado NO trae el cuerpo — si lo trajera, el acuse sería decoración', async () => {
+      const client = clientWith(() => ({ notifications: [SIN_ABRIR] }));
+
+      const [acto] = await client.notifications('/api/gov');
+
+      expect(acto.title).toBe('Resolución 1042 de 2026');
+      // `null` es «todavía no te toca verlo», no «vacío».
+      expect(acto.body).toBeNull();
+      expect(acto.opened).toBe(false);
+    });
+
+    it('abrir es POST — con GET lo dispararía un prefetch y el término arrancaría solo', async () => {
+      const llamadas: { url: string; method?: string }[] = [];
+      const client = clientWith((url, init) => {
+        llamadas.push({ url, method: init?.method });
+        return { notification: ABIERTO };
+      });
+
+      await client.openNotification('/api/gov', 'act-1');
+
+      expect(llamadas).toHaveLength(1);
+      expect(llamadas[0].method).toBe('POST');
+      expect(llamadas[0].url).toContain('/notification/act-1/open');
+    });
+
+    it('al abrir llegan el cuerpo y la fecha desde la que corre el término', async () => {
+      const client = clientWith(() => ({ notification: ABIERTO }));
+
+      const acto = await client.openNotification('/api/gov', 'act-1');
+
+      expect(acto.opened).toBe(true);
+      expect(acto.body).toBe('Se resuelve conceder lo solicitado.');
+      expect(acto.openedAt).toBe('2026-09-11T10:30:00Z');
+      // Con qué se afirmó la identidad lo decide la capacidad, no este lado.
+      expect(acto.openedWith).toBe('IdentityToken');
+    });
+
+    it('abrir NO se degrada: si falla, falla a la vista', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(new Error('offline'))),
+      );
+      const client = createClient();
+
+      // A diferencia de la bandeja, acá no hay mock que devolver: decirle a la
+      // persona que abrió cuando la entidad no registró nada es lo único que esta
+      // HU no puede hacer.
+      await expect(client.openNotification('/api/gov', 'act-1')).rejects.toThrow();
+    });
+
+    it('la bandeja SÍ se degrada — el expediente se sigue leyendo con la capacidad caída', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(new Error('offline'))),
+      );
+      const client = createClient();
+
+      await expect(client.notifications('/api/gov')).resolves.toEqual([]);
+      expect(client.degraded).toBe(true);
+    });
+
+    it('un 403 al abrir no se degrada: el acto es de otra persona', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) }),
+        ),
+      );
+      const client = createClient();
+
+      await expect(client.openNotification('/api/gov', 'act-1')).rejects.toSatisfy(isGovForbidden);
+    });
+  });
+
 });
