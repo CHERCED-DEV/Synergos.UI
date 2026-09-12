@@ -302,6 +302,14 @@ const ICONO_CERRAR =
             <span>{{ total() }}</span>
           </p>
         }
+
+        <!-- Slot del dominio entre el resumen y las acciones: es donde va el campo
+             de cupón, que pertenece al panel del carrito y no a la página. -->
+        @if (footerTemplate()) {
+          <div class="syn-cart__slot">
+            <ng-container [ngTemplateOutlet]="footerTemplate()!" />
+          </div>
+        }
       }
 
       @if (visibleActions().length > 0) {
@@ -342,6 +350,12 @@ export class CartShellComponent {
   readonly note = input<CartNote | null>(null);
   /** Slot de cabeza de línea: el icono por tipo de producto. */
   readonly leadingTemplate = input<TemplateRef<unknown> | null>(null);
+  /**
+   * Slot del dominio bajo el resumen — el campo de cupón, un aviso de envío, lo
+   * que el carrito de ese vertical necesite antes de las acciones (#29). Sólo se
+   * pinta con líneas: un cupón sobre un carrito vacío no descuenta nada.
+   */
+  readonly footerTemplate = input<TemplateRef<unknown> | null>(null);
   /**
    * Cuándo vence el apartado (ISO-8601). Es el `expiresAt` del motor. Sin él no
    * hay reloj — un carrito sin apartado no tiene nada que contar.

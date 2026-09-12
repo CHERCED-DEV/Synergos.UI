@@ -405,3 +405,8 @@
     inline-size: 100%;
   }
 }
+
+/* Slot del dominio bajo el resumen (#29): el campo de cupón y lo que venga. */
+.syn-cart__slot {
+  padding-block-start: 0.25rem;
+}
