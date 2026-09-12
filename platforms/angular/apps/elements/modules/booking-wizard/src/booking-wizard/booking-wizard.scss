@@ -9,9 +9,9 @@
   --bw-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --bw-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --bw-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  // --bw-brand = acento SÓLIDO para CTAs/badge/foco/spinner (antes caía en un wash 12% → botón fantasma).
+  // --bw-brand = acento SÓLIDO para CTAs/badge/foco (antes caía en un wash 12% → botón fantasma).
   --bw-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
-  // --bw-brand-soft = wash de marca THEME-AWARE (track del spinner); se queda apuntando al surface 12%.
+  // --bw-brand-soft = wash de marca THEME-AWARE; se queda apuntando al surface 12%.
   --bw-brand-soft: var(--syn-color-state-brand-surface, #{syn.$color-brand-100});
   // Texto SOBRE el brand sólido (badge/botón primario): misma familia action-primary → contraste correcto.
   --bw-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
@@ -36,80 +36,13 @@
   color: var(--bw-text);
 
   // ─── Step indicator ───────────────────────────────────────────────────────
-  &__steps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-    margin: 0;
-    padding: 0 0 syn.$space-3;
-    border-bottom: syn.px-to-rem(1) solid var(--bw-border-subtle);
-    list-style: none;
-  }
 
-  &__step {
-    display: inline-flex;
-    align-items: center;
-    gap: syn.$space-1;
-    color: var(--bw-muted);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
 
-    &.is-complete {
-      color: var(--bw-text-secondary);
-    }
 
-    &.is-current {
-      color: var(--bw-brand);
-      font-weight: syn.$font-weight-semibold;
-    }
-  }
 
-  &__step-index {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: syn.px-to-rem(24);
-    height: syn.px-to-rem(24);
-    border: syn.px-to-rem(1) solid currentColor;
-    border-radius: syn.$radius-full;
-    font-size: syn.$font-size-xs;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .is-current &__step-index {
-    background: var(--bw-brand);
-    border-color: var(--bw-brand);
-    color: var(--bw-brand-text);
-  }
-
-  &__step-label {
-    line-height: syn.$line-height-snug;
-  }
 
   // ─── Status / error live regions ──────────────────────────────────────────
-  &__status {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-    min-height: syn.px-to-rem(20);
-    margin: 0;
-    color: var(--bw-text-secondary);
-    font-size: syn.$font-size-sm;
 
-    &:empty {
-      display: none;
-    }
-  }
-
-  &__spinner {
-    display: inline-block;
-    width: syn.px-to-rem(16);
-    height: syn.px-to-rem(16);
-    border: syn.px-to-rem(2) solid var(--bw-brand-soft);
-    border-top-color: var(--bw-brand);
-    border-radius: syn.$radius-full;
-    animation: booking-wizard-spin var(--syn-duration-loop, #{syn.$duration-loop}) linear infinite;
-  }
 
   &__error {
     margin: 0;
@@ -205,16 +138,6 @@
     font-weight: syn.$font-weight-medium;
   }
 
-  &__empty {
-    margin: 0;
-    padding: syn.$space-lg;
-    border: syn.px-to-rem(1) dashed var(--bw-border);
-    border-radius: syn.$radius-lg;
-    background: var(--bw-surface-muted);
-    color: var(--bw-text-secondary);
-    font-size: syn.$font-size-sm;
-    text-align: center;
-  }
 
   // ─── Offers ───────────────────────────────────────────────────────────────
   &__offers {
@@ -357,46 +280,11 @@
   }
 
   // ─── Voucher ──────────────────────────────────────────────────────────────
-  &__panel--voucher {
-    align-items: stretch;
-  }
 
-  &__voucher {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding: syn.$space-lg;
-    border: syn.px-to-rem(1) solid var(--bw-success);
-    border-radius: syn.$radius-xl;
-    background: var(--bw-success-soft);
-    text-align: center;
-  }
 
-  &__voucher-badge {
-    margin: 0;
-    color: var(--bw-success);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-    letter-spacing: syn.$letter-spacing-wide;
-    text-transform: uppercase;
-  }
 
-  &__voucher-id {
-    margin: 0;
-    color: var(--bw-text);
-    font-size: syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
-    font-variant-numeric: tabular-nums;
-  }
 
   // ─── Actions / buttons ────────────────────────────────────────────────────
-  &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: syn.$space-2;
-  }
 
   &__btn {
     display: inline-flex;
@@ -447,12 +335,6 @@
   }
 }
 
-@keyframes booking-wizard-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .booking-wizard__btn,
   .booking-wizard__input {
@@ -461,9 +343,5 @@
 
   .booking-wizard__btn:active:not(:disabled) {
     transform: none;
-  }
-
-  .booking-wizard__spinner {
-    animation: none;
   }
 }
