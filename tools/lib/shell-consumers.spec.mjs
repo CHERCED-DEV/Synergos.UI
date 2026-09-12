@@ -12,14 +12,17 @@ import path from 'node:path';
  * nueve veces lo mismo», y funciona: las nueve apps componen sobre él. Pero
  * **nada miraba quién consume qué**, y eso se nota:
  *
- *  - `booking-wizard` tiene 1.781 líneas y no monta NI UNO — es el patrón puro,
- *    escrito a mano una vez más.
+ *  - ~~`booking-wizard` no montaba NI UNO~~ — **recompuesto** (#24): hoy monta
+ *    SH-3 y SH-11, y su lógica de hotel vive en una `IFulfillmentStrategy`. Se
+ *    deja escrito porque es el caso que mejor mostró para qué sirve mirar esto:
+ *    era el patrón puro escrito a mano, y la recomposición destapó que apartar y
+ *    cobrar fallaban con el mismo mensaje.
  *  - `blogs` tiene una vista `write` (editor de artículo largo) y no monta SH-6
  *    authoring-wizard, que es exactamente esa pieza y usan otros cuatro.
  *  - `travel-shell` tiene tres buscadores y no monta SH-1 discovery.
  *
- * Ninguna de esas tres es un defecto por sí sola —puede haber razones— pero las
- * tres entraron **en silencio**, y una pieza que nadie monta es una decisión
+ * Ninguna de las dos que quedan es un defecto por sí sola —puede haber razones—
+ * pero entraron **en silencio**, y una pieza que nadie monta es una decisión
  * pendiente disfrazada de activo. En este repo, lo que no tiene gate diverge:
  * es la lección que el árbol de servicios ya pagó con `ApiMoldTests`.
  *
