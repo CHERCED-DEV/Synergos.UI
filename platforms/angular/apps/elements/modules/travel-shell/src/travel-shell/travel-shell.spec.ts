@@ -78,6 +78,17 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
   }
 
+  /** Search cars offline → mock offers with category + transmission facets. */
+  async function searchCars(): Promise<void> {
+    component.selectProduct('car');
+    component.carLocation.set('Aeropuerto El Dorado');
+    component.carPickUp.set('2026-08-01');
+    component.carDropOff.set('2026-08-05');
+    component.search();
+    await flushMicrotasks();
+    fixture.detectChanges();
+  }
+
   afterEach(() => {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
@@ -183,12 +194,110 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     component.addFlightToCart();
     await flushMicrotasks();
 
+    // Car: el tercer producto. ANTES este test se llamaba «stay + flight + car»,
+    // nunca agregaba un auto, y afirmaba `cartCount() === 2` celebrando el
+    // cross-sell hacia el producto que no se podía agregar (#27). El auto era
+    // inalcanzable: buscar uno caía en la vista de vuelos y `addCarToCart` no
+    // tenía llamador.
+    await searchCars();
+    expect(component.view()).toBe('cars');
+    // Se pulsa el BOTÓN, no el método: el defecto era precisamente que
+    // `addCarToCart` existía y ninguna plantilla lo invocaba, así que un test que
+    // llame al método directamente no vería volver la regresión.
+    const agregar = fixture.nativeElement.querySelector(
+      '.travel__car-card .travel__btn--primary',
+    ) as HTMLButtonElement | null;
+    expect(agregar).not.toBeNull();
+    agregar!.click();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
     const kinds = component.cartItems().map((item) => item.kind).sort();
-    expect(kinds).toEqual(['flight', 'hotel']);
-    expect(component.cartCount()).toBe(2);
+    expect(kinds).toEqual(['car', 'flight', 'hotel']);
+    expect(component.cartCount()).toBe(3);
     expect(component.hasCart()).toBe(true);
-    // Cross-sell nudges the missing product (car).
-    expect(component.crossSell()).toBe('car');
+    // Con los tres productos dentro ya no hay nada que sugerir.
+    expect(component.crossSell()).toBeNull();
+  });
+
+  // ── EL caso: buscar un auto llega a la vista de autos ────────────────────────
+  it('buscar un auto lleva a la vista de AUTOS, no a la de vuelos', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    await searchCars();
+
+    // El ternario anterior mandaba `car` a `'flights'`, así que un auto se pintaba
+    // bajo «Vuelos disponibles», pedía elegir una tarifa que no existe y el botón
+    // de agregar quedaba gris: callejón sin salida.
+    expect(component.view()).toBe('cars');
+    expect(component.carResults().length).toBeGreaterThan(0);
+    expect(component.carResults().every((offer) => offer.product === 'car')).toBe(true);
+    expect(fixture.nativeElement.querySelector('syn-discovery-shell')).not.toBeNull();
+  });
+
+  it('los autos salen ordenados por precio, y se puede invertir', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    // Ninguna lista de esta app tenía orden: cada tarjeta decía «desde $X» y no
+    // había forma de ordenar por precio.
+    const ascendente = component.carResults().map((o) => o.amount);
+    expect(ascendente).toEqual([...ascendente].sort((a, b) => a - b));
+
+    component.onCarCriteriaChange({ ...component.carCriteria(), sort: 'price-desc' });
+    fixture.detectChanges();
+    const descendente = component.carResults().map((o) => o.amount);
+    expect(descendente).toEqual([...ascendente].reverse());
+  });
+
+  it('las facetas salen de los datos y filtran', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    const claves = component.carFacets().map((f) => f.key);
+    expect(claves).toContain('category');
+    expect(claves).toContain('transmission');
+    // De valor único, no casillas: el transporte manda un valor por clave, y
+    // declararlas MultiSelect perdería la selección en silencio (#18).
+    expect(component.carFacets().every((f) => f.kind === 'SingleSelect')).toBe(true);
+
+    const total = component.carResults().length;
+    component.onCarCriteriaChange({
+      ...component.carCriteria(),
+      facets: { transmission: ['Manual'] },
+    });
+    fixture.detectChanges();
+
+    const filtrados = component.carResults();
+    expect(filtrados.length).toBeGreaterThan(0);
+    expect(filtrados.length).toBeLessThan(total);
+    expect(filtrados.every((o) => o.carTransmission === 'Manual')).toBe(true);
+  });
+
+  it('una faceta con un solo valor no se pinta', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    // Con la transmisión fijada en Manual, «Manual» queda como único valor de esa
+    // faceta: un control que no filtra nada y ocupa el sitio de los que sí.
+    component.onCarCriteriaChange({
+      ...component.carCriteria(),
+      facets: { transmission: ['Manual'] },
+    });
+    fixture.detectChanges();
+    // La faceta se calcula sobre TODAS las ofertas, no sobre las filtradas, así
+    // que sigue pintándose — quitarla dejaría a la persona sin poder deshacer.
+    expect(component.carFacets().map((f) => f.key)).toContain('transmission');
+
+    // El caso real de faceta única: una sola oferta.
+    const una = component.carResults()[0];
+    component.offers.set([una]);
+    fixture.detectChanges();
+    expect(component.carFacets()).toEqual([]);
   });
 
   // ── filter: removing one line keeps the rest ─────────────────────────────────

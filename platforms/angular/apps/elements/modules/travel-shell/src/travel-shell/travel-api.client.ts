@@ -359,6 +359,12 @@ function normalizeOffer(
   const rating = product === 'hotel' ? readNumber(value['rating']) : undefined;
   const stayId =
     product === 'hotel' ? readString(value['stayId']).trim() || offerId : undefined;
+  // Facetas del auto: se LEEN, no se derivan del subtítulo (#27). Sin el dato la
+  // faceta no se pinta, que es la verdad — mejor que inventarla partiendo prosa.
+  const carCategory =
+    product === 'car' ? readString(value['carCategory'] ?? value['category']).trim() : '';
+  const carTransmission =
+    product === 'car' ? readString(value['carTransmission'] ?? value['transmission']).trim() : '';
   return {
     offerId,
     product,
@@ -371,6 +377,8 @@ function normalizeOffer(
     fareFamilies,
     stayId,
     rating: rating && rating > 0 ? rating : undefined,
+    ...(carCategory ? { carCategory } : {}),
+    ...(carTransmission ? { carTransmission } : {}),
     detail: { ...detail, title, subtitle },
   };
 }
@@ -628,9 +636,11 @@ function mockOffers(product: TravelProduct, currency: string): readonly TravelOf
       ];
     case 'car':
       return [
-        offerMock('CMOCK-1', 'car', 'Chevrolet Onix', 'Económico · Automático · A/C', 156_000, currency, ['Kilometraje ilimitado']),
-        offerMock('CMOCK-2', 'car', 'Toyota Fortuner', 'SUV · 4x4 · 7 plazas', 384_000, currency, ['Seguro incluido']),
-        offerMock('CMOCK-3', 'car', 'Renault Kwid', 'Económico · Manual', 118_000, currency, ['El más barato']),
+        carMock('CMOCK-1', 'Chevrolet Onix', 'Económico · Automático · A/C', 156_000, currency, ['Kilometraje ilimitado'], 'Económico', 'Automático'),
+        carMock('CMOCK-2', 'Toyota Fortuner', 'SUV · 4x4 · 7 plazas', 384_000, currency, ['Seguro incluido'], 'SUV', 'Automático'),
+        carMock('CMOCK-3', 'Renault Kwid', 'Económico · Manual', 118_000, currency, ['El más barato'], 'Económico', 'Manual'),
+        carMock('CMOCK-4', 'Nissan Versa', 'Intermedio · Automático', 214_000, currency, ['Aire acondicionado'], 'Intermedio', 'Automático'),
+        carMock('CMOCK-5', 'Kia Picanto', 'Económico · Manual · 5 puertas', 132_000, currency, [], 'Económico', 'Manual'),
       ];
   }
 }
@@ -677,6 +687,24 @@ function flightMock(
     badges,
     fareFamilies: mockFareFamilies(amount, currency),
     detail: { title, subtitle },
+  };
+}
+
+/** Una oferta de auto, con sus facetas como DATO (#27). */
+function carMock(
+  offerId: string,
+  title: string,
+  subtitle: string,
+  amount: number,
+  currency: string,
+  badges: readonly string[],
+  carCategory: string,
+  carTransmission: string,
+): TravelOffer {
+  return {
+    ...offerMock(offerId, 'car', title, subtitle, amount, currency, badges),
+    carCategory,
+    carTransmission,
   };
 }
 
