@@ -17,7 +17,7 @@
 //  - SH-10 `syn-credential-wallet` — signed QR credential + public verify + transfer
 //  - SH-11 `syn-confirmation-shell` — el acuse: referencia, qué sigue, artefacto del dominio
 //  - SH-12 `syn-cart-shell`       — el carrito: líneas, grupos, resumen y el reloj del apartado
-//  - SH-13 `syn-review-panel`    — prueba social: resumen con distribución, lista y captura verificada
+//  - SH-13 `syn-review-panel`    — prueba social: resumen, lista, captura verificada y reporte
 //  - SH-14 `syn-compare-table`   — comparar: eje por atributo, techo de selección y qué difiere
 
 // ─── SH-14 Comparar ──────────────────────────────────────────────────────────
@@ -40,6 +40,7 @@ export {
   type ReviewDistributionBar,
   type ReviewDraft,
   type ReviewEntry,
+  type ReviewOutcome,
   type ReviewPanelConfig,
   type ReviewSummary,
 } from './reviews/review-panel';

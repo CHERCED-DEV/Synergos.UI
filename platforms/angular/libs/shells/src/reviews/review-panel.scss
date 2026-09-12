@@ -17,6 +17,7 @@
   --srv-ok-text: var(--syn-color-state-success-surface, #{syn.$color-success-600});
   --srv-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
   --srv-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+  --srv-warn: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
 
   display: block;
   max-width: 100%;
@@ -265,6 +266,46 @@
 }
 
 .syn-reviews__blocked,
+.syn-reviews__entry-foot {
+  margin: syn.$space-xxs 0 0;
+}
+
+.syn-reviews__report {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--srv-muted);
+  font: inherit;
+  font-size: syn.$font-size-xs;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: progress;
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--srv-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.syn-reviews__reported {
+  color: var(--srv-muted);
+  font-size: syn.$font-size-xs;
+}
+
+// En revisión: se marca con TEXTO y con la barra de inicio, no sólo con color — el
+// color solo no sirve a quien no lo distingue (WCAG 1.4.1).
+.syn-reviews__entry-pending {
+  margin: syn.$space-xxs 0 0;
+  border-inline-start: syn.px-to-rem(3) solid var(--srv-warn);
+  padding-inline-start: syn.$space-xs;
+  color: var(--srv-text-secondary);
+  font-size: syn.$font-size-sm;
+}
+
 .syn-reviews__empty {
   margin: 0;
   padding: 0.85rem 1rem;
