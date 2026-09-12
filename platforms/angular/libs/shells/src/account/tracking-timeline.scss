@@ -4,7 +4,7 @@
   --sht-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
   --sht-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sht-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sht-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sht-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --sht-success: var(--syn-color-state-success-surface, #{syn.$color-success-500});
 
   display: block;

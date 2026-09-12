@@ -8,9 +8,9 @@
   --shm-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --shm-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --shm-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --shm-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shm-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --shm-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --shm-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shm-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --shm-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
 
   display: block;

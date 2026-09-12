@@ -8,7 +8,7 @@
   --shdt-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --shdt-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --shdt-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --shdt-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shdt-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --shdt-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --shdt-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
 

@@ -98,6 +98,7 @@ está vigilando nada.
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
+| `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
 
 Comandos que no cuelgan de `npm test`:
@@ -113,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Tres reglas que costaron caro y no se deducen leyendo el código:**
+**Cuatro reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -122,7 +123,14 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    `TIER_BY_NAME`, le pone `composition` y **sobreescribe** el del registry. Como el
    presupuesto de tamaño elige el techo por tier, eso degrada un `module` de 72 KB a
    44 KB en silencio. Antes de correr `cms:sync`, mirá los WARN (#3).
-3. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+3. **`state-brand-surface` NO es un acento: es un lavado.** Con alpha del 8-18 % según el
+   tema, así que un CTA pintado con él y tinta `text-on-brand` (= blanco en los claros) da
+   **1,07:1 en silverGold y 1,16:1 en light** — texto invisible, no «bajo contraste». El par
+   sólido es `--syn-color-action-primary` / `--syn-color-action-primary-text`, definido siete
+   veces, uno por tema, con la tinta invertida donde toca. **En desarrollo NO se ve**: el
+   fallback Sass es sólido y sin el CSS del CMS el botón sale perfecto. Lo vigila
+   `shell-cta-tokens` (#25).
+4. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
