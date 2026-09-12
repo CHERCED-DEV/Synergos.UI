@@ -251,39 +251,21 @@
 
   <!-- ════════════════════ RADICADO (confirmation + QR) ════════════════════ -->
   @if (view() === 'receipt' && confirmedApplication(); as app) {
-    <section class="receipt" aria-label="Comprobante de radicación">
-      <span class="receipt__check" aria-hidden="true">
-        <svg class="receipt__check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-4-4" /></svg>
-      </span>
-      <h1 class="receipt__title">Solicitud radicada</h1>
-      <p class="receipt__number">
-        Su número de radicado es <strong class="receipt__radicado">{{ app.reference }}</strong>
-      </p>
-
-      <!-- Reuses the published qr-code element (CUSTOM_ELEMENTS_SCHEMA). -->
-      <div class="receipt__qr">
-        <synergos-qr-code [attr.data]="app.reference" [attr.size]="160"></synergos-qr-code>
-      </div>
-
-      <dl class="receipt__detail">
-        <div><dt>Trámite</dt><dd>{{ app.serviceName }}</dd></div>
-        <div><dt>Estado</dt><dd><span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span></dd></div>
-        <div><dt>Etapa actual</dt><dd>{{ app.currentStage }}</dd></div>
-      </dl>
-
-      <div class="receipt__next">
-        <h2 class="receipt__next-title">¿Qué sigue?</h2>
-        <p class="ficha__text">
-          Guarde su número de radicado. Le avisamos por correo cuando cambie el estado. Puede ver el
-          avance cuando quiera en <strong>Mis solicitudes</strong>.
-        </p>
-      </div>
-
-      <div class="receipt__actions">
-        <button type="button" class="gv-btn gv-btn--brand" (click)="openApplication(app)">Ver mi solicitud</button>
-        <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">Volver al catálogo</button>
-      </div>
-    </section>
+    <!-- SH-11: el comprobante lo pone la pieza; el QR del radicado es del dominio y
+         entra por template. Antes eran 32 líneas propias que hacían lo mismo que en
+         otros cinco verticales, cada uno a su manera (#19). -->
+    <ng-template #radicadoQr>
+      <synergos-qr-code [attr.data]="app.reference" [attr.size]="160"></synergos-qr-code>
+    </ng-template>
+    <syn-confirmation-shell
+      [config]="receiptConfig()"
+      [reference]="app.reference"
+      [facts]="receiptFacts()"
+      [steps]="receiptSteps()"
+      [actions]="receiptActions"
+      [artifactTemplate]="radicadoQr"
+      (action)="onReceiptAction($event)"
+    />
   }
 
   <!-- ════════════════════ MIS SOLICITUDES (SH-4 account) ════════════════════ -->
