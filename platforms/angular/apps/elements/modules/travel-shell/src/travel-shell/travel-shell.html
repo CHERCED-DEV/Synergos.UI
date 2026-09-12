@@ -478,50 +478,30 @@
   }
 
   <!-- ═══ CART: carrito de viaje multi-ítem (hotel + vuelo + auto) ═════════ -->
+  <!-- ═══ CARRITO: SH-12 syn-cart-shell (#22) ═════════════════════════════ -->
+  <!-- El icono por tipo de producto es lo único de esta vitrina que es de Viajes,
+       y por eso entra por template y no por un `if` dentro de la pieza. -->
+  <ng-template #cartIconTpl let-line>
+    <span class="travel__cart-icon travel__icon">
+      <ng-container
+        [ngTemplateOutlet]="productIconTpl"
+        [ngTemplateOutletContext]="{ $implicit: line.kind }"
+      ></ng-container>
+    </span>
+  </ng-template>
   @if (view() === 'cart') {
-    <div class="travel__cart-page">
-      <h1 class="travel__heading">Tu viaje</h1>
-      @if (!hasCart()) {
-        <p class="travel__empty">Todavía no has agregado nada a tu viaje.</p>
-        <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Empezar a buscar</button>
-      } @else {
-        <ul class="travel__cart-lines">
-          @for (item of cartItems(); track item.id) {
-            <li class="travel__cart-line">
-              <span class="travel__cart-icon travel__icon" aria-hidden="true">
-                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
-              </span>
-              <div class="travel__cart-main">
-                <p class="travel__cart-name">{{ item.label }}</p>
-                <p class="travel__cart-sub">{{ itemSubtitle(item) }}</p>
-              </div>
-              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
-              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
-                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </li>
-          }
-        </ul>
-
-        @if (crossSell()) {
-          <div class="travel__crosssell" role="note">
-            <span>{{ crossSellLabel() }}</span>
-            <button type="button" class="travel__btn travel__btn--sm travel__btn--ghost" (click)="addCrossSell()">Agregar</button>
-          </div>
-        }
-
-        <div class="travel__cart-foot">
-          <p class="travel__cart-total">
-            <span>Total del viaje</span>
-            <span>{{ cartTotalLabel() }}</span>
-          </p>
-          <div class="travel__actions">
-            <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Seguir buscando</button>
-            <button type="button" class="travel__btn travel__btn--primary" (click)="goToCheckout()">Ir a pagar</button>
-          </div>
-        </div>
-      }
-    </div>
+    <syn-cart-shell
+      [config]="cartPageConfig()"
+      [lines]="cartLines()"
+      [total]="cartTotalLabel()"
+      [actions]="cartPageActions()"
+      [note]="cartNote()"
+      [holdExpiresAt]="cartHoldExpiresAt()"
+      [leadingTemplate]="cartIconTpl"
+      (remove)="removeFromCart($event)"
+      (action)="onCartAction($event)"
+      (holdexpired)="onCartHoldExpired()"
+    />
   }
 
   <!-- ═══ CHECKOUT: SH-3 checkout-wizard (viajeros → pago → revisar) ═══════ -->
@@ -695,43 +675,22 @@
   }
 
   <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->
+  <!-- El cajón es la MISMA pieza en densidad `drawer`. Tenerlo aparte es lo que
+       hacía que dijera «Total» donde la página dice «Total del viaje». -->
   @if (cartOpen()) {
     <div class="travel__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Tu viaje">
-      <div class="travel__drawer-head">
-        <h2 class="travel__drawer-title">Tu viaje ({{ cartCount() }})</h2>
-        <button type="button" class="travel__cart-close" (click)="toggleCart()" aria-label="Cerrar">
-          <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
-      </div>
-      @if (!hasCart()) {
-        <p class="travel__empty">Todavía no has agregado nada.</p>
-      } @else {
-        <ul class="travel__drawer-items">
-          @for (item of cartItems(); track item.id) {
-            <li class="travel__drawer-item">
-              <span class="travel__cart-icon travel__icon" aria-hidden="true">
-                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
-              </span>
-              <div class="travel__cart-main">
-                <span class="travel__cart-name">{{ item.label }}</span>
-                <span class="travel__cart-sub">{{ itemSubtitle(item) }}</span>
-              </div>
-              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
-              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
-                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </li>
-          }
-        </ul>
-        <div class="travel__cart-foot">
-          <p class="travel__cart-total">
-            <span>Total</span>
-            <span>{{ cartTotalLabel() }}</span>
-          </p>
-          <button type="button" class="travel__btn travel__btn--ghost travel__btn--block" (click)="goToCart()">Ver tu viaje</button>
-          <button type="button" class="travel__btn travel__btn--primary travel__btn--block" (click)="goToCheckout()">Ir a pagar</button>
-        </div>
-      }
+      <syn-cart-shell
+        [config]="cartDrawerConfig()"
+        [lines]="cartLines()"
+        [total]="cartTotalLabel()"
+        [actions]="cartDrawerActions()"
+        [holdExpiresAt]="cartHoldExpiresAt()"
+        [leadingTemplate]="cartIconTpl"
+        (remove)="removeFromCart($event)"
+        (action)="onCartAction($event)"
+        (holdexpired)="onCartHoldExpired()"
+        (close)="toggleCart()"
+      />
     </div>
   }
 </section>

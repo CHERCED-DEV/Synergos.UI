@@ -113,7 +113,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Dos reglas que costaron caro y no se deducen leyendo el código:**
+**Tres reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -122,3 +122,10 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    `TIER_BY_NAME`, le pone `composition` y **sobreescribe** el del registry. Como el
    presupuesto de tamaño elige el techo por tier, eso degrada un `module` de 72 KB a
    44 KB en silencio. Antes de correr `cms:sync`, mirá los WARN (#3).
+3. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+   `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
+   efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
+   por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
+   sí cambia manda un aviso por segundo. Lo prueba el reloj del apartado de SH-12 (#22), y se
+   comprobó de las dos formas: quitando la bandera (verde, o sea sobraba) y leyendo los
+   segundos (rojo, o sea el spec sí tiene dientes).
