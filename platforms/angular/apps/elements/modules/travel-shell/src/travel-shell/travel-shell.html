@@ -596,21 +596,19 @@
 
   <!-- ═══ CONFIRMATION: SH-10 credential-wallet (voucher + PNR) ════════════ -->
   @if (view() === 'confirmation') {
-    <div class="travel__confirmation">
-      <p class="travel__confirm-badge">Reserva confirmada</p>
-      <p class="travel__confirm-code">{{ confirmationCode() }}</p>
-      <p class="travel__confirm-order">Guarda tus credenciales para el check-in.</p>
-
-      <syn-credential-wallet
-        [config]="walletConfig"
-        [credentials]="confirmationCredentials()"
-      />
-
-      <div class="travel__actions">
-        <button type="button" class="travel__btn travel__btn--ghost" (click)="goToAccount()">Ver mis viajes</button>
-        <button type="button" class="travel__btn travel__btn--primary" (click)="startOver()">Planear otro viaje</button>
-      </div>
-    </div>
+    <!-- SH-11 (#19). El wallet de credenciales (voucher + PNR) es SH-10 y sigue
+         siendo del dominio: entra como artefacto dentro de la confirmación. -->
+    <ng-template #credenciales>
+      <syn-credential-wallet [config]="walletConfig" [credentials]="confirmationCredentials()" />
+    </ng-template>
+    <syn-confirmation-shell
+      [config]="confirmationConfig()"
+      [reference]="confirmationCode()"
+      [steps]="confirmationSteps"
+      [actions]="confirmationActions"
+      [artifactTemplate]="credenciales"
+      (action)="onConfirmationAction($event)"
+    />
   }
 
   <!-- ═══ ACCOUNT: SH-4 account-shell (mis viajes + timeline + cancelar) ═══ -->

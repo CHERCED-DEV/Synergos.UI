@@ -19,6 +19,10 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   AuthoringWizardComponent,
   CheckoutWizardComponent,
   ConsoleShellComponent,
@@ -197,6 +201,7 @@ let academyInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     ConsoleShellComponent,
@@ -303,6 +308,35 @@ export class AcademyElementComponent {
     }
     return this.#identity.hasAnyRole('instructor', 'admin') ? 'ok' : 'forbidden';
   });
+  // ─── Matrícula confirmada (SH-11) ───────────────────────────────────────────
+  readonly enrolledConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: '¡Ya estás inscrito!',
+    summary: 'Tu matrícula está activa y el curso te espera.',
+    referenceLabel: 'Número de inscripción',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar número',
+    copiedLabel: 'Número copiado',
+  }));
+
+  readonly enrolledSteps: readonly ConfirmationStep[] = [
+    { id: 'matricula', label: 'Matrícula activa', done: true },
+    { id: 'aula', label: 'Entra al aula', detail: 'Puedes empezar ahora mismo.' },
+    { id: 'certificado', label: 'Al 100% recibes tu certificado', detail: 'Verificable por QR.' },
+  ];
+
+  readonly enrolledActions: readonly ConfirmationAction[] = [
+    { id: 'aula', label: 'Ir al aula', kind: 'primary' },
+    { id: 'aprendizaje', label: 'Mi aprendizaje' },
+  ];
+
+  onEnrolledAction(id: string): void {
+    if (id === 'aula') {
+      this.enterClassroom();
+      return;
+    }
+    this.goToLearning();
+  }
+
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   #suppressedHash = '';
