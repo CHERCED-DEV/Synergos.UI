@@ -681,6 +681,19 @@ function normalizeListing(value: unknown, fallbackCurrency: string): Listing | n
   };
 }
 
+/**
+ * Las facetas cuyo valor viaja de a UNO al backend, y por eso se declaran de valor único.
+ *
+ * No es una propiedad del negocio —un comprador puede querer dos barrios— sino del
+ * transporte de hoy: `SearchCriteria` lleva `type`, `beds` y `location` como campos
+ * sueltos. Mientras siga así, ofrecer casillas es prometer algo que no se cumple.
+ */
+const FACETAS_DE_UN_VALOR: ReadonlySet<string> = new Set(['type', 'beds', 'city']);
+
+function kindPorDefecto(clave: string): string {
+  return FACETAS_DE_UN_VALOR.has(clave) ? 'SingleSelect' : 'MultiSelect';
+}
+
 function normalizeFacets(value: unknown): readonly Facet[] {
   if (!Array.isArray(value)) {
     return [];
@@ -698,8 +711,11 @@ function normalizeFacets(value: unknown): readonly Facet[] {
       return {
         key,
         label: readString(entry['label']).trim() || key,
-        // Sin kind = MultiSelect: es el default del contrato y deja el checkbox de siempre.
-        kind: readString(entry['kind']).trim() || 'MultiSelect',
+        // Sin kind, el default del contrato es MultiSelect — pero estas tres viajan al
+        // backend por `facetPick`, que se queda con UN valor (#18). Declararlo hace que el
+        // shell pinte radios: lo que se marca es lo que se filtra. Vuelven a MultiSelect
+        // cuando `SearchCriteria` acepte varios valores por clave.
+        kind: readString(entry['kind']).trim() || kindPorDefecto(key),
         values: rawValues
           .map((facetValue) => {
             if (!isRecord(facetValue)) {

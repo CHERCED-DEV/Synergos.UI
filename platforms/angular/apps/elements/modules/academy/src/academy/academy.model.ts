@@ -187,6 +187,12 @@ export interface AcademyFacet {
   readonly key: string;
   readonly label: string;
   readonly values: readonly AcademyFacetValue[];
+  /**
+   * Cómo se comporta la faceta al filtrar, como en `DiscoveryFacet`. Las que viajan de a
+   * un valor al backend se declaran `SingleSelect` para que el shell pinte radios y no
+   * casillas (#18) — prometer multi-selección y mandar uno devolvía menos de lo pedido.
+   */
+  readonly kind?: string;
 }
 
 /** One selectable value within a facet group, with a result count. */
