@@ -16,6 +16,15 @@
 //  - SH-9 `syn-dynamic-form`     — schema-driven task-list + multi-step + check-answers + error summary
 //  - SH-10 `syn-credential-wallet` — signed QR credential + public verify + transfer
 
+// ─── SH-11 Confirmación ──────────────────────────────────────────────────────
+export {
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationFact,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
+} from './confirmation/confirmation-shell';
+
 // ─── SH-1 Discovery ──────────────────────────────────────────────────────────
 export {
   DiscoveryShellComponent,

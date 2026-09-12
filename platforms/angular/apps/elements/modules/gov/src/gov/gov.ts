@@ -15,6 +15,11 @@ import {
 } from '@angular/core';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationFact,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   ConsoleShellComponent,
   DiscoveryShellComponent,
   DynamicFormShellComponent,
@@ -164,6 +169,7 @@ let govInstanceId = 0;
   standalone: true,
   imports: [
     AccountShellComponent,
+    ConfirmationShellComponent,
     ConsoleShellComponent,
     DiscoveryShellComponent,
     DynamicFormShellComponent,
@@ -324,6 +330,65 @@ export class GovElementComponent {
   readonly form = signal<GovForm | null>(null);
   readonly submitting = signal(false);
   readonly confirmedApplication = signal<ApplicationSummary | null>(null);
+
+  // ─── Comprobante de radicación (SH-11) ──────────────────────────────────────
+  // El rótulo es del dominio —acá el número se llama RADICADO, y llamarlo
+  // «referencia» delante de un ciudadano es perder la palabra con la que va a
+  // reclamar—. La estructura la pone la pieza.
+  readonly receiptConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: 'Solicitud radicada',
+    summary: 'Guarde su número de radicado: es con lo que puede reclamar y consultar.',
+    referenceLabel: 'Número de radicado',
+    stepsLabel: '¿Qué sigue?',
+    copyLabel: 'Copiar radicado',
+    copiedLabel: 'Radicado copiado',
+  }));
+
+  readonly receiptFacts = computed<readonly ConfirmationFact[]>(() => {
+    const app = this.confirmedApplication();
+    if (!app) {
+      return [];
+    }
+    return [
+      { id: 'tramite', label: 'Trámite', value: app.serviceName },
+      { id: 'estado', label: 'Estado', value: this.statusLabel(app.status) },
+      { id: 'etapa', label: 'Etapa actual', value: app.currentStage },
+    ];
+  });
+
+  readonly receiptSteps = computed<readonly ConfirmationStep[]>(() => {
+    const app = this.confirmedApplication();
+    if (!app) {
+      return [];
+    }
+    return [
+      { id: 'radicada', label: 'Su solicitud quedó radicada', done: true },
+      {
+        id: 'revision',
+        label: 'La entidad la revisa',
+        detail: 'Le avisamos por correo cuando cambie el estado.',
+      },
+      {
+        id: 'seguimiento',
+        label: 'Puede seguirla cuando quiera',
+        detail: 'Desde «Mis solicitudes», con su número de radicado.',
+      },
+    ];
+  });
+
+  readonly receiptActions: readonly ConfirmationAction[] = [
+    { id: 'ver', label: 'Ver mi solicitud', kind: 'primary' },
+    { id: 'catalogo', label: 'Volver al catálogo' },
+  ];
+
+  onReceiptAction(id: string): void {
+    const app = this.confirmedApplication();
+    if (id === 'ver' && app) {
+      this.openApplication(app);
+      return;
+    }
+    this.backToCatalog();
+  }
 
   // ─── Mis solicitudes (SH-4) + detalle ───────────────────────────────────────
   readonly applications = signal<readonly ApplicationSummary[]>([]);

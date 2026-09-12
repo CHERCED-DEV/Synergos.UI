@@ -20,6 +20,10 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   CheckoutWizardComponent,
   DetailShellComponent,
   DiscoveryShellComponent,
@@ -139,6 +143,7 @@ let storefrontInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -394,6 +399,35 @@ export class StorefrontElementComponent {
   // página. Pedírselo por formulario era pedirle dos veces lo mismo (#17).
   // Siguen siendo editables — quien compra para otra persona cambia el nombre.
   /** Hay sesión en el host. La cuenta lo dice en vez de pedir los datos a ciegas. */
+  // ─── Confirmación de compra (SH-11) ─────────────────────────────────────────
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: 'Compra confirmada',
+    summary: 'Te enviamos el detalle por correo.',
+    referenceLabel: 'Número de pedido',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar número',
+    copiedLabel: 'Número copiado',
+  }));
+
+  readonly confirmationSteps: readonly ConfirmationStep[] = [
+    { id: 'pagado', label: 'Pago recibido', done: true },
+    { id: 'alistando', label: 'Preparamos tu pedido', detail: 'Te avisamos cuando salga.' },
+    { id: 'envio', label: 'Envío', detail: 'Puedes seguirlo desde «Mis compras».' },
+  ];
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'compras', label: 'Ver mis compras', kind: 'primary' },
+    { id: 'seguir', label: 'Seguir comprando' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'compras') {
+      this.goToAccount();
+      return;
+    }
+    this.startOver();
+  }
+
   readonly isAuthenticated = this.#identity.isAuthenticated;
   /** Correo del miembro, para que la cuenta muestre con quién está trabajando. */
   readonly memberEmail = this.#identity.email;
