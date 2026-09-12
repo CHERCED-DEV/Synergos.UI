@@ -20,12 +20,15 @@ import path from 'node:path';
  *  - ~~`blogs` no montaba SH-6 teniendo una vista `write`~~ — **recompuesto**
  *    (#26), y ahí estaba lo caro: el editor no persistía nada y publicar BORRABA
  *    el texto por un camino que nunca fallaba.
- *  - `travel-shell` tiene tres buscadores y no monta SH-1 discovery.
+ *  - ~~`travel-shell` tiene tres buscadores y no monta SH-1~~ — **montado** (#27),
+ *    y fue el hallazgo más caro de los tres: mirar POR QUÉ no lo montaba destapó
+ *    que el auto era inalcanzable —buscar uno caía en la vista de vuelos y
+ *    `addCarToCart` no tenía un solo llamador— con el spec afirmándolo.
  *
- * La que queda no es un defecto por sí sola —puede haber razones— pero entró
- * **en silencio**, y una pieza que nadie monta es una decisión pendiente
- * disfrazada de activo. En este repo, lo que no tiene gate diverge: es la
- * lección que el árbol de servicios ya pagó con `ApiMoldTests`.
+ * Los tres estaban, los tres se cerraron, y ninguno era «sólo» una pieza sin
+ * montar: los tres escondían un defecto detrás. Una pieza que nadie monta es una
+ * decisión pendiente disfrazada de activo, y en este repo lo que no tiene gate
+ * diverge — la lección que el árbol de servicios ya pagó con `ApiMoldTests`.
  *
  * Lo que vigila: que cada shell del catálogo tenga al menos un consumidor real
  * —montado en una plantilla, no sólo importado—. Un import no es consumo: un

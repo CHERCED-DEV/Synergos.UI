@@ -31,6 +31,11 @@ import {
   CheckoutWizardComponent,
   CredentialWalletComponent,
   DetailShellComponent,
+  DiscoveryShellComponent,
+  type DiscoveryCriteria,
+  type DiscoveryFacet,
+  type DiscoveryShellConfig,
+  type DiscoverySortOption,
   ResultsMapComponent,
   TrackingTimelineComponent,
   type AccountShellConfig,
@@ -120,6 +125,18 @@ const DEFAULT_API_BASE = '/api/travel';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'travel';
 const DEFAULT_HEADING = 'Tu próximo viaje empieza aquí';
+/**
+ * A qué vista lleva buscar cada producto. Es una TABLA y no un ternario a
+ * propósito: el ternario que había dejaba `car` colgando en la rama de vuelos, y
+ * añadir un cuarto producto lo habría repetido (#27). Con el `Record` completo,
+ * un producto nuevo sin vista no compila.
+ */
+const RESULTS_VIEW: Readonly<Record<TravelProduct, TravelView>> = {
+  hotel: 'stays',
+  flight: 'flights',
+  car: 'cars',
+};
+
 const DEFAULT_SUBHEADING = 'Estadías, vuelos y autos en un solo lugar · un solo pago';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SECTIONS: readonly TravelAccountSection[] = ['viajes', 'credenciales', 'perfil'];
@@ -173,6 +190,7 @@ let travelShellInstanceId = 0;
   imports: [
     NgTemplateOutlet,
     ResultsMapComponent,
+    DiscoveryShellComponent,
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
@@ -340,6 +358,110 @@ export class TravelShellElementComponent {
     const families = this.fareFamilies();
     return families.find((fare) => fare.id === this.selectedFareId()) ?? families[0] ?? null;
   });
+
+  // ─── Autos: SH-1 `syn-discovery-shell` (#27) ─────────────────────────────────
+  //
+  // El auto no tenía superficie de resultados: buscar uno caía en la vista de
+  // vuelos y `addCarToCart` no tenía un solo llamador. SH-1 es el sitio, y de
+  // paso trae lo que NINGUNA lista de esta app tenía: orden. Cada tarjeta dice
+  // «desde $156.000» y no había forma de ordenar por precio.
+  readonly carOffers = computed<readonly TravelOffer[]>(() =>
+    this.offers().filter((offer) => offer.product === 'car'),
+  );
+
+  readonly carCriteria = signal<DiscoveryCriteria>({
+    term: '',
+    facets: {},
+    sort: 'price-asc',
+    page: 1,
+  });
+
+  readonly carSortOptions: readonly DiscoverySortOption[] = [
+    { key: 'price-asc', label: 'Menor precio' },
+    { key: 'price-desc', label: 'Mayor precio' },
+    { key: 'name', label: 'Nombre' },
+  ];
+
+  /**
+   * Las facetas salen de los DATOS, no de una lista escrita a mano: si el backend
+   * no emite `carCategory`, esa faceta no se pinta. Van como `SingleSelect`
+   * porque el transporte manda un valor por clave — declararlas MultiSelect
+   * pintaría casillas y perdería la selección en silencio (#18).
+   */
+  readonly carFacets = computed<readonly DiscoveryFacet[]>(() => {
+    const grupos: readonly { readonly key: string; readonly label: string; readonly de: (o: TravelOffer) => string | undefined }[] = [
+      { key: 'category', label: 'Categoría', de: (o) => o.carCategory },
+      { key: 'transmission', label: 'Transmisión', de: (o) => o.carTransmission },
+    ];
+    const facetas: DiscoveryFacet[] = [];
+    for (const grupo of grupos) {
+      const cuenta = new Map<string, number>();
+      for (const offer of this.carOffers()) {
+        const valor = grupo.de(offer)?.trim();
+        if (valor) {
+          cuenta.set(valor, (cuenta.get(valor) ?? 0) + 1);
+        }
+      }
+      if (cuenta.size > 1) {
+        // Una faceta con un solo valor no filtra nada: sería un control que no
+        // hace nada, y ocupa el sitio de los que sí.
+        facetas.push({
+          key: grupo.key,
+          label: grupo.label,
+          kind: 'SingleSelect',
+          values: [...cuenta.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+            .map(([value, count]) => ({ value, label: value, count })),
+        });
+      }
+    }
+    return facetas;
+  });
+
+  /** Lo que SH-1 pinta: filtrado y ordenado acá, que es donde están los datos. */
+  readonly carResults = computed<readonly TravelOffer[]>(() => {
+    const criteria = this.carCriteria();
+    const categoria = criteria.facets['category']?.[0] ?? '';
+    const transmision = criteria.facets['transmission']?.[0] ?? '';
+    const filtradas = this.carOffers().filter((offer) => {
+      if (categoria && offer.carCategory !== categoria) {
+        return false;
+      }
+      if (transmision && offer.carTransmission !== transmision) {
+        return false;
+      }
+      return true;
+    });
+    const ordenadas = [...filtradas];
+    switch (criteria.sort) {
+      case 'price-desc':
+        ordenadas.sort((a, b) => b.amount - a.amount);
+        break;
+      case 'name':
+        ordenadas.sort((a, b) => a.title.localeCompare(b.title, 'es'));
+        break;
+      default:
+        ordenadas.sort((a, b) => a.amount - b.amount);
+    }
+    return ordenadas;
+  });
+
+  readonly carConfig = computed<DiscoveryShellConfig>(() => ({
+    // La búsqueda es el formulario estructurado de la home (lugar + fechas), no
+    // un término libre: pintar una caja de texto acá ofrecería buscar dos veces.
+    showSearch: false,
+    filtersHeading: 'Filtrar',
+    clearLabel: 'Limpiar filtros',
+    anyLabel: 'Cualquiera',
+    sortLabel: 'Ordenar por',
+    emptyTitle: 'Sin autos',
+    emptyMessage: 'No encontramos autos con esos filtros. Prueba quitando alguno.',
+    loadingMessage: 'Buscando autos…',
+  }));
+
+  onCarCriteriaChange(criteria: DiscoveryCriteria): void {
+    this.carCriteria.set(criteria);
+  }
 
   // ─── Stays: SH-8 map + SH-2 detail ──────────────────────────────────────────
   readonly stayOffers = computed<readonly TravelOffer[]>(() =>
@@ -667,6 +789,7 @@ export class TravelShellElementComponent {
         return;
       case 'flights':
       case 'stays':
+      case 'cars':
         // Guard: results pages need a prior search of the matching product.
         this.view.set(view);
         return;
@@ -684,6 +807,8 @@ export class TravelShellElementComponent {
         return `${base}/vuelos`;
       case 'stays':
         return `${base}/estadias`;
+      case 'cars':
+        return `${base}/autos`;
       case 'stay':
         return `${base}/estadia/${encodeURIComponent(param)}`;
       case 'cart':
@@ -738,6 +863,9 @@ export class TravelShellElementComponent {
       case 'estadias':
         this.applyRoute('stays', '');
         return;
+      case 'autos':
+        this.applyRoute('cars', '');
+        return;
       case 'estadia':
         this.applyRoute('stay', decodeURIComponent(tail));
         return;
@@ -765,7 +893,10 @@ export class TravelShellElementComponent {
     }
     const product = this.activeProduct();
     void this.runSearch(product).then(() => {
-      this.navigate(product === 'flight' ? 'flights' : product === 'hotel' ? 'stays' : 'flights');
+      // Cada producto a SU vista. El ternario anterior mandaba `car` a `'flights'`
+      // —no era un default olvidado, era el valor escrito— así que un auto se
+      // pintaba como vuelo y pedía una tarifa que no existe (#27).
+      this.navigate(RESULTS_VIEW[product]);
     });
   }
 
@@ -798,6 +929,8 @@ export class TravelShellElementComponent {
           fareFamilies: this.metaFares(entry.meta),
           stayId: this.metaString(entry.meta, 'stayId') || entry.productRef,
           rating: this.metaNumber(entry.meta, 'rating'),
+          carCategory: this.metaString(entry.meta, 'carCategory') || undefined,
+          carTransmission: this.metaString(entry.meta, 'carTransmission') || undefined,
           detail: entry.selection,
         })),
       );

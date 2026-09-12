@@ -40,6 +40,7 @@ export type TravelView =
   | 'home' // multi-tab search (Estadías · Vuelos · Autos)
   | 'flights' // flight results + fare families + seat map
   | 'stays' // stay results (SH-8 list↔map)
+  | 'cars' // car results (SH-1 discovery: orden + facetas)
   | 'stay' // one stay's rich detail (SH-2) → room × rate
   | 'cart' // travel cart (multi-ítem: hotel + vuelo + auto)
   | 'checkout' // SH-3 wizard over the engine
@@ -140,6 +141,18 @@ export interface TravelOffer {
   readonly stayId?: string;
   /** Star rating (hotels) for the card. */
   readonly rating?: number;
+  /**
+   * Categoría del auto («Económico», «SUV»). Sólo la emiten los autos, igual que
+   * `fareFamilies` sólo los vuelos.
+   *
+   * Existe porque la faceta la necesita como DATO: hoy esto viaja dentro de
+   * `subtitle` como prosa —`'Económico · Automático · A/C'`— y derivar una faceta
+   * partiendo una cadena de presentación es adivinar (#27). Opcional: un backend
+   * que no lo emita no pinta la faceta, en vez de pintar una inventada.
+   */
+  readonly carCategory?: string;
+  /** Transmisión del auto («Automático», «Manual»). Misma razón. */
+  readonly carTransmission?: string;
   /** Carried into the cart line untouched (opaque to the engine). */
   readonly detail: Readonly<Record<string, unknown>>;
 }
