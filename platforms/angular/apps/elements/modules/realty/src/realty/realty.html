@@ -422,27 +422,16 @@
 
     <!-- ─── CONFIRMATION ──────────────────────────────────────────────────── -->
     @if (view() === 'confirmation') {
-      <div class="realty__confirm">
-        <span class="realty__confirm-mark" aria-hidden="true">
-          <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-        </span>
-        @if (confirmedVisit(); as visit) {
-          <h1 class="realty__confirm-title">¡Visita agendada!</h1>
-          <p class="realty__confirm-sub">
-            {{ visit.listingTitle }} · {{ formatDate(visit.slot.date) }} a las {{ visit.slot.time }} ·
-            {{ visitModeLabel(visit.mode) }}
-          </p>
-          <p class="realty__confirm-ref">Referencia: {{ visit.id }}</p>
-        } @else if (confirmedLeadId()) {
-          <h1 class="realty__confirm-title">¡Mensaje enviado!</h1>
-          <p class="realty__confirm-sub">El agente te contactará muy pronto.</p>
-          <p class="realty__confirm-ref">Referencia: {{ confirmedLeadId() }}</p>
-        }
-        <div class="realty__confirm-actions">
-          <button type="button" class="realty__btn realty__btn--primary" (click)="goToAccount()">Ver mi cuenta</button>
-          <button type="button" class="realty__btn" (click)="startOver()">Seguir buscando</button>
-        </div>
-      </div>
+      <!-- SH-11 (#19). Dos desenlaces distintos —visita agendada o mensaje al
+           agente— con la misma estructura: acuse, referencia y qué sigue. -->
+      <syn-confirmation-shell
+        [config]="confirmationConfig()"
+        [reference]="confirmationReference()"
+        [facts]="confirmationFacts()"
+        [steps]="confirmationSteps()"
+        [actions]="confirmationActions"
+        (action)="onConfirmationAction($event)"
+      />
     }
 
     <!-- ─── ACCOUNT: SH-4 (favoritos+comparar · saved · visitas · mensajes) ── -->
