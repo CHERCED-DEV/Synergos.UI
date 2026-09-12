@@ -8,9 +8,9 @@
   --sdf-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sdf-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --sdf-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sdf-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sdf-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --sdf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --sdf-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sdf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sdf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --sdf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
   --sdf-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});

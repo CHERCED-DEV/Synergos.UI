@@ -8,9 +8,9 @@
   --shc-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --shc-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --shc-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --shc-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shc-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --shc-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --shc-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shc-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --shc-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --shc-up: var(--syn-color-state-success-surface, #{syn.$color-success-600});
   --shc-up-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
