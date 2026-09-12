@@ -32,6 +32,12 @@ import { NgTemplateOutlet } from '@angular/common';
  * dominio: la **distribución por estrella** y los **criterios por dominio**.
  * ─────────────────────────────────────────────────────────────────────────────
  *
+ * **Y desde #31 la pieza también es el sitio donde se REPORTA.** Lo que justificaba
+ * meterlo acá y no en una pieza nueva es que el botón tiene que estar junto a la
+ * reseña que se reporta, y que `Api.Moderation` llevaba meses construida con un
+ * campo `Reporter` y ningún consumidor: sin quien reporte, ese campo no se llena
+ * nunca.
+ *
  * **La pieza no hace aritmética.** Ni el promedio ni la distribución: llegan
  * calculados. Con la lista paginada, el promedio de lo que se ve en pantalla no
  * es el promedio real, y una pieza que lo sumara mostraría un número plausible y
@@ -78,6 +84,12 @@ export interface ReviewEntry {
   readonly verified?: boolean;
   /** Respuesta del vendedor / del anfitrión / del docente, si la hay. */
   readonly reply?: string;
+  /**
+   * Está en revisión y **no cuenta todavía** (#31). El dominio decide si la
+   * muestra —tiene sentido mostrársela a su propio autor— y la pieza la marca en
+   * vez de hacerla pasar por publicada.
+   */
+  readonly pending?: boolean;
 }
 
 /** El resumen, ya calculado por el dominio. */
@@ -99,6 +111,17 @@ export interface ReviewCriterionPrompt {
 
 /** Por qué no se puede reseñar. Calca los cuatro motivos del precedente. */
 export type ReviewBlockedReason = 'unauthenticated' | 'not-consumer' | 'already-reviewed';
+
+/**
+ * Qué le pasó a lo que acabo de escribir (#31).
+ *
+ * **`pending` existe porque `202 Accepted` existe.** Un borde que encola para
+ * revisión contesta 202, y `response.ok` es cierto para todo 2xx: sin distinguir
+ * los dos, el acuse decía «ya está publicada» y recargaba una lista donde no
+ * estaba. El defecto #26 —degradar una ESCRITURA miente— con el agravante de
+ * traer la prueba de la mentira en la misma pantalla.
+ */
+export type ReviewOutcome = 'published' | 'pending';
 
 /** Lo que la persona escribió. El autor NO va acá: lo pone el servidor de la sesión. */
 export interface ReviewDraft {
@@ -127,6 +150,12 @@ export interface ReviewPanelConfig {
   readonly blockedAlreadyReviewed?: string;
   /** Mínimo de caracteres del cuerpo. Default 10. */
   readonly minBody?: number;
+  /** Rótulos de reportar (#31). */
+  readonly reportLabel?: string;
+  readonly reportingLabel?: string;
+  readonly reportedLabel?: string;
+  /** Qué decir bajo una reseña en revisión, si el dominio las muestra a su autor. */
+  readonly pendingLabel?: string;
 }
 
 const ESTRELLAS = [1, 2, 3, 4, 5] as const;
@@ -327,6 +356,36 @@ const ESTRELLAS = [1, 2, 3, 4, 5] as const;
               @if (entry.reply) {
                 <p class="syn-reviews__entry-reply">{{ entry.reply }}</p>
               }
+              @if (entry.pending) {
+                <!-- En revisión, y dicho: hacerla pasar por publicada es el defecto
+                     del 202 (#31) dentro de la propia lista. -->
+                <p class="syn-reviews__entry-pending" role="status">
+                  {{ config().pendingLabel || 'En revisión. Todavía no cuenta en la calificación.' }}
+                </p>
+              }
+              @if (canReport() && !entry.pending) {
+                <p class="syn-reviews__entry-foot">
+                  @if (isReported(entry.id)) {
+                    <span class="syn-reviews__reported">
+                      {{ config().reportedLabel || 'Reportada. Gracias por avisar.' }}
+                    </span>
+                  } @else {
+                    <button
+                      type="button"
+                      class="syn-reviews__report"
+                      [disabled]="reportingId() === entry.id"
+                      [attr.aria-label]="(config().reportLabel || 'Reportar') + ': ' + entry.author"
+                      (click)="onReport(entry.id)"
+                    >
+                      {{
+                        reportingId() === entry.id
+                          ? config().reportingLabel || 'Reportando…'
+                          : config().reportLabel || 'Reportar'
+                      }}
+                    </button>
+                  }
+                </p>
+              }
             </li>
           }
         </ul>
@@ -366,7 +425,19 @@ export class ReviewPanelComponent {
   /** Slot del dominio bajo la lista: «ver todas», paginación, lo que sea. */
   readonly footerTemplate = input<TemplateRef<unknown> | null>(null);
 
+  /**
+   * Si ESTA persona puede reportar (#31). Lo afirma el dominio con el mismo
+   * criterio que `canReview`: un reporte anónimo no se puede atender ni
+   * deduplicar, así que deducirlo acá sería ofrecer un botón que va a rebotar.
+   */
+  readonly canReport = input(false);
+  /** Las que esta persona YA reportó. El servidor es quien lo sabe. */
+  readonly reportedIds = input<readonly string[]>([]);
+  /** La que tiene un reporte en vuelo. */
+  readonly reportingId = input<string | null>(null);
+
   readonly submitreview = output<ReviewDraft>();
+  readonly reportreview = output<string>();
 
   readonly draftRating = signal(0);
   readonly draftTitle = signal('');
@@ -408,6 +479,25 @@ export class ReviewPanelComponent {
     const min = this.config().minBody ?? 10;
     return this.draftRating() > 0 && this.draftBody().trim().length >= min;
   });
+
+  readonly #reported = computed(() => new Set(this.reportedIds()));
+
+  isReported(id: string): boolean {
+    return this.#reported().has(id);
+  }
+
+  /**
+   * **Una reseña se reporta UNA vez, y con un reporte en vuelo tampoco.** El doble
+   * clic es gratis y el servidor contaría dos — el mismo criterio que el cupón de
+   * #29. Y la pieza **no** marca la reseña como reportada al emitir: sólo el
+   * dominio sabe si el servidor lo aceptó, igual que con el borrador (#26).
+   */
+  onReport(id: string): void {
+    if (this.isReported(id) || this.reportingId() !== null) {
+      return;
+    }
+    this.reportreview.emit(id);
+  }
 
   barPercent(bar: ReviewDistributionBar): number {
     const total = this.distributionTotal();

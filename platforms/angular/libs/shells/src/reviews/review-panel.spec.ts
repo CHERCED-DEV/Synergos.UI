@@ -70,7 +70,11 @@ const ENTRADAS: readonly ReviewEntry[] = [
       [notice]="notice()"
       [noticeIsError]="noticeIsError()"
       [sending]="sending()"
+      [canReport]="canReport()"
+      [reportedIds]="reportedIds()"
+      [reportingId]="reportingId()"
       (submitreview)="log.push($event)"
+      (reportreview)="reportLog.push($event)"
     />
   `,
 })
@@ -85,7 +89,11 @@ class Host {
   readonly notice = signal('');
   readonly noticeIsError = signal(false);
   readonly sending = signal(false);
+  readonly canReport = signal(false);
+  readonly reportedIds = signal<readonly string[]>([]);
+  readonly reportingId = signal<string | null>(null);
   readonly log: ReviewDraft[] = [];
+  readonly reportLog: string[] = [];
 }
 
 function mount(): { fixture: ReturnType<typeof TestBed.createComponent<Host>>; host: Host } {
@@ -358,6 +366,103 @@ describe('SH-13 syn-review-panel', () => {
   });
 
   // ─── dos en la misma página ─────────────────────────────────────────────────
+  // ─── moderación (#31) ───────────────────────────────────────────────────────
+  describe('reportar', () => {
+    it('sin permiso NO hay botón: un reporte anónimo no se puede atender', () => {
+      const { fixture } = mount();
+      expect(todos(fixture, '.syn-reviews__report')).toHaveLength(0);
+    });
+
+    it('con permiso hay un botón por reseña y el id sale hacia el dominio', () => {
+      const { fixture, host } = mount();
+      host.canReport.set(true);
+      fixture.detectChanges();
+
+      const botones = todos(fixture, '.syn-reviews__report') as HTMLButtonElement[];
+      expect(botones).toHaveLength(2);
+
+      botones[1].click();
+      expect(host.reportLog).toEqual(['r2']);
+    });
+
+    it('EL caso: la misma reseña NO se reporta dos veces', () => {
+      const { fixture, host } = mount();
+      host.canReport.set(true);
+      host.reportedIds.set(['r1']);
+      fixture.detectChanges();
+
+      // La reportada ya no ofrece botón, ofrece el acuse.
+      expect(todos(fixture, '.syn-reviews__report')).toHaveLength(1);
+      expect(text(fixture, '.syn-reviews__reported')).toContain('Reportada');
+
+      // Y aunque se llame al método a mano, no vuelve a emitir.
+      host.panel().onReport('r1');
+      expect(host.reportLog).toEqual([]);
+    });
+
+    it('EL caso: con un reporte en vuelo no se manda otro — el doble clic es gratis', () => {
+      const { fixture, host } = mount();
+      host.canReport.set(true);
+      host.reportingId.set('r1');
+      fixture.detectChanges();
+
+      const botones = todos(fixture, '.syn-reviews__report') as HTMLButtonElement[];
+      expect((botones[0] as HTMLButtonElement).disabled).toBe(true);
+      expect(text(fixture, '.syn-reviews__report')).toContain('Reportando');
+
+      // Ni la que está en vuelo ni OTRA: el reporte en curso bloquea el envío.
+      botones[0].click();
+      botones[1].click();
+      expect(host.reportLog).toEqual([]);
+    });
+
+    it('la pieza NO marca como reportada al emitir: eso lo dice el servidor', () => {
+      const { fixture, host } = mount();
+      host.canReport.set(true);
+      fixture.detectChanges();
+
+      (todos(fixture, '.syn-reviews__report')[0] as HTMLButtonElement).click();
+      fixture.detectChanges();
+
+      // Emitió, y sigue ofreciendo el botón: quien decide que quedó reportada es
+      // el dominio cuando el servidor responde (#26).
+      expect(host.reportLog).toEqual(['r1']);
+      expect(todos(fixture, '.syn-reviews__report')).toHaveLength(2);
+    });
+  });
+
+  describe('reseña en revisión', () => {
+    it('EL caso: una pendiente se marca y dice que no cuenta todavía', () => {
+      const { fixture, host } = mount();
+      host.entries.set([{ ...ENTRADAS[0], pending: true }, ENTRADAS[1]]);
+      fixture.detectChanges();
+
+      expect(todos(fixture, '.syn-reviews__entry-pending')).toHaveLength(1);
+      expect(text(fixture, '.syn-reviews__entry-pending')).toContain('revisión');
+      expect(text(fixture, '.syn-reviews__entry-pending')).toContain('calificación');
+    });
+
+    it('una pendiente NO se puede reportar: todavía no es pública', () => {
+      const { fixture, host } = mount();
+      host.canReport.set(true);
+      host.entries.set([{ ...ENTRADAS[0], pending: true }, ENTRADAS[1]]);
+      fixture.detectChanges();
+
+      expect(todos(fixture, '.syn-reviews__report')).toHaveLength(1);
+    });
+
+    it('el rótulo de la pendiente es del dominio', () => {
+      const { fixture, host } = mount();
+      host.entries.set([{ ...ENTRADAS[0], pending: true }]);
+      host.config.set({ pendingLabel: 'Tu reseña está en revisión del docente.' });
+      fixture.detectChanges();
+
+      expect(text(fixture, '.syn-reviews__entry-pending')).toBe(
+        'Tu reseña está en revisión del docente.',
+      );
+    });
+  });
+
   it('dos paneles no comparten el id del título ni de los campos', () => {
     const uno = TestBed.createComponent(Host);
     uno.detectChanges();
