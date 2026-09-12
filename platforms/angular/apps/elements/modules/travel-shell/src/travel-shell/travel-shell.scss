@@ -220,11 +220,6 @@
     &--block { display: block; width: 100%; }
   }
 
-  &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-3;
-  }
 
   // ─── Home: hero + tabs + search ───────────────────────────────────────────
   &__home {
@@ -356,7 +351,7 @@
     gap: syn.$space-3;
   }
 
-  &__flight-list, &__cart-lines, &__drawer-items, &__fares, &__rates, &__amenities {
+  &__flight-list, &__fares, &__rates, &__amenities {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -620,68 +615,14 @@
   }
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
-  &__cart-page { display: flex; flex-direction: column; gap: syn.$space-md; }
 
-  &__cart-lines { display: flex; flex-direction: column; gap: syn.$space-2; }
 
-  &__cart-line, &__drawer-item {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ts-border-subtle);
-    border-radius: syn.$radius-md;
-    background: var(--ts-surface);
-  }
 
   &__cart-icon { display: inline-flex; align-items: center; color: var(--ts-brand); flex: 0 0 auto; }
-  &__cart-main { display: flex; flex-direction: column; gap: syn.px-to-rem(2); flex: 1 1 auto; min-width: 0; }
-  &__cart-name { font-weight: 600; }
-  &__cart-sub { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
-  &__cart-price { font-weight: 700; white-space: nowrap; }
 
-  &__cart-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--ts-muted);
-    padding: syn.$space-1;
-    flex: 0 0 auto;
 
-    &:hover { color: var(--ts-danger); }
-  }
 
-  &__crosssell {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-3;
-    padding: syn.$space-3 syn.$space-4;
-    border-radius: syn.$radius-md;
-    background: var(--ts-brand-soft);
-    color: var(--ts-text);
-    font-size: syn.$font-size-sm;
-  }
 
-  &__cart-foot {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding-top: syn.$space-3;
-    border-top: syn.px-to-rem(1) solid var(--ts-border);
-  }
-
-  &__cart-total {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
 
   // ─── Checkout / review ────────────────────────────────────────────────────
   &__form {
@@ -793,28 +734,8 @@
     box-shadow: var(--ts-shadow-pop);
   }
 
-  &__drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-3;
-  }
 
-  &__drawer-title { margin: 0; font-size: syn.$font-size-base; font-weight: 700; }
-  &__drawer-items { display: flex; flex-direction: column; gap: syn.$space-2; }
 
-  &__cart-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--ts-muted);
-    padding: syn.$space-1;
-
-    &:hover { color: var(--ts-text); }
-  }
 
   // ─── Stay skeleton ────────────────────────────────────────────────────────
   // Mirrors syn-detail-shell's `__top` grid (gallery / info / sticky CTA) and

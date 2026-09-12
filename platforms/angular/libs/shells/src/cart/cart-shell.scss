@@ -1,0 +1,407 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --sct-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --sct-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --sct-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --sct-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --sct-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --sct-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --sct-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --sct-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --sct-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sct-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --sct-info-soft: var(--syn-color-state-info-soft, #{syn.$color-brand-100});
+  --sct-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --sct-warn-text: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --sct-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --sct-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+  color: var(--sct-text);
+}
+
+.syn-cart {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 52rem;
+}
+
+/* ── cabecera ──────────────────────────────────────────────────────────────── */
+.syn-cart__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.syn-cart__heading {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  flex: 1 1 auto;
+}
+
+.syn-cart__count {
+  margin-inline-start: 0.35rem;
+  font-weight: 400;
+  color: var(--sct-muted);
+}
+
+.syn-cart__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  padding: 0;
+  color: var(--sct-text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  cursor: pointer;
+
+  svg {
+    inline-size: 1rem;
+    block-size: 1rem;
+  }
+
+  &:hover {
+    border-color: var(--sct-border);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sct-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── el reloj del apartado ─────────────────────────────────────────────────── */
+.syn-cart__hold {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--sct-text-secondary);
+  background: var(--sct-info-soft);
+  border-radius: 0.4rem;
+
+  &.is-urgent {
+    color: var(--sct-warn-text);
+    background: var(--sct-warn-soft);
+    font-weight: 600;
+  }
+
+  &.is-expired {
+    color: var(--sct-danger);
+    background: var(--sct-danger-soft);
+    font-weight: 600;
+  }
+}
+
+.syn-cart__empty {
+  margin: 0;
+  padding: 1.5rem 0;
+  color: var(--sct-text-secondary);
+}
+
+/* ── grupos y líneas ───────────────────────────────────────────────────────── */
+.syn-cart__group + .syn-cart__group {
+  margin-block-start: 0.5rem;
+}
+
+.syn-cart__group-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  color: var(--sct-text-secondary);
+}
+
+.syn-cart__group-label {
+  flex: 1 1 auto;
+}
+
+.syn-cart__group-total {
+  font-weight: 600;
+  color: var(--sct-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-cart__lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--sct-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.syn-cart__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--sct-surface);
+
+  & + & {
+    border-block-start: 1px solid var(--sct-border-subtle);
+  }
+}
+
+.syn-cart__line-leading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2rem;
+  block-size: 2rem;
+  flex: 0 0 auto;
+  color: var(--sct-text-secondary);
+}
+
+.syn-cart__line-main {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.syn-cart__line-label {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.syn-cart__line-detail,
+.syn-cart__line-unit {
+  margin: 0.1rem 0 0;
+  font-size: 0.85rem;
+  color: var(--sct-muted);
+}
+
+.syn-cart__line-total {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.syn-cart__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.9rem;
+  block-size: 1.9rem;
+  padding: 0;
+  color: var(--sct-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  cursor: pointer;
+
+  svg {
+    inline-size: 0.95rem;
+    block-size: 0.95rem;
+  }
+
+  &:hover {
+    color: var(--sct-danger);
+    border-color: var(--sct-border);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sct-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── cantidad ──────────────────────────────────────────────────────────────── */
+.syn-cart__qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid var(--sct-border);
+  border-radius: 0.35rem;
+}
+
+.syn-cart__qty-btn {
+  inline-size: 1.85rem;
+  block-size: 1.85rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--sct-text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &:disabled {
+    color: var(--sct-muted);
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sct-focus-ring);
+    outline-offset: -2px;
+  }
+}
+
+.syn-cart__qty-value {
+  min-inline-size: 1.6rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── aviso lateral (cross-sell) ────────────────────────────────────────────── */
+.syn-cart__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  padding: 0.75rem 1rem;
+  background: var(--sct-surface-muted);
+  border: 1px dashed var(--sct-border);
+  border-radius: 0.45rem;
+}
+
+.syn-cart__note-text {
+  flex: 1 1 12rem;
+  font-size: 0.9rem;
+  color: var(--sct-text-secondary);
+}
+
+.syn-cart__note-btn {
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--sct-text);
+  background: var(--sct-surface);
+  border: 1px solid var(--sct-border);
+  border-radius: 0.35rem;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--sct-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── resumen y total ───────────────────────────────────────────────────────── */
+.syn-cart__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.syn-cart__summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.92rem;
+  color: var(--sct-text-secondary);
+
+  dt,
+  dd {
+    margin: 0;
+  }
+
+  dd {
+    font-variant-numeric: tabular-nums;
+  }
+
+  &.is-total {
+    padding-block-start: 0.5rem;
+    border-block-start: 1px solid var(--sct-border);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--sct-text);
+  }
+}
+
+.syn-cart__total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding-block-start: 0.6rem;
+  border-block-start: 1px solid var(--sct-border);
+  font-size: 1.05rem;
+  font-weight: 700;
+
+  span:last-child {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── acciones ──────────────────────────────────────────────────────────────── */
+.syn-cart__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.syn-cart__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--sct-text);
+  background: var(--sct-surface);
+  border: 1px solid var(--sct-border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &.is-primary {
+    color: var(--sct-brand-text);
+    background: var(--sct-brand);
+    border-color: var(--sct-brand);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sct-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ── densidad cajón ────────────────────────────────────────────────────────── */
+:host(.is-drawer) {
+  .syn-cart {
+    gap: 0.75rem;
+    max-width: none;
+  }
+
+  .syn-cart__heading {
+    font-size: 1.05rem;
+  }
+
+  .syn-cart__line {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .syn-cart__lines {
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  /* En el cajón no hay sitio para dos botones al lado: van uno debajo del otro
+     y a todo el ancho, que es como se pulsan con el pulgar. */
+  .syn-cart__actions {
+    flex-direction: column;
+  }
+
+  .syn-cart__action {
+    inline-size: 100%;
+  }
+}

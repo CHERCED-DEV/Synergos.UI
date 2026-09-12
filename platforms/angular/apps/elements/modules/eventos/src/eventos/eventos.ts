@@ -17,6 +17,11 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CartShellComponent,
+  type CartAction,
+  type CartLine,
+  type CartShellConfig,
+  type CartSummaryRow,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationShellConfig,
@@ -197,6 +202,7 @@ let eventosInstanceId = 0;
     CheckoutWizardComponent,
     AccountShellComponent,
     ConfirmationShellComponent,
+    CartShellComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -1176,6 +1182,80 @@ export class EventosElementComponent {
     // Single-event cart: one tier line per order (replace prior selection).
     this.#store.reset();
     this.#store.addItem(selection.item);
+    this.reprice();
+  }
+
+  // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
+  // El carrito de Eventos es de un solo evento: la selección se REEMPLAZA desde
+  // la página del evento, no se edita línea a línea. Por eso sus líneas no
+  // llevan paso de cantidad ni botón de quitar — quitar la única línea dejaría
+  // a la persona en el vacío sin haber decidido volver.
+  readonly cartLines = computed<readonly CartLine[]>(() =>
+    this.cartItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: `${item.quantity} ${item.quantity === 1 ? 'entrada' : 'entradas'}`,
+      total: this.formatPrice((item.amount * item.quantity) / 100, this.currency()),
+      removable: false,
+    })),
+  );
+
+  /**
+   * Los cargos por servicio son una fila propia y no un número sumado al total:
+   * quien compra una entrada tiene derecho a ver cuánto de lo que paga NO es la
+   * entrada. La pieza sólo las pinta — los importes los calcula este dominio.
+   */
+  readonly cartSummary = computed<readonly CartSummaryRow[]>(() => [
+    { id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() },
+    { id: 'fees', label: `Cargos por servicio (${this.feePercent()}%)`, value: this.feesLabel() },
+    { id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true },
+  ]);
+
+  /**
+   * El aforo apartado vence solo. Esta vista se declaraba desde el primer día
+   * como «carrito + fees + hold countdown» y el countdown no existía: alguien
+   * apartaba butacas, se iba a buscar la tarjeta y volvía a un cupo muerto sin
+   * que la pantalla se lo hubiera dicho nunca (#22).
+   */
+  readonly cartHoldExpiresAt = computed<string | null>(() => {
+    const vencimientos = this.cartItems()
+      .map((item) => item.expiresAt)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .sort();
+    return vencimientos[0] ?? null;
+  });
+
+  readonly cartConfig = computed<CartShellConfig>(() => ({
+    heading: 'Tu carrito',
+    emptyMessage: 'Tu carrito está vacío.',
+    holdLabel: 'Tus entradas están apartadas',
+    holdExpiredLabel: 'El aforo apartado venció. Vuelve a elegir tus entradas.',
+  }));
+
+  readonly cartActions = computed<readonly CartAction[]>(() => [
+    { id: 'catalog', label: 'Explorar eventos', visibility: 'empty' },
+    { id: 'back', label: 'Volver', visibility: 'filled' },
+    { id: 'checkout', label: 'Continuar al pago', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  onCartAction(id: string): void {
+    switch (id) {
+      case 'catalog':
+        this.goToCatalog();
+        break;
+      case 'back':
+        this.backToEvent();
+        break;
+      case 'checkout':
+        this.goToCheckout();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Venció el apartado: se repregunta el precio, que es lo que destapa el cupo. */
+  onCartHoldExpired(): void {
     this.reprice();
   }
 
