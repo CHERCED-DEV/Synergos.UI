@@ -20,6 +20,11 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationFact,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   AuthoringWizardComponent,
   CheckoutWizardComponent,
   ConsoleShellComponent,
@@ -230,6 +235,7 @@ let realtyInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -336,6 +342,75 @@ export class RealtyElementComponent {
    * Es distinto de `unauthenticated` (la cuenta del comprador): son dos caras y dos verdades.
    */
   readonly agentAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
+
+  // ─── Confirmación (SH-11) ───────────────────────────────────────────────────
+  // Dos desenlaces con la misma estructura. Lo que cambia es el rótulo del
+  // número y qué sigue: una visita tiene hora y sitio; un lead, una espera.
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() =>
+    this.confirmedVisit()
+      ? {
+          heading: '¡Visita agendada!',
+          summary: 'Te esperamos. Si no puedes, avísale al agente con tiempo.',
+          referenceLabel: 'Referencia de la visita',
+          stepsLabel: 'Qué sigue',
+          copyLabel: 'Copiar referencia',
+          copiedLabel: 'Referencia copiada',
+        }
+      : {
+          heading: '¡Mensaje enviado!',
+          summary: 'El agente responde normalmente el mismo día hábil.',
+          referenceLabel: 'Referencia',
+          stepsLabel: 'Qué sigue',
+          copyLabel: 'Copiar referencia',
+          copiedLabel: 'Referencia copiada',
+        },
+  );
+
+  readonly confirmationReference = computed(
+    () => this.confirmedVisit()?.id ?? this.confirmedLeadId() ?? '',
+  );
+
+  readonly confirmationFacts = computed<readonly ConfirmationFact[]>(() => {
+    const visit = this.confirmedVisit();
+    if (!visit) {
+      return [];
+    }
+    return [
+      { id: 'inmueble', label: 'Inmueble', value: visit.listingTitle },
+      {
+        id: 'cuando',
+        label: 'Cuándo',
+        value: `${this.formatDate(visit.slot.date)} a las ${visit.slot.time}`,
+      },
+      { id: 'modo', label: 'Modalidad', value: this.visitModeLabel(visit.mode) },
+    ];
+  });
+
+  readonly confirmationSteps = computed<readonly ConfirmationStep[]>(() =>
+    this.confirmedVisit()
+      ? [
+          { id: 'agendada', label: 'Visita agendada', done: true },
+          { id: 'recordatorio', label: 'Te recordamos el día anterior' },
+          { id: 'visita', label: 'El agente te recibe en el inmueble' },
+        ]
+      : [
+          { id: 'enviado', label: 'Mensaje enviado al agente', done: true },
+          { id: 'respuesta', label: 'El agente te contacta', detail: 'Normalmente el mismo día hábil.' },
+        ],
+  );
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'cuenta', label: 'Ver mi cuenta', kind: 'primary' },
+    { id: 'buscar', label: 'Seguir buscando' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'cuenta') {
+      this.goToAccount();
+      return;
+    }
+    this.startOver();
+  }
   /**
    * Contenedor del panel de acceso (el de la cuenta y el de la consola del agente). Los dos
    * declaran la misma ref `#signinPanel` y viven en caras mutuamente excluyentes

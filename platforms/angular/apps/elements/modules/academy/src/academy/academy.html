@@ -388,15 +388,16 @@
 
     <!-- ─── ENROLLED: bridge → aula ──────────────────────────────────────────── -->
     @if (view() === 'enrolled') {
-      <section class="academy__enrolled">
-        <p class="academy__enrolled-badge"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/></svg> Matrícula activa</p>
-        <h1 class="academy__enrolled-title">¡Ya estás inscrito!</h1>
-        <p class="academy__enrolled-ref">Inscripción <code>{{ enrollmentId() }}</code></p>
-        <div class="academy__actions">
-          <button type="button" class="academy__btn academy__btn--primary" (click)="enterClassroom()">Ir al aula</button>
-          <button type="button" class="academy__btn academy__btn--ghost" (click)="goToLearning()">Mi aprendizaje</button>
-        </div>
-      </section>
+      <!-- SH-11 (#19). Acá el «qué sigue» importa más que en otros dominios: la
+           matrícula no sirve de nada si la persona no entra al aula, y ése es el
+           momento en que decide si lo hace. -->
+      <syn-confirmation-shell
+        [config]="enrolledConfig()"
+        [reference]="enrollmentId()"
+        [steps]="enrolledSteps"
+        [actions]="enrolledActions"
+        (action)="onEnrolledAction($event)"
+      />
     }
 
     <!-- ─── AULA: player + currículum + progreso + Q&A + recursos + tarea ────── -->

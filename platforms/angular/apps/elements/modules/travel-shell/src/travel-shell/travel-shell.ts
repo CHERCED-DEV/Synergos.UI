@@ -19,6 +19,10 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   CheckoutWizardComponent,
   CredentialWalletComponent,
   DetailShellComponent,
@@ -167,6 +171,7 @@ let travelShellInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     SynSkeletonComponent,
@@ -251,6 +256,39 @@ export class TravelShellElementComponent {
 
   // ─── Router (signals + hash deep-links) ─────────────────────────────────────
   readonly view = signal<TravelView>('home');
+
+  // ─── Reserva confirmada (SH-11) ─────────────────────────────────────────────
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: 'Reserva confirmada',
+    summary: 'Guarda tus credenciales: son las que te piden en el check-in.',
+    referenceLabel: 'Código de reserva',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar código',
+    copiedLabel: 'Código copiado',
+  }));
+
+  readonly confirmationSteps: readonly ConfirmationStep[] = [
+    { id: 'pagado', label: 'Pago recibido', done: true },
+    { id: 'credenciales', label: 'Voucher y PNR emitidos', done: true },
+    {
+      id: 'checkin',
+      label: 'Presenta el código en el check-in',
+      detail: 'Lo tienes también en «Mis viajes».',
+    },
+  ];
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'viajes', label: 'Ver mis viajes', kind: 'primary' },
+    { id: 'otro', label: 'Planear otro viaje' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'viajes') {
+      this.goToAccount();
+      return;
+    }
+    this.startOver();
+  }
   readonly activeProduct = signal<TravelProduct>('hotel');
   readonly loading = signal(false);
   readonly errorMessage = signal('');

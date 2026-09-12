@@ -422,10 +422,9 @@
 
     <!-- ─── CONFIRMED: order + e-ticket QR por asistente ──────────────────── -->
     @if (view() === 'confirmed') {
-      <div class="eventos__confirmation">
-        <p class="eventos__confirm-badge">¡Compra confirmada!</p>
-        <p class="eventos__confirm-code">Orden {{ orderRef() }}</p>
-        <p class="eventos__confirm-order">Tus e-tickets están en "Mis tickets". Preséntalos en la entrada.</p>
+      <!-- SH-11 (#19). Las entradas con su QR son el ARTEFACTO del dominio y
+           entran por template: la pieza les hace sitio y no sabe qué son. -->
+      <ng-template #entradas>
         @if (tickets().length > 0) {
           <ul class="eventos__tickets">
             @for (ticket of tickets(); track ticket.id) {
@@ -442,12 +441,15 @@
             }
           </ul>
         }
-        <div class="eventos__actions">
-          <button type="button" class="eventos__btn eventos__btn--ghost" (click)="printTickets()">Imprimir</button>
-          <button type="button" class="eventos__btn eventos__btn--ghost" (click)="goToWallet()">Ver mis tickets</button>
-          <button type="button" class="eventos__btn eventos__btn--primary" (click)="startOver()">Explorar más eventos</button>
-        </div>
-      </div>
+      </ng-template>
+      <syn-confirmation-shell
+        [config]="confirmationConfig()"
+        [reference]="orderRef()"
+        [steps]="confirmationSteps"
+        [actions]="confirmationActions"
+        [artifactTemplate]="tickets().length > 0 ? entradas : null"
+        (action)="onConfirmationAction($event)"
+      />
     }
 
     <!-- ─── WALLET: SH-10 credential-wallet (e-ticket QR + transferir) ─────── -->

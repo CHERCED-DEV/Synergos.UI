@@ -17,6 +17,10 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   AuthoringWizardComponent,
   CheckoutWizardComponent,
   ConsoleShellComponent,
@@ -192,6 +196,7 @@ let eventosInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -333,6 +338,44 @@ export class EventosElementComponent {
    * degradar, y pintar datos de ejemplo mostraría asistentes a quien no debe verlos.
    */
   readonly organizerAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
+
+  // ─── Compra confirmada (SH-11) ──────────────────────────────────────────────
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: '¡Compra confirmada!',
+    summary: 'Tus entradas están listas. También las tienes en «Mis tickets».',
+    referenceLabel: 'Número de orden',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar orden',
+    copiedLabel: 'Orden copiada',
+  }));
+
+  readonly confirmationSteps: readonly ConfirmationStep[] = [
+    { id: 'pagado', label: 'Pago recibido', done: true },
+    { id: 'entradas', label: 'Tus entradas quedaron emitidas', done: true },
+    {
+      id: 'puerta',
+      label: 'Preséntalas en la entrada',
+      detail: 'Basta con el QR en el teléfono; no hace falta imprimir.',
+    },
+  ];
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'wallet', label: 'Ver mis tickets', kind: 'primary' },
+    { id: 'imprimir', label: 'Imprimir' },
+    { id: 'explorar', label: 'Explorar más eventos' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'wallet') {
+      this.goToWallet();
+      return;
+    }
+    if (id === 'imprimir') {
+      this.printTickets();
+      return;
+    }
+    this.startOver();
+  }
   readonly attendeeFilter = signal('');
   readonly checkinCode = signal('');
   readonly lastScan = signal<CheckInResult | null>(null);
