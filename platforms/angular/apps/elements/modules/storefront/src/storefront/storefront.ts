@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { HostIdentityService } from '@synergos/core';
 import {
   FulfillmentContext,
   OrchestratorService,
@@ -156,6 +157,7 @@ export class StorefrontElementComponent {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<StorefrontBus>>(TransactionEventBusService);
   readonly #api = inject(ShopApiClient);
+  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<StorefrontRuntimeConfig | undefined, unknown>(undefined, {
@@ -388,8 +390,16 @@ export class StorefrontElementComponent {
   });
 
   // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
-  readonly customerName = signal('');
-  readonly customerEmail = signal('');
+  // Arrancan desde el host: con sesión, el CMS ya dijo quién es en esta misma
+  // página. Pedírselo por formulario era pedirle dos veces lo mismo (#17).
+  // Siguen siendo editables — quien compra para otra persona cambia el nombre.
+  /** Hay sesión en el host. La cuenta lo dice en vez de pedir los datos a ciegas. */
+  readonly isAuthenticated = this.#identity.isAuthenticated;
+  /** Correo del miembro, para que la cuenta muestre con quién está trabajando. */
+  readonly memberEmail = this.#identity.email;
+
+  readonly customerName = signal(this.#identity.displayName());
+  readonly customerEmail = signal(this.#identity.email());
   readonly customerAddress = signal('');
   readonly customerCity = signal('');
   readonly paymentMethod = signal<'card' | 'pse'>('card');
