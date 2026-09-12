@@ -581,11 +581,13 @@
       <syn-console-shell
         [config]="consoleConfig()"
         [kpis]="consoleKpis()"
-        [rows]="queueCases()"
+        [rows]="consoleRows()"
         [columns]="consoleColumns"
         [filters]="consoleFilters()"
         [actions]="consoleActions"
         [loading]="loading()"
+        [defaultSort]="consoleDefaultSort"
+        [pageSize]="consolePageSize"
         [cellTemplate]="queueCell"
         (filterchange)="onConsoleFilterChange($event)"
         (rowaction)="onConsoleRowAction($event)"
@@ -600,7 +602,7 @@
           @case ('priority') {
             <span class="prio prio--{{ row.priority }}">{{ priorityLabel(row.priority) }}</span>
           }
-          @case ('sla') {
+          @case ('slaDaysLeft') {
             <span class="sla" [class.sla--overdue]="row.slaDaysLeft < 0">{{ slaLabel(row.slaDaysLeft) }}</span>
           }
           @case ('reference') { <strong>{{ row.reference }}</strong> }
