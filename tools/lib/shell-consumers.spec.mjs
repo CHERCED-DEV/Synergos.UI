@@ -17,14 +17,15 @@ import path from 'node:path';
  *    deja escrito porque es el caso que mejor mostró para qué sirve mirar esto:
  *    era el patrón puro escrito a mano, y la recomposición destapó que apartar y
  *    cobrar fallaban con el mismo mensaje.
- *  - `blogs` tiene una vista `write` (editor de artículo largo) y no monta SH-6
- *    authoring-wizard, que es exactamente esa pieza y usan otros cuatro.
+ *  - ~~`blogs` no montaba SH-6 teniendo una vista `write`~~ — **recompuesto**
+ *    (#26), y ahí estaba lo caro: el editor no persistía nada y publicar BORRABA
+ *    el texto por un camino que nunca fallaba.
  *  - `travel-shell` tiene tres buscadores y no monta SH-1 discovery.
  *
- * Ninguna de las dos que quedan es un defecto por sí sola —puede haber razones—
- * pero entraron **en silencio**, y una pieza que nadie monta es una decisión
- * pendiente disfrazada de activo. En este repo, lo que no tiene gate diverge:
- * es la lección que el árbol de servicios ya pagó con `ApiMoldTests`.
+ * La que queda no es un defecto por sí sola —puede haber razones— pero entró
+ * **en silencio**, y una pieza que nadie monta es una decisión pendiente
+ * disfrazada de activo. En este repo, lo que no tiene gate diverge: es la
+ * lección que el árbol de servicios ya pagó con `ApiMoldTests`.
  *
  * Lo que vigila: que cada shell del catálogo tenga al menos un consumidor real
  * —montado en una plantilla, no sólo importado—. Un import no es consumo: un

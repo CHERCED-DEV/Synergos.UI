@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Cuatro reglas que costaron caro y no se deducen leyendo el código:**
+**Cinco reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -130,7 +130,15 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    veces, uno por tema, con la tinta invertida donde toca. **En desarrollo NO se ve**: el
    fallback Sass es sólido y sin el CSS del CMS el botón sale perfecto. Lo vigila
    `shell-cta-tokens` (#25).
-4. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+4. **Degradar una LECTURA a mock no miente; degradar una ESCRITURA sí.** Un feed de ejemplo
+   con su cartel no engaña a nadie; un «publicado» de ejemplo le dice a quien escribió que su
+   texto está guardado cuando el servidor no tiene nada — y el llamador, que sólo recibía un
+   `Post`, no podía distinguirlos. Publicar devuelve `persisted` y quien llama decide (#26).
+   El mismo criterio vale para **SH-6 y su borrador**: no emite `draftchange` al rehidratar,
+   así que el espejo del dominio hay que sembrarlo a mano —y el effect que lo hace tiene que
+   depender del BORRADOR, no de que el wizard exista, porque el orden entre los dos effects
+   no está garantizado—.
+5. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
