@@ -654,10 +654,10 @@
 
   <!-- ═══ CONFIRMATION ═════════════════════════════════════════════════════ -->
   @if (view() === 'confirmation') {
-    <div class="storefront__confirmation">
-      <p class="storefront__confirm-badge">Compra confirmada</p>
-      <p class="storefront__confirm-code">{{ orderNumber() }}</p>
-      <p class="storefront__confirm-order">Guarda este número para seguir tu pedido.</p>
+    <!-- SH-11 (#19). Los vales por línea son del dominio —un pedido de marketplace
+         trae una referencia por vendedor— así que entran por el template del
+         artefacto; el número del pedido y los pasos los pone la pieza. -->
+    <ng-template #vales>
       @if (confirmedItems().length > 0) {
         <ul class="storefront__vouchers">
           @for (voucher of confirmedItems(); track voucher.reference) {
@@ -668,11 +668,15 @@
           }
         </ul>
       }
-      <div class="storefront__actions">
-        <button type="button" class="storefront__btn storefront__btn--ghost" (click)="goToAccount()">Ver mis compras</button>
-        <button type="button" class="storefront__btn storefront__btn--primary" (click)="startOver()">Seguir comprando</button>
-      </div>
-    </div>
+    </ng-template>
+    <syn-confirmation-shell
+      [config]="confirmationConfig()"
+      [reference]="orderNumber()"
+      [steps]="confirmationSteps"
+      [actions]="confirmationActions"
+      [artifactTemplate]="confirmedItems().length > 0 ? vales : null"
+      (action)="onConfirmationAction($event)"
+    />
   }
 
   <!-- ═══ ACCOUNT: SH-4 account-shell (compras + tracking + wishlist + msgs) ═ -->
