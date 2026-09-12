@@ -319,9 +319,22 @@
         [summary]="cartSummary()"
         [actions]="cartActions()"
         [holdExpiresAt]="cartHoldExpiresAt()"
+        [footerTemplate]="promoSlot"
         (action)="onCartAction($event)"
         (holdexpired)="onCartHoldExpired()"
       />
+
+      <!-- El cupón, dentro del panel y sobre el total (#29). -->
+      <ng-template #promoSlot>
+        <syn-promo-code
+          [applied]="appliedPromo()"
+          [busy]="promoBusy()"
+          [rejection]="promoRejection()"
+          [rejectionDetail]="promoDetail()"
+          (apply)="applyPromo($event)"
+          (remove)="removePromo()"
+        />
+      </ng-template>
     }
 
     <!-- ─── CHECKOUT: SH-3 checkout-wizard sobre el engine ────────────────── -->

@@ -95,6 +95,152 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   });
 
   // ── empty: pristine storefront, home view, cart empty ────────────────────────
+  /** Deja un producto en el carrito para poder descontar sobre algo. */
+  async function agregarAlCarrito(): Promise<void> {
+    component.quickAdd(PRODUCT_A);
+    await flushMicrotasks();
+    fixture.detectChanges();
+  }
+
+  // ── cupones y descuentos (#29) ───────────────────────────────────────────────
+  //
+  // El motor soportaba la línea negativa desde el primer día y ningún dominio la
+  // emitía. Lo que estos casos guardan: que el descuento se VEA en el resumen, que
+  // no se dé por aplicado sin el servidor, y que el total nunca quede bajo cero.
+  function respuestaPromo(body: unknown, status = 200): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          json: () => Promise.resolve(body),
+        } as Response),
+      ),
+    );
+  }
+
+  it('un cupón aceptado entra como línea NEGATIVA y baja el total', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+
+    const antes = component.cartTotalMinor();
+    expect(antes).toBeGreaterThan(0);
+
+    respuestaPromo({ code: 'BIENVENIDA10', amountMinor: 500_000, label: 'Cupón BIENVENIDA10' });
+    await component.applyPromo('BIENVENIDA10');
+
+    expect(component.promo()?.code).toBe('BIENVENIDA10');
+    // El backend mandó el descuento en POSITIVO; se fuerza el signo, porque
+    // sumarlo se vería como un cargo sorpresa.
+    expect(component.promo()?.amountMinor).toBe(-500_000);
+    expect(component.cartTotalMinor()).toBe(antes - 500_000);
+
+    // Y se VE: un total más bajo sin la línea que lo explica se lee como un error
+    // de precio.
+    const filas = component.cartSummaryRows().map((f) => f.id);
+    expect(filas).toEqual(['subtotal', 'promo', 'total']);
+  });
+
+  it('quitar el cupón devuelve el total anterior', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+    const antes = component.cartTotalMinor();
+
+    respuestaPromo({ code: 'X', amountMinor: 100_000, label: 'Cupón X' });
+    await component.applyPromo('X');
+    expect(component.cartTotalMinor()).toBe(antes - 100_000);
+
+    component.removePromo();
+    expect(component.promo()).toBeNull();
+    expect(component.cartTotalMinor()).toBe(antes);
+    expect(component.cartSummaryRows()).toEqual([]);
+  });
+
+  it('un descuento mayor que el carrito NO deja el total bajo cero', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+
+    respuestaPromo({ code: 'TODO', amountMinor: 999_999_999, label: 'Cupón TODO' });
+    await component.applyPromo('TODO');
+
+    // Un carrito que se debe a sí mismo no es un carrito, y el checkout lo
+    // cobraría como un importe negativo.
+    expect(component.cartTotalMinor()).toBe(0);
+  });
+
+  it('EL caso: un 200 sin descuento utilizable NO es un cupón aplicado', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+    const antes = component.cartTotalMinor();
+
+    // El servidor contesta OK y no manda importe.
+    respuestaPromo({ code: 'VACIO' });
+    await component.applyPromo('VACIO');
+
+    // Decir que sí dejaría el total igual y al comprador creyendo que ahorró.
+    expect(component.promo()).toBeNull();
+    expect(component.promoRejection()).toBe('unknown');
+    expect(component.cartTotalMinor()).toBe(antes);
+  });
+
+  it('el mínimo no alcanzado dice CUÁNTO falta', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+
+    respuestaPromo({ reason: 'minimum-not-met', shortfallMinor: 1_200_000 }, 422);
+    await component.applyPromo('GRANDE');
+
+    expect(component.promoRejection()).toBe('minimum-not-met');
+    // Es lo único accionable de ese rechazo.
+    expect(component.promoDetail()).toContain('12.000');
+  });
+
+  it('cada estado del servidor tiene su motivo', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+
+    const casos: Array<[number, unknown, string]> = [
+      [404, null, 'unknown'],
+      [410, null, 'expired'],
+      [409, null, 'already-used'],
+      [422, { reason: 'not-applicable' }, 'not-applicable'],
+      [500, null, 'failed'],
+    ];
+    for (const [status, body, esperado] of casos) {
+      respuestaPromo(body, status);
+      await component.applyPromo('X');
+      expect(component.promoRejection()).toBe(esperado);
+    }
+  });
+
+  it('con el endpoint caído NO se aplica nada', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await agregarAlCarrito();
+    const antes = component.cartTotalMinor();
+
+    await component.applyPromo('LOQUESEA');
+
+    // Un descuento fingido acá es una promesa de plata que el checkout rompe.
+    expect(component.promo()).toBeNull();
+    expect(component.promoRejection()).toBe('failed');
+    expect(component.cartTotalMinor()).toBe(antes);
+  });
+
   it('starts on the home with an empty cart and degraded mock rails (empty case)', async () => {
     installMemoryStorage();
     // Offline → mock catalogue; still a valid empty cart.

@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -56,6 +57,9 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  PromoCodeComponent,
+  type AppliedPromo,
+  type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
@@ -87,6 +91,7 @@ import {
   type TierSelectionPayload,
   type VenueZone,
   type WalletTicket,
+  type EventPromo,
 } from './eventos.model';
 
 /**
@@ -203,6 +208,7 @@ let eventosInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
+    PromoCodeComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -515,7 +521,10 @@ export class EventosElementComponent {
     this.#store.items().reduce((sum, item) => sum + item.amount * item.quantity, 0),
   );
   readonly feesMinor = computed(() => Math.round((this.cartSubtotalMinor() * this.feePercent()) / 100));
-  readonly cartTotalMinor = computed(() => this.cartSubtotalMinor() + this.feesMinor());
+  readonly cartTotalMinor = computed(() =>
+    // Con el cupón restado y con suelo en cero — mismo criterio que `reprice()`.
+    Math.max(0, this.cartSubtotalMinor() + this.feesMinor() + this.promoMinor()),
+  );
   readonly cartSubtotalLabel = computed(() =>
     this.formatPrice(this.cartSubtotalMinor() / 100, this.currency()),
   );
@@ -1205,11 +1214,24 @@ export class EventosElementComponent {
    * quien compra una entrada tiene derecho a ver cuánto de lo que paga NO es la
    * entrada. La pieza sólo las pinta — los importes los calcula este dominio.
    */
-  readonly cartSummary = computed<readonly CartSummaryRow[]>(() => [
-    { id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() },
-    { id: 'fees', label: `Cargos por servicio (${this.feePercent()}%)`, value: this.feesLabel() },
-    { id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true },
-  ]);
+  readonly cartSummary = computed<readonly CartSummaryRow[]>(() => {
+    const filas: CartSummaryRow[] = [
+      { id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() },
+      { id: 'fees', label: `Cargos por servicio (${this.feePercent()}%)`, value: this.feesLabel() },
+    ];
+    const promo = this.promo();
+    if (promo) {
+      // El descuento se VE: un total más bajo sin la línea que lo explica se lee
+      // como un error de precio.
+      filas.push({
+        id: 'promo',
+        label: promo.label,
+        value: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      });
+    }
+    filas.push({ id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true });
+    return filas;
+  });
 
   /**
    * El aforo apartado vence solo. Esta vista se declaraba desde el primer día
@@ -1738,7 +1760,10 @@ export class EventosElementComponent {
     const items = this.#store.items();
     const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
     const fees = Math.round((subtotal * this.feePercent()) / 100);
-    const total = subtotal + fees;
+    const promo = this.promo();
+    // El descuento se aplica sobre subtotal + cargos, y nunca deja el total bajo
+    // cero: un carrito que se debe a sí mismo lo cobraría el checkout en negativo.
+    const total = Math.max(0, subtotal + fees + (promo?.amountMinor ?? 0));
     this.#store.setPricing({
       currency: this.currency(),
       totalAmount: total,
@@ -1750,8 +1775,64 @@ export class EventosElementComponent {
           amount: item.amount * item.quantity,
         })),
         ...(fees > 0 ? [{ code: 'fees', label: 'Cargos por servicio', amount: fees }] : []),
+        // La línea NEGATIVA que el motor esperaba desde el primer día.
+        ...(promo ? [{ code: `promo:${promo.code}`, label: promo.label, amount: promo.amountMinor }] : []),
       ],
     });
+  }
+
+  // ─── Cupones: `syn-promo-code` (#29) ────────────────────────────────────────
+  readonly promoControl = viewChild(PromoCodeComponent);
+  readonly promo = signal<EventPromo | null>(null);
+  readonly promoBusy = signal(false);
+  readonly promoRejection = signal<PromoRejection | null>(null);
+  readonly promoDetail = signal('');
+
+  readonly appliedPromo = computed<AppliedPromo | null>(() => {
+    const promo = this.promo();
+    if (!promo) {
+      return null;
+    }
+    return {
+      code: promo.code,
+      discountLabel: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      ...(promo.detail ? { detail: promo.detail } : {}),
+    };
+  });
+
+  readonly promoMinor = computed(() => this.promo()?.amountMinor ?? 0);
+
+  async applyPromo(code: string): Promise<void> {
+    if (this.promoBusy()) {
+      return;
+    }
+    this.promoBusy.set(true);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+
+    const result = await this.#api.applyPromo(this.apiBase(), code, this.cartSubtotalMinor());
+    this.promoBusy.set(false);
+
+    if (result.ok) {
+      this.promo.set(result.promo);
+      this.promoControl()?.clear();
+      this.reprice();
+      return;
+    }
+
+    this.promoRejection.set(result.reason);
+    if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
+      this.promoDetail.set(
+        `Te faltan ${this.formatPrice(result.shortfallMinor / 100, this.currency())}.`,
+      );
+    }
+  }
+
+  removePromo(): void {
+    this.promo.set(null);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+    this.reprice();
   }
 
   formatPrice(amount: number, currency: string): string {
