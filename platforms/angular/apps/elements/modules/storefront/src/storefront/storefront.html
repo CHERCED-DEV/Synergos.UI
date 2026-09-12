@@ -783,7 +783,14 @@
         @case ('perfil') {
           <fieldset class="storefront__form">
             <legend class="storefront__heading">Mis datos</legend>
-            <p class="storefront__notice">Estos datos prellenan el checkout.</p>
+            @if (isAuthenticated()) {
+              <p class="storefront__notice">
+                Sesión iniciada como <strong>{{ memberEmail() }}</strong>. Estos datos prellenan el
+                checkout y puedes cambiarlos si compras para otra persona.
+              </p>
+            } @else {
+              <p class="storefront__notice">Estos datos prellenan el checkout.</p>
+            }
             <label class="storefront__field">
               <span class="storefront__label">Nombre completo</span>
               <input class="storefront__input" type="text" [value]="customerName()" (input)="bind(customerName.set)($event)" />

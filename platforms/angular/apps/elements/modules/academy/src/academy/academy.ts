@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { HostIdentityService } from '@synergos/core';
 import {
   FulfillmentContext,
   OrchestratorService,
@@ -219,6 +220,7 @@ export class AcademyElementComponent {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<AcademyBus>>(TransactionEventBusService);
   readonly #api = inject(AcademyApiClient);
+  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<AcademyRuntimeConfig | undefined, unknown>(undefined, {
@@ -274,6 +276,33 @@ export class AcademyElementComponent {
 
   // ─── Role / shell state ──────────────────────────────────────────────────────
   readonly role = signal<AcademyRole>(DEFAULT_ROLE);
+
+  /**
+   * Si esta persona puede ver la consola del instructor, **según el host**.
+   *
+   * El backend ya lo gatea (`InstructorRolesCsv = "instructor,admin"`), así que
+   * hasta ahora la app lo descubría fallando: pedía el panel y traducía el 403.
+   * Con los roles del bridge se sabe antes, y el botón «Soy instructor» deja de
+   * ofrecer una puerta que no se puede abrir (#17).
+   *
+   * - `'ok'`      — tiene el rol, o no hay host (standalone / demo / tests), que
+   *                 es el camino por el que un elemento se monta fuera del CMS y
+   *                 no se negocia: sin bridge, todo se comporta como antes.
+   * - `'anon'`    — hay host y no hay sesión → ofrecer entrar.
+   * - `'forbidden'` — hay sesión sin el rol → **entrar de nuevo NO ayuda**, y
+   *                 decir «inicie sesión» ahí manda a la persona a dar vueltas.
+   *
+   * Autorizar sigue siendo del backend: esto decide qué se OFRECE, no qué se
+   * puede. Un 403 suyo sigue siendo la última palabra.
+   */
+  readonly instructorAccess = computed<'ok' | 'anon' | 'forbidden'>(() => {
+    if (!this.#identity.isAuthenticated()) {
+      // Sin miembro no se puede distinguir «no hay host» de «no hay sesión»
+      // mirando sólo el miembro: lo decide el bridge entero.
+      return this.#identity.hasHost() ? 'anon' : 'ok';
+    }
+    return this.#identity.hasAnyRole('instructor', 'admin') ? 'ok' : 'forbidden';
+  });
   readonly loading = signal(false);
   readonly errorMessage = signal('');
   #suppressedHash = '';
@@ -294,8 +323,9 @@ export class AcademyElementComponent {
 
   // Enrolment checkout (SH-3 wizard)
   readonly selectedPlanId = signal('');
-  readonly studentName = signal('');
-  readonly studentEmail = signal('');
+  // Prellenados desde el host: con sesión, el CMS ya dijo quién es (#17).
+  readonly studentName = signal(this.#identity.displayName());
+  readonly studentEmail = signal(this.#identity.email());
   readonly paymentMethod = signal<'card' | 'pse'>('card');
 
   // Enrolment result
