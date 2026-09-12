@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Cinco reglas que costaron caro y no se deducen leyendo el código:**
+**Seis reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -138,7 +138,11 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    así que el espejo del dominio hay que sembrarlo a mano —y el effect que lo hace tiene que
    depender del BORRADOR, no de que el wizard exista, porque el orden entre los dos effects
    no está garantizado—.
-5. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+5. **Un test que llama al MÉTODO no ve que falte el llamador.** `addCarToCart` existía y
+   ninguna plantilla lo invocaba, así que el auto era inalcanzable; un spec que hiciera
+   `component.addCarToCart(...)` pasaba en verde con el botón quitado. Cuando lo que se
+   arregla es *que algo sea alcanzable*, el test pulsa el botón (#27).
+6. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que

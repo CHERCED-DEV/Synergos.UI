@@ -163,6 +163,10 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
       label: offer.title,
       amount: offer.amount,
       selection: { ...offer.detail, currency: offer.currency, subtitle: offer.subtitle },
+      // `meta` es el ÚNICO camino de vuelta: la app reconstruye su `TravelOffer`
+      // campo por campo desde acá (`runSearch`), así que lo que no viaje en esta
+      // lista se pierde en silencio. Por eso están enumerados geo/fares/rating y
+      // por eso hubo que añadir los del auto (#27).
       meta: {
         subtitle: offer.subtitle,
         badges: offer.badges,
@@ -171,6 +175,8 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
         fareFamilies: offer.fareFamilies,
         stayId: offer.stayId,
         rating: offer.rating,
+        carCategory: offer.carCategory,
+        carTransmission: offer.carTransmission,
       },
     };
   }

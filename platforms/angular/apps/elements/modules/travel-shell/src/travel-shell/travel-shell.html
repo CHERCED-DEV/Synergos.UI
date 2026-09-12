@@ -366,6 +366,64 @@
     </div>
   }
 
+  <!-- ═══ AUTOS: SH-1 discovery-shell (orden + facetas) ════════════════════
+       La superficie que el auto no tenía: buscar uno caía en la vista de VUELOS
+       y `addCarToCart` no tenía un solo llamador (#27). Y trae lo que ninguna
+       lista de esta app tenía — poder ordenar por precio. -->
+  @if (view() === 'cars') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Autos disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
+      </div>
+
+      <syn-discovery-shell
+        [config]="carConfig()"
+        [items]="carResults()"
+        [facets]="carFacets()"
+        [sortOptions]="carSortOptions"
+        [criteria]="carCriteria()"
+        [loading]="loading()"
+        [itemTemplate]="carCard"
+        (criteriachange)="onCarCriteriaChange($event)"
+      />
+
+      <ng-template #carCard let-offer>
+        <article class="travel__car-card">
+          <span class="travel__car-icon travel__icon" aria-hidden="true">
+            <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: 'car' }"></ng-container>
+          </span>
+          <div class="travel__car-body">
+            <h3 class="travel__car-title">{{ offer.title }}</h3>
+            <p class="travel__car-sub">{{ offer.subtitle }}</p>
+            @if (offer.badges.length > 0) {
+              <ul class="travel__chips">
+                @for (badge of offer.badges; track badge) {
+                  <li class="travel__chip">{{ badge }}</li>
+                }
+              </ul>
+            }
+          </div>
+          <div class="travel__car-aside">
+            <span class="travel__car-price">
+              <span class="travel__flight-from">desde</span>
+              <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+            </span>
+            <!-- El llamador que faltaba: sin esto el auto era inalcanzable. -->
+            <button
+              type="button"
+              class="travel__btn travel__btn--sm travel__btn--primary"
+              [attr.aria-label]="'Agregar ' + offer.title + ' al viaje'"
+              (click)="addCarToCart(offer)"
+            >
+              Agregar al viaje
+            </button>
+          </div>
+        </article>
+      </ng-template>
+    </div>
+  }
+
   <!-- ═══ ESTADÍA (ficha): SH-2 detail-shell (galería + amenities + specs) ═ -->
   @if (view() === 'stay') {
     @if (stay(); as detail) {

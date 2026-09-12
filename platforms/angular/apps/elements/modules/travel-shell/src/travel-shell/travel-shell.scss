@@ -890,3 +890,52 @@
     animation: none;
   }
 }
+
+/* ── Autos: tarjeta de resultado dentro de SH-1 (#27) ─────────────────────────
+   SH-1 trae la rejilla, el orden y las facetas; acá va sólo la tarjeta. */
+.travel__car-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--ts-border);
+  border-radius: syn.$radius-lg;
+  background: var(--ts-surface);
+}
+
+.travel__car-icon {
+  flex: 0 0 auto;
+  color: var(--ts-brand);
+}
+
+.travel__car-body {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.travel__car-title {
+  margin: 0;
+  font-size: syn.$font-size-base;
+  font-weight: 700;
+}
+
+.travel__car-sub {
+  margin: syn.px-to-rem(2) 0 0;
+  font-size: syn.$font-size-sm;
+  color: var(--ts-text-secondary);
+}
+
+.travel__car-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: syn.$space-2;
+}
+
+.travel__car-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
