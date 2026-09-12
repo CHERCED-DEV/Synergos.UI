@@ -683,7 +683,28 @@
   }
 
   <!-- ═══════════════════════════════ INSTRUCTOR ═══════════════════════════════ -->
-  @if (role() === 'instructor') {
+  @if (role() === 'instructor' && instructorAccess() !== 'ok') {
+    <!-- Panel de acceso. Un 401 y un 403 NO dicen lo mismo y no se responden
+         igual: sin sesión hay que ofrecer entrar; con sesión y sin el rol,
+         volver a entrar no cambia nada y mandarlo al login es hacerle dar
+         vueltas. Es la misma doctrina que gov/eventos/realty ya aplican
+         traduciendo el rechazo del backend — acá se sabe ANTES (#17). -->
+    <section class="academy__access" role="status">
+      @if (instructorAccess() === 'anon') {
+        <h2 class="academy__heading">Inicia sesión para entrar a tu consola</h2>
+        <p class="academy__notice">La consola del instructor necesita una sesión iniciada.</p>
+        <a class="academy__btn academy__btn--primary" href="/account/login">Iniciar sesión</a>
+      } @else {
+        <h2 class="academy__heading">Tu cuenta no tiene acceso de instructor</h2>
+        <p class="academy__notice">
+          Hay una sesión iniciada, pero sin permiso de instructor. Volver a entrar no cambia
+          eso — pídele acceso a quien administra la plataforma.
+        </p>
+      }
+    </section>
+  }
+
+  @if (role() === 'instructor' && instructorAccess() === 'ok') {
     @if (instructorView() === 'create') {
       <section class="academy__create">
         <button type="button" class="academy__back" (click)="onCreateExit()"><svg class="academy__ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Volver a la consola</button>
