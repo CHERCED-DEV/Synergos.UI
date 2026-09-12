@@ -698,6 +698,52 @@
           } @else {
             <p class="case__closed">Caso cerrado. No admite más acciones.</p>
           }
+
+          <!-- Poner en conocimiento (HU CMS#62 · #20). Va junto a la decisión y no
+               en otra pantalla porque es lo que se hace DESPUÉS de decidir: el acto
+               es la decisión puesta en conocimiento del ciudadano, y separarlos
+               invita a decidir y no notificar. -->
+          <h2 class="tracking__section-title">Notificar un acto</h2>
+          @if (notifyDone()) {
+            <p class="acto__acuse" role="status">
+              Acto notificado. El término empezará a correr cuando el ciudadano lo abra —
+              todavía no.
+            </p>
+          } @else {
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Título del acto</span>
+              <input
+                class="gv-input"
+                type="text"
+                [value]="notifyTitle()"
+                (input)="bind(notifyTitle.set)($event)"
+              />
+            </label>
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Texto del acto</span>
+              <textarea
+                class="gv-textarea"
+                rows="4"
+                [value]="notifyBody()"
+                (input)="bind(notifyBody.set)($event)"
+              ></textarea>
+            </label>
+            <button
+              type="button"
+              class="gv-btn gv-btn--brand gv-btn--block"
+              [disabled]="!canNotify() || notifying()"
+              (click)="onNotifyAct(kase)"
+            >
+              {{ notifying() ? 'Notificando…' : 'Poner en conocimiento' }}
+            </button>
+            <p class="ficha__cta-hint">
+              El destinatario sale del expediente, no de este formulario. El ciudadano verá
+              el título; el texto solo cuando abra.
+            </p>
+          }
+          @if (notifyError()) {
+            <p class="acto__error" role="alert">{{ notifyError() }}</p>
+          }
         </aside>
       </div>
     </section>

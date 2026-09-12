@@ -55,8 +55,8 @@ import {
   type ApplicationStatus,
   type ApplicationSummary,
   type GovActNotification,
-  type DecisionOutcome,
   type GovCase,
+  type DecisionOutcome,
   type GovForm,
   type GovRole,
   type GovService,
@@ -417,6 +417,52 @@ export class GovElementComponent {
     { id: 'ver', label: 'Ver mi solicitud', kind: 'primary' },
     { id: 'catalogo', label: 'Volver al catálogo' },
   ];
+
+  // ─── Ventanilla: poner un acto en conocimiento ──────────────────────────────
+  readonly notifyTitle = signal('');
+  readonly notifyBody = signal('');
+  readonly notifying = signal(false);
+  readonly notifyDone = signal(false);
+  readonly notifyError = signal('');
+
+  readonly canNotify = computed(() => this.notifyTitle().trim().length >= 3);
+
+  /**
+   * Notificar NO se degrada, al revés que la bandeja del ciudadano.
+   *
+   * Decirle a un funcionario que el acto salió cuando no salió deja a la entidad
+   * creyendo que un término corre. Cuando no se puede probar quién notifica, es
+   * mejor que falle a la vista — es la misma razón por la que `Api.Messaging` no
+   * reintenta sin firmar mientras la bitácora sí.
+   */
+  async onNotifyAct(kase: GovCase): Promise<void> {
+    if (!this.canNotify() || this.notifying()) {
+      return;
+    }
+    this.notifyError.set('');
+    this.notifying.set(true);
+    try {
+      await this.#api.notifyAct(this.apiBase(), {
+        caseId: kase.application.id,
+        title: this.notifyTitle().trim(),
+        body: this.notifyBody(),
+      });
+      this.notifyDone.set(true);
+      this.notifyTitle.set('');
+      this.notifyBody.set('');
+    } catch (error) {
+      // El 409 del backend es el caso que hay que explicar, no esconder: un
+      // expediente sin Member detrás no se puede notificar electrónicamente,
+      // porque dejaría escrito un término que nadie puede empezar a contar.
+      this.notifyError.set(
+        'No se pudo notificar. Si el expediente no tiene un ciudadano con sesión, ' +
+          'no admite notificación electrónica y hay que hacerlo por el canal físico.',
+      );
+      void error;
+    } finally {
+      this.notifying.set(false);
+    }
+  }
 
   // ─── Bandeja de actos ───────────────────────────────────────────────────────
 
