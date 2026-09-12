@@ -20,6 +20,12 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CartShellComponent,
+  type CartAction,
+  type CartGroup,
+  type CartLine,
+  type CartQuantityChange,
+  type CartShellConfig,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationShellConfig,
@@ -144,6 +150,7 @@ let storefrontInstanceId = 0;
     CheckoutWizardComponent,
     AccountShellComponent,
     ConfirmationShellComponent,
+    CartShellComponent,
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -393,6 +400,99 @@ export class StorefrontElementComponent {
       totalMinor: items.reduce((sum, item) => sum + item.amount * item.quantity, 0),
     }));
   });
+
+  // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
+  // La vitrina es la pieza; acá sólo se traduce el motor a sus datos. Todos los
+  // importes salen YA formateados: la pieza no hace aritmética a propósito, y el
+  // total de esta tienda lo decide `reprice()`, no una suma de la plantilla.
+  readonly cartLines = computed<readonly CartLine[]>(() =>
+    this.cartItems().map((item) => ({
+      id: item.id,
+      label: this.itemLineLabel(item),
+      unit: `${this.itemUnitLabel(item)} c/u`,
+      total: this.itemLineTotalLabel(item),
+      quantity: item.quantity,
+      groupId: this.itemString(item.selection, 'seller') || DEFAULT_SELLER_GROUP,
+    })),
+  );
+
+  readonly cartGroupHeaders = computed<readonly CartGroup[]>(() =>
+    this.cartGroups().map((group) => ({
+      id: group.seller,
+      label: `Vendido por ${group.seller}`,
+      total: this.groupTotalLabel(group),
+    })),
+  );
+
+  /**
+   * El vencimiento más cercano de las líneas apartadas. El más cercano y no el
+   * del carrito: el primero que se muera se lleva la compra entera, así que
+   * enseñar cualquier otro sería prometer un tiempo que no existe.
+   */
+  readonly cartHoldExpiresAt = computed<string | null>(() => {
+    const vencimientos = this.cartItems()
+      .map((item) => item.expiresAt)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .sort();
+    return vencimientos[0] ?? null;
+  });
+
+  readonly cartPageConfig = computed<CartShellConfig>(() => ({
+    heading: 'Tu carrito',
+    emptyMessage: 'Tu carrito está vacío.',
+    holdLabel: 'Tenemos tus artículos reservados',
+    holdExpiredLabel: 'La reserva venció. Vuelve a agregar los artículos para continuar.',
+  }));
+
+  readonly cartDrawerConfig = computed<CartShellConfig>(() => ({
+    ...this.cartPageConfig(),
+    heading: 'Carrito',
+    density: 'drawer',
+    closeLabel: 'Cerrar carrito',
+  }));
+
+  readonly cartPageActions = computed<readonly CartAction[]>(() => [
+    { id: 'continue', label: 'Seguir comprando', visibility: 'always' },
+    { id: 'checkout', label: 'Continuar compra', kind: 'primary' },
+  ]);
+
+  readonly cartDrawerActions = computed<readonly CartAction[]>(() => [
+    { id: 'view', label: 'Ver carrito' },
+    { id: 'checkout', label: 'Ir a pagar', kind: 'primary' },
+  ]);
+
+  onCartAction(id: string): void {
+    switch (id) {
+      case 'continue':
+        this.continueShopping();
+        break;
+      case 'view':
+        this.goToCart();
+        break;
+      case 'checkout':
+        this.goToCheckout();
+        break;
+      default:
+        break;
+    }
+  }
+
+  onCartQuantity(change: CartQuantityChange): void {
+    const item = this.cartItems().find((i) => i.id === change.id);
+    if (item) {
+      this.setLineQuantity(item, change.quantity);
+    }
+  }
+
+  /**
+   * El apartado venció mientras la persona miraba el carrito. No se vacía solo
+   * —borrarle la selección sin avisar es peor que la selección muerta— pero sí
+   * se repregunta el precio: es lo que destapa que ya no hay existencias.
+   */
+  onCartHoldExpired(): void {
+    this.reprice();
+    this.emitCartUpdate();
+  }
 
   // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
   // Arrancan desde el host: con sesión, el CMS ya dijo quién es en esta misma
@@ -1031,14 +1131,6 @@ export class StorefrontElementComponent {
         this.cartOpen.set(true);
         this.emitCartUpdate();
       });
-  }
-
-  incrementLine(item: SessionItem): void {
-    this.setLineQuantity(item, item.quantity + 1);
-  }
-
-  decrementLine(item: SessionItem): void {
-    this.setLineQuantity(item, item.quantity - 1);
   }
 
   private setLineQuantity(item: SessionItem, quantity: number): void {

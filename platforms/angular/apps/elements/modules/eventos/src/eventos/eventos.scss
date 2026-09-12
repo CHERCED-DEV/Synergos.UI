@@ -639,39 +639,10 @@
     gap: syn.$space-md;
   }
 
-  &__cart-lines {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-sm;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
 
-  &__cart-line {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-md;
-    padding: syn.$space-sm 0;
-    border-bottom: syn.px-to-rem(1) solid var(--ev-border-subtle);
-  }
 
-  &__cart-line-name {
-    margin: 0;
-    font-weight: 600;
-  }
 
-  &__cart-line-qty {
-    margin: syn.$space-xxs 0 0;
-    font-size: syn.px-to-rem(13);
-    color: var(--ev-muted);
-  }
 
-  &__cart-line-total {
-    margin: 0;
-    font-weight: 700;
-  }
 
   &__cart-summary {
     display: flex;

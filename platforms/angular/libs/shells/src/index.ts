@@ -15,6 +15,20 @@
 //  - SH-8 `syn-results-map`      — geo tiles + clustering + viewport sync
 //  - SH-9 `syn-dynamic-form`     — schema-driven task-list + multi-step + check-answers + error summary
 //  - SH-10 `syn-credential-wallet` — signed QR credential + public verify + transfer
+//  - SH-11 `syn-confirmation-shell` — el acuse: referencia, qué sigue, artefacto del dominio
+//  - SH-12 `syn-cart-shell`       — el carrito: líneas, grupos, resumen y el reloj del apartado
+
+// ─── SH-12 Carrito ───────────────────────────────────────────────────────────
+export {
+  CartShellComponent,
+  type CartAction,
+  type CartGroup,
+  type CartLine,
+  type CartNote,
+  type CartQuantityChange,
+  type CartShellConfig,
+  type CartSummaryRow,
+} from './cart/cart-shell';
 
 // ─── SH-11 Confirmación ──────────────────────────────────────────────────────
 export {

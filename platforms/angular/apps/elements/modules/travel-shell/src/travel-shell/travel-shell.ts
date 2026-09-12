@@ -19,6 +19,11 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CartShellComponent,
+  type CartAction,
+  type CartLine,
+  type CartNote,
+  type CartShellConfig,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationShellConfig,
@@ -172,6 +177,7 @@ let travelShellInstanceId = 0;
     CheckoutWizardComponent,
     AccountShellComponent,
     ConfirmationShellComponent,
+    CartShellComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     SynSkeletonComponent,
@@ -970,6 +976,92 @@ export class TravelShellElementComponent {
 
   toggleCart(): void {
     this.cartOpen.update((open) => !open);
+  }
+
+  // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
+  // Un viaje son ítems heterogéneos —un vuelo, dos noches, un auto— y ninguno se
+  // compra «de a dos»: no hay paso de cantidad, se agrega o se quita. El icono
+  // por tipo entra por template, que es lo único de esta vitrina que es de Viajes.
+  readonly cartLines = computed<readonly CartLine[]>(() =>
+    this.cartItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: this.itemSubtitle(item),
+      total: this.itemPriceLabel(item),
+      kind: item.kind,
+    })),
+  );
+
+  readonly cartNote = computed<CartNote | null>(() => {
+    if (!this.crossSell()) {
+      return null;
+    }
+    return { text: this.crossSellLabel(), actionId: 'cross-sell', actionLabel: 'Agregar' };
+  });
+
+  /**
+   * El apartado más cercano de las tres reservas. **El más cercano y no el del
+   * viaje**: en un paquete el primero que vence se lleva el resto detrás, así
+   * que enseñar cualquier otro prometería un tiempo que no existe.
+   */
+  readonly cartHoldExpiresAt = computed<string | null>(() => {
+    const vencimientos = this.cartItems()
+      .map((item) => item.expiresAt)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .sort();
+    return vencimientos[0] ?? null;
+  });
+
+  readonly cartPageConfig = computed<CartShellConfig>(() => ({
+    heading: 'Tu viaje',
+    emptyMessage: 'Todavía no has agregado nada a tu viaje.',
+    totalLabel: 'Total del viaje',
+    holdLabel: 'Tu viaje está apartado',
+    holdExpiredLabel: 'El apartado venció. Vuelve a buscar para asegurar la disponibilidad.',
+  }));
+
+  readonly cartDrawerConfig = computed<CartShellConfig>(() => ({
+    ...this.cartPageConfig(),
+    totalLabel: 'Total',
+    density: 'drawer',
+    closeLabel: 'Cerrar',
+  }));
+
+  readonly cartPageActions = computed<readonly CartAction[]>(() => [
+    { id: 'search', label: 'Empezar a buscar', visibility: 'empty' },
+    { id: 'search-more', label: 'Seguir buscando', visibility: 'filled' },
+    { id: 'checkout', label: 'Ir a pagar', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  readonly cartDrawerActions = computed<readonly CartAction[]>(() => [
+    { id: 'view', label: 'Ver tu viaje', visibility: 'filled' },
+    { id: 'checkout', label: 'Ir a pagar', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  onCartAction(id: string): void {
+    switch (id) {
+      case 'search':
+      case 'search-more':
+        this.continueShopping();
+        break;
+      case 'view':
+        this.goToCart();
+        break;
+      case 'checkout':
+        this.goToCheckout();
+        break;
+      case 'cross-sell':
+        this.addCrossSell();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Venció el apartado: se repregunta el precio, que es lo que destapa el cupo. */
+  onCartHoldExpired(): void {
+    this.reprice();
+    this.emitCartUpdate();
   }
 
   continueShopping(): void {

@@ -979,74 +979,13 @@
     gap: syn.$space-md;
   }
 
-  &__cart-lines {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
 
-  &__cart-line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--sf-border-subtle);
-    border-radius: syn.$radius-md;
-    background: var(--sf-surface);
-  }
 
-  &__cart-line-main {
-    display: flex;
-    flex-direction: column;
-    gap: syn.px-to-rem(2);
-    flex: 1 1 syn.px-to-rem(180);
-    min-width: 0;
-  }
 
-  &__cart-line-name {
-    margin: 0;
-    color: var(--sf-text);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-  }
 
-  &__cart-line-unit {
-    margin: 0;
-    color: var(--sf-muted);
-    font-size: syn.$font-size-xs;
-  }
 
-  &__cart-line-total {
-    margin: 0;
-    color: var(--sf-text);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-bold;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
 
-  &__cart-foot {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding-top: syn.$space-3;
-    border-top: syn.px-to-rem(1) solid var(--sf-border);
-  }
 
-  &__cart-total {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin: 0;
-    color: var(--sf-text);
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-    font-variant-numeric: tabular-nums;
-  }
 
   // ─── Checkout steps + form ─────────────────────────────────────────────────
   &__steps {
@@ -1354,89 +1293,14 @@
     box-shadow: var(--sf-shadow-pop);
   }
 
-  &__cart-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-3;
-  }
 
-  &__cart-title {
-    margin: 0;
-    color: var(--sf-text);
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-  }
 
-  &__cart-close,
-  &__cart-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: syn.px-to-rem(32);
-    height: syn.px-to-rem(32);
-    border: none;
-    border-radius: syn.$radius-full;
-    background: transparent;
-    color: var(--sf-muted);
-    font: inherit;
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
-    transition: background-color var(--syn-duration-fast, #{syn.$duration-fast}) syn.$easing-smooth;
 
-    @include syn.focus-visible(var(--sf-focus-ring));
 
-    &:hover {
-      background: var(--sf-surface-muted);
-      color: var(--sf-text);
-    }
-  }
 
-  &__cart-items {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
 
-  &__cart-item {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-2 syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--sf-border-subtle);
-    border-radius: syn.$radius-md;
-    background: var(--sf-surface-muted);
-  }
 
-  &__cart-main {
-    display: flex;
-    flex-direction: column;
-    gap: syn.px-to-rem(2);
-    min-width: 0;
-    flex: 1 1 auto;
-  }
 
-  &__cart-name {
-    color: var(--sf-text);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-  }
-
-  &__cart-sub {
-    color: var(--sf-muted);
-    font-size: syn.$font-size-xs;
-  }
-
-  &__cart-price {
-    color: var(--sf-text);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-medium;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
 
   // ─── Actions / buttons ───────────────────────────────────────────────────────
   &__actions {
@@ -1512,8 +1376,6 @@
   .storefront__variant,
   .storefront__card,
   .storefront__cart-toggle,
-  .storefront__cart-close,
-  .storefront__cart-remove,
   .storefront__qty-btn {
     transition: none;
   }
@@ -1674,30 +1536,8 @@
   }
 
   // ── Cart grouped by seller ──────────────────────────────────────────────
-  &__cart-group {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--sf-border-subtle);
-    border-radius: syn.$radius-lg;
-  }
 
-  &__cart-group-head {
-    display: flex;
-    justify-content: space-between;
-    gap: syn.$space-2;
-    margin: 0;
-    padding-bottom: syn.$space-2;
-    border-bottom: syn.px-to-rem(1) solid var(--sf-border-subtle);
-    color: var(--sf-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
 
-  &__cart-group-total {
-    font-variant-numeric: tabular-nums;
-    font-weight: syn.$font-weight-semibold;
-  }
 
   // ── Account: order detail + returns ─────────────────────────────────────
   &__order-detail {
