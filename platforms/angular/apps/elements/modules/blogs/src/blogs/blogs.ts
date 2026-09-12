@@ -12,6 +12,7 @@ import {
   output,
   signal,
   viewChild,
+  untracked,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -22,6 +23,9 @@ import {
 import {
   AccountShellComponent,
   CheckoutWizardComponent,
+  AuthoringWizardComponent,
+  type AuthoringDraft,
+  type AuthoringWizardConfig,
   ConsoleShellComponent,
   DiscoveryShellComponent,
   MessageCenterComponent,
@@ -209,6 +213,7 @@ let blogsInstanceId = 0;
     MessageCenterComponent,
     AccountShellComponent,
     ConsoleShellComponent,
+    AuthoringWizardComponent,
     CheckoutWizardComponent,
     TabsComponent,
     SynSkeletonComponent,
@@ -379,7 +384,12 @@ export class BlogsElementComponent {
     return !this.draftMediaUrl().trim() || this.draftMediaAlt().trim().length > 0;
   });
 
-  // ─── Long-form editor (`/write`) ─────────────────────────────────────────────────
+  // ─── Long-form editor (`/write`) — SH-6 `syn-authoring-wizard` (#26) ────────────
+  //
+  // Las cuatro señales siguen siendo la fuente de verdad de la validez, y además
+  // son el ESPEJO del borrador persistente de SH-6: el wizard guarda en su propio
+  // `SessionStore` con scope y TTL de 24 h, así que un artículo a medias sobrevive
+  // a recargar la página — que es lo que el editor no tenía.
   readonly articleTitle = signal('');
   readonly articleBody = signal('');
   readonly articleCover = signal('');
@@ -390,6 +400,106 @@ export class BlogsElementComponent {
     const coverOk = !this.articleCover().trim() || this.articleCoverAlt().trim().length > 0;
     return titleOk && bodyOk && coverOk;
   });
+  /** Se pudo escribir, pero el servidor no lo aceptó. El texto sigue en su sitio. */
+  readonly articleNotSaved = signal(false);
+
+  readonly articleWizard = viewChild(AuthoringWizardComponent);
+
+  readonly articleWizardConfig = computed<AuthoringWizardConfig>(() => ({
+    heading: 'Escribe un artículo',
+    steps: [
+      { id: 'contenido', label: 'Contenido' },
+      { id: 'portada', label: 'Portada' },
+      { id: 'revisar', label: 'Revisar' },
+    ],
+    stepsLabel: 'Pasos del artículo',
+    backLabel: 'Atrás',
+    nextLabel: 'Continuar',
+    publishLabel: 'Publicar artículo',
+    publishingLabel: 'Publicando…',
+    // Disjunto del carrito de suscripción a propósito: SH-6 usa el scope VERBATIM
+    // como llave de `localStorage`, y `startSubscribe` hace `reset()` — con el
+    // mismo scope, abrir la suscripción borraría el artículo a medias.
+    draftScope: `blogs-write.${this.instanceId}`,
+  }));
+
+  #articleSeeded = false;
+
+  /**
+   * Siembra el espejo desde el borrador rehidratado.
+   *
+   * **SH-6 NO emite `draftchange` al rehidratar** —sólo lo hace `patchDraft`—, así
+   * que sin esto el espejo arrancaría vacío tras recargar: el autor vería su texto
+   * restaurado en los campos (los `[value]` leen el draft del contexto) y el botón
+   * de continuar MUERTO, porque `validity` se calcula del espejo. Es el agujero que
+   * tienen los cuatro consumidores de SH-6.
+   */
+  private seedArticleMirror(): void {
+    if (this.#articleSeeded) {
+      return;
+    }
+    const draft = this.articleWizard()?.draft();
+    if (!draft || Object.keys(draft).length === 0) {
+      return;
+    }
+    this.#articleSeeded = true;
+    this.articleTitle.set(readDraftString(draft, 'title'));
+    this.articleBody.set(readDraftString(draft, 'body'));
+    this.articleCover.set(readDraftString(draft, 'coverUrl'));
+    this.articleCoverAlt.set(readDraftString(draft, 'coverAlt'));
+  }
+
+  /** Un campo del artículo: escribe el espejo Y el borrador persistente. */
+  onArticleField(
+    patch: (values: AuthoringDraft) => void,
+    field: 'title' | 'body' | 'coverUrl' | 'coverAlt',
+    event: Event,
+  ): void {
+    const value = (event.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? '';
+    this.articleNotSaved.set(false);
+    switch (field) {
+      case 'title':
+        this.articleTitle.set(value);
+        break;
+      case 'body':
+        this.articleBody.set(value);
+        break;
+      case 'coverUrl':
+        this.articleCover.set(value);
+        // Quitar la portada limpia su alt. Antes se quedaba rancio: el input vive
+        // dentro de un `@if` que lo OCULTA sin borrar la señal, así que el POST
+        // salía con `coverAlt` y sin `coverUrl`. En SH-6 sería peor, porque
+        // `patchDraft` sólo fusiona y nunca borra claves.
+        if (!value.trim()) {
+          this.articleCoverAlt.set('');
+          patch({ coverUrl: '', coverAlt: '' });
+          return;
+        }
+        break;
+      case 'coverAlt':
+        this.articleCoverAlt.set(value);
+        break;
+    }
+    patch({ [field]: value });
+  }
+
+  /** El autor volvió atrás desde el primer paso. */
+  onArticleExit(): void {
+    this.go('feed');
+  }
+
+  /**
+   * Validez por paso. Es `articleValid()` repartida, y las llaves tienen que
+   * coincidir con los ids de arriba: `validity` de SH-6 falla ABIERTO —una llave
+   * que no cuadra se lee como válida— así que un renombre silencioso quitaría el
+   * gating sin romper nada.
+   */
+  readonly articleValidity = computed<Readonly<Record<string, boolean>>>(() => ({
+    contenido:
+      this.articleTitle().trim().length >= 3 && this.articleBody().trim().length >= 20,
+    portada: !this.articleCover().trim() || this.articleCoverAlt().trim().length > 0,
+    revisar: this.articleValid(),
+  }));
 
   // ─── Post detail / thread ─────────────────────────────────────────────────────
   readonly activePost = signal<Post | null>(null);
@@ -698,6 +808,23 @@ export class BlogsElementComponent {
     });
     this.#bus.scope(`blogs-${this.instanceId}`);
 
+    // Siembra el espejo del artículo en cuanto el wizard existe. Corre en un
+    // effect porque `viewChild` se resuelve después del primer render y el
+    // borrador rehidratado no avisa por sí solo (SH-6 no emite `draftchange` al
+    // rehidratar): sin esto, tras recargar el autor vería su texto y el botón de
+    // continuar muerto.
+    effect(() => {
+      // Depende del BORRADOR, no sólo de que el wizard exista: la rehidratación
+      // de SH-6 corre en su propio effect y el orden entre los dos no está
+      // garantizado, así que mirar sólo `articleWizard()` podía leer el borrador
+      // antes de que se llenara. Comprobado: sin esta dependencia el caso de la
+      // siembra pasa en verde con la siembra quitada.
+      const draft = this.articleWizard()?.draft();
+      if (draft && Object.keys(draft).length > 0) {
+        untracked(() => this.seedArticleMirror());
+      }
+    });
+
     const widget = this.#orchestrator.register('blogs-feed', { order: 0 });
     this.#orchestrator.setStatus(widget, 'ready');
 
@@ -969,7 +1096,13 @@ export class BlogsElementComponent {
     };
     this.#api
       .publish(this.apiBase(), draft, this.viewer)
-      .then((post) => {
+      .then(({ post, persisted }) => {
+        // Mismo criterio que el artículo (#26): un post que el servidor no aceptó
+        // no se mete en el feed ni vacía el compositor.
+        if (!persisted) {
+          this.errorMessage.set('No pudimos publicar. Tu texto sigue acá — intenta de nuevo.');
+          return;
+        }
         // Optimistic insert at the top of the feed.
         this.posts.update((current) => [post, ...current]);
         this.draftBody.set('');
@@ -987,11 +1120,25 @@ export class BlogsElementComponent {
   }
 
   // ─── Long-form editor (`/write`) ────────────────────────────────────────────────
+  /**
+   * Publica el artículo, y **no da por publicado lo que el servidor no aceptó** (#26).
+   *
+   * Antes vaciaba los cuatro campos, mandaba al feed y emitía `articlepublished`
+   * dentro del `.then()`, contra un cliente que atrapaba TODOS los errores y
+   * devolvía un artículo fabricado en local: con el backend caído o sin sesión, el
+   * texto se BORRABA y se enseñaba la pantalla de publicado con un id inventado.
+   * El `.catch` de abajo era código muerto para cualquier fallo de la API.
+   *
+   * La guarda de la primera línea es sincrónica a propósito —`publishing.set(true)`
+   * corre en el mismo tick— así que el doble clic no publica dos veces. Los cuatro
+   * consumidores de SH-6 no tienen esta guarda; acá ya estaba y se conserva.
+   */
   publishArticle(): void {
     if (!this.articleValid() || this.publishing()) {
       return;
     }
     this.publishing.set(true);
+    this.articleNotSaved.set(false);
     const draft = {
       title: this.articleTitle().trim(),
       body: this.articleBody().trim(),
@@ -1000,12 +1147,22 @@ export class BlogsElementComponent {
     };
     this.#api
       .publishArticle(this.apiBase(), draft, this.viewer)
-      .then((post) => {
+      .then(({ post, persisted }) => {
+        if (!persisted) {
+          // Nada de esto ocurre: no se mete en el feed, no se limpia el borrador y
+          // no se le cuenta al CMS. Lo único que cambia es que se dice.
+          this.articleNotSaved.set(true);
+          return;
+        }
         this.posts.update((current) => [post, ...current]);
         this.articleTitle.set('');
         this.articleBody.set('');
         this.articleCover.set('');
         this.articleCoverAlt.set('');
+        // El borrador persistente se tira con el artículo ya guardado, no antes.
+        // `resetDraft()` no emite `draftchange`, así que el espejo se limpia acá.
+        this.articleWizard()?.resetDraft();
+        this.#articleSeeded = false;
         this.go('feed');
         this.articlepublished.emit({ id: post.id });
         this.postpublished.emit({ id: post.id });
@@ -1952,4 +2109,10 @@ function toggleReaction(state: ReactionState, type: ReactionType): ReactionState
   const celebrate = counts.get('celebrate') ?? 0;
   const insightful = counts.get('insightful') ?? 0;
   return reactionStateFor(like, love, celebrate, insightful, mine);
+}
+
+/** Lee una clave del borrador opaco de SH-6 como cadena. */
+function readDraftString(draft: AuthoringDraft, key: string): string {
+  const value = draft[key];
+  return typeof value === 'string' ? value : '';
 }
