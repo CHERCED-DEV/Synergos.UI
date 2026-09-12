@@ -360,105 +360,22 @@
       </ng-template>
 
       <ng-template #pdpReviews>
-        <div class="storefront__reviews">
-          <div class="storefront__review-summary">
-            <p class="storefront__review-avg">{{ reviewSummary().average }}</p>
-            <synergos-rating-stars
-              [attr.value]="reviewSummary().average"
-              [attr.readonly]="'true'"
-            ></synergos-rating-stars>
-            <p class="storefront__review-count">{{ reviewSummary().count }} opiniones</p>
-          </div>
-          <!--
-            Formulario de opinión. Solo existe si el SERVIDOR dice que este visitante puede
-            reseñar (compró el producto). A quien no puede no se le enseña: un formulario
-            que siempre rebota es peor que no ofrecerlo.
-          -->
-          @if (canReview()) {
-            <form class="storefront__review-form" (submit)="$event.preventDefault(); submitReview()">
-              <h4 class="storefront__review-form-title">Cuenta tu experiencia</h4>
-
-              <div class="storefront__review-field">
-                <span class="storefront__review-label" id="sf-review-rating">Tu calificación</span>
-                <synergos-rating-stars
-                  [attr.value]="reviewRating()"
-                  [attr.label]="'Tu calificación'"
-                  (ratingchange)="onReviewRatingChange($event)"
-                ></synergos-rating-stars>
-              </div>
-
-              <div class="storefront__review-field">
-                <label class="storefront__review-label" for="sf-review-title">
-                  Título <span class="storefront__review-optional">(opcional)</span>
-                </label>
-                <input
-                  id="sf-review-title"
-                  class="storefront__review-input"
-                  type="text"
-                  maxlength="80"
-                  [value]="reviewTitle()"
-                  (input)="onReviewTitleInput($event)"
-                />
-              </div>
-
-              <div class="storefront__review-field">
-                <label class="storefront__review-label" for="sf-review-body">Tu opinión</label>
-                <textarea
-                  id="sf-review-body"
-                  class="storefront__review-textarea"
-                  rows="4"
-                  maxlength="1000"
-                  [value]="reviewBody()"
-                  (input)="onReviewBodyInput($event)"
-                ></textarea>
-              </div>
-
-              <button
-                class="storefront__review-submit"
-                type="submit"
-                [disabled]="!reviewReady() || reviewSending()"
-              >
-                {{ reviewSending() ? 'Publicando…' : 'Publicar opinión' }}
-              </button>
-
-              <!-- role=status: el resultado se anuncia sin robar el foco. -->
-              @if (reviewNotice()) {
-                <p
-                  class="storefront__review-notice"
-                  [class.storefront__review-notice--error]="reviewFailed()"
-                  role="status"
-                >
-                  {{ reviewNotice() }}
-                </p>
-              }
-            </form>
-          }
-
-          @if (pdp.reviews.length === 0) {
-            <p class="storefront__empty">Aún no hay opiniones para este producto.</p>
-          } @else {
-            <ul class="storefront__review-list">
-              @for (review of pdp.reviews; track review.id) {
-                <li class="storefront__review">
-                  <p class="storefront__review-head">
-                    <span class="storefront__review-author">{{ review.author }}</span>
-                    <synergos-rating-stars
-                      [attr.value]="review.rating"
-                      [attr.readonly]="'true'"
-                    ></synergos-rating-stars>
-                  </p>
-                  @if (review.title) {
-                    <p class="storefront__review-title">{{ review.title }}</p>
-                  }
-                  <p class="storefront__review-body">{{ review.body }}</p>
-                  @if (review.date) {
-                    <p class="storefront__review-date">{{ review.date }}</p>
-                  }
-                </li>
-              }
-            </ul>
-          }
-        </div>
+        <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═════════════════════
+             El formulario a mano se fue; la regla de negocio se quedó igual —
+             `canReview` lo decide el servidor y el 403 no ofrece login (ADR 0112).
+             Lo que gana la Tienda es que la DISTRIBUCIÓN por fin se pinta: se
+             calculaba desde siempre y ninguna plantilla la usaba. -->
+        <syn-review-panel
+          [config]="reviewPanelConfig()"
+          [summary]="reviewPanelSummary()"
+          [entries]="reviewEntries()"
+          [canReview]="canReview()"
+          [blockedReason]="reviewBlockedReason()"
+          [notice]="reviewNotice()"
+          [noticeIsError]="reviewFailed()"
+          [sending]="reviewSending()"
+          (submitreview)="submitReview($event)"
+        />
       </ng-template>
 
       <ng-template #pdpQa>

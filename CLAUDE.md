@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Seis reglas que costaron caro y no se deducen leyendo el código:**
+**Siete reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -142,7 +142,13 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    ninguna plantilla lo invocaba, así que el auto era inalcanzable; un spec que hiciera
    `component.addCarToCart(...)` pasaba en verde con el botón quitado. Cuando lo que se
    arregla es *que algo sea alcanzable*, el test pulsa el botón (#27).
-6. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+6. **Una mutación cuyo BUILD falló no es una mutación.** Los specs se compilan AOT a
+   `.test-out` y `vitest` corre ESE compilado: si el `build-specs` revienta y se silenció su
+   salida, la mutación no se aplicó y el test pasa en **verde** — se lee como «el gate no
+   vigila esto» cuando en realidad nunca se probó. Pasó dos veces en la #28. **Nunca mandar
+   `build-specs` a `/dev/null` al mutar**, y desconfiar de una mutación que sale verde sin
+   haber visto la línea `✓ N specs compilados`.
+7. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que

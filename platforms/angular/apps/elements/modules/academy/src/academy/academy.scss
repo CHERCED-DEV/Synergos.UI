@@ -1401,3 +1401,12 @@
     }
   }
 }
+
+/* ── Opiniones del curso: SH-13 (#28) ─────────────────────────────────────────
+   La pieza trae su propia maquetación; acá sólo el aire que la separa de "lo que
+   aprenderás". */
+.academy__reviews {
+  margin-block-start: syn.$space-6;
+  padding-block-start: syn.$space-5;
+  border-block-start: syn.px-to-rem(1) solid var(--ac-border);
+}
