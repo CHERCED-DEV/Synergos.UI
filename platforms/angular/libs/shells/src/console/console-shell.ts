@@ -59,6 +59,21 @@ export interface ConsoleColumn {
   readonly key: string;
   readonly label: string;
   readonly align?: 'start' | 'end';
+  /**
+   * Cómo se ordena esta columna, **declarado por el dominio**. Ausente = no se
+   * ordena, que es el comportamiento que tenían las siete consolas.
+   *
+   * El shell NO lo adivina por el nombre de la clave: `'text'` y `'number'` se
+   * comparan distinto y confundirlos ordena «10» antes que «9» sin fallar. Es la
+   * misma doctrina de `DiscoveryFacet.kind` (#18).
+   */
+  readonly sortable?: 'text' | 'number' | 'date';
+}
+
+/** El orden activo de la tabla. */
+export interface ConsoleSort {
+  readonly key: string;
+  readonly direction: 'asc' | 'desc';
 }
 
 /** One chip filter above the table. The consumer re-feeds `rows` on change. */
@@ -83,6 +98,8 @@ export interface ConsoleShellConfig {
   readonly kpisLabel?: string;
   readonly filtersLabel?: string;
   readonly actionsLabel?: string;
+  /** Rótulo accesible del paginador. */
+  readonly pagingLabel?: string;
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
   // ── State surfaces (Fase 2) — all optional, additive ─────────────────────────
@@ -256,9 +273,27 @@ export interface ConsoleRowActionEvent<TRow> {
                           <th
                             class="syn-console__th"
                             [class.is-end]="column.align === 'end'"
+                            [class.is-sortable]="column.sortable"
                             scope="col"
+                            [attr.aria-sort]="ariaSort(column)"
                           >
-                            {{ column.label }}
+                            @if (column.sortable) {
+                              <!-- Un botón y no un th clicable: tiene que alcanzarse con
+                                   teclado y anunciarse como control. El aria-sort va en
+                                   el th, que es donde la norma lo pide. -->
+                              <button
+                                type="button"
+                                class="syn-console__sort"
+                                (click)="toggleSort(column)"
+                              >
+                                {{ column.label }}
+                                <span class="syn-console__sort-mark" aria-hidden="true">
+                                  {{ sortMark(column) }}
+                                </span>
+                              </button>
+                            } @else {
+                              {{ column.label }}
+                            }
                           </th>
                         }
                         @if (hasActions()) {
@@ -269,7 +304,7 @@ export interface ConsoleRowActionEvent<TRow> {
                       </tr>
                     </thead>
                     <tbody>
-                      @for (row of rows(); track $index; let index = $index) {
+                      @for (row of visibleRows(); track $index; let index = $index) {
                         <tr class="syn-console__tr">
                           @for (column of columns(); track column.key) {
                             <td class="syn-console__td" [class.is-end]="column.align === 'end'">
@@ -299,6 +334,33 @@ export interface ConsoleRowActionEvent<TRow> {
                     </tbody>
                   </table>
                 </div>
+
+                @if (hasPaging()) {
+                  <nav class="syn-console__paging" [attr.aria-label]="config().pagingLabel || 'Paginación'">
+                    <button
+                      type="button"
+                      class="syn-console__page-btn"
+                      [disabled]="activePage() <= 1"
+                      (click)="goToPage(activePage() - 1)"
+                    >
+                      Anterior
+                    </button>
+                    <!-- Se dice el total, no sólo la página: en una cola de trabajo
+                         «página 3 de 4» y «página 3 de 40» son dos días distintos. -->
+                    <span class="syn-console__page-status" role="status">
+                      Página {{ activePage() }} de {{ pageCount() }} · {{ rowCount() }}
+                      {{ rowCount() === 1 ? 'caso' : 'casos' }}
+                    </span>
+                    <button
+                      type="button"
+                      class="syn-console__page-btn"
+                      [disabled]="activePage() >= pageCount()"
+                      (click)="goToPage(activePage() + 1)"
+                    >
+                      Siguiente
+                    </button>
+                  </nav>
+                }
               }
             </section>
           } @else if (sectionTemplate(); as custom) {
@@ -330,6 +392,37 @@ export class ConsoleShellComponent<TRow> {
   /** Optional per-row action resolver (e.g. status-dependent queues). */
   readonly actionsFor = input<((row: TRow) => readonly ConsoleRowAction[]) | null>(null);
   readonly loading = input(false);
+
+  // ─── El sobre de lista (#21) ────────────────────────────────────────────────
+  /**
+   * El orden activo. `null` = el que traiga `defaultSort`, o ninguno.
+   *
+   * Se puede controlar desde el dominio (para deep-link, o para recordarlo entre
+   * visitas) o dejar que el shell lo lleve solo.
+   */
+  readonly sort = input<ConsoleSort | null>(null);
+  /** El orden inicial cuando el dominio no controla `sort`. */
+  readonly defaultSort = input<ConsoleSort | null>(null);
+  /**
+   * **QUIÉN ordena.** `'client'` (defecto) ordena las filas que ya están aquí;
+   * `'server'` sólo emite `sortchange` y espera filas nuevas.
+   *
+   * No es una opción de comodidad. Hoy las listas del profesional llegan
+   * completas —ninguna pagina— así que ordenar aquí es correcto y resuelve el
+   * problema. **El día que el backend pagine, ordenar aquí pasaría a ser un
+   * defecto silencioso**: enseñaría «lo más urgente» de un subconjunto
+   * arbitrario, con la cara de estar ordenado. Por eso lo declara quien lo usa y
+   * el shell no lo supone.
+   */
+  readonly sortMode = input<'client' | 'server'>('client');
+  /** Cuántas filas por página. `0` = sin paginar, que es como estaban. */
+  readonly pageSize = input(0);
+  /** La página activa, 1-based. */
+  readonly page = input(1);
+  /** `'client'` corta las filas que ya están; `'server'` espera que lleguen cortadas. */
+  readonly pageMode = input<'client' | 'server'>('client');
+  /** Total de filas que existen. Obligatorio con `pageMode: 'server'`. */
+  readonly total = input<number | null>(null);
   /** How to render one table cell; switch on `column.key` inside. */
   readonly cellTemplate = input.required<TemplateRef<ConsoleCellContext<TRow>>>();
   /** Content for every non-table section; switch on `$implicit.id` inside. */
@@ -346,6 +439,10 @@ export class ConsoleShellComponent<TRow> {
   // ─── Outputs ───────────────────────────────────────────────────────────────
   readonly sectionchange = output<string>();
   readonly filterchange = output<string>();
+  /** El orden cambió. En modo `'server'` es la única señal que sale. */
+  readonly sortchange = output<ConsoleSort>();
+  /** La página cambió, 1-based. */
+  readonly pagechange = output<number>();
   readonly rowaction = output<ConsoleRowActionEvent<TRow>>();
   /** Emitted when the inline error-state retry is pressed. */
   readonly retry = output<void>();
@@ -363,6 +460,119 @@ export class ConsoleShellComponent<TRow> {
 
   /** Active filter resets to the first chip whenever the chips change. */
   readonly activeFilterKey = linkedSignal(() => this.filters()[0]?.key ?? '');
+
+  // ─── El sobre de lista: orden y página (#21) ────────────────────────────────
+
+  /** Orden que lleva el shell cuando el dominio no lo controla. */
+  readonly #ownSort = linkedSignal<ConsoleSort | null>(() => this.defaultSort());
+
+  /** El orden vigente: el del dominio si lo controla, si no el propio. */
+  readonly activeSort = computed<ConsoleSort | null>(() => this.sort() ?? this.#ownSort());
+
+  /** Página que lleva el shell. Vuelve a 1 cuando cambian filtro u orden. */
+  readonly #ownPage = linkedSignal<number>(() => this.page());
+
+  readonly activePage = computed(() => Math.max(1, this.#ownPage()));
+
+  /** Las columnas que el dominio declaró ordenables. */
+  /** La flecha del encabezado. Vacío cuando esta columna no es la activa. */
+  sortMark(column: ConsoleColumn): string {
+    const active = this.activeSort();
+    if (!active || active.key !== column.key) {
+      return '';
+    }
+    return active.direction === 'asc' ? '▲' : '▼';
+  }
+
+  sortableKind(column: ConsoleColumn): ConsoleColumn['sortable'] {
+    return column.sortable;
+  }
+
+  /** `'ascending' | 'descending' | 'none'` para `aria-sort`. */
+  ariaSort(column: ConsoleColumn): 'ascending' | 'descending' | 'none' | null {
+    if (!column.sortable) {
+      return null;
+    }
+    const active = this.activeSort();
+    if (!active || active.key !== column.key) {
+      return 'none';
+    }
+    return active.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
+  /**
+   * Pulsar una cabecera ordenable.
+   *
+   * Primer clic: ascendente — para un plazo, «lo que vence primero» es lo que la
+   * persona busca, y empezar por lo más lejano sería empezar por lo que no
+   * importa. Segundo clic sobre la misma: invierte.
+   */
+  toggleSort(column: ConsoleColumn): void {
+    if (!column.sortable) {
+      return;
+    }
+    const active = this.activeSort();
+    const direction: 'asc' | 'desc' =
+      active && active.key === column.key && active.direction === 'asc' ? 'desc' : 'asc';
+    const next: ConsoleSort = { key: column.key, direction };
+
+    this.#ownSort.set(next);
+    // Cambiar el orden vuelve a la primera página: quedarse en la 4 tras
+    // reordenar enseña un tramo arbitrario del medio y parece un fallo de datos.
+    this.#ownPage.set(1);
+    this.sortchange.emit(next);
+  }
+
+  /**
+   * Las filas tal como se pintan: ordenadas y cortadas **sólo si a este shell le
+   * toca hacerlo**. En modo `'server'` se devuelven como llegaron.
+   */
+  readonly visibleRows = computed<readonly TRow[]>(() => {
+    let list = this.rows();
+
+    const active = this.activeSort();
+    if (this.sortMode() === 'client' && active) {
+      const column = this.columns().find((c) => c.key === active.key);
+      if (column?.sortable) {
+        list = [...list].sort((a, b) =>
+          compararCeldas(
+            leerCelda(a, active.key),
+            leerCelda(b, active.key),
+            column.sortable!,
+            active.direction,
+          ),
+        );
+      }
+    }
+
+    const size = this.pageSize();
+    if (this.pageMode() === 'client' && size > 0) {
+      const desde = (this.activePage() - 1) * size;
+      list = list.slice(desde, desde + size);
+    }
+    return list;
+  });
+
+  /** Cuántas filas hay en total — las de aquí, o las que diga el servidor. */
+  readonly rowCount = computed(() =>
+    this.pageMode() === 'server' ? (this.total() ?? this.rows().length) : this.rows().length,
+  );
+
+  readonly pageCount = computed(() => {
+    const size = this.pageSize();
+    return size > 0 ? Math.max(1, Math.ceil(this.rowCount() / size)) : 1;
+  });
+
+  readonly hasPaging = computed(() => this.pageSize() > 0 && this.pageCount() > 1);
+
+  goToPage(page: number): void {
+    const next = Math.min(Math.max(1, page), this.pageCount());
+    if (next === this.activePage()) {
+      return;
+    }
+    this.#ownPage.set(next);
+    this.pagechange.emit(next);
+  }
 
   readonly hasActions = computed(() => {
     if (this.actionsFor() !== null) {
@@ -448,4 +658,62 @@ export class ConsoleShellComponent<TRow> {
   cellContext(row: TRow, column: ConsoleColumn, index: number): ConsoleCellContext<TRow> {
     return { $implicit: row, column, index };
   }
+}
+
+
+/** Lee una celda por clave sin obligar al dominio a mapear nada. */
+function leerCelda(row: unknown, key: string): unknown {
+  return row && typeof row === 'object' ? (row as Record<string, unknown>)[key] : undefined;
+}
+
+/**
+ * Compara dos celdas según el tipo que **declaró el dominio**.
+ *
+ * Los vacíos van SIEMPRE al final, en las dos direcciones. Es deliberado: en una
+ * cola de trabajo, una fila sin plazo no es «la más urgente» ni «la menos» — es
+ * una que no tiene el dato, y mandarla arriba al invertir el orden la haría
+ * parecer lo contrario de lo que es.
+ *
+ * **Por eso la dirección entra AQUÍ y no se aplica por fuera.** La primera
+ * versión multiplicaba el signo por el resultado entero, incluido el de los
+ * vacíos, así que al invertir subían a lo más alto — exactamente lo que este
+ * comentario decía que no podía pasar. Lo cazó su propio spec.
+ */
+function compararCeldas(
+  a: unknown,
+  b: unknown,
+  kind: 'text' | 'number' | 'date',
+  direction: 'asc' | 'desc',
+): number {
+  const vacioA = a === null || a === undefined || a === '';
+  const vacioB = b === null || b === undefined || b === '';
+  if (vacioA && vacioB) return 0;
+  if (vacioA) return 1;
+  if (vacioB) return -1;
+
+  const signo = direction === 'asc' ? 1 : -1;
+
+  if (kind === 'number') {
+    const na = Number(a);
+    const nb = Number(b);
+    // NaN se trata como vacío: un número que no es número no puede ordenarse, y
+    // dejarlo comparar devuelve `false` en todo y deja el orden al azar.
+    if (Number.isNaN(na) && Number.isNaN(nb)) return 0;
+    if (Number.isNaN(na)) return 1;
+    if (Number.isNaN(nb)) return -1;
+    return signo * (na - nb);
+  }
+
+  if (kind === 'date') {
+    const da = Date.parse(String(a));
+    const db = Date.parse(String(b));
+    if (Number.isNaN(da) && Number.isNaN(db)) return 0;
+    if (Number.isNaN(da)) return 1;
+    if (Number.isNaN(db)) return -1;
+    return signo * (da - db);
+  }
+
+  // `localeCompare` con `numeric` para que «Caso 10» vaya después de «Caso 9»,
+  // que es lo que una persona espera de un radicado con número dentro.
+  return signo * String(a).localeCompare(String(b), 'es', { numeric: true, sensitivity: 'base' });
 }

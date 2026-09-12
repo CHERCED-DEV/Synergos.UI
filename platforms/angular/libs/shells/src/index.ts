@@ -78,6 +78,7 @@ export {
   type ConsoleRowAction,
   type ConsoleRowActionEvent,
   type ConsoleSection,
+  type ConsoleSort,
   type ConsoleSectionContext,
   type ConsoleShellConfig,
 } from './console/console-shell';
