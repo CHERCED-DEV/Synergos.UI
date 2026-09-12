@@ -28,6 +28,7 @@ import {
   type AccountShellConfig,
   type DiscoveryCriteria,
   type ConsoleColumn,
+  type ConsoleSort,
   type ConsoleKpi,
   type ConsoleRowAction,
   type ConsoleRowActionEvent,
@@ -135,6 +136,16 @@ const CATEGORIES: readonly { key: string; label: string }[] = [
   { key: 'empresa', label: 'Empresa' },
 ];
 
+/**
+ * Los filtros de la cola.
+ *
+ * Los seis primeros son por ESTADO y son los de siempre. Los dos últimos son por
+ * PLAZO, y son los que faltaban (#21): el dato legal llegaba a la pantalla como
+ * columna y no había forma de filtrar por él — un funcionario con doscientos
+ * expedientes tenía que recorrer la lista con el ojo.
+ *
+ * Se evalúan sobre `slaDaysLeft`, que es negativo cuando el término ya venció.
+ */
 const QUEUE_FILTERS: readonly { key: string; label: string }[] = [
   { key: '', label: 'Todos' },
   { key: 'submitted', label: 'Radicadas' },
@@ -142,7 +153,12 @@ const QUEUE_FILTERS: readonly { key: string; label: string }[] = [
   { key: 'info-requested', label: 'Requieren info' },
   { key: 'approved', label: 'Aprobadas' },
   { key: 'rejected', label: 'Rechazadas' },
+  { key: 'overdue', label: 'Vencidas' },
+  { key: 'due-soon', label: 'Vencen esta semana' },
 ];
+
+/** Las claves que filtran por PLAZO y no por estado: el backend no las conoce. */
+const SLA_FILTERS: ReadonlySet<string> = new Set(['overdue', 'due-soon']);
 
 /** Views that belong to the officer face (used to align role on deep-link). */
 const OFFICER_VIEWS: readonly GovView[] = ['queue', 'case'];
@@ -676,14 +692,26 @@ export class GovElementComponent {
     ];
   });
 
+  // El tipo de orden lo declara el dominio; el shell no lo adivina por la clave
+  // (#21). `slaDaysLeft` es número y NEGATIVO cuando ya venció, así que orden
+  // ascendente pone lo vencido primero — que es exactamente lo que hay que ver.
   readonly consoleColumns: readonly ConsoleColumn[] = [
-    { key: 'reference', label: 'Radicado' },
-    { key: 'serviceName', label: 'Trámite' },
-    { key: 'citizenName', label: 'Solicitante' },
-    { key: 'status', label: 'Estado' },
+    { key: 'reference', label: 'Radicado', sortable: 'text' },
+    { key: 'serviceName', label: 'Trámite', sortable: 'text' },
+    { key: 'citizenName', label: 'Solicitante', sortable: 'text' },
+    { key: 'status', label: 'Estado', sortable: 'text' },
     { key: 'priority', label: 'Prioridad' },
-    { key: 'sla', label: 'SLA', align: 'end' },
+    { key: 'slaDaysLeft', label: 'SLA', align: 'end', sortable: 'number' },
   ];
+
+  /**
+   * La cola abre ordenada por plazo, ascendente. No es una preferencia: en PQRSD
+   * el plazo ES el producto, y abrir por orden de llegada deja lo vencido en
+   * cualquier parte de la lista. Lo que se vence primero, primero.
+   */
+  readonly consoleDefaultSort: ConsoleSort = { key: 'slaDaysLeft', direction: 'asc' };
+
+  readonly consolePageSize = 25;
 
   readonly consoleActions: readonly ConsoleRowAction[] = [
     { id: 'open', label: 'Revisar', kind: 'primary' },
@@ -1367,9 +1395,40 @@ export class GovElementComponent {
 
   onConsoleFilterChange(filter: string): void {
     this.queueFilter.set(filter);
+
+    // Los filtros de PLAZO no existen en el backend: `?status=overdue` no es un
+    // estado y devolvería la cola vacía. Se resuelven acá, sobre las filas que
+    // ya llegaron —que llegan todas, porque esta cola no pagina— y por eso no
+    // se recarga: pedirle al servidor un estado que no conoce sería cambiar una
+    // pantalla útil por una vacía sin que nada fallara.
+    if (SLA_FILTERS.has(filter)) {
+      return;
+    }
+
     this.queueLoaded.set(false);
     void this.loadQueue();
   }
+
+  /**
+   * Las filas que ve la consola: las de la cola, recortadas por el filtro de
+   * plazo cuando hay uno activo.
+   *
+   * `slaDaysLeft` es negativo cuando el término YA venció, así que «vencidas» es
+   * `< 0` y no `<= 0`: un expediente que vence hoy todavía se puede atender, y
+   * meterlo en la misma bolsa que los incumplidos le quita a la lista la única
+   * cosa que la hace útil — saber cuáles ya son un problema.
+   */
+  readonly consoleRows = computed<readonly QueueCase[]>(() => {
+    const filtro = this.queueFilter();
+    const casos = this.queueCases();
+    if (filtro === 'overdue') {
+      return casos.filter((c) => c.slaDaysLeft < 0);
+    }
+    if (filtro === 'due-soon') {
+      return casos.filter((c) => c.slaDaysLeft >= 0 && c.slaDaysLeft <= 7);
+    }
+    return casos;
+  });
 
   private async loadQueue(): Promise<void> {
     this.loading.set(true);
