@@ -23,6 +23,7 @@ export type GovView =
   | 'receipt' // solicitud radicada (confirmation)
   | 'applications' // mis solicitudes (SH-4)
   | 'application' // detalle de una solicitud (timeline + docs + SH-7)
+  | 'notifications' // actos notificados del ciudadano (SH-4) — HU CMS#62
   | 'queue' // cola de casos del funcionario (SH-5)
   | 'case'; // revisar caso + decisión
 
@@ -324,4 +325,35 @@ export const OUTCOME_TO_STATUS: Readonly<Record<DecisionOutcome, ApplicationStat
 /** `true` when the application is closed (no further officer action). */
 export function isClosedStatus(status: ApplicationStatus): boolean {
   return status === 'approved' || status === 'rejected';
+}
+
+
+/**
+ * Un acto administrativo puesto en conocimiento (HU CMS#62).
+ *
+ * Lo que lo hace distinto de un mensaje: **sostiene CUÁNDO ACCEDIÓ la persona**,
+ * no cuándo salió del servidor. Un correo enviado prueba que salió; el término de
+ * un recurso no empieza a contar con eso.
+ *
+ * Por eso `body` es `string | null` y el nulo NO es «vacío»: es «todavía no lo ha
+ * abierto, así que no le toca verlo». El backend sólo revela el cuerpo cuando el
+ * acto está abierto, y el listado nunca lo trae.
+ */
+export interface GovActNotification {
+  readonly id: string;
+  readonly caseId: string;
+  /** El radicado del expediente — con lo que el ciudadano reclama. */
+  readonly reference: string;
+  readonly title: string;
+  /** `null` mientras no esté abierto. Ver arriba: no es lo mismo que vacío. */
+  readonly body: string | null;
+  readonly documentRef: string | null;
+  readonly notifiedAt: string;
+  /** Plazo para acusar, si el acto lo lleva. */
+  readonly acknowledgeBefore: string | null;
+  /** El instante en que empezó a correr el término. `null` = sin abrir. */
+  readonly openedAt: string | null;
+  /** Con qué se afirmó la identidad de quien abrió. Lo decide la capacidad. */
+  readonly openedWith: string | null;
+  readonly opened: boolean;
 }

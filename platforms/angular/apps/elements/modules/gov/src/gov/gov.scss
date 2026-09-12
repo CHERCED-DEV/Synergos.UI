@@ -1608,3 +1608,77 @@
     transform: none;
   }
 }
+
+/* ── Actos administrativos notificados (HU CMS#62 · #20) ───────────────────── */
+.acto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acto__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.acto__title,
+.acto__detail-title {
+  font-weight: 600;
+}
+
+.acto__detail-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.acto__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.acto__pill--nuevo {
+  color: var(--syn-color-text-on-brand, #fff);
+  background: var(--syn-color-state-brand-surface, #1b5e7e);
+}
+
+.acto__meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--syn-color-text-secondary, #56646c);
+}
+
+.acto__deadline {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--syn-color-state-warning-surface, #8a6a12);
+}
+
+/* El acuse es el dato que sostiene el plazo: se lee antes que el cuerpo. */
+.acto__acuse {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.4rem;
+  background: var(--syn-color-state-success-soft, #dde9e2);
+  color: var(--syn-color-text-primary, #13181c);
+}
+
+.acto__body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.acto__error {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.4rem;
+  color: var(--syn-color-state-danger-surface, #a8481a);
+  background: var(--syn-color-state-danger-soft, #f3e2d8);
+}
