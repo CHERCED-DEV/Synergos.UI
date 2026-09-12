@@ -514,38 +514,33 @@
     }
 
     <!-- ═══ LONG-FORM EDITOR (`/write`) ════════════════════════════════════════ -->
+    <!-- ═══ ESCRIBIR: SH-6 syn-authoring-wizard (#26) ══════════════════════════
+         Lo que aporta y el editor no tenía: BORRADOR PERSISTENTE con scope y TTL
+         de 24 h, así que un artículo a medias sobrevive a recargar la página. -->
     @if (view() === 'write') {
-      <button type="button" class="blogs__back" (click)="go('feed')">
+      <button type="button" class="blogs__back" (click)="onArticleExit()">
         <svg class="blogs__ic blogs__ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
         Volver
       </button>
-      <form class="blogs__editor" (submit)="$event.preventDefault(); publishArticle()">
-        <h1 class="blogs__view-title">Escribe un artículo</h1>
-        <label class="blogs__field-label" [attr.for]="fieldId + '-art-title'">Título</label>
-        <input class="blogs__editor-title" type="text" [id]="fieldId + '-art-title'"
-          placeholder="Un título que enganche" [value]="articleTitle()" (input)="bind(articleTitle.set)($event)" />
 
-        <label class="blogs__field-label" [attr.for]="fieldId + '-art-cover'">URL de portada (opcional)</label>
-        <input class="blogs__composer-field" type="url" [id]="fieldId + '-art-cover'"
-          placeholder="https://…" [value]="articleCover()" (input)="bind(articleCover.set)($event)" />
-        @if (articleCover().trim()) {
-          <label class="blogs__field-label" [attr.for]="fieldId + '-art-alt'">Texto alternativo (requerido)</label>
-          <input class="blogs__composer-field" type="text" [id]="fieldId + '-art-alt'"
-            placeholder="Describe la portada" [value]="articleCoverAlt()" (input)="bind(articleCoverAlt.set)($event)" />
-        }
+      @if (articleNotSaved()) {
+        <!-- Se pudo escribir y NO se guardó. Se dice, y el texto sigue donde
+             estaba: antes esto se borraba y se enseñaba la pantalla de publicado. -->
+        <p class="blogs__article-unsaved" role="alert">
+          No pudimos publicar tu artículo — el servidor no respondió.
+          <strong>Tu borrador está a salvo</strong>: se queda acá y sigue disponible
+          si recargas. Intenta publicar de nuevo en un momento.
+        </p>
+      }
 
-        <label class="blogs__field-label" [attr.for]="fieldId + '-art-body'">Cuerpo</label>
-        <textarea class="blogs__editor-body" [id]="fieldId + '-art-body'" rows="12"
-          placeholder="Escribe tu historia… usa #hashtags y @menciones" [value]="articleBody()"
-          (input)="bind(articleBody.set)($event)"></textarea>
-
-        <div class="blogs__composer-foot">
-          <span class="blogs__editor-hint">{{ articleBody().length }} caracteres</span>
-          <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!articleValid() || publishing()">
-            {{ publishing() ? 'Publicando…' : 'Publicar artículo' }}
-          </button>
-        </div>
-      </form>
+      <syn-authoring-wizard
+        [config]="articleWizardConfig()"
+        [stepTemplate]="articleStepTpl"
+        [validity]="articleValidity()"
+        [publishing]="publishing()"
+        (published)="publishArticle()"
+        (exit)="onArticleExit()"
+      ></syn-authoring-wizard>
     }
 
     <!-- ═══ CREATOR STUDIO — SH-5 console-shell ════════════════════════════════ -->
@@ -987,6 +982,76 @@
           <div><dt>Plan</dt><dd>{{ subscribeTier()?.name }}</dd></div>
           <div><dt>Precio mensual</dt><dd>{{ formatMinor(subscribeTier()?.priceMinor ?? 0, subscribeTier()?.currency ?? 'COP') }}</dd></div>
         </dl>
+      </div>
+    }
+  }
+</ng-template>
+
+<!-- ─── Pasos del artículo (SH-6) ─────────────────────────────────────────────── -->
+<!-- El contenido de los tres pasos. Título y cuerpo van JUNTOS a propósito: son la
+     superficie de escritura, y partirlos sería hostil con quien escribe largo. -->
+<ng-template #articleStepTpl let-step let-patch="patch">
+  @switch (step.id) {
+    @case ('contenido') {
+      <div class="blogs__article-step">
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-title'">Título</label>
+        <input class="blogs__editor-title" type="text" [id]="fieldId + '-art-title'"
+          placeholder="Un título que enganche" [value]="articleTitle()"
+          [attr.aria-invalid]="articleTitle() && articleTitle().trim().length < 3 ? 'true' : null"
+          (input)="onArticleField(patch, 'title', $event)" />
+        @if (articleTitle() && articleTitle().trim().length < 3) {
+          <p class="blogs__field-error" role="alert">El título necesita al menos 3 caracteres.</p>
+        }
+
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-body'">Cuerpo</label>
+        <textarea class="blogs__editor-body" [id]="fieldId + '-art-body'" rows="14"
+          placeholder="Escribe tu historia… usa #hashtags y @menciones" [value]="articleBody()"
+          (input)="onArticleField(patch, 'body', $event)"></textarea>
+        <p class="blogs__editor-hint" aria-live="polite">
+          {{ articleBody().length }} caracteres
+          @if (articleBody().trim().length < 20) {
+            · faltan {{ 20 - articleBody().trim().length }} para poder continuar
+          }
+        </p>
+      </div>
+    }
+
+    @case ('portada') {
+      <div class="blogs__article-step">
+        <label class="blogs__field-label" [attr.for]="fieldId + '-art-cover'">
+          URL de portada (opcional)
+        </label>
+        <input class="blogs__composer-field" type="url" [id]="fieldId + '-art-cover'"
+          placeholder="https://…" [value]="articleCover()"
+          (input)="onArticleField(patch, 'coverUrl', $event)" />
+
+        @if (articleCover().trim()) {
+          <label class="blogs__field-label" [attr.for]="fieldId + '-art-alt'">
+            Texto alternativo (requerido)
+          </label>
+          <input class="blogs__composer-field" type="text" [id]="fieldId + '-art-alt'"
+            placeholder="Describe la portada" [value]="articleCoverAlt()"
+            [attr.aria-invalid]="!articleCoverAlt().trim() ? 'true' : null"
+            (input)="onArticleField(patch, 'coverAlt', $event)" />
+          @if (!articleCoverAlt().trim()) {
+            <p class="blogs__field-error" role="alert">
+              Una portada sin texto alternativo no se puede leer con lector de pantalla.
+            </p>
+          }
+        } @else {
+          <p class="blogs__editor-hint">Sin portada también se publica.</p>
+        }
+      </div>
+    }
+
+    @case ('revisar') {
+      <div class="blogs__article-step">
+        @if (articleCover().trim()) {
+          <img class="blogs__article-preview-cover" [src]="articleCover()"
+            [attr.alt]="articleCoverAlt() || null" />
+        }
+        <h2 class="blogs__article-preview-title">{{ articleTitle() }}</h2>
+        <p class="blogs__article-preview-body">{{ articleBody() }}</p>
       </div>
     }
   }

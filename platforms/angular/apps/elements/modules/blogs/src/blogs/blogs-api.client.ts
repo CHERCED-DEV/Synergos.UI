@@ -112,6 +112,20 @@ export function isBlogsForbidden(error: unknown): error is BlogsForbiddenError {
   return error instanceof Error && error.name === 'BlogsForbiddenError';
 }
 
+/**
+ * Lo que devuelve publicar: el post **y si el servidor lo aceptó**.
+ *
+ * Existe porque devolver sólo el `Post` hacía indistinguible «publicado» de
+ * «fabricado en local porque el POST falló», y quien llamaba trataba las dos
+ * cosas igual (#26). Un post sin guardar sigue viniendo —el modo demo necesita
+ * algo que mostrar— pero marcado.
+ */
+export interface PublishOutcome {
+  readonly post: Post;
+  /** `false` = síntesis local; el servidor NO lo tiene. */
+  readonly persisted: boolean;
+}
+
 @Injectable()
 export class BlogsApiClient {
   readonly #logger = inject(LoggerService);
@@ -165,18 +179,19 @@ export class BlogsApiClient {
 
   // ─── Publish a post ─────────────────────────────────────────────────────────
 
-  async publish(apiBase: string, draft: NewPost, author: Author): Promise<Post> {
+  /** Dice si se GUARDÓ — misma razón que `publishArticle` (#26). */
+  async publish(apiBase: string, draft: NewPost, author: Author): Promise<PublishOutcome> {
     const url = `${apiBase}/post`;
     try {
       const data = await this.postJson(url, draft);
       const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
       if (post) {
-        return post;
+        return { post, persisted: true };
       }
       throw new Error('publish-shape');
     } catch (error) {
       this.markDegraded('POST /api/blogs/post', error);
-      return synthesizePost(draft, author);
+      return { post: synthesizePost(draft, author), persisted: false };
     }
   }
 
@@ -476,19 +491,28 @@ export class BlogsApiClient {
 
   // ─── Long-form article (`/write`) ────────────────────────────────────────────
 
-  /** `POST /api/blogs/article` — publish a long-form post (`objectKind='postPage'`). */
-  async publishArticle(apiBase: string, draft: NewArticle, author: Author): Promise<Post> {
+  /**
+   * `POST /api/blogs/article` — publish a long-form post (`objectKind='postPage'`).
+   *
+   * **Dice si se GUARDÓ, no sólo qué post salió** (#26). Antes devolvía un `Post`
+   * a secas y el fallo se disfrazaba de éxito: el llamador vaciaba el editor,
+   * mandaba al feed y emitía `articlepublished` con un id inventado, así que un
+   * backend caído BORRABA el artículo y enseñaba la pantalla de publicado.
+   */
+  async publishArticle(apiBase: string, draft: NewArticle, author: Author): Promise<PublishOutcome> {
     const url = `${apiBase}/article`;
     try {
       const data = await this.postJson(url, draft);
       const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
       if (post) {
-        return post;
+        return { post, persisted: true };
       }
       throw new Error('article-shape');
     } catch (error) {
       this.markDegraded('POST /api/blogs/article', error);
-      return synthesizeArticle(draft, author);
+      // Se sigue devolviendo un post para que el modo demo tenga algo que
+      // mostrar, pero marcado: quien llama decide, y ya no puede confundirlos.
+      return { post: synthesizeArticle(draft, author), persisted: false };
     }
   }
 
@@ -564,8 +588,15 @@ export class BlogsApiClient {
 
   /**
    * Re-lanza un 401/403 (los que la UI trata como estado de sesión, no como caída).
-   * Lo llaman SOLO las rutas del usuario; las públicas (feed/post/publicar/reaccionar/
-   * seguir) siguen degradando a mock, que ahí no le miente a nadie.
+   * Lo llaman SOLO las rutas del usuario; las públicas (feed/post/reaccionar/seguir)
+   * siguen degradando a mock, que en una LECTURA no le miente a nadie: se ve
+   * contenido de ejemplo y el cartel lo dice.
+   *
+   * **Publicar NO está en esa lista, aunque antes lo estuviera** (#26). Degradar
+   * una ESCRITURA a mock sí miente, y del peor modo: le dice a quien escribió que
+   * su texto está guardado cuando el servidor no tiene nada. Esas dos rutas no
+   * relanzan —el modo demo se quedaría sin flujo de publicación— sino que
+   * devuelven `persisted: false`, y el llamador se encarga.
    */
   private rethrowIfAuthError(error: unknown): void {
     if (isBlogsUnauthorized(error) || isBlogsForbidden(error)) {
