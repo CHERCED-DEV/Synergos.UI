@@ -8,8 +8,8 @@
   --sct-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --sct-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --sct-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --sct-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
-  --sct-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --sct-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --sct-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --sct-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --sct-info-soft: var(--syn-color-state-info-soft, #{syn.$color-brand-100});
   --sct-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
