@@ -939,3 +939,11 @@
   align-items: flex-end;
   white-space: nowrap;
 }
+
+/* ── Opiniones de la estadía: SH-13 (#28) ─────────────────────────────────────
+   La pieza trae su maquetación; acá sólo el aire que la separa de la dirección. */
+.travel__stay-reviews {
+  margin-block-start: syn.$space-5;
+  padding-block-start: syn.$space-4;
+  border-block-start: syn.px-to-rem(1) solid var(--ts-border);
+}

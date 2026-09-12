@@ -173,7 +173,7 @@
         (back)="goToCatalog()"
       />
 
-      <!-- Body: descripción + "lo que aprenderás" -->
+      <!-- Body: descripción + "lo que aprenderás" + opiniones -->
       <ng-template #courseBody>
         <p class="academy__desc">{{ detail.description }}</p>
         @if (detail.outcomes.length > 0) {
@@ -186,6 +186,30 @@
             </ul>
           </div>
         }
+
+        <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═══════════════════════
+             Educación mostraba nota y conteo sin poder ganarlos. Los criterios
+             son los de un CURSO —claridad, utilidad, ritmo— y salen del resumen
+             del servidor, así que se pregunta exactamente por lo que se muestra.
+
+             Va en el cuerpo y no en el slot `reviewsTemplate` de SH-2 porque ese
+             slot está ocupado por el perfil del instructor (con `reviewsLabel:
+             'Instructor'` como apaño). Mudarlo es un cambio de maquetación, no de
+             negocio, y no se hace de paso. -->
+        <div class="academy__reviews">
+          <syn-review-panel
+            [config]="courseReviewConfig()"
+            [summary]="courseReviewSummary()"
+            [entries]="courseReviews()"
+            [canReview]="canReviewCourse()"
+            [blockedReason]="courseReviewBlocked()"
+            [criteriaPrompts]="courseReviewPrompts()"
+            [notice]="reviewNotice()"
+            [noticeIsError]="reviewFailed()"
+            [sending]="reviewSending()"
+            (submitreview)="submitCourseReview($event)"
+          />
+        </div>
       </ng-template>
 
       <!-- CTA (sticky): precio + planes + inscribirse -->

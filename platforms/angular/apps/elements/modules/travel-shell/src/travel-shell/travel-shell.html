@@ -454,6 +454,25 @@
             {{ detail.address }}
           </p>
         }
+
+        <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═══════════════════════
+             `rating` y `reviewCount` se mostraban desde siempre y no se podían
+             ganar. Los criterios son los de una ESTADÍA: limpieza, ubicación y
+             relación precio-valor. -->
+        <div class="travel__stay-reviews">
+          <syn-review-panel
+            [config]="stayReviewConfig()"
+            [summary]="stayReviewSummary()"
+            [entries]="stayReviews()"
+            [canReview]="canReviewStay()"
+            [blockedReason]="stayReviewBlocked()"
+            [criteriaPrompts]="stayReviewPrompts()"
+            [notice]="reviewNotice()"
+            [noticeIsError]="reviewFailed()"
+            [sending]="reviewSending()"
+            (submitreview)="submitStayReview($event)"
+          />
+        </div>
       </ng-template>
 
       <ng-template #stayCta>

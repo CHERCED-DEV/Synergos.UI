@@ -262,6 +262,89 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
 
   // Control: with nothing composed the hero must look EXACTLY as it did before
   // the keys existed — the change is additive, not a copy rewrite.
+  // ── opiniones del curso: SH-13 (#28) ─────────────────────────────────────────
+  //
+  // Educación mostraba nota y conteo y no los podía ganar. Lo que estos casos
+  // guardan es lo propio del dominio: los CRITERIOS de un curso y el gate de
+  // matrícula — y que un envío contra un endpoint que no existe NO diga «gracias».
+  async function abrirCurso(): Promise<void> {
+    component.openCourse(component.courses()[0]);
+    await flushMicrotasks();
+    fixture.detectChanges();
+  }
+
+  it('la ficha del curso monta SH-13 con la distribución y los criterios del dominio', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await abrirCurso();
+
+    expect(fixture.nativeElement.querySelector('syn-review-panel')).not.toBeNull();
+    // La distribución se PINTA — no existía en ningún dominio.
+    expect(fixture.nativeElement.querySelectorAll('.syn-reviews__dist-row').length).toBe(5);
+
+    // Y los criterios son los de un CURSO, no los de un hotel ni los de un producto.
+    const criterios = component.courseReviewSummary().criteria?.map((c) => c.id);
+    expect(criterios).toEqual(['claridad', 'utilidad', 'ritmo']);
+    // Se pregunta exactamente por lo que se muestra: los prompts salen del resumen.
+    expect(component.courseReviewPrompts().map((p) => p.id)).toEqual(criterios);
+  });
+
+  it('con matrícula se puede opinar, y el envío pide una escala por criterio', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await abrirCurso();
+
+    expect(component.canReviewCourse()).toBe(true);
+    expect(component.courseReviewBlocked()).toBeNull();
+    // La global más una por criterio.
+    expect(fixture.nativeElement.querySelectorAll('fieldset.syn-reviews__field').length).toBe(4);
+  });
+
+  it('EL caso: un envío contra un endpoint que no existe NO dice «gracias»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await abrirCurso();
+
+    await component.submitCourseReview({
+      rating: 5,
+      title: 'Excelente',
+      body: 'Aprendí muchísimo con los proyectos.',
+      criteria: { claridad: 5, utilidad: 5, ritmo: 4 },
+    });
+
+    // El endpoint de reseñas de Educación todavía no existe. Degradar una
+    // ESCRITURA a mock mentiría: le diría a alguien que su opinión está publicada
+    // cuando el servidor no recibió nada (regla 4 de CLAUDE.md, #26).
+    expect(component.reviewFailed()).toBe(true);
+    expect(component.reviewNotice()).not.toContain('publicada');
+    expect(component.reviewNotice()).toContain('No pudimos publicar');
+  });
+
+  it('sin matrícula no hay formulario, y el mensaje NO ofrece iniciar sesión', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await abrirCurso();
+
+    const detalle = component.detail()!;
+    component.detail.set({ ...detalle, canReview: false });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.syn-reviews__form')).toBeNull();
+    const aviso = (
+      fixture.nativeElement.querySelector('.syn-reviews__blocked')?.textContent ?? ''
+    ).toLowerCase();
+    expect(aviso).toContain('matriculado');
+    // Sin sesión no hay bridge del host en el test, así que el motivo es
+    // `not-consumer`: la sesión no es el problema y ofrecer login mandaría a dar
+    // vueltas (ADR 0112).
+    expect(component.courseReviewBlocked()).toBe('not-consumer');
+    expect(aviso).not.toContain('inicia sesión');
+  });
+
   it('falls back to the baked hero copy when the CMS composes nothing', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
@@ -286,6 +369,33 @@ describe('AcademyApiClient', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  it('`canReview` ausente significa NO, no «sí» (default seguro, #28)', async () => {
+    const client = createClient();
+    // Una respuesta viva que trae el curso y NO habla de permisos.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              course: { id: 'C-1', title: 'Curso', amount: 100, currency: 'COP' },
+              description: 'desc',
+            }),
+        } as Response),
+      ),
+    );
+
+    const detalle = await client.course('/api/academy', 'C-1', 'COP');
+
+    // Ofrecer el formulario a quien el servidor no autorizó es prometer algo que
+    // va a rebotar con 403: el default tiene que ser el restrictivo.
+    expect(detalle.canReview).toBe(false);
+    expect(detalle.reviews).toEqual([]);
+    expect(detalle.reviewSummary).toBeNull();
   });
 
   it('normalises a live courses response with derived facets (happy case)', async () => {

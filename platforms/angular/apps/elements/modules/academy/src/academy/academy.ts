@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { HostIdentityService } from '@synergos/core';
@@ -19,6 +20,13 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  ReviewPanelComponent,
+  type ReviewBlockedReason,
+  type ReviewCriterionPrompt,
+  type ReviewDraft,
+  type ReviewEntry,
+  type ReviewPanelConfig,
+  type ReviewSummary,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationShellConfig,
@@ -202,6 +210,7 @@ let academyInstanceId = 0;
     CheckoutWizardComponent,
     AccountShellComponent,
     ConfirmationShellComponent,
+    ReviewPanelComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     ConsoleShellComponent,
@@ -1699,6 +1708,135 @@ export class AcademyElementComponent {
       return `${mins} min`;
     }
     return mins === 0 ? `${hours} h` : `${hours} h ${mins} min`;
+  }
+
+  // ─── Opiniones del curso: SH-13 `syn-review-panel` (#28) ────────────────────
+  //
+  // Educación MOSTRABA nota y conteo y no los podía ganar: el número salía del
+  // backend y nadie lo alimentaba. Lo propio del dominio son los CRITERIOS —un
+  // curso se califica por claridad, utilidad y ritmo, no por limpieza— y el gate:
+  // sólo opina quien cursó, y lo decide el servidor.
+  readonly reviewPanel = viewChild(ReviewPanelComponent);
+  readonly reviewSending = signal(false);
+  readonly reviewNotice = signal('');
+  readonly reviewFailed = signal(false);
+
+  readonly courseReviews = computed<readonly ReviewEntry[]>(() =>
+    (this.detail()?.reviews ?? []).map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      date: review.date,
+      verified: review.verified,
+      ...(review.reply ? { reply: review.reply } : {}),
+    })),
+  );
+
+  readonly courseReviewSummary = computed<ReviewSummary>(() => {
+    const resumen = this.detail()?.reviewSummary;
+    if (!resumen) {
+      return { average: 0, count: 0 };
+    }
+    return {
+      average: resumen.average,
+      count: resumen.count,
+      distribution: resumen.distribution,
+      criteria: resumen.criteria,
+    };
+  });
+
+  readonly canReviewCourse = computed(() => this.detail()?.canReview === true);
+
+  /**
+   * Los criterios que se le piden a quien escribe. Salen de los que el servidor
+   * ya promedió, así que la pantalla pregunta exactamente por lo que muestra: una
+   * lista escrita a mano acá se desincronizaría del resumen al primer cambio.
+   */
+  readonly courseReviewPrompts = computed<readonly ReviewCriterionPrompt[]>(() =>
+    (this.detail()?.reviewSummary?.criteria ?? []).map((criterion) => ({
+      id: criterion.id,
+      label: criterion.label,
+    })),
+  );
+
+  readonly courseReviewBlocked = computed<ReviewBlockedReason | null>(() => {
+    if (this.canReviewCourse() || !this.detail()) {
+      return null;
+    }
+    // Sin sesión, volver a entrar SÍ lo arregla. Con sesión, el problema es no
+    // haber cursado y ofrecer login mandaría a dar vueltas (ADR 0112).
+    //
+    // `hasHost()` distingue los dos «sin sesión» que importan: sin bridge del CMS
+    // no hay a dónde iniciar sesión, así que decir «inicia sesión» sería mandar a
+    // un sitio que no existe (#17).
+    if (!this.#identity.isAuthenticated() && this.#identity.hasHost()) {
+      return 'unauthenticated';
+    }
+    // `not-consumer` y no `not-student`: la pieza no sabe qué es un estudiante, y
+    // ponerlo en su vocabulario la inutilizaría para el siguiente dominio. El
+    // rótulo concreto lo pone `blockedNotConsumer` en la config.
+    return 'not-consumer';
+  });
+
+  readonly courseReviewConfig = computed<ReviewPanelConfig>(() => ({
+    heading: 'Opiniones del curso',
+    countLabel: 'opiniones',
+    formTitle: 'Cuenta tu experiencia con el curso',
+    submitLabel: 'Publicar opinión',
+    verifiedLabel: 'Cursó este programa',
+    blockedNotConsumer:
+      'Solo quien está matriculado en este curso puede opinar. Inscríbete y cuéntanos después.',
+    emptyMessage: 'Todavía no hay opiniones de este curso. Sé la primera persona en contarlo.',
+  }));
+
+  /**
+   * Publica la opinión del curso. **No dice «gracias» si el servidor no aceptó**:
+   * el endpoint todavía no existe, así que hoy esto falla a la vista — y eso es la
+   * verdad, no un placeholder (regla 4 de `CLAUDE.md`).
+   */
+  async submitCourseReview(draft: ReviewDraft): Promise<void> {
+    const course = this.detail()?.course;
+    if (!course || this.reviewSending()) {
+      return;
+    }
+    this.reviewSending.set(true);
+    this.reviewNotice.set('');
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.submitCourseReview(this.apiBase(), course.id, {
+      rating: draft.rating,
+      title: draft.title,
+      body: draft.body,
+      criteria: draft.criteria,
+    });
+
+    this.reviewSending.set(false);
+
+    if (result.ok) {
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
+      // Se limpia acá y no en la pieza: sólo este lado sabe que el servidor dijo sí.
+      this.reviewPanel()?.reset();
+      await this.loadCourse(course.id);
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    switch (result.reason) {
+      case 'unauthenticated':
+        this.reviewNotice.set('Inicia sesión para dejar tu opinión.');
+        break;
+      case 'not-student':
+        // Sin oferta de login: la sesión no es el problema (ADR 0112).
+        this.reviewNotice.set('Solo quien está matriculado en este curso puede opinar.');
+        break;
+      case 'invalid':
+        this.reviewNotice.set('Revisa la calificación y el texto de tu opinión.');
+        break;
+      default:
+        this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
+    }
   }
 
   formatPrice(amount: number, currency: string): string {

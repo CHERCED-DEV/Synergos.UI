@@ -9,6 +9,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -32,6 +33,13 @@ import {
   CredentialWalletComponent,
   DetailShellComponent,
   DiscoveryShellComponent,
+  ReviewPanelComponent,
+  type ReviewBlockedReason,
+  type ReviewCriterionPrompt,
+  type ReviewDraft,
+  type ReviewEntry,
+  type ReviewPanelConfig,
+  type ReviewSummary,
   type DiscoveryCriteria,
   type DiscoveryFacet,
   type DiscoveryShellConfig,
@@ -191,6 +199,7 @@ let travelShellInstanceId = 0;
     NgTemplateOutlet,
     ResultsMapComponent,
     DiscoveryShellComponent,
+    ReviewPanelComponent,
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
@@ -358,6 +367,117 @@ export class TravelShellElementComponent {
     const families = this.fareFamilies();
     return families.find((fare) => fare.id === this.selectedFareId()) ?? families[0] ?? null;
   });
+
+  // ─── Opiniones de la estadía: SH-13 `syn-review-panel` (#28) ─────────────────
+  //
+  // `StayDetail` traía `rating` y `reviewCount` desde siempre —mostrados, nunca
+  // ganados—. Los criterios son los de una ESTADÍA: limpieza, ubicación y relación
+  // precio-valor. Y sólo opina quien se alojó, y lo decide el servidor.
+  readonly reviewPanel = viewChild(ReviewPanelComponent);
+  readonly reviewSending = signal(false);
+  readonly reviewNotice = signal('');
+  readonly reviewFailed = signal(false);
+
+  readonly stayReviews = computed<readonly ReviewEntry[]>(() =>
+    (this.stay()?.reviews ?? []).map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      date: review.date,
+      verified: review.verified,
+      ...(review.reply ? { reply: review.reply } : {}),
+    })),
+  );
+
+  readonly stayReviewSummary = computed<ReviewSummary>(() => {
+    const resumen = this.stay()?.reviewSummary;
+    if (!resumen) {
+      // Sin resumen del servidor se usa lo que la ficha SÍ trae. No se calcula
+      // nada: `rating` y `reviewCount` ya vienen agregados.
+      const detalle = this.stay();
+      return { average: detalle?.rating ?? 0, count: detalle?.reviewCount ?? 0 };
+    }
+    return {
+      average: resumen.average,
+      count: resumen.count,
+      distribution: resumen.distribution,
+      criteria: resumen.criteria,
+    };
+  });
+
+  readonly canReviewStay = computed(() => this.stay()?.canReview === true);
+
+  /** Se pregunta por lo que se muestra: los prompts salen del resumen del servidor. */
+  readonly stayReviewPrompts = computed<readonly ReviewCriterionPrompt[]>(() =>
+    (this.stay()?.reviewSummary?.criteria ?? []).map((criterion) => ({
+      id: criterion.id,
+      label: criterion.label,
+    })),
+  );
+
+  readonly stayReviewBlocked = computed<ReviewBlockedReason | null>(() => {
+    if (this.canReviewStay() || !this.stay()) {
+      return null;
+    }
+    // `not-consumer` y no `not-guest`: la pieza no sabe qué es un huésped. El
+    // rótulo concreto lo pone la config.
+    return 'not-consumer';
+  });
+
+  readonly stayReviewConfig = computed<ReviewPanelConfig>(() => ({
+    heading: 'Opiniones de huéspedes',
+    countLabel: 'opiniones',
+    formTitle: 'Cuenta cómo te fue',
+    submitLabel: 'Publicar opinión',
+    verifiedLabel: 'Se alojó acá',
+    blockedNotConsumer:
+      'Solo quien ya se alojó puede opinar. Después de tu estadía te avisamos para que nos cuentes.',
+    emptyMessage: 'Todavía no hay opiniones de esta estadía.',
+  }));
+
+  /** Publica la opinión. No dice «gracias» si el servidor no aceptó. */
+  async submitStayReview(draft: ReviewDraft): Promise<void> {
+    const detalle = this.stay();
+    if (!detalle || this.reviewSending()) {
+      return;
+    }
+    this.reviewSending.set(true);
+    this.reviewNotice.set('');
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.submitStayReview(this.apiBase(), detalle.id, {
+      rating: draft.rating,
+      title: draft.title,
+      body: draft.body,
+      criteria: draft.criteria,
+    });
+
+    this.reviewSending.set(false);
+
+    if (result.ok) {
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
+      this.reviewPanel()?.reset();
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    switch (result.reason) {
+      case 'unauthenticated':
+        this.reviewNotice.set('Inicia sesión para dejar tu opinión.');
+        break;
+      case 'not-guest':
+        // Sin oferta de login: la sesión no es el problema (ADR 0112).
+        this.reviewNotice.set('Solo quien ya se alojó puede opinar sobre esta estadía.');
+        break;
+      case 'invalid':
+        this.reviewNotice.set('Revisa la calificación y el texto de tu opinión.');
+        break;
+      default:
+        this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
+    }
+  }
 
   // ─── Autos: SH-1 `syn-discovery-shell` (#27) ─────────────────────────────────
   //
