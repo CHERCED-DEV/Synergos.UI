@@ -187,6 +187,39 @@
     padding: syn.$space-1 0;
   }
 
+  // SH-14 (#30). Sólido y con su tinta: `state-brand-surface` es un lavado y el
+  // rótulo desaparecería en cinco de los siete temas (#25).
+  &__cmp {
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-full;
+    padding: syn.$space-1 syn.$space-2;
+    background: var(--ts-surface);
+    color: var(--ts-muted);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__compare {
+    display: block;
+    margin-block-start: syn.$space-6;
+  }
+
+  &__compare-msg {
+    margin: syn.$space-2 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--ts-surface-muted);
+    color: var(--ts-muted);
+    font-size: syn.$font-size-sm;
+  }
+
   &__empty {
     margin: syn.$space-4 0;
     padding: syn.$space-4;

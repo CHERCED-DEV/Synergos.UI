@@ -20,6 +20,12 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareTableConfig,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationFact,
@@ -239,6 +245,7 @@ let realtyInstanceId = 0;
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
+    CompareTableComponent,
   ],
   templateUrl: './realty.html',
   styleUrl: './realty.scss',
@@ -442,9 +449,17 @@ export class RealtyElementComponent {
   readonly detail = signal<ListingDetail | null>(null);
   readonly accountSection = signal<'favorites' | 'saved' | 'visits' | 'messages'>('favorites');
 
-  // Favorites / shortlist / compare (P11)
+  // Favorites / shortlist (P11)
   readonly favoriteIds = signal<readonly string[]>([]);
-  readonly compareMode = signal(false);
+
+  /**
+   * SH-14 (#30). Antes era un `compareMode` booleano sobre TODOS los favoritos:
+   * con doce favoritos eran doce columnas, y cada tarjeta pintaba su propio `<dl>`
+   * —o sea, repetición y no comparación—. El techo y el «ya está» los aplica la
+   * selección, que es lo que evita que cada dominio reescriba el mismo `if`.
+   */
+  readonly compare = new CompareSelection<CompareCandidate>(4);
+  readonly compareRejection = signal<CompareRejection | null>(null);
 
   // Saved searches + alerts (P11)
   readonly savedSearches = signal<readonly SavedSearch[]>([]);
@@ -1310,9 +1325,103 @@ export class RealtyElementComponent {
     );
   }
 
-  toggleCompare(): void {
-    this.compareMode.update((on) => !on);
+  /**
+   * Pone o quita una propiedad de la comparación.
+   *
+   * **Está en los RESULTADOS y no sólo en favoritos**, que es la mitad que faltaba:
+   * quien duda entre dos está mirando la lista, no su cuenta. Guardar en favoritos
+   * para poder comparar obligaba a ensuciar una lista que significa otra cosa.
+   */
+  toggleCompare(listing: Listing): void {
+    this.compareRejection.set(this.compare.toggle(this.toCandidate(listing)));
   }
+
+  inCompare(id: string): boolean {
+    return this.compare.has(id);
+  }
+
+  removeFromCompare(id: string): void {
+    this.compare.remove(id);
+    // Quitar uno hace hueco, así que el motivo anterior dejó de ser verdad.
+    this.compareRejection.set(null);
+  }
+
+  clearCompare(): void {
+    this.compare.clear();
+    this.compareRejection.set(null);
+  }
+
+  openCompared(candidate: CompareCandidate): void {
+    const listing = this.listings().find((item) => item.id === candidate.id);
+    if (listing) {
+      this.openListing(listing);
+    }
+  }
+
+  /**
+   * Mapea a la forma agnóstica de SH-14 **formateando acá**: la pieza no sabe qué
+   * es un m² ni un estrato, y el día que haya pies² el cambio es de este lado.
+   *
+   * Un `0` se omite en vez de escribirse: «0 parqueaderos» y «no sabemos cuántos»
+   * se leen igual en una tabla, y el segundo es lo que significa un cero en este
+   * backend para `floor` y `ageYears`.
+   */
+  private toCandidate(listing: Listing): CompareCandidate {
+    const specs = listing.specs;
+    const values: Record<string, string> = {
+      areaBuilt: specs.areaBuilt > 0 ? this.formatArea(specs.areaBuilt) : '',
+      areaPrivate: specs.areaPrivate > 0 ? this.formatArea(specs.areaPrivate) : '',
+      beds: specs.beds > 0 ? this.formatCount(specs.beds) : '',
+      baths: specs.baths > 0 ? this.formatCount(specs.baths) : '',
+      parking: specs.parking > 0 ? this.formatCount(specs.parking) : '',
+      stratum: specs.stratum > 0 ? this.formatCount(specs.stratum) : '',
+      floor: specs.floor > 0 ? this.formatCount(specs.floor) : '',
+      ageYears: specs.ageYears > 0 ? `${this.formatCount(specs.ageYears)} años` : '',
+      operation: this.operationLabel(listing.operation),
+      type: this.typeLabel(listing.type),
+      location: `${listing.geo.neighborhood} · ${listing.geo.city}`,
+    };
+    return {
+      id: listing.id,
+      title: listing.title,
+      subtitle: listing.subtitle,
+      headline: this.priceLabel(listing),
+      imageUrl: listing.cover || undefined,
+      values,
+    };
+  }
+
+  readonly compareAttributes: readonly CompareAttribute[] = [
+    { id: 'operation', label: 'Operación', group: 'Lo básico' },
+    { id: 'type', label: 'Tipo', group: 'Lo básico' },
+    { id: 'location', label: 'Ubicación', group: 'Lo básico' },
+    { id: 'areaBuilt', label: 'Área construida', group: 'Espacio' },
+    { id: 'areaPrivate', label: 'Área privada', group: 'Espacio' },
+    { id: 'beds', label: 'Habitaciones', group: 'Espacio' },
+    { id: 'baths', label: 'Baños', group: 'Espacio' },
+    { id: 'parking', label: 'Parqueaderos', group: 'Espacio' },
+    { id: 'floor', label: 'Piso', group: 'Espacio' },
+    { id: 'stratum', label: 'Estrato', group: 'Costos y estado' },
+    { id: 'ageYears', label: 'Antigüedad', group: 'Costos y estado' },
+  ];
+
+  readonly compareConfig: CompareTableConfig = {
+    heading: 'Comparar propiedades',
+    nounPlural: 'propiedades',
+    needMoreMessage: 'Marca al menos dos propiedades para verlas lado a lado.',
+  };
+
+  /** El motivo, con las palabras de este dominio. */
+  readonly compareMessage = computed(() => {
+    switch (this.compareRejection()) {
+      case 'limit-reached':
+        return `Puedes comparar hasta ${this.compare.limit} propiedades. Quita una para añadir otra.`;
+      case 'already-added':
+        return 'Esa propiedad ya está en la comparación.';
+      default:
+        return '';
+    }
+  });
 
   // ─── Saved searches ──────────────────────────────────────────────────────────
   private loadSaved(): void {

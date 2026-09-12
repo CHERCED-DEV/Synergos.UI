@@ -455,6 +455,71 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(component.reviewNotice()).not.toContain('publicada');
     expect(component.reviewNotice()).toContain('No pudimos publicar');
   });
+
+  // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
+  //
+  // Lo que este dominio prueba y los otros tres no pueden: **dos selecciones
+  // separadas**. Un hotel y un auto no tienen eje común, así que compartir la
+  // selección daría una tabla con filas vacías en tres de cada cuatro celdas.
+  it('estadías y autos comparan POR SEPARADO: no comparten selección', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const marcarDos = async (): Promise<void> => {
+      const botones = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.travel__cmp'),
+      ) as HTMLButtonElement[];
+      expect(botones.length).toBeGreaterThan(1);
+      botones[0].click();
+      botones[1].click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+    };
+
+    await searchStays();
+    await marcarDos();
+    expect(component.compareStays.count()).toBe(2);
+    expect(component.compareCars.count()).toBe(0);
+
+    await searchCars();
+    await marcarDos();
+    expect(component.compareCars.count()).toBe(2);
+    // Y lo de estadías NO se perdió al cambiar de producto.
+    expect(component.compareStays.count()).toBe(2);
+
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    // El eje de los autos, no el de las estadías: categoría y transmisión son los
+    // datos que #27 volvió datos de verdad en vez de prosa del `subtitle`.
+    expect(filas).toContain('Categoría');
+    expect(filas).toContain('Transmisión');
+    expect(filas).not.toContain('Zona');
+  });
+
+  it('régimen y zona NO se pintan: viajan dentro del subtitle como prosa', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    await searchStays();
+    const botones = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.travel__cmp'),
+    ) as HTMLButtonElement[];
+    botones[0].click();
+    botones[1].click();
+    fixture.detectChanges();
+
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    // Están DECLARADAS en el eje y no se pintan porque ningún candidato las trae:
+    // partir el `subtitle` para rellenarlas sería adivinar (#27).
+    expect(component.stayCompareAttributes.map((a) => a.id)).toContain('board');
+    expect(filas).not.toContain('Régimen');
+    expect(filas).not.toContain('Zona');
+    // Y lo que sí es dato, sí sale.
+    expect(filas).toContain('Precio');
+  });
 });
 
 describe('TravelApiClient', () => {

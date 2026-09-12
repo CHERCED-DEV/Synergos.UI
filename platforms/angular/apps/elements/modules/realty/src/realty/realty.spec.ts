@@ -684,6 +684,81 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
       'Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita',
     );
   });
+
+  // ── SH-14: comparar desde los RESULTADOS, y el techo ─────────────────────────
+  //
+  // Se PULSA el botón en vez de llamar al método: lo que esta HU arregla es que
+  // comparar sea alcanzable desde la lista —antes había que guardar en favoritos—,
+  // y un spec que llamara a `toggleCompare(listing)` pasaría en verde con el botón
+  // quitado (regla 5 de CLAUDE.md, aprendida en la #27).
+  it('marca dos propiedades desde los resultados y la tabla aparece con su eje', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const botones = () =>
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.realty__cmp'),
+      ) as HTMLButtonElement[];
+
+    expect(botones().length).toBeGreaterThan(1);
+    expect(fixture.nativeElement.querySelector('syn-compare-table')).toBeNull();
+
+    botones()[0].click();
+    fixture.detectChanges();
+    // Con uno la pieza ya está montada, pero dice que hacen falta dos.
+    expect(fixture.nativeElement.querySelector('syn-compare-table')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.syn-compare__table')).toBeNull();
+
+    botones()[1].click();
+    fixture.detectChanges();
+
+    expect(component.compare.count()).toBe(2);
+    expect(fixture.nativeElement.querySelector('.syn-compare__table')).not.toBeNull();
+    // El eje es por atributo: una fila por característica, no un bloque por tarjeta.
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    expect(filas).toContain('Habitaciones');
+    expect(filas).toContain('Área construida');
+  });
+
+  it('pasado el techo de cuatro NO se añade la quinta, y se dice por qué', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const botones = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.realty__cmp'),
+    ) as HTMLButtonElement[];
+    expect(botones.length).toBeGreaterThan(4);
+
+    for (let i = 0; i < 5; i += 1) {
+      botones[i].click();
+    }
+    fixture.detectChanges();
+
+    expect(component.compare.count()).toBe(4);
+    expect(component.compareMessage()).toContain('hasta 4 propiedades');
+    // Y la quinta NO expulsó a la primera: las cuatro elegidas siguen ahí.
+    expect(fixture.nativeElement.querySelector('.realty__compare-msg')).not.toBeNull();
+  });
+
+  it('quitar una hace hueco y borra el motivo anterior', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const listings = component.listings();
+    for (let i = 0; i < 5; i += 1) {
+      component.toggleCompare(listings[i]);
+    }
+    expect(component.compareMessage()).not.toBe('');
+
+    component.removeFromCompare(listings[0].id);
+    expect(component.compare.count()).toBe(3);
+    expect(component.compareMessage()).toBe('');
+  });
 });
 
 describe('RealtyApiClient', () => {

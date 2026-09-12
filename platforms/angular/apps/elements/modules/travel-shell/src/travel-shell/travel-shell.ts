@@ -20,6 +20,12 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareTableConfig,
   CartShellComponent,
   type CartAction,
   type CartLine,
@@ -205,6 +211,7 @@ let travelShellInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
+    CompareTableComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     SynSkeletonComponent,
@@ -1346,6 +1353,129 @@ export class TravelShellElementComponent {
 
   offerPriceLabel(offer: TravelOffer): string {
     return this.formatPrice(offer.amount, offer.currency || this.currency());
+  }
+
+  // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
+  //
+  // **DOS selecciones y no una**, que es lo que este dominio demuestra y los otros
+  // tres no podían: un hotel y un auto no tienen eje común, así que meterlos en la
+  // misma tabla daría filas donde tres de cuatro celdas están vacías. La pieza no
+  // guarda estado global; cada lista trae el suyo.
+  readonly compareStays = new CompareSelection<CompareCandidate>(4);
+  readonly compareCars = new CompareSelection<CompareCandidate>(4);
+  readonly compareRejection = signal<CompareRejection | null>(null);
+
+  /**
+   * `board` y `location` se declaran y hoy NO se pintan, y eso es deliberado.
+   *
+   * El régimen («Desayuno incluido») y la zona viajan dentro de `subtitle` como
+   * prosa, y partir una cadena de presentación para sacar columnas es adivinar
+   * —el error que #27 cerró volviendo `carCategory` un dato—. Declararlas deja
+   * escrito cuál es el eje completo y cuáles son las dos filas que el día que el
+   * backend las emita aparecen solas: la pieza omite el atributo que nadie trae.
+   */
+  readonly stayCompareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta', hint: 'Desde, por la estadía' },
+    { id: 'rating', label: 'Categoría', group: 'Lo que ofrece' },
+    { id: 'board', label: 'Régimen', group: 'Lo que ofrece' },
+    { id: 'location', label: 'Zona', group: 'Dónde está' },
+    { id: 'perks', label: 'Incluye', group: 'Lo que ofrece' },
+  ];
+
+  readonly carCompareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta' },
+    { id: 'category', label: 'Categoría', group: 'Qué auto es' },
+    { id: 'transmission', label: 'Transmisión', group: 'Qué auto es' },
+    { id: 'perks', label: 'Incluye', group: 'Qué trae' },
+  ];
+
+  readonly stayCompareConfig: CompareTableConfig = {
+    heading: 'Comparar estadías',
+    nounPlural: 'estadías',
+    needMoreMessage: 'Marca al menos dos estadías para verlas lado a lado.',
+  };
+
+  readonly carCompareConfig: CompareTableConfig = {
+    heading: 'Comparar autos',
+    nounPlural: 'autos',
+    needMoreMessage: 'Marca al menos dos autos para verlos lado a lado.',
+  };
+
+  readonly compareMessage = computed(() => {
+    switch (this.compareRejection()) {
+      case 'limit-reached':
+        return 'Puedes comparar hasta 4 a la vez. Quita uno para añadir otro.';
+      case 'already-added':
+        return 'Ya está en la comparación.';
+      default:
+        return '';
+    }
+  });
+
+  inCompare(offer: TravelOffer): boolean {
+    return this.#compareFor(offer).has(offer.offerId);
+  }
+
+  toggleCompare(offer: TravelOffer): void {
+    this.compareRejection.set(this.#compareFor(offer).toggle(this.toCandidate(offer)));
+  }
+
+  removeFromStayCompare(id: string): void {
+    this.compareStays.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  removeFromCarCompare(id: string): void {
+    this.compareCars.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  clearStayCompare(): void {
+    this.compareStays.clear();
+    this.compareRejection.set(null);
+  }
+
+  clearCarCompare(): void {
+    this.compareCars.clear();
+    this.compareRejection.set(null);
+  }
+
+  openComparedStay(candidate: CompareCandidate): void {
+    const offer = this.stayOffers().find((item) => item.offerId === candidate.id);
+    if (offer) {
+      this.openStay(offer);
+    }
+  }
+
+  #compareFor(offer: TravelOffer): CompareSelection<CompareCandidate> {
+    return offer.product === 'car' ? this.compareCars : this.compareStays;
+  }
+
+  /**
+   * **El `subtitle` NO se parte para sacar filas.** Llega como prosa
+   * —«Económico · Automático · A/C»— y derivar columnas partiendo una cadena de
+   * presentación es adivinar: es el mismo error que #27 cerró al volver
+   * `carCategory` y `carTransmission` datos de verdad. Lo que el backend no emita
+   * como dato NO aparece como fila, y el `subtitle` se queda donde sirve: de
+   * resumen bajo el título.
+   */
+  private toCandidate(offer: TravelOffer): CompareCandidate {
+    const values: Record<string, string> = {
+      price: this.offerPriceLabel(offer),
+      rating: offer.rating ? `${offer.rating} / 5` : '',
+      category: offer.carCategory ?? '',
+      transmission: offer.carTransmission ?? '',
+      // Las insignias son lo que el hotel o la renta decidió destacar: «Desayuno
+      // incluido», «Cancelación gratis». Es la fila que más decide y no tenía sitio.
+      perks: offer.badges.join(' · '),
+    };
+    return {
+      id: offer.offerId,
+      title: offer.title,
+      subtitle: offer.subtitle,
+      headline: this.offerPriceLabel(offer),
+      values,
+    };
   }
 
   ratePriceLabel(rate: StayRate): string {
