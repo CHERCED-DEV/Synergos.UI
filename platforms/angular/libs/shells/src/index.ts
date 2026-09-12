@@ -18,6 +18,18 @@
 //  - SH-11 `syn-confirmation-shell` — el acuse: referencia, qué sigue, artefacto del dominio
 //  - SH-12 `syn-cart-shell`       — el carrito: líneas, grupos, resumen y el reloj del apartado
 //  - SH-13 `syn-review-panel`    — prueba social: resumen con distribución, lista y captura verificada
+//  - SH-14 `syn-compare-table`   — comparar: eje por atributo, techo de selección y qué difiere
+
+// ─── SH-14 Comparar ──────────────────────────────────────────────────────────
+export {
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareRow,
+  type CompareTableConfig,
+} from './compare/compare-table';
 
 // ─── SH-13 Reseñas ───────────────────────────────────────────────────────────
 export {

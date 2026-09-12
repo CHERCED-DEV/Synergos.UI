@@ -333,6 +333,47 @@
     }
   }
 
+  // SH-14 (#30). `position: relative` + `z-index` NO son decoración: el velo del
+  // stretched link de `__card-link` es un ::after posicionado, así que sin esto
+  // queda por encima y el clic abre el curso en vez de marcarlo para comparar.
+  &__cmp {
+    position: relative;
+    z-index: 1;
+    align-self: flex-start;
+    margin-block-start: syn.$space-xs;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(4) syn.$space-xs;
+    background: var(--ac-surface);
+    color: var(--ac-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    // Sólido y con su tinta (#25): `state-brand-surface` es un lavado.
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__compare {
+    display: block;
+    margin-block-start: syn.$space-lg;
+  }
+
+  &__compare-msg {
+    margin: syn.$space-xs 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--ac-surface-muted, var(--ac-surface));
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
   &__card-instructor {
     margin: 0;
     font-size: syn.$font-size-sm;

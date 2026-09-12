@@ -117,6 +117,22 @@
         (layoutchange)="onLayoutChange($event)"
       />
 
+      @if (compare.count() > 0) {
+        <syn-compare-table
+          class="realty__compare-panel"
+          [config]="compareConfig"
+          [candidates]="compare.items()"
+          [attributes]="compareAttributes"
+          [limit]="compare.limit"
+          (removecandidate)="removeFromCompare($event)"
+          (opencandidate)="openCompared($event)"
+          (clearall)="clearCompare()"
+        />
+        @if (compareMessage(); as aviso) {
+          <p class="realty__compare-msg" role="status">{{ aviso }}</p>
+        }
+      }
+
       <ng-template #listingCard let-listing let-select="select">
         <article class="realty__card">
           <button type="button" class="realty__card-media" (click)="select()" [attr.aria-label]="'Ver ' + listing.title">
@@ -140,6 +156,18 @@
             (click)="toggleFavorite(listing.id)"
           >
             <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </button>
+          <!-- Comparar desde los RESULTADOS, que es donde se duda (#30). Antes había
+               que guardar en favoritos para poder comparar, o sea ensuciar una lista
+               que significa otra cosa. -->
+          <button
+            type="button"
+            class="realty__cmp"
+            [class.is-on]="inCompare(listing.id)"
+            [attr.aria-pressed]="inCompare(listing.id)"
+            (click)="toggleCompare(listing)"
+          >
+            {{ inCompare(listing.id) ? 'Comparando' : 'Comparar' }}
           </button>
           <div class="realty__card-body">
             <p class="realty__card-price">{{ priceLabel(listing) }}</p>
@@ -496,16 +524,11 @@
             <div class="realty__favs">
               <div class="realty__favs-head">
                 <h2 class="realty__favs-title">Favoritos</h2>
-                @if (favoriteListings().length > 1) {
-                  <button type="button" class="realty__link-btn" (click)="toggleCompare()">
-                    {{ compareMode() ? 'Salir de comparar' : 'Comparar' }}
-                  </button>
-                }
               </div>
               @if (favoriteListings().length === 0) {
                 <p class="realty__empty">Aún no has guardado propiedades. Toca <svg class="realty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg> en cualquier resultado.</p>
               } @else {
-                <div class="realty__favs-grid" [class.is-compare]="compareMode()">
+                <div class="realty__favs-grid">
                   @for (listing of favoriteListings(); track listing.id) {
                     <article class="realty__fav-card">
                       <p class="realty__card-price">{{ priceLabel(listing) }}</p>
@@ -513,18 +536,38 @@
                         <button type="button" class="realty__card-link" (click)="openListing(listing)">{{ listing.title }}</button>
                       </h3>
                       <p class="realty__card-specs">{{ listing.subtitle }}</p>
-                      @if (compareMode()) {
-                        <dl class="realty__compare">
-                          <div><dt>Área</dt><dd>{{ formatArea(listing.specs.areaBuilt) }}</dd></div>
-                          <div><dt>Hab</dt><dd>{{ listing.specs.beds }}</dd></div>
-                          <div><dt>Baños</dt><dd>{{ listing.specs.baths }}</dd></div>
-                          <div><dt>Estrato</dt><dd>{{ listing.specs.stratum }}</dd></div>
-                        </dl>
-                      }
-                      <button type="button" class="realty__link-btn" (click)="removeFavorite(listing.id)">Quitar</button>
+                      <div class="realty__fav-card-actions">
+                        <button
+                          type="button"
+                          class="realty__link-btn"
+                          [class.is-on]="inCompare(listing.id)"
+                          (click)="toggleCompare(listing)"
+                        >
+                          {{ inCompare(listing.id) ? 'Quitar de comparar' : 'Comparar' }}
+                        </button>
+                        <button type="button" class="realty__link-btn" (click)="removeFavorite(listing.id)">Quitar</button>
+                      </div>
                     </article>
                   }
                 </div>
+
+                <!-- La MISMA pieza que en resultados: el eje, el techo y el filtro de
+                     diferencias no se escriben dos veces. -->
+                @if (compare.count() > 0) {
+                  <syn-compare-table
+                    class="realty__compare-panel"
+                    [config]="compareConfig"
+                    [candidates]="compare.items()"
+                    [attributes]="compareAttributes"
+                    [limit]="compare.limit"
+                    (removecandidate)="removeFromCompare($event)"
+                    (opencandidate)="openCompared($event)"
+                    (clearall)="clearCompare()"
+                  />
+                  @if (compareMessage(); as aviso) {
+                    <p class="realty__compare-msg" role="status">{{ aviso }}</p>
+                  }
+                }
               }
             </div>
           }

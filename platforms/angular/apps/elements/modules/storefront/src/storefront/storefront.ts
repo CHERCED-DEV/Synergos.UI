@@ -21,6 +21,12 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareTableConfig,
   CartShellComponent,
   type CartAction,
   type CartGroup,
@@ -69,6 +75,7 @@ import {
   STOREFRONT_FLOW,
   type AccountSectionId,
   type MessageThread,
+  type ProductCondition,
   type ProductDetail,
   type ProductVariant,
   type ReturnReceipt,
@@ -133,6 +140,19 @@ const SORT_OPTIONS: readonly { key: SortKey; label: string }[] = [
   { key: 'newest', label: 'Más recientes' },
 ];
 const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevance', page: 1 };
+
+/**
+ * El rótulo de la condición, en UN sitio.
+ *
+ * Estaba escrito tres veces como ternario anidado —el eyebrow de la PDP, su ficha
+ * técnica y, al llegar SH-14, la fila de comparación—, así que el tercer sitio
+ * habría dicho «Reacondicionado» el día que los dos primeros dijeran otra cosa.
+ */
+const CONDITION_LABELS: Readonly<Record<ProductCondition, string>> = {
+  new: 'Nuevo',
+  used: 'Usado',
+  refurbished: 'Reacondicionado',
+};
 const ACCOUNT_SECTIONS: readonly AccountSectionId[] = [
   'compras',
   'favoritos',
@@ -163,6 +183,7 @@ let storefrontInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
+    CompareTableComponent,
     ReviewPanelComponent,
     PromoCodeComponent,
     TrackingTimelineComponent,
@@ -285,13 +306,7 @@ export class StorefrontElementComponent {
     if (!product) {
       return '';
     }
-    const condition =
-      product.condition === 'used'
-        ? 'Usado'
-        : product.condition === 'refurbished'
-          ? 'Reacondicionado'
-          : 'Nuevo';
-    return `${condition} · ${product.brand}`;
+    return `${CONDITION_LABELS[product.condition]} · ${product.brand}`;
   });
 
   readonly pdpSpecs = computed<readonly DetailSpec[]>(() => {
@@ -303,15 +318,7 @@ export class StorefrontElementComponent {
     const specs: DetailSpec[] = [
       { label: 'Marca', value: product.brand || '—' },
       { label: 'Categoría', value: product.category || '—' },
-      {
-        label: 'Condición',
-        value:
-          product.condition === 'used'
-            ? 'Usado'
-            : product.condition === 'refurbished'
-              ? 'Reacondicionado'
-              : 'Nuevo',
-      },
+      { label: 'Condición', value: CONDITION_LABELS[product.condition] },
       { label: 'Envío', value: product.freeShipping ? 'Gratis a todo el país' : 'Con costo' },
     ];
     if (product.seller) {
@@ -1077,6 +1084,100 @@ export class StorefrontElementComponent {
       default:
         this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
     }
+  }
+
+  // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
+  //
+  // En una tienda el eje es la FICHA TÉCNICA, no el precio: quien compara dos
+  // televisores ya sabe lo que cuestan. Marca, condición y vendedor importan
+  // tanto como el precio, y «envío gratis» decide más de lo que parece.
+  readonly compare = new CompareSelection<CompareCandidate>(4);
+  readonly compareRejection = signal<CompareRejection | null>(null);
+
+  readonly compareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta' },
+    { id: 'listPrice', label: 'Antes', group: 'Lo que cuesta' },
+    { id: 'shipping', label: 'Envío', group: 'Lo que cuesta' },
+    { id: 'brand', label: 'Marca', group: 'Lo que es' },
+    { id: 'category', label: 'Categoría', group: 'Lo que es' },
+    { id: 'condition', label: 'Condición', group: 'Lo que es' },
+    { id: 'seller', label: 'Vendedor', group: 'Quién lo vende' },
+    { id: 'rating', label: 'Calificación', group: 'Qué dicen' },
+    { id: 'stock', label: 'Disponibilidad', group: 'Quién lo vende' },
+  ];
+
+  readonly compareConfig: CompareTableConfig = {
+    heading: 'Comparar productos',
+    nounPlural: 'productos',
+    needMoreMessage: 'Marca al menos dos productos para ver sus fichas lado a lado.',
+  };
+
+  readonly compareMessage = computed(() => {
+    switch (this.compareRejection()) {
+      case 'limit-reached':
+        return `Puedes comparar hasta ${this.compare.limit} productos. Quita uno para añadir otro.`;
+      case 'already-added':
+        return 'Ese producto ya está en la comparación.';
+      default:
+        return '';
+    }
+  });
+
+  inCompare(id: string): boolean {
+    return this.compare.has(id);
+  }
+
+  toggleCompare(product: ShopProduct): void {
+    this.compareRejection.set(this.compare.toggle(this.toCandidate(product)));
+  }
+
+  removeFromCompare(id: string): void {
+    this.compare.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  clearCompare(): void {
+    this.compare.clear();
+    this.compareRejection.set(null);
+  }
+
+  openCompared(candidate: CompareCandidate): void {
+    const product = this.products().find((item) => item.id === candidate.id);
+    if (product) {
+      this.openProduct(product);
+    }
+  }
+
+  /**
+   * **«Sin stock» SÍ se escribe, y «sin reseñas» NO.** Un producto agotado es un
+   * dato que decide —es la fila que hace descartar una columna— mientras que un
+   * `rating` de 0 sin reseñas no es «malo»: es que nadie opinó, y escribir «0,0»
+   * ahí es afirmar algo que nadie dijo. Es el mismo criterio del `reviewCount` de
+   * SH-13 (#28).
+   */
+  private toCandidate(product: ShopProduct): CompareCandidate {
+    const values: Record<string, string> = {
+      price: this.productPriceLabel(product),
+      listPrice: this.productListPriceLabel(product),
+      shipping: product.freeShipping ? 'Gratis' : 'Con costo',
+      brand: product.brand,
+      category: product.category,
+      condition: CONDITION_LABELS[product.condition],
+      seller: product.seller ?? '',
+      rating:
+        product.reviewCount > 0
+          ? `${product.rating.toFixed(1)} (${product.reviewCount})`
+          : '',
+      stock: product.inStock ? 'Disponible' : 'Sin stock',
+    };
+    return {
+      id: product.id,
+      title: product.title,
+      subtitle: product.subtitle,
+      headline: this.productPriceLabel(product),
+      imageUrl: product.images[0] || undefined,
+      values,
+    };
   }
 
   // ─── Wishlist (favoritos) ────────────────────────────────────────────────────

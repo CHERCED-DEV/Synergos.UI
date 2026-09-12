@@ -22,6 +22,12 @@ import {
   AccountShellComponent,
   ReviewPanelComponent,
   type ReviewBlockedReason,
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareTableConfig,
   type ReviewCriterionPrompt,
   type ReviewDraft,
   type ReviewEntry,
@@ -211,6 +217,7 @@ let academyInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     ReviewPanelComponent,
+    CompareTableComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     ConsoleShellComponent,
@@ -1685,6 +1692,96 @@ export class AcademyElementComponent {
 
   levelLabel(level: CourseLevel): string {
     return LEVEL_LABELS[level] ?? level;
+  }
+
+  // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
+  //
+  // En formación el eje es el COMPROMISO: cuántas horas, cuántas lecciones, qué
+  // nivel, si certifica. El precio importa menos que el tiempo, y es justo lo que
+  // un catálogo de tarjetas no deja contrastar.
+  readonly compare = new CompareSelection<CompareCandidate>(4);
+  readonly compareRejection = signal<CompareRejection | null>(null);
+
+  readonly compareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta' },
+    { id: 'listPrice', label: 'Antes', group: 'Lo que cuesta' },
+    { id: 'duration', label: 'Duración', group: 'Lo que exige' },
+    { id: 'lessons', label: 'Lecciones', group: 'Lo que exige' },
+    { id: 'level', label: 'Nivel', group: 'Lo que exige' },
+    { id: 'category', label: 'Categoría', group: 'Lo que es' },
+    { id: 'instructor', label: 'Docente', group: 'Lo que es' },
+    { id: 'rating', label: 'Calificación', group: 'Qué dicen' },
+    { id: 'students', label: 'Estudiantes', group: 'Qué dicen' },
+  ];
+
+  readonly compareConfig: CompareTableConfig = {
+    heading: 'Comparar cursos',
+    nounPlural: 'cursos',
+    needMoreMessage: 'Marca al menos dos cursos para ver lado a lado lo que te piden.',
+  };
+
+  readonly compareMessage = computed(() => {
+    switch (this.compareRejection()) {
+      case 'limit-reached':
+        return `Puedes comparar hasta ${this.compare.limit} cursos. Quita uno para añadir otro.`;
+      case 'already-added':
+        return 'Ese curso ya está en la comparación.';
+      default:
+        return '';
+    }
+  });
+
+  inCompare(id: string): boolean {
+    return this.compare.has(id);
+  }
+
+  toggleCompare(course: AcademyCourse): void {
+    this.compareRejection.set(this.compare.toggle(this.toCandidate(course)));
+  }
+
+  removeFromCompare(id: string): void {
+    this.compare.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  clearCompare(): void {
+    this.compare.clear();
+    this.compareRejection.set(null);
+  }
+
+  openCompared(candidate: CompareCandidate): void {
+    const course = this.courses().find((item) => item.id === candidate.id);
+    if (course) {
+      this.openCourse(course);
+    }
+  }
+
+  /**
+   * **Un curso sin estudiantes no lleva «0,0» de nota.** El `rating` de un curso
+   * recién publicado vale 0 porque nadie lo calificó, y escribirlo en la tabla lo
+   * pondría debajo de uno malo — afirmar una nota que nadie dio. Mismo criterio
+   * que en la Tienda y que el `reviewCount` de SH-13 (#28).
+   */
+  private toCandidate(course: AcademyCourse): CompareCandidate {
+    const values: Record<string, string> = {
+      price: this.coursePriceLabel(course),
+      listPrice: this.courseListPriceLabel(course),
+      duration: this.durationLabel(course.durationMinutes),
+      lessons: course.lessonCount > 0 ? this.formatCount(course.lessonCount) : '',
+      level: this.levelLabel(course.level),
+      category: course.category,
+      instructor: course.instructorName,
+      rating: course.studentCount > 0 ? course.rating.toFixed(1) : '',
+      students: course.studentCount > 0 ? `${this.formatCount(course.studentCount)} alumnos` : '',
+    };
+    return {
+      id: course.id,
+      title: course.title,
+      subtitle: course.subtitle,
+      headline: this.coursePriceLabel(course),
+      imageUrl: course.cover || undefined,
+      values,
+    };
   }
 
   courseStatusLabel(status: InstructorCourse['status']): string {

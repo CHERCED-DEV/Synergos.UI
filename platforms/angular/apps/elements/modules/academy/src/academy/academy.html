@@ -112,8 +112,11 @@
               <!-- El disparador real es este <button>, no la tarjeta: es focusable de nativo y
                    activa con Enter/Espacio. Su ::after se estira sobre toda la .academy__card
                    (stretched link), así el ratón conserva "clic en cualquier parte" con UNA
-                   sola parada de tabulación. La tarjeta no tiene ningún otro interactivo, así
-                   que el velo no tapa nada. -->
+                   sola parada de tabulación.
+                   Desde SH-14 (#30) la tarjeta SÍ tiene un segundo interactivo —el de
+                   comparar—, y por eso ese botón lleva `position: relative; z-index: 1`: el
+                   velo es un ::after posicionado, así que sin eso quedaría encima y el clic
+                   abriría el curso en vez de marcarlo. Falla en silencio. -->
               <h3 class="academy__card-title">
                 <button type="button" class="academy__card-link" (click)="select()">{{ course.title }}</button>
               </h3>
@@ -138,9 +141,36 @@
                   <span class="academy__price-list">{{ courseListPriceLabel(course) }}</span>
                 }
               </div>
+              <button
+                type="button"
+                class="academy__cmp"
+                [class.is-on]="inCompare(course.id)"
+                [attr.aria-pressed]="inCompare(course.id)"
+                (click)="toggleCompare(course)"
+              >
+                {{ inCompare(course.id) ? 'Comparando' : 'Comparar' }}
+              </button>
             </div>
           </article>
         </ng-template>
+
+        <!-- SH-14 (#30): el eje acá es el COMPROMISO —horas, lecciones, nivel—, no el
+             precio. La pieza es la misma que en Propiedades y Tienda. -->
+        @if (compare.count() > 0) {
+          <syn-compare-table
+            class="academy__compare"
+            [config]="compareConfig"
+            [candidates]="compare.items()"
+            [attributes]="compareAttributes"
+            [limit]="compare.limit"
+            (removecandidate)="removeFromCompare($event)"
+            (opencandidate)="openCompared($event)"
+            (clearall)="clearCompare()"
+          />
+          @if (compareMessage(); as aviso) {
+            <p class="academy__compare-msg" role="status">{{ aviso }}</p>
+          }
+        }
       </section>
     }
 
