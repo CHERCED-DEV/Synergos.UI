@@ -438,11 +438,16 @@ export class BlogsElementComponent {
   readonly discoveryFacets = computed<readonly DiscoveryFacet[]>(() => [
     {
       key: 'tab',
+      // Una pestaña es una pestaña: marcar dos no tiene sentido, y el cliente ya
+      // se quedaba con la primera. Declararlo pinta radios en vez de casillas (#18).
+      kind: 'SingleSelect',
       label: 'Mostrar',
       values: SEARCH_TABS.map((tab) => ({ value: tab.key, label: tab.label })),
     },
     {
       key: 'hashtag',
+      // La búsqueda por tendencia viaja de a una al backend.
+      kind: 'SingleSelect',
       label: 'Tendencias',
       values: this.trending().map((tag) => ({
         value: tag.tag,
