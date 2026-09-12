@@ -505,6 +505,19 @@ function normalizeCourse(value: unknown, fallbackCurrency: string): AcademyCours
   };
 }
 
+/**
+ * Las facetas cuyo valor viaja de a UNO al backend (#18).
+ *
+ * `CatalogCriteria` lleva `category`, `level` y `price` como campos sueltos, así que el
+ * cliente se quedaba con el primer valor y descartaba el resto — con el shell pintando
+ * casillas. Declararlas de valor único hace que lo que se marca sea lo que se filtra.
+ */
+const FACETAS_DE_UN_VALOR: ReadonlySet<string> = new Set(['category', 'level', 'price']);
+
+function kindPorDefecto(clave: string): string {
+  return FACETAS_DE_UN_VALOR.has(clave) ? 'SingleSelect' : 'MultiSelect';
+}
+
 function normalizeFacets(value: unknown): readonly AcademyFacet[] {
   if (!Array.isArray(value)) {
     return [];
@@ -522,6 +535,8 @@ function normalizeFacets(value: unknown): readonly AcademyFacet[] {
       return {
         key,
         label: readString(entry['label']).trim() || key,
+        // Sin kind el contrato dice MultiSelect; estas tres viajan de a una (#18).
+        kind: readString(entry['kind']).trim() || kindPorDefecto(key),
         values: rawValues
           .map((facetValue) => {
             if (!isRecord(facetValue)) {
@@ -995,6 +1010,7 @@ function deriveFacets(courses: readonly AcademyCourse[]): readonly AcademyFacet[
     {
       key: 'category',
       label: 'Escuela',
+      kind: kindPorDefecto('category'),
       values: categories.map((category) => ({
         value: category,
         label: category,
@@ -1004,6 +1020,7 @@ function deriveFacets(courses: readonly AcademyCourse[]): readonly AcademyFacet[
     {
       key: 'level',
       label: 'Nivel',
+      kind: kindPorDefecto('level'),
       values: [
         { value: 'beginner', label: 'Principiante' },
         { value: 'intermediate', label: 'Intermedio' },
@@ -1013,6 +1030,7 @@ function deriveFacets(courses: readonly AcademyCourse[]): readonly AcademyFacet[
     {
       key: 'price',
       label: 'Precio',
+      kind: kindPorDefecto('price'),
       values: [
         { value: 'free', label: 'Gratis' },
         { value: 'mid', label: 'Hasta $450.000' },

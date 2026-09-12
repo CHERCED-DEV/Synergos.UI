@@ -357,11 +357,15 @@ export class EventosElementComponent {
     const categories = this.facetValues((event) => event.category);
     const cities = this.facetValues((event) => event.city);
     const facets: DiscoveryFacet[] = [];
+    // Las dos viajan de a UN valor al backend (`category`/`city` son campos sueltos
+    // del criteria, no listas), así que se declaran de valor único: el shell pinta
+    // radios y lo que se marca es lo que se filtra. Ofrecer casillas y mandar el
+    // primero devolvía menos de lo pedido, sin fallar y sin avisar (#18).
     if (categories.length > 0) {
-      facets.push({ key: 'category', label: 'Categoría', values: categories });
+      facets.push({ key: 'category', label: 'Categoría', kind: 'SingleSelect', values: categories });
     }
     if (cities.length > 0) {
-      facets.push({ key: 'city', label: 'Ciudad', values: cities });
+      facets.push({ key: 'city', label: 'Ciudad', kind: 'SingleSelect', values: cities });
     }
     return facets;
   });
