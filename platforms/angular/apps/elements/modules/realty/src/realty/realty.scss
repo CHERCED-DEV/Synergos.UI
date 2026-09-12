@@ -329,6 +329,28 @@
     }
   }
 
+  &__cmp {
+    position: absolute;
+    top: syn.$space-xs;
+    right: syn.px-to-rem(48);
+    border: syn.px-to-rem(1) solid var(--rt-border-subtle);
+    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(4) syn.$space-xs;
+    background: var(--rt-surface);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-xs;
+    box-shadow: var(--rt-shadow);
+    cursor: pointer;
+
+    // Sólido y con su tinta: `state-brand-surface` es un lavado y el rótulo
+    // desaparecería en cinco de los siete temas (#25).
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
   &__card-body {
     display: flex;
     flex-direction: column;
@@ -969,13 +991,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(#{syn.px-to-rem(220)}, 1fr));
     gap: syn.$space-sm;
-
-    &.is-compare {
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(#{syn.px-to-rem(220)}, 1fr);
-      grid-template-columns: none;
-      overflow-x: auto;
-    }
   }
 
   &__fav-card {
@@ -987,33 +1002,33 @@
     border-radius: syn.$radius-lg;
   }
 
+  &__fav-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: syn.$space-sm;
+    margin-block-start: syn.$space-xxs;
+  }
+
   &__fav-card-title {
     margin: 0;
     font-size: syn.$font-size-base;
     font-weight: 600;
   }
 
-  &__compare {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: syn.$space-xxs;
-    margin: syn.$space-xxs 0;
+  // SH-14 (#30). El `<dl>` por tarjeta que vivía acá se fue con la pieza: era
+  // repetición y no comparación.
+  &__compare-panel {
+    display: block;
+    margin-block-start: syn.$space-md;
+  }
 
-    > div {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    dt {
-      color: var(--rt-muted);
-      font-size: syn.$font-size-xs;
-    }
-
-    dd {
-      margin: 0;
-      font-weight: 600;
-      font-size: syn.$font-size-sm;
-    }
+  &__compare-msg {
+    margin: syn.$space-xs 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--rt-surface-muted);
+    color: var(--rt-text-secondary);
+    font-size: syn.$font-size-sm;
   }
 
   &__saved-list {

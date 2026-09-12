@@ -1511,6 +1511,41 @@
     }
   }
 
+  // SH-14 (#30). Sólido y con su tinta: `state-brand-surface` es un lavado y el
+  // rótulo desaparecería en cinco de los siete temas (#25).
+  &__cmp {
+    padding: syn.$space-1 syn.$space-2;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: syn.$radius-full;
+    background: var(--sf-surface);
+    color: var(--sf-muted);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--sf-focus-ring));
+
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__compare {
+    display: block;
+    margin-block-start: syn.$space-6;
+  }
+
+  &__compare-msg {
+    margin: syn.$space-2 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--sf-surface-muted, var(--sf-surface));
+    color: var(--sf-muted);
+    font-size: syn.$font-size-sm;
+  }
+
   // Icono de corazón (wishlist/fav): outline por defecto, relleno cuando activo
   // vía la clase de estado existente (hereda currentColor = danger en is-active).
   &__wish-icon {

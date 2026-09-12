@@ -357,6 +357,39 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
       'Cursos con proyectos reales, mentoría y certificado verificable.',
     );
   });
+
+  // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
+  //
+  // Se PULSA el botón, y además hay un motivo extra para hacerlo acá: la tarjeta
+  // lleva un «stretched link» cuyo ::after cubre todo. Un spec que llamara al
+  // método pasaría en verde aunque el velo se comiera el clic, que es el fallo
+  // silencioso que este caso existe para cazar.
+  it('marca dos cursos desde el catálogo y la tabla alinea el compromiso', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const botones = () =>
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.academy__cmp'),
+      ) as HTMLButtonElement[];
+
+    expect(botones().length).toBeGreaterThan(1);
+    botones()[0].click();
+    botones()[1].click();
+    fixture.detectChanges();
+
+    expect(component.compare.count()).toBe(2);
+    // Y marcar NO abrió el curso: si el velo se hubiera comido el clic, la vista
+    // habría cambiado a 'course'.
+    expect(component.view()).toBe('catalog');
+
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    expect(filas).toContain('Duración');
+    expect(filas).toContain('Nivel');
+  });
 });
 
 describe('AcademyApiClient', () => {

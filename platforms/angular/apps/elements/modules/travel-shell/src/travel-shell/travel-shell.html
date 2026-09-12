@@ -359,10 +359,38 @@
               <button type="button" class="travel__btn travel__btn--sm travel__btn--primary" (click)="select()">
                 Ver detalle
               </button>
+              <button
+                type="button"
+                class="travel__cmp"
+                [class.is-on]="inCompare(offer)"
+                [attr.aria-pressed]="inCompare(offer)"
+                (click)="toggleCompare(offer)"
+              >
+                {{ inCompare(offer) ? 'Comparando' : 'Comparar' }}
+              </button>
             </div>
           </div>
         </article>
       </ng-template>
+
+      <!-- SH-14 (#30). Dos selecciones separadas en este dominio: un hotel y un auto
+           no tienen eje común, así que una tabla compartida daría filas con tres de
+           cuatro celdas vacías. -->
+      @if (compareStays.count() > 0) {
+        <syn-compare-table
+          class="travel__compare"
+          [config]="stayCompareConfig"
+          [candidates]="compareStays.items()"
+          [attributes]="stayCompareAttributes"
+          [limit]="compareStays.limit"
+          (removecandidate)="removeFromStayCompare($event)"
+          (opencandidate)="openComparedStay($event)"
+          (clearall)="clearStayCompare()"
+        />
+        @if (compareMessage(); as aviso) {
+          <p class="travel__compare-msg" role="status">{{ aviso }}</p>
+        }
+      }
     </div>
   }
 
@@ -418,9 +446,33 @@
             >
               Agregar al viaje
             </button>
+            <button
+              type="button"
+              class="travel__cmp"
+              [class.is-on]="inCompare(offer)"
+              [attr.aria-pressed]="inCompare(offer)"
+              (click)="toggleCompare(offer)"
+            >
+              {{ inCompare(offer) ? 'Comparando' : 'Comparar' }}
+            </button>
           </div>
         </article>
       </ng-template>
+
+      @if (compareCars.count() > 0) {
+        <syn-compare-table
+          class="travel__compare"
+          [config]="carCompareConfig"
+          [candidates]="compareCars.items()"
+          [attributes]="carCompareAttributes"
+          [limit]="compareCars.limit"
+          (removecandidate)="removeFromCarCompare($event)"
+          (clearall)="clearCarCompare()"
+        />
+        @if (compareMessage(); as aviso) {
+          <p class="travel__compare-msg" role="status">{{ aviso }}</p>
+        }
+      }
     </div>
   }
 
