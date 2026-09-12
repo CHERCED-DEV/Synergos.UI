@@ -195,6 +195,12 @@ export {
   type OptionGroupVariant,
 } from './components/patterns/option-group/option-group';
 export { PaginatorComponent } from './components/patterns/paginator/paginator';
+export {
+  PromoCodeComponent,
+  type AppliedPromo,
+  type PromoCodeConfig,
+  type PromoRejection,
+} from './components/patterns/promo-code/promo-code';
 export { SectionComponent, type SectionConfig } from './components/patterns/section/section';
 export {
   SocialLinksComponent,

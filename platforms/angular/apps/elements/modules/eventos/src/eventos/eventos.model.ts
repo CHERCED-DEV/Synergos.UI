@@ -430,3 +430,29 @@ export interface CreateEventResult {
   readonly slug: string;
   readonly status: string;
 }
+
+
+// ─── Cupones y descuentos (#29) ──────────────────────────────────────────────
+
+/** Un cupón aceptado por el servidor. `amountMinor` es NEGATIVO. */
+export interface EventPromo {
+  readonly code: string;
+  readonly amountMinor: number;
+  readonly label: string;
+  readonly detail?: string;
+}
+
+/** Resultado tipado, sin degradar a mock — regla 4 de `CLAUDE.md`. */
+export type EventPromoResult =
+  | { readonly ok: true; readonly promo: EventPromo }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | 'unknown'
+        | 'expired'
+        | 'minimum-not-met'
+        | 'not-applicable'
+        | 'already-used'
+        | 'failed';
+      readonly shortfallMinor?: number;
+    };

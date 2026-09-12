@@ -1,0 +1,131 @@
+@use '../../../../../../../../vitals/core-assets/src/scss' as syn;
+
+.syn-promo-code {
+  --syn-promo-surface: var(--syn-color-surface-primary, #{syn.$color-surface});
+  --syn-promo-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
+  --syn-promo-border: var(--syn-color-border-default, #{syn.$color-border-default});
+  --syn-promo-text: var(--syn-color-text-primary, #{syn.$color-text-primary});
+  --syn-promo-muted: var(--syn-color-text-muted, #{syn.$color-text-muted});
+  /* Par SÓLIDO — el de lavado es invisible en los temas claros (#25). */
+  --syn-promo-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --syn-promo-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --syn-promo-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --syn-promo-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --syn-promo-ok-text: var(--syn-color-state-success-text, #{syn.$color-success-600});
+  --syn-promo-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+
+  display: block;
+}
+
+.syn-promo__form {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-xxs;
+}
+
+.syn-promo__label {
+  font-size: syn.$font-size-sm;
+  color: var(--syn-promo-muted);
+}
+
+.syn-promo__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-xxs;
+}
+
+.syn-promo__input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  padding: syn.$space-xxs syn.$space-xs;
+  font: inherit;
+  /* Los códigos se dictan y se comparan letra a letra. */
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--syn-promo-text);
+  background: var(--syn-promo-surface);
+  border: syn.px-to-rem(1) solid var(--syn-promo-border);
+  border-radius: syn.$radius-sm;
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--syn-promo-focus-ring);
+    outline-offset: syn.px-to-rem(1);
+  }
+}
+
+.syn-promo__apply {
+  padding: syn.$space-xxs syn.$space-sm;
+  font: inherit;
+  color: var(--syn-promo-brand-text);
+  background: var(--syn-promo-brand);
+  border: syn.px-to-rem(1) solid var(--syn-promo-brand);
+  border-radius: syn.$radius-sm;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--syn-promo-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}
+
+.syn-promo__error {
+  margin: 0;
+  font-size: syn.$font-size-sm;
+  color: var(--syn-promo-danger);
+}
+
+.syn-promo__applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-xxs syn.$space-xs;
+  margin: 0;
+  padding: syn.$space-xxs syn.$space-xs;
+  background: var(--syn-promo-ok-soft);
+  border-radius: syn.$radius-sm;
+}
+
+.syn-promo__applied-code {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--syn-promo-ok-text);
+}
+
+.syn-promo__applied-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--syn-promo-ok-text);
+}
+
+.syn-promo__applied-detail {
+  flex: 1 1 100%;
+  font-size: syn.$font-size-sm;
+  color: var(--syn-promo-muted);
+}
+
+.syn-promo__remove {
+  margin-inline-start: auto;
+  padding: 0;
+  font: inherit;
+  font-size: syn.$font-size-sm;
+  color: var(--syn-promo-ok-text);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--syn-promo-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}

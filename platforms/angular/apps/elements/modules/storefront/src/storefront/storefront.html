@@ -445,14 +445,29 @@
       [config]="cartPageConfig()"
       [lines]="cartLines()"
       [groups]="cartGroupHeaders()"
+      [summary]="cartSummaryRows()"
       [total]="cartTotalLabel()"
       [actions]="cartPageActions()"
       [holdExpiresAt]="cartHoldExpiresAt()"
+      [footerTemplate]="promoSlot"
       (remove)="removeFromCart($event)"
       (quantitychange)="onCartQuantity($event)"
       (action)="onCartAction($event)"
       (holdexpired)="onCartHoldExpired()"
     />
+
+    <!-- El cupón vive DENTRO del panel del carrito, sobre el total: es donde la
+         gente lo busca, y donde el descuento se ve en la misma mirada (#29). -->
+    <ng-template #promoSlot>
+      <syn-promo-code
+        [applied]="appliedPromo()"
+        [busy]="promoBusy()"
+        [rejection]="promoRejection()"
+        [rejectionDetail]="promoDetail()"
+        (apply)="applyPromo($event)"
+        (remove)="removePromo()"
+      />
+    </ng-template>
   }
 
   <!-- ═══ CHECKOUT: SH-3 checkout-wizard sobre el engine ═══════════════════ -->

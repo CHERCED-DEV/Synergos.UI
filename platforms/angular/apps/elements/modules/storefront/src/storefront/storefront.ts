@@ -27,6 +27,7 @@ import {
   type CartLine,
   type CartQuantityChange,
   type CartShellConfig,
+  type CartSummaryRow,
   ReviewPanelComponent,
   type ReviewBlockedReason,
   type ReviewDraft,
@@ -56,6 +57,9 @@ import {
   monogram as monogramOf,
   omitUndefinedProperties,
   resolveConfigValue,
+  PromoCodeComponent,
+  type AppliedPromo,
+  type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
@@ -72,6 +76,7 @@ import {
   type ShopCustomer,
   type ShopOrder,
   type ShopProduct,
+  type ShopPromo,
   type SortKey,
   type StorefrontView,
   type WishlistEntry,
@@ -159,6 +164,7 @@ let storefrontInstanceId = 0;
     ConfirmationShellComponent,
     CartShellComponent,
     ReviewPanelComponent,
+    PromoCodeComponent,
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -1397,20 +1403,129 @@ export class StorefrontElementComponent {
     this.emitCartUpdate();
   }
 
+  // ─── Cupones: `syn-promo-code` (#29) ────────────────────────────────────────
+  //
+  // No había forma de dar un descuento. El motor lo soportaba desde el primer día
+  // —`PriceLine.amount` dice «can be negative for discounts»— y ningún dominio
+  // emitía una línea negativa; lo único que existía era `listPrice`, un precio
+  // tachado que nadie podía obtener.
+  readonly promoControl = viewChild(PromoCodeComponent);
+  readonly promo = signal<ShopPromo | null>(null);
+  readonly promoBusy = signal(false);
+  readonly promoRejection = signal<PromoRejection | null>(null);
+  readonly promoDetail = signal('');
+
+  readonly appliedPromo = computed<AppliedPromo | null>(() => {
+    const promo = this.promo();
+    if (!promo) {
+      return null;
+    }
+    return {
+      code: promo.code,
+      // El importe llega negativo; se muestra con su signo, ya formateado.
+      discountLabel: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      ...(promo.detail ? { detail: promo.detail } : {}),
+    };
+  });
+
+  /**
+   * El resumen del carrito: líneas del `breakdown` + total.
+   *
+   * Se pasa a SH-12 como `summary` y no como `total` a secas porque **es la única
+   * forma de que el descuento se VEA**. Un total más bajo sin la línea que lo
+   * explica se lee como un error de precio.
+   */
+  readonly cartSummaryRows = computed<readonly CartSummaryRow[]>(() => {
+    const promo = this.promo();
+    if (!promo) {
+      return [];
+    }
+    const subtotal = this.#store
+      .items()
+      .reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    return [
+      {
+        id: 'subtotal',
+        label: 'Subtotal',
+        value: this.formatPrice(subtotal / 100, this.currency()),
+      },
+      {
+        id: 'promo',
+        label: promo.label,
+        value: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      },
+      { id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true },
+    ];
+  });
+
+  /**
+   * Valida el cupón contra el servidor. **No lo da por aplicado sin confirmación**:
+   * un descuento fingido acá es una promesa de plata que el checkout rompe.
+   */
+  async applyPromo(code: string): Promise<void> {
+    if (this.promoBusy()) {
+      return;
+    }
+    this.promoBusy.set(true);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+
+    const subtotal = this.#store
+      .items()
+      .reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    const result = await this.#api.applyPromo(this.apiBase(), code, subtotal);
+
+    this.promoBusy.set(false);
+
+    if (result.ok) {
+      this.promo.set(result.promo);
+      this.promoControl()?.clear();
+      this.reprice();
+      this.emitCartUpdate();
+      return;
+    }
+
+    this.promoRejection.set(result.reason);
+    if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
+      // CUÁNTO falta es lo único accionable de este rechazo.
+      this.promoDetail.set(
+        `Te faltan ${this.formatPrice(result.shortfallMinor / 100, this.currency())}.`,
+      );
+    }
+  }
+
+  /** Quita el cupón y devuelve el total anterior. */
+  removePromo(): void {
+    this.promo.set(null);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+    this.reprice();
+    this.emitCartUpdate();
+  }
+
   // ─── Helpers ───────────────────────────────────────────────────────────────
   /** Recompute aggregate pricing from the cart lines (single source of truth). */
   private reprice(): void {
     const items = this.#store.items();
-    const total = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
+    const promo = this.promo();
+    const lineas = items.map((item) => ({
+      code: `line:${item.id}`,
+      label: item.label,
+      amount: item.amount * item.quantity,
+    }));
+    if (promo) {
+      // La línea NEGATIVA que el motor esperaba desde el primer día.
+      lineas.push({ code: `promo:${promo.code}`, label: promo.label, amount: promo.amountMinor });
+    }
+    // El descuento nunca deja el total bajo cero: un carrito que se debe a sí
+    // mismo no es un carrito, y el checkout lo cobraría como un importe negativo.
+    const total = Math.max(0, subtotal + (promo?.amountMinor ?? 0));
     this.#store.setPricing({
       currency: this.currency(),
       totalAmount: total,
       balanceDue: total,
-      breakdown: items.map((item) => ({
-        code: `line:${item.id}`,
-        label: item.label,
-        amount: item.amount * item.quantity,
-      })),
+      breakdown: lineas,
     });
   }
 

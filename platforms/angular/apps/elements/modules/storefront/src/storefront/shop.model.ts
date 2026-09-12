@@ -135,6 +135,48 @@ export type ReviewSubmitResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'unauthenticated' | 'not-buyer' | 'invalid' | 'failed' };
 
+// ─── Cupones y descuentos (#29) ──────────────────────────────────────────────
+
+/**
+ * Un cupón aceptado por el servidor.
+ *
+ * `amountMinor` es NEGATIVO: entra tal cual como `PriceLine` del `breakdown`, que
+ * el motor documenta como «can be negative for discounts» desde el primer día y
+ * que ningún dominio había usado nunca.
+ */
+export interface ShopPromo {
+  readonly code: string;
+  /** Negativo, en unidades menores. */
+  readonly amountMinor: number;
+  /** Cómo se llama el descuento en el resumen: «Cupón BIENVENIDA10». */
+  readonly label: string;
+  /** Contexto opcional: «Válido hasta el 30 de septiembre». */
+  readonly detail?: string;
+}
+
+/**
+ * Resultado de validar un cupón. **Tipado y sin degradar a mock**: un descuento
+ * fingido en el cliente es una promesa de plata que el checkout va a romper, y el
+ * peor momento para descubrirlo es al pagar (regla 4 de `CLAUDE.md`).
+ *
+ * `shortfallMinor` sólo viaja con `minimum-not-met`, porque CUÁNTO FALTA es lo
+ * único accionable de ese rechazo — decir «no llegas al mínimo» sin el número
+ * deja a quien compra adivinando.
+ */
+export type ShopPromoResult =
+  | { readonly ok: true; readonly promo: ShopPromo }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | 'unknown'
+        | 'expired'
+        | 'minimum-not-met'
+        | 'not-applicable'
+        | 'already-used'
+        | 'failed';
+      readonly shortfallMinor?: number;
+    };
+
 // ─── Faceted search ──────────────────────────────────────────────────────────
 
 /** A facet group (category / brand / condition…) with selectable values. */
