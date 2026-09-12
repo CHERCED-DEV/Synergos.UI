@@ -1,0 +1,347 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --srv-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --srv-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --srv-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --srv-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --srv-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --srv-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --srv-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  /* Par SÓLIDO — el de lavado da 1,07:1 en los temas claros (#25). */
+  --srv-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --srv-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --srv-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --srv-star: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --srv-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --srv-ok-text: var(--syn-color-state-success-surface, #{syn.$color-success-600});
+  --srv-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --srv-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+  color: var(--srv-text);
+}
+
+.syn-reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.syn-reviews__heading {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+/* ── resumen ───────────────────────────────────────────────────────────────── */
+.syn-reviews__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem 1.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--srv-surface-muted);
+  border: 1px solid var(--srv-border);
+  border-radius: 0.5rem;
+}
+
+.syn-reviews__score {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.syn-reviews__average {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-reviews__stars,
+.syn-reviews__entry-stars {
+  display: inline-flex;
+  gap: 0.1rem;
+  margin: 0;
+}
+
+.syn-reviews__star {
+  color: var(--srv-border);
+  font-size: 1rem;
+  line-height: 1;
+
+  &.is-on {
+    color: var(--srv-star);
+  }
+}
+
+.syn-reviews__count {
+  font-size: 0.88rem;
+  color: var(--srv-muted);
+}
+
+/* ── distribución ──────────────────────────────────────────────────────────── */
+.syn-reviews__dist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-reviews__dist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--srv-text-secondary);
+}
+
+.syn-reviews__dist-label {
+  min-inline-size: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.syn-reviews__dist-track {
+  flex: 1 1 auto;
+  block-size: 0.45rem;
+  background: var(--srv-border-subtle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.syn-reviews__dist-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--srv-star);
+}
+
+.syn-reviews__dist-count {
+  min-inline-size: 2.5rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── criterios del dominio ─────────────────────────────────────────────────── */
+.syn-reviews__criteria {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.6rem 1rem;
+  margin: 0;
+}
+
+.syn-reviews__criterion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.syn-reviews__criterion-label {
+  font-size: 0.8rem;
+  color: var(--srv-muted);
+}
+
+.syn-reviews__criterion-score {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── formulario ────────────────────────────────────────────────────────────── */
+.syn-reviews__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--srv-border);
+  border-radius: 0.5rem;
+  background: var(--srv-surface);
+}
+
+.syn-reviews__form-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.syn-reviews__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.syn-reviews__label {
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--srv-text-secondary);
+}
+
+.syn-reviews__rate {
+  display: inline-flex;
+  gap: 0.15rem;
+}
+
+.syn-reviews__rate-btn {
+  padding: 0.1rem 0.2rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--srv-border);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+
+  &--sm {
+    font-size: 1.1rem;
+  }
+
+  &.is-on {
+    color: var(--srv-star);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--srv-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.syn-reviews__input {
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  color: var(--srv-text);
+  background: var(--srv-surface);
+  border: 1px solid var(--srv-border);
+  border-radius: 0.35rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--srv-focus-ring);
+    outline-offset: 1px;
+  }
+}
+
+.syn-reviews__textarea {
+  resize: vertical;
+  min-block-size: 5rem;
+}
+
+.syn-reviews__notice {
+  margin: 0;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--srv-ok-text);
+  background: var(--srv-ok-soft);
+  border-radius: 0.35rem;
+
+  &.is-error {
+    color: var(--srv-danger);
+    background: var(--srv-danger-soft);
+  }
+}
+
+.syn-reviews__submit {
+  align-self: flex-start;
+  padding: 0.55rem 1.1rem;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--srv-brand-text);
+  background: var(--srv-brand);
+  border: 1px solid var(--srv-brand);
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--srv-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.syn-reviews__blocked,
+.syn-reviews__empty {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  color: var(--srv-text-secondary);
+  background: var(--srv-surface-muted);
+  border-radius: 0.45rem;
+}
+
+/* ── lista ─────────────────────────────────────────────────────────────────── */
+.syn-reviews__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.syn-reviews__entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding-block-end: 1rem;
+  border-block-end: 1px solid var(--srv-border-subtle);
+
+  &:last-child {
+    border-block-end: 0;
+    padding-block-end: 0;
+  }
+}
+
+.syn-reviews__entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--srv-muted);
+}
+
+.syn-reviews__entry-author {
+  font-weight: 600;
+  color: var(--srv-text);
+}
+
+.syn-reviews__verified {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  color: var(--srv-ok-text);
+  background: var(--srv-ok-soft);
+  border-radius: 999px;
+}
+
+.syn-reviews__entry-date {
+  margin-inline-start: auto;
+}
+
+.syn-reviews__entry-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.syn-reviews__entry-body {
+  margin: 0;
+  line-height: 1.55;
+  /* Los saltos de línea son de quien escribió. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.syn-reviews__entry-reply {
+  margin: 0.35rem 0 0;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--srv-text-secondary);
+  background: var(--srv-surface-muted);
+  border-inline-start: 2px solid var(--srv-border);
+  border-radius: 0 0.35rem 0.35rem 0;
+}

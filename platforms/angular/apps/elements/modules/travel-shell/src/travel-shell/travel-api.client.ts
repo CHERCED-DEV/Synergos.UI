@@ -6,6 +6,10 @@ import {
   type SeatMapPayload,
   type StayDetail,
   type StayRate,
+  type StayReview,
+  type StayReviewResult,
+  type StayReviewSubmission,
+  type StayReviewSummary,
   type StaySpec,
   type TravelCheckoutLine,
   type TravelCheckoutResult,
@@ -78,6 +82,48 @@ export class TravelApiClient {
   }
 
   // ─── Stay detail (SH-2 rich ficha) ───────────────────────────────────────────
+
+  /**
+   * `POST /api/travel/stays/{id}/reviews` — publica la opinión de una estadía (#28).
+   *
+   * **No degrada a mock**: el endpoint todavía no existe, así que hoy contesta
+   * `failed` de verdad y la pantalla lo dice. Fingir la escritura le diría a quien
+   * se alojó que su opinión está publicada cuando el servidor no recibió nada
+   * (ADR 0112, regla 4 de `CLAUDE.md`).
+   */
+  async submitStayReview(
+    apiBase: string,
+    stayId: string,
+    submission: StayReviewSubmission,
+  ): Promise<StayReviewResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/stays/${encodeURIComponent(stayId)}/reviews`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'not-guest' };
+        case 400:
+          return { ok: false, reason: 'invalid' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      // Red caída NO es «no puedes opinar».
+      return { ok: false, reason: 'failed' };
+    }
+  }
 
   async stay(apiBase: string, id: string, currency: string): Promise<StayDetail> {
     const url = `${apiBase}/stay/${encodeURIComponent(id)}`;
@@ -447,6 +493,11 @@ function normalizeStay(value: unknown, id: string, fallbackCurrency: string): St
     specs,
     rates: normalizeStayRates(source['rates'], currency),
     geo: readGeo(source['geo']),
+    reviews: normalizeStayReviews(source['reviews']),
+    reviewSummary: normalizeStayReviewSummary(source['reviewSummary']),
+    // Ausente = NO puede: ofrecer el formulario a quien el servidor no autorizó
+    // es prometer algo que va a rebotar con 403.
+    canReview: source['canReview'] === true,
   };
 }
 
@@ -720,6 +771,68 @@ function offerMock(
   return { offerId, product, title, subtitle, amount, currency, badges, detail: { title, subtitle } };
 }
 
+function normalizeStayReviews(value: unknown): readonly StayReview[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): StayReview | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const body = readString(entry['body']).trim();
+      if (!id || !body) {
+        return null;
+      }
+      const reply = readString(entry['reply']).trim();
+      return {
+        id,
+        author: readString(entry['author']).trim() || 'Viajero',
+        rating: Math.min(5, Math.max(1, Math.round(readNumber(entry['rating'])))),
+        title: readString(entry['title']).trim(),
+        body,
+        date: readString(entry['date']).trim(),
+        verified: entry['verified'] === true,
+        ...(reply ? { reply } : {}),
+      };
+    })
+    .filter((entry): entry is StayReview => entry !== null);
+}
+
+function normalizeStayReviewSummary(value: unknown): StayReviewSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawDist = Array.isArray(value['distribution']) ? value['distribution'] : [];
+  const rawCrit = Array.isArray(value['criteria']) ? value['criteria'] : [];
+  return {
+    average: readNumber(value['average']),
+    count: Math.trunc(readNumber(value['count'])),
+    distribution: rawDist
+      .map((entry) =>
+        isRecord(entry)
+          ? {
+              stars: Math.min(5, Math.max(1, Math.round(readNumber(entry['stars'])))),
+              count: Math.trunc(readNumber(entry['count'])),
+            }
+          : null,
+      )
+      .filter((entry): entry is { stars: number; count: number } => entry !== null),
+    criteria: rawCrit
+      .map((entry) => {
+        if (!isRecord(entry)) {
+          return null;
+        }
+        const id = readString(entry['id']).trim();
+        return id
+          ? { id, label: readString(entry['label']).trim() || id, score: readNumber(entry['score']) }
+          : null;
+      })
+      .filter((entry): entry is { id: string; label: string; score: number } => entry !== null),
+  };
+}
+
 function mockStay(id: string, currency: string): StayDetail {
   const source = mockOffers('hotel', currency).find((offer) => offer.stayId === id);
   const title = source?.title ?? 'Hotel Caribe Cartagena';
@@ -753,6 +866,56 @@ function mockStay(id: string, currency: string): StayDetail {
       { label: 'Política', value: 'Cancelación gratis hasta 48h antes' },
       { label: 'Mascotas', value: 'No se admiten' },
     ],
+    // Demo: su trabajo es que la funcionalidad se VEA. El envío sigue fallando a
+    // la vista porque el endpoint no existe todavía (#28).
+    reviews: [
+      {
+        id: 'STR-1',
+        author: 'Mariana L.',
+        rating: 5,
+        title: 'La ubicación lo es todo',
+        body: 'A dos cuadras de la muralla. El desayuno es sencillo pero el balcón compensa cualquier cosa.',
+        date: '18 de agosto de 2026',
+        verified: true,
+      },
+      {
+        id: 'STR-2',
+        author: 'Sebastián T.',
+        rating: 4,
+        title: 'Muy bien, con una salvedad',
+        body: 'Impecable de limpieza. El aire acondicionado del cuarto interior hace ruido de madrugada.',
+        date: '9 de agosto de 2026',
+        verified: true,
+        reply: 'Gracias Sebastián — ya programamos el mantenimiento de ese equipo.',
+      },
+      {
+        id: 'STR-3',
+        author: 'Ana María G.',
+        rating: 3,
+        title: '',
+        body: 'Buen hotel pero para el precio esperaba más en el restaurante.',
+        date: '30 de julio de 2026',
+        verified: true,
+      },
+    ],
+    reviewSummary: {
+      average: 4.4,
+      count: 842,
+      distribution: [
+        { stars: 5, count: 512 },
+        { stars: 4, count: 224 },
+        { stars: 3, count: 78 },
+        { stars: 2, count: 18 },
+        { stars: 1, count: 10 },
+      ],
+      // Los criterios de una ESTADÍA. No son los de un curso.
+      criteria: [
+        { id: 'limpieza', label: 'Limpieza', score: 4.7 },
+        { id: 'ubicacion', label: 'Ubicación', score: 4.9 },
+        { id: 'precio-valor', label: 'Relación precio-valor', score: 3.9 },
+      ],
+    },
+    canReview: true,
     rates: [
       {
         id: `${id}-r1`,

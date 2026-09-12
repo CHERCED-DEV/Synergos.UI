@@ -12,6 +12,10 @@ import {
   type CatalogResult,
   type Certificate,
   type CourseDetail,
+  type CourseReview,
+  type CourseReviewResult,
+  type CourseReviewSubmission,
+  type CourseReviewSummary,
   type CourseLevel,
   type CourseProgress,
   type CourseStatus,
@@ -108,6 +112,48 @@ export class AcademyApiClient {
   }
 
   // ─── Enroll (open a single PSP session, or free enrol directly) ──────────────
+
+  /**
+   * `POST /api/academy/courses/{id}/reviews` — publica la opinión de un curso (#28).
+   *
+   * **No degrada a mock**, igual que su gemelo de la Tienda: fingir una escritura
+   * que no ocurrió es peor que el error (ADR 0112). El endpoint todavía no existe,
+   * así que hoy esto contesta `failed` de verdad y la pantalla lo dice — un
+   * «gracias» sobre un servidor que no recibió nada sería el defecto #26.
+   */
+  async submitCourseReview(
+    apiBase: string,
+    courseId: string,
+    submission: CourseReviewSubmission,
+  ): Promise<CourseReviewResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/courses/${encodeURIComponent(courseId)}/reviews`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'not-student' };
+        case 400:
+          return { ok: false, reason: 'invalid' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      // Red caída NO es «no puedes opinar»: el mensaje invita a reintentar.
+      return { ok: false, reason: 'failed' };
+    }
+  }
 
   async enroll(
     apiBase: string,
@@ -706,6 +752,73 @@ function normalizeDetail(value: unknown, fallbackCurrency: string): CourseDetail
       .map((entry) => normalizePlan(entry, course.amount))
       .filter((entry): entry is AcademyPlan => entry !== null),
     instructor: normalizeInstructor(value['instructor']),
+    reviews: normalizeCourseReviews(value['reviews']),
+    reviewSummary: normalizeCourseReviewSummary(value['reviewSummary']),
+    // Ausente = NO puede. Es el default seguro: ofrecer el formulario a quien el
+    // servidor no autorizó es prometer algo que va a rebotar con 403.
+    canReview: value['canReview'] === true,
+  };
+}
+
+function normalizeCourseReviews(value: unknown): readonly CourseReview[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): CourseReview | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const body = readString(entry['body']).trim();
+      if (!id || !body) {
+        return null;
+      }
+      const reply = readString(entry['reply']).trim();
+      return {
+        id,
+        author: readString(entry['author']).trim() || 'Estudiante',
+        rating: Math.min(5, Math.max(1, Math.round(readNumber(entry['rating'])))),
+        title: readString(entry['title']).trim(),
+        body,
+        date: readString(entry['date']).trim(),
+        verified: entry['verified'] === true,
+        ...(reply ? { reply } : {}),
+      };
+    })
+    .filter((entry): entry is CourseReview => entry !== null);
+}
+
+function normalizeCourseReviewSummary(value: unknown): CourseReviewSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawDist = Array.isArray(value['distribution']) ? value['distribution'] : [];
+  const rawCrit = Array.isArray(value['criteria']) ? value['criteria'] : [];
+  return {
+    average: readNumber(value['average']),
+    count: Math.trunc(readNumber(value['count'])),
+    distribution: rawDist
+      .map((entry) =>
+        isRecord(entry)
+          ? {
+              stars: Math.min(5, Math.max(1, Math.round(readNumber(entry['stars'])))),
+              count: Math.trunc(readNumber(entry['count'])),
+            }
+          : null,
+      )
+      .filter((entry): entry is { stars: number; count: number } => entry !== null),
+    criteria: rawCrit
+      .map((entry) => {
+        if (!isRecord(entry)) {
+          return null;
+        }
+        const id = readString(entry['id']).trim();
+        return id
+          ? { id, label: readString(entry['label']).trim() || id, score: readNumber(entry['score']) }
+          : null;
+      })
+      .filter((entry): entry is { id: string; label: string; score: number } => entry !== null),
   };
 }
 
@@ -1324,6 +1437,57 @@ function mockDetail(id: string, currency: string): CourseDetail {
             featured: true,
           },
         ],
+    // Demo de reseñas: su trabajo es que la funcionalidad se VEA. El servidor real
+    // emite lo mismo, y el envío sigue fallando a la vista porque el endpoint no
+    // existe todavía (#28).
+    reviews: [
+      {
+        id: 'ACR-1',
+        author: 'Valentina M.',
+        rating: 5,
+        title: 'El temario vale cada peso',
+        body: 'Los proyectos son reales, no ejercicios de juguete. Terminé con algo que pude mostrar en una entrevista.',
+        date: '14 de agosto de 2026',
+        verified: true,
+      },
+      {
+        id: 'ACR-2',
+        author: 'Julián O.',
+        rating: 4,
+        title: 'Muy bueno, pide dedicación',
+        body: 'El ritmo es exigente. Si no puedes dedicarle unas horas por semana se te acumula.',
+        date: '2 de agosto de 2026',
+        verified: true,
+        reply: 'Gracias Julián — sumamos una guía de ritmo sugerido al inicio del módulo 2.',
+      },
+      {
+        id: 'ACR-3',
+        author: 'Daniela C.',
+        rating: 3,
+        title: '',
+        body: 'Buen contenido pero algunos videos están desactualizados frente a la última versión.',
+        date: '28 de julio de 2026',
+        verified: true,
+      },
+    ],
+    reviewSummary: {
+      average: 4.3,
+      count: 214,
+      distribution: [
+        { stars: 5, count: 132 },
+        { stars: 4, count: 54 },
+        { stars: 3, count: 18 },
+        { stars: 2, count: 6 },
+        { stars: 1, count: 4 },
+      ],
+      // Los criterios de un CURSO: no son los de un hotel ni los de un producto.
+      criteria: [
+        { id: 'claridad', label: 'Claridad', score: 4.6 },
+        { id: 'utilidad', label: 'Utilidad práctica', score: 4.4 },
+        { id: 'ritmo', label: 'Ritmo', score: 3.8 },
+      ],
+    },
+    canReview: true,
     instructor: {
       name: course.instructorName,
       headline: 'Instructor experto · Synergos Academy',

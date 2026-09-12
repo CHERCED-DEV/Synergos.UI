@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { HostIdentityService } from '@synergos/core';
@@ -26,6 +27,12 @@ import {
   type CartLine,
   type CartQuantityChange,
   type CartShellConfig,
+  ReviewPanelComponent,
+  type ReviewBlockedReason,
+  type ReviewDraft,
+  type ReviewEntry,
+  type ReviewPanelConfig,
+  type ReviewSummary,
   ConfirmationShellComponent,
   type ConfirmationAction,
   type ConfirmationShellConfig,
@@ -151,6 +158,7 @@ let storefrontInstanceId = 0;
     AccountShellComponent,
     ConfirmationShellComponent,
     CartShellComponent,
+    ReviewPanelComponent,
     TrackingTimelineComponent,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -944,9 +952,6 @@ export class StorefrontElementComponent {
   // (`detail.canReview`: autenticado + orden pagada de este producto). No se deduce aquí:
   // deducirlo sería ofrecer un formulario que rebota con 403.
 
-  readonly reviewRating = signal(0);
-  readonly reviewTitle = signal('');
-  readonly reviewBody = signal('');
   readonly reviewSending = signal(false);
   /** Mensaje al comprador tras enviar. Vacío = no se ha enviado nada aún. */
   readonly reviewNotice = signal('');
@@ -954,27 +959,76 @@ export class StorefrontElementComponent {
 
   readonly canReview = computed(() => this.detail()?.canReview === true);
   /** Sin nota y sin texto no hay reseña que enviar. */
-  readonly reviewReady = computed(
-    () => this.reviewRating() >= 1 && this.reviewBody().trim().length > 0,
+  // ─── SH-13 `syn-review-panel` (#28) ─────────────────────────────────────────
+  //
+  // El formulario a mano se va; la regla de negocio se queda tal cual, que es lo
+  // que había que conservar: `canReview` lo decide el SERVIDOR y el 403 NO ofrece
+  // volver a entrar (ADR 0112). Lo que gana la Tienda es que **la distribución por
+  // fin se pinta**: `reviewSummary()` la calculaba desde siempre y ninguna
+  // plantilla la usaba.
+  readonly reviewPanel = viewChild(ReviewPanelComponent);
+
+  readonly reviewPanelSummary = computed<ReviewSummary>(() => {
+    const resumen = this.reviewSummary();
+    // `distribution` viene de 5★ a 1★ (ya invertida); se le pone su estrella.
+    const distribution = resumen.distribution.map((count, index) => ({
+      stars: 5 - index,
+      count,
+    }));
+    return { average: resumen.average, count: resumen.count, distribution };
+  });
+
+  readonly reviewEntries = computed<readonly ReviewEntry[]>(() =>
+    (this.detail()?.reviews ?? []).map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      date: review.date,
+      // En la Tienda toda reseña publicada pasó el gate de compra: el servidor no
+      // acepta otras. El sello dice eso, no lo adivina.
+      verified: true,
+    })),
   );
 
+  /**
+   * Por qué no puede reseñar, cuando no puede.
+   *
+   * Sin sesión es `unauthenticated` —volver a entrar SÍ lo arregla—; con sesión es
+   * `not-consumer`, y ese mensaje no ofrece login porque la sesión no es el
+   * problema y sugerirlo manda al comprador a dar vueltas (ADR 0112).
+   */
+  readonly reviewBlockedReason = computed<ReviewBlockedReason | null>(() => {
+    if (this.canReview() || !this.detail()) {
+      return null;
+    }
+    return this.isAuthenticated() ? 'not-consumer' : 'unauthenticated';
+  });
+
+  readonly reviewPanelConfig = computed<ReviewPanelConfig>(() => ({
+    heading: 'Opiniones',
+    countLabel: 'opiniones',
+    formTitle: 'Cuenta tu experiencia',
+    submitLabel: 'Publicar opinión',
+    verifiedLabel: 'Compra verificada',
+    blockedNotConsumer:
+      'Solo quien compró este producto puede opinar sobre él.',
+    emptyMessage: 'Todavía no hay opiniones de este producto.',
+  }));
+
+
   /** La estrella elegida llega por el CustomEvent `ratingchange` de `synergos-rating-stars`. */
-  onReviewRatingChange(event: Event): void {
-    const value = Number((event as CustomEvent<number>).detail);
-    this.reviewRating.set(Number.isFinite(value) ? Math.min(5, Math.max(1, Math.round(value))) : 0);
-  }
 
-  onReviewTitleInput(event: Event): void {
-    this.reviewTitle.set((event.target as HTMLInputElement).value);
-  }
 
-  onReviewBodyInput(event: Event): void {
-    this.reviewBody.set((event.target as HTMLTextAreaElement).value);
-  }
 
-  async submitReview(): Promise<void> {
+  /**
+   * Publica la opinión. El borrador llega de SH-13 (#28); la regla de negocio no
+   * cambió ni una línea — sólo el sitio desde donde llega el texto.
+   */
+  async submitReview(draft: ReviewDraft): Promise<void> {
     const product = this.detail()?.product;
-    if (!product || !this.reviewReady() || this.reviewSending()) {
+    if (!product || this.reviewSending()) {
       return;
     }
 
@@ -983,18 +1037,18 @@ export class StorefrontElementComponent {
     this.reviewFailed.set(false);
 
     const result = await this.#api.submitReview(this.apiBase(), product.id, {
-      rating: this.reviewRating(),
-      title: this.reviewTitle().trim(),
-      body: this.reviewBody().trim(),
+      rating: draft.rating,
+      title: draft.title,
+      body: draft.body,
     });
 
     this.reviewSending.set(false);
 
     if (result.ok) {
       this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
-      this.reviewTitle.set('');
-      this.reviewBody.set('');
-      this.reviewRating.set(0);
+      // La pieza NO se limpia sola al enviar, a propósito: sólo acá se sabe que el
+      // servidor aceptó. Borrar antes sería el defecto #26 con otro disfraz.
+      this.reviewPanel()?.reset();
       // Se recarga la ficha para que la nota y la lista salgan del SERVIDOR y no de una
       // suposición del cliente: si el envío editó una reseña previa, el conteo NO sube.
       await this.loadProduct(product.id);

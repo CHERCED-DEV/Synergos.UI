@@ -190,7 +190,68 @@ export interface StayDetail {
   readonly specs: readonly StaySpec[];
   readonly rates: readonly StayRate[];
   readonly geo?: TravelGeo;
+  /** Las opiniones de quienes ya se alojaron (#28). */
+  readonly reviews: readonly StayReview[];
+  /** Resumen YA calculado por el servidor: promedio, distribución y criterios. */
+  readonly reviewSummary: StayReviewSummary | null;
+  /**
+   * Si ESTE viajero puede opinar. Lo decide el SERVIDOR con el mismo gate que
+   * aplica el POST (estadía completada). No se deduce acá — el mismo criterio que
+   * `ProductDetail.canReview` de la Tienda.
+   */
+  readonly canReview: boolean;
 }
+
+/** Una opinión de una estadía. */
+export interface StayReview {
+  readonly id: string;
+  readonly author: string;
+  /** 1..5. */
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** Ya formateada por el servidor. */
+  readonly date: string;
+  /** Se alojó de verdad. Lo afirma el servidor. */
+  readonly verified: boolean;
+  /** Respuesta del anfitrión. */
+  readonly reply?: string;
+}
+
+export interface StayReviewBar {
+  readonly stars: number;
+  readonly count: number;
+}
+
+/** Un criterio propio de una ESTADÍA: limpieza, ubicación, relación precio-valor. */
+export interface StayReviewCriterion {
+  readonly id: string;
+  readonly label: string;
+  readonly score: number;
+}
+
+export interface StayReviewSummary {
+  readonly average: number;
+  readonly count: number;
+  readonly distribution: readonly StayReviewBar[];
+  readonly criteria: readonly StayReviewCriterion[];
+}
+
+/** Lo que el viajero escribe. El autor lo pone el servidor desde la sesión. */
+export interface StayReviewSubmission {
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  readonly criteria: Readonly<Record<string, number>>;
+}
+
+/** Resultado tipado y sin degradar a mock — ADR 0112 y regla 4 de `CLAUDE.md`. */
+export type StayReviewResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'not-guest' | 'invalid' | 'failed';
+    };
 
 /** One label/value row on the stay's specs panel. */
 export interface StaySpec {

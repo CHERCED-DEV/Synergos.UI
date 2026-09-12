@@ -411,6 +411,50 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     component.navigate('checkout');
     expect(component.view()).toBe('cart');
   });
+  // ── opiniones de la estadía: SH-13 (#28) ─────────────────────────────────────
+  it('la ficha de la estadía monta SH-13 con los criterios de una ESTADÍA', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchStays();
+    component.openStay(component.stayOffers()[0]);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('syn-review-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.syn-reviews__dist-row').length).toBe(5);
+    // Limpieza, ubicación y precio-valor: NO son los criterios de un curso.
+    expect(component.stayReviewSummary().criteria?.map((c) => c.id)).toEqual([
+      'limpieza',
+      'ubicacion',
+      'precio-valor',
+    ]);
+    expect(component.stayReviewPrompts().map((p) => p.id)).toEqual([
+      'limpieza',
+      'ubicacion',
+      'precio-valor',
+    ]);
+  });
+
+  it('un envío contra un endpoint que no existe NO dice «gracias»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchStays();
+    component.openStay(component.stayOffers()[0]);
+    await flushMicrotasks();
+
+    await component.submitStayReview({
+      rating: 5,
+      title: 'Volvería',
+      body: 'La ubicación es inmejorable.',
+      criteria: { limpieza: 5, ubicacion: 5, 'precio-valor': 4 },
+    });
+
+    expect(component.reviewFailed()).toBe(true);
+    expect(component.reviewNotice()).not.toContain('publicada');
+    expect(component.reviewNotice()).toContain('No pudimos publicar');
+  });
 });
 
 describe('TravelApiClient', () => {
@@ -501,6 +545,26 @@ describe('TravelApiClient', () => {
     expect(confirmation.status).toBe('confirmed');
     expect(confirmation.items[0].reservationId).toBe('RES-1');
   });
+  // ── #28: el default de `canReview` ──
+  it('`canReview` ausente significa NO (default seguro)', async () => {
+    const client = createClient();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ stay: { id: 'S-1', title: 'Hotel', currency: 'COP' } }),
+        } as Response),
+      ),
+    );
+
+    const detalle = await client.stay('/api/travel', 'S-1', 'COP');
+
+    expect(detalle.canReview).toBe(false);
+    expect(detalle.reviews).toEqual([]);
+    expect(detalle.reviewSummary).toBeNull();
+  });
 });
 
 // ── ficha de estadía cargando: esqueleto CON forma + aviso audible ────────────
@@ -584,4 +648,5 @@ describe('TravelShellElementComponent — stay loading surface', () => {
     expect(host.querySelector('.travel__sr')).toBeNull();
     expect(host.textContent).not.toContain('Cargando alojamiento');
   });
+
 });

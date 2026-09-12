@@ -177,7 +177,81 @@ export interface CourseDetail {
   readonly sections: readonly AcademySection[];
   readonly plans: readonly AcademyPlan[];
   readonly instructor: AcademyInstructor;
+  /** Las opiniones de quienes ya cursaron (#28). Vacío = todavía no hay. */
+  readonly reviews: readonly CourseReview[];
+  /**
+   * El resumen YA calculado por el servidor: promedio, conteo, distribución y los
+   * criterios propios de un curso. No se calcula en el cliente porque con la lista
+   * paginada el promedio de lo que se ve no es el promedio real.
+   */
+  readonly reviewSummary: CourseReviewSummary | null;
+  /**
+   * Si ESTE estudiante puede opinar. Lo decide el SERVIDOR con el mismo gate que
+   * aplica el POST (matriculado en este curso). **No se deduce acá**: deducirlo
+   * sería adivinar y ofrecer un formulario que va a rebotar — el mismo criterio
+   * que `ProductDetail.canReview` de la Tienda.
+   */
+  readonly canReview: boolean;
 }
+
+/** Una opinión de un curso. */
+export interface CourseReview {
+  readonly id: string;
+  readonly author: string;
+  /** 1..5. */
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** Ya formateada por el servidor. */
+  readonly date: string;
+  /** Cursó de verdad. Lo afirma el servidor. */
+  readonly verified: boolean;
+  /** Respuesta del docente, si la hay. */
+  readonly reply?: string;
+}
+
+/** Un tramo de la distribución por estrella. */
+export interface CourseReviewBar {
+  readonly stars: number;
+  readonly count: number;
+}
+
+/** Un criterio propio de un curso, ya promediado. */
+export interface CourseReviewCriterion {
+  readonly id: string;
+  readonly label: string;
+  readonly score: number;
+}
+
+export interface CourseReviewSummary {
+  readonly average: number;
+  readonly count: number;
+  readonly distribution: readonly CourseReviewBar[];
+  /** Claridad, utilidad, ritmo… lo que este dominio califica además de la nota. */
+  readonly criteria: readonly CourseReviewCriterion[];
+}
+
+/** Lo que el estudiante escribe. El autor lo pone el servidor desde la sesión. */
+export interface CourseReviewSubmission {
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** `criterioId → 1..5`. */
+  readonly criteria: Readonly<Record<string, number>>;
+}
+
+/**
+ * Resultado del envío. Tipado y **sin degradar a mock**: fingir una escritura que
+ * no ocurrió es peor que el error (ADR 0112, y la regla 4 de `CLAUDE.md`). El
+ * endpoint todavía no existe, así que hoy esto devuelve `failed` — y eso es la
+ * verdad, no un placeholder.
+ */
+export type CourseReviewResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'not-student' | 'invalid' | 'failed';
+    };
 
 // ─── Catalogue search ────────────────────────────────────────────────────────
 
