@@ -6,6 +6,7 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { ShopApiClient } from './shop-api.client';
 import { ShopFulfillmentStrategy } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
+import type { ShopOrder } from './shop.model';
 import type { ShopProduct } from './shop.model';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
@@ -848,7 +849,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     it('EL caso: si NO se pudo leer, tampoco se ofrece — no se sabe si ya hay uno', async () => {
       await abrirCuenta(() => json({}, 500));
 
-      const order = component.orders().find((o) => o.status === 'delivered')!;
+      const order = component.orders().find((o) => o.status === 'paid')!;
       expect(component.returnsUnknown(order)).toBe(true);
       expect(component.canReturnLine(order, order.items[0])).toBe(false);
     });
@@ -858,7 +859,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
         url.includes('/return') ? json({ returns: [] }) : json({}, 500),
       );
 
-      const order = component.orders().find((o) => o.status === 'delivered')!;
+      const order = component.orders().find((o) => o.status === 'paid')!;
       const linea = order.items[0];
       // Con la lectura en verde y sin reclamos, el botón SÍ se ofrece.
       expect(component.canReturnLine(order, linea)).toBe(true);
@@ -885,7 +886,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       await abrirCuenta((url) =>
         url.includes('/return') ? json({ returns: [] }) : json({}, 500),
       );
-      const order = component.orders().find((o) => o.status === 'delivered')!;
+      const order = component.orders().find((o) => o.status === 'paid')!;
       const linea = order.items[0];
 
       const cuerpos: string[] = [];
@@ -907,6 +908,115 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       expect(enviado.lineId).toBe('SONY-XM5');
       expect(enviado.reason).toBe('not-as-described');
       expect(component.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
+    });
+  });
+
+  // ── el gate disjunto (#33) ───────────────────────────────────────────────────
+  //
+  // El botón era INALCANZABLE contra el backend real: pedía `delivered|shipped` y
+  // el enum del CMS sólo tiene `Pending | Paid | Cancelled`. Lo único que lo hacía
+  // aparecer eran los pedidos de ejemplo, que traían esos estados cableados.
+  describe('cuándo se puede devolver', () => {
+    async function conPedidos(responder: (url: string) => Response): Promise<void> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
+      await createComponent();
+      component.goToAccount();
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+    }
+
+    const json = (body: unknown, status = 200): Response =>
+      ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
+
+    /** Un pedido con el estado que el backend SÍ emite. */
+    const pedido = (status: ShopOrder['status']): ShopOrder => ({
+      orderNumber: 'ORD-REAL-1',
+      date: '2026-09-01',
+      status,
+      total: 120_000,
+      currency: 'COP',
+      items: [{ title: 'Cafetera', qty: 1, amount: 120_000, productId: 'SKU-CAF' }],
+    });
+
+    const etapas = (entregado: boolean) => ({
+      orderRef: 'ORD-REAL-1',
+      stages: [
+        { id: 'paid', label: 'Pago confirmado', state: 'done' },
+        { id: 'preparing', label: 'En preparación', state: 'done' },
+        { id: 'shipped', label: 'Enviado', state: entregado ? 'done' : 'current' },
+        { id: 'delivered', label: 'Entregado', state: entregado ? 'done' : 'pending' },
+      ],
+    });
+
+    it('EL caso: un pedido `paid` y entregado SÍ se puede devolver', async () => {
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json(etapas(true));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [pedido('paid')] });
+      });
+
+      const order = component.orders()[0];
+      expect(order.status).toBe('paid');
+      component.onOrderSelect(order);
+      await flushMicrotasks(10);
+
+      // Antes esto era FALSO siempre: el gate pedía `delivered|shipped`, que el
+      // backend no emite nunca.
+      expect(component.canReturnLine(order, order.items[0])).toBe(true);
+      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+    });
+
+    it('EL caso: la entrega REFINA — si no llegó, no se ofrece y se dice por qué', async () => {
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json(etapas(false));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [pedido('paid')] });
+      });
+
+      const order = component.orders()[0];
+      component.onOrderSelect(order);
+      await flushMicrotasks(10);
+
+      expect(component.isDelivered(order)).toBe(false);
+      expect(component.canReturnLine(order, order.items[0])).toBe(false);
+      expect(component.returnBlockedReason(order, order.items[0])).toContain('cuando llegue');
+    });
+
+    it('EL caso: si el SEGUIMIENTO no se pudo leer, se ofrece igual', async () => {
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json({}, 500);
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [pedido('paid')] });
+      });
+
+      const order = component.orders()[0];
+      // Sin pedir el seguimiento: no hay etapas que mirar.
+      expect(component.trackingStages(order.orderNumber)).toHaveLength(0);
+      // La condición del servidor se cumple, así que el botón NO va a rebotar.
+      // Bloquear la devolución porque se cayó el seguimiento cambiaría un problema
+      // de información por uno de negocio.
+      expect(component.canReturnLine(order, order.items[0])).toBe(true);
+    });
+
+    it('un pedido sin pagar o cancelado no se devuelve: el servidor lo rechaza', async () => {
+      for (const estado of ['pending', 'cancelled'] as const) {
+        await conPedidos((url) => {
+          if (url.includes('/tracking')) return json(etapas(true));
+          if (url.includes('/return')) return json({ returns: [] });
+          return json({ orders: [pedido(estado)] });
+        });
+
+        const order = component.orders()[0];
+        component.onOrderSelect(order);
+        await flushMicrotasks(10);
+
+        expect(component.canReturnLine(order, order.items[0])).toBe(false);
+        // Y no se le explica nada: a quien canceló no hay que contarle que no
+        // puede devolver lo que nunca recibió.
+        expect(component.returnBlockedReason(order, order.items[0])).toBe('');
+        TestBed.resetTestingModule();
+      }
     });
   });
 
@@ -1324,12 +1434,19 @@ describe('ShopApiClient', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const tracking = await client.tracking('/api/shop', 'ORD-9', 'shipped');
+    // El estado que se pasa es `paid` porque es el ÚNICO que un pedido comprado
+    // puede valer: el enum del CMS tiene `Pending | Paid | Cancelled` y nada más.
+    // La FASE la lleva el seguimiento, por pedido (#33).
+    const tracking = await client.tracking('/api/shop', 'ORD-2026-00512', 'paid');
     expect(client.degraded).toBe(true);
-    expect(tracking.orderRef).toBe('ORD-9');
+    expect(tracking.orderRef).toBe('ORD-2026-00512');
     expect(tracking.stages.find((stage) => stage.id === 'shipped')?.state).toBe('current');
     expect(tracking.stages.find((stage) => stage.id === 'paid')?.state).toBe('done');
     expect(tracking.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
+
+    // Y un pedido sin pagar NO avanza, esté donde esté en el mapa del ejemplo.
+    const sinPagar = await client.tracking('/api/shop', 'ORD-2026-00481', 'pending');
+    expect(sinPagar.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
 
     // Wishlist add + remove degradan a un store local coherente (idempotente).
     const entry = { productId: 'X1', title: 'Producto X', amount: 10, currency: 'COP' };

@@ -181,6 +181,14 @@ const ADVANCE_ERRORS: Readonly<Record<string, string>> = {
   failed: 'No pudimos guardar el cambio. El reclamo sigue como estaba.',
 };
 
+/**
+ * La etapa de entrega del pipeline de la Tienda (#33).
+ *
+ * El id lo fija `StubOrderTrackingService.ShopPipeline` —«paid → preparing →
+ * shipped → delivered»— y llega tal cual en `GET /order/{ref}/tracking`.
+ */
+const DELIVERED_STAGE = 'delivered';
+
 /** Lo que se dice según por qué rebotó la devolución (#32). */
 const RETURN_ERRORS: Readonly<Record<string, string>> = {
   unauthenticated: 'Inicia sesión para pedir una devolución.',
@@ -1853,17 +1861,67 @@ export class StorefrontElementComponent {
   /**
    * Si se puede pedir la devolución de esta línea.
    *
-   * **Exige haber LEÍDO los reclamos del pedido**, no sólo que no haya ninguno en
-   * memoria: con la lectura caída, un mapa vacío se leería como «no hay ninguno»
-   * y volvería a ofrecer el botón sobre un pedido que ya tiene uno abierto —
-   * exactamente el defecto que esta HU cierra. Mientras no se sepa, no se ofrece.
+   * **La condición dura es `paid`, y es la del SERVIDOR** (`StubReturnService:153`:
+   * «solo se puede devolver sobre una orden pagada»). Esto pedía
+   * `delivered || shipped`, que el backend **no puede emitir**: el estado de un
+   * pedido tiene tres valores —`Pending`, `Paid`, `Cancelled`— y esos dos no
+   * están. El botón era inalcanzable contra un servidor de verdad; sólo aparecía
+   * sobre los pedidos de ejemplo del propio cliente, que los traen cableados (#33).
+   *
+   * `shipped` y `delivered` **sí existen, pero son etapas del SEGUIMIENTO** —
+   * `StubOrderTrackingService.ShopPipeline`—, y el detalle del pedido ya las carga
+   * para pintar el timeline. La pregunta se le estaba haciendo al campo de al lado.
+   *
+   * Y exige haber LEÍDO los reclamos: con la lectura caída, un mapa vacío se
+   * leería como «no hay ninguno» y ofrecería abrir un segundo sobre la misma
+   * línea (#32).
    */
   canReturnLine(order: ShopOrder, line: OrderLine): boolean {
     return (
-      (order.status === 'delivered' || order.status === 'shipped') &&
+      order.status === 'paid' &&
+      this.deliveredKnownOrUnknown(order) &&
       this.returnsLoaded().has(order.orderNumber) &&
       this.claimForLine(order.orderNumber, line) === null
     );
+  }
+
+  /**
+   * La entrega **REFINA, no habilita**.
+   *
+   * Si el timeline está cargado y dice que todavía no llegó, no se ofrece — y la
+   * línea lo explica en vez de callarse. Si NO se pudo leer, se ofrece igual: la
+   * condición del servidor se cumple, así que no es un botón que vaya a rebotar,
+   * y bloquear la devolución porque se cayó el seguimiento sería cambiar un
+   * problema de información por uno de negocio.
+   */
+  private deliveredKnownOrUnknown(order: ShopOrder): boolean {
+    const stages = this.trackingStages(order.orderNumber);
+    return stages.length === 0 || this.isDelivered(order);
+  }
+
+  /** El pedido llegó: la etapa `delivered` del pipeline está alcanzada. */
+  isDelivered(order: ShopOrder): boolean {
+    return this.trackingStages(order.orderNumber).some(
+      (stage) => stage.id === DELIVERED_STAGE && stage.state === 'done',
+    );
+  }
+
+  /**
+   * Por qué no se ofrece devolver esta línea, cuando la razón le sirve a quien
+   * compró. Devuelve cadena vacía cuando no hay nada que explicar —un pedido
+   * cancelado no necesita que le cuenten que no se devuelve—.
+   */
+  returnBlockedReason(order: ShopOrder, line: OrderLine): string {
+    if (this.claimForLine(order.orderNumber, line) !== null) {
+      return '';
+    }
+    if (this.returnsUnknown(order)) {
+      return 'Consultando devoluciones…';
+    }
+    if (order.status !== 'paid') {
+      return '';
+    }
+    return this.isDelivered(order) ? '' : 'Podrás devolverlo cuando llegue.';
   }
 
   /** Si todavía no se sabe si este pedido tiene reclamos. */

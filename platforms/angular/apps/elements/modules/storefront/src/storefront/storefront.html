@@ -661,10 +661,11 @@
                 >
                   Devolver
                 </button>
-              } @else if (returnsUnknown(order)) {
-                <!-- No se pudo leer si ya hay un reclamo. Ofrecer el botón acá
-                     dejaría abrir un SEGUNDO reclamo sobre la misma línea. -->
-                <span class="storefront__order-item-note">Consultando devoluciones…</span>
+              } @else if (returnBlockedReason(order, line); as motivo) {
+                <!-- Por qué no se puede: no se pudo leer si ya hay un reclamo
+                     (#32), o el pedido todavía no llegó (#33). Callarse deja a
+                     quien compró buscando un botón que no está. -->
+                <span class="storefront__order-item-note">{{ motivo }}</span>
               }
             </li>
           }

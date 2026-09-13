@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Diez reglas que costaron caro y no se deducen leyendo el código:**
+**Once reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -172,7 +172,16 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    **se compara el cuerpo que se manda contra lo que el borde exige** — el `catch` no lo va a
    decir. Y el spec afirmaba el defecto con todas las letras («mock degradado → claim abierto»):
    un test que codifica el defecto convierte el arreglo en una regresión (#32).
-10. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+10. **Un dato de ejemplo que NO PUEDE EXISTIR en producción hace verde un camino que en
+   producción está cortado.** Los pedidos de ejemplo de la Tienda traían `status: 'delivered'` y
+   `'shipped'`; el enum del CMS tiene **tres** valores —`Pending`, `Paid`, `Cancelled`— y ésos no
+   están. El gate de la devolución pedía justo esos dos, así que contra un servidor real el botón
+   **no aparecía nunca** y contra el mock sí. Es el primo de la regla 7: allá el fixture no exigía
+   la regla, acá el fixture **describe un servidor que no existe**. Y la causa de fondo es que la
+   UI le preguntaba al campo de al lado: `shipped`/`delivered` son **etapas del seguimiento**
+   (`StubOrderTrackingService.ShopPipeline`), no estados del pedido. Al escribir un mock, los
+   valores salen del **enum o del pipeline del backend**, no de lo que sonaría bien (#33).
+11. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
