@@ -96,6 +96,7 @@ está vigilando nada.
 | `cdn-runtime-check` | que el runtime esté antes que quien lo necesita | se publica el runtime después de los elementos (#7) |
 | `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida | un external se empaqueta dentro de un elemento (#8) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
+| `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
@@ -114,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Doce reglas que costaron caro y no se deducen leyendo el código:**
+**Trece reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -189,7 +190,16 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    porque el SDK 10 sólo trae el suyo) y la suite del CMS corre entera. Un `dotnet test` sin el
    runtime **aborta y sale con código 0**, así que hay que leer la salida y no el código de
    salida. Si hace falta el otro árbol para arreglar algo bien, se instala y se arregla (#34).
-12. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+12. **La paridad CSS va en las DOS direcciones, y la de vuelta se excluye por NAMESPACE.** El CMS
+   exige que toda clase `syn-*` emitida tenga CSS (G-3); acá se exige que toda clase declarada
+   tenga quien la emita. Al medirlo salieron **155** muertas —`__facet-*` de antes de SH-1,
+   `__gallery-*` de antes de SH-2, `__confirm-*` de antes de SH-11—, o sea que cada vez que una
+   app cambia markup propio por una pieza del catálogo su CSS se queda. Lo que **no** es obvio:
+   tres apps estilan `syn-tabs__*` desde su propio SCSS y quien las emite es
+   `libs/shared/.../tabs.ts`, así que la exención va por namespace `syn-` y no por lista — la
+   próxima se llamará de otra manera. Y limpiar se hace **con el gate escrito y rojo**: quitar
+   CSS a ojo es como se pierde un `:hover` sin que nada avise (#23).
+13. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que

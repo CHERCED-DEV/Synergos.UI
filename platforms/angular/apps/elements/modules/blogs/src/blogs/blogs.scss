@@ -1090,29 +1090,6 @@
   background: var(--bl-brand);
 }
 
-// ─── Search / explore ──────────────────────────────────────────────────────────────
-.blogs__searchbar {
-  display: flex;
-  gap: syn.$space-2;
-  margin-bottom: syn.$space-4;
-}
-
-.blogs__searchbar-input {
-  flex: 1;
-  padding: syn.$space-3 syn.$space-4;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-full;
-  background: var(--bl-surface-muted);
-  color: var(--bl-text);
-  font: inherit;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: 0;
-    border-color: var(--bl-brand);
-  }
-}
-
 .blogs__account {
   display: flex;
   align-items: center;
