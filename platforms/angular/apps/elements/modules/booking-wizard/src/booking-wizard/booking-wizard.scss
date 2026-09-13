@@ -321,17 +321,6 @@
         filter: brightness(0.95);
       }
     }
-
-    &--ghost {
-      background: transparent;
-      border-color: var(--bw-border);
-      color: var(--bw-text-secondary);
-
-      &:hover:not(:disabled) {
-        background: var(--bw-surface-muted);
-        color: var(--bw-text);
-      }
-    }
   }
 }
 

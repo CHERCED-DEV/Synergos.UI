@@ -632,13 +632,6 @@
     text-align: center;
   }
 
-  // ─── Cart ────────────────────────────────────────────────────────────────────
-  &__cart {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-md;
-  }
-
 
 
 
@@ -739,18 +732,6 @@
     color: var(--ev-text-secondary);
   }
 
-  // ─── Confirmation + e-tickets ────────────────────────────────────────────────
-  &__confirmation {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: syn.$space-sm;
-    padding: syn.$space-xl;
-    text-align: center;
-    background: var(--ev-success-soft);
-    border-radius: syn.$radius-lg;
-  }
-
   &__confirm-badge {
     margin: 0;
     padding: syn.$space-xxs syn.$space-md;
@@ -758,12 +739,6 @@
     color: var(--ev-brand-text);
     background: var(--ev-success);
     border-radius: syn.$radius-full;
-  }
-
-  &__confirm-code {
-    margin: 0;
-    font-size: syn.px-to-rem(20);
-    font-weight: 700;
   }
 
   &__confirm-order {

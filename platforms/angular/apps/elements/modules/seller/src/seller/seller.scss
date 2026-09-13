@@ -219,12 +219,6 @@
     font-size: syn.$font-size-xs;
   }
 
-  &__rep-empty {
-    margin: 0;
-    color: var(--sl-muted);
-    font-size: syn.$font-size-sm;
-  }
-
   // ─── Reputation skeleton ────────────────────────────────────────────────
   // Reuses `&__rep` / `&__rep-card` verbatim, so the grid, the padding and the
   // card chrome are already the real ones; only the text nodes become bones.

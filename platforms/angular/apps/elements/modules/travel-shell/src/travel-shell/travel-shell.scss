@@ -365,8 +365,7 @@
 
     &:focus-visible { outline: syn.px-to-rem(2) solid var(--ts-focus-ring); outline-offset: syn.px-to-rem(1); }
   }
-
-  &__pax, &__daterange { display: block; }
+  &__pax { display: block; }
 
   &__search-btn { align-self: flex-end; min-height: syn.px-to-rem(42); }
 
@@ -696,27 +695,6 @@
   }
 
   &__ship-to { margin: 0; color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
-
-  // ─── Confirmation ─────────────────────────────────────────────────────────
-  &__confirmation {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  &__confirm-badge {
-    margin: 0 auto;
-    padding: syn.$space-2 syn.$space-4;
-    border-radius: syn.$radius-full;
-    background: var(--ts-success-soft);
-    color: var(--ts-text);
-    font-weight: 700;
-  }
-
-  &__confirm-code { margin: 0; font-size: syn.$font-size-2xl; font-weight: syn.$font-weight-bold; letter-spacing: 0.03em; }
-  &__confirm-order { margin: 0; color: var(--ts-text-secondary); }
 
   // ─── Account: trips ───────────────────────────────────────────────────────
   &__trip-head {

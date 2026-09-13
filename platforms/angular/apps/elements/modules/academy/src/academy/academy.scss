@@ -819,16 +819,6 @@
     }
   }
 
-  // ─── Enrolled bridge ──────────────────────────────────────────────────────
-  &__enrolled {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: syn.$space-sm;
-    padding: syn.$space-2xl syn.$space-lg;
-    text-align: center;
-  }
-
   &__enrolled-badge {
     display: inline-flex;
     align-items: center;
@@ -839,17 +829,6 @@
     background: var(--ac-success-soft);
     color: var(--ac-success);
     font-weight: 700;
-  }
-
-  &__enrolled-title {
-    margin: 0;
-    font-size: syn.$font-size-2xl;
-    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
-    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
-    // justo para esto — grande y LIGERO, que es como lo componen los productos que
-    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
-    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
-    font-weight: syn.$font-weight-display;
   }
 
   &__enrolled-ref {
