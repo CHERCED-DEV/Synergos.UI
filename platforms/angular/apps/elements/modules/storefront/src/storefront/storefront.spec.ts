@@ -443,12 +443,18 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(stages.length).toBeGreaterThan(0);
     expect(stages.some((stage) => stage.state === 'current' || stage.state === 'done')).toBe(true);
 
-    // Return flow (mock degradado → claim abierto), idempotente por orden.
-    expect(component.canReturn(order)).toBe(true);
-    component.startReturn(order);
-    await flushMicrotasks();
-    expect(component.returnReceipt(order.orderNumber)?.status).toBe('abierto');
-    expect(component.canReturn(order)).toBe(false);
+    // Devolución (#32). Este bloque AFIRMABA EL DEFECTO: decía «mock degradado →
+    // claim abierto» y comprobaba que un reclamo inventado en el cliente contaba
+    // como abierto. Con el servidor caído no hay reclamo, y por tanto tampoco se
+    // ofrece el botón — no se sabe si la línea ya tiene uno.
+    const linea = order.items[0];
+    expect(component.returnsUnknown(order)).toBe(true);
+    expect(component.canReturnLine(order, linea)).toBe(false);
+
+    component.openReturn(order.orderNumber, linea);
+    await component.submitReturn();
+    expect(component.claimForLine(order.orderNumber, linea)).toBeNull();
+    expect(component.returnError()).not.toBe('');
 
     // Sección mensajes (v1): threads mock cargados al cambiar de sección.
     component.onAccountSectionChange('mensajes');
@@ -796,6 +802,211 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     });
   });
 
+  // ── devoluciones y consola de vendedor (#32) ─────────────────────────────────
+  describe('devoluciones', () => {
+    /** Deja la cuenta abierta con pedidos y un servidor que contesta lo que se le diga. */
+    async function abrirCuenta(responder: (url: string) => Response): Promise<void> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(responder(String(url)))));
+      await createComponent();
+      component.goToAccount();
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+    }
+
+    const json = (body: unknown, status = 200): Response =>
+      ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
+
+    const RECLAMO = {
+      claimId: 'rma_x1',
+      orderRef: 'ORD-2026-00481',
+      lineRef: 'SONY-XM5',
+      productName: 'Audífonos Sony WH-1000XM5',
+      quantity: 1,
+      refundAmountFormatted: '$1.499.000',
+      reason: 'damaged',
+      status: 'abierto',
+      requestedAt: '2026-09-12',
+      updatedAt: '2026-09-12',
+    };
+
+    it('EL caso: el reclamo SOBREVIVE a recargar, y no se ofrece abrir otro', async () => {
+      // El servidor ya tiene un reclamo abierto sobre la línea. Antes esto no se
+      // leía nunca, así que al recargar el botón volvía y se abría un SEGUNDO.
+      await abrirCuenta((url) =>
+        url.includes('/return') ? json({ returns: [RECLAMO] }) : json({}, 500),
+      );
+
+      const order = component.orders().find((o) => o.orderNumber === 'ORD-2026-00481')!;
+      const linea = order.items[0];
+
+      expect(component.returnsUnknown(order)).toBe(false);
+      expect(component.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
+      expect(component.canReturnLine(order, linea)).toBe(false);
+    });
+
+    it('EL caso: si NO se pudo leer, tampoco se ofrece — no se sabe si ya hay uno', async () => {
+      await abrirCuenta(() => json({}, 500));
+
+      const order = component.orders().find((o) => o.status === 'delivered')!;
+      expect(component.returnsUnknown(order)).toBe(true);
+      expect(component.canReturnLine(order, order.items[0])).toBe(false);
+    });
+
+    it('EL caso: un POST fallido NO da el reclamo por abierto', async () => {
+      await abrirCuenta((url) =>
+        url.includes('/return') ? json({ returns: [] }) : json({}, 500),
+      );
+
+      const order = component.orders().find((o) => o.status === 'delivered')!;
+      const linea = order.items[0];
+      // Con la lectura en verde y sin reclamos, el botón SÍ se ofrece.
+      expect(component.canReturnLine(order, linea)).toBe(true);
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve(
+            json({ error: 'Solo se puede devolver sobre una orden pagada.' }, 400),
+          ),
+        ),
+      );
+      component.openReturn(order.orderNumber, linea);
+      await component.submitReturn();
+
+      // Ni reclamo inventado ni pantalla que diga que se abrió.
+      expect(component.claimForLine(order.orderNumber, linea)).toBeNull();
+      // Y se enseña lo que dijo el servidor, no un genérico: lo escribió quien sabe.
+      expect(component.returnError()).toContain('orden pagada');
+      expect(component.canReturnLine(order, linea)).toBe(true);
+    });
+
+    it('manda lineId y el motivo ELEGIDO, no un literal fijo', async () => {
+      await abrirCuenta((url) =>
+        url.includes('/return') ? json({ returns: [] }) : json({}, 500),
+      );
+      const order = component.orders().find((o) => o.status === 'delivered')!;
+      const linea = order.items[0];
+
+      const cuerpos: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url: string, init: RequestInit) => {
+          cuerpos.push(String(init?.body ?? ''));
+          return Promise.resolve(json(RECLAMO));
+        }),
+      );
+
+      component.openReturn(order.orderNumber, linea);
+      component.setReturnReason('not-as-described');
+      await component.submitReturn();
+
+      const enviado = JSON.parse(cuerpos[0]) as { lineId: string; reason: string };
+      // Sin `lineId` el borde contesta 400 — y contestaba 400 SIEMPRE, porque
+      // este cuerpo no lo llevaba.
+      expect(enviado.lineId).toBe('SONY-XM5');
+      expect(enviado.reason).toBe('not-as-described');
+      expect(component.claimForLine(order.orderNumber, linea)?.claimId).toBe('rma_x1');
+    });
+  });
+
+  describe('consola del vendedor', () => {
+    async function abrirConsola(): Promise<void> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('seller');
+      await flushMicrotasks(20);
+      fixture.detectChanges();
+    }
+
+    it('la consola se monta y trae sus cuatro secciones', async () => {
+      await abrirConsola();
+
+      expect(component.view()).toBe('seller');
+      expect(fixture.nativeElement.querySelector('syn-console-shell')).not.toBeNull();
+      expect(component.sellerConfig().sections.map((s) => s.id)).toEqual([
+        'orders',
+        'returns',
+        'reviews',
+        'messages',
+      ]);
+    });
+
+    it('EL caso: las devoluciones SIN atender van primero', async () => {
+      await abrirConsola();
+
+      // El escritorio de ejemplo llega con la de `en-revision` ANTES que la
+      // `abierto`, así que esto sólo pasa si el orden se aplica de verdad.
+      expect(component.sellerReturns().map((c) => c.status)).toEqual(['abierto', 'en-revision']);
+    });
+
+    it('EL caso: las opiniones reportadas van primero, con conteo o sin él', async () => {
+      await abrirConsola();
+
+      const cola = component.sellerModeration();
+      expect(cola.map((i) => i.reason)).toEqual(['reported', 'reported', 'pending']);
+      // La segunda reportada llega SIN conteo: sin esta fila, ordenar sólo por
+      // conteo daría el mismo resultado y la regla del motivo no se vigilaría
+      // (regla 7 de CLAUDE.md, aprendida en #31).
+      expect(cola[1].reportCount).toBe(0);
+    });
+
+    it('EL caso: un avance fallido NO cambia el estado del reclamo', async () => {
+      await abrirConsola();
+      const antes = component.sellerReturns()[0];
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ error: 'No se puede pasar de abierto a recibido.' }),
+          } as Response),
+        ),
+      );
+      await component.advanceReturn(antes.claimId, 'received');
+
+      // `refunded` mueve plata de verdad: pintar «Resuelto» sobre un POST que
+      // falló diría que se devolvió algo que sigue donde estaba.
+      expect(component.sellerReturns()[0].status).toBe(antes.status);
+      expect(component.deskFailed()).toBe(true);
+      expect(component.deskNotice()).toContain('abierto a recibido');
+    });
+
+    it('un avance aceptado toma el estado QUE DEVUELVE el servidor', async () => {
+      await abrirConsola();
+      const objetivo = component.sellerReturns()[0];
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () =>
+              Promise.resolve({ ...objetivo, claimId: objetivo.claimId, status: 'en-revision' }),
+          } as Response),
+        ),
+      );
+      await component.advanceReturn(objetivo.claimId, 'approved');
+
+      const despues = component
+        .sellerReturns()
+        .find((c) => c.claimId === objetivo.claimId)!;
+      expect(despues.status).toBe('en-revision');
+      expect(component.deskFailed()).toBe(false);
+    });
+
+    it('el escritorio de ejemplo se rotula: es una LECTURA degradada, no una mentira', async () => {
+      await abrirConsola();
+
+      expect(component.degraded()).toBe(true);
+      expect(fixture.nativeElement.querySelector('syn-status-banner')).not.toBeNull();
+    });
+  });
+
   // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
   //
   // Se PULSA el botón: lo que esta HU entrega es que comparar sea ALCANZABLE desde
@@ -1129,10 +1340,13 @@ describe('ShopApiClient', () => {
     list = await client.wishlistMutate('/api/shop', entry, 'remove');
     expect(list).toHaveLength(0);
 
-    // Return + messages degradan visibles.
-    const receipt = await client.requestReturn('/api/shop', 'ORD-9', 'motivo');
-    expect(receipt.status).toBe('abierto');
+    // Los mensajes SÍ degradan visibles — son una lectura.
     const threads = await client.messages('/api/shop');
     expect(threads.length).toBeGreaterThan(0);
+
+    // La devolución ya NO degrada (#32): es una escritura, y fingirla dejaba al
+    // comprador con un número de reclamo que no existe en ninguna parte.
+    const rechazo = await client.requestReturn('/api/shop', 'ORD-9', 'SKU-1', 'damaged');
+    expect(rechazo.ok).toBe(false);
   });
 });

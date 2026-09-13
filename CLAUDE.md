@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Nueve reglas que costaron caro y no se deducen leyendo el código:**
+**Diez reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -163,7 +163,16 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    lista**, o sea enseña la prueba de que miente en la misma pantalla. Es la regla 4 aplicada al
    código de estado y no al cuerpo. Se mira `response.status` cuando la diferencia entre
    «guardado» y «aceptado» le cambia el significado al mensaje (#31).
-9. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+9. **Un `catch` que degrada tapa que la llamada NUNCA funcionó.** La devolución de la Tienda
+   mandaba `{ reason }` y el borde exige `{ lineId, reason }`, así que contestaba **400 siempre**
+   — y no se notó en meses porque el `catch` inventaba un `claimId` y la pantalla decía «Reclamo
+   abierto». El comprador se iba con un número que no existe en ninguna parte. Un fallo que
+   ocurre el 100 % de las veces se ve igual que uno que no ocurre nunca, **si hay un mock
+   detrás**. Por eso una ESCRITURA no degrada (regla 4) y por eso, al tocar un cliente,
+   **se compara el cuerpo que se manda contra lo que el borde exige** — el `catch` no lo va a
+   decir. Y el spec afirmaba el defecto con todas las letras («mock degradado → claim abierto»):
+   un test que codifica el defecto convierte el arreglo en una regresión (#32).
+10. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
