@@ -929,14 +929,27 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     const json = (body: unknown, status = 200): Response =>
       ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
 
-    /** Un pedido con el estado que el backend SÍ emite. */
-    const pedido = (status: ShopOrder['status']): ShopOrder => ({
+    /**
+     * Un pedido tal como lo emite el backend: el estado es uno de los TRES que el
+     * enum tiene, y el permiso de devolver viene decidido por el servidor (#34) —
+     * la UI ya no lo deduce de `status`.
+     */
+    const pedido = (status: ShopOrder['status'], canReturn = status === 'paid'): ShopOrder => ({
       orderNumber: 'ORD-REAL-1',
       date: '2026-09-01',
       status,
       total: 120_000,
       currency: 'COP',
-      items: [{ title: 'Cafetera', qty: 1, amount: 120_000, productId: 'SKU-CAF' }],
+      items: [
+        {
+          title: 'Cafetera',
+          qty: 1,
+          amount: 120_000,
+          productId: 'SKU-CAF',
+          canReturn,
+          returnBlock: canReturn ? undefined : 'order-not-paid',
+        },
+      ],
     });
 
     const etapas = (entregado: boolean) => ({
@@ -997,6 +1010,71 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
       // Bloquear la devolución porque se cayó el seguimiento cambiaría un problema
       // de información por uno de negocio.
       expect(component.canReturnLine(order, order.items[0])).toBe(true);
+    });
+
+    it('EL caso: manda el SERVIDOR — sin su permiso no se ofrece, aunque todo lo demás cuadre', async () => {
+      // Pedido `paid`, entregado, sin reclamos: todo lo que la UI sabía mirar
+      // dice que sí. Pero el servidor dice que no, y el servidor es el que aplica
+      // el POST. Deducirlo acá es lo que produjo el #33.
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json(etapas(true));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [pedido('paid', false)] });
+      });
+
+      const order = component.orders()[0];
+      component.onOrderSelect(order);
+      await flushMicrotasks(10);
+
+      expect(order.status).toBe('paid');
+      expect(component.isDelivered(order)).toBe(true);
+      expect(component.canReturnLine(order, order.items[0])).toBe(false);
+    });
+
+    it('y el motivo lo NOMBRA el servidor: «ya hay un reclamo» se explica', async () => {
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json(etapas(true));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({
+          orders: [
+            {
+              ...pedido('paid'),
+              items: [
+                {
+                  title: 'Cafetera',
+                  qty: 1,
+                  amount: 120_000,
+                  productId: 'SKU-CAF',
+                  canReturn: false,
+                  returnBlock: 'already-open',
+                },
+              ],
+            },
+          ],
+        });
+      });
+
+      const order = component.orders()[0];
+      component.onOrderSelect(order);
+      await flushMicrotasks(10);
+
+      expect(component.returnBlockedReason(order, order.items[0])).toContain('reclamo abierto');
+    });
+
+    it('un motivo que no le sirve a quien compró no se pinta', async () => {
+      await conPedidos((url) => {
+        if (url.includes('/tracking')) return json(etapas(true));
+        if (url.includes('/return')) return json({ returns: [] });
+        return json({ orders: [pedido('cancelled', false)] });
+      });
+
+      const order = component.orders()[0];
+      component.onOrderSelect(order);
+      await flushMicrotasks(10);
+
+      // `order-not-paid`: a quien canceló no hay que contarle que no puede
+      // devolver lo que nunca recibió.
+      expect(component.returnBlockedReason(order, order.items[0])).toBe('');
     });
 
     it('un pedido sin pagar o cancelado no se devuelve: el servidor lo rechaza', async () => {
