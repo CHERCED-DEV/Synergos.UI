@@ -13,6 +13,10 @@ import {
   type Certificate,
   type CourseDetail,
   type CourseReview,
+  type CourseReviewReportResult,
+  type ModerationDecision,
+  type ModerationDecisionResult,
+  type ModerationItem,
   type CourseReviewResult,
   type CourseReviewSubmission,
   type CourseReviewSummary,
@@ -137,7 +141,9 @@ export class AcademyApiClient {
         body: JSON.stringify(submission),
       });
       if (response.ok) {
-        return { ok: true };
+        // **202 no es 201** (#31): un borde que encola para revisión del docente
+        // contesta 202, y `response.ok` no los distingue.
+        return { ok: true, pending: response.status === 202 };
       }
       switch (response.status) {
         case 401:
@@ -151,6 +157,73 @@ export class AcademyApiClient {
       }
     } catch {
       // Red caída NO es «no puedes opinar»: el mensaje invita a reintentar.
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * El docente decide sobre una opinión en cola (#31).
+   *
+   * **No degrada a mock.** Dejar una opinión publicada mientras la pantalla dice
+   * que se rechazó es la regla 4 de `CLAUDE.md` sobre la escritura que más
+   * consecuencias tiene: alguien queda expuesto y el docente cree que lo atendió.
+   */
+  async decideModeration(
+    apiBase: string,
+    reviewId: string,
+    decision: ModerationDecision,
+  ): Promise<ModerationDecisionResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/moderation/${encodeURIComponent(reviewId)}/${decision}`;
+    try {
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'forbidden' };
+        // Otra persona ya decidió. NO es un fallo de quien pulsa: la fila sale de
+        // la cola igual, y decirle «falló» la dejaría pulsando sobre algo resuelto.
+        case 409:
+          return { ok: false, reason: 'already-decided' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /** Reporta una reseña (#31). Sin degradar a mock: ver regla 4 de `CLAUDE.md`. */
+  async reportCourseReview(
+    apiBase: string,
+    reviewId: string,
+  ): Promise<CourseReviewReportResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
+    try {
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 409:
+          return { ok: false, reason: 'already-reported' };
+        case 404:
+          return { ok: false, reason: 'not-found' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
       return { ok: false, reason: 'failed' };
     }
   }
@@ -1027,6 +1100,30 @@ function normalizeInstructorQuestion(value: unknown): InstructorQuestion | null 
   };
 }
 
+function normalizeModerationItem(value: unknown): ModerationItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  // `reported` sólo si el servidor lo dice: por defecto es una pendiente, que es la
+  // lectura conservadora — tratar una pendiente como reportada la subiría de
+  // prioridad sin que nadie hubiera avisado.
+  const reason = readString(value['reason']).trim() === 'reported' ? 'reported' : 'pending';
+  return {
+    id,
+    author: readString(value['author']).trim() || 'Estudiante',
+    courseTitle: readString(value['courseTitle']).trim() || 'Curso',
+    rating: Math.min(5, Math.max(0, Math.trunc(readNumber(value['rating'])))),
+    body: readString(value['body']).trim(),
+    createdAt: readString(value['createdAt']).trim(),
+    reason,
+    reportCount: Math.max(0, Math.trunc(readNumber(value['reportCount']))),
+  };
+}
+
 function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
   if (!isRecord(value)) {
     return null;
@@ -1034,6 +1131,7 @@ function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
   const rawCourses = Array.isArray(value['courses']) ? value['courses'] : [];
   const rawStudents = Array.isArray(value['students']) ? value['students'] : [];
   const rawQuestions = Array.isArray(value['questions']) ? value['questions'] : [];
+  const rawModeration = Array.isArray(value['moderation']) ? value['moderation'] : [];
   if (rawCourses.length === 0 && rawStudents.length === 0 && rawQuestions.length === 0) {
     return null;
   }
@@ -1050,6 +1148,9 @@ function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
     courses,
     students,
     questions,
+    moderation: rawModeration
+      .map((entry) => normalizeModerationItem(entry))
+      .filter((entry): entry is ModerationItem => entry !== null),
     totalStudents:
       Math.trunc(readNumber(value['totalStudents'])) ||
       courses.reduce((sum, course) => sum + course.studentCount, 0),
@@ -1574,10 +1675,52 @@ function mockInstructorDesk(): InstructorDeskResult {
     { id: 'Q-2', studentName: 'Julián Pérez', courseTitle: 'Clean & SOLID', lessonTitle: 'Inversión de dependencias', question: '¿La DIP aplica igual en un front zoneless?', answered: false, createdAt: '2026-07-04' },
     { id: 'Q-3', studentName: 'Camila Rodríguez', courseTitle: 'Angular moderno', lessonTitle: 'Web Components', question: '¿Cómo hidrato un custom element dentro del CMS?', answered: true, createdAt: '2026-07-02' },
   ];
+  // Los dos motivos, que NO se atienden igual — la reportada ya está pública
+  // haciendo daño. **Van en orden de LLEGADA a propósito**, con la pendiente
+  // primero: si el mock ya viniera ordenado, el spec de la prioridad pasaría en
+  // verde con el `sort` quitado y no estaría vigilando nada. Comprobado mutando.
+  const moderation: readonly ModerationItem[] = [
+    {
+      id: 'MOD-2',
+      author: 'Julián Pérez',
+      courseTitle: 'Clean & SOLID',
+      rating: 4,
+      body: 'Muy completo. El módulo de inversión de dependencias se me hizo largo.',
+      createdAt: '2026-07-04',
+      reason: 'pending',
+      reportCount: 0,
+    },
+    {
+      id: 'MOD-3',
+      author: 'Sofía Marín',
+      courseTitle: 'Angular moderno',
+      rating: 2,
+      body: 'El audio de las últimas tres lecciones está cortado.',
+      createdAt: '2026-07-05',
+      reason: 'reported',
+      // **Cero a propósito.** El normalizador deja el conteo en 0 cuando el
+      // servidor no lo manda, y una reportada sin conteo tiene que seguir yendo
+      // por delante de una pendiente: sin eso, ordenar sólo por conteo daría el
+      // mismo resultado que ordenar bien —las pendientes siempre valen 0— y la
+      // regla del motivo sería código muerto. Comprobado mutando.
+      reportCount: 0,
+    },
+    {
+      id: 'MOD-1',
+      author: 'Andrés Gómez',
+      courseTitle: 'Angular moderno',
+      rating: 1,
+      body: 'Compren el curso de otro lado, acá dejo mi WhatsApp para venderlo más barato.',
+      createdAt: '2026-07-06',
+      reason: 'reported',
+      reportCount: 3,
+    },
+  ];
   return {
     courses,
     students,
     questions,
+    moderation,
     totalStudents: courses.reduce((sum, course) => sum + course.studentCount, 0),
     totalRevenue: courses.reduce((sum, course) => sum + course.revenue, 0),
     averageRating: 4.77,

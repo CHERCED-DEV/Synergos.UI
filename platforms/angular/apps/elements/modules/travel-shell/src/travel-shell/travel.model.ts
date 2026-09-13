@@ -200,6 +200,16 @@ export interface StayDetail {
    * `ProductDetail.canReview` de la Tienda.
    */
   readonly canReview: boolean;
+  /**
+   * Si ESTE viajero puede reportar una opinión (#31).
+   *
+   * **Sale del servidor y no de una sesión local**, al revés que en la Tienda y
+   * Educación: esta app no monta `HostIdentityService`, así que acá no hay forma
+   * honesta de saber si hay sesión. Deducirlo por la existencia de reseñas sería
+   * adivinar, y ofrecer un botón que rebota con 401 es el error que `canReview`
+   * ya evita. Ausente = NO puede.
+   */
+  readonly canReport: boolean;
 }
 
 /** Una opinión de una estadía. */
@@ -247,10 +257,26 @@ export interface StayReviewSubmission {
 
 /** Resultado tipado y sin degradar a mock — ADR 0112 y regla 4 de `CLAUDE.md`. */
 export type StayReviewResult =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      /**
+       * Quedó ENCOLADA para revisión, no publicada (#31). Sale de un `202
+       * Accepted`, que `response.ok` no distingue de un 201 — y sin distinguirlos
+       * el acuse decía «ya está publicada».
+       */
+      readonly pending: boolean;
+    }
   | {
       readonly ok: false;
       readonly reason: 'unauthenticated' | 'not-guest' | 'invalid' | 'failed';
+    };
+
+/** Resultado de reportar una opinión (#31). `already-reported` no es un fallo. */
+export type StayReviewReportResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'already-reported' | 'not-found' | 'failed';
     };
 
 /** One label/value row on the stay's specs panel. */

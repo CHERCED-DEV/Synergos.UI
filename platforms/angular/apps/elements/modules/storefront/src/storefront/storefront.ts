@@ -1058,10 +1058,23 @@ export class StorefrontElementComponent {
     this.reviewSending.set(false);
 
     if (result.ok) {
-      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
       // La pieza NO se limpia sola al enviar, a propósito: sólo acá se sabe que el
-      // servidor aceptó. Borrar antes sería el defecto #26 con otro disfraz.
+      // servidor aceptó. Borrar antes sería el defecto #26 con otro disfraz. Y se
+      // limpia en LOS DOS casos: encolada también es aceptada, y dejar el texto
+      // puesto invita a mandarlo otra vez.
       this.reviewPanel()?.reset();
+
+      if (result.pending) {
+        // **Ni «publicada» ni recarga** (#31). Recargar traería una lista donde la
+        // reseña no está, o sea la prueba de que el acuse miente, en la misma
+        // pantalla y en el mismo segundo.
+        this.reviewNotice.set(
+          'Gracias. Tu opinión quedó en revisión y se publicará cuando la aprueben.',
+        );
+        return;
+      }
+
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
       // Se recarga la ficha para que la nota y la lista salgan del SERVIDOR y no de una
       // suposición del cliente: si el envío editó una reseña previa, el conteo NO sube.
       await this.loadProduct(product.id);
@@ -1084,6 +1097,47 @@ export class StorefrontElementComponent {
       default:
         this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
     }
+  }
+
+  // ─── Reportar una reseña (#31) ───────────────────────────────────────────────
+  //
+  // `Api.Moderation` lleva meses construida con un campo `Reporter` y CERO
+  // consumidores. Esto es el primero por el lado de quien lee.
+  readonly reportedReviewIds = signal<readonly string[]>([]);
+  readonly reportingReviewId = signal<string | null>(null);
+
+  /**
+   * **Quien no tiene sesión no reporta.** Un reporte anónimo no se puede atender
+   * —no hay a quién volver— ni deduplicar, así que ofrecer el botón sería ofrecer
+   * uno que va a rebotar con 401: el mismo criterio de `canReview` (ADR 0112).
+   */
+  readonly canReportReview = computed(() => this.isAuthenticated());
+
+  async reportReview(reviewId: string): Promise<void> {
+    if (this.reportingReviewId() !== null || this.reportedReviewIds().includes(reviewId)) {
+      return;
+    }
+    this.reportingReviewId.set(reviewId);
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.reportReview(this.apiBase(), reviewId);
+    this.reportingReviewId.set(null);
+
+    // `already-reported` se trata como éxito a propósito: el servidor deduplica, así
+    // que «ya lo habíamos recibido» es exactamente lo que la persona necesita saber
+    // y decirle «falló» la haría reintentar algo que ya está hecho.
+    if (result.ok || result.reason === 'already-reported') {
+      this.reportedReviewIds.update((ids) => [...ids, reviewId]);
+      this.reviewNotice.set('Gracias por avisar. Vamos a revisarla.');
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    this.reviewNotice.set(
+      result.reason === 'unauthenticated'
+        ? 'Inicia sesión para reportar una opinión.'
+        : 'No pudimos registrar el reporte. Intenta de nuevo.',
+    );
   }
 
   // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────

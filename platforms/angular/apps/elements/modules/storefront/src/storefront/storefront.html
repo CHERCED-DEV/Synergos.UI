@@ -402,7 +402,11 @@
           [notice]="reviewNotice()"
           [noticeIsError]="reviewFailed()"
           [sending]="reviewSending()"
+          [canReport]="canReportReview()"
+          [reportedIds]="reportedReviewIds()"
+          [reportingId]="reportingReviewId()"
           (submitreview)="submitReview($event)"
+          (reportreview)="reportReview($event)"
         />
       </ng-template>
 

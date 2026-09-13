@@ -237,7 +237,11 @@
             [notice]="reviewNotice()"
             [noticeIsError]="reviewFailed()"
             [sending]="reviewSending()"
+            [canReport]="canReportReview()"
+            [reportedIds]="reportedReviewIds()"
+            [reportingId]="reportingReviewId()"
             (submitreview)="submitCourseReview($event)"
+            (reportreview)="reportReview($event)"
           />
         </div>
       </ng-template>
@@ -859,6 +863,16 @@
           (rowaction)="onConsoleAction($event)"
         />
 
+        @if (moderationNotice(); as aviso) {
+          <p
+            class="academy__mod-notice"
+            [class.is-error]="moderationFailed()"
+            [attr.role]="moderationFailed() ? 'alert' : 'status'"
+          >
+            {{ aviso }}
+          </p>
+        }
+
         <!-- Cell renderer: switches on column key across cursos/alumnos/Q&A -->
         <ng-template #consoleCell let-row let-column="column">
           @switch (column.key) {
@@ -879,6 +893,18 @@
             @case ('progress') { {{ row.percent }}% }
             @case ('enrolledAt') { {{ row.enrolledAt }} }
             @case ('question') { <span class="academy__cell-clamp">{{ row.question }}</span> }
+            <!-- Cola de moderación (#31). El motivo va con su propio color: una
+                 reportada ya está pública haciendo daño y una pendiente no. -->
+            @case ('moderationReason') {
+              <span class="academy__pill" [attr.data-status]="row.reason === 'reported' ? 'pending' : 'done'">
+                {{ moderationReasonLabel(row) }}
+              </span>
+            }
+            @case ('moderationAuthor') {
+              <span class="academy__cell-strong">{{ row.author }}</span>
+              <span class="academy__cell-sub">{{ row.courseTitle }} · {{ row.rating }}★</span>
+            }
+            @case ('moderationBody') { <span class="academy__cell-clamp">{{ row.body }}</span> }
           }
         </ng-template>
 

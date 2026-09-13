@@ -16,6 +16,7 @@ import {
   type ReviewSubmission,
   type ShopPromo,
   type ShopPromoResult,
+  type ReviewReportResult,
   type ReviewSubmitResult,
   type SearchCriteria,
   type SearchResult,
@@ -191,7 +192,9 @@ export class ShopApiClient {
       });
 
       if (response.ok) {
-        return { ok: true };
+        // **202 no es 201.** `response.ok` es cierto para TODO 2xx, así que un borde
+        // que encola para revisión se leía como publicación y el acuse mentía (#31).
+        return { ok: true, pending: response.status === 202 };
       }
       switch (response.status) {
         case 401:
@@ -206,6 +209,43 @@ export class ShopApiClient {
     } catch {
       // Red caída. NO es lo mismo que "no puedes reseñar": el mensaje debe invitar a
       // reintentar, no acusar al comprador.
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * Reporta una reseña (#31).
+   *
+   * **No degrada a mock ni a éxito silencioso.** Un «gracias por avisar» que no
+   * salió de la máquina es la regla 4 de `CLAUDE.md` sobre la escritura que más
+   * confianza pide: quien reporta está diciendo que algo está mal y espera que
+   * alguien lo mire.
+   */
+  async reportReview(apiBase: string, reviewId: string): Promise<ReviewReportResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        // El servidor deduplica por (reseña, quien reporta). No es un fallo.
+        case 409:
+          return { ok: false, reason: 'already-reported' };
+        case 404:
+          return { ok: false, reason: 'not-found' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
       return { ok: false, reason: 'failed' };
     }
   }

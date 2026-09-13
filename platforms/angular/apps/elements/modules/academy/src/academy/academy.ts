@@ -94,6 +94,8 @@ import {
   type InstructorQuestion,
   type InstructorStudent,
   type InstructorView,
+  type ModerationDecision,
+  type ModerationItem,
   type LearningPath,
   type LessonQuestion,
 } from './academy.model';
@@ -184,6 +186,7 @@ const INSTRUCTOR_SECTIONS: readonly InstructorView[] = [
   'courses',
   'students',
   'qa',
+  'moderation',
   'performance',
 ];
 
@@ -646,6 +649,12 @@ export class AcademyElementComponent {
       { id: 'courses', label: 'Mis cursos', kind: 'table', badge: this.desk()?.courses.length || undefined },
       { id: 'students', label: 'Alumnos', kind: 'table', badge: this.desk()?.students.length || undefined },
       { id: 'qa', label: 'Q&A', kind: 'table', badge: this.pendingQuestions() || undefined },
+      {
+        id: 'moderation',
+        label: 'Opiniones',
+        kind: 'table',
+        badge: this.moderationQueue().length || undefined,
+      },
       { id: 'performance', label: 'Performance', kind: 'custom' },
     ],
   }));
@@ -698,6 +707,17 @@ export class AcademyElementComponent {
   readonly questionActions: readonly ConsoleRowAction[] = [
     { id: 'answer', label: 'Responder', kind: 'primary' },
   ];
+  readonly moderationColumns: readonly ConsoleColumn[] = [
+    { key: 'moderationReason', label: 'Motivo' },
+    { key: 'moderationAuthor', label: 'Quién y dónde' },
+    { key: 'moderationBody', label: 'Qué dice' },
+  ];
+  // `reject` es `danger` y no `default`: quita algo que alguien escribió, y un
+  // botón neutro al lado de «Aprobar» invita a pulsarlo sin mirar.
+  readonly moderationActions: readonly ConsoleRowAction[] = [
+    { id: 'approve', label: 'Aprobar', kind: 'primary' },
+    { id: 'reject', label: 'Rechazar', kind: 'danger' },
+  ];
   readonly noActions: readonly ConsoleRowAction[] = [];
 
   readonly filteredStudents = computed<readonly InstructorStudent[]>(() => {
@@ -715,14 +735,34 @@ export class AcademyElementComponent {
   });
 
   /** Union row type so the generic SH-5 console unifies `TRow` across sections. */
+  /**
+   * La cola de moderación, con **las reportadas primero** (#31).
+   *
+   * No es preferencia estética: una reportada YA está publicada y haciendo daño,
+   * mientras que una pendiente todavía no la ve nadie. Atenderlas en el orden en
+   * que llegaron dejaría lo urgente debajo de lo que puede esperar.
+   */
+  readonly moderationQueue = computed<readonly ModerationItem[]>(() => {
+    const items = this.desk()?.moderation ?? [];
+    return [...items].sort((a, b) => {
+      if (a.reason !== b.reason) {
+        return a.reason === 'reported' ? -1 : 1;
+      }
+      // Dentro del mismo motivo, primero la que más gente reportó.
+      return b.reportCount - a.reportCount;
+    });
+  });
+
   readonly consoleRows = computed<
-    readonly (InstructorCourse | InstructorStudent | InstructorQuestion)[]
+    readonly (InstructorCourse | InstructorStudent | InstructorQuestion | ModerationItem)[]
   >(() => {
     switch (this.instructorView()) {
       case 'students':
         return this.filteredStudents();
       case 'qa':
         return this.desk()?.questions ?? [];
+      case 'moderation':
+        return this.moderationQueue();
       default:
         return this.desk()?.courses ?? [];
     }
@@ -734,6 +774,8 @@ export class AcademyElementComponent {
         return this.studentColumns;
       case 'qa':
         return this.questionColumns;
+      case 'moderation':
+        return this.moderationColumns;
       default:
         return this.courseColumns;
     }
@@ -745,6 +787,8 @@ export class AcademyElementComponent {
         return this.courseActions;
       case 'qa':
         return this.questionActions;
+      case 'moderation':
+        return this.moderationActions;
       default:
         return this.noActions;
     }
@@ -1560,8 +1604,17 @@ export class AcademyElementComponent {
   }
 
   onConsoleAction(
-    event: ConsoleRowActionEvent<InstructorCourse | InstructorStudent | InstructorQuestion>,
+    event: ConsoleRowActionEvent<
+      InstructorCourse | InstructorStudent | InstructorQuestion | ModerationItem
+    >,
   ): void {
+    if (event.sectionId === 'moderation') {
+      void this.decideModeration(
+        (event.row as ModerationItem).id,
+        event.actionId === 'reject' ? 'reject' : 'approve',
+      );
+      return;
+    }
     if (event.sectionId === 'courses') {
       const row = event.row as InstructorCourse;
       if (event.actionId === 'preview') {
@@ -1588,6 +1641,62 @@ export class AcademyElementComponent {
           : desk,
       );
     }
+  }
+
+  // ─── La cola de moderación (#31) ─────────────────────────────────────────────
+  readonly moderationDecidingId = signal<string | null>(null);
+  readonly moderationNotice = signal('');
+  readonly moderationFailed = signal(false);
+
+  /**
+   * Aprueba o rechaza una opinión en cola.
+   *
+   * **La fila se quita de la cola sólo cuando el servidor contesta**, no al
+   * pulsar: quitarla antes y que el POST falle dejaría la opinión publicada con
+   * el docente creyendo que la atendió — la regla 4 de `CLAUDE.md` sobre la
+   * escritura que más consecuencias tiene.
+   */
+  async decideModeration(reviewId: string, decision: ModerationDecision): Promise<void> {
+    if (this.moderationDecidingId() !== null) {
+      return;
+    }
+    this.moderationDecidingId.set(reviewId);
+    this.moderationFailed.set(false);
+    this.moderationNotice.set('');
+
+    const result = await this.#api.decideModeration(this.apiBase(), reviewId, decision);
+    this.moderationDecidingId.set(null);
+
+    // `already-decided` sale de la cola igual: otra persona la atendió, y dejarla
+    // ahí haría pulsar sobre algo resuelto.
+    if (result.ok || result.reason === 'already-decided') {
+      this.desk.update((desk) =>
+        desk
+          ? { ...desk, moderation: desk.moderation.filter((item) => item.id !== reviewId) }
+          : desk,
+      );
+      this.moderationNotice.set(
+        result.ok
+          ? decision === 'approve'
+            ? 'Opinión aprobada. Ya se ve en el curso.'
+            : 'Opinión rechazada. No se publicará.'
+          : 'Otra persona ya la había atendido.',
+      );
+      return;
+    }
+
+    this.moderationFailed.set(true);
+    this.moderationNotice.set(
+      result.reason === 'forbidden'
+        ? 'No puedes moderar las opiniones de este curso.'
+        : 'No pudimos guardar la decisión. La opinión sigue como estaba.',
+    );
+  }
+
+  moderationReasonLabel(item: ModerationItem): string {
+    return item.reason === 'reported'
+      ? `Reportada ${item.reportCount === 1 ? '1 vez' : `${this.formatCount(item.reportCount)} veces`}`
+      : 'Sin publicar';
   }
 
   openCreate(): void {
@@ -1692,6 +1801,39 @@ export class AcademyElementComponent {
 
   levelLabel(level: CourseLevel): string {
     return LEVEL_LABELS[level] ?? level;
+  }
+
+  // ─── Reportar una reseña (#31) ───────────────────────────────────────────────
+  readonly reportedReviewIds = signal<readonly string[]>([]);
+  readonly reportingReviewId = signal<string | null>(null);
+
+  /** Sin sesión no se reporta: un reporte anónimo no se atiende ni se deduplica. */
+  readonly canReportReview = computed(() => this.#identity.isAuthenticated());
+
+  async reportReview(reviewId: string): Promise<void> {
+    if (this.reportingReviewId() !== null || this.reportedReviewIds().includes(reviewId)) {
+      return;
+    }
+    this.reportingReviewId.set(reviewId);
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.reportCourseReview(this.apiBase(), reviewId);
+    this.reportingReviewId.set(null);
+
+    // `already-reported` es éxito: el servidor deduplica y decirle «falló» a quien
+    // avisó lo haría reintentar algo que ya está hecho.
+    if (result.ok || result.reason === 'already-reported') {
+      this.reportedReviewIds.update((ids) => [...ids, reviewId]);
+      this.reviewNotice.set('Gracias por avisar. Vamos a revisarla.');
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    this.reviewNotice.set(
+      result.reason === 'unauthenticated'
+        ? 'Inicia sesión para reportar una opinión.'
+        : 'No pudimos registrar el reporte. Intenta de nuevo.',
+    );
   }
 
   // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
@@ -1912,9 +2054,21 @@ export class AcademyElementComponent {
     this.reviewSending.set(false);
 
     if (result.ok) {
-      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
       // Se limpia acá y no en la pieza: sólo este lado sabe que el servidor dijo sí.
+      // Y en los DOS casos: encolada también es aceptada, y dejar el texto puesto
+      // invita a mandarlo otra vez.
       this.reviewPanel()?.reset();
+
+      if (result.pending) {
+        // Ni «publicada» ni recarga (#31): recargar traería la lista SIN la reseña,
+        // o sea la prueba de que el acuse miente, en la misma pantalla.
+        this.reviewNotice.set(
+          'Gracias. Tu opinión quedó en revisión del docente y se publicará cuando la apruebe.',
+        );
+        return;
+      }
+
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
       await this.loadCourse(course.id);
       return;
     }
