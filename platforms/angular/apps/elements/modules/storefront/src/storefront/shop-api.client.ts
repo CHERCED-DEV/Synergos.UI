@@ -947,6 +947,10 @@ function normalizeOrders(value: unknown, fallbackCurrency: string): readonly Sho
           // `productId` no se puede pedir una devolución (#32).
           productId: isRecord(line) ? readString(line['productId']).trim() : '',
           variantId: (isRecord(line) ? readString(line['variantId']).trim() : '') || undefined,
+          // Ausente = NO se puede (#34). Lo decide el servidor; la UI ya no lo
+          // deduce, que es lo que hizo que su copia se desviara (#33).
+          canReturn: isRecord(line) && line['canReturn'] === true,
+          returnBlock: (isRecord(line) ? readString(line['returnBlock']).trim() : '') || undefined,
         })),
       };
     })
@@ -1503,7 +1507,16 @@ function mockOrders(currency: string): readonly ShopOrder[] {
       status: 'paid',
       total: 1_888_000,
       currency,
-      items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000, productId: 'SONY-XM5' }],
+      // El ejemplo también trae el veredicto, porque lo trae el servidor (#34).
+      items: [
+        {
+          title: 'Audífonos Sony WH-1000XM5',
+          qty: 1,
+          amount: 1_499_000,
+          productId: 'SONY-XM5',
+          canReturn: true,
+        },
+      ],
     },
     {
       orderNumber: 'ORD-2026-00512',
@@ -1511,7 +1524,19 @@ function mockOrders(currency: string): readonly ShopOrder[] {
       status: 'paid',
       total: 389_000,
       currency,
-      items: [{ title: 'Mouse Logitech MX Master 3S', qty: 1, amount: 389_000, productId: 'LOGI-MX3S' }],
+      // Éste también sale con permiso del servidor: la única condición que el
+      // dominio impone es que la orden esté pagada, y lo está. Que todavía vaya
+      // en camino lo sabe el SEGUIMIENTO, y ése es el refinamiento de la UI
+      // (#33) — no un motivo del servidor.
+      items: [
+        {
+          title: 'Mouse Logitech MX Master 3S',
+          qty: 1,
+          amount: 389_000,
+          productId: 'LOGI-MX3S',
+          canReturn: true,
+        },
+      ],
     },
   ];
 }

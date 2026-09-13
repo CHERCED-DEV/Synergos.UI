@@ -336,6 +336,25 @@ export interface OrderLine {
    */
   readonly productId: string;
   readonly variantId?: string;
+  /**
+   * Si se puede pedir la devolución de ESTA línea (#34).
+   *
+   * **Lo decide el SERVIDOR con el mismo gate que aplica el POST**, igual que
+   * `ProductDetail.canReview`. La UI lo deducía de `order.status`, y esa copia se
+   * desvió hasta pedir estados que el dominio no emite —`shipped`, `delivered`—,
+   * con lo que el botón quedó inalcanzable contra un servidor real (#33). No se
+   * desvió por descuido: se desvió porque era una copia.
+   *
+   * Ausente = NO se puede. Ofrecer lo que el servidor no autorizó es prometer
+   * algo que va a rebotar.
+   */
+  readonly canReturn: boolean;
+  /**
+   * Por qué no, cuando no. `order-not-paid` · `line-not-in-order` ·
+   * `already-open` · `order-not-found`. Con un booleano a secas la UI tendría que
+   * adivinar el motivo, que es el mismo error con otra forma.
+   */
+  readonly returnBlock?: string;
 }
 
 /**

@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Once reglas que costaron caro y no se deducen leyendo el código:**
+**Doce reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -181,7 +181,15 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    UI le preguntaba al campo de al lado: `shipped`/`delivered` son **etapas del seguimiento**
    (`StubOrderTrackingService.ShopPipeline`), no estados del pedido. Al escribir un mock, los
    valores salen del **enum o del pipeline del backend**, no de lo que sonaría bien (#33).
-11. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+11. **«No se puede desde este contenedor» se COMPRUEBA antes de decirlo.** Escribí cuatro veces
+   —#29, #31, #32, #33— que el arreglo de fondo era C# y que acá no había SDK .NET, y aplacé el
+   trabajo real mientras apilaba parches en la UI. Era falso: `dotnet-install.sh` lo instala en
+   dos minutos (canal 10.0 — `global.json` pide 10.0.202 con `rollForward: latestFeature`), los
+   tests además necesitan los **runtimes 8.0** (`--runtime dotnet` y `--runtime aspnetcore`,
+   porque el SDK 10 sólo trae el suyo) y la suite del CMS corre entera. Un `dotnet test` sin el
+   runtime **aborta y sale con código 0**, así que hay que leer la salida y no el código de
+   salida. Si hace falta el otro árbol para arreglar algo bien, se instala y se arregla (#34).
+12. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que
