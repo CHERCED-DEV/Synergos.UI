@@ -1482,12 +1482,25 @@ function mockDetail(id: string, currency: string): ProductDetail {
   };
 }
 
+/**
+ * Pedidos de ejemplo.
+ *
+ * **Los dos van en `paid`, que es lo ÚNICO que un pedido comprado puede valer.**
+ * Traían `delivered` y `shipped` —estados que el enum del CMS no tiene: sólo
+ * `Pending`, `Paid` y `Cancelled`—, y eso fue lo que escondió el #33: el gate de
+ * la devolución pedía justo esos dos, así que en producción el botón no aparecía
+ * nunca y acá sí. Un dato de ejemplo que no puede existir en producción hace
+ * verde un camino que en producción está cortado.
+ *
+ * En qué fase va cada uno lo dice el SEGUIMIENTO, que es donde el dominio lo
+ * guarda (`StubOrderTrackingService.ShopPipeline`).
+ */
 function mockOrders(currency: string): readonly ShopOrder[] {
   return [
     {
       orderNumber: 'ORD-2026-00481',
       date: '2026-06-10',
-      status: 'delivered',
+      status: 'paid',
       total: 1_888_000,
       currency,
       items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000, productId: 'SONY-XM5' }],
@@ -1495,7 +1508,7 @@ function mockOrders(currency: string): readonly ShopOrder[] {
     {
       orderNumber: 'ORD-2026-00512',
       date: '2026-06-22',
-      status: 'shipped',
+      status: 'paid',
       total: 389_000,
       currency,
       items: [{ title: 'Mouse Logitech MX Master 3S', qty: 1, amount: 389_000, productId: 'LOGI-MX3S' }],
@@ -1503,16 +1516,33 @@ function mockOrders(currency: string): readonly ShopOrder[] {
   ];
 }
 
+/**
+ * Hasta dónde llegó cada pedido de ejemplo.
+ *
+ * Vive acá y no en `status` a propósito (#33): uno entregado y otro en camino es
+ * lo que hace útil el ejemplo, y los dos son `paid` porque es lo que el servidor
+ * emite. Un pedido que no esté acá arranca en «pago confirmado».
+ */
+const MOCK_TRACKING_STAGE: Readonly<Record<string, string>> = {
+  'ORD-2026-00481': 'delivered',
+  'ORD-2026-00512': 'shipped',
+};
+
 function mockTracking(orderRef: string, status: string): OrderTracking {
-  // Derive a coherent timeline from the coarse order status.
+  // Los ids son los del pipeline de la Tienda en el CMS
+  // (`StubOrderTrackingService.ShopPipeline`), no una invención de este mock.
   const order: readonly { id: string; label: string; date?: string }[] = [
     { id: 'paid', label: 'Pago aprobado', date: '2026-06-22' },
     { id: 'preparing', label: 'Preparando el paquete', date: '2026-06-23' },
     { id: 'shipped', label: 'En camino', date: '2026-06-24' },
     { id: 'delivered', label: 'Entregado' },
   ];
+  // La fase sale del PEDIDO, no de su estado: un pedido comprado siempre vale
+  // `paid`, y derivar la fase de ahí dejaría a todos en «pago confirmado» (#33).
+  // Un pedido sin pagar o cancelado no avanza, pase lo que pase en el mapa.
+  const etapa = status === 'paid' ? (MOCK_TRACKING_STAGE[orderRef] ?? 'paid') : 'paid';
   const reached =
-    status === 'delivered' ? 4 : status === 'shipped' ? 3 : status === 'preparing' ? 2 : 1;
+    etapa === 'delivered' ? 4 : etapa === 'shipped' ? 3 : etapa === 'preparing' ? 2 : 1;
   return {
     orderRef,
     carrier: 'Envíos Synergos',
