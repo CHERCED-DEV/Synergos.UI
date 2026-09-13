@@ -522,7 +522,11 @@
             [notice]="reviewNotice()"
             [noticeIsError]="reviewFailed()"
             [sending]="reviewSending()"
+            [canReport]="canReportStayReview()"
+            [reportedIds]="reportedReviewIds()"
+            [reportingId]="reportingReviewId()"
             (submitreview)="submitStayReview($event)"
+            (reportreview)="reportStayReview($event)"
           />
         </div>
       </ng-template>

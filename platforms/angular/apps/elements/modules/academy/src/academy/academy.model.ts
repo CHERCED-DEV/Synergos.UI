@@ -59,6 +59,7 @@ export type InstructorView =
   | 'courses' // mis cursos (tabla + KPIs)
   | 'students' // alumnos matriculados (tabla)
   | 'qa' // Q&A dashboard (cola de preguntas)
+  | 'moderation' // cola de opiniones: pendientes y reportadas (#31)
   | 'performance' // performance / ingresos (KPIs + reporte)
   | 'create'; // SH-6 authoring wizard: crear/editar curso
 
@@ -247,10 +248,27 @@ export interface CourseReviewSubmission {
  * verdad, no un placeholder.
  */
 export type CourseReviewResult =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      /**
+       * Quedó ENCOLADA para revisión del docente, no publicada (#31). Sale de un
+       * `202 Accepted`: `response.ok` es cierto para todo 2xx, así que sin este
+       * campo el acuse decía «ya está publicada» y recargaba una lista donde la
+       * reseña no está — el defecto #26 con la prueba en la misma pantalla.
+       */
+      readonly pending: boolean;
+    }
   | {
       readonly ok: false;
       readonly reason: 'unauthenticated' | 'not-student' | 'invalid' | 'failed';
+    };
+
+/** Resultado de reportar una reseña (#31). `already-reported` no es un fallo. */
+export type CourseReviewReportResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'already-reported' | 'not-found' | 'failed';
     };
 
 // ─── Catalogue search ────────────────────────────────────────────────────────
@@ -466,6 +484,45 @@ export interface InstructorQuestion {
 }
 
 /**
+ * Una opinión esperando decisión del docente (#31).
+ *
+ * **Es la otra mitad del bucle.** Reportar sin cola no sirve de nada: el reporte
+ * cae en un sitio que nadie mira. `Api.Moderation` guarda `Reporter` y `DecidedBy`
+ * precisamente porque el bucle tiene dos extremos.
+ */
+export interface ModerationItem {
+  readonly id: string;
+  /** Quién la escribió. */
+  readonly author: string;
+  readonly courseTitle: string;
+  readonly rating: number;
+  readonly body: string;
+  readonly createdAt: string;
+  /**
+   * Por qué está en la cola: `pending` = nunca se publicó; `reported` = está
+   * pública y alguien avisó. **No son lo mismo y no se atienden igual**: una
+   * reportada ya está haciendo daño, así que va primero.
+   */
+  readonly reason: 'pending' | 'reported';
+  /** Cuántas personas la reportaron. `0` en las pendientes. */
+  readonly reportCount: number;
+}
+
+/** Qué decidió el docente sobre una opinión en cola (#31). */
+export type ModerationDecision = 'approve' | 'reject';
+
+/**
+ * Resultado de decidir. Tipado y **sin degradar a mock**: dejar una opinión
+ * publicada creyendo que se rechazó es peor que el error (regla 4 de `CLAUDE.md`).
+ */
+export type ModerationDecisionResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'already-decided' | 'failed';
+    };
+
+/**
  * `GET /api/academy/instructor/courses?instructor=` response — the instructor's
  * operational view (cursos + alumnos + Q&A) for the SH-5 console.
  */
@@ -473,6 +530,8 @@ export interface InstructorDeskResult {
   readonly courses: readonly InstructorCourse[];
   readonly students: readonly InstructorStudent[];
   readonly questions: readonly InstructorQuestion[];
+  /** La cola de moderación (#31). Vacía = nada que decidir. */
+  readonly moderation: readonly ModerationItem[];
   /** Aggregate metrics for the performance KPIs. */
   readonly totalStudents: number;
   readonly totalRevenue: number;

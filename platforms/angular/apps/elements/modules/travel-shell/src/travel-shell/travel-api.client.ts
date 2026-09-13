@@ -7,6 +7,7 @@ import {
   type StayDetail,
   type StayRate,
   type StayReview,
+  type StayReviewReportResult,
   type StayReviewResult,
   type StayReviewSubmission,
   type StayReviewSummary,
@@ -107,7 +108,8 @@ export class TravelApiClient {
         body: JSON.stringify(submission),
       });
       if (response.ok) {
-        return { ok: true };
+        // **202 no es 201** (#31): el borde que encola para revisión contesta 202.
+        return { ok: true, pending: response.status === 202 };
       }
       switch (response.status) {
         case 401:
@@ -121,6 +123,32 @@ export class TravelApiClient {
       }
     } catch {
       // Red caída NO es «no puedes opinar».
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /** Reporta una opinión (#31). Sin degradar a mock: regla 4 de `CLAUDE.md`. */
+  async reportStayReview(apiBase: string, reviewId: string): Promise<StayReviewReportResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
+    try {
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 409:
+          return { ok: false, reason: 'already-reported' };
+        case 404:
+          return { ok: false, reason: 'not-found' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
       return { ok: false, reason: 'failed' };
     }
   }
@@ -498,6 +526,8 @@ function normalizeStay(value: unknown, id: string, fallbackCurrency: string): St
     // Ausente = NO puede: ofrecer el formulario a quien el servidor no autorizó
     // es prometer algo que va a rebotar con 403.
     canReview: source['canReview'] === true,
+    // Mismo criterio: ausente = NO puede (#31).
+    canReport: source['canReport'] === true,
   };
 }
 
@@ -916,6 +946,7 @@ function mockStay(id: string, currency: string): StayDetail {
       ],
     },
     canReview: true,
+    canReport: true,
     rates: [
       {
         id: `${id}-r1`,

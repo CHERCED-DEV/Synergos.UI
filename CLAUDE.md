@@ -114,7 +114,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Siete reglas que costaron caro y no se deducen leyendo el código:**
+**Nueve reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -148,7 +148,22 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    vigila esto» cuando en realidad nunca se probó. Pasó dos veces en la #28. **Nunca mandar
    `build-specs` a `/dev/null` al mutar**, y desconfiar de una mutación que sale verde sin
    haber visto la línea `✓ N specs compilados`.
-7. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
+7. **Una mutación que no cambia el resultado NO prueba nada, aunque el gate esté bien.** Dos
+   veces seguidas en la #30 y la #31 un spec pasó en **verde** con el defecto puesto, y en las dos
+   la culpa era del FIXTURE, no de la regla: el mock de la cola de moderación ya venía con las
+   reportadas primero, así que quitar el `sort` no cambiaba nada; y ordenar sólo por conteo de
+   reportes daba el mismo orden que ordenar bien, porque una pendiente siempre vale 0. **El dato de
+   prueba tiene que EXIGIR la regla**: llega desordenado, e incluye el caso que sólo la regla
+   resuelve (una reportada con conteo 0, que el normalizador produce cuando el servidor no lo
+   manda). Y el helper del spec cuenta como fixture: en la #30 leía el `<th>` entero y partía por
+   `\n`, pero con `preserveWhitespaces: false` una fila con `hint` sale en UNA línea, así que
+   `not.toContain('Administración')` pasaba siempre.
+8. **`response.ok` no distingue un 201 de un 202.** Es cierto para todo 2xx, así que un borde que
+   encola para revisión se lee como publicación: el acuse dice «ya está publicada» **y recarga la
+   lista**, o sea enseña la prueba de que miente en la misma pantalla. Es la regla 4 aplicada al
+   código de estado y no al cuerpo. Se mira `response.status` cuando la diferencia entre
+   «guardado» y «aceptado» le cambia el significado al mensaje (#31).
+9. **Un `effect` que tiene que avisar UNA vez depende del booleano, no del número.** Un
    `computed` que se recalcula cada segundo y sigue valiendo `true` **no vuelve a correr el
    efecto** —la igualdad de señales lo corta—, así que la bandera «ya avisé» que uno escribe
    por reflejo es código muerto: se puede quitar y nada se pone rojo. Leer ahí el número que

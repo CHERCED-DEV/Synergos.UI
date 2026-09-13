@@ -358,6 +358,145 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     );
   });
 
+  // ── moderación: el acuse y la cola (#31) ─────────────────────────────────────
+  describe('moderación', () => {
+    it('EL caso: un 202 dice «en revisión», no «publicada», y no recarga', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.openCourse(component.courses()[0]);
+      await flushMicrotasks();
+      const courseId = component.detail()!.course.id;
+
+      const llamadas: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+          llamadas.push(String(url));
+          return Promise.resolve({ ok: true, status: 202, json: () => Promise.resolve({}) } as Response);
+        }),
+      );
+
+      await component.submitCourseReview({
+        rating: 5,
+        title: 'Excelente',
+        body: 'Los proyectos son reales y el ritmo se sostiene hasta el final.',
+        criteria: {},
+      });
+
+      expect(component.reviewNotice()).toContain('en revisión');
+      expect(component.reviewNotice()).not.toContain('publicada');
+      expect(llamadas.filter((u) => u.includes(`/course/${courseId}`))).toEqual([]);
+    });
+
+    it('EL caso: las REPORTADAS van primero, y entre ellas la más reportada', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('instructor');
+      await flushMicrotasks();
+
+      const cola = component.moderationQueue();
+      expect(cola.length).toBeGreaterThan(2);
+      // Una reportada ya está pública haciendo daño; una pendiente no la ve nadie.
+      // El mock llega con la PENDIENTE primero, así que esto sólo pasa si el orden
+      // se aplica de verdad.
+      expect(cola.map((i) => i.reason)).toEqual(['reported', 'reported', 'pending']);
+      // Y entre reportadas, primero la que más gente reportó.
+      expect(cola[0].reportCount).toBeGreaterThan(cola[1].reportCount);
+      // La segunda reportada llega con conteo 0 —el servidor no lo mandó— y aun
+      // así va por delante de la pendiente. Sin esta fila, ordenar sólo por
+      // conteo daría el mismo resultado y la regla del motivo no se vigilaría.
+      expect(cola[1].reportCount).toBe(0);
+    });
+
+    it('la cola es una sección de la consola con su badge', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('instructor');
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      const seccion = component
+        .consoleConfig()
+        .sections.find((s) => s.id === 'moderation');
+      expect(seccion).toBeTruthy();
+      expect(seccion?.badge).toBe(component.moderationQueue().length);
+    });
+
+    it('EL caso: la fila NO sale de la cola si el servidor no lo confirmó', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('instructor');
+      await flushMicrotasks();
+
+      const antes = component.moderationQueue().length;
+      const objetivo = component.moderationQueue()[0].id;
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) } as Response),
+        ),
+      );
+      await component.decideModeration(objetivo, 'reject');
+
+      // Sigue ahí: quitarla y que el POST falle dejaría la opinión publicada con el
+      // docente creyendo que la atendió.
+      expect(component.moderationQueue()).toHaveLength(antes);
+      expect(component.moderationFailed()).toBe(true);
+      expect(component.moderationNotice()).toContain('sigue como estaba');
+    });
+
+    it('aprobar la saca de la cola y lo dice', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('instructor');
+      await flushMicrotasks();
+
+      const antes = component.moderationQueue().length;
+      const objetivo = component.moderationQueue()[0].id;
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) } as Response),
+        ),
+      );
+      await component.decideModeration(objetivo, 'approve');
+
+      expect(component.moderationQueue()).toHaveLength(antes - 1);
+      expect(component.moderationFailed()).toBe(false);
+      expect(component.moderationNotice()).toContain('aprobada');
+    });
+
+    it('«ya decidida» la saca igual: pulsar sobre algo resuelto no sirve', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.setRole('instructor');
+      await flushMicrotasks();
+
+      const antes = component.moderationQueue().length;
+      const objetivo = component.moderationQueue()[0].id;
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({}) } as Response),
+        ),
+      );
+      await component.decideModeration(objetivo, 'approve');
+
+      expect(component.moderationQueue()).toHaveLength(antes - 1);
+      expect(component.moderationFailed()).toBe(false);
+      expect(component.moderationNotice()).toContain('ya la había atendido');
+    });
+  });
+
   // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
   //
   // Se PULSA el botón, y además hay un motivo extra para hacerlo acá: la tarjeta

@@ -424,6 +424,42 @@ export class TravelShellElementComponent {
     })),
   );
 
+  // ─── Reportar una opinión (#31) ──────────────────────────────────────────────
+  readonly reportedReviewIds = signal<readonly string[]>([]);
+  readonly reportingReviewId = signal<string | null>(null);
+
+  /**
+   * Lo decide el SERVIDOR, no una sesión local: esta app no monta
+   * `HostIdentityService`, así que acá no hay forma honesta de saber si hay sesión
+   * — y un botón que rebota con 401 es lo que `canReview` ya evita.
+   */
+  readonly canReportStayReview = computed(() => this.stay()?.canReport === true);
+
+  async reportStayReview(reviewId: string): Promise<void> {
+    if (this.reportingReviewId() !== null || this.reportedReviewIds().includes(reviewId)) {
+      return;
+    }
+    this.reportingReviewId.set(reviewId);
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.reportStayReview(this.apiBase(), reviewId);
+    this.reportingReviewId.set(null);
+
+    // `already-reported` es éxito: el servidor deduplica.
+    if (result.ok || result.reason === 'already-reported') {
+      this.reportedReviewIds.update((ids) => [...ids, reviewId]);
+      this.reviewNotice.set('Gracias por avisar. Vamos a revisarla.');
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    this.reviewNotice.set(
+      result.reason === 'unauthenticated'
+        ? 'Inicia sesión para reportar una opinión.'
+        : 'No pudimos registrar el reporte. Intenta de nuevo.',
+    );
+  }
+
   readonly stayReviewBlocked = computed<ReviewBlockedReason | null>(() => {
     if (this.canReviewStay() || !this.stay()) {
       return null;
@@ -464,8 +500,18 @@ export class TravelShellElementComponent {
     this.reviewSending.set(false);
 
     if (result.ok) {
-      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
+      // Se limpia en los DOS casos: encolada también es aceptada.
       this.reviewPanel()?.reset();
+
+      if (result.pending) {
+        // Ni «publicada» ni recarga (#31).
+        this.reviewNotice.set(
+          'Gracias. Tu opinión quedó en revisión y se publicará cuando la aprueben.',
+        );
+        return;
+      }
+
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
       return;
     }
 

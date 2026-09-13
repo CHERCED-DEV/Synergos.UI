@@ -694,6 +694,108 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     });
   });
 
+  // ── moderación: el acuse dice la verdad (#31) ────────────────────────────────
+  describe('reseña en revisión', () => {
+    /** Deja la PDP abierta con un producto que SÍ se puede reseñar. */
+    async function abrirFichaReseñable(): Promise<void> {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      component.openProduct(component.products()[0]);
+      await flushMicrotasks();
+      fixture.detectChanges();
+    }
+
+    it('EL caso: un 202 NO dice «publicada» y NO recarga la lista', async () => {
+      await abrirFichaReseñable();
+      const sku = component.detail()!.product.id;
+
+      // Sólo el POST de la reseña contesta; cualquier recarga posterior se vería
+      // como una llamada más a la ficha, que es justo lo que se comprueba.
+      const llamadas: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+          llamadas.push(String(url));
+          return Promise.resolve({ ok: true, status: 202, json: () => Promise.resolve({}) } as Response);
+        }),
+      );
+
+      await component.submitReview({
+        rating: 5,
+        title: 'Muy bueno',
+        body: 'Cumple lo que promete y llegó antes de lo previsto.',
+        criteria: {},
+      });
+
+      expect(component.reviewNotice()).toContain('en revisión');
+      expect(component.reviewNotice()).not.toContain('publicada');
+      expect(component.reviewFailed()).toBe(false);
+      // Ni una sola recarga de la ficha: traería la lista SIN la reseña, o sea la
+      // prueba de que el acuse miente, en la misma pantalla.
+      expect(llamadas.filter((u) => u.includes(`/product/${sku}`))).toEqual([]);
+    });
+
+    it('un 201 sí dice publicada y sí recarga', async () => {
+      await abrirFichaReseñable();
+      const sku = component.detail()!.product.id;
+
+      const llamadas: string[] = [];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) => {
+          llamadas.push(String(url));
+          return Promise.resolve({ ok: true, status: 201, json: () => Promise.resolve({}) } as Response);
+        }),
+      );
+
+      await component.submitReview({
+        rating: 5,
+        title: 'Muy bueno',
+        body: 'Cumple lo que promete y llegó antes de lo previsto.',
+        criteria: {},
+      });
+
+      expect(component.reviewNotice()).toContain('publicada');
+      expect(llamadas.some((u) => u.includes(`/product/${sku}`))).toBe(true);
+    });
+
+    it('reportar dos veces la misma no manda dos peticiones', async () => {
+      await abrirFichaReseñable();
+
+      let envios = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => {
+          envios += 1;
+          return Promise.resolve({ ok: true, status: 202, json: () => Promise.resolve({}) } as Response);
+        }),
+      );
+
+      await component.reportReview('rev-1');
+      await component.reportReview('rev-1');
+
+      expect(envios).toBe(1);
+      expect(component.reportedReviewIds()).toEqual(['rev-1']);
+      expect(component.reviewNotice()).toContain('Gracias por avisar');
+    });
+
+    it('«ya reportada» se trata como éxito: reintentar no arregla nada', async () => {
+      await abrirFichaReseñable();
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: false, status: 409, json: () => Promise.resolve({}) } as Response),
+        ),
+      );
+
+      await component.reportReview('rev-9');
+
+      expect(component.reportedReviewIds()).toEqual(['rev-9']);
+      expect(component.reviewFailed()).toBe(false);
+    });
+  });
+
   // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
   //
   // Se PULSA el botón: lo que esta HU entrega es que comparar sea ALCANZABLE desde
@@ -768,6 +870,70 @@ describe('ShopApiClient', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  // ── moderación (#31) ────────────────────────────────────────────────────────
+  //
+  // EL defecto: `response.ok` es cierto para TODO 2xx, así que un `202 Accepted`
+  // —lo que contesta un borde que encola para revisión— se leía como publicación.
+  function respuesta(status: number): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          json: () => Promise.resolve({}),
+        } as Response),
+      ),
+    );
+  }
+
+  it('EL caso: un 202 es «en revisión», no «publicada»', async () => {
+    respuesta(202);
+    const result = await createClient().submitReview('/api/shop', 'SKU-1', {
+      rating: 5,
+      title: 'Muy bueno',
+      body: 'Cumple lo que promete y llegó antes.',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.pending).toBe(true);
+  });
+
+  it('un 201 sí es publicada', async () => {
+    respuesta(201);
+    const result = await createClient().submitReview('/api/shop', 'SKU-1', {
+      rating: 5,
+      title: 'Muy bueno',
+      body: 'Cumple lo que promete y llegó antes.',
+    });
+
+    expect(result.ok && result.pending).toBe(false);
+  });
+
+  it('un 409 al reportar NO es un fallo: el servidor deduplica', async () => {
+    respuesta(409);
+    const result = await createClient().reportReview('/api/shop', 'r1');
+
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.reason).toBe('already-reported');
+  });
+
+  it('reportar sin sesión NO se confunde con reportar y que falle', async () => {
+    respuesta(401);
+    // Un solo cliente: TestBed no admite reconfigurarse una vez instanciado.
+    const client = createClient();
+    expect((await client.reportReview('/api/shop', 'r1')) as unknown).toMatchObject({
+      ok: false,
+      reason: 'unauthenticated',
+    });
+
+    respuesta(500);
+    expect((await client.reportReview('/api/shop', 'r1')) as unknown).toMatchObject({
+      ok: false,
+      reason: 'failed',
+    });
   });
 
   it('normalises a live faceted search response (happy case)', async () => {
