@@ -45,6 +45,12 @@ import {
   type ConfirmationShellConfig,
   type ConfirmationStep,
   CheckoutWizardComponent,
+  ConsoleShellComponent,
+  type ConsoleColumn,
+  type ConsoleKpi,
+  type ConsoleRowAction,
+  type ConsoleRowActionEvent,
+  type ConsoleShellConfig,
   DetailShellComponent,
   DiscoveryShellComponent,
   TrackingTimelineComponent,
@@ -68,6 +74,7 @@ import {
   type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
+  SynStatusBannerComponent,
 } from '@synergos/shared';
 import { ShopApiClient } from './shop-api.client';
 import type { ShopSelectionPayload } from './shop-fulfillment.strategy';
@@ -78,7 +85,16 @@ import {
   type ProductCondition,
   type ProductDetail,
   type ProductVariant,
-  type ReturnReceipt,
+  type OrderLine,
+  type ReturnAdvance,
+  type ReturnCase,
+  type ReturnReason,
+  type ReturnStatus,
+  type SellerDeskResult,
+  type SellerOrder,
+  type SellerView,
+  type ShopModerationItem,
+  type ShopRole,
   type SearchCriteria,
   type ShopCustomer,
   type ShopOrder,
@@ -141,6 +157,72 @@ const SORT_OPTIONS: readonly { key: SortKey; label: string }[] = [
 ];
 const CLEAN_CRITERIA: DiscoveryCriteria = { term: '', facets: {}, sort: 'relevance', page: 1 };
 
+const SELLER_SECTIONS: readonly SellerView[] = ['orders', 'returns', 'reviews', 'messages'];
+
+/**
+ * El orden de la cola de devoluciones (#32).
+ *
+ * Lo que espera al vendedor va arriba; lo cerrado, abajo. Ordenar por fecha
+ * dejaría un reclamo sin abrir debajo de tres ya resueltos.
+ */
+const RETURN_QUEUE_ORDER: Readonly<Record<ReturnStatus, number>> = {
+  abierto: 0,
+  'en-revision': 1,
+  resuelto: 2,
+  rechazado: 3,
+};
+
+/** Lo que se dice cuando no se pudo mover el reclamo. */
+const ADVANCE_ERRORS: Readonly<Record<string, string>> = {
+  unauthenticated: 'Inicia sesión para gestionar devoluciones.',
+  forbidden: 'No tienes permiso para mover este reclamo.',
+  'not-found': 'Ese reclamo ya no existe.',
+  illegal: 'Ese cambio de estado no es posible desde el estado actual.',
+  failed: 'No pudimos guardar el cambio. El reclamo sigue como estaba.',
+};
+
+/** Lo que se dice según por qué rebotó la devolución (#32). */
+const RETURN_ERRORS: Readonly<Record<string, string>> = {
+  unauthenticated: 'Inicia sesión para pedir una devolución.',
+  // Sin oferta de login: la sesión no es el problema (ADR 0112).
+  forbidden: 'Esta compra no está a tu nombre.',
+  'not-found': 'No encontramos ese pedido.',
+  invalid: 'No se puede devolver esa línea. Revisa el pedido.',
+  failed: 'No pudimos abrir el reclamo. Intenta de nuevo.',
+};
+
+/** Los motivos, con el nombre que entiende quien compra. */
+const RETURN_REASON_LABELS: Readonly<Record<ReturnReason, string>> = {
+  damaged: 'Llegó dañado',
+  defective: 'No funciona',
+  'not-as-described': 'No es lo que decía la publicación',
+  'changed-mind': 'Cambié de opinión',
+};
+
+/** Los cuatro, en el orden en que se ofrecen. */
+const RETURN_REASONS: readonly ReturnReason[] = [
+  'damaged',
+  'defective',
+  'not-as-described',
+  'changed-mind',
+];
+
+/**
+ * La línea, tal como la nombra el borde: `productId` o `productId/variantId`
+ * (`StubReturnService:163`). Se compone acá porque el `lineId` que se manda tiene
+ * que poder cruzarse con el `lineRef` que vuelve.
+ */
+function lineRefOf(line: OrderLine): string {
+  return line.variantId ? `${line.productId}/${line.variantId}` : line.productId;
+}
+
+/** Lo que el comprador está a punto de mandar. */
+interface ReturnDraft {
+  readonly orderRef: string;
+  readonly line: OrderLine;
+  readonly reason: ReturnReason;
+}
+
 /**
  * El rótulo de la condición, en UN sitio.
  *
@@ -184,6 +266,8 @@ let storefrontInstanceId = 0;
     ConfirmationShellComponent,
     CartShellComponent,
     CompareTableComponent,
+    ConsoleShellComponent,
+    SynStatusBannerComponent,
     ReviewPanelComponent,
     PromoCodeComponent,
     TrackingTimelineComponent,
@@ -612,7 +696,21 @@ export class StorefrontElementComponent {
   readonly threads = signal<readonly MessageThread[]>([]);
   readonly threadsLoaded = signal(false);
   readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
-  readonly returnsByRef = signal<Readonly<Record<string, ReturnReceipt>>>({});
+  /**
+   * Los reclamos por pedido, **leídos del servidor** (#32).
+   *
+   * Antes sólo lo escribía `startReturn` y nunca se cargaba, así que al recargar
+   * la página el reclamo desaparecía, «Iniciar devolución» volvía a aparecer y el
+   * comprador abría un SEGUNDO reclamo sobre el mismo pedido. El
+   * `GET /order/{ref}/return` existía desde siempre y no lo llamaba nadie.
+   */
+  readonly returnsByRef = signal<Readonly<Record<string, readonly ReturnCase[]>>>({});
+  /** Los pedidos cuyos reclamos SÍ se pudieron leer. Ver `canReturn`. */
+  readonly returnsLoaded = signal<ReadonlySet<string>>(new Set<string>());
+  readonly returnReasons = RETURN_REASONS;
+  readonly returnDraft = signal<ReturnDraft | null>(null);
+  readonly returnSending = signal(false);
+  readonly returnError = signal('');
 
   readonly wishedIds = computed(() => new Set(this.wishlist().map((entry) => entry.productId)));
   readonly unreadCount = computed(() => this.threads().filter((thread) => thread.unread).length);
@@ -1099,6 +1197,290 @@ export class StorefrontElementComponent {
     }
   }
 
+  // ═══ Consola del vendedor — SH-5 (#32) ═══════════════════════════════════════
+  //
+  // Tienda era el único de los tres dominios con cara B que no la tenía, y eso
+  // dejó sin sitio a la cola de moderación de #31 y sin consumidor al
+  // `POST /return/{rmaId}/advance`, que existía desde siempre.
+  readonly role = signal<ShopRole>('buyer');
+  readonly sellerView = signal<SellerView>('orders');
+  readonly desk = signal<SellerDeskResult | null>(null);
+  readonly deskLoaded = signal(false);
+  readonly deskBusyId = signal<string | null>(null);
+  readonly deskNotice = signal('');
+  readonly deskFailed = signal(false);
+
+  setRole(role: ShopRole): void {
+    if (this.role() === role) {
+      return;
+    }
+    this.role.set(role);
+    if (role === 'seller') {
+      this.view.set('seller');
+      void this.loadDesk();
+      return;
+    }
+    this.view.set('home');
+  }
+
+  onSellerSectionChange(section: string): void {
+    if (SELLER_SECTIONS.includes(section as SellerView)) {
+      this.sellerView.set(section as SellerView);
+    }
+  }
+
+  private async loadDesk(): Promise<void> {
+    if (this.deskLoaded()) {
+      return;
+    }
+    this.desk.set(await this.#api.sellerDesk(this.apiBase()));
+    this.deskLoaded.set(true);
+  }
+
+  readonly sellerOrders = computed<readonly SellerOrder[]>(() => this.desk()?.orders ?? []);
+
+  /**
+   * La cola de devoluciones, con **las que esperan al vendedor primero**.
+   *
+   * `abierto` es «nadie la ha mirado» y `en-revision` ya está en marcha; lo
+   * resuelto y lo rechazado son historia y van al final. Ordenar por fecha
+   * dejaría un reclamo sin abrir debajo de tres ya cerrados.
+   */
+  readonly sellerReturns = computed<readonly ReturnCase[]>(() =>
+    [...(this.desk()?.returns ?? [])].sort(
+      (a, b) => RETURN_QUEUE_ORDER[a.status] - RETURN_QUEUE_ORDER[b.status],
+    ),
+  );
+
+  /** Las reportadas primero, y entre ellas la más reportada. Igual que en #31. */
+  readonly sellerModeration = computed<readonly ShopModerationItem[]>(() =>
+    [...(this.desk()?.moderation ?? [])].sort((a, b) => {
+      if (a.reason !== b.reason) {
+        return a.reason === 'reported' ? -1 : 1;
+      }
+      return b.reportCount - a.reportCount;
+    }),
+  );
+
+  readonly sellerConfig = computed<ConsoleShellConfig>(() => ({
+    heading: 'Consola del vendedor',
+    navLabel: 'Secciones del vendedor',
+    kpisLabel: 'Indicadores de la tienda',
+    actionsLabel: 'Acciones',
+    emptyMessage: 'No hay nada por atender en esta sección.',
+    loadingMessage: 'Cargando…',
+    sections: [
+      {
+        id: 'orders',
+        label: 'Pedidos',
+        kind: 'table',
+        badge: this.desk()?.pendingShipments || undefined,
+      },
+      {
+        id: 'returns',
+        label: 'Devoluciones',
+        kind: 'table',
+        // El badge cuenta lo PENDIENTE, no el total: un número que incluye lo ya
+        // resuelto no dice cuánto trabajo queda.
+        badge:
+          this.sellerReturns().filter((c) => c.status === 'abierto' || c.status === 'en-revision')
+            .length || undefined,
+      },
+      {
+        id: 'reviews',
+        label: 'Opiniones',
+        kind: 'table',
+        badge: this.sellerModeration().length || undefined,
+      },
+      { id: 'messages', label: 'Mensajes', kind: 'custom' },
+    ],
+  }));
+
+  readonly sellerKpis = computed<readonly ConsoleKpi[]>(() => {
+    const desk = this.desk();
+    if (!desk) {
+      return [];
+    }
+    return [
+      { id: 'sales', label: 'Ventas', value: desk.salesFormatted || '—' },
+      { id: 'pending', label: 'Por despachar', value: String(desk.pendingShipments) },
+      { id: 'returns', label: 'Devoluciones abiertas', value: String(this.openReturnCount()) },
+    ];
+  });
+
+  readonly openReturnCount = computed(
+    () =>
+      this.sellerReturns().filter((c) => c.status === 'abierto' || c.status === 'en-revision')
+        .length,
+  );
+
+  readonly sellerOrderColumns: readonly ConsoleColumn[] = [
+    { key: 'sellerOrder', label: 'Pedido' },
+    { key: 'sellerBuyer', label: 'Comprador' },
+    { key: 'sellerStatus', label: 'Estado' },
+    { key: 'sellerTotal', label: 'Total' },
+  ];
+  readonly sellerReturnColumns: readonly ConsoleColumn[] = [
+    { key: 'returnStatus', label: 'Estado' },
+    { key: 'returnProduct', label: 'Producto' },
+    { key: 'returnReason', label: 'Motivo' },
+    { key: 'returnAmount', label: 'A devolver' },
+  ];
+  readonly sellerModerationColumns: readonly ConsoleColumn[] = [
+    { key: 'modReason', label: 'Motivo' },
+    { key: 'modAuthor', label: 'Quién y dónde' },
+    { key: 'modBody', label: 'Qué dice' },
+  ];
+
+  // `rejected` y `refunded` son `danger`: uno le niega la devolución a alguien y
+  // el otro MUEVE PLATA. Un botón neutro invita a pulsarlo sin mirar.
+  readonly sellerReturnActions: readonly ConsoleRowAction[] = [
+    { id: 'approved', label: 'Aprobar', kind: 'primary' },
+    { id: 'received', label: 'Recibido', kind: 'default' },
+    { id: 'refunded', label: 'Reembolsar', kind: 'danger' },
+    { id: 'rejected', label: 'Rechazar', kind: 'danger' },
+  ];
+  readonly sellerModerationActions: readonly ConsoleRowAction[] = [
+    { id: 'approve', label: 'Aprobar', kind: 'primary' },
+    { id: 'reject', label: 'Rechazar', kind: 'danger' },
+  ];
+  readonly sellerNoActions: readonly ConsoleRowAction[] = [];
+
+  readonly sellerRows = computed<
+    readonly (SellerOrder | ReturnCase | ShopModerationItem)[]
+  >(() => {
+    switch (this.sellerView()) {
+      case 'returns':
+        return this.sellerReturns();
+      case 'reviews':
+        return this.sellerModeration();
+      case 'messages':
+        return [];
+      default:
+        return this.sellerOrders();
+    }
+  });
+
+  readonly sellerColumns = computed<readonly ConsoleColumn[]>(() => {
+    switch (this.sellerView()) {
+      case 'returns':
+        return this.sellerReturnColumns;
+      case 'reviews':
+        return this.sellerModerationColumns;
+      default:
+        return this.sellerOrderColumns;
+    }
+  });
+
+  readonly sellerActions = computed<readonly ConsoleRowAction[]>(() => {
+    switch (this.sellerView()) {
+      case 'returns':
+        return this.sellerReturnActions;
+      case 'reviews':
+        return this.sellerModerationActions;
+      default:
+        return this.sellerNoActions;
+    }
+  });
+
+  onSellerAction(
+    event: ConsoleRowActionEvent<SellerOrder | ReturnCase | ShopModerationItem>,
+  ): void {
+    if (event.sectionId === 'returns') {
+      void this.advanceReturn(
+        (event.row as ReturnCase).claimId,
+        event.actionId as ReturnAdvance,
+      );
+      return;
+    }
+    if (event.sectionId === 'reviews') {
+      void this.decideSellerReview(
+        (event.row as ShopModerationItem).id,
+        event.actionId === 'reject' ? 'reject' : 'approve',
+      );
+    }
+  }
+
+  /**
+   * El vendedor mueve un reclamo.
+   *
+   * **El estado se actualiza sólo con lo que devuelve el servidor**, nunca con lo
+   * que se pulsó: `refunded` dispara un reembolso de verdad, así que pintar
+   * «Resuelto» sobre un POST que falló diría que se devolvió una plata que sigue
+   * donde estaba. Y el borde explica la transición ilegal en `{ error }` —«no se
+   * puede pasar de rechazado a recibido»—, así que esa frase se enseña tal cual.
+   */
+  async advanceReturn(claimId: string, status: ReturnAdvance): Promise<void> {
+    if (this.deskBusyId() !== null) {
+      return;
+    }
+    this.deskBusyId.set(claimId);
+    this.deskFailed.set(false);
+    this.deskNotice.set('');
+
+    const result = await this.#api.advanceReturn(this.apiBase(), claimId, status);
+    this.deskBusyId.set(null);
+
+    if (result.ok) {
+      this.desk.update((desk) =>
+        desk
+          ? {
+              ...desk,
+              returns: desk.returns.map((c) => (c.claimId === claimId ? result.claim : c)),
+            }
+          : desk,
+      );
+      this.deskNotice.set(`Reclamo ${result.claim.claimId}: ${this.returnStatusLabel(result.claim)}.`);
+      return;
+    }
+
+    this.deskFailed.set(true);
+    this.deskNotice.set(result.detail || ADVANCE_ERRORS[result.reason]);
+  }
+
+  /** La cola de opiniones, con el mismo criterio que Educación (#31). */
+  async decideSellerReview(reviewId: string, decision: 'approve' | 'reject'): Promise<void> {
+    if (this.deskBusyId() !== null) {
+      return;
+    }
+    this.deskBusyId.set(reviewId);
+    this.deskFailed.set(false);
+    this.deskNotice.set('');
+
+    const result = await this.#api.decideShopModeration(this.apiBase(), reviewId, decision);
+    this.deskBusyId.set(null);
+
+    // `already-decided` sale de la cola igual: otra persona la atendió.
+    if (result.ok || result.reason === 'already-decided') {
+      this.desk.update((desk) =>
+        desk
+          ? { ...desk, moderation: desk.moderation.filter((item) => item.id !== reviewId) }
+          : desk,
+      );
+      this.deskNotice.set(
+        result.ok
+          ? decision === 'approve'
+            ? 'Opinión aprobada. Ya se ve en el producto.'
+            : 'Opinión rechazada. No se publicará.'
+          : 'Otra persona ya la había atendido.',
+      );
+      return;
+    }
+
+    this.deskFailed.set(true);
+    this.deskNotice.set(
+      result.reason === 'forbidden'
+        ? 'No puedes moderar las opiniones de este producto.'
+        : 'No pudimos guardar la decisión. La opinión sigue como estaba.',
+    );
+  }
+
+  sellerModerationReasonLabel(item: ShopModerationItem): string {
+    return item.reason === 'reported'
+      ? `Reportada ${item.reportCount === 1 ? '1 vez' : `${item.reportCount} veces`}`
+      : 'Sin publicar';
+  }
+
   // ─── Reportar una reseña (#31) ───────────────────────────────────────────────
   //
   // `Api.Moderation` lleva meses construida con un campo `Reporter` y CERO
@@ -1468,37 +1850,118 @@ export class StorefrontElementComponent {
     return this.trackingByRef()[orderRef] ?? [];
   }
 
-  canReturn(order: ShopOrder): boolean {
+  /**
+   * Si se puede pedir la devolución de esta línea.
+   *
+   * **Exige haber LEÍDO los reclamos del pedido**, no sólo que no haya ninguno en
+   * memoria: con la lectura caída, un mapa vacío se leería como «no hay ninguno»
+   * y volvería a ofrecer el botón sobre un pedido que ya tiene uno abierto —
+   * exactamente el defecto que esta HU cierra. Mientras no se sepa, no se ofrece.
+   */
+  canReturnLine(order: ShopOrder, line: OrderLine): boolean {
     return (
       (order.status === 'delivered' || order.status === 'shipped') &&
-      !this.returnsByRef()[order.orderNumber]
+      this.returnsLoaded().has(order.orderNumber) &&
+      this.claimForLine(order.orderNumber, line) === null
     );
   }
 
-  returnReceipt(orderRef: string): ReturnReceipt | null {
-    return this.returnsByRef()[orderRef] ?? null;
+  /** Si todavía no se sabe si este pedido tiene reclamos. */
+  returnsUnknown(order: ShopOrder): boolean {
+    return !this.returnsLoaded().has(order.orderNumber);
   }
 
-  startReturn(order: ShopOrder): void {
-    if (!this.canReturn(order)) {
+  /** Los reclamos de un pedido, tal como los devolvió el servidor. */
+  returnsFor(orderRef: string): readonly ReturnCase[] {
+    return this.returnsByRef()[orderRef] ?? [];
+  }
+
+  /** Si esta línea ya tiene un reclamo vivo. Un rechazo NO cuenta: se puede reabrir. */
+  claimForLine(orderRef: string, line: OrderLine): ReturnCase | null {
+    const lineRef = lineRefOf(line);
+    return (
+      this.returnsFor(orderRef).find(
+        (claim) => claim.lineRef === lineRef && claim.status !== 'rechazado',
+      ) ?? null
+    );
+  }
+
+  /**
+   * Abre el formulario de devolución de UNA línea.
+   *
+   * Es por línea y no por pedido porque **el reclamo es por línea**: el borde
+   * guarda `LineRef`, `ProductName`, `Quantity` y `RefundAmount`, y devolver «el
+   * pedido» de tres artículos cuando llegó uno roto no es lo que nadie quiere.
+   */
+  openReturn(orderRef: string, line: OrderLine): void {
+    this.returnDraft.set({ orderRef, line, reason: 'damaged' });
+    this.returnError.set('');
+  }
+
+  closeReturn(): void {
+    this.returnDraft.set(null);
+    this.returnError.set('');
+  }
+
+  setReturnReason(reason: ReturnReason): void {
+    this.returnDraft.update((draft) => (draft ? { ...draft, reason } : draft));
+  }
+
+  /**
+   * Pide la devolución.
+   *
+   * **No se da por abierta si el servidor no lo confirmó** — el cliente inventaba
+   * un `claimId` y la pantalla decía «Reclamo abierto», así que el comprador se
+   * iba con un número que no existe en ninguna parte (#32). Y como el borde
+   * explica el rechazo en `{ error }` («solo se puede devolver sobre una orden
+   * pagada»), esa frase se enseña tal cual: la escribió quien sabe por qué.
+   */
+  async submitReturn(): Promise<void> {
+    const draft = this.returnDraft();
+    if (!draft || this.returnSending()) {
       return;
     }
-    void this.#api
-      .requestReturn(this.apiBase(), order.orderNumber, 'solicitud-comprador')
-      .then((receipt) => {
-        this.returnsByRef.update((map) => ({ ...map, [order.orderNumber]: receipt }));
-      });
+    this.returnSending.set(true);
+    this.returnError.set('');
+
+    const result = await this.#api.requestReturn(
+      this.apiBase(),
+      draft.orderRef,
+      lineRefOf(draft.line),
+      draft.reason,
+    );
+    this.returnSending.set(false);
+
+    if (result.ok) {
+      this.returnsByRef.update((map) => ({
+        ...map,
+        [draft.orderRef]: [
+          ...(map[draft.orderRef] ?? []).filter((c) => c.claimId !== result.claim.claimId),
+          result.claim,
+        ],
+      }));
+      this.returnDraft.set(null);
+      return;
+    }
+
+    this.returnError.set(result.detail || RETURN_ERRORS[result.reason]);
   }
 
-  returnStatusLabel(receipt: ReturnReceipt): string {
-    switch (receipt.status) {
+  returnStatusLabel(claim: ReturnCase): string {
+    switch (claim.status) {
       case 'abierto':
         return 'Reclamo abierto';
       case 'en-revision':
         return 'En revisión';
       case 'resuelto':
         return 'Resuelto';
+      case 'rechazado':
+        return 'Rechazado';
     }
+  }
+
+  returnReasonLabel(reason: string): string {
+    return RETURN_REASON_LABELS[reason as ReturnReason] ?? reason;
   }
 
   private async loadOrders(): Promise<void> {
@@ -1508,12 +1971,42 @@ export class StorefrontElementComponent {
       const orders = await this.#api.orders(this.apiBase(), customer, this.currency());
       this.orders.set(orders);
       this.ordersLoaded.set(true);
+      // Y los reclamos, que es lo que faltaba: sin esto el mapa arrancaba vacío
+      // en cada carga y el comprador podía abrir un segundo reclamo (#32).
+      await this.loadReturns(orders);
     } catch (error) {
       this.errorMessage.set('No pudimos cargar tus compras.');
       void error;
     } finally {
       this.ordersLoading.set(false);
     }
+  }
+
+  /**
+   * Carga los reclamos de cada pedido.
+   *
+   * Va pedido a pedido porque el borde lo expone así (`GET /order/{ref}/return`).
+   * **El pedido cuya lectura falla NO se marca como cargado**, así que su botón
+   * no se ofrece en vez de ofrecerse sobre un estado que no se conoce.
+   */
+  private async loadReturns(orders: readonly ShopOrder[]): Promise<void> {
+    const resultados = await Promise.all(
+      orders.map(async (order) => ({
+        ref: order.orderNumber,
+        claims: await this.#api.orderReturns(this.apiBase(), order.orderNumber),
+      })),
+    );
+    const mapa: Record<string, readonly ReturnCase[]> = { ...this.returnsByRef() };
+    const cargados = new Set(this.returnsLoaded());
+    for (const { ref, claims } of resultados) {
+      if (claims === null) {
+        continue;
+      }
+      mapa[ref] = claims;
+      cargados.add(ref);
+    }
+    this.returnsByRef.set(mapa);
+    this.returnsLoaded.set(cargados);
   }
 
   private loadThreads(): void {
