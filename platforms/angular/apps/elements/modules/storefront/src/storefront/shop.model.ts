@@ -28,7 +28,18 @@ export type StorefrontView =
   | 'cart'
   | 'checkout' // SH-3 over the engine
   | 'confirmation'
-  | 'account'; // SH-4: mis compras + tracking + wishlist + mensajes + perfil
+  | 'account' // SH-4: mis compras + tracking + wishlist + mensajes + perfil
+  | 'seller'; // SH-5: la cara B del vendedor (#32)
+
+/** Quién está mirando: comprador (cara A) o vendedor (cara B). */
+export type ShopRole = 'buyer' | 'seller';
+
+/** Secciones de la consola del vendedor (#32). */
+export type SellerView =
+  | 'orders' // pedidos por atender
+  | 'returns' // devoluciones: la cola que el endpoint `advance` esperaba
+  | 'reviews' // la cola de moderación de #31, que se quedó sin sitio
+  | 'messages'; // hilos con compradores
 
 /** Account sections rendered inside SH-4. */
 export type AccountSectionId = 'compras' | 'favoritos' | 'mensajes' | 'perfil';
@@ -314,6 +325,121 @@ export interface OrderLine {
   readonly title: string;
   readonly qty: number;
   readonly amount: number;
+  /**
+   * Identificador del producto de esta línea (#32).
+   *
+   * **Sin esto no se puede devolver.** El borde exige `lineId` y la UI no lo
+   * tenía en el modelo, así que mandaba el cuerpo incompleto y recibía 400 —
+   * pero el cliente degradaba a mock y el comprador veía «Reclamo abierto» con
+   * un número inventado. El backend emitía `productId` y `variantId` desde
+   * siempre; lo que faltaba era leerlos.
+   */
+  readonly productId: string;
+  readonly variantId?: string;
+}
+
+/**
+ * Por qué se devuelve (#32).
+ *
+ * **Es un enum y no texto libre**, porque es lo que ORDENA la cola del vendedor:
+ * «llegó dañado» es garantía y «cambié de opinión» es retracto, y son dos
+ * negocios distintos con dos plazos distintos. Antes viajaba un literal fijo
+ * —`'solicitud-comprador'`— así que los veinte reclamos decían lo mismo y la
+ * cola era inatendible.
+ */
+export type ReturnReason = 'damaged' | 'defective' | 'not-as-described' | 'changed-mind';
+
+/** El estado del reclamo en el vocabulario que emite el borde. */
+export type ReturnStatus = 'abierto' | 'en-revision' | 'resuelto' | 'rechazado';
+
+/** Un reclamo de devolución, tal como lo devuelve el borde. */
+export interface ReturnCase {
+  readonly claimId: string;
+  readonly orderRef: string;
+  /** `productId` o `productId/variantId` — lo compone el servidor. */
+  readonly lineRef: string;
+  readonly productName: string;
+  readonly quantity: number;
+  /** Ya formateado por el servidor: la UI no calcula dinero. */
+  readonly refundAmountFormatted: string;
+  /** El motivo tal cual lo guardó el servidor. */
+  readonly reason: string;
+  readonly status: ReturnStatus;
+  readonly requestedAt: string;
+  readonly updatedAt: string;
+  readonly note?: string;
+}
+
+/**
+ * Resultado de pedir una devolución.
+ *
+ * **Tipado y sin degradar a mock**: el cliente inventaba un `claimId` cuando el
+ * POST fallaba, así que el comprador se iba con un número de reclamo que no
+ * existe en ninguna parte — y cuando reclame por él, nadie lo encontrará. Regla
+ * 4 de `CLAUDE.md` sobre una escritura con dinero detrás.
+ */
+export type ReturnRequestResult =
+  | { readonly ok: true; readonly claim: ReturnCase }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'not-found' | 'invalid' | 'failed';
+      /** Lo que dijo el servidor, cuando lo dijo. Se enseña tal cual. */
+      readonly detail?: string;
+    };
+
+/** A qué estado mueve el vendedor un reclamo. El vocabulario es el del borde. */
+export type ReturnAdvance = 'approved' | 'rejected' | 'received' | 'refunded';
+
+/** Resultado de avanzar un reclamo. Tampoco degrada: `refunded` mueve dinero. */
+export type ReturnAdvanceResult =
+  | { readonly ok: true; readonly claim: ReturnCase }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'not-found' | 'illegal' | 'failed';
+      readonly detail?: string;
+    };
+
+// ─── Consola del vendedor (#32) ──────────────────────────────────────────────
+
+/** Una opinión esperando decisión del vendedor. Gemela de la cola de #31. */
+export interface ShopModerationItem {
+  readonly id: string;
+  readonly author: string;
+  readonly productTitle: string;
+  readonly rating: number;
+  readonly body: string;
+  readonly createdAt: string;
+  /** `reported` ya está pública haciendo daño; `pending` no la ve nadie. */
+  readonly reason: 'pending' | 'reported';
+  readonly reportCount: number;
+}
+
+/** Resultado de decidir sobre una opinión. No degrada: ver #31. */
+export type ShopModerationResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'already-decided' | 'failed';
+    };
+
+/** Un pedido visto desde el lado de quien lo tiene que despachar. */
+export interface SellerOrder {
+  readonly orderRef: string;
+  readonly orderNumber: string;
+  readonly buyer: string;
+  readonly date: string;
+  readonly status: OrderStatus;
+  readonly totalFormatted: string;
+  readonly itemCount: number;
+}
+
+/** `GET /api/shop/seller/desk` — lo que el vendedor tiene por atender. */
+export interface SellerDeskResult {
+  readonly orders: readonly SellerOrder[];
+  readonly returns: readonly ReturnCase[];
+  readonly moderation: readonly ShopModerationItem[];
+  readonly salesFormatted: string;
+  readonly pendingShipments: number;
 }
 
 // ─── Post-venta / cuenta (contratos nuevos — backend en paralelo) ─────────────

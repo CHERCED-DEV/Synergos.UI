@@ -1264,8 +1264,21 @@
   }
 
   &__order-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-2;
     color: var(--sf-text-secondary);
     font-size: syn.$font-size-sm;
+  }
+
+  &__order-item-name {
+    flex: 1 1 auto;
+  }
+
+  &__order-item-note {
+    color: var(--sf-muted);
+    font-size: syn.$font-size-xs;
   }
 
   &__order-total {
@@ -1595,6 +1608,131 @@
     background: var(--sf-warn-soft);
     color: var(--sf-text);
     font-size: syn.$font-size-xs;
+  }
+
+  // ── Devoluciones (#32) ───────────────────────────────────────────────────
+  &__return-form {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin-block-start: syn.$space-4;
+    padding: syn.$space-4;
+    border: syn.px-to-rem(1) solid var(--sf-border);
+    border-radius: syn.$radius-lg;
+    background: var(--sf-surface-muted, var(--sf-surface));
+  }
+
+  &__return-title {
+    margin: 0;
+    font-size: syn.$font-size-base;
+    font-weight: 600;
+  }
+
+  &__return-reasons {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  &__return-legend {
+    padding: 0;
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
+  &__return-reason {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-2;
+    font-size: syn.$font-size-sm;
+    cursor: pointer;
+
+    input {
+      accent-color: var(--syn-color-action-primary, #{syn.$color-brand-500});
+    }
+  }
+
+  &__return-error {
+    margin: 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+    color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    font-size: syn.$font-size-sm;
+  }
+
+  &__return-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: syn.$space-3;
+  }
+
+  // ── Consola del vendedor (#32) ───────────────────────────────────────────
+  &__seller {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-4;
+  }
+
+  &__desk-notice {
+    margin: 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--sf-surface-muted, var(--sf-surface));
+    color: var(--sf-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &.is-error {
+      background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+      color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    }
+  }
+
+  &__cell-strong {
+    display: block;
+    color: var(--sf-text);
+    font-weight: 600;
+  }
+
+  &__cell-sub {
+    display: block;
+    color: var(--sf-muted);
+    font-size: syn.$font-size-xs;
+  }
+
+  &__cell-clamp {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  &__section-title {
+    margin: 0 0 syn.$space-3;
+    font-size: syn.$font-size-base;
+    font-weight: 600;
+  }
+
+  &__thread-list {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-3;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__thread-row {
+    display: flex;
+    flex-direction: column;
+    gap: syn.px-to-rem(2);
+    padding: syn.$space-3;
+    border: syn.px-to-rem(1) solid var(--sf-border-subtle, var(--sf-border));
+    border-radius: syn.$radius-md;
   }
 
   // ── Account: wishlist grid ──────────────────────────────────────────────

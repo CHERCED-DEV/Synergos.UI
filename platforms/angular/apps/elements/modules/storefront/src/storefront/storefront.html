@@ -10,6 +10,17 @@
       <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'home'" (click)="goHome()">Inicio</button>
       <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'plp'" (click)="goToPlp()">Tienda</button>
       <button type="button" class="storefront__nav-btn" [class.is-active]="view() === 'account'" (click)="goToAccount()">Mi cuenta</button>
+      <!-- La cara B (#32). Tienda era el único de los tres dominios con consola
+           que no la tenía, y por eso la cola de moderación de #31 se quedó sin
+           sitio y el `advance` de las devoluciones sin consumidor. -->
+      <button
+        type="button"
+        class="storefront__nav-btn"
+        [class.is-active]="role() === 'seller'"
+        (click)="setRole(role() === 'seller' ? 'buyer' : 'seller')"
+      >
+        {{ role() === 'seller' ? 'Volver a comprar' : 'Vender' }}
+      </button>
       <button
         type="button"
         class="storefront__cart-toggle"
@@ -630,9 +641,32 @@
           <span class="storefront__order-number">{{ order.orderNumber }}</span>
           <span class="storefront__order-status" [attr.data-status]="order.status">{{ orderStatusLabel(order.status) }}</span>
         </div>
+        <!-- La devolución es POR LÍNEA (#32): el reclamo guarda su producto, su
+             cantidad y su monto, y devolver «el pedido» de tres artículos porque
+             llegó uno roto no es lo que nadie quiere. -->
         <ul class="storefront__order-items">
-          @for (line of order.items; track line.title) {
-            <li class="storefront__order-item">{{ line.title }} × {{ line.qty }}</li>
+          @for (line of order.items; track line.productId + line.title) {
+            <li class="storefront__order-item">
+              <span class="storefront__order-item-name">{{ line.title }} × {{ line.qty }}</span>
+              @if (claimForLine(order.orderNumber, line); as claim) {
+                <span class="storefront__return-note" role="status">
+                  {{ returnStatusLabel(claim) }} · {{ returnReasonLabel(claim.reason) }} ·
+                  reclamo {{ claim.claimId }}
+                </span>
+              } @else if (canReturnLine(order, line)) {
+                <button
+                  type="button"
+                  class="storefront__link"
+                  (click)="openReturn(order.orderNumber, line)"
+                >
+                  Devolver
+                </button>
+              } @else if (returnsUnknown(order)) {
+                <!-- No se pudo leer si ya hay un reclamo. Ofrecer el botón acá
+                     dejaría abrir un SEGUNDO reclamo sobre la misma línea. -->
+                <span class="storefront__order-item-note">Consultando devoluciones…</span>
+              }
+            </li>
           }
         </ul>
         <p class="storefront__order-total">{{ orderTotalLabel(order) }}</p>
@@ -643,17 +677,42 @@
           emptyMessage="Consultando el seguimiento…"
         />
 
+        @if (returnDraft(); as draft) {
+          @if (draft.orderRef === order.orderNumber) {
+            <form class="storefront__return-form" (submit)="$event.preventDefault(); submitReturn()">
+              <h4 class="storefront__return-title">Devolver «{{ draft.line.title }}»</h4>
+              <fieldset class="storefront__return-reasons">
+                <legend class="storefront__return-legend">¿Qué pasó?</legend>
+                @for (reason of returnReasons; track reason) {
+                  <label class="storefront__return-reason">
+                    <input
+                      type="radio"
+                      name="return-reason"
+                      [checked]="draft.reason === reason"
+                      (change)="setReturnReason(reason)"
+                    />
+                    {{ returnReasonLabel(reason) }}
+                  </label>
+                }
+              </fieldset>
+              @if (returnError(); as error) {
+                <p class="storefront__return-error" role="alert">{{ error }}</p>
+              }
+              <div class="storefront__return-actions">
+                <button
+                  type="submit"
+                  class="storefront__btn storefront__btn--primary storefront__btn--sm"
+                  [disabled]="returnSending()"
+                >
+                  {{ returnSending() ? 'Enviando…' : 'Pedir devolución' }}
+                </button>
+                <button type="button" class="storefront__link" (click)="closeReturn()">Cancelar</button>
+              </div>
+            </form>
+          }
+        }
+
         <div class="storefront__order-actions">
-          @if (canReturn(order)) {
-            <button type="button" class="storefront__btn storefront__btn--ghost" (click)="startReturn(order)">
-              Iniciar devolución
-            </button>
-          }
-          @if (returnReceipt(order.orderNumber); as receipt) {
-            <p class="storefront__return-note" role="status">
-              {{ returnStatusLabel(receipt) }} · reclamo {{ receipt.claimId }}
-            </p>
-          }
           <button type="button" class="storefront__link" (click)="goToAccount('mensajes')">
             Contactar al vendedor
           </button>
@@ -759,5 +818,101 @@
         (close)="toggleCart()"
       />
     </div>
+  }
+
+  <!-- ═══ CARA B: SH-5 console-shell — la consola del vendedor (#32) ═══════ -->
+  @if (view() === 'seller') {
+    <section class="storefront__seller">
+      @if (degraded()) {
+        <syn-status-banner
+          tone="degraded"
+          message="Estás viendo un escritorio de ejemplo: no pudimos consultar tu tienda."
+        />
+      }
+
+      <syn-console-shell
+        [config]="sellerConfig()"
+        [kpis]="sellerKpis()"
+        [rows]="sellerRows()"
+        [columns]="sellerColumns()"
+        [actions]="sellerActions()"
+        [section]="sellerView()"
+        [cellTemplate]="sellerCell"
+        [sectionTemplate]="sellerSection"
+        (sectionchange)="onSellerSectionChange($event)"
+        (rowaction)="onSellerAction($event)"
+      />
+
+      @if (deskNotice(); as aviso) {
+        <p
+          class="storefront__desk-notice"
+          [class.is-error]="deskFailed()"
+          [attr.role]="deskFailed() ? 'alert' : 'status'"
+        >
+          {{ aviso }}
+        </p>
+      }
+
+      <ng-template #sellerCell let-row let-column="column">
+        @switch (column.key) {
+          @case ('sellerOrder') {
+            <span class="storefront__cell-strong">{{ row.orderNumber }}</span>
+            <span class="storefront__cell-sub">{{ row.date }} · {{ row.itemCount }} artículos</span>
+          }
+          @case ('sellerBuyer') { {{ row.buyer }} }
+          @case ('sellerStatus') {
+            <span class="storefront__order-status" [attr.data-status]="row.status">
+              {{ orderStatusLabel(row.status) }}
+            </span>
+          }
+          @case ('sellerTotal') { {{ row.totalFormatted || '—' }} }
+
+          @case ('returnStatus') {
+            <span class="storefront__order-status" [attr.data-status]="row.status">
+              {{ returnStatusLabel(row) }}
+            </span>
+          }
+          @case ('returnProduct') {
+            <span class="storefront__cell-strong">{{ row.productName }}</span>
+            <span class="storefront__cell-sub">{{ row.orderRef }} · × {{ row.quantity }}</span>
+          }
+          @case ('returnReason') { {{ returnReasonLabel(row.reason) }} }
+          @case ('returnAmount') { {{ row.refundAmountFormatted || '—' }} }
+
+          @case ('modReason') {
+            <span class="storefront__order-status" [attr.data-status]="row.reason === 'reported' ? 'pending' : 'paid'">
+              {{ sellerModerationReasonLabel(row) }}
+            </span>
+          }
+          @case ('modAuthor') {
+            <span class="storefront__cell-strong">{{ row.author }}</span>
+            <span class="storefront__cell-sub">{{ row.productTitle }} · {{ row.rating }}★</span>
+          }
+          @case ('modBody') { <span class="storefront__cell-clamp">{{ row.body }}</span> }
+        }
+      </ng-template>
+
+      <ng-template #sellerSection let-section>
+        @if (section.id === 'messages') {
+          <div class="storefront__seller-messages">
+            <h2 class="storefront__section-title">Mensajes con compradores</h2>
+            <!-- Los mismos hilos de la cara A: el vendedor es la contraparte. -->
+            @if (threads().length === 0) {
+              <p class="storefront__empty">No hay hilos abiertos.</p>
+            } @else {
+              <ul class="storefront__thread-list">
+                @for (thread of threads(); track thread.id) {
+                  <li class="storefront__thread-row">
+                    <span class="storefront__cell-strong">{{ thread.subject }}</span>
+                    <span class="storefront__cell-sub">{{ thread.counterpart }} · {{ thread.date }}</span>
+                    <span class="storefront__cell-clamp">{{ thread.lastMessage }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </ng-template>
+    </section>
   }
 </section>
