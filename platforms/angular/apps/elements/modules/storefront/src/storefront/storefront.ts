@@ -172,6 +172,18 @@ const RETURN_QUEUE_ORDER: Readonly<Record<ReturnStatus, number>> = {
   rechazado: 3,
 };
 
+/**
+ * Qué se le dice a quien compró según el motivo que dio el SERVIDOR (#34).
+ *
+ * `order-not-paid` y `order-not-found` se quedan en blanco a propósito: a quien
+ * canceló o a quien mira un pedido que no existe no hay nada útil que contarle
+ * sobre devoluciones. `line-not-in-order` tampoco — es un desajuste nuestro, no
+ * algo que esa persona pueda resolver.
+ */
+const RETURN_BLOCK_LABELS: Readonly<Record<string, string>> = {
+  'already-open': 'Ya hay un reclamo abierto para este producto.',
+};
+
 /** Lo que se dice cuando no se pudo mover el reclamo. */
 const ADVANCE_ERRORS: Readonly<Record<string, string>> = {
   unauthenticated: 'Inicia sesión para gestionar devoluciones.',
@@ -1861,24 +1873,23 @@ export class StorefrontElementComponent {
   /**
    * Si se puede pedir la devolución de esta línea.
    *
-   * **La condición dura es `paid`, y es la del SERVIDOR** (`StubReturnService:153`:
-   * «solo se puede devolver sobre una orden pagada»). Esto pedía
-   * `delivered || shipped`, que el backend **no puede emitir**: el estado de un
-   * pedido tiene tres valores —`Pending`, `Paid`, `Cancelled`— y esos dos no
-   * están. El botón era inalcanzable contra un servidor de verdad; sólo aparecía
-   * sobre los pedidos de ejemplo del propio cliente, que los traen cableados (#33).
+   * **La autorización la da el SERVIDOR** (`line.canReturn`, #34), con el mismo
+   * gate que aplica el POST — el principio de `canReview` (ADR 0112). Esto lo
+   * deducía de `order.status` pidiendo `delivered || shipped`, estados que el
+   * dominio **no emite** —el enum tiene `Pending`, `Paid`, `Cancelled`—, así que
+   * el botón era inalcanzable contra un servidor real (#33). La copia no se
+   * desvió por descuido: se desvió porque era una copia.
    *
-   * `shipped` y `delivered` **sí existen, pero son etapas del SEGUIMIENTO** —
-   * `StubOrderTrackingService.ShopPipeline`—, y el detalle del pedido ya las carga
-   * para pintar el timeline. La pregunta se le estaba haciendo al campo de al lado.
+   * Lo que queda de este lado son dos cosas que el servidor no sabe:
    *
-   * Y exige haber LEÍDO los reclamos: con la lectura caída, un mapa vacío se
-   * leería como «no hay ninguno» y ofrecería abrir un segundo sobre la misma
-   * línea (#32).
+   * - **si el pedido LLEGÓ** —vive en el seguimiento, y refina sin habilitar—, y
+   * - **si ya se leyeron los reclamos**: con la lectura caída, un mapa vacío se
+   *   leería como «no hay ninguno» y ofrecería abrir un segundo sobre la misma
+   *   línea (#32).
    */
   canReturnLine(order: ShopOrder, line: OrderLine): boolean {
     return (
-      order.status === 'paid' &&
+      line.canReturn &&
       this.deliveredKnownOrUnknown(order) &&
       this.returnsLoaded().has(order.orderNumber) &&
       this.claimForLine(order.orderNumber, line) === null
@@ -1918,8 +1929,11 @@ export class StorefrontElementComponent {
     if (this.returnsUnknown(order)) {
       return 'Consultando devoluciones…';
     }
-    if (order.status !== 'paid') {
-      return '';
+    if (!line.canReturn) {
+      // El motivo lo NOMBRA el servidor (#34). Los que no le sirven a quien
+      // compró no se pintan: a quien canceló no hay que contarle que no puede
+      // devolver lo que nunca recibió.
+      return RETURN_BLOCK_LABELS[line.returnBlock ?? ''] ?? '';
     }
     return this.isDelivered(order) ? '' : 'Podrás devolverlo cuando llegue.';
   }
