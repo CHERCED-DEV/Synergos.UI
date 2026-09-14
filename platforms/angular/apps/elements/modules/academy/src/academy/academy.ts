@@ -1541,16 +1541,17 @@ export class AcademyElementComponent {
 
   private async loadCertificate(): Promise<void> {
     const courseId = this.enrolledCourseId();
-    const studentName = this.studentName().trim() || 'Estudiante Synergos';
-    const courseTitle = this.detail()?.course.title ?? 'Curso Synergos';
-    const cert = await this.#api.certificate(
-      this.apiBase(),
-      courseId,
-      this.studentEmail().trim(),
-      studentName,
-      courseTitle,
-    );
+    const cert = await this.#api.certificate(this.apiBase(), courseId, this.studentEmail().trim());
     this.certificate.set(cert);
+    if (!cert) {
+      // Sin credencial no se anuncia una: `certified` es lo que el host escucha para
+      // dar el curso por acreditado.
+      this.errorMessage.set(
+        'Tu certificado aún no está disponible. Vuelve a intentarlo en un momento.',
+      );
+      return;
+    }
+    this.errorMessage.set('');
     const payload = { courseId, certificateId: cert.id };
     this.certified.emit(payload);
     this.#bus.publish('certified', payload);
@@ -1732,8 +1733,17 @@ export class AcademyElementComponent {
     void this.#api
       .createCourse(this.apiBase(), request, this.currency())
       .then((result) => {
-        this.createResultId.set(result.id);
         this.publishing.set(false);
+        if (!result.persisted) {
+          // El borrador sigue en el wizard: quien lo escribió no pierde el trabajo, y
+          // sobre todo no se va con un id de curso que no existe.
+          this.errorMessage.set(
+            'No pudimos publicar el curso: el servidor no lo confirmó. Tu borrador sigue acá.',
+          );
+          return;
+        }
+        this.errorMessage.set('');
+        this.createResultId.set(result.id);
         this.deskLoaded.set(false);
         void this.loadDesk();
       })
