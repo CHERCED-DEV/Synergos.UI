@@ -1,7 +1,9 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
-import { EhrApiClient, EhrUnavailableError } from './ehr-api.client';
+import { CheckoutWizardComponent } from '@synergos/shells';
+import { EhrApiClient, EhrUnavailableError, EhrWriteFailedError } from './ehr-api.client';
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
 import { EhrElementComponent } from './ehr';
 import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.server.fake';
@@ -155,23 +157,188 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.medications()[0].refillStatus).not.toBeNull();
   });
 
-  // ── engine: scheduling a cita over SH-3 confirms and lands in "mis citas" ─────
-  it('schedules an appointment through the engine and lands it in my visits (engine case)', async () => {
-    await createComponent();
-
+  // ── engine: agendar una cita RESERVA contra el borde ─────────────────────────
+  //
+  // Se pulsa el botón del asistente, no se llama a `onScheduleCompleted`: lo que
+  // falló en #111 fue precisamente que `bookAppointment` **no tenía llamador** y un
+  // spec que llame al método no ve eso (regla 5).
+  async function agendarPorElAsistente(): Promise<void> {
     component.navigate('schedule');
     await flushMicrotasks();
     component.setScheduleDoctor(component.doctors()[0]?.id ?? 'doc-mendez');
     component.scheduleReason.set('Control de hipertensión');
     component.selectSlot({ date: '2026-08-01', time: '10:00' });
+    fixture.detectChanges();
     expect(component.scheduleValid()).toBe(true);
 
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    wizard.next(); // submit → pay → confirm (= POST /appointment)
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  it('agenda la cita CONTRA EL SERVIDOR y enseña el comprobante suyo (engine case)', async () => {
+    const fetchMock = vi.fn(servidorFalso());
+    await createComponent();
+    vi.stubGlobal('fetch', fetchMock);
+
     const before = component.myAppointments().length;
-    component.onScheduleCompleted({ reference: 'APPT-TEST', vouchers: [] });
-    await flushMicrotasks();
+    await agendarPorElAsistente();
+
+    const reservas = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        String(url).includes('/appointment') &&
+        ((init as RequestInit | undefined)?.method ?? 'GET') === 'POST',
+    );
+    expect(reservas.length).toBe(1);
 
     expect(component.myAppointments().length).toBe(before + 1);
     expect(component.view()).toBe('visits');
+    // El id es el del BORDE. El `CITA-<timestamp>` que se acuñaba aquí no existía en
+    // ningún sitio: el paciente lo anotaba y se presentaba a una hora libre.
+    expect(component.myAppointments()[0].id).toBe('CITA-DEL-SERVIDOR-7');
+    expect(component.confirmedAppointmentRef()).toBe('CITA-DEL-SERVIDOR-7');
+  });
+
+  // ══ #111 · UNA ESCRITURA QUE NO LLEGÓ NO SE CONFIRMA ════════════════════════
+  //
+  // El apagón que las alcanza es el PARCIAL: toda escritura va detrás de una lectura
+  // que funcionó, así que con todo caído ninguna de estas ramas existe.
+
+  it('la cita que NO se pudo reservar no aparece en «mis citas» ni da comprobante', async () => {
+    await createComponent();
+    // Lecturas vivas, sólo la reserva caída. `'POST /appointment'` y no
+    // `'/appointment'`: lo segundo apagaría también la agenda que se lee.
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['POST /appointment'] })));
+
+    const before = component.myAppointments().length;
+    await agendarPorElAsistente();
+
+    expect(component.myAppointments().length).toBe(before);
+    expect(component.confirmedAppointmentRef()).toBe('');
+    expect(component.view()).toBe('schedule');
+    expect(component.errorMessage()).toContain('NO quedó apartado');
+    // Y lo elegido sigue en el asistente: reintentar no obliga a volver a empezar.
+    expect(component.scheduleTime()).toBe('10:00');
+  });
+
+  it('la nota SOAP que no se guardó NO queda en la historia', async () => {
+    await createComponent();
+    component.setRole('doctor');
+    await flushMicrotasks();
+    component.navigate('chart', VALENTINA.id);
+    await flushMicrotasks();
+    const before = component.chart()?.history.length ?? 0;
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['POST /encounter'] })));
+    component.startEncounter();
+    component.soapSubjective.set('Refiere tos nocturna.');
+    component.soapAssessment.set('Asma en control.');
+    component.soapPlan.set('Continuar salbutamol.');
+
+    await component.saveEncounter();
+    await flushMicrotasks();
+
+    // Antes: la nota entraba en la historia ANTES de llamar, el cliente devolvía esa
+    // misma nota optimista y la pantalla cerraba el encuentro con el AVS escrito.
+    expect(component.chart()?.history.length).toBe(before);
+    expect(component.view()).toBe('encounter');
+    expect(component.closedAvs()).toBe('');
+    expect(component.errorMessage()).toContain('NO quedó en la historia');
+    // Y lo tecleado sigue ahí: el médico reintenta, no vuelve a escribir.
+    expect(component.soapSubjective()).toBe('Refiere tos nocturna.');
+  });
+
+  it('nota guardada + receta caída: lo dice, y el reintento no duplica la nota', async () => {
+    await createComponent();
+    component.setRole('doctor');
+    await flushMicrotasks();
+    component.navigate('chart', MARIA.id);
+    await flushMicrotasks();
+    const notasAntes = component.chart()?.history.length ?? 0;
+    const recetasAntes = component.chart()?.prescriptions.length ?? 0;
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['POST /prescription'] })));
+    component.startEncounter();
+    component.soapSubjective.set('Control de tensión.');
+    component.soapAssessment.set('HTA controlada.');
+    component.soapPlan.set('Seguir igual.');
+    component.rxDrug.set('Losartán');
+    component.rxDose.set('50 mg');
+    component.addRxItem();
+
+    await component.saveEncounter();
+    await flushMicrotasks();
+
+    expect(component.chart()?.history.length).toBe(notasAntes + 1);
+    // La receta NO está: una receta pintada en la historia que la farmacia no puede
+    // ver es peor que ninguna.
+    expect(component.chart()?.prescriptions.length).toBe(recetasAntes);
+    expect(component.view()).toBe('encounter');
+    expect(component.errorMessage()).toContain('La nota quedó guardada');
+
+    // Vuelve el endpoint y se reintenta: se emite la receta y la nota NO se duplica.
+    vi.stubGlobal('fetch', vi.fn(servidorFalso()));
+    await component.saveEncounter();
+    await flushMicrotasks();
+
+    expect(component.chart()?.history.length).toBe(notasAntes + 1);
+    expect(component.chart()?.prescriptions.length).toBe(recetasAntes + 1);
+    expect(component.view()).toBe('chart');
+    expect(component.errorMessage()).toBe('');
+  });
+
+  it('la renovación que no llegó vuelve a su estado, no se queda «Solicitada»', async () => {
+    await createComponent();
+    component.navigate('medications');
+    await flushMicrotasks();
+    const med = component.medications()[0];
+    expect(med.refillStatus).toBeNull();
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['POST /refill'] })));
+    component.requestRefill(med);
+    await flushMicrotasks();
+
+    // Se quedaba «Solicitada» para siempre con el servidor sin nada: el paciente
+    // esperaba una renovación que nadie pidió y se quedaba sin medicamento.
+    expect(component.medications()[0].refillStatus).toBeNull();
+    expect(component.errorMessage()).toContain('NO quedó registrada');
+  });
+
+  it('el mensaje que no se envió queda MARCADO en el hilo, no acusado', async () => {
+    await createComponent();
+    component.navigate('messages');
+    await flushMicrotasks();
+    const thread = component.threads()[0];
+    component.onThreadSelect(thread);
+    fixture.detectChanges();
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['POST /message'] })));
+    component.onSendMessage({ thread, body: '¿Puedo tomar el otro medicamento?' });
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const enviado = component.activeThread()?.messages.at(-1);
+    expect(enviado?.body).toBe('¿Puedo tomar el otro medicamento?');
+    expect(enviado?.failed).toBe(true);
+    const texto: string = fixture.nativeElement.textContent ?? '';
+    expect(texto).toContain('No enviado');
+    expect(component.errorMessage()).toContain('NO se envió');
+
+    // Vuelve el borde: se reintenta desde el propio hilo, sin volver a teclear.
+    vi.stubGlobal('fetch', vi.fn(servidorFalso()));
+    component.retryMessage(component.activeThread()!, component.activeThread()!.messages.at(-1)!);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.activeThread()?.messages.at(-1)?.failed).toBe(false);
+    expect(component.errorMessage()).toBe('');
   });
 
   // ── reactive identity: patient input landing AFTER construction re-fetches ───
@@ -470,6 +637,70 @@ describe('EhrApiClient (v2 endpoints)', () => {
 
     for (const [nombre, lectura] of lecturas) {
       await expect(lectura(), nombre).rejects.toBeInstanceOf(EhrUnavailableError);
+    }
+  });
+
+  it('una ESCRITURA clínica que falla LANZA — no devuelve el valor optimista', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    // Las seis, una por una: el barrido es el gate. Añadir una escritura nueva con
+    // `catch → valor del llamador` sin añadirla aquí es cómo volvería el defecto.
+    const escrituras: readonly [string, () => Promise<unknown>][] = [
+      [
+        'bookAppointment',
+        () =>
+          client.bookAppointment('/api/ehr', {
+            patientId: MARIA.id,
+            doctorId: 'doc-mendez',
+            slot: { date: '2026-08-01', time: '10:00' },
+          }),
+      ],
+      [
+        'saveEncounter',
+        () =>
+          client.saveEncounter('/api/ehr', {
+            patientId: MARIA.id,
+            soap: {
+              subjective: 's',
+              objective: {
+                systolic: 0,
+                diastolic: 0,
+                heartRate: 0,
+                temperature: 0,
+                weight: 0,
+                height: 0,
+                glucose: 0,
+              },
+              assessment: 'a',
+              plan: 'p',
+            },
+          }),
+      ],
+      [
+        'savePrescription',
+        () =>
+          client.savePrescription('/api/ehr', {
+            patientId: MARIA.id,
+            items: [{ drug: 'Losartán', dose: '50 mg', frequency: 'c/12h', durationDays: 30 }],
+          }),
+      ],
+      [
+        'requestRefill',
+        () => client.requestRefill('/api/ehr', { medicationId: 'm-1', patientId: MARIA.id }),
+      ],
+      [
+        'sendMessage',
+        () => client.sendMessage('/api/ehr', { threadId: 'hilo-1', body: 'hola', user: MARIA.id }),
+      ],
+      [
+        'placeOrder',
+        () => client.placeOrder('/api/ehr', { patientId: MARIA.id, kind: 'lab', detail: 'x' }),
+      ],
+    ];
+
+    for (const [nombre, escritura] of escrituras) {
+      await expect(escritura(), nombre).rejects.toBeInstanceOf(EhrWriteFailedError);
     }
   });
 

@@ -24,7 +24,15 @@
  */
 
 export interface FakeServerOptions {
-  /** Fragmentos de ruta que contestan 404 — el `[DevSeedOnly]` apagado, por endpoint. */
+  /**
+   * Fragmentos de ruta que contestan 404 — el `[DevSeedOnly]` apagado, por endpoint.
+   *
+   * Un fragmento puede llevar MÉTODO delante (`'POST /encounter'`): así se apaga la
+   * ESCRITURA dejando viva la lectura del mismo recurso, que es el apagón **parcial**
+   * —el único que alcanza las escrituras, porque toda escritura va detrás de una
+   * lectura que funcionó (#111)—. Y hace falta además porque `'/appointment'` a secas
+   * también casa con `'/appointments'`, o sea que apagar la reserva apagaba la agenda.
+   */
   readonly caidos?: readonly string[];
   /** `omit` (default, como el backend hoy) · `empty` (lista vacía real) · `full`. */
   readonly vacunas?: 'omit' | 'empty' | 'full';
@@ -205,7 +213,8 @@ export function servidorFalso(
 
   return (url: string, init?: RequestInit) => {
     const ruta = String(url);
-    if (caidos.some((fragmento) => ruta.includes(fragmento))) {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    if (caidos.some((fragmento) => casa(fragmento, metodo, ruta))) {
       return Promise.resolve(respuesta(404, { error: 'Not found' }));
     }
     const query = new URLSearchParams(ruta.includes('?') ? ruta.slice(ruta.indexOf('?') + 1) : '');
@@ -377,6 +386,18 @@ export function servidorFalso(
   };
 }
 
+/** `'/health'` casa por ruta; `'POST /encounter'` casa por método Y ruta. */
+function casa(fragmento: string, metodo: string, ruta: string): boolean {
+  const espacio = fragmento.indexOf(' ');
+  if (espacio === -1) {
+    return ruta.includes(fragmento);
+  }
+  return (
+    fragmento.slice(0, espacio).toUpperCase() === metodo &&
+    ruta.includes(fragmento.slice(espacio + 1))
+  );
+}
+
 function cuerpoDeEscritura(ruta: string, init: RequestInit): Record<string, unknown> {
   const enviado = JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>;
   if (ruta.includes('/encounter')) {
@@ -410,6 +431,25 @@ function cuerpoDeEscritura(ruta: string, init: RequestInit): Record<string, unkn
   }
   if (ruta.includes('/refill')) {
     return { status: 'requested' };
+  }
+  if (ruta.includes('/appointment')) {
+    const slot = (enviado['slot'] ?? {}) as Record<string, unknown>;
+    return {
+      appointment: {
+        // El id lo pone el SERVIDOR: es lo que el paciente enseña en recepción, y es
+        // lo que distingue una cita apartada de un comprobante acuñado en el navegador.
+        id: 'CITA-DEL-SERVIDOR-7',
+        patientId: String(enviado['patientId'] ?? ''),
+        patientName: paciente(String(enviado['patientId'] ?? ''))?.name ?? '',
+        doctorId: String(enviado['doctorId'] ?? ''),
+        doctorName: 'Dra. Laura Méndez',
+        date: String(slot['date'] ?? ''),
+        time: String(slot['time'] ?? ''),
+        durationMin: 30,
+        reason: 'Consulta',
+        status: 'booked',
+      },
+    };
   }
   return { ok: true };
 }

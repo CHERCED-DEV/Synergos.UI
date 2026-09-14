@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Diecisiete reglas que costaron caro y no se deducen leyendo el código:**
+**Dieciocho reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -266,3 +266,29 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    error que se pinte como hueco**: el borde toma al alumno de la sesión y a un invitado
    que ve cursos de ejemplo le estás diciendo que tiene matrículas
    (CHERCED-DEV/Synergos.CMS#102).
+18. **Lo optimista se PINTA; lo que se guarda lo dice el servidor — y al reintentar
+   hay que recordar qué parte ya pasó.** La regla 4 dice que una escritura no degrada;
+   esto es lo que hay que hacer en la pantalla cuando falla, que no es la misma
+   respuesta que para una lectura: una lectura ilegible se pinta como hueco y ya; una
+   escritura que no llegó deja a alguien con el texto escrito y sin saber si existe.
+   El piso es **no confirmar lo que no se guardó**, y sale de tres decisiones:
+   (a) **el registro se escribe con lo que devolvió el servidor**, no antes — la nota
+   SOAP entraba en la historia y luego se llamaba, así que un `POST` caído terminaba
+   en la pantalla de siempre, con AVS y firma, y el expediente vacío;
+   (b) **lo tecleado no se pierde** — el formulario se queda como está y el mensaje
+   que no salió se queda en el hilo **marcado**, porque borrarlo se lleva lo que
+   acaban de escribir y dejarlo sin marca es un acuse que nadie dio;
+   (c) **un reintento no duplica** — cuando la operación son varios pasos (nota →
+   receta → orden), se recuerda cuál ya se llevó el servidor y el mensaje nombra lo
+   que SÍ quedó: decirle «no pudimos guardar la nota» a quien ya la tiene guardada le
+   invita a escribir una segunda para la misma consulta, y un expediente clínico
+   duplicado es daño propio, no «un botón de más».
+   Y el caso que lo destapó es la regla 5 otra vez: `bookAppointment` **no tenía
+   llamador**. La estrategia acuñaba el `CITA-<timestamp>` en local y contestaba
+   `confirmed: true` sin tocar la red, así que el paciente salía con un comprobante
+   que no existe en ninguna parte y se presentaba a una hora que el consultorio no
+   tenía apartada. Confirmar es reservar EN EL SERVIDOR, y el comprobante es el que
+   vuelve de allí. Para probar el apagón **parcial** —el único que alcanza una
+   escritura, porque toda escritura va detrás de una lectura que funcionó— el
+   servidor de mentira apaga por MÉTODO y ruta (`'POST /appointment'`), no sólo por
+   ruta (CHERCED-DEV/Synergos.CMS#111).
