@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Catorce reglas que costaron caro y no se deducen leyendo el código:**
+**Dieciséis reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -219,3 +219,34 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    nombre decía el defecto—. Si el fallback rellena un campo cuyo valor entero es ser cierto
    (un id firmado, una URL de verificación, un número de radicado), no es degradar: es
    fabricar. Sin dato → `null`, y que la pantalla lo diga (#35).
+15. **Un fallback que se pide POR IDENTIDAD y acepta cualquier identidad no deja un hueco:
+   pone el nombre correcto sobre el cuerpo equivocado.** Es el escalón de arriba de la regla
+   14, y el peor de los dos: una prueba falsa (un diploma que no verifica) se descubre al
+   enseñarla; una historia clínica equivocada **se ve perfecta**. `mockChart(id)` del EHR
+   aceptaba **cualquier** id y devolvía `mockPatients()[0]` —María González, con sus
+   tensiones, sus glicemias, «Hipertensión grado 1, Diabetes tipo 2 de novo» y sus recetas—
+   **archivado bajo el id que se pidió**; `mockPortalHome(patientId)` hacía lo mismo con las
+   **alergias**, y `mockHealthSummary()` ni miraba al paciente. `EhrController` es
+   `[DevSeedOnly]`, así que fuera de desarrollo los 18 endpoints contestan 404 y ése era
+   justamente el `catch` que corría: se abría la historia del paciente B y se leía la de A.
+   **Una lista de alergias es aquello sobre lo que alguien decide qué recetar**, y el cartel
+   de «datos de ejemplo» no viaja hasta esa decisión. Lo que sobrevive es la FORMA: el mismo
+   `catch` habría tapado la caída de un EHR de verdad y habría seguido rellenando alergias.
+   Sin dato → **nada, y que la pantalla lo diga**; y «sin datos» tiene que **verse distinto**
+   de «no tiene» —decir que alguien no tiene alergias cuando no se pudo leer es el mismo
+   defecto con otra cara—. Lo mismo vale para una clave que el borde deja de emitir: una
+   sección vacía sin explicación miente igual que un «al día». Y el sitio donde vive la
+   diferencia es el TIPO: `readonly Immunization[] | null`, porque `[]` es una afirmación
+   clínica y `null` es su ausencia; con `[]` por defecto, el normalizador vuelve a afirmar
+   por su cuenta lo que nadie estableció (CHERCED-DEV/Synergos.CMS#106).
+16. **Si TODOS los specs stubean la red para que falle, el sistema bajo prueba es el
+   fallback.** Los ocho specs del EHR hacían `fetch → Promise.reject(...)` en su helper de
+   arranque, incluido el que se llamaba «happy case»: **el único camino que se probaba era el
+   que escondía el defecto de la regla 15**, y no había forma de ver que la ficha de B traía
+   la historia de A porque nunca hubo una ficha de verdad con la que comparar. No se detecta
+   leyendo el spec —pasa, y se lee como cobertura—; se detecta preguntando *qué respuesta da
+   el doble de `fetch`*. Hace falta un servidor de mentira **con la forma del de verdad** y
+   apagar por endpoint lo que cada test necesite ver caer; y se comprueba al revés: con el
+   servidor entero caído, los specs del camino bueno tienen que ponerse ROJOS (acá 14 de 22).
+   Es el complemento de la regla 10: allá el fixture describe un servidor que no existe, acá
+   **no hay servidor ninguno** (CHERCED-DEV/Synergos.CMS#106).

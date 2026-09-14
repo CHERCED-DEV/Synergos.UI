@@ -51,11 +51,13 @@ import {
   type ChartTab,
   type ClinicalAlert,
   type Doctor,
+  type EhrDataset,
   type EhrPortal,
   type EhrRole,
   type EhrView,
   type Encounter,
   type EvolutionSeries,
+  type HealthMaintenanceItem,
   type HealthSummary,
   type HealthTab,
   type HomeCard,
@@ -95,8 +97,9 @@ import {
  *
  * 100% composable: no business is hardcoded; every knob comes from CMS props
  * (`apiBase`/`clinic`/`config` JSON, patrón createConfigInputTransform/
- * resolveConfigValue) and the data always comes from the API with visible mock
- * degradation. The shells stay domain-free (contrato D3) — the module only feeds
+ * resolveConfigValue) and the data always comes from the API — a read that fails shows
+ * a gap, never someone else's record (#106). The shells stay domain-free (contrato D3)
+ * — the module only feeds
  * data, templates and its `EhrFulfillmentStrategy` (cita/copago).
  */
 export interface EhrRuntimeConfig {
@@ -417,6 +420,8 @@ export class EhrElementComponent {
   // Patient chart (clinician)
   readonly chart = signal<PatientChart | null>(null);
   readonly chartTab = signal<ChartTab>('summary');
+  /** The id the last `loadChart` was asked for — kept so a failed open can retry. */
+  readonly chartRequestId = signal('');
 
   // Encounter (SOAP) draft
   readonly soapSubjective = signal('');
@@ -441,20 +446,47 @@ export class EhrElementComponent {
   // Encounter close → AVS
   readonly closedAvs = signal('');
 
-  // ─── Degradation flag (mock fallback surfaced to both portals) ───────────────
-  readonly degraded = computed(() => {
-    void this.homeLoaded();
-    void this.resultsLoaded();
-    void this.medsLoaded();
-    void this.healthLoaded();
-    void this.billingLoaded();
-    void this.threadsLoaded();
-    void this.boardLoaded();
-    void this.patientsLoaded();
-    void this.inboxLoaded();
-    void this.chart();
-    return this.#api.degraded;
-  });
+  // ─── Reads that FAILED (#106) ────────────────────────────────────────────────
+  /**
+   * Which reads could not be served. A failed clinical read no longer degrades to
+   * seeded data, so its signal stays pristine — and a pristine signal is
+   * indistinguishable from «the server answered, and there is nothing». The two have
+   * to look different on screen: «no pudimos leer tus alergias» is not «no tienes
+   * alergias», and saying the second when the first is true is the same defect with a
+   * politer face.
+   */
+  readonly #unavailable = signal<ReadonlySet<EhrDataset>>(new Set());
+
+  /** True when THIS dataset's last read failed. Read from templates by name. */
+  readFailed(dataset: EhrDataset): boolean {
+    return this.#unavailable().has(dataset);
+  }
+
+  /** Record the outcome of a read round for `dataset`. */
+  private markRead(dataset: EhrDataset, ok: boolean): void {
+    this.#unavailable.update((current) => {
+      if (current.has(dataset) === !ok) {
+        return current;
+      }
+      const next = new Set(current);
+      if (ok) {
+        next.delete(dataset);
+      } else {
+        next.add(dataset);
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Re-run the current view's load. The `*Loaded` flags stay `false` after a failure,
+   * so re-dispatching the route is enough — and the chart needs the id it was opened
+   * with, which the failed load remembered.
+   */
+  retryRead(): void {
+    this.errorMessage.set('');
+    this.applyRoute(this.view(), this.chart()?.patient.id ?? this.chartRequestId());
+  }
 
   // ─── Derived: results (grid + trend) ─────────────────────────────────────────
   readonly releasedResults = computed(() => this.results().filter((result) => result.released));
@@ -587,7 +619,12 @@ export class EhrElementComponent {
     kpisLabel: 'Indicadores del día',
     filtersLabel: 'Filtrar In Basket',
     actionsLabel: 'Acciones',
-    emptyMessage: 'No hay filas en esta sección.',
+    // «No hay filas» es una afirmación sobre el día del médico, y no se puede hacer
+    // cuando lo que pasó es que no se pudo leer (#106): una agenda vacía y una agenda
+    // ilegible se ven igual en una tabla.
+    emptyMessage: this.consoleSectionUnreadable()
+      ? 'No pudimos leer esta sección. La tabla está vacía porque la lectura falló, no porque no haya filas.'
+      : 'No hay filas en esta sección.',
     loadingMessage: 'Cargando…',
     sections: [
       { id: 'board', label: 'Agenda del día', kind: 'table', badge: this.board().length || undefined },
@@ -597,6 +634,14 @@ export class EhrElementComponent {
   }));
 
   readonly pendingInboxCount = computed(() => this.inbox().filter((item) => !item.done).length);
+
+  /** Whether the read behind the console section on screen failed. */
+  readonly consoleSectionUnreadable = computed(() => {
+    const section = this.consoleSection();
+    const dataset: EhrDataset =
+      section === 'patients' ? 'patients' : section === 'inbasket' ? 'inbox' : 'board';
+    return this.readFailed(dataset);
+  });
 
   readonly boardColumns: readonly ConsoleColumn[] = [
     { key: 'time', label: 'Hora' },
@@ -802,10 +847,10 @@ export class EhrElementComponent {
    * not the patient scope) is only reset when we're actually in the clinician portal.
    */
   private reloadForIdentity(): void {
-    // Fresh round for the new identity: clear the degradation latch so a stale
-    // first-tick default 404 does not keep the "datos de ejemplo" banner up once the
-    // real `config.patient` data lands (the flag re-latches only if THIS load degrades).
-    this.#api.resetDegraded();
+    // Fresh round for the new identity: a read that failed for the first-tick default
+    // (`P-1`) says nothing about the real `config.patient`, so its failure mark is
+    // cleared here and re-latches only if THIS round fails too.
+    this.#unavailable.set(new Set());
     // Patient-scoped caches — always stale when the identity changes.
     this.homeLoaded.set(false);
     this.appointmentsLoaded.set(false);
@@ -1058,7 +1103,10 @@ export class EhrElementComponent {
       );
       this.home.set(home);
       this.homeLoaded.set(true);
+      this.markRead('home', true);
     } catch (error) {
+      this.home.set(null);
+      this.markRead('home', false);
       this.errorMessage.set('No pudimos cargar tu portal. Intenta de nuevo.');
       void error;
     } finally {
@@ -1090,7 +1138,10 @@ export class EhrElementComponent {
       }
       this.myAppointments.set(list);
       this.appointmentsLoaded.set(true);
+      this.markRead('appointments', true);
     } catch (error) {
+      this.myAppointments.set([]);
+      this.markRead('appointments', false);
       this.errorMessage.set('No pudimos cargar tus citas.');
       void error;
     } finally {
@@ -1171,7 +1222,10 @@ export class EhrElementComponent {
       const results = await this.#api.results(this.apiBase(), this.patientId());
       this.results.set(results);
       this.resultsLoaded.set(true);
+      this.markRead('results', true);
     } catch (error) {
+      this.results.set([]);
+      this.markRead('results', false);
       this.errorMessage.set('No pudimos cargar tus resultados.');
       void error;
     } finally {
@@ -1210,7 +1264,10 @@ export class EhrElementComponent {
       const meds = await this.#api.medications(this.apiBase(), this.patientId());
       this.medications.set(meds);
       this.medsLoaded.set(true);
+      this.markRead('medications', true);
     } catch (error) {
+      this.medications.set([]);
+      this.markRead('medications', false);
       this.errorMessage.set('No pudimos cargar tus medicamentos.');
       void error;
     } finally {
@@ -1256,7 +1313,10 @@ export class EhrElementComponent {
       const summary = await this.#api.healthSummary(this.apiBase(), this.patientId());
       this.healthSummary.set(summary);
       this.healthLoaded.set(true);
+      this.markRead('health', true);
     } catch (error) {
+      this.healthSummary.set(null);
+      this.markRead('health', false);
       this.errorMessage.set('No pudimos cargar tu resumen de salud.');
       void error;
     } finally {
@@ -1268,7 +1328,31 @@ export class EhrElementComponent {
     this.healthTab.set(tab);
   }
 
-  /** Timeline stages from the immunization record (SH-4 tracking-timeline reuse). */
+  /**
+   * Chip copy for a preventive-care item. `null` is **no consta**, never «al día»:
+   * the recommendation derives from age + sex (real data), whether the person had it
+   * done needs a seam that does not exist (#106).
+   */
+  maintenanceStatusLabel(status: HealthMaintenanceItem['status']): string {
+    switch (status) {
+      case 'complete':
+        return 'Al día';
+      case 'overdue':
+        return 'Vencido';
+      case 'due':
+        return 'Pendiente';
+      default:
+        return 'Sin registro';
+    }
+  }
+
+  /**
+   * Timeline stages from the immunization record (SH-4 tracking-timeline reuse).
+   *
+   * Only ever rendered when `immunizations` is a real list. `null` (no vaccination
+   * registry, #106) takes its own branch in the template — an empty timeline reading
+   * «Sin vacunas registradas» would state a clinical fact nobody established.
+   */
   readonly immunizationStages = computed<readonly TrackingStage[]>(() =>
     (this.healthSummary()?.immunizations ?? []).map((imm) => ({
       id: imm.id,
@@ -1287,7 +1371,10 @@ export class EhrElementComponent {
       const statement = await this.#api.billing(this.apiBase(), this.patientId());
       this.billing.set(statement);
       this.billingLoaded.set(true);
+      this.markRead('billing', true);
     } catch (error) {
+      this.billing.set(null);
+      this.markRead('billing', false);
       this.errorMessage.set('No pudimos cargar tu facturación.');
       void error;
     } finally {
@@ -1308,10 +1395,14 @@ export class EhrElementComponent {
       const doctors = await this.#api.doctors(this.apiBase());
       this.doctors.set(doctors);
       this.doctorsLoaded.set(true);
+      this.markRead('doctors', true);
       if (!this.scheduleDoctorId() && doctors[0]) {
         this.scheduleDoctorId.set(doctors[0].id);
       }
     } catch (error) {
+      this.doctors.set([]);
+      this.markRead('doctors', false);
+      this.errorMessage.set('No pudimos cargar el directorio médico.');
       void error;
     }
   }
@@ -1445,7 +1536,11 @@ export class EhrElementComponent {
       const threads = await this.#api.messages(this.apiBase(), user);
       this.threads.set(threads);
       this.threadsLoaded.set(true);
+      this.markRead('threads', true);
     } catch (error) {
+      this.threads.set([]);
+      this.activeThread.set(null);
+      this.markRead('threads', false);
       this.errorMessage.set('No pudimos cargar tus mensajes.');
       void error;
     } finally {
@@ -1511,7 +1606,16 @@ export class EhrElementComponent {
       this.patientsLoaded.set(true);
       this.inbox.set(inbox);
       this.inboxLoaded.set(true);
+      this.markRead('board', true);
+      this.markRead('patients', true);
+      this.markRead('inbox', true);
     } catch (error) {
+      this.board.set([]);
+      this.patients.set([]);
+      this.inbox.set([]);
+      this.markRead('board', false);
+      this.markRead('patients', false);
+      this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar la agenda del día.');
       void error;
     } finally {
@@ -1567,7 +1671,10 @@ export class EhrElementComponent {
       const patients = await this.#api.patients(this.apiBase(), this.patientQuery());
       this.patients.set(patients);
       this.patientsLoaded.set(true);
+      this.markRead('patients', true);
     } catch (error) {
+      this.patients.set([]);
+      this.markRead('patients', false);
       this.errorMessage.set('No pudimos cargar los pacientes.');
       void error;
     } finally {
@@ -1586,7 +1693,10 @@ export class EhrElementComponent {
       const inbox = await this.#api.inbox(this.apiBase(), this.role());
       this.inbox.set(inbox);
       this.inboxLoaded.set(true);
+      this.markRead('inbox', true);
     } catch (error) {
+      this.inbox.set([]);
+      this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar el In Basket.');
       void error;
     } finally {
@@ -1679,6 +1789,7 @@ export class EhrElementComponent {
   private async loadChart(id: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
+    this.chartRequestId.set(id);
     try {
       const chart = await this.#api.patientChart(this.apiBase(), id);
       this.chart.set(chart);
@@ -1686,7 +1797,13 @@ export class EhrElementComponent {
       this.view.set('chart');
       this.patientselect.emit(id);
       this.viewchange.emit('chart');
+      this.markRead('chart', true);
     } catch (error) {
+      // Nothing is shown in place of a chart we could not read. The previous branch
+      // handed back patient zero's record under this id (#106).
+      this.chart.set(null);
+      this.view.set('chart');
+      this.markRead('chart', false);
       this.errorMessage.set('No pudimos abrir la ficha del paciente.');
       void error;
     } finally {
