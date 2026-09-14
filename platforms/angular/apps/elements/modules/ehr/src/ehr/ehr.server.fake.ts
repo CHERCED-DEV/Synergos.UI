@@ -38,6 +38,16 @@ export interface FakeServerOptions {
   readonly vacunas?: 'omit' | 'empty' | 'full';
   /** Cuando es `true`, `maintenance` vuelve a traer `status` (backend anterior a #106). */
   readonly estadoPreventivo?: boolean;
+  /**
+   * Los cuatro campos que el borde **dejó de afirmar** (#111): `active`,
+   * `acceptingPatients`, `pharmacy` y `unread`. `omit` (default) es lo que hace hoy;
+   * `full` es un backend que sí los sabe.
+   *
+   * Sembrarlos era la regla 10 en su forma exacta: un servidor de mentira que afirma
+   * lo que el de verdad dejó de afirmar hace verde justo el camino que hay que
+   * probar —el del cliente reponiendo `true` y `0` por su cuenta—.
+   */
+  readonly opcionales?: 'omit' | 'full';
 }
 
 interface FakePatient {
@@ -92,7 +102,6 @@ const MEDICOS = [
     license: 'RM-48211',
     phone: '+57 310 555 0101',
     email: 'laura.mendez@clinica.co',
-    acceptingPatients: true,
     rating: 4.9,
   },
   {
@@ -102,16 +111,22 @@ const MEDICOS = [
     license: 'RM-51777',
     phone: '+57 312 555 0103',
     email: 'camila.rojas@clinica.co',
-    acceptingPatients: true,
     rating: 4.8,
   },
 ] as const;
+
+/** `acceptingPatients` sólo cuando el backend de turno lo afirme. */
+function medicos(options: FakeServerOptions): readonly Record<string, unknown>[] {
+  return MEDICOS.map((medico) =>
+    options.opcionales === 'full' ? { ...medico, acceptingPatients: true } : { ...medico },
+  );
+}
 
 function paciente(id: string): FakePatient | undefined {
   return PACIENTES.find((entry) => entry.id === id);
 }
 
-function demografia(p: FakePatient): Record<string, unknown> {
+function demografia(p: FakePatient, options: FakeServerOptions = {}): Record<string, unknown> {
   return {
     id: p.id,
     name: p.name,
@@ -124,13 +139,13 @@ function demografia(p: FakePatient): Record<string, unknown> {
     problems: p.problems,
     allergies: p.allergies,
     primaryDoctorId: p.primaryDoctorId,
-    active: true,
+    ...(options.opcionales === 'full' ? { active: true } : {}),
   };
 }
 
-function ficha(p: FakePatient): Record<string, unknown> {
+function ficha(p: FakePatient, options: FakeServerOptions = {}): Record<string, unknown> {
   return {
-    patient: demografia(p),
+    patient: demografia(p, options),
     history: [
       {
         id: `${p.id}-enc-1`,
@@ -229,15 +244,15 @@ export function servidorFalso(
       const lista = PACIENTES.filter(
         (p) => !q || p.name.toLowerCase().includes(q) || p.problems.some((c) => c.toLowerCase().includes(q)),
       );
-      return Promise.resolve(respuesta(200, { patients: lista.map(demografia) }));
+      return Promise.resolve(respuesta(200, { patients: lista.map((p) => demografia(p, options)) }));
     }
     if (ruta.includes('/patient/')) {
       const id = decodeURIComponent(ruta.slice(ruta.lastIndexOf('/') + 1));
       const p = paciente(id);
-      return Promise.resolve(p ? respuesta(200, ficha(p)) : respuesta(404, { error: 'no existe' }));
+      return Promise.resolve(p ? respuesta(200, ficha(p, options)) : respuesta(404, { error: 'no existe' }));
     }
     if (ruta.includes('/doctors')) {
-      return Promise.resolve(respuesta(200, { doctors: MEDICOS }));
+      return Promise.resolve(respuesta(200, { doctors: medicos(options) }));
     }
     if (ruta.includes('/portal/home')) {
       const p = paciente(quien);
@@ -246,7 +261,7 @@ export function servidorFalso(
       }
       return Promise.resolve(
         respuesta(200, {
-          patient: demografia(p),
+          patient: demografia(p, options),
           cards: [
             { id: 'card-appt', kind: 'appointment', title: 'Próxima cita', detail: 'Control trimestral', action: 'visits', actionLabel: 'Ver mis citas', tone: 'brand' },
           ],
@@ -296,7 +311,7 @@ export function servidorFalso(
                   dose: '50 mg',
                   frequency: 'Cada 12 horas',
                   instructions: 'Tomar con alimentos.',
-                  pharmacy: 'Farmacia Central',
+                  ...(options.opcionales === 'full' ? { pharmacy: 'Farmacia Central' } : {}),
                   refillsLeft: 2,
                   refillStatus: null,
                 },
@@ -333,7 +348,7 @@ export function servidorFalso(
               subject: 'Sobre tu control',
               lastMessage: 'Nos vemos en la cita.',
               lastAtUtc: '2026-09-10T12:00:00.000Z',
-              unread: 1,
+              ...(options.opcionales === 'full' ? { unread: 1 } : {}),
               messages: [
                 { id: 'hilo-1-m1', author: 'Dra. Laura Méndez', body: 'Nos vemos en la cita.', createdAtUtc: '2026-09-10T12:00:00.000Z', outgoing: false },
               ],

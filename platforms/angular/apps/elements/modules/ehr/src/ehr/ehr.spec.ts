@@ -548,6 +548,56 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(fixture.nativeElement.textContent).toContain('Al día');
   });
 
+  // ══ #111 · LO QUE EL BORDE DEJÓ DE AFIRMAR NO LO REPONE EL CLIENTE ══════════
+
+  it('«no sabemos si hay sin leer» no se ve como «no tienes sin leer»', async () => {
+    await createComponent();
+    component.navigate('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    // El borde ya no emite `unread`; el normalizador lo reponía a 0 y la insignia
+    // sólo se pinta con `> 0`, así que las dos cosas se veían IGUAL — y eso es lo
+    // que hace que alguien no abra el mensaje de su médico.
+    expect(component.threads()[0].unread).toBeNull();
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.querySelector('.ehr__thread-unread--unknown')).not.toBeNull();
+    expect(host.querySelector('.ehr__thread-unread--unknown')?.textContent?.trim()).toBe('?');
+
+    // Y cuando el backend SÍ lo sabe, se respeta: la insignia es la cuenta.
+    TestBed.resetTestingModule();
+    await createComponent({ opcionales: 'full' });
+    component.navigate('messages');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.threads()[0].unread).toBe(1);
+    const host2: HTMLElement = fixture.nativeElement;
+    expect(host2.querySelector('.ehr__thread-unread--unknown')).toBeNull();
+    expect(host2.querySelector('.ehr__thread-unread')?.textContent?.trim()).toBe('1');
+  });
+
+  it('sin farmacia no queda el separador colgante en la ficha del medicamento', async () => {
+    await createComponent();
+    component.navigate('medications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.medications()[0].pharmacy).toBeNull();
+    const meta = fixture.nativeElement.querySelector('.ehr__med-meta')?.textContent ?? '';
+    expect(meta.trim()).toBe('2 renovaciones restantes');
+    expect(meta.trim().startsWith('·')).toBe(false);
+
+    TestBed.resetTestingModule();
+    await createComponent({ opcionales: 'full' });
+    component.navigate('medications');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const conFarmacia = fixture.nativeElement.querySelector('.ehr__med-meta')?.textContent ?? '';
+    expect(conFarmacia).toContain('Farmacia Central ·');
+  });
+
   // ── Molde de carga del portal (doc 24) ───────────────────────────────────────
   // La trampa: sustituir el `<p>Cargando tu portal…</p>` por un esqueleto deja la
   // pantalla más fina y al usuario ciego SIN saber que algo carga. El test exige las
@@ -731,6 +781,23 @@ describe('EhrApiClient (v2 endpoints)', () => {
     const summary = await client.healthSummary('/api/ehr', MARIA.id);
 
     expect(summary.maintenance[0].status).toBeNull();
+  });
+
+  it('`active` y `acceptingPatients` ausentes son `null`, NUNCA `true`', async () => {
+    vi.stubGlobal('fetch', vi.fn(servidorFalso()));
+    let client = createClient();
+
+    // Reponer `true` es afirmar lo que el borde se cuidó de no decir: un paciente
+    // inactivo tratado como activo, y un médico que «acepta pacientes nuevos» por
+    // decisión del cliente.
+    expect((await client.patients('/api/ehr', ''))[0].active).toBeNull();
+    expect((await client.doctors('/api/ehr'))[0].acceptingPatients).toBeNull();
+
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ opcionales: 'full' })));
+    client = createClient();
+    expect((await client.patients('/api/ehr', ''))[0].active).toBe(true);
+    expect((await client.doctors('/api/ehr'))[0].acceptingPatients).toBe(true);
   });
 
   it('el tablero del día se normaliza sin `checkedInAhead` (ya no se emite)', async () => {
