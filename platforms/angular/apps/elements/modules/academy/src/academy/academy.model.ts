@@ -550,8 +550,17 @@ export interface CreateCourseRequest {
   readonly modules: readonly string[];
 }
 
-/** `POST /api/academy/course` response — the created course's id + status. */
+/**
+ * `POST /api/academy/course` response — the created course's id + status.
+ *
+ * `persisted` es lo que distingue «el servidor lo creó» de «no se pudo». Una
+ * ESCRITURA no se degrada a mock (regla 4 de `CLAUDE.md`): quien llama tiene que
+ * poder decirle al instructor que su curso NO quedó publicado, en vez de pintarle
+ * un id inventado que no existe en ninguna parte.
+ */
 export interface CreateCourseResult {
   readonly id: string;
   readonly status: CourseStatus;
+  /** `false` cuando el POST no llegó o el servidor no lo confirmó. */
+  readonly persisted: boolean;
 }
