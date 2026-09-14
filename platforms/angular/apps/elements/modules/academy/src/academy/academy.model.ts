@@ -391,11 +391,35 @@ export interface LearningPath {
   readonly percent: number;
 }
 
-/** `GET /api/academy/learning?student=` response — the student's dashboard. */
-export interface LearningResult {
-  readonly enrollments: readonly EnrolledCourse[];
-  readonly paths: readonly LearningPath[];
-}
+/**
+ * `GET /api/academy/learning` — el expediente del alumno.
+ *
+ * **Tres estados y no dos**, porque «no tienes cursos» y «no pudimos leerlos» no se
+ * pueden pintar igual, y el sitio donde vive esa diferencia es el TIPO (regla 15 del
+ * `CLAUDE.md`, escrita con el EHR y aplicada aquí a una colección).
+ *
+ * Con la forma anterior —dos listas y nada más— el estado vacío honesto era
+ * INALCANZABLE: el normalizador devolvía `null` para dos listas vacías y el cliente
+ * lo leía como fallo, así que el alumno recién llegado caía al mock y veía tres
+ * cursos que nunca compró con el cartel de «datos de ejemplo» encendido. El peor
+ * usuario posible para una mentira: el que estrena la pantalla.
+ *
+ * `anon` es su propio estado y no un error: el borde toma al alumno de la SESIÓN
+ * (cerró un IDOR haciéndolo, CMS#102) y contesta 401 al anónimo. Un invitado que ve
+ * cursos de ejemplo cree que tiene matrículas.
+ */
+export type LearningResult =
+  | {
+      readonly status: 'ok';
+      readonly enrollments: readonly EnrolledCourse[];
+      /**
+       * Sale SIEMPRE vacío y es deliberado del borde: una ruta es una colección
+       * curada que no existe en ningún seam. Vacío → la sección no se pinta.
+       */
+      readonly paths: readonly LearningPath[];
+    }
+  | { readonly status: 'anon' }
+  | { readonly status: 'unreadable' };
 
 // ─── Classroom Q&A (polymorphic with Blogs comments) ─────────────────────────
 
@@ -445,7 +469,15 @@ export interface Certificate {
 export interface InstructorCourse {
   readonly id: string;
   readonly title: string;
-  readonly status: CourseStatus;
+  /**
+   * `null` = **no consta**, y no es lo mismo que «publicado».
+   *
+   * El normalizador resolvía `'published'` cuando la clave faltaba, así que la
+   * omisión no degradaba: AFIRMABA. Un borrador se veía publicado en la consola de
+   * quien lo escribió —que es justo quien decide si ya puede promocionarlo—. Es la
+   * regla 15 sobre un enum en vez de sobre una lista.
+   */
+  readonly status: CourseStatus | null;
   readonly price: number;
   readonly currency: string;
   readonly studentCount: number;
@@ -463,7 +495,12 @@ export type CourseStatus = 'published' | 'draft' | 'review';
 export interface InstructorStudent {
   readonly id: string;
   readonly name: string;
-  readonly email: string;
+  /**
+   * **NO hay correo, y es una decisión del TIPO** (CMS#107). El borde dejó de
+   * emitirlo para que dejarlo fuera no fuera una convención que el próximo campo
+   * olvida; aquí se quita por lo mismo. Mientras estuvo, la celda «Alumno» pintaba
+   * una sub-línea vacía debajo de cada nombre.
+   */
   readonly courseId: string;
   readonly courseTitle: string;
   /** Percent complete (0–100). */
@@ -560,7 +597,13 @@ export interface CreateCourseRequest {
  */
 export interface CreateCourseResult {
   readonly id: string;
-  readonly status: CourseStatus;
-  /** `false` cuando el POST no llegó o el servidor no lo confirmó. */
+  /**
+   * `false` cuando el POST no llegó o el servidor no lo confirmó.
+   *
+   * **No hay `status` aquí**: `PublishCourseResponse` emite `{ courseId }` y nada
+   * más, así que el campo salía siempre de un valor por defecto —`'published'`— que
+   * nadie leía. Un campo que nadie lee y que afirma algo que el borde no dijo es la
+   * próxima mentira esperando a que alguien lo pinte.
+   */
   readonly persisted: boolean;
 }

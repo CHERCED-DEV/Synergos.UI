@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Dieciséis reglas que costaron caro y no se deducen leyendo el código:**
+**Diecisiete reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -250,3 +250,19 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    servidor entero caído, los specs del camino bueno tienen que ponerse ROJOS (acá 14 de 22).
    Es el complemento de la regla 10: allá el fixture describe un servidor que no existe, acá
    **no hay servidor ninguno** (CHERCED-DEV/Synergos.CMS#106).
+17. **Un normalizador que confunde VACÍO con MALFORMADO deja el fallback como único
+   camino del usuario que estrena la pantalla.** `normalizeLearning` devolvía `null`
+   cuando las dos listas venían vacías —o sea cuando el servidor contestaba bien «no
+   tienes matrículas»—, y el `catch` de arriba servía `mockLearning()`: el alumno
+   **nuevo** era el único al que la respuesta correcta le llegaba vacía, así que era el
+   único que veía tres cursos que no compró. Nadie lo reportó porque quien sí tiene
+   cursos no pasa nunca por esa rama, y el cartel de «datos de ejemplo» llevaba tanto
+   encendido que ya no lo leía nadie. **Vacío no es malformado**: se rechaza lo que no
+   tiene la FORMA del contrato (`enrollments` que no es un array) y se acepta `[]`. Y el
+   estado vacío se prueba con un servidor que **responda vacío** — es la regla 16 del
+   lado del producto: si el único camino hasta «no hay nada» es el `catch`, «no hay
+   nada» no existe. Dónde vive la diferencia sigue siendo el TIPO (regla 15): tres
+   estados —`ok` · `anon` · `unreadable`— y no dos listas, porque **un 401 tampoco es un
+   error que se pinte como hueco**: el borde toma al alumno de la sesión y a un invitado
+   que ve cursos de ejemplo le estás diciendo que tiene matrículas
+   (CHERCED-DEV/Synergos.CMS#102).

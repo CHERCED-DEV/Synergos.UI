@@ -645,19 +645,39 @@
       <section class="academy__learning">
         <div class="academy__learning-head">
           <h1 class="academy__heading">Mi aprendizaje</h1>
-          <button type="button" class="academy__link" (click)="reloadLearning()">Actualizar</button>
+          @if (learningState() !== 'anon') {
+            <button type="button" class="academy__link" (click)="reloadLearning()">Actualizar</button>
+          }
         </div>
+        <!-- Un 401 NO es un fallo que se pinte como hueco: es «hay que entrar», y
+             volver a pedirlo no lo arregla. Misma doctrina que la consola del
+             instructor, que ya distinguía 401 de 403 (#17). Un invitado que viera
+             cursos de ejemplo creería que tiene matrículas. -->
+        @if (learningState() === 'anon') {
+          <section class="academy__access" role="status">
+            <h2 class="academy__heading">Inicia sesión para ver tus cursos</h2>
+            <p class="academy__notice">
+              «Mi aprendizaje» es tu expediente académico: sólo lo mostramos con la sesión
+              iniciada. Si acabas de inscribirte como invitado, guarda tu número de
+              inscripción — aparecerá aquí en cuanto entres con tu correo.
+            </p>
+            <a class="academy__btn academy__btn--primary" href="/account/login">Iniciar sesión</a>
+          </section>
+        } @else {
         <syn-account-shell
           [config]="accountConfig()"
           [items]="enrollments()"
-          [loading]="loading()"
+          [loading]="loading() || learningState() === 'loading'"
           [section]="accountSection()"
           [itemTemplate]="enrollmentRow"
           [detailTemplate]="enrollmentDetail"
           [sectionTemplate]="learningSection"
           (sectionchange)="onAccountSectionChange($event)"
           (itemselect)="onEnrollmentSelect($event)"
+          (retry)="reloadLearning()"
+          (emptyAction)="goToCatalog()"
         />
+        }
 
         <ng-template #enrollmentRow let-enrollment>
           <span class="academy__enroll-head">
@@ -695,10 +715,9 @@
 
         <ng-template #learningSection let-section>
           @switch (section.id) {
+            <!-- La sección sólo se ofrece cuando HAY rutas (ver `accountConfig`), así
+                 que aquí no hay rama vacía: no existiría una en la que caer. -->
             @case ('paths') {
-              @if (paths().length === 0) {
-                <p class="academy__empty">Todavía no sigues ninguna ruta de aprendizaje.</p>
-              } @else {
                 <ul class="academy__paths">
                   @for (path of paths(); track path.id) {
                     <li class="academy__path">
@@ -718,7 +737,6 @@
                     </li>
                   }
                 </ul>
-              }
             }
           }
         </ng-template>
@@ -888,7 +906,9 @@
             @case ('students') { {{ formatCount(row.studentCount) }} }
             @case ('rating') { @if (row.rating > 0) { {{ row.rating.toFixed(1) }} <svg class="academy__star" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.85 6.2 20.36l1.11-6.46-4.7-4.58 6.49-.94z"/></svg> } @else { — } }
             @case ('revenue') { {{ formatPrice(row.revenue, currency()) }} }
-            @case ('name') { <span class="academy__cell-strong">{{ row.name }}</span><span class="academy__cell-sub">{{ row.email }}</span> }
+            <!-- Sin sub-línea de correo: el borde dejó de emitirlo (CMS#107) y esto
+                 pintaba un hueco debajo de cada nombre. -->
+            @case ('name') { <span class="academy__cell-strong">{{ row.name }}</span> }
             @case ('course') { {{ row.courseTitle }}@if (row.lessonTitle) { <span class="academy__cell-sub">{{ row.lessonTitle }}</span> } }
             @case ('progress') { {{ row.percent }}% }
             @case ('enrolledAt') { {{ row.enrolledAt }} }
