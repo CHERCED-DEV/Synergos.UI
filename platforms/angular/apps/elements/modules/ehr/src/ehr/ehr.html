@@ -824,10 +824,19 @@
     <p class="ehr__thread-with">con {{ thread.participant }}</p>
     <ul class="ehr__thread-msgs">
       @for (message of thread.messages; track trackString($index, message.id)) {
-        <li class="ehr__msg" [class.is-out]="message.outgoing">
+        <li class="ehr__msg" [class.is-out]="message.outgoing" [class.is-failed]="message.failed">
           <span class="ehr__msg-author">{{ message.author }}</span>
           <span class="ehr__msg-body">{{ message.body }}</span>
-          <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
+          <!-- Un mensaje que no llegó NO lleva hora de envío: sería el acuse que no
+               existe. Lleva su marca y su reintento, y el texto no se pierde (#111). -->
+          @if (message.failed) {
+            <span class="ehr__msg-failed">
+              No enviado
+              <button type="button" class="ehr__msg-retry" (click)="retryMessage(thread, message)">Reintentar</button>
+            </span>
+          } @else {
+            <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
+          }
         </li>
       }
     </ul>

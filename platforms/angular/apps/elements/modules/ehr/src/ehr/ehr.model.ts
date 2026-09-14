@@ -380,6 +380,15 @@ export interface ClinicalMessage {
   readonly createdAtUtc: string;
   /** True when sent by the current viewer (right-aligned bubble). */
   readonly outgoing: boolean;
+  /**
+   * `true` sólo cuando el envío **no llegó al servidor** (#111). Ausente es lo
+   * normal: lo que viene del servidor está, por definición, entregado.
+   *
+   * El mensaje se queda en el hilo en vez de desaparecer —lo tecleado no se
+   * pierde— pero **marcado**: una burbuja sin marca es un acuse, y aquí no hay
+   * nada que acusar. Se reintenta desde ahí.
+   */
+  readonly failed?: boolean;
 }
 
 /** A bidirectional conversation between the patient and the care team. */
@@ -456,6 +465,15 @@ export interface AppointmentSelectionPayload {
   readonly mode: 'in-person' | 'video';
   /** Copay in minor units (0 = pago OFF for this visit type). */
   readonly copayMinor: number;
+  /**
+   * Base del borde clínico, para que `confirm` pueda RESERVAR de verdad (#111).
+   *
+   * Viaja con la selección porque `IFulfillmentStrategy.confirm(session)` sólo
+   * recibe la sesión: el instrumento es del paso de pago, y la reserva ocurre
+   * después. Es la misma costura por la que `Bff.*` pasa `apiBase` en el
+   * instrumento de `pay`.
+   */
+  readonly apiBase: string;
 }
 
 // ─── API response shapes (mirror the backend contract) ───────────────────────────

@@ -36,6 +36,25 @@ export class EhrUnavailableError extends Error {
 }
 
 /**
+ * Una ESCRITURA clínica que no llegó al servidor.
+ *
+ * Existe porque hasta CHERCED-DEV/Synergos.CMS#111 estas cinco devolvían el valor
+ * optimista del llamador: la pantalla confirmaba un encuentro, una receta o una
+ * renovación **que el servidor no tiene**. Es la regla 4 —degradar una LECTURA no
+ * miente; degradar una ESCRITURA sí— y la 9 —un `catch` que degrada tapa que la
+ * llamada NUNCA funcionó—, sobre una receta.
+ */
+export class EhrWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`EHR write "${endpoint}" did not reach the server.`);
+    this.name = 'EhrWriteFailedError';
+  }
+}
+
+/**
  * Thin HTTP client over the Healthcare EHR backend contract (provided by the backend
  * agent in parallel). Programs against:
  *
@@ -74,8 +93,9 @@ export class EhrUnavailableError extends Error {
  * someone decides a prescription against, so the only honest answer to «no lo pude
  * leer» is nothing at all, said out loud.
  *
- * Writes still take a caller-supplied optimistic `fallback` — that is a separate
- * defect of the same family (rule 4 / rule 9) and is deliberately out of this change.
+ * **Y una ESCRITURA que no llega LANZA también** (#111). Las cinco —cita, encuentro,
+ * receta, renovación y mensaje— devolvían el valor optimista del llamador, así que la
+ * pantalla confirmaba lo que el servidor no tenía. Ninguna lo hace ya.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -148,11 +168,19 @@ export class EhrApiClient {
     }
   }
 
-  /** `POST /api/ehr/appointment` — books a slot (optimistic on the caller side). */
+  /**
+   * `POST /api/ehr/appointment` — reserva el hueco. **La cita que devuelve es la del
+   * SERVIDOR**, con su id; si no llega, lanza.
+   *
+   * Y hasta #111 no la llamaba NADIE: el comprobante «CITA-…» lo acuñaba la
+   * estrategia de fulfillment en local y la cita se añadía a «mis citas» sin salir
+   * del navegador. El paciente anotaba un número que no existe en ninguna parte y se
+   * presentaba a una hora que el consultorio no tenía apartada. Un método sin
+   * llamador no se prueba llamándolo (regla 5).
+   */
   async bookAppointment(
     apiBase: string,
     body: { patientId: string; doctorId: string; slot: { date: string; time: string } },
-    fallback: Appointment,
   ): Promise<Appointment> {
     const url = `${apiBase}/appointment`;
     try {
@@ -163,16 +191,14 @@ export class EhrApiClient {
       }
       throw new Error('appointment-shape');
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/appointment', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/appointment', error);
     }
   }
 
-  /** `POST /api/ehr/encounter` — saves a SOAP note (optimistic on the caller side). */
+  /** `POST /api/ehr/encounter` — guarda la nota SOAP. Lanza si no llega. */
   async saveEncounter(
     apiBase: string,
     body: { patientId: string; soap: SoapNote },
-    fallback: Encounter,
   ): Promise<Encounter> {
     const url = `${apiBase}/encounter`;
     try {
@@ -183,16 +209,14 @@ export class EhrApiClient {
       }
       throw new Error('encounter-shape');
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/encounter', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/encounter', error);
     }
   }
 
-  /** `POST /api/ehr/prescription` — issues an Rx (optimistic on the caller side). */
+  /** `POST /api/ehr/prescription` — emite la receta. Lanza si no llega. */
   async savePrescription(
     apiBase: string,
     body: { patientId: string; items: readonly PrescriptionItem[] },
-    fallback: Prescription,
   ): Promise<Prescription> {
     const url = `${apiBase}/prescription`;
     try {
@@ -203,8 +227,7 @@ export class EhrApiClient {
       }
       throw new Error('prescription-shape');
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/prescription', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/prescription', error);
     }
   }
 
@@ -256,11 +279,10 @@ export class EhrApiClient {
     }
   }
 
-  /** `POST /api/ehr/refill` — request a refill; returns the new status (optimistic). */
+  /** `POST /api/ehr/refill` — pide la renovación; devuelve el estado del servidor. */
   async requestRefill(
     apiBase: string,
     body: { medicationId: string; patientId: string },
-    fallback: RefillStatus,
   ): Promise<RefillStatus> {
     const url = `${apiBase}/refill`;
     try {
@@ -271,8 +293,7 @@ export class EhrApiClient {
       }
       throw new Error('refill-shape');
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/refill', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/refill', error);
     }
   }
 
@@ -324,18 +345,16 @@ export class EhrApiClient {
     }
   }
 
-  /** `POST /api/ehr/message` — send a message (fire-and-forget; optimistic caller). */
+  /** `POST /api/ehr/message` — manda el mensaje. Lanza si no llega. */
   async sendMessage(
     apiBase: string,
     body: { threadId: string; body: string; user: string },
-  ): Promise<boolean> {
+  ): Promise<void> {
     const url = `${apiBase}/message`;
     try {
       await this.postJson(url, body);
-      return true;
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/message', error);
-      return false;
+      this.writeFailed('POST /api/ehr/message', error);
     }
   }
 
@@ -354,18 +373,16 @@ export class EhrApiClient {
     }
   }
 
-  /** `POST /api/ehr/order` — place an order / e-Rx (stub; ok flag). */
+  /** `POST /api/ehr/order` — cursa la orden / e-Rx. Lanza si no llega. */
   async placeOrder(
     apiBase: string,
     body: { patientId: string; kind: string; detail: string },
-  ): Promise<boolean> {
+  ): Promise<void> {
     const url = `${apiBase}/order`;
     try {
       await this.postJson(url, body);
-      return true;
     } catch (error) {
-      this.logWriteFallback('POST /api/ehr/order', error);
-      return false;
+      this.writeFailed('POST /api/ehr/order', error);
     }
   }
 
@@ -422,15 +439,21 @@ export class EhrApiClient {
   }
 
   /**
-   * A WRITE that did not reach the server and answered with the caller's optimistic
-   * value. This is the rule-4 lie («degradar una ESCRITURA sí miente») and it is
-   * knowingly left standing by #106, whose floor is reads: every write in this app is
-   * gated behind a read that succeeded (no chart → no encounter, no medication list →
-   * no refill), so in the 404-everything deployment that motivated #106 none of these
-   * branches is reachable. A partial outage still reaches them — that is its own ticket.
+   * Una ESCRITURA que no llegó al servidor. **Lanza; no devuelve nada optimista.**
+   *
+   * #106 dejó esto en pie a sabiendas —su piso eran las lecturas, y con las lecturas
+   * honestas ninguna de estas ramas es alcanzable en un apagón TOTAL, porque toda
+   * escritura está detrás de una lectura que funcionó—. Lo que las alcanza es un
+   * apagón PARCIAL, y eso las hacía menos urgentes, no menos falsas (#111).
+   *
+   * Quien llama decide qué hacer, y no es la misma respuesta que para una lectura:
+   * una lectura ilegible se pinta como hueco y ya; una escritura que no llegó deja a
+   * alguien con el texto escrito y sin saber si existe. El piso es **no confirmar lo
+   * que no se guardó**, y lo tecleado no se pierde.
    */
-  private logWriteFallback(endpoint: string, error: unknown): void {
-    this.#logger.warn(`EHR API "${endpoint}" unavailable — optimistic value kept.`, error);
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`EHR API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new EhrWriteFailedError(endpoint, error);
   }
 }
 

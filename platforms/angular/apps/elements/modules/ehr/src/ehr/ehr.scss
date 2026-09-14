@@ -1168,11 +1168,36 @@
       align-self: flex-end;
       background: var(--eh-brand-soft);
     }
+
+    /* El que no llegó no se ve como el que sí: una burbuja igual es un acuse. */
+    &.is-failed {
+      background: var(--eh-danger-soft);
+      border: syn.px-to-rem(1) solid var(--eh-danger);
+    }
   }
 
   &__msg-author { font-size: syn.$font-size-xs; font-weight: syn.$font-weight-semibold; color: var(--eh-text-secondary); }
   &__msg-body { font-size: syn.$font-size-sm; }
   &__msg-time { font-size: syn.$font-size-xs; color: var(--eh-muted); }
+
+  &__msg-failed {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--eh-danger);
+  }
+
+  &__msg-retry {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
   /* ─── Responsive ─────────────────────────────────────────────────────────── */
   @media (max-width: #{syn.px-to-rem(760)}) {
