@@ -9,7 +9,8 @@
  *
  * Pure TS (no Angular imports) so it can be shared, serialised, and unit-tested.
  * 100% composable: nothing here is siteRoot-specific — every clinical fact comes from
- * the API (with visible mock degradation), every label/copy comes from the shell config.
+ * the API — and a read that fails leaves a gap with the error in view, never another
+ * patient's record (#106) —, every label/copy comes from the shell config.
  */
 
 // ─── Role & routing (dual portal, role-switch) ───────────────────────────────────
@@ -41,6 +42,28 @@ export type EhrView =
   | 'inbasket'
   | 'chart'
   | 'encounter';
+
+/**
+ * The reads this app makes, as addressable names.
+ *
+ * A clinical read that FAILS leaves its signal at its pristine value, which on its
+ * own is indistinguishable from «the server answered, and there is nothing». The
+ * view has to tell the two apart, so the container records which reads failed and
+ * the template asks by name.
+ */
+export type EhrDataset =
+  | 'home'
+  | 'appointments'
+  | 'results'
+  | 'medications'
+  | 'health'
+  | 'billing'
+  | 'threads'
+  | 'board'
+  | 'patients'
+  | 'inbox'
+  | 'chart'
+  | 'doctors';
 
 /** Tabs inside the clinician patient-chart workspace. */
 export type ChartTab = 'summary' | 'history' | 'results' | 'medications' | 'evolution';
@@ -286,28 +309,45 @@ export interface Medication {
   readonly refillStatus: RefillStatus | null;
 }
 
+/** Where a preventive-care / immunization item stands. `null` = **no consta**. */
+export type CareStatus = 'complete' | 'due' | 'overdue';
+
 /** A verifiable immunization record on the health summary. */
 export interface Immunization {
   readonly id: string;
   readonly name: string;
   readonly date: string;
-  readonly status: 'complete' | 'due' | 'overdue';
+  readonly status: CareStatus;
 }
 
-/** A preventive-care gap on the health maintenance panel. */
+/**
+ * A preventive-care recommendation on the health maintenance panel.
+ *
+ * `status` is **nullable on purpose**: the recommendation itself derives from real
+ * data (age + sex), but whether the person already had it done needs a seam that
+ * does not exist. `null` means *no consta* — never render it as «al día».
+ */
 export interface HealthMaintenanceItem {
   readonly id: string;
   readonly name: string;
   readonly detail: string;
-  readonly status: 'complete' | 'due' | 'overdue';
+  readonly status: CareStatus | null;
   readonly dueDate: string;
 }
 
-/** `GET /api/ehr/results?patient=` (patient) — the health record aggregate. */
+/**
+ * `GET /api/ehr/health?patient=` — the health record aggregate.
+ *
+ * `immunizations` is `readonly Immunization[] | null`, and the difference is the
+ * whole point: `[]` says «this person has no vaccines recorded»; `null` says
+ * «there is no vaccination registry to read». The backend stopped emitting the key
+ * (CHERCED-DEV/Synergos.CMS#106) because there is no immunization seam — an empty
+ * list there would be the UI asserting a clinical fact nobody established.
+ */
 export interface HealthSummary {
   readonly conditions: readonly string[];
   readonly allergies: readonly string[];
-  readonly immunizations: readonly Immunization[];
+  readonly immunizations: readonly Immunization[] | null;
   readonly maintenance: readonly HealthMaintenanceItem[];
 }
 
@@ -384,8 +424,6 @@ export interface ScheduleSlot {
   readonly reason: string;
   readonly type: 'in-person' | 'video';
   readonly state: ScheduleState;
-  /** Whether the patient completed e-Check-In ahead of the visit. */
-  readonly checkedInAhead: boolean;
 }
 
 // ─── Tracking (SH-4 tracking-timeline) ───────────────────────────────────────────
