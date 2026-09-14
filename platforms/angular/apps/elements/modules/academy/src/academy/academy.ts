@@ -97,6 +97,7 @@ import {
   type ModerationDecision,
   type ModerationItem,
   type LearningPath,
+  type LearningResult,
   type LessonQuestion,
 } from './academy.model';
 
@@ -395,10 +396,30 @@ export class AcademyElementComponent {
   readonly submissions = signal<Readonly<Record<string, AssignmentSubmission>>>({});
 
   // Mi aprendizaje (SH-4 account)
-  readonly enrollments = signal<readonly EnrolledCourse[]>([]);
-  readonly paths = signal<readonly LearningPath[]>([]);
+  //
+  // El expediente entero vive en UNA señal con su estado, no en dos listas: «no
+  // tienes cursos», «no pudimos leerlo» y «no has iniciado sesión» son tres
+  // pantallas distintas y con dos listas vacías las tres se ven igual (regla 15).
+  // `null` = todavía no se ha pedido.
+  readonly learning = signal<LearningResult | null>(null);
   readonly learningLoaded = signal(false);
   readonly accountSection = signal<'courses' | 'paths'>('courses');
+
+  /** Las matrículas LEÍDAS. Vacío aquí significa vacío sólo cuando `status` es `ok`. */
+  readonly enrollments = computed<readonly EnrolledCourse[]>(() => {
+    const result = this.learning();
+    return result?.status === 'ok' ? result.enrollments : [];
+  });
+
+  readonly paths = computed<readonly LearningPath[]>(() => {
+    const result = this.learning();
+    return result?.status === 'ok' ? result.paths : [];
+  });
+
+  /** `anon` pide sesión; `unreadable` lo dice; `ok` pinta el expediente. */
+  readonly learningState = computed<'loading' | 'ok' | 'anon' | 'unreadable'>(
+    () => this.learning()?.status ?? 'loading',
+  );
 
   // Certificate (SH-10 wallet)
   readonly certificate = signal<Certificate | null>(null);
@@ -585,17 +606,36 @@ export class AcademyElementComponent {
   }));
 
   // ─── Mi aprendizaje (SH-4 account) ────────────────────────────────────────────
-  readonly accountConfig = computed<AccountShellConfig>(() => ({
-    heading: 'Mi aprendizaje',
-    navLabel: 'Secciones de mi aprendizaje',
-    inboxEmptyMessage: 'Todavía no te has inscrito a ningún curso.',
-    inboxLoadingMessage: 'Cargando tus cursos…',
-    detailPlaceholder: 'Selecciona un curso para ver tu progreso y continuar.',
-    sections: [
-      { id: 'courses', label: 'Mis cursos', kind: 'inbox', badge: this.enrollments().length || undefined },
-      { id: 'paths', label: 'Rutas de aprendizaje', kind: 'custom', badge: this.paths().length || undefined },
-    ],
-  }));
+  readonly accountConfig = computed<AccountShellConfig>(() => {
+    const unreadable = this.learningState() === 'unreadable';
+    return {
+      heading: 'Mi aprendizaje',
+      navLabel: 'Secciones de mi aprendizaje',
+      // El vacío HONESTO, que antes era inalcanzable: sin matrículas se caía al
+      // mock y el alumno nuevo veía tres cursos que no compró.
+      inboxEmptyTitle: 'Todavía no te has inscrito a ningún curso',
+      inboxEmptyMessage: 'Cuando te matricules, tus cursos y tu avance aparecerán aquí.',
+      inboxEmptyActionLabel: 'Explorar el catálogo',
+      inboxLoadingMessage: 'Cargando tus cursos…',
+      detailPlaceholder: 'Selecciona un curso para ver tu progreso y continuar.',
+      // Y el ILEGIBLE, que no se puede ver igual: una lista vacía aquí diría «no
+      // tienes matrículas» cuando la verdad es «no pudimos leer tu expediente».
+      errorTitle: unreadable ? 'No pudimos leer tu aprendizaje' : undefined,
+      errorMessage: unreadable
+        ? 'Que esto esté vacío no quiere decir que no tengas cursos: no pudimos leer tu expediente.'
+        : undefined,
+      sections: [
+        { id: 'courses', label: 'Mis cursos', kind: 'inbox', badge: this.enrollments().length || undefined },
+        // La sección de rutas sólo existe si hay rutas. El borde las devuelve
+        // SIEMPRE vacías a propósito —no hay seam del que sacarlas— y pintar
+        // «todavía no sigues ninguna ruta» convierte «esto no existe» en «no has
+        // empezado». Es la lista vacía que afirma, de la regla 15.
+        ...(this.paths().length > 0
+          ? [{ id: 'paths', label: 'Rutas de aprendizaje', kind: 'custom' as const, badge: this.paths().length }]
+          : []),
+      ],
+    };
+  });
 
   readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
 
@@ -726,10 +766,11 @@ export class AcademyElementComponent {
     if (!term) {
       return list;
     }
+    // Sin correo: el borde ya no lo emite (CMS#107), así que filtrar por él sólo
+    // podía dejar de encontrar a gente.
     return list.filter(
       (student) =>
         student.name.toLowerCase().includes(term) ||
-        student.email.toLowerCase().includes(term) ||
         student.courseTitle.toLowerCase().includes(term),
     );
   });
@@ -1294,7 +1335,7 @@ export class AcademyElementComponent {
     this.#bus.publish('enrolled', payload);
     // Seed "mi aprendizaje" and prime classroom state.
     this.recordEnrollment(courseId, enrollmentId);
-    void this.loadProgress(courseId, this.studentEmail().trim());
+    void this.loadProgress(courseId);
   }
 
   private recordEnrollment(courseId: string, enrollmentId: string): void {
@@ -1330,9 +1371,9 @@ export class AcademyElementComponent {
     this.navigate('classroom');
   }
 
-  private async loadProgress(courseId: string, student: string): Promise<void> {
+  private async loadProgress(courseId: string): Promise<void> {
     try {
-      const progress = await this.#api.progress(this.apiBase(), courseId, student);
+      const progress = await this.#api.progress(this.apiBase(), courseId);
       this.completedLessonIds.set(progress.completedLessonIds);
       this.progressPercent.set(progress.percent);
     } catch (error) {
@@ -1396,13 +1437,11 @@ export class AcademyElementComponent {
     this.#api.updateEnrollmentProgress(this.enrolledCourseId(), optimisticPercent, next.length);
 
     const courseId = this.enrolledCourseId();
-    const student = this.studentEmail().trim();
     try {
       const update = await this.#api.markComplete(
         this.apiBase(),
         courseId,
         lesson.id,
-        student,
         optimisticPercent,
       );
       this.progressPercent.set(update.percent);
@@ -1455,19 +1494,25 @@ export class AcademyElementComponent {
   }
 
   // ─── Mi aprendizaje (SH-4 account) ────────────────────────────────────────────
+  /**
+   * **Sin `?student=`.** El borde toma al alumno de la sesión; mandarle un correo
+   * era, además de inútil, el TECLEADO en el checkout mientras el aula escribe el
+   * progreso con el del gate — dos expedientes para la misma persona.
+   */
   private loadLearning(): void {
     if (this.learningLoaded()) {
       return;
     }
-    const student = this.studentEmail().trim() || 'invitado@synergos.academy';
-    void this.#api.learning(this.apiBase(), student, this.currency()).then((result) => {
-      this.enrollments.set(result.enrollments);
-      this.paths.set(result.paths);
+    void this.#api.learning(this.apiBase(), this.currency()).then((result) => {
+      this.learning.set(result);
       this.learningLoaded.set(true);
     });
   }
 
   reloadLearning(): void {
+    // A `null` y no a la lista vieja: mientras se relee, la pantalla dice «cargando»
+    // y no «no tienes cursos».
+    this.learning.set(null);
     this.learningLoaded.set(false);
     this.loadLearning();
   }
@@ -1541,7 +1586,7 @@ export class AcademyElementComponent {
 
   private async loadCertificate(): Promise<void> {
     const courseId = this.enrolledCourseId();
-    const cert = await this.#api.certificate(this.apiBase(), courseId, this.studentEmail().trim());
+    const cert = await this.#api.certificate(this.apiBase(), courseId);
     this.certificate.set(cert);
     if (!cert) {
       // Sin credencial no se anuncia una: `certified` es lo que el host escucha para
@@ -1936,14 +1981,17 @@ export class AcademyElementComponent {
     };
   }
 
+  /** `null` = no consta. «Publicado» era el `default`, o sea la ausencia afirmando. */
   courseStatusLabel(status: InstructorCourse['status']): string {
     switch (status) {
       case 'draft':
         return 'Borrador';
       case 'review':
         return 'En revisión';
-      default:
+      case 'published':
         return 'Publicado';
+      default:
+        return 'Sin estado';
     }
   }
 

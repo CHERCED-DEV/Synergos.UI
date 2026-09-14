@@ -25,6 +25,59 @@ function installMemoryStorage(): Map<string, string> {
 }
 
 /**
+ * Un `fetch` que contesta **sólo** `GET /api/academy/learning` y deja caer el resto
+ * (el catálogo tiene su mock declarado y no es lo que se prueba aquí).
+ *
+ * Existe por la regla 16: con todos los specs stubeando la red para que falle, el
+ * sistema bajo prueba es el fallback — y el defecto de #102 era justamente que el
+ * camino BUENO con la respuesta VACÍA no se podía alcanzar.
+ */
+function bordeConAprendizaje(
+  learning: { status: number; body?: unknown },
+  urls: string[] = [],
+): (url: string) => Promise<Response> {
+  return (url: string) => {
+    urls.push(String(url));
+    if (!String(url).includes('/learning')) {
+      return Promise.reject(new Error('offline'));
+    }
+    return Promise.resolve({
+      ok: learning.status >= 200 && learning.status < 300,
+      status: learning.status,
+      json: () => Promise.resolve(learning.body ?? {}),
+    } as Response);
+  };
+}
+
+/** Una matrícula con la forma que emite `EnrolledCourseDto`. */
+function matriculaServidor(): Record<string, unknown> {
+  return {
+    enrollmentId: 'ENR-SRV-1',
+    course: {
+      id: 'C-SERVIDOR',
+      title: 'Curso que SÍ compró',
+      subtitle: 'El que devuelve el borde',
+      amount: 0,
+      currency: 'COP',
+      category: 'Desarrollo',
+      level: 'beginner',
+      durationMinutes: 60,
+      lessonCount: 10,
+      rating: 0,
+      studentCount: 1,
+      instructorName: 'Quien sea',
+      cover: '',
+      badges: [],
+    },
+    percent: 30,
+    lessonCount: 10,
+    completedCount: 3,
+    lastActivityAt: '2026-09-01',
+    completed: false,
+  };
+}
+
+/**
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
  * yield to real timers between microtask drains to let each hop resolve.
  */
@@ -190,17 +243,137 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(component.hasActiveFilters()).toBe(true);
   });
 
-  // ── mi aprendizaje (SH-4): the account shell lists enrolments + paths ─────────
-  it('loads "mi aprendizaje" (SH-4) with enrolments and learning paths', async () => {
+  // ── mi aprendizaje (SH-4): el expediente que SÍ viene del borde ──────────────
+  it('loads "mi aprendizaje" (SH-4) con lo que devuelve el borde', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [matriculaServidor()], paths: [] } })),
+    );
     await createComponent();
 
     component.goToLearning();
     await flushMicrotasks();
     expect(component.view()).toBe('learning');
-    expect(component.enrollments().length).toBeGreaterThan(0);
-    expect(component.paths().length).toBeGreaterThan(0);
+    expect(component.learningState()).toBe('ok');
+    expect(component.enrollments().map((entry) => entry.course.title)).toEqual([
+      'Curso que SÍ compró',
+    ]);
+    // `paths` sale SIEMPRE vacío por decisión del borde, así que la sección no se
+    // ofrece: «no existe» no se pinta como «no has empezado ninguna».
+    expect(component.paths()).toEqual([]);
+    expect(component.accountConfig().sections.map((section) => section.id)).toEqual(['courses']);
+  });
+
+  // ══ #102 · EL VACÍO HONESTO, QUE ERA INALCANZABLE ═══════════════════════════
+
+  it('un alumno SIN matrículas ve el vacío honesto, no tres cursos que no compró', async () => {
+    installMemoryStorage();
+    // La respuesta CORRECTA de un alumno nuevo: dos listas vacías, 200.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [], paths: [] } })),
+    );
+    await createComponent();
+
+    component.goToLearning();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.learningState()).toBe('ok');
+    expect(component.enrollments()).toEqual([]);
+
+    const texto: string = fixture.nativeElement.textContent ?? '';
+    expect(texto).toContain('Todavía no te has inscrito a ningún curso');
+    // Lo que veía el que estrenaba la pantalla: el expediente de ejemplo.
+    expect(texto).not.toContain('Ruta Full-Stack Developer');
+    expect(texto).not.toContain('Última actividad');
+    expect(texto).not.toContain('64%');
+  });
+
+  it('sin sesión NO enseña cursos de ejemplo: pide iniciar sesión', async () => {
+    installMemoryStorage();
+    // El borde toma al alumno de la sesión desde que cerró el IDOR: el anónimo es 401.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 401, body: { error: 'Se requiere iniciar sesión.' } })),
+    );
+    await createComponent();
+
+    component.goToLearning();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.learningState()).toBe('anon');
+    expect(component.enrollments()).toEqual([]);
+
+    const texto: string = fixture.nativeElement.textContent ?? '';
+    expect(texto).toContain('Inicia sesión para ver tus cursos');
+    // Un invitado que ve cursos de ejemplo cree que tiene matrículas.
+    expect(texto).not.toContain('Ruta Full-Stack Developer');
+    expect(texto).not.toContain('Todavía no te has inscrito');
+    // Y no se le ofrece reintentar: volver a pedirlo no cambia que no hay sesión.
+    expect(texto).not.toContain('Actualizar');
+  });
+
+  it('el expediente ILEGIBLE no se lee como «no tienes cursos»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(bordeConAprendizaje({ status: 500, body: { error: 'boom' } })));
+    await createComponent();
+
+    component.goToLearning();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.learningState()).toBe('unreadable');
+
+    const texto: string = fixture.nativeElement.textContent ?? '';
+    expect(texto).toContain('No pudimos leer tu aprendizaje');
+    // Las dos frases que serían MENTIRA: no tienes cursos, y aquí están tres.
+    expect(texto).not.toContain('Todavía no te has inscrito');
+    expect(texto).not.toContain('Ruta Full-Stack Developer');
+  });
+
+  it('no manda el `?student=` que el borde ya ignora', async () => {
+    installMemoryStorage();
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [], paths: [] } }, urls)),
+    );
+    await createComponent();
+
+    // El correo TECLEADO en el checkout, que es justo el que se mandaba —mientras el
+    // aula escribe el progreso con el del gate—.
+    component.studentEmail.set('otro-distinto@example.com');
+    component.goToLearning();
+    await flushMicrotasks();
+
+    const pedidas = urls.filter((url) => url.includes('/learning'));
+    expect(pedidas.length).toBeGreaterThan(0);
+    expect(pedidas.every((url) => url.endsWith('/learning'))).toBe(true);
+    expect(pedidas.some((url) => url.includes('student='))).toBe(false);
+    expect(pedidas.some((url) => url.includes('otro-distinto'))).toBe(false);
+    expect(pedidas.some((url) => url.includes('invitado%40synergos.academy'))).toBe(false);
+  });
+
+  it('la celda «Alumno» no pinta la sub-línea vacía del correo (#107)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.setRole('instructor');
+    await flushMicrotasks();
+    component.onInstructorSectionChange('students');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.consoleRows().length).toBeGreaterThan(0);
+    // En la sección de alumnos ninguna celda tiene sub-línea: la de «course» sólo la
+    // pinta con `lessonTitle` (que es de Q&A). Con el `{{ row.email }}` puesto, aquí
+    // sale un `<span>` vacío por fila.
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.querySelectorAll('.academy__cell-sub').length).toBe(0);
   });
 
   // ── instructor console (SH-5): desk loads cursos + alumnos + Q&A ──────────────
@@ -728,7 +901,7 @@ describe('AcademyApiClient', () => {
     );
     const client = createClient();
 
-    const cert = await client.certificate('/api/academy', 'C1', 'ada@b.co');
+    const cert = await client.certificate('/api/academy', 'C1');
     expect(client.degraded).toBe(false);
     expect(cert?.id).toBe('CERT-SELLADO-1');
     expect(cert?.verifyUrl).toBe('https://synergos.test/academy/verify/CERT-SELLADO-1');
@@ -740,7 +913,7 @@ describe('AcademyApiClient', () => {
 
     // Un catálogo de ejemplo es una demo; una credencial de ejemplo es una prueba
     // falsa: se imprime igual que una real y viaja sin el cartel de la página.
-    expect(await client.certificate('/api/academy', 'C1', 'ada@b.co')).toBeNull();
+    expect(await client.certificate('/api/academy', 'C1')).toBeNull();
     expect(client.degraded).toBe(true);
   });
 
@@ -760,11 +933,62 @@ describe('AcademyApiClient', () => {
     // Había un fallback que INVENTABA la URL a partir del id. Una credencial que no
     // se puede verificar, pintada con el sello «Verificable», no es un dato
     // incompleto: es una prueba falsa.
-    expect(await client.certificate('/api/academy', 'C1', 'ada@b.co')).toBeNull();
+    expect(await client.certificate('/api/academy', 'C1')).toBeNull();
   });
 
-  it('degrades "mi aprendizaje" and folds an in-session enrolment', async () => {
+  it('«más recientes» del catálogo de ejemplo ordena por FECHA, no al revés', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    const result = await client.courses(
+      '/api/academy',
+      { q: '', category: '', level: '', price: '', sort: 'newest' },
+      'COP',
+    );
+
+    // La regla del servidor: fecha desc · empate por título · «no consta» al final.
+    // `copy.reverse()` daba [6,5,4,3,2,1] — un orden que no es el que el desplegable
+    // promete, o sea un mock que describe un servidor que no existe (regla 10).
+    expect(result.courses.map((course) => course.id)).toEqual([
+      'CMOCK-6', // 2026-07-18, empata con CMOCK-2 y gana por título
+      'CMOCK-2', // 2026-07-18
+      'CMOCK-1', // 2026-05-10
+      'CMOCK-4', // 2026-03-02
+      'CMOCK-3', // 2026-02-02
+      'CMOCK-5', // sin fecha → al final
+    ]);
+  });
+
+  it('un curso SIN `status` no se da por publicado', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              instructor: 'yo',
+              courses: [{ id: 'C-SIN-ESTADO', title: 'Borrador a medias' }],
+              students: [],
+              questions: [],
+            }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const desk = await client.instructorDesk('/api/academy', 'yo');
+    // Resolvía `'published'`: la ausencia AFIRMABA, y quien escribió el borrador lo
+    // veía publicado en su propia consola.
+    expect(desk.courses[0].status).toBeNull();
+  });
+
+  it('una matrícula de ESTA sesión se pliega sobre el expediente leído', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [matriculaServidor()], paths: [] } })),
+    );
     const client = createClient();
 
     client.recordEnrollment({
@@ -792,10 +1016,46 @@ describe('AcademyApiClient', () => {
       completed: false,
     });
 
-    const learning = await client.learning('/api/academy', 'ada@b.co', 'COP');
-    expect(client.degraded).toBe(true);
-    expect(learning.enrollments.some((entry) => entry.course.id === 'CNEW')).toBe(true);
-    expect(learning.paths.length).toBeGreaterThan(0);
+    const learning = await client.learning('/api/academy', 'COP');
+    expect(learning.status).toBe('ok');
+    // La matrícula de esta sesión ya la acusó el borde (`enroll` devolvió su id): va
+    // arriba, y el expediente leído detrás. Nada de esto es inventado.
+    expect(learning.status === 'ok' && learning.enrollments.map((entry) => entry.course.id)).toEqual([
+      'CNEW',
+      'C-SERVIDOR',
+    ]);
+  });
+
+  it('dos listas vacías son una RESPUESTA, no un fallo — y no traen mock', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [], paths: [] } })),
+    );
+    const client = createClient();
+
+    const learning = await client.learning('/api/academy', 'COP');
+    expect(learning.status).toBe('ok');
+    expect(learning.status === 'ok' && learning.enrollments).toEqual([]);
+    // Y no enciende el cartel de «datos de ejemplo»: no hay ninguno.
+    expect(client.degraded).toBe(false);
+  });
+
+  it('un 401 es `anon` y un 500 es `unreadable` — no son la misma pantalla', async () => {
+    vi.stubGlobal('fetch', vi.fn(bordeConAprendizaje({ status: 401 })));
+    let client = createClient();
+    expect((await client.learning('/api/academy', 'COP')).status).toBe('anon');
+
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(bordeConAprendizaje({ status: 500 })));
+    client = createClient();
+    expect((await client.learning('/api/academy', 'COP')).status).toBe('unreadable');
+
+    // Y una respuesta 200 que NO tiene la forma del contrato tampoco se lee como
+    // «no tienes cursos»: no se sabe qué contestó el servidor.
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(bordeConAprendizaje({ status: 200, body: { algo: 'otra cosa' } })));
+    client = createClient();
+    expect((await client.learning('/api/academy', 'COP')).status).toBe('unreadable');
   });
 
   it('reads the published course id from `courseId`, which is what the borde answers', async () => {
@@ -818,7 +1078,9 @@ describe('AcademyApiClient', () => {
       { title: 'Nuevo', subtitle: '', category: 'Datos', level: 'beginner', price: 200_000, modules: ['M1'] },
       'COP',
     );
-    expect(result).toEqual({ id: 'C-REAL-1', status: 'published', persisted: true });
+    // Sin `status`: `PublishCourseResponse` emite `{ courseId }` y nada más, así que
+    // el `'published'` que salía aquí lo ponía el normalizador, no el borde.
+    expect(result).toEqual({ id: 'C-REAL-1', persisted: true });
     expect(client.degraded).toBe(false);
   });
 

@@ -39,6 +39,21 @@ import {
 } from './academy.model';
 
 /**
+ * Una respuesta HTTP no-OK, con su código.
+ *
+ * Existe porque `response.ok` no distingue un 401 de un 500 (regla 8 del `CLAUDE.md`
+ * aplicada al otro extremo del rango): «no has iniciado sesión» y «no pudimos leerlo»
+ * son dos pantallas distintas, y con un `Error('HTTP 401')` la única forma de
+ * separarlas era parsear un mensaje.
+ */
+class HttpStatusError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+    this.name = 'HttpStatusError';
+  }
+}
+
+/**
  * Thin HTTP client over the Educación / LMS backend contract (provided by the
  * backend agent in parallel). Programs against the existing + new contract:
  *
@@ -46,10 +61,10 @@ import {
  *  - `GET  /api/academy/course/{id}`                        → `{ course, modules:[{lessons}], instructor }`
  *  - `POST /api/academy/enroll`  `{ courseId, student }`    → `{ orderRef, paymentSessionId, amount, currency }` | `{ enrolled:true }`
  *  - `POST /api/academy/confirm` `{ orderRef }`             → `{ status, enrollmentId }`
- *  - `GET  /api/academy/progress?student=&course=`          → `{ completedLessonIds, percent }`
- *  - `POST /api/academy/progress` `{ course, lessonId, student }` → `{ percent }`
+ *  - `GET  /api/academy/progress?course=`                   → `{ completedLessonIds, percent }`
+ *  - `POST /api/academy/progress` `{ course, lessonId }`    → `{ percent }`
  *  - `GET  /api/academy/certificate?course=`                → `{ certificate: {…} | null }`
- *  - `GET  /api/academy/learning?student=`                  → `{ enrollments, paths }` — NO EXISTE en el borde (CMS#102)
+ *  - `GET  /api/academy/learning`                            → `{ enrollments, paths }` — el alumno sale de la SESIÓN
  *  - `GET  /api/academy/instructor/courses` anida cada fila bajo `course` y no trae
  *    `students`/`questions`: la consola SH-5 cae al mock siempre (CMS#102)
  *  - `POST /api/academy/course`  `{ title, summary, modules:[{title}] }` → `{ courseId }`
@@ -58,6 +73,18 @@ import {
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
  * flow is complete end-to-end before the backend lands. Every mock path flips the
  * `degraded` flag so the shell can surface a "datos de ejemplo" notice.
+ *
+ * **Tres lecturas NO degradan, y las tres por la misma razón** (reglas 4, 14 y 15):
+ * el certificado (es una prueba, no contenido), «mi aprendizaje» (un expediente
+ * vacío es una respuesta, no un fallo — y un invitado que ve cursos de ejemplo cree
+ * que tiene matrículas) y lo que devuelva un 401.
+ *
+ * **Lo que sigue mintiendo y NO entra aquí:** `markComplete` es una ESCRITURA que
+ * devuelve el porcentaje optimista del llamador cuando el POST no llega, o sea la
+ * regla 4 en este módulo. Es el gemelo de CHERCED-DEV/Synergos.CMS#111 en el EHR y
+ * pide su propio ticket: a diferencia de «mi aprendizaje», el alumno tiene delante
+ * la lección que acaba de marcar y el daño es re-marcarla, no ver un expediente
+ * ajeno.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -289,15 +316,9 @@ export class AcademyApiClient {
 
   // ─── Progress (read) ─────────────────────────────────────────────────────────
 
-  async progress(
-    apiBase: string,
-    courseId: string,
-    student: string,
-  ): Promise<CourseProgress> {
+  /** El `?student=` tampoco va aquí: el borde lo ignora desde que cerró el IDOR. */
+  async progress(apiBase: string, courseId: string): Promise<CourseProgress> {
     const params = new URLSearchParams();
-    if (student) {
-      params.set('student', student);
-    }
     if (courseId) {
       params.set('course', courseId);
     }
@@ -323,12 +344,14 @@ export class AcademyApiClient {
     apiBase: string,
     courseId: string,
     lessonId: string,
-    student: string,
     fallbackPercent: number,
   ): Promise<ProgressUpdate> {
     const url = `${apiBase}/progress`;
     try {
-      const data = await this.postJson(url, { course: courseId, lessonId, student });
+      // Sin `student`: el borde lo tomaba del cuerpo y eso permitía marcar lecciones
+      // completadas en el expediente de OTRO. Hoy sale del gate y el campo no decide
+      // nada — mandarlo sólo mantiene viva la idea de que sí.
+      const data = await this.postJson(url, { course: courseId, lessonId });
       const update = normalizeProgressUpdate(data);
       if (update) {
         return update;
@@ -352,15 +375,8 @@ export class AcademyApiClient {
    * con una `verifyUrl` que no resuelve se imprime igual que uno real y viaja sin el
    * cartel de «datos de ejemplo» que se queda en la página.
    */
-  async certificate(
-    apiBase: string,
-    courseId: string,
-    student: string,
-  ): Promise<Certificate | null> {
+  async certificate(apiBase: string, courseId: string): Promise<Certificate | null> {
     const params = new URLSearchParams();
-    if (student) {
-      params.set('student', student);
-    }
     if (courseId) {
       params.set('course', courseId);
     }
@@ -377,9 +393,24 @@ export class AcademyApiClient {
 
   // ─── Mi aprendizaje (enrolled courses + paths) ───────────────────────────────
 
-  async learning(apiBase: string, student: string, currency: string): Promise<LearningResult> {
-    const query = student ? `?student=${encodeURIComponent(student)}` : '';
-    const url = `${apiBase}/learning${query}`;
+  /**
+   * El expediente del alumno. **No degrada a mock y no manda `?student=`.**
+   *
+   * Lo que había: dos listas vacías hacían `null` al normalizador, el `catch` servía
+   * `mockLearning()` y el alumno **sin matrículas** —el que estrena la pantalla— veía
+   * tres cursos que no compró. El estado vacío honesto no se podía alcanzar.
+   *
+   * Y el `?student=` ya no lo lee nadie: el borde toma al alumno de la sesión desde
+   * que cerró el IDOR (CMS#102, `f485cd0`). Mandarlo era `sort=newest` otra vez, con
+   * el agravante de que era el correo TECLEADO en el checkout mientras el aula
+   * escribe el progreso con el del gate: lo que alguien marcaba en clase podía no
+   * verse aquí.
+   *
+   * Un 401 es `anon`, no un error: se pide iniciar sesión. Degradarlo a mock le diría
+   * a un invitado que tiene matrículas.
+   */
+  async learning(apiBase: string, currency: string): Promise<LearningResult> {
+    const url = `${apiBase}/learning`;
     try {
       const data = await this.getJson(url);
       const result = normalizeLearning(data, currency);
@@ -388,8 +419,12 @@ export class AcademyApiClient {
       }
       throw new Error('learning-shape');
     } catch (error) {
-      this.markDegraded('GET /api/academy/learning', error);
-      return this.mergeLearning(mockLearning(currency));
+      if (error instanceof HttpStatusError && (error.status === 401 || error.status === 403)) {
+        this.#logger.warn('Academy API "GET /api/academy/learning" — sin sesión.', error);
+        return { status: 'anon' };
+      }
+      this.#logger.warn('Academy API "GET /api/academy/learning" unavailable.', error);
+      return { status: 'unreadable' };
     }
   }
 
@@ -416,13 +451,22 @@ export class AcademyApiClient {
     );
   }
 
-  private mergeLearning(base: LearningResult): LearningResult {
+  /**
+   * Una matrícula hecha en esta sesión ya está ACUSADA por el borde (`enroll`
+   * devolvió su `enrollmentId`), así que ponerla arriba no inventa nada: evita que
+   * el alumno vuelva del «¡Ya estás inscrito!» a un «todavía no te has inscrito»
+   * mientras el expediente se pone al día.
+   */
+  private mergeLearning(base: {
+    readonly enrollments: readonly EnrolledCourse[];
+    readonly paths: readonly LearningPath[];
+  }): LearningResult {
     if (this.#enrollments.length === 0) {
-      return base;
+      return { status: 'ok', ...base };
     }
     const inSessionIds = new Set(this.#enrollments.map((entry) => entry.course.id));
     const rest = base.enrollments.filter((entry) => !inSessionIds.has(entry.course.id));
-    return { ...base, enrollments: [...this.#enrollments, ...rest] };
+    return { status: 'ok', paths: base.paths, enrollments: [...this.#enrollments, ...rest] };
   }
 
   // ─── Instructor desk (cursos + alumnos + Q&A) ────────────────────────────────
@@ -443,11 +487,19 @@ export class AcademyApiClient {
     }
   }
 
+  /**
+   * El curso recién creado va arriba **hasta que el servidor lo devuelve**, y
+   * entonces gana el del servidor: sin el dedup salía DOS veces —una con lo que
+   * este proceso recordaba y otra con lo que el borde sabe—, y la de arriba era la
+   * que menos sabe.
+   */
   private mergeInstructorDesk(base: InstructorDeskResult): InstructorDeskResult {
     if (this.#createdCourses.length === 0) {
       return base;
     }
-    return { ...base, courses: [...this.#createdCourses, ...base.courses] };
+    const delServidor = new Set(base.courses.map((course) => course.id));
+    const pendientes = this.#createdCourses.filter((course) => !delServidor.has(course.id));
+    return { ...base, courses: [...pendientes, ...base.courses] };
   }
 
   // ─── Create a course (SH-6 authoring) ─────────────────────────────────────────
@@ -462,7 +514,7 @@ export class AcademyApiClient {
       const data = await this.postJson(url, toCourseDraftWire(body));
       const result = normalizeCreate(data);
       if (result) {
-        this.seedCreated(result.id, body, currency, result.status);
+        this.seedCreated(result.id, body, currency);
         return result;
       }
       throw new Error('create-shape');
@@ -471,21 +523,18 @@ export class AcademyApiClient {
       // Regla 4: degradar una ESCRITURA miente. Nada de id inventado y —sobre todo—
       // nada de sembrar el curso en la consola: eso enseñaba la prueba de la mentira
       // en la pantalla de al lado. El llamador decide qué decirle al instructor.
-      return { id: '', status: 'draft', persisted: false };
+      return { id: '', persisted: false };
     }
   }
 
   /** Reflect a freshly-created course in the in-memory instructor console. */
-  private seedCreated(
-    id: string,
-    body: CreateCourseRequest,
-    currency: string,
-    status: CourseStatus,
-  ): void {
+  private seedCreated(id: string, body: CreateCourseRequest, currency: string): void {
     const course: InstructorCourse = {
       id,
       title: body.title,
-      status,
+      // El borde no dice en qué estado quedó (`{ courseId }` y nada más), así que
+      // aquí no consta. En cuanto la consola se relee, gana la fila del servidor.
+      status: null,
       price: body.price,
       currency,
       studentCount: 0,
@@ -518,7 +567,7 @@ export class AcademyApiClient {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
+      response.ok ? response.json() : Promise.reject(new HttpStatusError(response.status)),
     );
   }
 
@@ -595,9 +644,15 @@ function readLevel(value: unknown): CourseLevel {
   return raw === 'intermediate' || raw === 'advanced' ? raw : 'beginner';
 }
 
-function readCourseStatus(value: unknown): CourseStatus {
+/**
+ * `null` cuando la clave falta o trae algo que no es un estado conocido.
+ *
+ * Resolvía `'published'`, o sea que la ausencia AFIRMABA en vez de dejar hueco: un
+ * borrador se veía publicado. Es la forma de la regla 15 sobre un enum.
+ */
+function readCourseStatus(value: unknown): CourseStatus | null {
   const raw = readString(value).toLowerCase();
-  return raw === 'draft' || raw === 'review' ? raw : 'published';
+  return raw === 'draft' || raw === 'review' || raw === 'published' ? raw : null;
 }
 
 function normalizeCourse(value: unknown, fallbackCurrency: string): AcademyCourse | null {
@@ -1033,15 +1088,21 @@ function normalizePath(value: unknown): LearningPath | null {
   };
 }
 
-function normalizeLearning(value: unknown, fallbackCurrency: string): LearningResult | null {
-  if (!isRecord(value)) {
+/**
+ * `null` sólo cuando la respuesta NO tiene la forma del contrato — o sea cuando no
+ * se puede saber qué contestó el servidor. **Dos listas vacías son una respuesta
+ * correcta**: «no tienes matrículas». Que aquí devolviera `null` es lo que hacía
+ * inalcanzable el estado vacío honesto y mandaba al alumno nuevo al mock.
+ */
+function normalizeLearning(
+  value: unknown,
+  fallbackCurrency: string,
+): { enrollments: readonly EnrolledCourse[]; paths: readonly LearningPath[] } | null {
+  if (!isRecord(value) || !Array.isArray(value['enrollments'])) {
     return null;
   }
-  const rawEnrollments = Array.isArray(value['enrollments']) ? value['enrollments'] : [];
+  const rawEnrollments = value['enrollments'];
   const rawPaths = Array.isArray(value['paths']) ? value['paths'] : [];
-  if (rawEnrollments.length === 0 && rawPaths.length === 0) {
-    return null;
-  }
   return {
     enrollments: rawEnrollments
       .map((entry) => normalizeEnrolledCourse(entry, fallbackCurrency))
@@ -1085,7 +1146,6 @@ function normalizeInstructorStudent(value: unknown): InstructorStudent | null {
   return {
     id,
     name: readString(value['name']).trim() || 'Estudiante',
-    email: readString(value['email']).trim(),
     courseId: readString(value['courseId']).trim(),
     courseTitle: readString(value['courseTitle']).trim() || 'Curso',
     percent: clampPercent(readNumber(value['percent'])),
@@ -1205,7 +1265,7 @@ function normalizeCreate(value: unknown): CreateCourseResult | null {
   if (!id) {
     return null;
   }
-  return { id, status: readCourseStatus(value['status']), persisted: true };
+  return { id, persisted: true };
 }
 
 function clampPercent(value: number): number {
@@ -1303,11 +1363,47 @@ function sortMock(
     case 'rating':
       return copy.sort((a, b) => b.rating - a.rating);
     case 'newest':
-      return copy.reverse();
+      // El servidor ordena por FECHA DE PUBLICACIÓN descendente, «no consta» al
+      // final y empate por título. `copy.reverse()` describía un servidor que no
+      // existe (regla 10): daba un orden que no es el que el desplegable promete,
+      // así que el mock enseñaba una cosa y el borde real otra.
+      return copy.sort((a, b) => {
+        const fechaA = MOCK_PUBLISHED_AT[a.id] ?? '';
+        const fechaB = MOCK_PUBLISHED_AT[b.id] ?? '';
+        if (fechaA !== fechaB) {
+          // Sin fecha va al final, no al principio: «no consta» no es «recentísimo».
+          if (!fechaA) {
+            return 1;
+          }
+          if (!fechaB) {
+            return -1;
+          }
+          return fechaB.localeCompare(fechaA);
+        }
+        return a.title.localeCompare(b.title);
+      });
     default:
       return copy.sort((a, b) => b.studentCount - a.studentCount);
   }
 }
+
+/**
+ * Cuándo se publicó cada curso del catálogo de ejemplo.
+ *
+ * Va aparte y NO en `AcademyCourse`: `CourseDto` no emite ninguna fecha, así que
+ * declararla en el tipo del contrato sería la UI leyendo una clave que nadie manda
+ * —el defecto que G-6 vigila, en la dirección contraria—. El orden «más recientes»
+ * lo resuelve el servidor; esto sólo le da al mock la misma regla.
+ *
+ * `CMOCK-5` no tiene: es el caso de «no consta», que va al final.
+ */
+const MOCK_PUBLISHED_AT: Readonly<Record<string, string>> = {
+  'CMOCK-1': '2026-05-10',
+  'CMOCK-2': '2026-07-18',
+  'CMOCK-3': '2026-02-02',
+  'CMOCK-4': '2026-03-02',
+  'CMOCK-6': '2026-07-18',
+};
 
 export const ACADEMY_MOCK_CATEGORIES = MOCK_CATEGORIES;
 
@@ -1636,59 +1732,6 @@ function mockDetail(id: string, currency: string): CourseDetail {
   };
 }
 
-/** Seeded "mi aprendizaje" so the SH-4 dashboard works offline. */
-function mockLearning(currency: string): LearningResult {
-  const catalogue = mockCourses(currency);
-  const pick = (id: string): AcademyCourse =>
-    catalogue.find((course) => course.id === id) ?? catalogue[0];
-  const enrollments: readonly EnrolledCourse[] = [
-    {
-      enrollmentId: 'ENR-DEMO-1',
-      course: pick('CMOCK-3'),
-      percent: 64,
-      lessonCount: 55,
-      completedCount: 35,
-      lastActivityAt: '2026-07-03',
-      completed: false,
-    },
-    {
-      enrollmentId: 'ENR-DEMO-2',
-      course: pick('CMOCK-4'),
-      percent: 100,
-      lessonCount: 12,
-      completedCount: 12,
-      lastActivityAt: '2026-06-28',
-      completed: true,
-    },
-    {
-      enrollmentId: 'ENR-DEMO-3',
-      course: pick('CMOCK-1'),
-      percent: 22,
-      lessonCount: 42,
-      completedCount: 9,
-      lastActivityAt: '2026-07-05',
-      completed: false,
-    },
-  ];
-  const paths: readonly LearningPath[] = [
-    {
-      id: 'PATH-1',
-      title: 'Ruta Full-Stack Developer',
-      description: 'De los fundamentos a la arquitectura: Angular, datos y Clean/SOLID.',
-      courseIds: ['CMOCK-4', 'CMOCK-1', 'CMOCK-6'],
-      percent: 41,
-    },
-    {
-      id: 'PATH-2',
-      title: 'Ruta Product & Growth',
-      description: 'Diseño de producto y marketing para lanzar y crecer.',
-      courseIds: ['CMOCK-2', 'CMOCK-5'],
-      percent: 0,
-    },
-  ];
-  return { enrollments, paths };
-}
-
 /** A seeded operational view for the instructor cara (cursos + alumnos + Q&A). */
 function mockInstructorDesk(): InstructorDeskResult {
   const courses: readonly InstructorCourse[] = [
@@ -1698,10 +1741,10 @@ function mockInstructorDesk(): InstructorDeskResult {
     { id: 'CDRAFT-1', title: 'RxJS avanzado y patrones reactivos', status: 'draft', price: 520_000, currency: 'COP', studentCount: 0, rating: 0, revenue: 0, publishedAt: '' },
   ];
   const students: readonly InstructorStudent[] = [
-    { id: 'S-1', name: 'María González', email: 'maria@example.com', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 78, enrolledAt: '2026-06-20' },
-    { id: 'S-2', name: 'Julián Pérez', email: 'julian@example.com', courseId: 'CMOCK-6', courseTitle: 'Clean & SOLID', percent: 34, enrolledAt: '2026-06-25' },
-    { id: 'S-3', name: 'Camila Rodríguez', email: 'camila@example.com', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 100, enrolledAt: '2026-05-30' },
-    { id: 'S-4', name: 'Andrés Gómez', email: 'andres@example.com', courseId: 'CMOCK-4', courseTitle: 'Introducción a la programación', percent: 55, enrolledAt: '2026-07-01' },
+    { id: 'S-1', name: 'María González', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 78, enrolledAt: '2026-06-20' },
+    { id: 'S-2', name: 'Julián Pérez', courseId: 'CMOCK-6', courseTitle: 'Clean & SOLID', percent: 34, enrolledAt: '2026-06-25' },
+    { id: 'S-3', name: 'Camila Rodríguez', courseId: 'CMOCK-1', courseTitle: 'Angular moderno', percent: 100, enrolledAt: '2026-05-30' },
+    { id: 'S-4', name: 'Andrés Gómez', courseId: 'CMOCK-4', courseTitle: 'Introducción a la programación', percent: 55, enrolledAt: '2026-07-01' },
   ];
   const questions: readonly InstructorQuestion[] = [
     { id: 'Q-1', studentName: 'María González', courseTitle: 'Angular moderno', lessonTitle: 'Signals a fondo', question: '¿Cuándo conviene linkedSignal en vez de computed?', answered: false, createdAt: '2026-07-05' },
