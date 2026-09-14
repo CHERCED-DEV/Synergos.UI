@@ -83,7 +83,30 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   // ── happy: PDD → SH-3 wizard → confirm → classroom → complete → certificate ───
   it('runs the full enrolment lifecycle through the SH-3 wizard (happy case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    // Todo el flujo corre sobre el catálogo sembrado, MENOS el certificado: ése lo
+    // contesta el borde con su sobre real, porque una credencial no se fabrica y sin
+    // servidor no hay ninguna que pintar.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/certificate')
+          ? Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () =>
+                Promise.resolve({
+                  certificate: {
+                    id: 'CERT-SELLADO-9',
+                    studentName: 'Ada Lovelace',
+                    courseTitle: 'Angular',
+                    issuedAt: '2026-05-04T00:00:00Z',
+                    verifyUrl: 'https://synergos.test/academy/verify/CERT-SELLADO-9',
+                  },
+                }),
+            } as Response)
+          : Promise.reject(new Error('offline')),
+      ),
+    );
     await createComponent();
 
     // Open a PAID course (CMOCK-1) so the wizard path runs (free would skip it).
@@ -127,6 +150,12 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks();
     expect(component.view()).toBe('certificate');
     expect(component.walletCredentials().length).toBe(1);
+    // El id y la URL son los del SERVIDOR. Con la credencial fabricada esto era un
+    // `CERT-<random>` apuntando a un dominio que no existe.
+    expect(component.walletCredentials()[0].id).toBe('CERT-SELLADO-9');
+    expect(component.walletCredentials()[0].qrData).toBe(
+      'https://synergos.test/academy/verify/CERT-SELLADO-9',
+    );
   });
 
   // ── free course: enroll directo skips the wizard ─────────────────────────────
@@ -193,29 +222,105 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   });
 
   // ── create (SH-6): authoring wizard publishes a course ───────────────────────
-  it('creates a course through the SH-6 authoring wizard', async () => {
+  /**
+   * Recorre el wizard SH-6 por el DOM y **pulsa «Publicar curso»** — no llama a
+   * `onCreatePublished`. Un spec que llama al método no ve que el cuerpo enviado no
+   * sea el que el borde exige, ni que la pantalla mienta (reglas 5 y 9).
+   */
+  async function driveCreateWizard(): Promise<void> {
+    component.setRole('instructor');
+    fixture.detectChanges();
+    await flushMicrotasks();
+    component.openCreate();
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const type = (el: HTMLInputElement | HTMLTextAreaElement | null, value: string): void => {
+      if (!el) {
+        throw new Error('campo del wizard no encontrado');
+      }
+      el.value = value;
+      el.dispatchEvent(new Event('input'));
+    };
+    const advance = async (): Promise<void> => {
+      fixture.detectChanges();
+      const next = host.querySelector<HTMLButtonElement>('.syn-authoring__btn--primary');
+      if (!next || next.disabled) {
+        throw new Error(`el paso no deja continuar: "${next?.textContent?.trim() ?? '—'}"`);
+      }
+      next.click();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    };
+
+    const texts = host.querySelectorAll<HTMLInputElement>('.academy__form input[type="text"]');
+    type(texts[0], 'Curso de prueba'); // Título
+    type(texts[1], 'Un subtítulo'); // Subtítulo
+    type(texts[2], 'Desarrollo'); // Escuela / categoría
+    await advance();
+
+    type(host.querySelector<HTMLTextAreaElement>('.academy__textarea'), 'Módulo 1\nMódulo 2');
+    await advance();
+
+    type(host.querySelector<HTMLInputElement>('.academy__form input[type="number"]'), '350000');
+    await advance();
+
+    // Paso «publicar»: el botón primario ya dice «Publicar curso».
+    await advance();
+  }
+
+  it('publishes a course through the SH-6 wizard with the body the borde requires', async () => {
+    installMemoryStorage();
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        calls.push({ url, init });
+        if (init?.method === 'POST' && url.endsWith('/course')) {
+          // Lo que responde el borde de verdad: `{ courseId }` — SIN `id`.
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ courseId: 'C-REAL-1' }),
+          } as Response);
+        }
+        return Promise.reject(new Error('offline'));
+      }),
+    );
+    await createComponent();
+    await driveCreateWizard();
+
+    const publish = calls.find((call) => call.init?.method === 'POST' && call.url.endsWith('/course'));
+    expect(publish, 'el wizard no llegó a publicar').toBeDefined();
+    const body = JSON.parse(String(publish!.init!.body)) as Record<string, unknown>;
+
+    // `modules` es una lista de OBJETOS: con cadenas el borde contesta
+    // `400 $.modules[0]`, siempre.
+    expect(body['modules']).toEqual([
+      { title: 'Módulo 1', lessons: [] },
+      { title: 'Módulo 2', lessons: [] },
+    ]);
+    // Y el subtítulo viaja como `summary`, que es como lo llama el borde.
+    expect(body['summary']).toBe('Un subtítulo');
+    expect(body['title']).toBe('Curso de prueba');
+
+    // El id que se pinta es el del servidor, no uno inventado.
+    expect(component.createResultId()).toBe('C-REAL-1');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Curso publicado');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('C-REAL-1');
+  });
+
+  it('does NOT say «Curso publicado» when the server never confirmed it', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
+    await driveCreateWizard();
 
-    component.setRole('instructor');
-    await flushMicrotasks();
-    component.openCreate();
-    expect(component.instructorView()).toBe('create');
-
-    component.onCreateDraftChange({
-      title: 'Curso de prueba',
-      subtitle: 'Un subtítulo',
-      category: 'Desarrollo',
-      level: 'beginner',
-      price: '350000',
-      modules: 'Módulo 1\nMódulo 2',
-    });
-    expect(component.createValidity()['publicar']).toBe(true);
-
-    component.onCreatePublished(component.createDraft());
-    await flushMicrotasks();
-    expect(component.createResultId().length).toBeGreaterThan(0);
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(component.createResultId()).toBe('');
+    expect(text).not.toContain('Curso publicado');
+    expect(text).toContain('No pudimos publicar el curso');
   });
 
   // ── hash router: deep-links views + the instructor console ────────────────────
@@ -600,14 +705,62 @@ describe('AcademyApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
-  it('degrades the certificate endpoint to a verifiable mock', async () => {
+  it('reads the REAL credential out of the borde envelope `{ certificate }`', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            // La forma que emite `CertificateResponse`: la credencial va ANIDADA.
+            Promise.resolve({
+              certificate: {
+                id: 'CERT-SELLADO-1',
+                studentName: 'Ada Lovelace',
+                courseTitle: 'Angular',
+                issuedAt: '2026-05-04T00:00:00Z',
+                verifyUrl: 'https://synergos.test/academy/verify/CERT-SELLADO-1',
+              },
+            }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const cert = await client.certificate('/api/academy', 'C1', 'ada@b.co');
+    expect(client.degraded).toBe(false);
+    expect(cert?.id).toBe('CERT-SELLADO-1');
+    expect(cert?.verifyUrl).toBe('https://synergos.test/academy/verify/CERT-SELLADO-1');
+  });
+
+  it('NEVER fabricates a credential — a failed certificate read is null', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const cert = await client.certificate('/api/academy', 'CMOCK-1', 'ada@b.co', 'Ada', 'Angular');
+    // Un catálogo de ejemplo es una demo; una credencial de ejemplo es una prueba
+    // falsa: se imprime igual que una real y viaja sin el cartel de la página.
+    expect(await client.certificate('/api/academy', 'C1', 'ada@b.co')).toBeNull();
     expect(client.degraded).toBe(true);
-    expect(cert.id.length).toBeGreaterThan(0);
-    expect(cert.verifyUrl).toContain(cert.id);
+  });
+
+  it('treats a credential with no verify URL as no credential', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ certificate: { id: 'CERT-SIN-URL', studentName: 'Ada' } }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    // Había un fallback que INVENTABA la URL a partir del id. Una credencial que no
+    // se puede verificar, pintada con el sello «Verificable», no es un dato
+    // incompleto: es una prueba falsa.
+    expect(await client.certificate('/api/academy', 'C1', 'ada@b.co')).toBeNull();
   });
 
   it('degrades "mi aprendizaje" and folds an in-session enrolment', async () => {
@@ -645,7 +798,31 @@ describe('AcademyApiClient', () => {
     expect(learning.paths.length).toBeGreaterThan(0);
   });
 
-  it('degrades the instructor desk + creates a course that surfaces in it (mock)', async () => {
+  it('reads the published course id from `courseId`, which is what the borde answers', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          // El borde responde `{ courseId }` y NO trae `id`: leyendo `id` esto caía
+          // al mock incluso con un 200 en la mano.
+          json: () => Promise.resolve({ courseId: 'C-REAL-1' }),
+        } as Response),
+      ),
+    );
+    const client = createClient();
+
+    const result = await client.createCourse(
+      '/api/academy',
+      { title: 'Nuevo', subtitle: '', category: 'Datos', level: 'beginner', price: 200_000, modules: ['M1'] },
+      'COP',
+    );
+    expect(result).toEqual({ id: 'C-REAL-1', status: 'published', persisted: true });
+    expect(client.degraded).toBe(false);
+  });
+
+  it('a failed publish invents NOTHING — no id, and no course seeded in the console', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
@@ -654,11 +831,14 @@ describe('AcademyApiClient', () => {
       { title: 'Nuevo', subtitle: '', category: 'Datos', level: 'beginner', price: 200_000, modules: ['M1'] },
       'COP',
     );
-    expect(result.id.length).toBeGreaterThan(0);
+    expect(result.persisted).toBe(false);
+    expect(result.id).toBe('');
 
+    // Sembrarlo en la consola era enseñar la prueba de la mentira en la pantalla de
+    // al lado: el instructor volvía a «mis cursos» y ahí estaba.
     const desk = await client.instructorDesk('/api/academy', 'instructor');
     expect(client.degraded).toBe(true);
-    expect(desk.courses.some((course) => course.id === result.id)).toBe(true);
+    expect(desk.courses.some((course) => course.title === 'Nuevo')).toBe(false);
     expect(desk.questions.length).toBeGreaterThan(0);
   });
 });

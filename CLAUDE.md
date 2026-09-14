@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Trece reglas que costaron caro y no se deducen leyendo el código:**
+**Catorce reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -206,3 +206,16 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    sí cambia manda un aviso por segundo. Lo prueba el reloj del apartado de SH-12 (#22), y se
    comprobó de las dos formas: quitando la bandera (verde, o sea sobraba) y leyendo los
    segundos (rojo, o sea el spec sí tiene dientes).
+14. **Degradar una lectura tampoco es inocente cuando lo que se lee es una PRUEBA.** La regla
+   de que una LECTURA puede degradar a mock vale mientras lo leído sea **contenido**: un feed
+   de ejemplo con su cartel no engaña a nadie. Un certificado, un acuse de recibo, un
+   comprobante **no son contenido: son la prueba que alguien va a enseñarle a un tercero**, y
+   ahí el cartel no viaja con el artefacto. Academy fabricaba `CERT-<random>` con una
+   `verifyUrl` a un dominio que no existe cada vez que el GET fallaba —y fallaba **siempre**,
+   porque el borde envuelve en `{ certificate }` y el normalizador leía la raíz—: el alumno
+   completaba el curso, le daba a «Imprimir» y se llevaba un diploma que el
+   `GET /academy/verify/{id}` del CMS no reconoce. El certificado REAL, sellado e
+   infalsificable (ADR 0124), se descartaba. **El test lo llamaba «a verifiable mock»** —el
+   nombre decía el defecto—. Si el fallback rellena un campo cuyo valor entero es ser cierto
+   (un id firmado, una URL de verificación, un número de radicado), no es degradar: es
+   fabricar. Sin dato → `null`, y que la pantalla lo diga (#35).

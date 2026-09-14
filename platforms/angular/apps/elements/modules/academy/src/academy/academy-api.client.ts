@@ -48,10 +48,11 @@ import {
  *  - `POST /api/academy/confirm` `{ orderRef }`             → `{ status, enrollmentId }`
  *  - `GET  /api/academy/progress?student=&course=`          → `{ completedLessonIds, percent }`
  *  - `POST /api/academy/progress` `{ course, lessonId, student }` → `{ percent }`
- *  - `GET  /api/academy/certificate?student=&course=`       → `{ id, studentName, courseTitle, verifyUrl }`
- *  - `GET  /api/academy/learning?student=`                  → `{ enrollments, paths }`
- *  - `GET  /api/academy/instructor/courses?instructor=`     → `{ courses, students, questions }`
- *  - `POST /api/academy/course`  `{ …create… }`             → `{ id, status }`
+ *  - `GET  /api/academy/certificate?course=`                → `{ certificate: {…} | null }`
+ *  - `GET  /api/academy/learning?student=`                  → `{ enrollments, paths }` — NO EXISTE en el borde (CMS#102)
+ *  - `GET  /api/academy/instructor/courses` anida cada fila bajo `course` y no trae
+ *    `students`/`questions`: la consola SH-5 cae al mock siempre (CMS#102)
+ *  - `POST /api/academy/course`  `{ title, summary, modules:[{title}] }` → `{ courseId }`
  *
  * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
  * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
@@ -341,13 +342,21 @@ export class AcademyApiClient {
 
   // ─── Certificate (verifiable credential) ─────────────────────────────────────
 
+  /**
+   * La credencial del alumno, o `null` cuando todavía no hay una — o cuando no se
+   * pudo recuperar.
+   *
+   * **No degrada a mock, y ésa es la diferencia con el catálogo.** Degradar una
+   * LECTURA no miente mientras lo leído sea contenido; un certificado no es
+   * contenido, es una PRUEBA: existe para que un tercero le crea. Un id inventado
+   * con una `verifyUrl` que no resuelve se imprime igual que uno real y viaja sin el
+   * cartel de «datos de ejemplo» que se queda en la página.
+   */
   async certificate(
     apiBase: string,
     courseId: string,
     student: string,
-    studentName: string,
-    courseTitle: string,
-  ): Promise<Certificate> {
+  ): Promise<Certificate | null> {
     const params = new URLSearchParams();
     if (student) {
       params.set('student', student);
@@ -358,15 +367,11 @@ export class AcademyApiClient {
     const query = params.toString();
     const url = `${apiBase}/certificate${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
-      const certificate = normalizeCertificate(data);
-      if (certificate) {
-        return certificate;
-      }
-      throw new Error('certificate-shape');
+      // `null` es una respuesta legítima del borde: «todavía no la ganaste».
+      return normalizeCertificate(await this.getJson(url));
     } catch (error) {
       this.markDegraded('GET /api/academy/certificate', error);
-      return buildMockCertificate(studentName, courseTitle);
+      return null;
     }
   }
 
@@ -454,7 +459,7 @@ export class AcademyApiClient {
   ): Promise<CreateCourseResult> {
     const url = `${apiBase}/course`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(url, toCourseDraftWire(body));
       const result = normalizeCreate(data);
       if (result) {
         this.seedCreated(result.id, body, currency, result.status);
@@ -463,9 +468,10 @@ export class AcademyApiClient {
       throw new Error('create-shape');
     } catch (error) {
       this.markDegraded('POST /api/academy/course', error);
-      const id = `C-${Date.now().toString(36).toUpperCase()}`;
-      this.seedCreated(id, body, currency, 'published');
-      return { id, status: 'published' };
+      // Regla 4: degradar una ESCRITURA miente. Nada de id inventado y —sobre todo—
+      // nada de sembrar el curso en la consola: eso enseñaba la prueba de la mentira
+      // en la pantalla de al lado. El llamador decide qué decirle al instructor.
+      return { id: '', status: 'draft', persisted: false };
     }
   }
 
@@ -963,21 +969,27 @@ function normalizeProgressUpdate(value: unknown): ProgressUpdate | null {
 }
 
 function normalizeCertificate(value: unknown): Certificate | null {
-  if (!isRecord(value)) {
+  // El borde envuelve: `{ certificate: {…} | null }`. Se acepta también la credencial
+  // desnuda, como ya hace `normalizeDetail` con `course`.
+  const record = isRecord(value) && isRecord(value['certificate']) ? value['certificate'] : value;
+  if (!isRecord(record)) {
     return null;
   }
-  const id = readString(value['id']).trim() || readString(value['certificateId']).trim();
-  if (!id) {
+  const id = readString(record['id']).trim() || readString(record['certificateId']).trim();
+  const verifyUrl = readString(record['verifyUrl']).trim();
+  // Sin id o sin URL de verificación no hay credencial: había un fallback que
+  // inventaba la URL a partir del id, y una credencial que no se puede verificar
+  // pintada con el sello de «Verificable» es una prueba falsa, no un dato incompleto.
+  if (!id || !verifyUrl) {
     return null;
   }
   return {
     id,
-    studentName: readString(value['studentName']).trim() || 'Estudiante',
-    courseTitle: readString(value['courseTitle']).trim() || 'Curso',
-    issuedAt: readString(value['issuedAt']).trim() || new Date().toISOString(),
-    verifyUrl:
-      readString(value['verifyUrl']).trim() || `${ACADEMY_MOCK_CERTIFICATE_BASE}/${id}`,
-    credentialLine: readString(value['credentialLine']).trim() || undefined,
+    studentName: readString(record['studentName']).trim() || 'Estudiante',
+    courseTitle: readString(record['courseTitle']).trim() || 'Curso',
+    issuedAt: readString(record['issuedAt']).trim() || new Date().toISOString(),
+    verifyUrl,
+    credentialLine: readString(record['credentialLine']).trim() || undefined,
   };
 }
 
@@ -1164,15 +1176,36 @@ function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
   };
 }
 
+/**
+ * El cuerpo que EXIGE `POST /api/academy/course`.
+ *
+ * `modules` es una lista de OBJETOS (`CourseDraftModuleRequest` = `{ title, lessons }`),
+ * no de cadenas: mandar `["Módulo 1"]` es `400 $.modules[0]` — medido contra los
+ * `record` del controller, siempre, sin una sola excepción. Y lo que acá es
+ * `subtitle` el borde lo llama `summary`; con el nombre de la UI se descarta en
+ * silencio, porque System.Text.Json ignora los miembros que no mapea.
+ */
+function toCourseDraftWire(body: CreateCourseRequest): Record<string, unknown> {
+  return {
+    title: body.title,
+    summary: body.subtitle,
+    category: body.category,
+    level: body.level,
+    price: body.price,
+    modules: body.modules.map((title) => ({ title, lessons: [] })),
+  };
+}
+
 function normalizeCreate(value: unknown): CreateCourseResult | null {
   if (!isRecord(value)) {
     return null;
   }
-  const id = readString(value['id']).trim();
+  // El borde responde `{ courseId }`; se acepta también `id` por si cambia.
+  const id = readString(value['courseId']).trim() || readString(value['id']).trim();
   if (!id) {
     return null;
   }
-  return { id, status: readCourseStatus(value['status']) };
+  return { id, status: readCourseStatus(value['status']), persisted: true };
 }
 
 function clampPercent(value: number): number {
@@ -1727,19 +1760,6 @@ function mockInstructorDesk(): InstructorDeskResult {
   };
 }
 
-export const ACADEMY_MOCK_CERTIFICATE_BASE = 'https://verify.synergos.academy/c';
-
-export function buildMockCertificate(
-  studentName: string,
-  courseTitle: string,
-): Certificate {
-  const id = `CERT-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
-  return {
-    id,
-    studentName,
-    courseTitle,
-    issuedAt: new Date().toISOString(),
-    verifyUrl: `${ACADEMY_MOCK_CERTIFICATE_BASE}/${id}`,
-    credentialLine: 'Curso completado · Synergos Academy',
-  };
-}
+// Acá vivía `buildMockCertificate`, que fabricaba `CERT-<random>` con una `verifyUrl`
+// a un dominio que no existe. Se fue con el defecto: un catálogo de ejemplo es una
+// demo, una credencial de ejemplo es una credencial falsa.
