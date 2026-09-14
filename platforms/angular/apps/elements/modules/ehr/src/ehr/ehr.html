@@ -349,7 +349,11 @@
                   <p class="ehr__med-name">{{ med.drug }} · {{ med.dose }}</p>
                   <p class="ehr__med-freq">{{ med.frequency }}</p>
                   <p class="ehr__med-inst">{{ med.instructions }}</p>
-                  <p class="ehr__med-meta">{{ med.pharmacy }} · {{ med.refillsLeft }} renovaciones restantes</p>
+                  <!-- Sin farmacia no se pinta el separador colgante: « · 2 renovaciones
+                       restantes» se lee como un fallo de la pantalla (#111). -->
+                  <p class="ehr__med-meta">
+                    @if (med.pharmacy) { {{ med.pharmacy }} · }{{ med.refillsLeft }} renovaciones restantes
+                  </p>
                 </div>
                 <div class="ehr__med-action">
                   @if (med.refillStatus) {
@@ -811,7 +815,17 @@
   <span class="ehr__thread-row" [class.is-selected]="selected">
     <span class="ehr__thread-top">
       <span class="ehr__thread-name">{{ thread.participant }}</span>
-      @if (thread.unread > 0) { <span class="ehr__thread-unread">{{ thread.unread }}</span> }
+      <!-- «No lo sabemos» NO se puede ver como «no tienes nada sin leer»: es lo que
+           hace que alguien no abra el mensaje de su médico (#111, regla 15). -->
+      @if (thread.unread === null) {
+        <span
+          class="ehr__thread-unread ehr__thread-unread--unknown"
+          title="No pudimos saber si hay mensajes sin leer"
+          aria-label="Sin dato de mensajes sin leer"
+        >?</span>
+      } @else if (thread.unread > 0) {
+        <span class="ehr__thread-unread">{{ thread.unread }}</span>
+      }
     </span>
     <span class="ehr__thread-subject">{{ thread.subject }}</span>
     <span class="ehr__thread-last">{{ thread.lastMessage }}</span>

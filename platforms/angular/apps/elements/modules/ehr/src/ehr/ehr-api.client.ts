@@ -488,6 +488,23 @@ function readNumber(value: unknown): number {
   return 0;
 }
 
+/** `null` cuando la clave falta o llega `null`: **no consta**, y no el default. */
+function readOptionalBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const raw = value.trim().toLowerCase();
+    if (raw === 'true' || raw === '1') {
+      return true;
+    }
+    if (raw === 'false' || raw === '0') {
+      return false;
+    }
+  }
+  return null;
+}
+
 function readBoolean(value: unknown, fallback = false): boolean {
   if (typeof value === 'boolean') {
     return value;
@@ -541,7 +558,9 @@ function normalizePatient(value: unknown): Patient | null {
     problems: readStringArray(value['problems']),
     allergies: readStringArray(value['allergies']),
     primaryDoctorId: readString(value['primaryDoctorId']).trim(),
-    active: readBoolean(value['active'], true),
+    // `null` y no `true`: el borde dejó de afirmarlo (#111) y reponerlo aquí es
+    // volver a afirmar lo que el servidor se cuidó de no decir.
+    active: readOptionalBoolean(value['active']),
   };
 }
 
@@ -573,7 +592,7 @@ function normalizeDoctor(value: unknown): Doctor | null {
     license: readString(value['license']).trim(),
     phone: readString(value['phone']).trim(),
     email: readString(value['email']).trim(),
-    acceptingPatients: readBoolean(value['acceptingPatients'], true),
+    acceptingPatients: readOptionalBoolean(value['acceptingPatients']),
     rating: readNumber(value['rating']),
   };
 }
@@ -834,7 +853,7 @@ function normalizeMedication(value: unknown): Medication | null {
     dose: readString(value['dose']).trim(),
     frequency: readString(value['frequency']).trim(),
     instructions: readString(value['instructions']).trim(),
-    pharmacy: readString(value['pharmacy']).trim(),
+    pharmacy: readString(value['pharmacy']).trim() || null,
     refillsLeft: Math.max(0, Math.trunc(readNumber(value['refillsLeft']))),
     refillStatus:
       status === 'requested' || status === 'approved' || status === 'denied' ? status : null,
@@ -949,7 +968,12 @@ function normalizeThread(value: unknown): MessageThread | null {
     subject: readString(value['subject']).trim(),
     lastMessage: readString(value['lastMessage']).trim(),
     lastAtUtc: readString(value['lastAtUtc']).trim() || new Date().toISOString(),
-    unread: Math.max(0, Math.trunc(readNumber(value['unread']))),
+    // Sin clave o con `null`, «no lo sabemos» — que no es cero: la insignia se
+    // pinta con `> 0` y las dos cosas se veían igual.
+    unread:
+      value['unread'] === undefined || value['unread'] === null
+        ? null
+        : Math.max(0, Math.trunc(readNumber(value['unread']))),
     messages: rawMessages
       .map((message) => normalizeMessage(message, id))
       .filter((entry): entry is MessageThread['messages'][number] => entry !== null),
