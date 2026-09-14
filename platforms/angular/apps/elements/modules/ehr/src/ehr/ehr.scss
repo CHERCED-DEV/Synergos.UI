@@ -1132,6 +1132,14 @@
     color: var(--eh-brand-text);
     font-size: syn.$font-size-xs;
     font-weight: syn.$font-weight-bold;
+
+    /* «No consta» no se pinta como una cuenta: ni el color ni el peso de un número. */
+    &--unknown {
+      background: var(--eh-surface-sunken);
+      color: var(--eh-muted);
+      border: syn.px-to-rem(1) dashed var(--eh-border);
+      cursor: help;
+    }
   }
 
   &__thread-subject { font-size: syn.$font-size-sm; color: var(--eh-text-secondary); }

@@ -119,8 +119,12 @@ export interface Patient {
   readonly allergies: readonly string[];
   /** Id of the patient's primary care provider. */
   readonly primaryDoctorId: string;
-  /** True while the patient has an open / active care episode. */
-  readonly active: boolean;
+  /**
+   * Episodio de atención abierto. **`null` = no consta** — el borde dejó de
+   * afirmarlo (#111) y el normalizador lo reponía a `true`, que es la afirmación
+   * contraria a la que más importa: un paciente inactivo tratado como activo.
+   */
+  readonly active: boolean | null;
 }
 
 /** A provider / doctor in the directory. */
@@ -132,8 +136,11 @@ export interface Doctor {
   readonly license: string;
   readonly phone: string;
   readonly email: string;
-  /** Whether the provider currently accepts new appointments. */
-  readonly acceptingPatients: boolean;
+  /**
+   * Si acepta pacientes nuevos. **`null` = no consta**, y no «sí» (#111): un `true`
+   * repuesto por el cliente manda a alguien a pedir cita donde no se la van a dar.
+   */
+  readonly acceptingPatients: boolean | null;
   /** Average patient rating 0–5 (directory badge). */
   readonly rating: number;
 }
@@ -304,7 +311,8 @@ export interface Medication {
   readonly dose: string;
   readonly frequency: string;
   readonly instructions: string;
-  readonly pharmacy: string;
+  /** Farmacia donde se dispensa. **`null` = no consta**, y la ficha lo omite (#111). */
+  readonly pharmacy: string | null;
   readonly refillsLeft: number;
   readonly refillStatus: RefillStatus | null;
 }
@@ -399,7 +407,15 @@ export interface MessageThread {
   readonly subject: string;
   readonly lastMessage: string;
   readonly lastAtUtc: string;
-  readonly unread: number;
+  /**
+   * Mensajes sin leer. **`null` = no lo sabemos**, que NO es cero (#111).
+   *
+   * El normalizador lo reponía a `0` y la insignia sólo se pinta con `> 0`, así que
+   * «no lo sabemos» se veía exactamente igual que «no tienes nada sin leer» — que es
+   * lo que hace que alguien no abra el mensaje de su médico. Es la regla 15: la
+   * ausencia tiene que verse distinta de la afirmación.
+   */
+  readonly unread: number | null;
   readonly messages: readonly ClinicalMessage[];
 }
 
