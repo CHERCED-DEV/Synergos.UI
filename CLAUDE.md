@@ -116,7 +116,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veintidós reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Veintitrés reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -382,3 +382,25 @@ se desincroniza):
    y `ElementFramework` tenían los mismos cuatro valores y nada las cruzaba. Mientras el
    valor no viajaba, era feo; desde que viaja del registry al manifiesto y de ahí a la ruta
    del CDN, es una avería esperando (#42).
+23. **Un contrato que no importa nadie no es un contrato: es un comentario con sintaxis.**
+   `ElementManifest` declara la forma del `manifest.json` que va al CDN —el fichero que el
+   CMS y las herramientas leen para saber qué expone un bundle— y **no lo importaba nadie**:
+   sólo su propio `index.ts`. Quien lo ESCRIBE es `manifest-builder.mjs`, un `.mjs` sin
+   tipos, así que renombrar una clave emitida compilaba y publicaba. Es
+   `feedback_contract_shape_needs_its_own_test`: lo que hay que vigilar es **la clave
+   serializada**, y la mutación no es borrar el campo —en un `.mjs` eso no rompe nada— sino
+   **renombrarlo**.
+   **Lo que NO se hizo, y es la mitad que importa: el manifiesto no pasa a ser la fuente.**
+   De sus siete claves no lleva una sola que no esté ya en el repo, así que declararlo
+   fuente sería un quinto sitio con una copia — y una copia que vive en el CDN, o sea que un
+   clon limpio no podría construir sin red. Lo que pasa a ser es **el embudo comprobado**:
+   nada entra al registry ni sale al CDN sin producir un manifiesto que valide contra la
+   interfaz, leída del `.ts` con `contract-schema.mjs`.
+   Y el corolario que lo vuelve útil: **`cms-sync` dejó de adivinar el tier**. La regla 2 de
+   esta lista describía el daño —le ponía `composition` a lo que no conocía y **sobreescribía
+   el del registry**, degradando un `module` de 72 KB a 44 KB en silencio—; la causa era que
+   `TIER_BY_NAME` era una **copia a mano** de un dato que ya estaba en el registry (90
+   entradas, las 90 idénticas, comprobado). Hoy el tier sale del registry o de la carpeta en
+   la que vive la fuente (`apps/elements/<tier>s/`), y cuando ninguno de los dos contesta
+   **se para**: un elemento nuevo necesita que una persona decida si es un primitivo o una
+   aplicación, y ese «no sé» no se rellena (#43).
