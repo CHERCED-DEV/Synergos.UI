@@ -123,10 +123,15 @@ se desincroniza):
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
    `[class.…]` y `[style.…]` lo eliminan. Lo vigila `template-bindings` (#11).
-2. **`cms-sync` ADIVINA el tier de lo que no conoce.** Si un `elementSyn*` nuevo no está en
-   `TIER_BY_NAME`, le pone `composition` y **sobreescribe** el del registry. Como el
-   presupuesto de tamaño elige el techo por tier, eso degrada un `module` de 72 KB a
-   44 KB en silencio. Antes de correr `cms:sync`, mirá los WARN (#3).
+2. **`cms-sync` ya NO adivina el tier — y lo que hacía antes explica por qué.** Si un
+   `elementSyn*` nuevo no estaba en `TIER_BY_NAME`, le ponía `composition` y
+   **sobreescribía** el del registry; como el presupuesto de tamaño elige el techo por tier,
+   eso degradaba un `module` de 72 KB a 44 KB en silencio, y el WARN que lo decía no lo
+   leía nadie (#3). Hoy el tier sale del registry o de la carpeta donde vive la fuente, y si
+   ninguno de los dos contesta, el sync **se para sin escribir nada** — ver la regla 23, que
+   es donde está el razonamiento y por qué `TIER_BY_NAME` resultó ser una copia (#43).
+   **La forma sigue viva aunque el caso esté cerrado**: un sync que rellena lo que no sabe
+   no corrige deriva, la mete.
 3. **`state-brand-surface` NO es un acento: es un lavado.** Con alpha del 8-18 % según el
    tema, así que un CTA pintado con él y tinta `text-on-brand` (= blanco en los claros) da
    **1,07:1 en silverGold y 1,16:1 en light** — texto invisible, no «bajo contraste». El par
@@ -391,7 +396,13 @@ se desincroniza):
    `ElementManifest` declara la forma del `manifest.json` que va al CDN —el fichero que el
    CMS y las herramientas leen para saber qué expone un bundle— y **no lo importaba nadie**:
    sólo su propio `index.ts`. Quien lo ESCRIBE es `manifest-builder.mjs`, un `.mjs` sin
-   tipos, así que renombrar una clave emitida compilaba y publicaba. Es
+   tipos, así que renombrar una clave emitida compilaba y publicaba.
+   **Y el lector existe, del otro lado de la red**: el CMS lo deserializa en
+   `FileSystemBundleRegistryClient` y en `HttpBundleRegistryClient`, con una clase privada
+   `ElementManifest` en **cada uno** —dos copias a mano de las siete claves— y resuelve
+   `EntryScript` con `?? "main.js"`. O sea que una clave renombrada acá no deja un hueco: el
+   CMS rellena el valor por defecto y sigue. **Nada se pone rojo en ninguno de los dos
+   árboles**, que es la peor combinación posible. Es
    `feedback_contract_shape_needs_its_own_test`: lo que hay que vigilar es **la clave
    serializada**, y la mutación no es borrar el campo —en un `.mjs` eso no rompe nada— sino
    **renombrarlo**.

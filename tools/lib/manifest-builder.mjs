@@ -22,6 +22,20 @@
  * tiraba, y si este fichero renombraba una clave, compilaba y nadie se
  * enteraba. Ahora las claves emitidas se cruzan contra las declaradas, leídas
  * del `.ts` (ver `contract-schema.mjs`).
+ *
+ * Y NO ES TEÓRICO: el manifiesto SÍ tiene lector, del otro lado de la red. El
+ * CMS lo deserializa en `FileSystemBundleRegistryClient` y en
+ * `HttpBundleRegistryClient` —con una clase privada `ElementManifest` en CADA
+ * uno, o sea dos copias a mano de estas siete claves— y lee `EntryScript` así:
+ *
+ *     var entryScript = string.IsNullOrWhiteSpace(manifest.EntryScript)
+ *         ? "main.js" : manifest.EntryScript;
+ *
+ * Es decir que una clave renombrada acá no deja un hueco: el CMS **rellena con
+ * el valor por defecto** y sigue, que es exactamente
+ * `feedback_an_omitted_key_can_be_an_assertion` del repo hermano. Nada se pone
+ * rojo en ninguno de los dos árboles. Por eso el gate va sobre la clave
+ * serializada y la mutación es renombrarla.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
