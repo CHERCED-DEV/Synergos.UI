@@ -45,7 +45,6 @@ const inputsData = loadInputs();
 // ── Filter ───────────────────────────────────────────────────────────────────
 
 const elements   = ELEMENT_FILTER ? registry.filter(e => e.name === ELEMENT_FILTER) : registry;
-const frameworks = FRAMEWORK_FILTER ? [FRAMEWORK_FILTER] : ALL_FRAMEWORKS;
 
 if (ELEMENT_FILTER && elements.length === 0) {
   console.error(`\n❌ Element "${ELEMENT_FILTER}" not found in element-registry.json`);
@@ -69,6 +68,9 @@ if (ELEMENT_FILTER)   console.log(`${LOG_PREFIX}   Element:  ${ELEMENT_FILTER}`)
 if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework: ${FRAMEWORK_FILTER}`);
 console.log('');
 
+// El framework ya no es un bucle sobre las plataformas: lo declara el elemento
+// (issue #42). Generar el manifiesto de `hero` para cuatro frameworks escribía
+// tres que nadie construyó nunca.
 for (const entry of elements) {
   const inputs = inputsData[entry.name] ?? [];
 
@@ -76,21 +78,22 @@ for (const entry of elements) {
     warnings.push(entry.name);
   }
 
-  for (const framework of frameworks) {
-    const manifest = buildManifest(entry, framework, VERSION, inputs);
+  if (FRAMEWORK_FILTER && entry.framework !== FRAMEWORK_FILTER) continue;
 
-    if (DRY_RUN) {
-      console.log(`${LOG_PREFIX}   ${entry.name} [${framework}]:`);
-      console.log(JSON.stringify(manifest, null, 2));
-      console.log('');
-    } else {
-      const outDir = join(OUT_DIR, entry.name, framework);
-      mkdirSync(outDir, { recursive: true });
-      writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-    }
+  const framework = entry.framework;
+  const manifest = buildManifest(entry, VERSION, inputs);
 
-    generated.push(`${entry.name}/${framework}`);
+  if (DRY_RUN) {
+    console.log(`${LOG_PREFIX}   ${entry.name} [${framework}]:`);
+    console.log(JSON.stringify(manifest, null, 2));
+    console.log('');
+  } else {
+    const outDir = join(OUT_DIR, entry.name, framework);
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
   }
+
+  generated.push(`${entry.name}/${framework}`);
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────
