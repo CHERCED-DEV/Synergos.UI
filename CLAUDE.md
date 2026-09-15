@@ -59,7 +59,7 @@ platforms/angular/   → LA plataforma (Angular ~21, catálogo de 136 elementos)
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   contracts/         → interfaces puras (element-registry.json, element-inputs.json)
   core/              → utilidades agnósticas, mappers, bridge protocol
-  core-assets/       → tokens SCSS, mixins, tipografía (fuente de verdad)
+  core-assets/       → tokens SCSS, mixins, tipografía — EL SHARED DE ESTILOS
 tools/               → build-runtime, build-cdn, publish, catalog, validadores de contrato
 public/              → salida de `npm run build:cdn` — lo que sirve Cloudflare Workers
 worker/              → el Worker que sirve public/ (con wrangler.jsonc)
@@ -77,6 +77,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 - Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los specs de la plataforma, **con la cuarentena en cero** — y eso no es una foto, lo defiende `spec-quarantine`. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
 
+- **La frontera `vitals/` ↔ `<framework>/shared`**: cada framework tiene su propio `shared`, escrito en su propio lenguaje, y todos se alimentan de `vitals`. En `vitals` va el MODELO de lo que emite el CMS, el MAPPER que lo traduce, el PROTOCOLO del bridge y el VOCABULARIO; no va nada que renderice, toque el DOM o tenga estado reactivo de un framework. Escrita en `SynergosDocs/WHERE_DOES_THIS_GO.md` §1 y en `LLM.txt` §2; medida en `SynergosDocs/FRONTERA_VITALS.md`; vigilada por el gate `vitals-purity`.
 - Aliases agnósticos: `@synergos/contracts`, `@synergos/core` (desde `vitals/`)
 - Aliases Angular: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
 - Component prefix: `syn-`

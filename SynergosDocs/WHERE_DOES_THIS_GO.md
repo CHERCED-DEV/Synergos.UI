@@ -1,155 +1,206 @@
-> ⚠️ **DESACTUALIZADO desde la purga de plataformas (2026-08-04).** El árbol de decisión
-> todavía enruta hacia `platforms/react|svelte|vanilla`, que no existen. Hoy la respuesta
-> es siempre `platforms/angular/` — ver `ARCHITECTURE.md` para dónde dentro de él.
-
 # Where Does This Go?
 
-Decision tree for placing new code in Synergos UI.
+Dónde va cada cosa en Synergos UI — y sobre todo **dónde está la frontera entre
+`vitals/` y el `shared` de un framework**, que es la pregunta que este documento
+no contestaba y por la que se reescribió (épica #36).
+
+> Este fichero estaba marcado DESACTUALIZADO desde la purga de plataformas
+> (2026-08-04) y enrutaba hacia tres sitios que no existen —`platforms/react`,
+> `platforms/svelte`, `vitals/shared`— más una carpeta renombrada
+> (`components/foundations/` es hoy `components/primitives/`). Una guía que
+> manda a una carpeta inexistente no se queda corta: **afirma de más**, y el
+> siguiente agente construye encima.
 
 ---
 
-## Start here
+## 0. La regla de la que sale todo lo demás
+
+> **Cada framework tiene su propio `shared`, escrito en su propio lenguaje, y
+> TODOS se alimentan de `vitals`. En `vitals` vive el modelado de lo que viene
+> del CMS — el contrato intermedio entre el CMS y los frameworks del frontend.**
+
+Hoy sólo Angular publica elementos, así que sólo hay un `shared`
+(`platforms/angular/libs/shared/`). Que haya uno no cambia la frontera: cambia
+cuánto cuesta equivocarse. Lo que se cuele en `vitals/` lo arrastra el segundo
+framework **sin usarlo**, y lo que se quede atrapado en `libs/shared` lo tendrá
+que reescribir desde cero.
+
+---
+
+## 1. La frontera `vitals/` ↔ `<framework>/shared`
+
+### Entra en `vitals/`
+
+| Qué | Dónde | Por qué es de acá |
+|---|---|---|
+| **El modelo** de lo que emite el CMS | `vitals/core/src/models/` (`*-inputs.model.ts`) | Es la forma del dato, y el dato es el mismo para los cuatro. Hoy **129 ficheros, 129 `export interface`, uno por fichero y nada más**. |
+| **El mapper** que traduce del bloque del CMS a ese modelo | `vitals/core/src/mappers/` | Traducir no es pintar. Hoy **67 funciones exportadas, cero efectos** — sin `Date.now`, sin `Math.random`, sin timers, sin `console`. |
+| **El contrato** (tipos de la superficie CMS↔UI) | `vitals/contracts/src/` | Es lo que el CMS y el UI acuerdan. Un tipo no tiene framework. |
+| **El protocolo del bridge** | `vitals/core/src/bridge/` | `window.synergos` lo inyecta el host y lo leen los cuatro. |
+| **El vocabulario**: uniones, constantes, enums, guards | donde corresponda dentro de `vitals/` | `FrameworkKind`, `ComponentTier`, `isFrameworkKind`. Nombrar no es renderizar. |
+
+### NO entra en `vitals/` — va al `shared` de su framework
+
+Nada que **renderice**, que **toque el DOM**, o que tenga **estado reactivo de un
+framework**. En concreto:
+
+- Un componente, una directiva, un pipe, un template, un `styleUrl`.
+- `signal()`, `computed()`, `effect()`, `input()`, `output()`, `inject()`, un
+  store, un `useState`, un `$:` de Svelte.
+- Un servicio que se resuelve por inyección de dependencias.
+- Cualquier cosa que lea o escriba el DOM: `document.*`, `querySelector`,
+  `addEventListener`, un `ResizeObserver`.
+
+### Los tres casos de borde, que son los que se discuten
+
+1. **`HTMLElement` en `element-protocol.ts` — pasa, y es correcto.** Es
+   `lib.dom`, no un framework: montar en un elemento del DOM es justamente la
+   superficie que los cuatro comparten. La línea está en **nombrar el DOM** (un
+   tipo en una firma) frente a **tocarlo** (llamar a sus métodos).
+2. **`window.synergos` en `synergos-bridge.ts` — pasa.** Mismo criterio: el
+   host inyecta un global del navegador, no de un framework, y el helper
+   degrada a `null` cuando no está. Es la ÚNICA lectura de un global en
+   `vitals/`.
+3. **`console.*` en `services/logger.ts` — pasa, y es lo único con efecto.**
+   `createLogger` devuelve un objeto plano detrás de una interfaz `Logger`; no
+   hay DI, no hay singleton, no hay estado. Si algún día necesitara un
+   transporte configurable, el transporte es del framework y la interfaz se
+   queda acá.
+
+### Cómo se decide un caso nuevo, en una pregunta
+
+> **¿Habría que reescribir esto para React, o sólo volver a llamarlo?**
+> Si hay que reescribirlo, es del `shared` de su framework. Si sólo hay que
+> llamarlo, es de `vitals`.
+
+### Qué lo vigila
+
+`tools/lib/vitals-purity.spec.mjs` (gate `vitals-purity`, corre con `npm test`).
+Exige **cero** especificadores de módulo fuera de la capa agnóstica, con una
+lista blanca **derivada de `tsconfig.base.json`** y no escrita a mano. Lo que ese
+gate **no** ve está escrito con letra (a)–(f) arriba de
+`tools/lib/vitals-purity.mjs`, y hay dos puntos ciegos que importan acá:
+
+- **No ve un framework copiado a mano.** Escribir un `signal()` propio dentro de
+  `vitals/` no es un import. Eso lo decide esta frontera, no el gate.
+- **No ve los globales.** `window.synergos` pasa por eso, y pasa a propósito;
+  `(globalThis as any).ng` pasaría igual y no debe.
+
+---
+
+## 2. Árbol de decisión
 
 ```
-Is it a TypeScript type / interface that describes data?
-  ├─ Is it CMS-agnostic (no Umbraco / property aliases)?
-  │     → vitals/contracts/src/elements.contract.ts
-  │       or shared.contract.ts / compositions.contract.ts
-  │
-  └─ Does it reference Umbraco property aliases or API shapes?
+¿Es un tipo / interfaz que describe DATOS?
+  ├─ ¿Describe lo que emite el CMS, sin alias de Umbraco dentro?
+  │     → vitals/contracts/src/*.contract.ts
+  ├─ ¿Es la forma de entrada de UN elemento (sus inputs)?
+  │     → vitals/core/src/models/<nombre>-inputs.model.ts
+  └─ ¿Nombra alias de propiedad de Umbraco o formas de su API?
         → platforms/angular/libs/core/src/contracts/
 
-Is it a runtime utility / pure function (no framework, no HTTP)?
-  ├─ Related to CMS-to-component data transformation?
+¿Es una función pura (sin framework, sin DOM, sin HTTP)?
+  ├─ ¿Traduce del bloque del CMS al modelo de un elemento?
   │     → vitals/core/src/mappers/
-  ├─ Related to bridge / cross-framework interop?
+  ├─ ¿Es del protocolo del bridge / interop entre frameworks?
   │     → vitals/core/src/bridge/
-  ├─ Build-time Vite config shared across React/Svelte/Vanilla?
-  │     → vitals/shared/src/build/
-  └─ Generic runtime helper (classNames, validators, constants)?
-        → vitals/shared/src/utils/
+  └─ ¿Es un helper que sólo usa Angular hoy?
+        → platforms/angular/libs/shared/src/utils/
+          ⚠ y si React lo necesitaría igual, es CANDIDATO a vitals —
+            ver «Promoción», abajo.
 
-Is it SCSS design tokens, mixins, or typography?
-  → vitals/core-assets/src/scss/   (source of truth)
-    mirrors to: platforms/angular/libs/core-assets/src/scss/
+¿Son tokens SCSS, mixins o tipografía?
+  → vitals/core-assets/src/scss/   (fuente de verdad)
+    espejo: platforms/angular/libs/core-assets/  (lo cuadra `npm run sync:tokens:check`)
+    Es el SHARED DE ESTILOS, no un cuarto vital de TypeScript — ver §4.
 
-Is it Angular-specific?
-  ├─ A reusable design system component (not a Web Component)?
-  │     ├─ Single-responsibility, stateless?
-  │     │     → platforms/angular/libs/shared/src/components/foundations/
-  │     ├─ Composed component with interaction state?
-  │     │     → platforms/angular/libs/shared/src/components/
-  │     └─ Recurring UI layout pattern (2–4 components)?
-  │           → platforms/angular/libs/shared/src/components/patterns/
-  │
-  ├─ A provider, token, interceptor, guard, or angular service?
-  │     → platforms/angular/libs/core/src/
-  │
-  ├─ A connection between the rendering engine and elements?
-  │     → platforms/angular/libs/rendering/src/
-  │       (ElementRegistry, ComponentResolver, ElementMounter, InputMapper)
-  │
-  ├─ A CMS sync tool (C# → TS generator, property alias reader)?
-  │     → platforms/angular/libs/integrations/src/
-  │
-  └─ A feature (appointments, e-commerce, services)?
-        → platforms/angular/modules/<feature-name>/
+¿Es de Angular?
+  ├─ Componente del design system (no Web Component)
+  │     ├─ primitiva, una responsabilidad → libs/shared/src/components/primitives/
+  │     ├─ composición con estado de interacción → libs/shared/src/components/compositions/
+  │     └─ patrón de layout recurrente → libs/shared/src/components/patterns/
+  ├─ Provider, token, interceptor, guard, servicio → libs/core/src/
+  ├─ Puente entre el motor de render y los elementos → libs/rendering/src/
+  └─ Herramienta de sync con el CMS → libs/integrations/src/
 
-Is it a Web Component (Custom Element for CDN)?
-  ├─ Angular implementation?
-  │     → platforms/angular/apps/elements/<tier>/<name>/src/
-  │         e.g. platforms/angular/apps/elements/modules/hero/src/
-  │
-  ├─ React implementation?
-  │     → platforms/react/apps/elements/<tier>/<name>/src/
-  │
-  ├─ Svelte implementation?
-  │     → platforms/svelte/apps/elements/<tier>/<name>/src/
-  │
-  └─ Vanilla implementation?
-        → platforms/vanilla/apps/elements/<tier>/<name>/src/
+¿Es un Web Component para el CDN?
+  → platforms/angular/apps/elements/<tier>/<nombre>/src/
+    (Angular es hoy LA única plataforma que publica elementos. El contrato del
+     CDN conserva el segmento /angular/ en las rutas y `FrameworkKind` sigue
+     existiendo — reintroducir otra plataforma es posible, no existe.)
 
-Is it a build/publish/tooling script?
-  → tools/
-    Existing: cli.mjs, publish.mjs, clean-dist.mjs, manifest-gen.mjs, catalog.mjs
-    New scripts must be standalone .mjs files — no cross-script imports
+¿Es una experiencia interactiva rica?
+  → platforms/angular/apps/experiences/<nombre>/src/
 
-Is it architectural documentation?
+¿Es un script de build / publish / gate?
+  → tools/          (el script)
+    tools/lib/      (su lógica + su .spec.mjs — los gates viven acá)
+
+¿Es documentación arquitectónica?
   → SynergosDocs/
-    New docs: use kebab-case filenames
-    Update: SynergosDocs/ index if one exists
 ```
 
 ---
 
-## Quick reference table
+## 3. Promoción: cuándo algo de `libs/shared` se muda a `vitals`
 
-| What you have | Where it goes |
-|---------------|--------------|
-| `interface HeroElementData` | `vitals/contracts/src/elements.contract.ts` |
-| `interface UmbracoPageResponse` | `platforms/angular/libs/core/src/contracts/` |
-| `function mapHeroBlock(block) {...}` | `vitals/core/src/mappers/` |
-| `export const SPACING_TOKENS` | `vitals/shared/src/utils/` |
-| `$color-brand-500`, spacing tokens | `vitals/core-assets/src/scss/tokens/` |
-| `syn-button.ts` (Angular design system) | `platforms/angular/libs/shared/src/components/foundations/` |
-| `provideHttp()` Angular provider | `platforms/angular/libs/core/src/` |
-| `ElementMounter` service | `platforms/angular/libs/rendering/src/engines/` |
-| `synergos-hero` Angular element | `platforms/angular/apps/elements/modules/hero/src/` |
-| `synergos-hero` React element | `platforms/react/apps/elements/modules/hero/src/` |
-| New publish/build script | `tools/` |
-| Architecture decision | `SynergosDocs/` |
+**Al SEGUNDO consumidor, y el segundo consumidor es el segundo framework.** No
+antes. Mover lógica a `vitals` teniendo un solo framework es adivinar qué va a
+necesitar el siguiente, y el precio de adivinar mal es una frontera que ya no
+dice nada.
+
+Lo que sí se hace hoy, y cuesta poco: **medir**. Hay una medición hecha de qué
+parte de `libs/shared` es lógica que React necesitaría igual y hoy está atrapada
+dentro de un componente — `SynergosDocs/FRONTERA_VITALS.md`, §«Candidatos». La
+lista es materia prima para el día que exista el segundo `shared`, no una cola
+de trabajo para hoy.
 
 ---
 
-## The rule you should never forget
+## 4. Los tres vitales, y qué es cada uno
 
-**Import direction is always inward — toward lower-level layers.**
+| Paquete | Qué es | Lenguaje |
+|---|---|---|
+| `vitals/contracts` | Los tipos del acople CMS↔UI + el registro de elementos | TypeScript |
+| `vitals/core` | Modelos, mappers, bridge, logger | TypeScript |
+| `vitals/core-assets` | **El `shared` de estilos**: tokens, mixins, tipografía | SCSS |
+
+`vitals/core-assets` **no es un cuarto vital de TypeScript**: es el `shared` de
+la única capa que los cuatro frameworks consumen **sin traducir**. Un token CSS
+no se reescribe para React — se importa igual. Ver §4 de
+`SynergosDocs/FRONTERA_VITALS.md` para la decisión y lo que implica.
+
+**Antes de crear un `vitals/` nuevo**, la pregunta es la de siempre: *¿cabe en
+uno de los tres?* Casi siempre sí. Uno nuevo necesita justificación escrita.
+
+---
+
+## 5. La regla que no se olvida
+
+**La dirección de los imports es siempre hacia adentro.**
 
 ```
-modules  →  libs/shared  →  libs/core  →  vitals/*
+apps/elements  →  libs/shared  →  libs/core  →  vitals/*
+                                                vitals/core → vitals/contracts
+                                                vitals/contracts → (nada)
 ```
 
-If your import goes the other direction (e.g., `libs/core` importing from `libs/shared`), you have the wrong location. Move the code to the layer it actually belongs to.
+Si tu import va al revés, el sitio está mal. Mové el código a la capa a la que
+de verdad pertenece — no aflojes la regla.
 
 ---
 
-## Scope boundaries (enforced by ESLint)
+## 6. Registrar un elemento nuevo
 
-| If you're in... | You can import from... | You cannot import from... |
-|-----------------|------------------------|--------------------------|
-| `scope:elements` | `scope:libs`, `scope:vitals` | `scope:rendering`, `scope:integrations` |
-| `scope:cms-adapter` | anything | — |
-| `scope:rendering` | `scope:libs`, `scope:vitals` | `scope:elements`, `scope:integrations` |
-| `scope:libs` | `scope:vitals` | `scope:elements`, `scope:rendering` |
-| `scope:vitals` | nothing | everything else |
-
-`scope:elements` are **pure UI components** — they must never know the rendering engine exists.  
-Only `scope:cms-adapter` (i.e., `macro-host`) bridges the rendering boundary.
-
----
-
-## Before adding a new vitals/ package
-
-`vitals/` already covers:
-
-- `vitals/contracts` — types and registry
-- `vitals/core` — mappers, bridge, logger
-- `vitals/core-assets` — SCSS tokens
-- `vitals/shared` — runtime utils + Vite base config
-
-Ask before creating a new vitals package:
-> "Can this live in one of the four existing packages?"
-
-Most things can. A new top-level vitals package needs explicit architectural justification.
-
----
-
-## Registering a new element
-
-Every new Custom Element MUST be registered in `vitals/contracts/src/element-registry.json` before any code is written. Format:
+Todo Custom Element se registra en `vitals/contracts/src/element-registry.json`
+**antes** de escribir código:
 
 ```json
 { "name": "my-element", "alias": "elementCompMyElement", "tag": "synergos-my-element", "tier": "composition" }
 ```
 
-After adding it to the registry, add its inputs to `vitals/contracts/src/element-inputs.json`.
+Y después sus inputs en `vitals/contracts/src/element-inputs.json`.
+
+⚠ `cms-sync` **adivina el tier** de lo que no conoce y lo degrada a
+`composition`, lo que baja el techo del presupuesto de tamaño en silencio
+(regla 2 del `CLAUDE.md`). Mirá los WARN antes de correr `cms:sync`.
