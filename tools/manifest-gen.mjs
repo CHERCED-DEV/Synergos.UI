@@ -26,7 +26,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 import {
-  ROOT, ALL_FRAMEWORKS, loadRegistry, loadInputs, readPackageVersion, contratoDelManifiesto,
+  ROOT, loadRegistry, loadInputs, readPackageVersion, contratoDelManifiesto,
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest, validateManifest } from './lib/manifest-builder.mjs';

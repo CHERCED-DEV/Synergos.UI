@@ -381,7 +381,12 @@ se desincroniza):
    (c) **el segundo sitio donde estaba escrita la unión era el peligro real** — `FrameworkKind`
    y `ElementFramework` tenían los mismos cuatro valores y nada las cruzaba. Mientras el
    valor no viajaba, era feo; desde que viaja del registry al manifiesto y de ahí a la ruta
-   del CDN, es una avería esperando (#42).
+   del CDN, es una avería esperando.
+   **Y la unión de tipos es lo que FABRICA la copia**: no se puede recorrer en tiempo de
+   ejecución, así que el primero que necesita los valores —un type guard, un validador— se
+   escribe el array al lado, y ese array ya no lo cruza nada. Por eso la LISTA es el valor
+   (`ELEMENT_FRAMEWORKS`, `ELEMENT_TIERS`, `as const`) y el tipo se deriva de ella. Escribí
+   yo mismo la copia antes de verlo (#42).
 23. **Un contrato que no importa nadie no es un contrato: es un comentario con sintaxis.**
    `ElementManifest` declara la forma del `manifest.json` que va al CDN —el fichero que el
    CMS y las herramientas leen para saber qué expone un bundle— y **no lo importaba nadie**:
