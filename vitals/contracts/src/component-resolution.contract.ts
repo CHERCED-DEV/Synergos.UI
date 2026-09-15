@@ -5,7 +5,22 @@
  * shared by runtime resolvers, registry readers and CMS adapters.
  */
 
-export type FrameworkKind = 'angular' | 'react' | 'svelte' | 'vanilla';
+import { ELEMENT_FRAMEWORKS, type ElementFramework } from './element-manifest.schema';
+
+/**
+ * Alias de `ElementFramework`, que es donde vive la única declaración.
+ *
+ * La unión estaba escrita DOS veces con los mismos cuatro valores — acá y en
+ * `element-manifest.schema.ts` — y nada cruzaba las dos: añadir un framework en
+ * una y no en la otra compilaba. Al hacer que el registry declare `framework`
+ * (issue #42) eso pasó de ser feo a ser peligroso, porque el valor viaja del
+ * registry al manifiesto y de ahí a la ruta del CDN. El nombre se conserva:
+ * lo usan los resolvers y los adaptadores del CMS.
+ */
+export type FrameworkKind = ElementFramework;
+
+/** Los valores, una sola vez: es la misma lista, no una copia. */
+export const FRAMEWORK_KINDS: readonly FrameworkKind[] = ELEMENT_FRAMEWORKS;
 
 export type ComponentTier = 'primitive' | 'composition' | 'module' | 'experience';
 
@@ -101,12 +116,7 @@ export interface ComponentResolutionFailure {
 export type ComponentResolutionResult = ComponentResolutionSuccess | ComponentResolutionFailure;
 
 export function isFrameworkKind(value: unknown): value is FrameworkKind {
-  return (
-    value === 'angular' ||
-    value === 'react' ||
-    value === 'svelte' ||
-    value === 'vanilla'
-  );
+  return FRAMEWORK_KINDS.includes(value as FrameworkKind);
 }
 
 export function normalizeComponentSelector(selector: string): string {

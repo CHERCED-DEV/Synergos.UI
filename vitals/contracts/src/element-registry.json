@@ -3,201 +3,234 @@
     "name": "hero",
     "alias": "elementCompHero",
     "tag": "synergos-hero",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "banner",
     "alias": "elementCompCtaBanner",
     "tag": "synergos-banner",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "tab-group",
     "alias": "elementCorpTabGroup",
     "tag": "synergos-tab-group",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "banner-slider",
     "alias": "elementCorpBannerSlider",
     "tag": "synergos-banner-slider",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "data-table",
     "alias": "elementCorpDataTable",
     "tag": "synergos-data-table",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "card",
     "alias": "elementCompCard",
     "tag": "synergos-card",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "info-block",
     "alias": "elementSynInfoBlock",
     "tag": "synergos-info-block",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "cta-group",
     "alias": "elementActionCtaGroup",
     "tag": "synergos-cta-group",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "button-group",
     "alias": "elementSynButtonGroup",
     "tag": "synergos-button-group",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "feature-item",
     "alias": "elementInfoFeature",
     "tag": "synergos-feature-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "stat-counter",
     "alias": "elementInfoStat",
     "tag": "synergos-stat-counter",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "key-value",
     "alias": "elementInfoKeyValue",
     "tag": "synergos-key-value",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "timeline-item",
     "alias": "elementInfoTimelineItem",
     "tag": "synergos-timeline-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "faq-item",
     "alias": "elementInfoFaqItem",
     "tag": "synergos-faq-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "testimonial-item",
     "alias": "elementInfoTestimonialItem",
     "tag": "synergos-testimonial-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "gallery-item",
     "alias": "elementMediaGalleryItem",
     "tag": "synergos-gallery-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "logo-item",
     "alias": "elementMediaLogoItem",
     "tag": "synergos-logo-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "alert-bar",
     "alias": "elementCorpAlertBar",
     "tag": "synergos-alert-bar",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "newsletter-form",
     "alias": "elementCorpNewsletterForm",
     "tag": "synergos-newsletter-form",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "social-share",
     "alias": "elementCorpSocialShare",
     "tag": "synergos-social-share",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "heading",
     "alias": "elementTextHeading",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "paragraph",
     "alias": "elementTextParagraph",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "rich-text",
     "alias": "elementTextRichtext",
     "tag": "synergos-text-block",
     "tier": "primitive",
+    "framework": "angular",
     "placement": "shared"
   },
   {
     "name": "eyebrow",
     "alias": "elementTextEyebrow",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "quote",
     "alias": "elementTextQuote",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "label",
     "alias": "elementTextLabel",
     "tag": "synergos-text-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "text-block",
     "alias": "elementTextBlock",
     "tag": "synergos-text-block",
     "tier": "primitive",
+    "framework": "angular",
     "placement": "shared"
   },
   {
     "name": "button-container",
     "alias": "elementActionButton",
     "tag": "synergos-button-container",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "link-block",
     "alias": "elementActionLink",
     "tag": "synergos-link-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "image-block",
     "alias": "elementMediaImage",
     "tag": "synergos-image-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "video-block",
     "alias": "elementMediaVideo",
     "tag": "synergos-video-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "icon-block",
     "alias": "elementMediaIcon",
     "tag": "synergos-icon-block",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "feature-journey",
     "alias": "experienceFeatureJourney",
     "tag": "synergos-feature-journey",
     "tier": "module",
+    "framework": "angular",
     "placement": "moduleMount"
   },
   {
@@ -205,6 +238,7 @@
     "alias": "experienceInsightExplorer",
     "tag": "synergos-insight-explorer",
     "tier": "module",
+    "framework": "angular",
     "placement": "moduleMount"
   },
   {
@@ -212,127 +246,148 @@
     "alias": "experienceMediaExplorer",
     "tag": "synergos-media-explorer",
     "tier": "module",
+    "framework": "angular",
     "placement": "moduleMount"
   },
   {
     "name": "product-card",
     "alias": "elementShopProductCard",
     "tag": "synergos-product-card",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "product-grid",
     "alias": "elementShopProductGrid",
     "tag": "synergos-product-grid",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "product-detail",
     "alias": "elementShopProductDetail",
     "tag": "synergos-product-detail",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "cart-summary",
     "alias": "elementShopCartSummary",
     "tag": "synergos-cart-summary",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "cart-item",
     "alias": "elementShopCartItem",
     "tag": "synergos-cart-item",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "price-display",
     "alias": "elementShopPriceDisplay",
     "tag": "synergos-price-display",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "quantity-selector",
     "alias": "elementShopQuantitySelector",
     "tag": "synergos-quantity-selector",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "variant-picker",
     "alias": "elementShopVariantPicker",
     "tag": "synergos-variant-picker",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "accordion",
     "alias": "elementSynAccordion",
     "tag": "synergos-accordion",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "academy",
     "alias": "elementSynAcademy",
     "tag": "synergos-academy",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "app-launcher",
     "alias": "elementSynAppLauncher",
     "tag": "synergos-app-launcher",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "audio-player",
     "alias": "elementSynAudioPlayer",
     "tag": "synergos-audio-player",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "autocomplete",
     "alias": "elementSynAutocomplete",
     "tag": "synergos-autocomplete",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "avatar",
     "alias": "elementSynAvatar",
     "tag": "synergos-avatar",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "avatar-group",
     "alias": "elementSynAvatarGroup",
     "tag": "synergos-avatar-group",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "avatar-upload",
     "alias": "elementSynAvatarUpload",
     "tag": "synergos-avatar-upload",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "badge",
     "alias": "elementSynBadge",
     "tag": "synergos-badge",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "badge-group",
     "alias": "elementSynBadgeGroup",
     "tag": "synergos-badge-group",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "blogs",
     "alias": "elementSynBlogs",
     "tag": "synergos-blogs",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "booking-wizard",
     "alias": "elementSynBookingWizard",
     "tag": "synergos-booking-wizard",
     "tier": "module",
+    "framework": "angular",
     "dependencies": [
       "pax-selector"
     ]
@@ -341,121 +396,141 @@
     "name": "breadcrumb",
     "alias": "elementSynBreadcrumb",
     "tag": "synergos-breadcrumb",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "calendar",
     "alias": "elementSynCalendar",
     "tag": "synergos-calendar",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "carousel",
     "alias": "elementSynCarousel",
     "tag": "synergos-carousel",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "chart-bar",
     "alias": "elementSynChartBar",
     "tag": "synergos-chart-bar",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "code-block",
     "alias": "elementSynCodeBlock",
     "tag": "synergos-code-block",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "color-picker",
     "alias": "elementSynColorPicker",
     "tag": "synergos-color-picker",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "color-swatches",
     "alias": "elementSynColorSwatches",
     "tag": "synergos-color-swatches",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "comments-widget",
     "alias": "elementSynCommentsWidget",
     "tag": "synergos-comments-widget",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "cookie-consent",
     "alias": "elementSynCookieConsent",
     "tag": "synergos-cookie-consent",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "copy-button",
     "alias": "elementSynCopyButton",
     "tag": "synergos-copy-button",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "countdown-clock",
     "alias": "elementSynCountdownClock",
     "tag": "synergos-countdown-clock",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "countdown-digital",
     "alias": "elementSynCountdownDigital",
     "tag": "synergos-countdown-digital",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "data-grid",
     "alias": "elementSynDataGrid",
     "tag": "synergos-data-grid",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "date-picker",
     "alias": "elementSynDatePicker",
     "tag": "synergos-date-picker",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "divider",
     "alias": "elementSynDivider",
     "tag": "synergos-divider",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "drawer",
     "alias": "elementSynDrawer",
     "tag": "synergos-drawer",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "dropdown",
     "alias": "elementSynDropdown",
     "tag": "synergos-dropdown",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "dropzone",
     "alias": "elementSynDropzone",
     "tag": "synergos-dropzone",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "ehr",
     "alias": "elementSynEhr",
     "tag": "synergos-ehr",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "eventos",
     "alias": "elementSynEventos",
     "tag": "synergos-eventos",
     "tier": "module",
+    "framework": "angular",
     "dependencies": [
       "countdown-clock"
     ]
@@ -464,302 +539,352 @@
     "name": "fab",
     "alias": "elementSynFab",
     "tag": "synergos-fab",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "file-uploader",
     "alias": "elementSynFileUploader",
     "tag": "synergos-file-uploader",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "form-stepper",
     "alias": "elementSynFormStepper",
     "tag": "synergos-form-stepper",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "gov",
     "alias": "elementSynGov",
     "tag": "synergos-gov",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "hero-banner",
     "alias": "elementSynHeroBanner",
     "tag": "synergos-hero-banner",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "icon-label",
     "alias": "elementSynIconLabel",
     "tag": "synergos-icon-label",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "kpi-card",
     "alias": "elementSynKpiCard",
     "tag": "synergos-kpi-card",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "lightbox-gallery",
     "alias": "elementSynLightboxGallery",
     "tag": "synergos-lightbox-gallery",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "livestream",
     "alias": "elementSynLivestream",
     "tag": "synergos-livestream",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "map-pin",
     "alias": "elementSynMapPin",
     "tag": "synergos-map-pin",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "modal-trigger",
     "alias": "elementSynModalTrigger",
     "tag": "synergos-modal-trigger",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "notification-center",
     "alias": "elementSynNotificationCenter",
     "tag": "synergos-notification-center",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "notification-toast",
     "alias": "elementSynNotificationToast",
     "tag": "synergos-notification-toast",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "oembed",
     "alias": "elementSynOEmbed",
     "tag": "synergos-oembed",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "otp-input",
     "alias": "elementSynOtpInput",
     "tag": "synergos-otp-input",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "pagination",
     "alias": "elementSynPagination",
     "tag": "synergos-pagination",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "poll",
     "alias": "elementSynPoll",
     "tag": "synergos-poll",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "popover",
     "alias": "elementSynPopover",
     "tag": "synergos-popover",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "progress-bar",
     "alias": "elementSynProgressBar",
     "tag": "synergos-progress-bar",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "qr-code",
     "alias": "elementSynQrCode",
     "tag": "synergos-qr-code",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "quote-animated",
     "alias": "elementSynQuoteAnimated",
     "tag": "synergos-quote-animated",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "range-slider",
     "alias": "elementSynRangeSlider",
     "tag": "synergos-range-slider",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "rating-stars",
     "alias": "elementSynRatingStars",
     "tag": "synergos-rating-stars",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "realty",
     "alias": "elementSynRealty",
     "tag": "synergos-realty",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "pax-selector",
     "alias": "elementSynPaxSelector",
     "tag": "synergos-pax-selector",
     "tier": "composition",
+    "framework": "angular",
     "placement": "embedded"
   },
   {
     "name": "rich-tooltip",
     "alias": "elementSynRichTooltip",
     "tag": "synergos-rich-tooltip",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "scroll-top",
     "alias": "elementSynScrollTop",
     "tag": "synergos-scroll-top",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "search-box",
     "alias": "elementSynSearchBox",
     "tag": "synergos-search-box",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "seat-map",
     "alias": "elementSynSeatMap",
     "tag": "synergos-seat-map",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "select-multi",
     "alias": "elementSynSelectMulti",
     "tag": "synergos-select-multi",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "seller",
     "alias": "elementSynSeller",
     "tag": "synergos-seller",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "separator",
     "alias": "elementSynSeparator",
     "tag": "synergos-separator",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "share-bar",
     "alias": "elementSynShareBar",
     "tag": "synergos-share-bar",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "signature-pad",
     "alias": "elementSynSignaturePad",
     "tag": "synergos-signature-pad",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "skeleton",
     "alias": "elementSynSkeleton",
     "tag": "synergos-skeleton",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "social-proof",
     "alias": "elementSynSocialProof",
     "tag": "synergos-social-proof",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "spacer",
     "alias": "elementSynSpacer",
     "tag": "synergos-spacer",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "splitter",
     "alias": "elementSynSplitter",
     "tag": "synergos-splitter",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "stat-ticker",
     "alias": "elementSynStatTicker",
     "tag": "synergos-stat-ticker",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "stepper",
     "alias": "elementSynStepper",
     "tag": "synergos-stepper",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "storefront",
     "alias": "elementSynStorefront",
     "tag": "synergos-storefront",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "tabs",
     "alias": "elementSynTabs",
     "tag": "synergos-tabs",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "tag",
     "alias": "elementSynTag",
     "tag": "synergos-tag",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "testimonial-carousel",
     "alias": "elementSynTestimonialCarousel",
     "tag": "synergos-testimonial-carousel",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "timeline",
     "alias": "elementSynTimeline",
     "tag": "synergos-timeline",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "timeline-horizontal",
     "alias": "elementSynTimelineHorizontal",
     "tag": "synergos-timeline-horizontal",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "toast-center",
     "alias": "elementSynToastCenter",
     "tag": "synergos-toast-center",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "tooltip",
     "alias": "elementSynTooltip",
     "tag": "synergos-tooltip",
-    "tier": "primitive"
+    "tier": "primitive",
+    "framework": "angular"
   },
   {
     "name": "tour-guide",
     "alias": "elementSynTourGuide",
     "tag": "synergos-tour-guide",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "travel-shell",
     "alias": "elementSynTravelShell",
     "tag": "synergos-travel-shell",
     "tier": "module",
+    "framework": "angular",
     "dependencies": [
       "pax-selector"
     ]
@@ -768,42 +893,49 @@
     "name": "tree-view",
     "alias": "elementSynTreeView",
     "tag": "synergos-tree-view",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "video-player",
     "alias": "elementSynVideoPlayer",
     "tag": "synergos-video-player",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "faq-section",
     "alias": "elementSynFaqSection",
     "tag": "synergos-faq-section",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "feature-grid",
     "alias": "elementSynFeatureGrid",
     "tag": "synergos-feature-grid",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "media-text",
     "alias": "elementSynMediaText",
     "tag": "synergos-media-text",
-    "tier": "composition"
+    "tier": "composition",
+    "framework": "angular"
   },
   {
     "name": "module-mount",
     "alias": "elementSynModuleMount",
     "tag": "synergos-module-mount",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   },
   {
     "name": "testimonial-section",
     "alias": "elementSynTestimonialSection",
     "tag": "synergos-testimonial-section",
-    "tier": "module"
+    "tier": "module",
+    "framework": "angular"
   }
 ]
