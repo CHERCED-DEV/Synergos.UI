@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
 import {
   frameworksConstruibles,
@@ -187,5 +187,170 @@ describe('frameworksDelRegistry', () => {
   it('un registry vacío da lista vacía, NO `["angular"]`', () => {
     expect(frameworksDelRegistry({ elements: [] })).toEqual([]);
     expect(frameworksDelRegistry(null)).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EL CENSO: qué herramienta puede nombrar al framework y cuál no.
+//
+// Sin esto, el arreglo dura hasta el siguiente que escriba
+// `join(CDN, nombre, 'angular', …)` por reflejo, y nadie lo nota — porque el
+// síntoma no es rojo, es verde sobre el sitio equivocado.
+//
+// La lista va EN LOS DOS SENTIDOS contra el disco: una herramienta nueva de
+// `tools/` no puede nacer sin estar clasificada, y una clasificada que ya no
+// existe rompe el build, porque una excepción que sobra deja de leerse. Es el
+// mismo trámite que `SIN_FUENTE_PROPIA` en `element-sources.mjs`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Las que trabajan sobre LO PUBLICADO, sea de quien sea. Ninguna puede nombrar
+ * a un framework: su respuesta tiene que valer igual con uno o con cuatro.
+ */
+const CIEGAS_AL_FRAMEWORK = [
+  'check-size-budget.mjs',
+  'humo-cdn.mjs',
+  'catalog.mjs',
+  'clean-dist.mjs',
+  'publish.mjs',
+  'manifest-gen.mjs',
+  'build-vitals.mjs',
+  'contracts-export.mjs',
+  'audit-themes.mjs',
+  'dev-cdn.mjs',
+  'lib/dev-cdn-routes.mjs',
+  'lib/cdn-smoke.mjs',
+  'lib/frameworks.mjs',
+  'lib/cdn-registry.mjs',
+  'lib/cdn-cache-policy.mjs',
+  'lib/manifest-builder.mjs',
+  'lib/contract-schema.mjs',
+  'lib/cli-utils.mjs',
+  'lib/livereload.mjs',
+  'lib/css-parity.mjs',
+  'lib/cms-contract-rules.mjs',
+  'lib/vitals-purity.mjs',
+];
+
+/**
+ * Las que SÍ nombran a Angular, con la razón. Entrar exige escribirla.
+ *
+ * Son de tres clases y conviene distinguirlas, porque sólo una es deuda:
+ *
+ *   a) **herramientas DE Angular** — construyen o publican el runtime de
+ *      Angular, o miden su `libs/shared`. Un segundo framework traerá las
+ *      suyas; parametrizar éstas sería inventarle una forma a un runtime que
+ *      no existe (§6, «no introducir abstracciones prematuras»).
+ *   b) **el nombre del paquete** — `@angular/core` y compañía son
+ *      especificadores de npm, no segmentos de ruta. El detector ya los quita,
+ *      y aun así alguna aparece en prosa de un mensaje de error.
+ *   c) **alias históricos** — `angular-host`, `elementIntAngularHost`: nombres
+ *      del CMS que sobreviven por compatibilidad.
+ */
+const ESPECIFICAS_DE_ANGULAR = {
+  'build-runtime.mjs':
+    '(a) construye EL runtime de Angular: pasa el linker sobre los @angular/* de npm. ' +
+    'Otro framework traerá su propia herramienta, con su propio linker o ninguno.',
+  'publish-runtime.mjs':
+    '(a) publica lo que construye build-runtime.mjs, al slot runtime/angular/<version>/.',
+  'build-cdn.mjs':
+    '(a) orquesta el build: llama a `npm run build:angular` y al runtime de Angular. ' +
+    'El día que haya dos, itera sobre PLATFORMS — hoy inventarlo es adivinar el script.',
+  'medir-frontera-shared.mjs':
+    '(a) mide cuánto de platforms/angular/libs/shared está acoplado a la API de Angular. ' +
+    'Su sujeto ES Angular; sin Angular la medición no significa nada.',
+  'release-cdn.mjs':
+    '(a) el framework ya NO tiene default (issue #44): lo exige. Lo que queda nombrando a ' +
+    'Angular son las dos herramientas de runtime, que sólo Angular tiene.',
+  'cli.mjs':
+    '(a) atajos de consola que lanzan los scripts de platforms/angular.',
+  'cms-sync.mjs':
+    '(a) escribe la ruta donde HABRÍA que crear un Web Component que falta. Es una pista ' +
+    'para una persona, no una ruta de CDN.',
+  'element-contract-audit.mjs':
+    '(c) `elementIntAngularHost` y `angular-host` son alias históricos del CMS. El recorrido ' +
+    'del disco ya NO nombra al framework: lo delega en element-sources.mjs (#44).',
+  'validate-cms-contracts.mjs':
+    '(c) `angular-host` es un alias deprecado del CMS que sigue llegando en payloads viejos.',
+  'refresh-skill-catalog.mjs':
+    '(b/c) prosa del catálogo de skills: nombra `release:angular` y dice cuál es hoy la única ' +
+    'plataforma. Es documentación generada, no una ruta.',
+  'lib/synergos-config.mjs':
+    '(a) es DONDE vive la declaración de PLATFORMS. Que nombre a Angular es su trabajo; que lo ' +
+    'nombre cualquier otro sitio es el defecto.',
+  'lib/element-sources.mjs':
+    '(a) `SIN_FUENTE_PROPIA` declara el framework de las dos entradas que ninguna plataforma ' +
+    'construye, cada una con su razón escrita (issue #42).',
+  'lib/cdn-runtime-check.mjs':
+    '(a) comprueba que el runtime de Angular llegó al CDN antes que los elementos (#7).',
+  'lib/cdn-size-budget.mjs':
+    '(b) `@angular/core`, `@angular/elements` y `@angular/platform-browser` son los externals ' +
+    'universales, y un mensaje de error apunta a platforms/angular/cdn.config.mjs.',
+  'lib/interactive.mjs':
+    '(a) los menús del release interactivo, que ofrecen el runtime compartido de Angular.',
+  'lib/shell-cta-tokens.mjs':
+    '(a) lee los shells de platforms/angular/libs para comprobar sus tokens de CTA (#25).',
+};
+
+/**
+ * Las menciones de `angular` que cuentan.
+ *
+ * Se quitan los comentarios —un gate que se engaña con su propia explicación es
+ * lo que ya pasó en el repo hermano— y los especificadores `@angular/…`, que
+ * son nombres de paquete de npm y no segmentos de la ruta del CDN.
+ */
+function mencionesDeFramework(fuente) {
+  return fuente
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/@angular\/[a-z0-9/-]*/gi, '')
+    .split('\n')
+    .filter((l) => /angular/i.test(l))
+    .map((l) => l.trim());
+}
+
+describe('el censo de `angular` en tools/', () => {
+  const TOOLS = resolve(ROOT, 'tools');
+  const ficheros = [
+    ...readdirSync(TOOLS).filter((f) => f.endsWith('.mjs')),
+    ...readdirSync(join(TOOLS, 'lib'))
+      .filter((f) => f.endsWith('.mjs') && !f.endsWith('.spec.mjs'))
+      .map((f) => `lib/${f}`),
+  ].sort();
+
+  it('hay herramientas que censar', () => {
+    // Red de seguridad: si el descubrimiento deja de ver, todo lo de abajo
+    // pasaría en verde sin mirar nada.
+    expect(ficheros.length).toBeGreaterThan(20);
+  });
+
+  it('cada herramienta está clasificada, y en UNA sola lista', () => {
+    const ciegas = new Set(CIEGAS_AL_FRAMEWORK);
+    const especificas = new Set(Object.keys(ESPECIFICAS_DE_ANGULAR));
+
+    const sinClasificar = ficheros.filter((f) => !ciegas.has(f) && !especificas.has(f));
+    expect(sinClasificar, 'herramientas nuevas sin clasificar en frameworks.spec.mjs').toEqual([]);
+
+    const enLasDos = ficheros.filter((f) => ciegas.has(f) && especificas.has(f));
+    expect(enLasDos).toEqual([]);
+
+    const fantasmas = [...ciegas, ...especificas].filter((f) => !ficheros.includes(f));
+    expect(fantasmas, 'clasificadas que ya no existen — una excepción que sobra deja de leerse').toEqual([]);
+  });
+
+  it.each(CIEGAS_AL_FRAMEWORK)('%s no nombra a ningún framework', (relativo) => {
+    // El gate de verdad. `check-size-budget.mjs` y `humo-cdn.mjs` están acá
+    // porque son los dos que el ticket midió: el primero dejaba a React sin
+    // techo, el segundo certificaba un despliegue habiendo mirado un segmento.
+    const menciones = mencionesDeFramework(readFileSync(join(TOOLS, relativo), 'utf8'));
+    expect(menciones, `${relativo} vuelve a cablear el framework`).toEqual([]);
+  });
+
+  it.each(Object.entries(ESPECIFICAS_DE_ANGULAR))('%s tiene razón escrita', (relativo, razon) => {
+    expect(razon.length, `${relativo}: la razón tiene que decir algo`).toBeGreaterThan(40);
+    // Y tiene que seguir nombrándolo: una excepción sobre un fichero que ya no
+    // lo menciona sobra, y la siguiente que entre lo hará sin discusión.
+    const menciones = mencionesDeFramework(readFileSync(join(TOOLS, relativo), 'utf8'));
+    expect(menciones.length, `${relativo} ya no nombra a Angular: borrá la excepción`).toBeGreaterThan(0);
   });
 });
