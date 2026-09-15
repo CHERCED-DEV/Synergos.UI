@@ -49,6 +49,66 @@ function bordeConAprendizaje(
   };
 }
 
+/**
+ * Un borde de AULA de mentira: contesta la ESCRITURA del progreso (y el certificado
+ * si se le da uno) y deja caer el resto, que tiene su mock declarado.
+ *
+ * Tres decisiones del fixture, y las tres hacen falta (regla 7 — el dato de prueba
+ * tiene que EXIGIR la regla):
+ *
+ *  - **Apaga por MÉTODO y ruta** (`'POST /progress'`), como el borde falso del EHR.
+ *    `'/progress'` a secas mataría también el `GET` que el aula lee al entrar, y el
+ *    apagón PARCIAL es el único que alcanza una escritura: toda escritura va detrás
+ *    de una lectura que funcionó (regla 18).
+ *  - **El porcentaje que devuelve NO es el que el aula calcula en local.** El borde
+ *    lo saca de su propio currículum (`percentPorMarca`), así que un cliente que
+ *    devuelva el optimista da otro número. Con los dos iguales, emitir el del
+ *    servidor o el de casa daría el mismo verde.
+ *  - **Apunta lo que recibió**, para poder afirmar que un reintento no duplica y que
+ *    una marca que falló NO se dio por hecha.
+ */
+function bordeDeAula(opciones: {
+  readonly percentPorMarca: readonly number[];
+  readonly caidos?: readonly string[];
+  readonly certificado?: Record<string, unknown>;
+}): { fetch: (url: string, init?: RequestInit) => Promise<Response>; marcadas: string[] } {
+  const marcadas: string[] = [];
+  const caido = (metodo: string, url: string): boolean =>
+    (opciones.caidos ?? []).some((entrada) => {
+      const [cabeza, cola] = entrada.split(' ');
+      return cola === undefined
+        ? url.includes(cabeza)
+        : cabeza === metodo && url.includes(cola);
+    });
+  const responde = (body: unknown): Response =>
+    ({ ok: true, status: 200, json: () => Promise.resolve(body) }) as Response;
+
+  return {
+    marcadas,
+    fetch: (url: string, init?: RequestInit) => {
+      const metodo = (init?.method ?? 'GET').toUpperCase();
+      const ruta = String(url);
+      if (caido(metodo, ruta)) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          json: () => Promise.resolve({}),
+        } as Response);
+      }
+      if (metodo === 'POST' && ruta.includes('/progress')) {
+        const cuerpo = JSON.parse(String(init?.body ?? '{}')) as { lessonId?: string };
+        marcadas.push(String(cuerpo.lessonId ?? ''));
+        const indice = Math.min(marcadas.length - 1, opciones.percentPorMarca.length - 1);
+        return Promise.resolve(responde({ percent: opciones.percentPorMarca[indice] }));
+      }
+      if (metodo === 'GET' && ruta.includes('/certificate') && opciones.certificado) {
+        return Promise.resolve(responde({ certificate: opciones.certificado }));
+      }
+      return Promise.reject(new Error('offline'));
+    },
+  };
+}
+
 /** Una matrícula con la forma que emite `EnrolledCourseDto`. */
 function matriculaServidor(): Record<string, unknown> {
   return {
@@ -136,30 +196,26 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   // ── happy: PDD → SH-3 wizard → confirm → classroom → complete → certificate ───
   it('runs the full enrolment lifecycle through the SH-3 wizard (happy case)', async () => {
     installMemoryStorage();
-    // Todo el flujo corre sobre el catálogo sembrado, MENOS el certificado: ése lo
-    // contesta el borde con su sobre real, porque una credencial no se fabrica y sin
-    // servidor no hay ninguna que pintar.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) =>
-        String(url).includes('/certificate')
-          ? Promise.resolve({
-              ok: true,
-              status: 200,
-              json: () =>
-                Promise.resolve({
-                  certificate: {
-                    id: 'CERT-SELLADO-9',
-                    studentName: 'Ada Lovelace',
-                    courseTitle: 'Angular',
-                    issuedAt: '2026-05-04T00:00:00Z',
-                    verifyUrl: 'https://synergos.test/academy/verify/CERT-SELLADO-9',
-                  },
-                }),
-            } as Response)
-          : Promise.reject(new Error('offline')),
-      ),
-    );
+    // Todo el flujo corre sobre el catálogo sembrado, MENOS el certificado y el
+    // AVANCE: esos dos los contesta el borde. Una credencial no se fabrica, y un
+    // avance tampoco — antes este test completaba el curso con la red caída, o sea
+    // afirmaba en verde justo el defecto de #116 (regla 9: un test que codifica el
+    // defecto convierte el arreglo en una regresión).
+    //
+    // Los porcentajes del borde NO son los que el aula calcula (1/7 = 14 %, 2/7 =
+    // 29 %…): salen de su currículum. Si coincidieran, devolver el del servidor o el
+    // de casa daría el mismo verde.
+    const aula = bordeDeAula({
+      percentPorMarca: [10, 20, 35, 50, 65, 80, 100],
+      certificado: {
+        id: 'CERT-SELLADO-9',
+        studentName: 'Ada Lovelace',
+        courseTitle: 'Angular',
+        issuedAt: '2026-05-04T00:00:00Z',
+        verifyUrl: 'https://synergos.test/academy/verify/CERT-SELLADO-9',
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
     await createComponent();
 
     // Open a PAID course (CMOCK-1) so the wizard path runs (free would skip it).
@@ -192,11 +248,18 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     component.enterClassroom();
     fixture.detectChanges();
     expect(component.view()).toBe('classroom');
-    for (const lesson of component.orderedLessons()) {
+    const lecciones = component.orderedLessons();
+    component.selectLesson(lecciones[0]);
+    component.markLessonComplete();
+    await flushMicrotasks();
+    // El número que queda es el del SERVIDOR (10 %), no el que el aula calculó (14 %).
+    expect(component.progressPercent()).toBe(10);
+    for (const lesson of lecciones.slice(1)) {
       component.selectLesson(lesson);
       component.markLessonComplete();
       await flushMicrotasks();
     }
+    expect(aula.marcadas).toEqual(lecciones.map((lesson) => lesson.id));
     expect(component.isCourseComplete()).toBe(true);
 
     component.viewCertificate();
@@ -225,6 +288,91 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks(30);
     expect(component.view()).toBe('enrolled');
     expect(component.enrollmentId().length).toBeGreaterThan(0);
+  });
+
+  // ── #116 · el avance que el servidor NO guardó ───────────────────────────────
+
+  /** Entra al aula por el curso gratis, que no pasa por el asistente. */
+  async function entraAlAula(): Promise<void> {
+    component.openCourse(component.courses().find((c) => c.amount <= 0)!);
+    await flushMicrotasks();
+    component.startEnrollment();
+    await flushMicrotasks(30);
+    component.enterClassroom();
+    fixture.detectChanges();
+    expect(component.view()).toBe('classroom');
+  }
+
+  it('EL caso: una marca que el servidor no guardó NO deja la barra avanzada', async () => {
+    installMemoryStorage();
+    // Apagón PARCIAL: el aula se abre (la lectura del progreso va por el mock del
+    // catálogo) y lo único caído es la ESCRITURA. Un apagón total no alcanza nunca a
+    // una escritura, porque va detrás de una lectura que funcionó (regla 18).
+    const aula = bordeDeAula({ percentPorMarca: [55], caidos: ['POST /progress'] });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
+    await createComponent();
+    await entraAlAula();
+
+    const emitidos: unknown[] = [];
+    component.lessoncompleted.subscribe((evento) => emitidos.push(evento));
+
+    const leccion = component.orderedLessons()[0];
+    component.selectLesson(leccion);
+    component.markLessonComplete();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    // Nada quedó guardado: ni la palomita, ni la barra, ni el evento que sale al bus.
+    expect(component.isLessonComplete(leccion.id)).toBe(false);
+    expect(component.progressPercent()).toBe(0);
+    expect(emitidos).toEqual([]);
+    // Y se DICE, porque si no el alumno ve deshacerse su palomita sin explicación.
+    expect(component.progressNotice()).toContain('No pudimos guardar');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.academy__progress-notice')
+        ?.textContent,
+    ).toContain('No pudimos guardar');
+  });
+
+  it('el porcentaje que queda es el del SERVIDOR, no el que calcula el aula', async () => {
+    installMemoryStorage();
+    // 7 lecciones → el aula calcularía 14 %. El borde dice 55 %, que es un número que
+    // ninguna cuenta local de esta pantalla puede producir.
+    const aula = bordeDeAula({ percentPorMarca: [55] });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
+    await createComponent();
+    await entraAlAula();
+
+    const leccion = component.orderedLessons()[0];
+    component.selectLesson(leccion);
+    component.markLessonComplete();
+    await flushMicrotasks();
+
+    expect(component.progressPercent()).toBe(55);
+    expect(component.isLessonComplete(leccion.id)).toBe(true);
+    expect(component.progressNotice()).toBe('');
+    expect(aula.marcadas).toEqual([leccion.id]);
+  });
+
+  it('desmarcar no se finge: el contrato sólo sabe MARCAR', async () => {
+    installMemoryStorage();
+    const aula = bordeDeAula({ percentPorMarca: [55] });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
+    await createComponent();
+    await entraAlAula();
+
+    const leccion = component.orderedLessons()[0];
+    component.toggleLessonCompleteFor(leccion);
+    await flushMicrotasks();
+    expect(component.isLessonComplete(leccion.id)).toBe(true);
+
+    // Quitar la palomita dejaría la casilla vacía sobre un expediente donde la
+    // lección sigue completa: la misma mentira con el signo cambiado.
+    component.toggleLessonCompleteFor(leccion);
+    await flushMicrotasks();
+    expect(component.isLessonComplete(leccion.id)).toBe(true);
+    expect(component.progressNotice()).toContain('no se puede desmarcar');
+    expect(aula.marcadas).toEqual([leccion.id]);
   });
 
   // ── filter: SH-1 criteria filters the catalogue by escuela/categoría ──────────

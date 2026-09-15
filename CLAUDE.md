@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Dieciocho reglas que costaron caro y no se deducen leyendo el código:**
+**Diecinueve reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -292,3 +292,24 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    escritura, porque toda escritura va detrás de una lectura que funcionó— el
    servidor de mentira apaga por MÉTODO y ruta (`'POST /appointment'`), no sólo por
    ruta (CHERCED-DEV/Synergos.CMS#111).
+19. **Un parámetro `fallback*` en una ESCRITURA es la fabricación escrita en la FIRMA
+   — y se ve sin abrir el cuerpo del método.** `markComplete(apiBase, courseId,
+   lessonId, fallbackPercent)` recibía del aula el porcentaje que el aula acababa de
+   calcular en local y lo devolvía cuando el `POST` no llegaba: el alumno marcaba una
+   lección, veía avanzar la barra, cerraba, volvía, y su avance no estaba. Es la regla
+   18 otra vez, pero **el tell es distinto y es el más barato de todos**: cuando un
+   método de escritura pide como PARÁMETRO lo mismo que promete DEVOLVER, el que decide
+   el resultado es el llamador y el servidor es decoración. Se busca con un grep, no
+   leyendo lógica.
+   Dos corolarios que costaron sus mutaciones:
+   (a) **el número del servidor tiene que ser uno que el llamador no pueda calcular**
+   — el borde saca el porcentaje del currículum entero del expediente y el aula de las
+   lecciones que tiene cargadas; si el fixture los hiciera coincidir, devolver el del
+   servidor o el de casa daría el mismo verde;
+   (b) **la operación INVERSA que el contrato no tiene tampoco se finge** —
+   `POST /progress` sólo sabe MARCAR (`MarkLessonAsync`, no hay inversa), así que
+   quitar la palomita en local dejaba la casilla vacía sobre un expediente donde la
+   lección seguía completa: la misma mentira con el signo cambiado.
+   Y el spec que lo tapaba era el «happy case» del ciclo entero: **completaba el curso
+   con la red caída** y afirmaba `isCourseComplete()`, o sea codificaba el defecto
+   (regla 9) sobre el camino que más se lee (CHERCED-DEV/Synergos.CMS#116).
