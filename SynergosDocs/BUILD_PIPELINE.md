@@ -9,7 +9,7 @@
 | Tarea | Comando |
 |---|---|
 | Build completo (vitals + elementos + runtime) | `npm run build` |
-| Los 136 elementos + libs, AOT completo | `npm run build:angular` (~26 s) |
+| Las 127 fuentes + libs, AOT completo | `npm run build:angular` (~30 s) |
 | Watch incremental (reusa el programa del compilador) | `npm run dev` desde `platforms/angular/` |
 | Solo unos elementos | `node tools/build.mjs --solo=badge,hero` desde `platforms/angular/` |
 | Runtime compartido (Angular + sg-core + sg-shared) | `npm run build:runtime` |
@@ -25,7 +25,8 @@
 
 ### Por qué existe
 
-Con Nx, cada uno de los 136 elementos era una "application" independiente:
+Con Nx, cada uno de los 136 elementos que había ENTONCES era una "application"
+independiente (hoy son 127; la cifra de abajo es histórica y se deja):
 136 arranques del compilador de Angular, 136 type-checks del mismo grafo de
 libs, con el caché de Nx además deshabilitado (`cache: false` +
 `--skip-nx-cache` — Nx solo aportaba `--parallel=6`). El build tardaba minutos
@@ -39,11 +40,11 @@ y murió por timeout en el primer build de Cloudflare. El trabajo real —compil
 1. **Sass vía `transformResource`** — el mismo gancho que usa el builder oficial:
    cada `styleUrl` y cada bloque `styles:` inline sale como CSS plano insertado
    en el componente. Los tokens se resuelven desde `vitals/core-assets/src`.
-2. **UN `NgtscProgram`** con los 136 `main.ts` + las libs → un solo type-check,
+2. **UN `NgtscProgram`** con los 127 `main.ts` + las libs → un solo type-check,
    una sola compilación de templates, **AOT completo**. Las libs `core` y
    `shared` salen de este mismo build (adiós ng-packagr y sus declaraciones
    parciales que obligaban a compilar JIT en el navegador).
-3. **UN esbuild** con 136 entradas → `dist/<nombre>/browser/main.js`, con los
+3. **UN esbuild** con 127 entradas → `dist/<nombre>/browser/main.js`, con los
    externals de `cdn.config.mjs` como bare imports para el import-map.
 
 Resultado medido: **26 segundos** el build completo. `badge` salió en

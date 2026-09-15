@@ -9,7 +9,10 @@
  *   node tools/catalog.mjs --out dist/catalog.html
  *
  * Data sources:
- *   vitals/contracts/src/element-registry.json  — 56-element master registry
+ *   vitals/contracts/src/element-registry.json  — el registry maestro (hoy 132
+ *                                                 entradas; la cifra la imprime
+ *                                                 este script al terminar, no se
+ *                                                 escribe acá — épica #40)
  *   vitals/contracts/src/element-inputs.json    — input descriptors per element
  *   $CDN_ROOT/registry.json                     — (optional) published versions
  */

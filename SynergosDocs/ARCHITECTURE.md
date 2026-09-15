@@ -53,7 +53,7 @@ Two levels:
 
 **Angular (`platforms/angular/libs/`)** — extiende vitals:
 - `libs/core/` — providers, interceptors, tokens
-- `libs/shared/` — components, directives, pipes (foundations/, components/, patterns/)
+- `libs/shared/` — components, directives, pipes (`primitives/`, `compositions/`, `patterns/`, `states/`)
 - `libs/rendering/` — ElementRegistry, ComponentResolver, InputMapper
 - `libs/integrations/` — CMS sync tooling
 - `libs/shells/`, `libs/shop/`, `libs/transaction-engine/` — dominio
@@ -90,18 +90,18 @@ Synergos.UI/
 ├── platforms/
 │   └── angular/                   → la única plataforma
 │       ├── apps/elements/         → Angular Elements (Web Components)
-│       │   ├── primitives/        → button, text-block, image-block, ...   (27)
-│       │   ├── compositions/      → card, media-text, cta-group, ...       (45)
-│       │   └── modules/           → hero, banner, feature-grid, ...        (53)
+│       │   ├── primitives/        → button, text-block, image-block, ...   (23)
+│       │   ├── compositions/      → card, media-text, cta-group, ...       (43)
+│       │   └── modules/           → hero, banner, feature-grid, ...        (50)
 │       ├── apps/experiences/      → feature-journey, insight-explorer, media-explorer
 │       ├── apps/domains/          → shop/ (product-card, cart-summary, variant-picker, ...)
 │       ├── libs/
 │       │   ├── core/              → providers, interceptors, tokens
-│       │   ├── shared/            → components (foundations/, components/, patterns/)
+│       │   ├── shared/            → components (primitives/, compositions/, patterns/, states/)
 │       │   ├── rendering/         → ElementRegistry, ComponentResolver, InputMapper
 │       │   ├── integrations/      → CMS sync tooling
 │       │   └── shells/ shop/ transaction-engine/
-│       ├── modules/               → Business feature modules (Git submodules)
+│       ├── modules/               → VACÍO hoy: sólo un README; .gitmodules sin entradas
 │       └── tools/                 → build.mjs, build-specs.mjs, ngtsc.mjs, sync-tokens.mjs
 │
 ├── vitals/                        → Paquetes agnósticos
@@ -238,8 +238,13 @@ npm run build:cdn                 → arma public/ entero, y es lo que despliega
 - [FEATURE_ARCHITECTURE.md](FEATURE_ARCHITECTURE.md) — Módulos y experiencias, capa por capa
 
 > Los que llevan banner (`EXPERIENCES`, `ONBOARDING`, `OUTPUT_POLICY`,
-> `WHERE_DOES_THIS_GO`, `TROUBLESHOOTING`, `MCP_SETUP`) describen el repo anterior
-> a la purga. Están para consultar el porqué, no el cómo.
+> `TROUBLESHOOTING`, `MCP_SETUP` y, en parte, `BRIDGE_PROTOCOL`) describen el repo
+> anterior a la purga. Están para consultar el porqué, no el cómo.
+> `WHERE_DOES_THIS_GO` **ya no lleva banner**: se reescribió en la épica #36.
+>
+> Lo medido sobre toda la documentación —qué afirma cada fichero que el disco
+> desmiente, y qué le falta a quien entra— está en
+> [MEDICION_DOCUMENTACION.md](MEDICION_DOCUMENTACION.md) (épica #40).
 >
 > Las dos auditorías (`AUDITORIA_ARQUITECTONICA`, `VALIDACION_TECNICA`), el
 > `PLAN_EJECUCION` que salió de ellas y `NX_GOVERNANCE` se borraron: eran 2 051

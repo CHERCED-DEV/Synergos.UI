@@ -1,4 +1,4 @@
-name: Tests UI (tools + 240 specs de Angular)
+name: Tests UI (gates de tools/lib + specs de la plataforma)
 
 # Issue #1 — los specs vuelven a ser un gate.
 #
