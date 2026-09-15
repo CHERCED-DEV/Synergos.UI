@@ -23,15 +23,17 @@ synergos/
 
 ```
 synergos-ui/
-├── platforms/angular/        # LA plataforma — catálogo de 136 elementos
+├── platforms/angular/        # LA plataforma — 127 fuentes con src/main.ts
 │   ├── apps/elements/        # Web Components (primitives/, compositions/, modules/)
 │   ├── apps/experiences/     # Experiencias interactivas ricas
 │   ├── libs/core/            # Providers, tokens, environment config
-│   ├── libs/shared/          # Design system (foundations/, components/, patterns/)
-│   ├── libs/core-assets/     # Tokens SCSS y mixins
+│   ├── libs/shared/          # Design system (primitives/, compositions/, patterns/, states/)
 │   ├── libs/rendering/       # ElementRegistry, ComponentResolver, InputMapper
 │   ├── libs/integrations/    # CMS sync tooling
-│   ├── modules/              # Git submodules (módulos de negocio independientes)
+│   ├── libs/shells/          # Shells por vertical
+│   ├── libs/shop/            # Dominio tienda
+│   ├── libs/transaction-engine/  # Motor de transacción
+│   ├── modules/              # VACÍO hoy: sólo un README; .gitmodules no registra ninguno
 │   ├── tools/build.mjs       # EL build: un NgtscProgram + un esbuild (~26 s)
 │   └── cdn.config.mjs        # Externals del CDN — contrato del navegador
 ├── vitals/                   # Paquetes agnósticos (compartidos via tsconfig paths)
@@ -78,7 +80,7 @@ platforms/angular/ → Consume vitals/ vía tsconfig paths
 | Build | `platforms/angular/tools/build.mjs` — @angular/compiler-cli (AOT) + esbuild, sin Nx |
 | TypeScript | ~5.9 |
 | SCSS | Sass modules (`@use` / `@forward`) |
-| Testing | Vitest — solo specs de la raíz; los tests de Angular están suspendidos (pendiente: recablear a vitest) |
+| Testing | Vitest — `npm test` corre los dos: gates de `tools/lib` y specs de la plataforma, compilados AOT antes (`build-specs.mjs`) |
 | Hosting CDN | Cloudflare Workers (`wrangler.jsonc` + `worker/index.js`) |
 
 ---
@@ -104,7 +106,7 @@ npm ci --prefix platforms/angular
 
 ```bash
 npm run build                # vitals + elementos Angular + runtime
-npm run build:angular        # Los 136 elementos + libs, AOT completo (~26 s)
+npm run build:angular        # Las 127 fuentes + libs, AOT completo (~30 s)
 npm run build:runtime        # Runtime compartido (Angular + sg-core + sg-shared)
 npm run build:cdn            # Arma public/ completo para servir como CDN
 ```
@@ -127,18 +129,26 @@ Receta completa: `AGENTS.md`.
 ### Test
 
 ```bash
-npm test                     # Solo specs de la raíz (cdn-cache-policy)
+npm test                     # los dos: gates de tools/lib + specs de la plataforma
+npm run test:tools           # sólo los gates — sin SDK, sin red, < 4 s
+npm run test:angular         # sólo la plataforma (compila AOT primero, ~35 s)
 ```
 
-Los tests unitarios de Angular están **suspendidos** desde la purga de Nx (el runner era
-el executor `@angular/build:unit-test`). Los `.spec.ts` siguen en el árbol; recablearlos
-a vitest con compilación Angular es un pendiente declarado, no un olvido.
+Medido el 2026-09-15: **213 + 1.580 tests en verde**, 239 ficheros `.spec.ts`, cero
+`it.skip` — y que la cuarentena siga en cero lo defiende el gate `spec-quarantine`.
+
+Los specs se **compilan AOT** antes de correr, con el mismo ngtsc que publica los
+elementos: los signal inputs de Angular no funcionan en JIT, así que un transpilador al
+vuelo haría que los tests **corran y mientan**.
+
+(Esta sección decía que los tests estaban «suspendidos» desde la purga de Nx. Se
+recablearon en el issue #1 y el README no se movió — épica #40.)
 
 ### Release
 
 ```bash
 npm run release:cdn          # build + validate + publish (tools/release-cdn.mjs)
-npm run contracts:validate   # el gate: registry × mappers × models × inputs
+npm run contracts:validate   # el gate completo: sync:tokens:check + element:audit + manifest:validate + cms:validate + cms:sync:check
 ```
 
 ---
@@ -150,8 +160,14 @@ Compartidos vía aliases de `tsconfig.base.json` — consumidos directo del sour
 | Paquete | Alias | Propósito |
 |---|---|---|
 | `vitals/contracts/` | `@synergos/contracts` | Interfaces TS puras, taxonomía de elementos |
-| `vitals/core/` | `@synergos/core` | Mappers, bridge protocol, utilidades |
-| `vitals/core-assets/` | — | Tokens SCSS, mixins |
+| `vitals/core/` | `@synergos/core` (raíz) · `@synergos/vitals-core` (dentro de Angular) | Mappers, bridge protocol, utilidades |
+| `vitals/core-assets/` | `@synergos/core-assets` | Tokens SCSS, mixins |
+
+> **El alias `@synergos/core` significa cosas distintas según dónde se resuelva**, y
+> conviene saberlo antes de perder media hora: `tsconfig.base.json` lo manda a
+> `vitals/core/`, y `platforms/angular/tsconfig.json` lo **pisa** con `libs/core/`,
+> dejando el vital bajo `@synergos/vitals-core`. Desde un elemento Angular,
+> `@synergos/core` es la librería de la plataforma.
 
 ### Uso de SCSS
 
@@ -171,10 +187,16 @@ Compartidos vía aliases de `tsconfig.base.json` — consumidos directo del sour
 | Librería | Alias | Propósito |
 |---|---|---|
 | `libs/core/` | `@synergos/core` | Providers, tokens, environment, services |
-| `libs/shared/` | `@synergos/shared` | Design system components |
-| `libs/core-assets/` | `@synergos/core-assets` | Tokens SCSS (copia Angular) |
+| `libs/shared/` | `@synergos/shared` | Design system: `primitives/`, `compositions/`, `patterns/`, `states/` |
 | `libs/rendering/` | `@synergos/rendering` | Element rendering pipeline |
 | `libs/integrations/` | `@synergos/integrations` | CMS sync tooling |
+| `libs/shells/` | `@synergos/shells` | Shells por vertical |
+| `libs/shop/` | `@synergos/shop` | Dominio tienda |
+| `libs/transaction-engine/` | `@synergos/transaction-engine` | Motor de transacción |
+
+Son **siete**, y los siete alias están en `platforms/angular/tsconfig.json`.
+No hay `libs/core-assets/`: los tokens viven en `vitals/core-assets/` y
+`@synergos/core-assets` apunta ahí (épica #40).
 
 En el navegador, `@synergos/core` y `@synergos/shared` se resuelven por import-map al
 runtime compartido; el resto se empaqueta dentro del elemento que lo usa
@@ -209,3 +231,8 @@ contracts.json     → contrato para el CI del CMS
 ```
 
 Documentación completa del pipeline: `SynergosDocs/BUILD_PIPELINE.md`.
+
+> **Antes de creerle a un documento de este repo**, mirá
+> [`SynergosDocs/MEDICION_DOCUMENTACION.md`](SynergosDocs/MEDICION_DOCUMENTACION.md)
+> (épica #40): qué afirma cada uno que el disco desmiente, cuáles llevan banner de
+> desactualizado y por qué, y dónde se rompe el camino de quien entra hoy.
