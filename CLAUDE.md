@@ -324,3 +324,33 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    entre `pay` y `confirm` la página puede recargarse y la sesión sobrevive, el campo
    no. `travel-fulfillment.strategy` ya lo hacía bien —su `apiBaseOf(session)` era el
    patrón y nadie lo copió— (CHERCED-DEV/Synergos.CMS#116).
+21. **Cuando una escritura son DOS pasos y el primero mueve dinero, «reintentar» tiene
+   que acordarse de cuál ya pasó — y el gemelo de la regla 19 vive en el `catch`, no en
+   la firma.** `enroll`/`confirm` de Educación fabricaban un `MOCK-<ts>` y un
+   `ENR-<orderRef>` cuando el borde no contestaba: el alumno salía del asistente con un
+   número de matrícula que no existe en ninguna parte, **y había pagado**. Es la cuarta
+   de la familia —el `claimId` de la devolución (regla 9), el `CERT-<random>` (14), el
+   `CITA-<timestamp>` (18)— y lo que añade es el REINTENTO: **quitar la fabricación sin
+   tocar el asistente deja la otra mitad del daño**, porque volver a pulsar llamaba otra
+   vez a `pay` y abría una segunda orden con su segundo cargo. Por eso el arreglo cruza
+   SH-3 entero y no sólo el cliente.
+   Tres cosas, y las tres costaron su mutación:
+   (a) **lo que el servidor ya se llevó se lee de la SESIÓN, no de un campo de la
+   instancia** (regla 20: entre `pay` y `confirm` la página puede recargarse), y se
+   exige que el monto capturado siga siendo el total del carrito — si el carrito
+   cambió, ese cobro ya no lo cubre y hay que volver a cobrar;
+   (b) **el mensaje lo decide lo que QUEDÓ, no lo que falló**: «no pudimos completar la
+   compra» dicho a quien acaba de pagar es una invitación a pagar dos veces, así que la
+   copia se elige mirando si hay un cobro capturado y **nombra su referencia**;
+   (c) **el paso que se repite tiene que ser el idempotente** — `POST /confirm` devuelve
+   la matrícula sin recapturar, `POST /enroll` abre otra orden. Si del otro lado no hay
+   un paso idempotente que repetir, lo que hay que arreglar es el borde.
+   Y un hallazgo del camino, que es la regla 10 sobre el contrato en vez de sobre el
+   fixture: **la rama GRATIS nunca pasa por `POST /confirm`** —`EnrollAsync` la activa
+   en el acto— así que el `FREE-<ts>` que el normalizador se inventaba acababa
+   pidiéndole al borde que confirmara una orden inexistente, 404, y el `catch` devolvía
+   `ENR-FREE-<ts>`: **contra un servidor VIVO**, la matrícula gratis quedaba registrada
+   de este lado con un id distinto del que el borde había emitido. Ningún spec que
+   apague la red entera lo ve — hace falta el borde de mentira con la forma del de
+   verdad, apagado **por método y ruta** (regla 16 + 18)
+   (CHERCED-DEV/Synergos.CMS#117).
