@@ -268,7 +268,11 @@ export function servidorFalso(
           nextAppointment: citaDe(p),
           balanceMinor: 0,
           currency: 'COP',
-          unreadMessages: 0,
+          // `unreadMessages` NO se emite por defecto, que es lo que hace el backend
+          // desde #116 — no hay read-receipts. Sembrarlo sería la regla 10: un
+          // servidor de mentira que afirma lo que el de verdad dejó de afirmar hace
+          // verde justo el camino que hay que probar.
+          ...(options.opcionales === 'full' ? { unreadMessages: 4 } : {}),
           pendingCheckins: 0,
         }),
       );

@@ -281,7 +281,15 @@ export interface PortalHome {
   readonly nextAppointment: Appointment | null;
   readonly balanceMinor: number;
   readonly currency: string;
-  readonly unreadMessages: number;
+  /**
+   * Mensajes sin leer, o `null` cuando **no consta** — y `null` no es `0` (CMS#116).
+   *
+   * Mismo tipo y misma razón que `MessageThread.unread`: el borde no tiene
+   * read-receipts, así que no hay cifra que emitir. Con `number` a secas el
+   * normalizador reponía `0` con la clave ausente, o sea afirmaba «no tienes nada sin
+   * leer» por su cuenta — la mitad del defecto que vive de ESTE lado de la red.
+   */
+  readonly unreadMessages: number | null;
   readonly pendingCheckins: number;
 }
 
