@@ -20,12 +20,23 @@
  * misma razón: lo que falla en un despliegue es todo lo que hay en el medio.
  * ─────────────────────────────────────────────────────────────────────────────
  *
+ * QUÉ FRAMEWORKS COMPRUEBA (issue #44): los que el `registry.json` servido
+ * DECLARA como publicados, uno por uno. Antes pedía `/angular/` a mano, así que
+ * el humo de un despliegue con dos frameworks certificaba uno — y no fallaba:
+ * salía verde habiendo mirado el segmento de ruta equivocado.
+ *
  *   node tools/humo-cdn.mjs https://synergos-ui.synergos-labs.workers.dev
  *   node tools/humo-cdn.mjs <url> --sha d6620b0     # espera a que llegue ESE commit
  *   node tools/humo-cdn.mjs <url> --intentos 20
  */
 import { getArg } from './lib/cli-utils.mjs';
-import { comprobaciones, elementoDePrueba, juzgar } from './lib/cdn-smoke.mjs';
+import {
+  comprobacionesGlobales,
+  comprobacionesDeFramework,
+  muestrasPorFramework,
+  runtimeDelImportMap,
+  juzgar,
+} from './lib/cdn-smoke.mjs';
 
 // La URL viene de FUERA, siempre, y sin valor por defecto. Un default —aunque
 // fuera el de producción— es la puerta por la que entra el humo contra sí mismo:
@@ -66,16 +77,24 @@ async function esperarDespliegue() {
       const { estado, res } = await pedir('/synergos/registry.json');
       if (estado === 200) {
         const registry = await res.json();
-        const elemento = elementoDePrueba(registry);
+        // Una muestra POR FRAMEWORK publicado (issue #44). Cablear `angular`
+        // acá no daba rojo: daba VERDE sobre el framework equivocado.
+        const muestras = muestrasPorFramework(registry);
 
-        if (!SHA) return { registry, elemento };
+        if (!SHA) return { registry, muestras };
 
-        const meta = await pedir(`/synergos/${elemento.nombre}/angular/latest/meta.json`);
+        // Basta con UNA para saber qué commit está sirviendo el CDN: publish
+        // escribe el mismo en todos los meta.json de una corrida. Se toma la
+        // primera muestra, que es la del primer framework por orden.
+        const [primera] = muestras;
+        const meta = await pedir(
+          `/synergos/${primera.nombre}/${primera.framework}/latest/meta.json`,
+        );
         if (meta.estado === 200) {
           const { commit } = await meta.res.json();
           if (commit === SHA) {
             ok(`el CDN contesta con el commit ${SHA} (intento ${intento})`);
-            return { registry, elemento };
+            return { registry, muestras };
           }
           console.log(`  … todavía sirve ${commit ?? '(sin commit)'}, se espera ${SHA} (${intento}/${INTENTOS})`);
         }
@@ -94,31 +113,39 @@ async function esperarDespliegue() {
 }
 
 console.log(`── humo contra ${BASE}\n`);
-const { registry, elemento } = await esperarDespliegue();
+const { registry, muestras } = await esperarDespliegue();
 
+// ── 2. El runtime de CADA framework ──────────────────────────────────────────
+//
 // La versión del runtime no está en el registry: se lee del import-map, que es
-// quien la manda de verdad — es el fichero que el navegador resuelve.
-const importMap = await pedir('/synergos/runtime/angular/latest/import-map.json');
-if (importMap.estado !== 200) {
-  mal(`no hay import-map del runtime (${importMap.estado}) — los elementos no arrancarían`);
-  process.exit(1);
-}
-const mapa = await importMap.res.json();
-const runtimeVersion = /runtime\/angular\/([^/]+)\//.exec(
-  Object.values(mapa.imports ?? {})[0] ?? '',
-)?.[1];
+// quien la manda de verdad — es el fichero que el navegador resuelve. Y hay uno
+// POR FRAMEWORK: un despliegue con dos publica dos, y comprobar el de Angular
+// no dice nada sobre si el otro llegó.
+let fallos = 0;
+const runtimes = new Map();
 
-if (!runtimeVersion) {
-  mal('el import-map no dice qué versión del runtime sirve');
-  process.exit(1);
+for (const { framework } of muestras) {
+  const importMap = await pedir(`/synergos/runtime/${framework}/latest/import-map.json`);
+  if (importMap.estado !== 200) {
+    mal(`[${framework}] no hay import-map del runtime (${importMap.estado}) — los elementos no arrancarían`);
+    process.exit(1);
+  }
+  try {
+    runtimes.set(framework, runtimeDelImportMap(await importMap.res.json(), framework));
+  } catch (e) {
+    mal(`[${framework}] ${e.message}`);
+    process.exit(1);
+  }
 }
 
-ok(`${registry.elements.length} elementos · runtime ${runtimeVersion} · muestra: ${elemento.nombre}@${elemento.version}`);
+const resumen = muestras
+  .map((m) => `${m.framework} ${runtimes.get(m.framework).version} (muestra ${m.nombre}@${m.version})`)
+  .join(' · ');
+ok(`${registry.elements.length} elementos · ${resumen}`);
 console.log('');
 
-// ── 2. Las comprobaciones ────────────────────────────────────────────────────
-let fallos = 0;
-for (const esperado of comprobaciones(elemento, runtimeVersion)) {
+// ── 3. Las comprobaciones ────────────────────────────────────────────────────
+const comprobar = async (esperado) => {
   const real = await pedir(esperado.ruta);
   const motivos = juzgar(esperado, real);
 
@@ -128,6 +155,14 @@ for (const esperado of comprobaciones(elemento, runtimeVersion)) {
     mal(`${esperado.ruta} — ${esperado.que}`);
     for (const m of motivos) console.log(`    ${m}`);
     fallos += motivos.length;
+  }
+};
+
+for (const esperado of comprobacionesGlobales()) await comprobar(esperado);
+
+for (const muestra of muestras) {
+  for (const esperado of comprobacionesDeFramework(muestra, runtimes.get(muestra.framework))) {
+    await comprobar(esperado);
   }
 }
 

@@ -24,6 +24,7 @@
  */
 
 import { UN_ANO, CORTO, INDICE } from './cdn-cache-policy.mjs';
+import { frameworksDelRegistry } from './frameworks.mjs';
 
 /**
  * Lee `max-age` de un `Cache-Control`.
@@ -37,46 +38,56 @@ export function maxAge(cacheControl) {
 }
 
 /**
- * El elemento con el que se hace el humo, sacado del registry.
+ * Una muestra POR FRAMEWORK publicado, sacada del registry (issue #44).
  *
- * SE TOMA EL PRIMERO, NO SE CABLEA UNO. Un `badge` escrito a mano en el humo
- * se pudre el día que alguien lo renombre, y el síntoma sería un humo rojo que
- * no significa nada — o peor, uno que alguien borra por molesto.
+ * SE TOMA EL PRIMERO DE CADA UNO, NO SE CABLEA NINGUNO. Un `badge` escrito a
+ * mano en el humo se pudre el día que alguien lo renombre, y el síntoma sería
+ * un humo rojo que no significa nada — o peor, uno que alguien borra por
+ * molesto. Lo mismo vale para el framework, y ahí el síntoma era peor: un
+ * `angular` cableado no daba rojo, daba **verde sobre el framework
+ * equivocado**. El humo de un despliegue con dos frameworks certificaba uno.
+ *
+ * Se devuelve UNA muestra por framework y no una sola global porque las rutas
+ * del CDN llevan el framework dentro: comprobar `badge/angular/...` no dice
+ * absolutamente nada sobre si `card/react/...` se está sirviendo.
  *
  * @param {{elements?: Array}} registry El `registry.json` ya parseado.
- * @returns {{ nombre: string, version: string }}
+ * @returns {{ framework: string, nombre: string, version: string }[]}
  */
-export function elementoDePrueba(registry) {
+export function muestrasPorFramework(registry) {
   const elementos = registry?.elements ?? [];
   if (elementos.length === 0) {
     throw new Error('el registry no trae elementos — el despliegue está vacío');
   }
 
-  // El primero que tenga implementación en angular. Que el registry traiga
-  // entradas sin implementación es legítimo (el CMS declara tipos antes de que
-  // exista el web component), pero con esas no hay nada que pedirle al CDN.
-  const conBundle = elementos.find((e) => e?.implementations?.angular?.latest);
-  if (!conBundle) {
+  // Los frameworks salen de lo que el registry DECLARA como publicado, no de
+  // una lista. Que una entrada no traiga implementación es legítimo (el CMS
+  // declara tipos antes de que exista el web component), pero con esas no hay
+  // nada que pedirle al CDN.
+  const frameworks = frameworksDelRegistry(registry);
+  if (frameworks.length === 0) {
     throw new Error(
-      `el registry trae ${elementos.length} elementos y ninguno con implementación angular`,
+      `el registry trae ${elementos.length} elementos y ninguno con implementación publicada`,
     );
   }
 
-  return { nombre: conBundle.name, version: conBundle.implementations.angular.latest };
+  return frameworks.map((framework) => {
+    const conBundle = elementos.find((e) => e?.implementations?.[framework]?.latest);
+    return {
+      framework,
+      nombre: conBundle.name,
+      version: conBundle.implementations[framework].latest,
+    };
+  });
 }
 
 /**
- * Las comprobaciones, como DATOS: qué se pide y qué se espera.
+ * Lo que se comprueba UNA vez por despliegue, pase lo que pase con los frameworks.
  *
  * Que sean datos y no código es lo que permite probarlas sin red, y lo que
  * hace que añadir una comprobación sea una línea y no una función.
- *
- * @param {{ nombre: string, version: string }} elemento
- * @param {string} runtimeVersion Versión publicada del runtime compartido.
  */
-export function comprobaciones(elemento, runtimeVersion) {
-  const { nombre, version } = elemento;
-
+export function comprobacionesGlobales() {
   return [
     {
       que: 'el catálogo — es lo primero que uno abre para ver si el despliegue salió',
@@ -94,33 +105,62 @@ export function comprobaciones(elemento, runtimeVersion) {
       inmutable: false,
       cors: true,
     },
+  ];
+}
+
+/**
+ * Lo que se comprueba POR CADA framework publicado (issue #44).
+ *
+ * Están separadas de las globales porque son preguntas distintas: el catálogo
+ * y el índice son del despliegue, y las cuatro de acá son de UNA plataforma.
+ * Pedir el catálogo N veces sería ruido; NO pedir estas cuatro por cada
+ * framework era el defecto — el humo daba por bueno un despliegue entero
+ * habiendo mirado un solo segmento de ruta.
+ *
+ * @param {{ nombre: string, version: string, framework: string }} elemento
+ * @param {{ version: string, ruta: string }} runtimeVersion Lo que devuelve
+ *        `runtimeDelImportMap` para ESE framework.
+ */
+export function comprobacionesDeFramework(elemento, runtimeVersion) {
+  const { nombre, version, framework } = elemento;
+
+  if (!framework) {
+    // Sin framework no hay ruta que pedir, y caer a 'angular' sería volver a
+    // escribir la suposición que este ticket vino a borrar.
+    throw new Error(`la muestra "${nombre}" no dice de qué framework es`);
+  }
+
+  return [
     {
-      que: 'un bundle en `latest` — se mueve, así que NUNCA puede ser inmutable',
-      ruta: `/synergos/${nombre}/angular/latest/main.js`,
+      que: `[${framework}] un bundle en \`latest\` — se mueve, así que NUNCA puede ser inmutable`,
+      ruta: `/synergos/${nombre}/${framework}/latest/main.js`,
       estado: 200,
       maxAge: CORTO,
       inmutable: false,
       cors: true,
     },
     {
-      que: 'el mismo bundle en su versión exacta — esa sí, un año',
-      ruta: `/synergos/${nombre}/angular/${version}/main.js`,
+      que: `[${framework}] el mismo bundle en su versión exacta — esa sí, un año`,
+      ruta: `/synergos/${nombre}/${framework}/${version}/main.js`,
       estado: 200,
       maxAge: UN_ANO,
       inmutable: true,
       cors: true,
     },
     {
-      que: 'el runtime compartido — sin él los bundles cargan y se rompen al arrancar',
-      ruta: `/synergos/runtime/angular/${runtimeVersion}/ng-core.js`,
+      que: `[${framework}] el runtime compartido — sin él los bundles cargan y se rompen al arrancar`,
+      // La ruta la dice el import-map, no este fichero: `ng-core.js` es el
+      // nombre que le pone el runtime de Angular, y otro framework le pondrá
+      // otro. Escribirlo acá habría sido cambiar un cableado por otro.
+      ruta: runtimeVersion.ruta,
       estado: 200,
       maxAge: UN_ANO,
       inmutable: true,
       cors: true,
     },
     {
-      que: 'una ruta que no existe — un 404 cacheado es un bundle nuevo que no existe para alguien',
-      ruta: '/synergos/no-existe-jamas-de-los-jamases/angular/latest/main.js',
+      que: `[${framework}] una ruta que no existe — un 404 cacheado es un bundle nuevo que no existe para alguien`,
+      ruta: `/synergos/no-existe-jamas-de-los-jamases/${framework}/latest/main.js`,
       estado: 404,
       sinCache: true,
     },
@@ -190,4 +230,34 @@ export function juzgar(esperado, real) {
   }
 
   return fallos;
+}
+
+/**
+ * Qué runtime sirve un import-map, leído del propio import-map (issue #44).
+ *
+ * El humo sacaba la versión con `/runtime\/angular\/([^/]+)\//` y pedía después
+ * `…/ng-core.js` a mano. Las dos cosas eran el mismo cableado con dos caras: el
+ * segmento de framework y el nombre del asset. Ninguna se puede escribir sin
+ * decidir por adelantado quién publica.
+ *
+ * Lo que SÍ es un hecho: el import-map es el fichero que el navegador resuelve,
+ * así que **lo que él apunte es el runtime que se está sirviendo**. De ahí salen
+ * la versión y una ruta real que pedir.
+ *
+ * @param {{ imports?: Record<string,string> }} mapa
+ * @param {string} framework
+ * @returns {{ version: string, ruta: string }}
+ */
+export function runtimeDelImportMap(mapa, framework) {
+  const patron = new RegExp(`/synergos/runtime/${framework}/([^/]+)/[^/]+$`);
+
+  for (const destino of Object.values(mapa?.imports ?? {})) {
+    const m = patron.exec(String(destino));
+    if (m) return { version: m[1], ruta: String(destino) };
+  }
+
+  throw new Error(
+    `el import-map de "${framework}" no apunta a ningún /synergos/runtime/${framework}/<versión>/… ` +
+      `(tiene ${Object.keys(mapa?.imports ?? {}).length} entradas). Sin eso no se sabe qué runtime se sirve.`,
+  );
 }
