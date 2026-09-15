@@ -613,6 +613,10 @@ function toSummary(app: SeedApplication): ApplicationSummary {
     status: app.status,
     submittedAt: app.submittedAt,
     currentStage: app.currentStage,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -628,6 +632,10 @@ function toDetail(app: SeedApplication): ApplicationDetail {
     timeline: app.timeline,
     documents: app.documents,
     messages: app.messages,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -641,6 +649,10 @@ function toQueueCase(app: SeedApplication): QueueCase {
     submittedAt: app.submittedAt,
     priority: app.priority,
     slaDaysLeft: app.slaDaysLeft,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -654,6 +666,8 @@ function toCase(app: SeedApplication): GovCase {
       status: app.status,
       submittedAt: app.submittedAt,
       currentStage: app.currentStage,
+      feeMinor: app.feeMinor ?? 0,
+      feeStatus: app.feeStatus ?? null,
     },
     answers: app.answers,
     documents: app.documents,
@@ -873,6 +887,11 @@ function normalizeSummary(value: unknown): ApplicationSummary | null {
     status: readStatus(value['status']),
     submittedAt: readString(value['submittedAt']).trim(),
     currentStage: readString(value['currentStage']).trim(),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -982,6 +1001,11 @@ function normalizeDetail(value: unknown): ApplicationDetail | null {
     timeline: normalizeTimeline(value['timeline']),
     documents: normalizeDocuments(value['documents']),
     messages: normalizeMessages(value['messages']),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -1003,6 +1027,11 @@ function normalizeQueueCase(value: unknown): QueueCase | null {
     submittedAt: readString(value['submittedAt']).trim(),
     priority: readString(value['priority']).trim() || 'normal',
     slaDaysLeft: Math.trunc(readNumber(value['slaDaysLeft'])),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -1068,6 +1097,9 @@ function normalizeCase(value: unknown): GovCase | null {
       status: readStatus(app['status']),
       submittedAt: readString(app['submittedAt']).trim(),
       currentStage: readString(app['currentStage']).trim(),
+      // CMS#116 — ver el lector de `normalizeSummary`. `null` es «no consta».
+      feeMinor: Math.max(0, Math.trunc(readNumber(app['feeMinor']))),
+      feeStatus: readString(app['feeStatus']).trim() || null,
     },
     answers: normalizeAnswers(value['answers']),
     documents: normalizeDocuments(value['documents']),

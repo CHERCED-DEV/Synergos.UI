@@ -702,6 +702,9 @@ export class GovElementComponent {
     { key: 'status', label: 'Estado', sortable: 'text' },
     { key: 'priority', label: 'Prioridad' },
     { key: 'slaDaysLeft', label: 'SLA', align: 'end', sortable: 'number' },
+    // La tasa entra en la COLA y no sólo en el detalle: perseguir un cobro que no
+    // salió abriendo los expedientes de uno en uno no lo hace nadie (CMS#116).
+    { key: 'feeStatus', label: 'Tasa' },
   ];
 
   /**
@@ -1586,6 +1589,49 @@ export class GovElementComponent {
       return 'Vence hoy';
     }
     return daysLeft === 1 ? '1 día restante' : `${daysLeft} días restantes`;
+  }
+
+  /**
+   * Qué decir del cobro de la tasa, o `''` cuando no hay nada que decir.
+   *
+   * **Las tres respuestas son distintas y ninguna se parece a las otras** (CMS#116):
+   * un trámite exento no tiene cobro; uno con tasa y sin estado es «no consta», que
+   * NO es «pagada»; y un estado conocido se traduce. Lo que no se reconoce se enseña
+   * tal cual en vez de caer a un rótulo bonito: un estado nuevo del motor de pago
+   * tiene que verse raro, no verse cobrado.
+   */
+  feeStatusLabel(feeStatus: string | null, feeMinor: number): string {
+    if (!feeStatus) {
+      return feeMinor > 0 ? 'Tasa: sin dato del cobro' : '';
+    }
+    switch (feeStatus) {
+      case 'captured':
+        return 'Tasa pagada';
+      case 'authorized':
+        return 'Tasa autorizada, sin cobrar';
+      case 'pending':
+      case 'requires-action':
+        return 'Tasa pendiente de pago';
+      case 'failed':
+        return 'Cobro de la tasa rechazado';
+      case 'cancelled':
+        return 'Cobro de la tasa cancelado';
+      case 'refunded':
+        return 'Tasa devuelta';
+      case 'unavailable':
+        return 'No se pudo cobrar la tasa';
+      default:
+        return `Tasa: ${feeStatus}`;
+    }
+  }
+
+  /**
+   * Si esa tasa necesita que alguien la mire. Todo lo que no sea «cobrada» lo
+   * necesita — incluido «no consta», que es justo el estado que nadie perseguiría si
+   * se pintara igual que el resto.
+   */
+  feeNeedsAttention(feeStatus: string | null, feeMinor: number): boolean {
+    return this.feeStatusLabel(feeStatus, feeMinor) !== '' && feeStatus !== 'captured';
   }
 
   feeLabel(feeMinor: number, currency: string): string {
