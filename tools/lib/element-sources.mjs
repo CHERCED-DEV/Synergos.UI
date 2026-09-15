@@ -274,3 +274,63 @@ export function elegirPlataforma(entrada, plataformas, existe) {
 
   return { plataforma: suya };
 }
+
+/**
+ * El tier de un elemento, sin adivinar (issue #43).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LO QUE HABÍA ANTES, Y POR QUÉ ERA PEOR QUE NO TENER NADA.
+ *
+ * `cms-sync.mjs` llevaba `TIER_BY_NAME`, 90 entradas a mano, y para lo que no
+ * estaba ahí escribía `composition` y **sobreescribía el tier del registry**.
+ * No es cosmético: el presupuesto de tamaño elige el techo POR TIER, así que
+ * degradar un `module` a `composition` le baja el techo de 72 KB a 44 KB, en
+ * silencio. Está documentado como la regla 2 del CLAUDE.md porque ya pasó.
+ *
+ * Y la tabla era **una copia**: se comprobaron las 90 contra el registry y las
+ * 90 decían exactamente lo mismo. O sea que el dato correcto siempre estuvo
+ * ahí, y lo que hacía falta era leerlo en vez de mantener un duplicado.
+ *
+ * Las dos fuentes reales, en orden, y el silencio como tercera opción borrada:
+ *
+ *   1. **la entrada del registry** — es el dato autorado, el que alguien
+ *      decidió.
+ *   2. **la carpeta donde vive la fuente** (`apps/elements/<tier>s/<nombre>`),
+ *      que es el disco diciéndolo.
+ *   3. **nada**. Un elemento nuevo del CMS sin componente todavía necesita que
+ *      una persona decida si es un primitivo o una aplicación entera. Ese «no
+ *      sé» no se rellena: se para y se dice.
+ *
+ * Y si los dos primeros contestan cosas distintas, tampoco se elige uno: eso es
+ * que la fuente se movió de carpeta o que el registry quedó viejo, y las dos
+ * merecen que alguien mire.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * @param {{ alias: string, name: string }} entrada
+ * @param {Map<string, object>} registroPorAlias
+ * @param {Map<string, object>} fuentes
+ * @returns {{ tier: string, origen: string } | { error: string }}
+ */
+export function resolverTier(entrada, registroPorAlias, fuentes) {
+  const delRegistry = registroPorAlias.get(entrada.alias)?.tier ?? null;
+  const delDisco = tierDelDisco(entrada.name, fuentes);
+
+  if (delRegistry && delDisco && delRegistry !== delDisco) {
+    return {
+      error:
+        `${entrada.name}: el registry dice tier "${delRegistry}" y su fuente vive en ` +
+        `${fuentes.get(entrada.name).dir} ("${delDisco}"). Uno de los dos hay que moverlo.`,
+    };
+  }
+
+  if (delRegistry) return { tier: delRegistry, origen: 'registry' };
+  if (delDisco) return { tier: delDisco, origen: 'carpeta de la fuente' };
+
+  return {
+    error:
+      `${entrada.name} (${entrada.alias}): no está en el registry y no tiene fuente bajo ` +
+      `apps/elements/<tier>s/, así que nadie sabe su tier. Antes esto escribía ` +
+      `"composition" y le bajaba el techo de tamaño a 44 KB sin decir nada. ` +
+      `Escribí el Web Component, o añadí la entrada al registry con su tier.`,
+  };
+}
