@@ -433,6 +433,11 @@
           <span class="app-row__ref">{{ app.reference }}</span>
           <span class="app-row__name">{{ app.serviceName }}</span>
           <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
+          <!-- Una tasa que no se cobró se ve DESDE LA LISTA: el expediente la guardaba
+               y ninguna pantalla la devolvía (CMS#116). -->
+          @if (feeNeedsAttention(app.feeStatus, app.feeMinor)) {
+            <span class="fee-tag fee-tag--attention">{{ feeStatusLabel(app.feeStatus, app.feeMinor) }}</span>
+          }
         </span>
       </ng-template>
 
@@ -458,6 +463,9 @@
         <p class="tracking__status" role="status">
           <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
           <span class="tracking__stage">{{ app.currentStage }}</span>
+          @if (feeStatusLabel(app.feeStatus, app.feeMinor); as tasa) {
+            <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(app.feeStatus, app.feeMinor)">{{ tasa }}</span>
+          }
         </p>
         <p class="tracking__hint">{{ statusHint(app.status) }}</p>
       </header>
@@ -605,6 +613,13 @@
           @case ('slaDaysLeft') {
             <span class="sla" [class.sla--overdue]="row.slaDaysLeft < 0">{{ slaLabel(row.slaDaysLeft) }}</span>
           }
+          @case ('feeStatus') {
+            @if (feeStatusLabel(row.feeStatus, row.feeMinor); as tasa) {
+              <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(row.feeStatus, row.feeMinor)">{{ tasa }}</span>
+            } @else {
+              <span class="fee-tag fee-tag--exempt">Sin tasa</span>
+            }
+          }
           @case ('reference') { <strong>{{ row.reference }}</strong> }
           @default { {{ row[column.key] }} }
         }
@@ -623,6 +638,9 @@
         <p class="tracking__status">
           <span class="status-tag status-tag--{{ kase.application.status }}">{{ statusLabel(kase.application.status) }}</span>
           <span class="tracking__stage">{{ kase.application.currentStage }}</span>
+          @if (feeStatusLabel(kase.application.feeStatus, kase.application.feeMinor); as tasa) {
+            <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(kase.application.feeStatus, kase.application.feeMinor)">{{ tasa }}</span>
+          }
         </p>
       </header>
 

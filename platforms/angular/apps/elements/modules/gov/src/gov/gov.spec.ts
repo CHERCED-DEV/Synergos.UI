@@ -158,6 +158,45 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.queueCases().length).toBeLessThanOrEqual(all);
   });
 
+  // ── CMS#116 · la tasa pendiente se VE, y no sólo abriendo el expediente ──────
+  it('la cola del funcionario enseña la tasa que no se cobró', async () => {
+    await createComponent();
+
+    component.setRole('officer');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const conTasa = component.queueCases().find((c) => c.feeStatus === 'unavailable');
+    expect(conTasa).toBeTruthy();
+
+    // Y se ve EN LA COLA: un cobro que sólo aparece abriendo los expedientes de uno
+    // en uno no lo persigue nadie. El caso sembrado es el único con tasa, así que
+    // pintar todas iguales no pasaría por aquí.
+    const host: HTMLElement = fixture.nativeElement;
+    const tasas = Array.from(host.querySelectorAll('.fee-tag--attention')).map((n) =>
+      n.textContent?.trim(),
+    );
+    expect(tasas).toContain('No se pudo cobrar la tasa');
+  });
+
+  it('«no consta» no se pinta como «pagada», y un exento no se pinta como pendiente', async () => {
+    await createComponent();
+    const componente = component;
+
+    // Con tasa y sin estado, la verdad es que no se sabe — y hay que mirarlo.
+    expect(componente.feeStatusLabel(null, 42000)).toBe('Tasa: sin dato del cobro');
+    expect(componente.feeNeedsAttention(null, 42000)).toBe(true);
+    // Sin tasa no hay nada que decir ni nada que perseguir.
+    expect(componente.feeStatusLabel(null, 0)).toBe('');
+    expect(componente.feeNeedsAttention(null, 0)).toBe(false);
+    // Cobrada es lo ÚNICO que no pide atención.
+    expect(componente.feeNeedsAttention('captured', 42000)).toBe(false);
+    expect(componente.feeNeedsAttention('unavailable', 42000)).toBe(true);
+    // Un estado que el motor de pago estrene tiene que verse RARO, no verse cobrado.
+    expect(componente.feeStatusLabel('en-disputa', 42000)).toBe('Tasa: en-disputa');
+    expect(componente.feeNeedsAttention('en-disputa', 42000)).toBe(true);
+  });
+
   // ── happy (officer): open a case → decide → status advances + queue refetch ───
   it('opens a case and records an approve decision (officer happy case)', async () => {
     await createComponent();
@@ -941,6 +980,62 @@ describe('GovApiClient (v2 contract)', () => {
     expect(client.degraded).toBe(true);
     expect(services.length).toBeGreaterThan(0);
     expect(services.every((s) => s.category === 'vehiculos')).toBe(true);
+  });
+
+  // ── CMS#116 · la tasa que el expediente escribía y nadie leía ────────────────
+
+  /** Un borde que contesta `GET /application/{id}` con el cuerpo que se le dé. */
+  function bordeConExpediente(application: Record<string, unknown>): () => Promise<Response> {
+    return () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ application }),
+      } as Response);
+  }
+
+  /** El expediente sin lo que no se está probando. */
+  function expedienteBase(): Record<string, unknown> {
+    return {
+      id: 'app-1',
+      reference: 'GOV-2026-10001',
+      serviceId: 'svc-matricula',
+      serviceName: 'Renovación de matrícula mercantil',
+      status: 'submitted',
+      submittedAt: '2026-07-02T15:20:00Z',
+      currentStage: 'Radicada',
+      timeline: [],
+      documents: [],
+      messages: [],
+    };
+  }
+
+  it('el estado de la tasa se LEE — antes se escribía y no salía de ninguna parte', async () => {
+    // El fixture lleva el caso que el default NO produce: una tasa que NO se cobró.
+    // Con todo `captured` —o con todo exento— emitir la clave o no daría el mismo JSON.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConExpediente({ ...expedienteBase(), feeMinor: 42000, feeStatus: 'unavailable' })),
+    );
+    const client = createClient();
+
+    const detail = await client.application('/api/gov', 'app-1');
+    expect(detail.feeStatus).toBe('unavailable');
+    expect(detail.feeMinor).toBe(42000);
+  });
+
+  it('sin estado de la tasa es «no consta», y NO se repone a «cobrada»', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConExpediente({ ...expedienteBase(), feeMinor: 42000, feeStatus: null })),
+    );
+    const client = createClient();
+
+    const detail = await client.application('/api/gov', 'app-1');
+    // `null` y no `''`: la pantalla distingue «no consta» de «sin tasa» mirando el
+    // monto, y con una cadena vacía las dos se verían igual (es decir, no se verían).
+    expect(detail.feeStatus).toBeNull();
+    expect(detail.feeMinor).toBe(42000);
   });
 
   // ── Barrido IDOR (cliente): el 403 se re-lanza, no se degrada ────────────────
