@@ -51,10 +51,10 @@ que cambia por repo es la definición de hecho (ver `.github/pull_request_templa
 
 ## Workspace layout
 ```
-platforms/angular/   → LA plataforma (Angular ~21, catálogo de 136 elementos)
+platforms/angular/   → LA plataforma (Angular ~21; 127 fuentes con src/main.ts)
   apps/              → elementos + experiences; cada carpeta con src/main.ts ES un elemento
   libs/              → core, shared (design system), core-assets, rendering, integrations
-  tools/build.mjs    → EL build: un NgtscProgram + un esbuild — 136 elementos en ~26 s
+  tools/build.mjs    → EL build: un NgtscProgram + un esbuild — las 127 en ~26 s
   cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   contracts/         → interfaces puras (element-registry.json, element-inputs.json)
@@ -66,7 +66,8 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 ```
 
 ## Quick reference
-- Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada uno de los 136 elementos era una "application" independiente (136 arranques del compilador, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada elemento era una "application" independiente (un arranque del compilador cada uno, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- **Las cifras, medidas y no recordadas** (#42): **127** carpetas bajo `apps/` con `src/main.ts` (lo que el build compila) y **132** entradas en `element-registry.json` (lo que el CMS puede colocar). No son la misma cuenta y nunca lo fueron: seis entradas comparten el `synergos-text-block`, dos no las construye nada —`stat-counter` y `module-mount`— y tres fuentes son hosts deprecados que no están en el registry. Este fichero decía «136» en tres sitios, que no es ninguna de las dos.
 - **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento `/angular/` en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna.
 - Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Ciclo editor→navegador**: `npm run dev:cdn [-- --solo=badge]` (issue #2). Sirve el layout COMPLETO del CDN desde el watch, sin pasar por `build:cdn`. El CMS lo consume con su cliente HTTP de siempre — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL=http://localhost:4321` — o sea cero código de desarrollo del lado del CMS.
@@ -117,15 +118,22 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veinte reglas que costaron caro y no se deducen leyendo el código:**
+**Veinticuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
+se desincroniza):
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
    `[class.…]` y `[style.…]` lo eliminan. Lo vigila `template-bindings` (#11).
-2. **`cms-sync` ADIVINA el tier de lo que no conoce.** Si un `elementSyn*` nuevo no está en
-   `TIER_BY_NAME`, le pone `composition` y **sobreescribe** el del registry. Como el
-   presupuesto de tamaño elige el techo por tier, eso degrada un `module` de 72 KB a
-   44 KB en silencio. Antes de correr `cms:sync`, mirá los WARN (#3).
+2. **`cms-sync` ya NO adivina el tier — y lo que hacía antes explica por qué.** Si un
+   `elementSyn*` nuevo no estaba en `TIER_BY_NAME`, le ponía `composition` y
+   **sobreescribía** el del registry; como el presupuesto de tamaño elige el techo por tier,
+   eso degradaba un `module` de 72 KB a 44 KB en silencio, y el WARN que lo decía no lo
+   leía nadie (#3). Hoy el tier sale del registry o de la carpeta donde vive la fuente, y si
+   ninguno de los dos contesta, el sync **se para sin escribir nada** — ver la regla 23, que
+   es donde está el razonamiento y por qué `TIER_BY_NAME` resultó ser una copia (#43).
+   **La forma sigue viva aunque el caso esté cerrado**: un sync que rellena lo que no sabe
+   no corrige deriva, la mete.
 3. **`state-brand-surface` NO es un acento: es un lavado.** Con alpha del 8-18 % según el
    tema, así que un CTA pintado con él y tinta `text-on-brand` (= blanco en los claros) da
    **1,07:1 en silverGold y 1,16:1 en light** — texto invisible, no «bajo contraste». El par
@@ -356,7 +364,7 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    apague la red entera lo ve — hace falta el borde de mentira con la forma del de
    verdad, apagado **por método y ruta** (regla 16 + 18)
    (CHERCED-DEV/Synergos.CMS#117).
-21. **Que la mutación obvia no COMPILE no significa que el gate sobre: significa que
+22. **Que la mutación obvia no COMPILE no significa que el gate sobre: significa que
    estaba apuntando al sitio equivocado.** Al escribir `vitals-purity` (épica #36) la
    mutación de manual era meter `import { signal } from '@angular/core'` en
    `vitals/core`. **No compila** —`TS2307`— y no por disciplina de nadie: `vitals/` no
@@ -381,3 +389,61 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    primera no dispara) y no termina en comilla+`)` (la segunda tampoco), así que el caso
    que el ticket nombraba con todas las letras pasaba en **verde**. Dos regex que se
    creen complementarias casi nunca lo son; se lee avanzando (#36).
+23. **Una clave que el ARTEFACTO escribe y el contrato no declara está afirmando el valor
+   por defecto de quien la lee — y lo afirma sin que nadie lo haya decidido.**
+   `publish.mjs` escribe el framework en la ruta del CDN desde siempre
+   (`synergos/<element>/<framework>/latest/`), `ElementFramework` y `FrameworkKind` ya
+   existían como tipos… y `element-registry.json` —lo que el CMS lee— tenía cuatro claves
+   y ninguna era ésa. Los 132 eran Angular **implícito**. Es
+   `feedback_an_omitted_key_can_be_an_assertion` del repo hermano con una vuelta más: acá
+   el valor por defecto ni siquiera estaba escrito, salía de que `PLATFORMS` tiene hoy un
+   solo miembro, así que no se podía ni buscar con un grep.
+   **La salida NO es poner `'angular'` por defecto**: eso es escribir la suposición en vez
+   de medirla. Se mide del disco, con la misma fuente que usa el build — cada carpeta bajo
+   `apps/` con un `src/main.ts`—, y salen 130 de 132.
+   Tres cosas que costaron su mutación:
+   (a) **lo que el disco no sabe se DECLARA con su razón al lado, y la tabla se vigila en
+   los dos sentidos** — `stat-counter` y `module-mount` no los construye nada, así que su
+   framework es una promesa y no un hecho; el día que alguien escriba la fuente, la
+   excepción **sobra y rompe el build**, porque una excepción que sobra deja de leerse;
+   (b) **una comprobación cableada dentro del publicador no se puede ver fallar** —
+   `elegirPlataforma` vive en `tools/lib` justamente por eso, y su caso feo (el bundle
+   construido en OTRA plataforma) hoy sólo existe en el spec, porque hay una sola
+   plataforma: decirlo es más honesto que insinuar que está probado contra el disco;
+   (c) **el segundo sitio donde estaba escrita la unión era el peligro real** — `FrameworkKind`
+   y `ElementFramework` tenían los mismos cuatro valores y nada las cruzaba. Mientras el
+   valor no viajaba, era feo; desde que viaja del registry al manifiesto y de ahí a la ruta
+   del CDN, es una avería esperando.
+   **Y la unión de tipos es lo que FABRICA la copia**: no se puede recorrer en tiempo de
+   ejecución, así que el primero que necesita los valores —un type guard, un validador— se
+   escribe el array al lado, y ese array ya no lo cruza nada. Por eso la LISTA es el valor
+   (`ELEMENT_FRAMEWORKS`, `ELEMENT_TIERS`, `as const`) y el tipo se deriva de ella. Escribí
+   yo mismo la copia antes de verlo (#42).
+24. **Un contrato que no importa nadie no es un contrato: es un comentario con sintaxis.**
+   `ElementManifest` declara la forma del `manifest.json` que va al CDN —el fichero que el
+   CMS y las herramientas leen para saber qué expone un bundle— y **no lo importaba nadie**:
+   sólo su propio `index.ts`. Quien lo ESCRIBE es `manifest-builder.mjs`, un `.mjs` sin
+   tipos, así que renombrar una clave emitida compilaba y publicaba.
+   **Y el lector existe, del otro lado de la red**: el CMS lo deserializa en
+   `FileSystemBundleRegistryClient` y en `HttpBundleRegistryClient`, con una clase privada
+   `ElementManifest` en **cada uno** —dos copias a mano de las siete claves— y resuelve
+   `EntryScript` con `?? "main.js"`. O sea que una clave renombrada acá no deja un hueco: el
+   CMS rellena el valor por defecto y sigue. **Nada se pone rojo en ninguno de los dos
+   árboles**, que es la peor combinación posible. Es
+   `feedback_contract_shape_needs_its_own_test`: lo que hay que vigilar es **la clave
+   serializada**, y la mutación no es borrar el campo —en un `.mjs` eso no rompe nada— sino
+   **renombrarlo**.
+   **Lo que NO se hizo, y es la mitad que importa: el manifiesto no pasa a ser la fuente.**
+   De sus siete claves no lleva una sola que no esté ya en el repo, así que declararlo
+   fuente sería un quinto sitio con una copia — y una copia que vive en el CDN, o sea que un
+   clon limpio no podría construir sin red. Lo que pasa a ser es **el embudo comprobado**:
+   nada entra al registry ni sale al CDN sin producir un manifiesto que valide contra la
+   interfaz, leída del `.ts` con `contract-schema.mjs`.
+   Y el corolario que lo vuelve útil: **`cms-sync` dejó de adivinar el tier**. La regla 2 de
+   esta lista describía el daño —le ponía `composition` a lo que no conocía y **sobreescribía
+   el del registry**, degradando un `module` de 72 KB a 44 KB en silencio—; la causa era que
+   `TIER_BY_NAME` era una **copia a mano** de un dato que ya estaba en el registry (90
+   entradas, las 90 idénticas, comprobado). Hoy el tier sale del registry o de la carpeta en
+   la que vive la fuente (`apps/elements/<tier>s/`), y cuando ninguno de los dos contesta
+   **se para**: un elemento nuevo necesita que una persona decida si es un primitivo o una
+   aplicación, y ese «no sé» no se rellena (#43).
