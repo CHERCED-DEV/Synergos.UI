@@ -1229,6 +1229,8 @@ export class AcademyElementComponent {
       amount: plan ? plan.amount : course.amount,
       currency: course.currency || this.currency(),
       cover: course.cover,
+      // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
+      apiBase: this.apiBase(),
     };
     const selection = await this.#fulfillment.select(
       {

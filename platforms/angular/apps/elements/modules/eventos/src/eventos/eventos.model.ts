@@ -242,6 +242,13 @@ export interface TierSelectionPayload {
   /** Seat ids for reserved-seating events (empty for general admission). */
   readonly seats: readonly string[];
   readonly cover: string;
+  /**
+   * La base del borde con la que se seleccionó. **Viaja en la línea porque `confirm`
+   * no recibe instrumento** y tenía `/api/eventos` cableada a mano: un elemento
+   * montado contra otra base compraba en la suya y confirmaba en la de por defecto —y
+   * el `catch` del cliente fabricaba el acuse, así que no fallaba a la vista— (CMS#116).
+   */
+  readonly apiBase?: string;
 }
 
 // ─── Attendees / buyer (checkout) ────────────────────────────────────────────

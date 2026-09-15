@@ -35,6 +35,13 @@ export interface EnrollSelectionPayload {
   readonly amount: number;
   readonly currency: string;
   readonly cover: string;
+  /**
+   * La base del borde con la que se seleccionó. **Viaja en la línea porque `confirm`
+   * no recibe instrumento** y tenía `/api/academy` cableada a mano: un elemento montado
+   * contra otra base compraba en la suya y confirmaba en la de por defecto —y el
+   * `catch` del cliente fabricaba el acuse, así que no fallaba a la vista— (CMS#116).
+   */
+  readonly apiBase?: string;
 }
 
 /** PSP instrument the academy hands the strategy on `pay`. */
@@ -102,6 +109,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
         currency: payload.currency,
         cover: payload.cover,
         unitAmount: Math.round(payload.amount * 100),
+        apiBase: payload.apiBase ?? '',
       },
       // Engine pricing is in minor units; payload carries major units.
       amount: Math.round(payload.amount * 100),
@@ -141,7 +149,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 4 — confirm the enrolment, returning a voucher (matrícula activa). */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
-    const confirmation = await this.#api.confirm('/api/academy', orderRef);
+    const confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef);
     const line = session.items[0];
     const selection = (line?.selection ?? {}) as Record<string, unknown>;
     return {
@@ -161,6 +169,17 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
           ]
         : [],
     };
+  }
+
+  /**
+   * La base con la que se armó el carrito, o la de por defecto. Sale de la LÍNEA y no
+   * de un campo de la instancia: entre `pay` y `confirm` la página puede recargarse y
+   * la sesión sobrevive, el campo no.
+   */
+  private apiBaseOf(session: SessionData): string {
+    const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+    const base = selection?.['apiBase'];
+    return typeof base === 'string' && base.trim() ? base.trim() : '/api/academy';
   }
 
   private lineId(payload: EnrollSelectionPayload): string {
