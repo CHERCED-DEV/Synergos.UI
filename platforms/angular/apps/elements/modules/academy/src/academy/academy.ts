@@ -99,6 +99,7 @@ import {
   type LearningPath,
   type LearningResult,
   type LessonQuestion,
+  type ProgressUpdate,
 } from './academy.model';
 
 /**
@@ -390,6 +391,8 @@ export class AcademyElementComponent {
   readonly activeLessonId = signal('');
   readonly completedLessonIds = signal<readonly string[]>([]);
   readonly progressPercent = signal(0);
+  /** Lo que el aula tiene que decir cuando una marca NO llegó al servidor (#116). */
+  readonly progressNotice = signal('');
   readonly classroomTab = signal<ClassroomTab>('overview');
   readonly questions = signal<readonly LessonQuestion[]>([]);
   readonly questionDraft = signal('');
@@ -1412,49 +1415,79 @@ export class AcademyElementComponent {
     this.classroomTab.set(tab);
   }
 
-  /** Mark the active lesson complete — optimistic, then sync to the API. */
+  /** Mark the active lesson complete — optimistic paint, then the server's word. */
   markLessonComplete(): void {
     const lesson = this.activeLesson();
     if (!lesson || this.isLessonComplete(lesson.id)) {
       return;
     }
-    void this.toggleLessonComplete(lesson, true);
+    void this.markLesson(lesson);
   }
 
+  /**
+   * **Desmarcar no existe en el contrato**, y por eso no se finge.
+   *
+   * `POST /api/academy/progress` sólo sabe MARCAR (`MarkLessonAsync`): no hay
+   * operación inversa. Quitar la palomita en local dejaba la casilla vacía sobre un
+   * expediente donde la lección seguía completa, o sea la misma mentira que este
+   * ticket vino a quitar, con el signo cambiado. Se dice que no se puede.
+   */
   toggleLessonCompleteFor(lesson: AcademyLesson): void {
-    void this.toggleLessonComplete(lesson, !this.isLessonComplete(lesson.id));
+    if (this.isLessonComplete(lesson.id)) {
+      this.progressNotice.set('Una lección que ya completaste no se puede desmarcar.');
+      return;
+    }
+    void this.markLesson(lesson);
   }
 
-  private async toggleLessonComplete(lesson: AcademyLesson, complete: boolean): Promise<void> {
+  /**
+   * Marca una lección. **Lo optimista se PINTA; lo que se guarda lo dice el
+   * servidor** (regla 18 del `CLAUDE.md`).
+   *
+   * La casilla y la barra responden al instante —esperar a la red para pintar una
+   * palomita es peor producto y no es más honesto—, pero el número que queda es el
+   * que devuelve el borde, y si el POST no llega **se vuelve al estado anterior** y
+   * se dice. Antes el cliente contestaba el porcentaje que este método acababa de
+   * calcular, así que «guardado» y «no salió» se veían exactamente igual: el alumno
+   * veía avanzar la barra, cerraba, volvía, y su avance no estaba.
+   *
+   * Y no se emite `lessoncompleted` sobre algo que no se guardó: ese evento sale al
+   * bus y lo leen otros elementos de la página.
+   */
+  private async markLesson(lesson: AcademyLesson): Promise<void> {
     const total = Math.max(1, this.orderedLessons().length);
     const before = this.completedLessonIds();
-    const next = complete
-      ? [...new Set([...before, lesson.id])]
-      : before.filter((id) => id !== lesson.id);
+    const beforePercent = this.progressPercent();
+    const next = [...new Set([...before, lesson.id])];
+    const courseId = this.enrolledCourseId();
+
+    this.progressNotice.set('');
     this.completedLessonIds.set(next);
     const optimisticPercent = Math.round((next.length / total) * 100);
     this.progressPercent.set(optimisticPercent);
-    this.#api.updateEnrollmentProgress(this.enrolledCourseId(), optimisticPercent, next.length);
+    this.#api.updateEnrollmentProgress(courseId, optimisticPercent, next.length);
 
-    const courseId = this.enrolledCourseId();
+    let update: ProgressUpdate;
     try {
-      const update = await this.#api.markComplete(
-        this.apiBase(),
-        courseId,
-        lesson.id,
-        optimisticPercent,
+      update = await this.#api.markComplete(this.apiBase(), courseId, lesson.id);
+    } catch {
+      // Nada quedó guardado: la casilla vuelve a donde estaba —no a un tercer estado
+      // que sería otra afirmación— y el mensaje dice qué hacer.
+      this.completedLessonIds.set(before);
+      this.progressPercent.set(beforePercent);
+      this.#api.updateEnrollmentProgress(courseId, beforePercent, before.length);
+      this.progressNotice.set(
+        'No pudimos guardar que completaste esta lección. Vuelve a marcarla en un momento.',
       );
-      this.progressPercent.set(update.percent);
-      this.#api.updateEnrollmentProgress(courseId, update.percent, next.length);
-    } catch (error) {
-      void error;
+      return;
     }
 
-    if (complete) {
-      const payload = { courseId, lessonId: lesson.id, percent: this.progressPercent() };
-      this.lessoncompleted.emit(payload);
-      this.#bus.publish('lessoncompleted', payload);
-    }
+    this.progressPercent.set(update.percent);
+    this.#api.updateEnrollmentProgress(courseId, update.percent, next.length);
+
+    const payload = { courseId, lessonId: lesson.id, percent: update.percent };
+    this.lessoncompleted.emit(payload);
+    this.#bus.publish('lessoncompleted', payload);
     this.learningLoaded.set(false);
   }
 
@@ -1489,7 +1522,7 @@ export class AcademyElementComponent {
     };
     this.submissions.update((map) => ({ ...map, [lesson.id]: submission }));
     if (!this.isLessonComplete(lesson.id)) {
-      void this.toggleLessonComplete(lesson, true);
+      void this.markLesson(lesson);
     }
   }
 

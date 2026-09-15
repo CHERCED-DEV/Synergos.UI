@@ -473,6 +473,11 @@
             <div class="academy__progress-bar"><span [style.width.%]="progressPercent()"></span></div>
             <p class="academy__progress-label">{{ progressPercent() }}% completado</p>
           </div>
+          <!-- Una marca que no llegó al servidor se DICE: la barra volvió a donde
+               estaba y sin esto el alumno vería deshacerse su palomita sin motivo (#116). -->
+          @if (progressNotice(); as aviso) {
+            <p class="academy__progress-notice" role="alert">{{ aviso }}</p>
+          }
           @for (section of detail.sections; track section.id) {
             <div class="academy__syllabus-module">
               <p class="academy__syllabus-title">{{ section.title }}</p>

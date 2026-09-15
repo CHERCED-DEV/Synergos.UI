@@ -54,6 +54,24 @@ class HttpStatusError extends Error {
 }
 
 /**
+ * Una ESCRITURA que no llegó al servidor. **Lanza; no devuelve nada optimista.**
+ *
+ * Es la regla 4 del `CLAUDE.md` —degradar una LECTURA no miente; degradar una
+ * ESCRITURA sí— sobre el avance del alumno, y la 18 —lo optimista se PINTA; lo que
+ * se guarda lo dice el servidor—. El gemelo de `EhrWriteFailedError`
+ * (CHERCED-DEV/Synergos.CMS#111), que nació de este mismo defecto en el EHR.
+ */
+export class AcademyWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Academy write "${endpoint}" did not reach the server.`);
+    this.name = 'AcademyWriteFailedError';
+  }
+}
+
+/**
  * Thin HTTP client over the Educación / LMS backend contract (provided by the
  * backend agent in parallel). Programs against the existing + new contract:
  *
@@ -79,12 +97,15 @@ class HttpStatusError extends Error {
  * vacío es una respuesta, no un fallo — y un invitado que ve cursos de ejemplo cree
  * que tiene matrículas) y lo que devuelva un 401.
  *
- * **Lo que sigue mintiendo y NO entra aquí:** `markComplete` es una ESCRITURA que
- * devuelve el porcentaje optimista del llamador cuando el POST no llega, o sea la
- * regla 4 en este módulo. Es el gemelo de CHERCED-DEV/Synergos.CMS#111 en el EHR y
- * pide su propio ticket: a diferencia de «mi aprendizaje», el alumno tiene delante
- * la lección que acaba de marcar y el daño es re-marcarla, no ver un expediente
- * ajeno.
+ * **`markComplete` ya no miente** (CHERCED-DEV/Synergos.CMS#116). Devolvía el
+ * porcentaje optimista del llamador cuando el POST no llegaba, así que la barra
+ * avanzaba sobre un servidor que no guardó nada: el alumno cerraba, volvía, y su
+ * avance no estaba. Hoy **lanza** `AcademyWriteFailedError` y quien llama decide.
+ *
+ * **Lo que sigue mintiendo y NO entra aquí:** `enroll` y `confirm` fabrican un
+ * `orderRef`/`enrollmentId` cuando el borde no contesta, o sea una matrícula que
+ * nadie activó. Es la misma regla 4 y pide su propio ticket, porque arreglarlo
+ * cruza el asistente de compra entero (SH-3) y no sólo este cliente.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -340,11 +361,24 @@ export class AcademyApiClient {
 
   // ─── Progress (mark a lesson complete) ───────────────────────────────────────
 
+  /**
+   * Marca una lección como completa. **Lanza si no llega; no devuelve un porcentaje
+   * de relleno.**
+   *
+   * Lo que había: el `catch` devolvía el `fallbackPercent` que le pasaba el aula —el
+   * mismo número que el aula acababa de calcular en local—, así que la barra
+   * confirmaba un avance que el servidor no guardó. El alumno cerraba, volvía, y la
+   * lección estaba sin marcar: no había forma de distinguir «guardado» de «no salió»
+   * mirando la pantalla, porque las dos se veían igual.
+   *
+   * **El porcentaje que vale es el del servidor**, y no coincide con el de aquí: el
+   * borde lo calcula contra el currículum entero del expediente, no contra las
+   * lecciones que esta pantalla tiene cargadas.
+   */
   async markComplete(
     apiBase: string,
     courseId: string,
     lessonId: string,
-    fallbackPercent: number,
   ): Promise<ProgressUpdate> {
     const url = `${apiBase}/progress`;
     try {
@@ -358,8 +392,7 @@ export class AcademyApiClient {
       }
       throw new Error('progress-update-shape');
     } catch (error) {
-      this.markDegraded('POST /api/academy/progress', error);
-      return { percent: fallbackPercent };
+      this.writeFailed('POST /api/academy/progress', error);
     }
   }
 
@@ -595,6 +628,16 @@ export class AcademyApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Educación API responds.
     this.#logger.warn(`Academy API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel
+   * de «datos de ejemplo» es para las LECTURAS, y aquí no hay ningún dato de ejemplo
+   * que enseñar — hay algo que no se guardó, y quien llama tiene que saberlo.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Academy API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new AcademyWriteFailedError(endpoint, error);
   }
 }
 
