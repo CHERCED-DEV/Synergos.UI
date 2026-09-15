@@ -221,6 +221,7 @@ const CIEGAS_AL_FRAMEWORK = [
   'lib/dev-cdn-routes.mjs',
   'lib/cdn-smoke.mjs',
   'lib/frameworks.mjs',
+  'lib/banco-de-pruebas.mjs',
   'lib/indice-publicado.mjs',
   'lib/cdn-registry.mjs',
   'lib/cdn-cache-policy.mjs',

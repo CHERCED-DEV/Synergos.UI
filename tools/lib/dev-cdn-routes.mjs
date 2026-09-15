@@ -40,6 +40,8 @@ const SLOT = /^(latest|v\d+|\d+\.\d+\.\d+(?:[-+][\w.]+)?)$/;
  * Devuelve un objeto con `tipo`, y el resto de campos según el tipo:
  *
  *   `catalogo`  → la vitrina, servida desde `catalog.html`
+ *   `banco`     → { elemento } — el banco de pruebas de desarrollo (#49); con
+ *                  `elemento: null` es el índice de qué se puede probar
  *   `registry`  → el índice, generado al vuelo
  *   `contratos` → contracts.json, generado al vuelo
  *   `senal`     → el latido del livereload
@@ -59,6 +61,21 @@ export function resolverRuta(pathname, frameworkServido) {
   }
 
   if (pathname === '/' || pathname === '/index.html') return { tipo: 'catalogo' };
+
+  // El banco de pruebas (#49) — la única página que MONTA un elemento.
+  //
+  // Vive FUERA de `/synergos/` a propósito: ese prefijo imita el layout que
+  // publica `publish.mjs`, y este gate existe justamente para que no se desvíe.
+  // Una ruta de desarrollo dentro de ese espacio ensuciaría el contrato que se
+  // está protegiendo, así que se le nota en la URL que es de desarrollo.
+  if (pathname === '/probar' || pathname === '/probar/') return { tipo: 'banco', elemento: null };
+  if (pathname.startsWith('/probar/')) {
+    const resto = pathname.slice('/probar/'.length).split('/').filter(Boolean);
+    // Un solo segmento: el nombre del elemento. Nada de rutas anidadas — no hay
+    // nada que anidar, y aceptarlas invitaría a colarle un path traversal.
+    if (resto.length !== 1) return { tipo: 'nada' };
+    return { tipo: 'banco', elemento: resto[0] };
+  }
   if (pathname === '/synergos/registry.json') return { tipo: 'registry' };
   if (pathname === '/synergos/contracts.json') return { tipo: 'contratos' };
   if (pathname === '/synergos/__dev.json') return { tipo: 'senal' };
