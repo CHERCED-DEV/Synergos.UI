@@ -12,7 +12,7 @@
 |---|---|
 | `npm run build` | Build completo: vitals + elementos Angular + runtime (en ese orden) |
 | `npm run build:vitals` | Compila los paquetes agnósticos (`tools/build-vitals.mjs`) |
-| `npm run build:angular` | Los 136 elementos + libs, AOT completo, **~26 s** (`platforms/angular/tools/build.mjs`) |
+| `npm run build:angular` | Las **127** fuentes con `src/main.ts` + libs, AOT completo, **~30 s** (`platforms/angular/tools/build.mjs`) |
 | `npm run build:runtime` | Runtime compartido con el linker de Angular (`tools/build-runtime.mjs`) |
 | `npm run build:cdn` | Arma `public/` completo: vitals + elementos + runtime + registry + catálogo (`tools/build-cdn.mjs`) |
 

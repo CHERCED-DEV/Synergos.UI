@@ -111,8 +111,10 @@ gate **no** ve está escrito con letra (a)–(f) arriba de
 
 ¿Son tokens SCSS, mixins o tipografía?
   → vitals/core-assets/src/scss/   (fuente de verdad)
-    espejo: platforms/angular/libs/core-assets/  (lo cuadra `npm run sync:tokens:check`)
+    espejo: platforms/angular/libs/shared/src/styles/_tokens-bridge.scss
+            (lo genera y lo cuadra `npm run sync:tokens` / `sync:tokens:check`)
     Es el SHARED DE ESTILOS, no un cuarto vital de TypeScript — ver §4.
+    (Esto decía `platforms/angular/libs/core-assets/`, que no existe. Épica #40.)
 
 ¿Es de Angular?
   ├─ Componente del design system (no Web Component)
@@ -122,6 +124,15 @@ gate **no** ve está escrito con letra (a)–(f) arriba de
   ├─ Provider, token, interceptor, guard, servicio → libs/core/src/
   ├─ Puente entre el motor de render y los elementos → libs/rendering/src/
   └─ Herramienta de sync con el CMS → libs/integrations/src/
+
+    ⚠ Hay SIETE librerías y esta guía sólo enruta a cuatro. Las otras tres
+      —libs/shells/, libs/shop/, libs/transaction-engine/— existen, tienen
+      alias en platforms/angular/tsconfig.json y nadie escribió cuándo va algo
+      ahí. No se inventa acá: es trabajo de la épica #40.
+
+    ⚠ Y falta un cuarto tier del design system: libs/shared/src/components/states/
+      (empty-state, error-state, skeleton, status-banner) — lo que una pantalla
+      enseña cuando NO hay nada que enseñar.
 
 ¿Es un Web Component para el CDN?
   → platforms/angular/apps/elements/<tier>/<nombre>/src/
