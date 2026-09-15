@@ -336,6 +336,15 @@
   // SH-14 (#30). `position: relative` + `z-index` NO son decoración: el velo del
   // stretched link de `__card-link` es un ::after posicionado, así que sin esto
   // queda por encima y el clic abre el curso en vez de marcarlo para comparar.
+  &__progress-notice {
+    margin: syn.$space-xs 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+    color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    font-size: syn.$font-size-sm;
+  }
+
   &__mod-notice {
     margin: syn.$space-sm 0 0;
     border-radius: syn.$radius-md;
