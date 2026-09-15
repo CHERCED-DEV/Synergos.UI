@@ -101,6 +101,7 @@ está vigilando nada.
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
+| `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |
 
 Comandos que no cuelgan de `npm test`:
 
@@ -354,3 +355,28 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    apague la red entera lo ve — hace falta el borde de mentira con la forma del de
    verdad, apagado **por método y ruta** (regla 16 + 18)
    (CHERCED-DEV/Synergos.CMS#117).
+21. **Que la mutación obvia no COMPILE no significa que el gate sobre: significa que
+   estaba apuntando al sitio equivocado.** Al escribir `vitals-purity` (épica #36) la
+   mutación de manual era meter `import { signal } from '@angular/core'` en
+   `vitals/core`. **No compila** —`TS2307`— y no por disciplina de nadie: `vitals/` no
+   cuelga de `platforms/angular/`, así que la resolución de módulos sube hasta el
+   `node_modules` de la raíz y ahí no hay ningún framework. El árbol ya lo impedía por
+   su FORMA. La salida tentadora en ese punto son las dos malas: declarar el gate
+   innecesario, o dejar escrito que «protege contra el import de Angular» —que es
+   documentación por delante del código, y encima falsa—. La buena es preguntarse **qué
+   defecto de la misma familia SÍ compila**, y ahí aparecieron los dos que importan, los
+   dos con el build en verde y los dos **invisibles para un `grep '@angular' vitals/`**:
+   una fuga RELATIVA (`import { ButtonComponent } from
+   '../../../../platforms/angular/libs/shared/…/button'`, que mete un `@Component`
+   entero en la capa agnóstica) y el `import('@' + 'angular/core')` con el especificador
+   concatenado. **El import que hay que vigilar es el que NO lleva el nombre**, y por eso
+   el criterio del gate es una lista blanca derivada del `tsconfig`, no una lista negra
+   de nombres de framework: así `rxjs`, `zone.js` y el paquete del año que viene caen sin
+   nombrarlos.
+   Y el corolario, que es la regla 7 sobre el gate en vez de sobre el fixture: **el
+   propio gate tuvo su hueco y lo destapó su spec, no leerlo**. Los dos cortes obvios
+   para `import(...)` —«un literal entre paréntesis» y «lo que NO empieza por comilla»—
+   dejan un agujero JUSTO ENTRE los dos: `'@' + 'angular/core'` empieza por comilla (la
+   primera no dispara) y no termina en comilla+`)` (la segunda tampoco), así que el caso
+   que el ticket nombraba con todas las letras pasaba en **verde**. Dos regex que se
+   creen complementarias casi nunca lo son; se lee avanzando (#36).
