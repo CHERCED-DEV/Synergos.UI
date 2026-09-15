@@ -11,6 +11,13 @@
  *
  * La regla y su porqué viven en `tools/lib/cdn-size-budget.mjs`. Acá sólo se
  * recorre el disco, se mide y se imprime.
+ *
+ * QUÉ SE MIDE, Y POR QUÉ YA NO DICE `angular` (issue #44). Hasta esta HU el
+ * gate pedía `<elemento>/angular/latest/main.js` y hacía
+ * `if (!existsSync(bundle)) continue;`. Un bundle de React no es que se pasara
+ * del techo: es que **nadie lo medía**, y el gate salía verde. Hoy se RECORRE
+ * el árbol publicado —`tools/lib/frameworks.mjs`—, que es lo único capaz de
+ * encontrar un framework que nadie escribió en ningún sitio.
  */
 import { readdirSync, readFileSync, existsSync, writeFileSync, statSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
@@ -18,6 +25,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { revisarBundle, explicar } from './lib/cdn-size-budget.mjs';
+import { frameworksConstruibles, recorrerPublicado } from './lib/frameworks.mjs';
 import { getArg } from './lib/cli-utils.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,28 +51,61 @@ if (!existsSync(CDN)) {
   process.exit(1);
 }
 
+// ── Qué frameworks hay ───────────────────────────────────────────────────────
+//
+// La lista se DERIVA del disco y no se escribe acá. La construible dice qué
+// puede compilar este repo; lo publicado se RECORRE. Por qué son dos preguntas
+// distintas está en la cabecera de `tools/lib/frameworks.mjs`.
+const listarDirs = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+
+const construibles = frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join });
+if (construibles.length === 0) {
+  err(`✗ no hay ninguna plataforma bajo ${join(ROOT, 'platforms')}: no hay con qué cruzar lo publicado.`);
+  process.exit(1);
+}
+
 // ── Medir ────────────────────────────────────────────────────────────────────
-const medidos = [];
-for (const d of readdirSync(CDN, { withFileTypes: true })) {
-  // `runtime/` es el paquete compartido, no un elemento: no tiene tier, no
-  // tiene techo y pesa lo que pesa Angular a propósito.
-  if (!d.isDirectory() || d.name === 'runtime') continue;
+const { bundles, frameworks, errores } = recorrerPublicado({
+  raizCdn: CDN,
+  construibles,
+  listarDirs,
+  existe: existsSync,
+  unir: join,
+});
 
-  const bundle = join(CDN, d.name, 'angular', 'latest', 'main.js');
-  if (!existsSync(bundle)) continue;
+// Estos NO son avisos. Un elemento sin ningún bundle es un publish a medias, y
+// un framework publicado que nadie construye es un bundle que se sigue
+// sirviendo y no se puede reconstruir. Los dos salían verdes antes de #44 — el
+// primero porque un `continue` lo saltaba, el segundo porque nadie miraba ahí.
+if (errores.length > 0) {
+  err('');
+  err(`✗ ${errores.length} problema(s) en el árbol publicado:`);
+  err('');
+  for (const e of errores) err(`  ${e}`);
+  err('');
+  process.exit(1);
+}
 
-  const codigo = readFileSync(bundle, 'utf8');
-  medidos.push({
-    nombre: d.name,
-    tier: tierPorNombre.get(d.name) ?? 'desconocido',
-    bytes: statSync(bundle).size,
+const medidos = bundles.map(({ elemento, framework, ruta }) => {
+  const codigo = readFileSync(ruta, 'utf8');
+  return {
+    nombre: elemento,
+    framework,
+    // La llave del registro lleva el framework: dos bundles del mismo elemento
+    // son dos artefactos distintos y su historia de tamaño también.
+    llave: `${elemento}/${framework}`,
+    tier: tierPorNombre.get(elemento) ?? 'desconocido',
+    bytes: statSync(ruta).size,
     // Se registra el gzip aunque el gate NO lo mire: es lo que paga el
     // visitante, y tenerlo escrito permite discutir con datos el día que
     // alguien proponga juzgar por ahí.
     gzip: gzipSync(codigo).length,
     codigo,
-  });
-}
+  };
+});
 
 if (medidos.length === 0) {
   err(`✗ ${CDN} existe pero no tiene ningún bundle publicado.`);
@@ -81,20 +122,20 @@ const previo = new Map(Object.entries(base?.elementos ?? {}));
 // techo por tier sí sigue mandando — regenerar el registro nunca puede ser la
 // forma de bendecir un elemento que se pasó del tope absoluto.
 const veredictos = medidos.map((m) =>
-  revisarBundle({ ...m, base: ACTUALIZAR ? null : (previo.get(m.nombre)?.bytes ?? null) }),
+  revisarBundle({ ...m, base: ACTUALIZAR ? null : (previo.get(m.llave)?.bytes ?? null) }),
 );
 const rotos = veredictos.filter((v) => !v.ok);
 
 if (ACTUALIZAR) {
   const elementos = {};
-  for (const m of [...medidos].sort((a, b) => a.nombre.localeCompare(b.nombre))) {
-    elementos[m.nombre] = { tier: m.tier, bytes: m.bytes, gzip: m.gzip };
+  for (const m of [...medidos].sort((a, b) => a.llave.localeCompare(b.llave))) {
+    elementos[m.llave] = { tier: m.tier, framework: m.framework, bytes: m.bytes, gzip: m.gzip };
   }
   writeFileSync(
     BASELINE,
     `${JSON.stringify({ medido: new Date().toISOString().slice(0, 10), nota: 'Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs.', elementos }, null, 2)}\n`,
   );
-  log(`línea base reescrita: ${medidos.length} elementos → ${BASELINE}`);
+  log(`línea base reescrita: ${medidos.length} bundle(s) → ${BASELINE}`);
 }
 
 // Sólo se reporta lo que se movió de verdad. Un ±0,5% en 139 elementos es un
@@ -102,7 +143,7 @@ if (ACTUALIZAR) {
 const UMBRAL_RUIDO = 0.05;
 const movidos = medidos
   .map((m) => {
-    const antes = previo.get(m.nombre);
+    const antes = previo.get(m.llave);
     if (!antes) return { ...m, delta: null, nuevo: true };
     const delta = (m.bytes - antes.bytes) / antes.bytes;
     return { ...m, antes: antes.bytes, delta, nuevo: false };
@@ -115,7 +156,10 @@ const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
 const totalRaw = medidos.reduce((s, m) => s + m.bytes, 0);
 const totalGz = medidos.reduce((s, m) => s + m.gzip, 0);
 
-log(`${medidos.length} elementos · ${kb(totalRaw)} sin comprimir · ${kb(totalGz)} gzip`);
+log(
+  `${medidos.length} bundle(s) · ${frameworks.length} framework(s) publicado(s) ` +
+    `(${frameworks.join(', ')}) · ${kb(totalRaw)} sin comprimir · ${kb(totalGz)} gzip`,
+);
 
 if (base && movidos.length > 0) {
   log(`movimientos desde la línea base del ${base.medido} (±${UMBRAL_RUIDO * 100}%):`);
@@ -123,7 +167,7 @@ if (base && movidos.length > 0) {
     const signo = m.nuevo
       ? 'NUEVO'
       : `${m.delta > 0 ? '+' : ''}${(m.delta * 100).toFixed(1)}%  ${kb(m.antes)} → ${kb(m.bytes)}`;
-    log(`    ${m.nombre.padEnd(24)} ${signo}`);
+    log(`    ${m.llave.padEnd(32)} ${signo}`);
   }
   if (movidos.length > 20) log(`    …y ${movidos.length - 20} más`);
 } else if (base) {
@@ -136,7 +180,7 @@ if (rotos.length === 0) {
 }
 
 err('');
-err(`✗ ${rotos.length} elemento(s) fuera de presupuesto:`);
+err(`✗ ${rotos.length} bundle(s) fuera de presupuesto:`);
 err('');
 for (const v of rotos) {
   for (const linea of explicar(v)) err(`  ${linea}`);

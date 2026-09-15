@@ -178,14 +178,20 @@ export function importaExterno(codigo, external) {
 /**
  * El veredicto de un elemento publicado.
  *
- * @param {{ nombre: string, tier: string, bytes: number, codigo?: string, base?: number }} bundle
+ * @param {{ nombre: string, framework?: string, tier: string, bytes: number,
+ *            codigo?: string, base?: number }} bundle
  *        `base` es lo que pesaba en `cdn-size-baseline.json`. Un elemento nuevo
  *        no lo tiene: nace sin trinquete y sólo responde ante el techo del tier.
- * @returns {{ ok: boolean, nombre: string, tier: string, bytes: number, techo: number|null,
- *             origen: string, razon?: string, veces: number|null, externalsAusentes: string[],
+ *        `framework` viaja SÓLO para que el mensaje lo nombre (issue #44): el
+ *        techo es del elemento y de su tier, no del framework — un bundle de
+ *        React que pese el triple que el de Angular es el mismo defecto de
+ *        externals, no una plataforma con derecho a pesar más.
+ * @returns {{ ok: boolean, nombre: string, framework: string|null, tier: string,
+ *             bytes: number, techo: number|null, origen: string, razon?: string,
+ *             veces: number|null, externalsAusentes: string[],
  *             base: number|null, crecimiento: number|null }}
  */
-export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null }) {
+export function revisarBundle({ nombre, framework = null, tier, bytes, codigo = '', base = null }) {
   const { techo, origen, razon } = techoDe(nombre, tier);
 
   // Se mira SIEMPRE, pase o no pase el tamaño. Un external tragado que aún
@@ -200,6 +206,7 @@ export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null })
   return {
     ok: cabe && !trinqueteRoto && externalsAusentes.length === 0,
     nombre,
+    framework,
     tier,
     bytes,
     techo,
@@ -225,16 +232,20 @@ export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null })
 export function explicar(v) {
   const lineas = [];
   const kb = (n) => `${(n / KB).toFixed(1)} KB`;
+  // Sin el framework en el rótulo, «storefront: 412 KB > 304 KB» no dice cuál
+  // de los dos bundles hay que mirar. Se omite cuando no lo hay para que los
+  // mensajes de siempre no cambien de forma sin motivo.
+  const quien = v.framework ? `${v.nombre} [${v.framework}]` : v.nombre;
 
   if (v.techo === null) {
-    lineas.push(`${v.nombre}: tier "${v.tier}" sin techo definido (${kb(v.bytes)}).`);
+    lineas.push(`${quien}: tier "${v.tier}" sin techo definido (${kb(v.bytes)}).`);
     lineas.push(`  Añadí el tier a TECHO_POR_TIER en tools/lib/cdn-size-budget.mjs.`);
     return lineas;
   }
 
   if (v.externalsAusentes.length > 0) {
     lineas.push(
-      `${v.nombre}: el bundle ya NO importa ${v.externalsAusentes.join(', ')} — se lo empaquetó.`,
+      `${quien}: el bundle ya NO importa ${v.externalsAusentes.join(', ')} — se lo empaquetó.`,
     );
     lineas.push(`  Eso rompe el contrato de externals: este elemento ya no comparte el runtime.`);
     lineas.push(`  Mirá platforms/angular/cdn.config.mjs (EXTERNALS) y cómo lo consume build.mjs.`);
@@ -242,7 +253,7 @@ export function explicar(v) {
 
   if (v.crecimiento !== null && v.crecimiento > FACTOR_TRINQUETE) {
     lineas.push(
-      `${v.nombre}: ${kb(v.base)} → ${kb(v.bytes)} — ${v.crecimiento}× la última medida.`,
+      `${quien}: ${kb(v.base)} → ${kb(v.bytes)} — ${v.crecimiento}× la última medida.`,
     );
     // OJO con afirmar que cabe: cuando el crecimiento es tan bruto que además
     // rompe el techo, decirlo sería mentira — y una mentira en el mensaje de un
@@ -259,7 +270,7 @@ export function explicar(v) {
 
   if (v.bytes > v.techo) {
     lineas.push(
-      `${v.nombre}: ${kb(v.bytes)} > ${kb(v.techo)} (${v.origen}) — ${v.veces}× el techo.`,
+      `${quien}: ${kb(v.bytes)} > ${kb(v.techo)} (${v.origen}) — ${v.veces}× el techo.`,
     );
     if (v.externalsAusentes.length === 0) {
       // Sin external ausente el diagnóstico no está cerrado, y decirlo importa:
