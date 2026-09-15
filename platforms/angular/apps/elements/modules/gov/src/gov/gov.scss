@@ -314,6 +314,31 @@
   }
 }
 
+// ─── Tasa del trámite (CMS#116) ───────────────────────────────────────────────
+// Se ve en la bandeja del ciudadano, en su seguimiento, en la cola y en el caso: un
+// cobro pendiente que sólo se ve abriendo el expediente no lo persigue nadie.
+.fee-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  background: var(--gv-surface-muted);
+  color: var(--gv-text-secondary);
+  white-space: nowrap;
+
+  &--attention {
+    background: var(--gv-warn-soft);
+    color: var(--gv-text);
+  }
+
+  &--exempt {
+    background: var(--gv-surface-muted);
+    color: var(--gv-text-secondary);
+  }
+}
+
 // ─── Priority + SLA chips (officer queue cells) ───────────────────────────────
 .prio {
   display: inline-flex;
