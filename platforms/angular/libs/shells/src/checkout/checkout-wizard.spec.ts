@@ -29,6 +29,8 @@ class SpecStrategy extends FulfillmentStrategyBase {
   payCalls = 0;
   confirmCalls = 0;
   acceptPay = true;
+  /** Con `false`, `confirm` contesta que NO quedó — el paso de después del cobro. */
+  confirmOk = true;
 
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     void query;
@@ -53,6 +55,9 @@ class SpecStrategy extends FulfillmentStrategyBase {
 
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     this.confirmCalls += 1;
+    if (!this.confirmOk) {
+      return { confirmed: false, vouchers: [], reason: 'confirm-unreachable' };
+    }
     return {
       confirmed: true,
       vouchers: session.items.map((item) => ({
@@ -267,20 +272,70 @@ describe(CheckoutWizardComponent.name, () => {
     await flush();
     expect(strategy.payCalls).toBe(1);
 
-    // A rejected pay reports failure and restores the building status.
+    // Un cobro RECHAZADO avisa y deja la sesión donde estaba. Va sobre un carrito
+    // NUEVO a propósito: el de arriba ya tiene su cobro capturado, y desde CMS#117
+    // reintentar sobre ése salta el pago en vez de repetirlo (lo prueba el caso de
+    // abajo). Antes daba igual porque el asistente siempre volvía a cobrar —el
+    // fixture se apoyaba en el defecto de al lado.
+    store.reset();
+    store.addItem(cartItem('b'));
     strategy.acceptPay = false;
-    const fixture2Host = fixture.componentInstance;
-    fixture2Host.result = null;
-    store.setStatus('building');
+    const host = fixture.componentInstance;
+    host.result = null;
     fixture.detectChanges();
     wizard(fixture).nextBtn.click();
     await flush();
     fixture.detectChanges();
 
-    expect(fixture2Host.failure).toBe('rejected-by-spec');
+    expect(strategy.payCalls).toBe(2);
+    expect(host.failure).toBe('rejected-by-spec');
     expect(store.session().status).toBe('building');
-    expect(fixture.nativeElement.querySelector('.syn-wizard__error')?.textContent).toContain(
-      'rejected-by-spec',
-    );
+    // El mensaje NO es el código de la razón: dice que no se cobró nada, que es lo
+    // que quien está comprando necesita saber para volver a pulsar sin miedo.
+    const error = fixture.nativeElement.querySelector('.syn-wizard__error')?.textContent ?? '';
+    expect(error).toContain('no se te ha cobrado nada');
+    expect(error).not.toContain('rejected-by-spec');
+  });
+
+  // ── CMS#117 · el cobro salió y la confirmación no ───────────────────────────
+  it('EL caso: reintentar después de un cobro capturado NO vuelve a cobrar', async () => {
+    const fixture = await createHost();
+    store.addItem(cartItem('a', 50_000));
+    fixture.detectChanges();
+
+    // Sólo cae el SEGUNDO paso: el cobro sí sale. Un apagón de los dos no llega
+    // nunca a este camino, porque confirmar va detrás de un pago que funcionó.
+    strategy.confirmOk = false;
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    expect(host.result).toBeNull();
+    expect(strategy.payCalls).toBe(1);
+    expect(strategy.confirmCalls).toBe(1);
+    // El cobro quedó escrito UNA vez, y el mensaje lo nombra con su referencia:
+    // «no pudimos completar la compra» a secas invita a pagar de nuevo.
+    expect(store.session().payments).toHaveLength(1);
+    const error = fixture.nativeElement.querySelector('.syn-wizard__error')?.textContent ?? '';
+    expect(error).toContain('REF-1');
+    expect(error).toContain('no se te cobrará de nuevo');
+
+    // Reintento: se salta el cobro y sólo repite la confirmación.
+    strategy.confirmOk = true;
+    fixture.detectChanges();
+    wizard(fixture).nextBtn.click();
+    await flush();
+    fixture.detectChanges();
+
+    expect(strategy.payCalls).toBe(1);
+    expect(strategy.confirmCalls).toBe(2);
+    expect(store.session().payments).toHaveLength(1);
+    expect(host.result?.reference).toBe('REF-1');
+    expect(store.session().status).toBe('confirmed');
   });
 });
