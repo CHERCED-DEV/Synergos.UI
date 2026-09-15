@@ -22,11 +22,13 @@ platforms/angular/     → LA plataforma
   apps/elements/       → Web Components (primitives/, compositions/, modules/)
   apps/experiences/    → Experiencias interactivas ricas
   libs/core/           → Angular providers, tokens, interceptors, services
-  libs/shared/         → Angular design system (foundations/, components/, patterns/)
-  libs/core-assets/    → SCSS design tokens and mixins
+  libs/shared/         → Angular design system (primitives/, compositions/, patterns/, states/)
   libs/rendering/      → ElementRegistry, ComponentResolver, InputMapper
   libs/integrations/   → CMS sync tooling
-  modules/             → Feature modules (Git submodules)
+  libs/shells/ shop/ transaction-engine/  → dominio (siete librerías en total)
+  modules/             → VACÍO hoy: sólo un README; .gitmodules no registra ninguno
+  (NO hay libs/core-assets/: los tokens viven en vitals/core-assets/ y el alias
+   @synergos/core-assets apunta ahí — épica #40)
   tools/build.mjs      → El build unificado (--watch, --solo=a,b)
   cdn.config.mjs       → Externals del CDN — contrato del navegador (antes en nx.json)
 vitals/
@@ -86,7 +88,7 @@ createApplication(appConfig).then((appRef) => {
 ## Build commands
 ```bash
 # Desde la raíz
-npm run build:angular          # Los 136 elementos + libs, AOT completo (~26 s)
+npm run build:angular          # Las 127 fuentes + libs, AOT completo (~30 s)
 npm run build:runtime          # Runtime compartido (linker de Angular incluido)
 npm run build:cdn              # Arma public/ completo: vitals + elementos + runtime + registry + catálogo
 npm test                       # Gates de tools/lib + los specs de Angular (compila AOT primero)
