@@ -360,6 +360,18 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementEventZone',
   'elementTramiteFormSection',
   'elementTramiteFormField',
+
+  // Y el temario de un curso (#100). MISMA tercera categoría: el editor escribe
+  // módulos y lecciones dentro de la ficha de `coursePage`, y quien los pinta es
+  // el bundle de Educación leyéndolos ya proyectados por `UmbracoCourseCatalogSource`.
+  // No montan web component y no tienen partial Razor propio.
+  //
+  // ⚠️ ESTA LISTA ES EL PASO 7b DEL MOLDE DE UN VERTICAL, Y VIVE EN EL OTRO REPO.
+  // Estos dos entraron con #100 y nadie vino acá, así que `design-gates-ui.yml`
+  // quedó ROJO y `CLAUDE.md` del CMS siguió diciendo «los dos pasan hoy» — la guía
+  // afirmando verde sobre un gate en rojo, que es peor que el rojo.
+  'elementCourseLesson',
+  'elementCourseModule',
 ]);
 
 // NOTA (issue #16). Acá vivían tres listas más —`UI_ONLY_ALIASES`,
