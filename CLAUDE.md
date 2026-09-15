@@ -53,7 +53,9 @@ que cambia por repo es la definición de hecho (ver `.github/pull_request_templa
 ```
 platforms/angular/   → LA plataforma (Angular ~21; 127 fuentes con src/main.ts)
   apps/              → elementos + experiences; cada carpeta con src/main.ts ES un elemento
-  libs/              → core, shared (design system), core-assets, rendering, integrations
+  libs/              → SIETE: core · shared (design system) · rendering · integrations
+                       · shells · shop · transaction-engine. core-assets NO está acá:
+                       vive en vitals/ (abajo), y el alias apunta ahí.
   tools/build.mjs    → EL build: un NgtscProgram + un esbuild — las 127 en ~26 s
   cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
@@ -67,6 +69,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 
 ## Quick reference
 - Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada elemento era una "application" independiente (un arranque del compilador cada uno, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- **Toda la documentación, medida** (épica #40): qué afirma cada fichero que el disco desmiente, dónde se contradicen entre sí, y qué le falta a quien entra hoy — `SynergosDocs/MEDICION_DOCUMENTACION.md`. Se escribió porque `LLM.txt`, que este fichero y `AGENTS.md` declaran autoridad, afirmaba que los tests de Angular estaban «SUSPENDIDOS» mientras corrían 1.580 en verde.
 - **Las cifras, medidas y no recordadas** (#42): **127** carpetas bajo `apps/` con `src/main.ts` (lo que el build compila) y **132** entradas en `element-registry.json` (lo que el CMS puede colocar). No son la misma cuenta y nunca lo fueron: seis entradas comparten el `synergos-text-block`, dos no las construye nada —`stat-counter` y `module-mount`— y tres fuentes son hosts deprecados que no están en el registry. Este fichero decía «136» en tres sitios, que no es ninguna de las dos.
 - **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
 - Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
@@ -79,8 +82,9 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
 
 - **La frontera `vitals/` ↔ `<framework>/shared`**: cada framework tiene su propio `shared`, escrito en su propio lenguaje, y todos se alimentan de `vitals`. En `vitals` va el MODELO de lo que emite el CMS, el MAPPER que lo traduce, el PROTOCOLO del bridge y el VOCABULARIO; no va nada que renderice, toque el DOM o tenga estado reactivo de un framework. Escrita en `SynergosDocs/WHERE_DOES_THIS_GO.md` §1 y en `LLM.txt` §2; medida en `SynergosDocs/FRONTERA_VITALS.md`; vigilada por el gate `vitals-purity`.
-- Aliases agnósticos: `@synergos/contracts`, `@synergos/core` (desde `vitals/`)
-- Aliases Angular: `@synergos/core` → `libs/core/`, `@synergos/shared` → `libs/shared/`, etc.
+- Aliases agnósticos (`tsconfig.base.json`): `@synergos/contracts`, `@synergos/core`, `@synergos/core-assets` — los tres a `vitals/`.
+- Aliases Angular (`platforms/angular/tsconfig.json`, diez): `@synergos/core` → `libs/core/` **pisando el agnóstico**, que queda como `@synergos/vitals-core`; más `shared`, `rendering`, `integrations`, `shells`, `shop`, `transaction-engine`, y `contracts` / `core-assets` que siguen yendo a `vitals/`.
+- Tiers del design system (`libs/shared/src/components/`): `primitives/` (23) · `compositions/` (16) · `patterns/` (12) · `states/` (4).
 - Component prefix: `syn-`
 - State: `signal()` only — no BehaviorSubject, no Zone.js
 - Build output: CDN deployment (no local wwwroot)

@@ -2,8 +2,16 @@
 
 The Synergos design system is split across two libraries:
 
-- `libs/core-assets` (`@synergos/core-assets`) — Design tokens, SCSS system
+- `vitals/core-assets` (`@synergos/core-assets`) — Design tokens, SCSS system
 - `libs/shared` (`@synergos/shared`) — Angular components, pipes, directives, utilities
+
+> Los tokens **no** están en `platforms/angular/libs/core-assets/`: ese directorio
+> no existe. Este documento lo afirmaba, y su espejo en la plataforma es
+> `libs/shared/src/styles/_tokens-bridge.scss`, que genera `sync-tokens.mjs`.
+> Los tres tier names de abajo (`foundations/`, `components/`, `patterns/`)
+> tampoco son los del disco — son `primitives/`, `compositions/`, `patterns/` y
+> `states/`. Reescribir este documento es trabajo de la épica #40; lo que ya está
+> medido está en [MEDICION_DOCUMENTACION.md](MEDICION_DOCUMENTACION.md).
 
 ---
 

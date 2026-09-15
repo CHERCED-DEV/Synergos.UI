@@ -17,11 +17,12 @@ ver sección 12 para la historia y cómo se reintroduciría otra.)
   - apps/elements/     → Web Components (primitives/, compositions/, modules/)
   - apps/experiences/  → Rich interactive experiences — see section 15
   - libs/core/         → Angular-specific providers, tokens, interceptors, services
-  - libs/shared/       → Angular design system: foundations/, components/, patterns/
-  - libs/core-assets/  → SCSS tokens + mixins (Angular copy)
+  - libs/shared/       → Angular design system: primitives/, compositions/, patterns/, states/
   - libs/rendering/    → ElementRegistry, ComponentResolver, InputMapper
   - libs/integrations/ → CMS sync tooling
-  - modules/           → Git submodules (independent Angular module repos)
+  - libs/shells/ shop/ transaction-engine/   → dominio (7 librerías en total)
+  - modules/           → VACÍO hoy: sólo un README, y .gitmodules no registra
+                         ninguno. La sección 6 describe el patrón, no el disco.
   - tools/build.mjs    → EL build: un NgtscProgram + un esbuild (--watch, --solo=a,b)
   - cdn.config.mjs     → Externals del CDN — contrato del navegador (antes en nx.json)
 - vitals/              → Agnostic packages (consumed via tsconfig paths, NOT npm)
@@ -44,12 +45,16 @@ NEVER create files outside these directories without explicit user instruction.
   vitals/core-assets → (nothing — SCSS only)
 
 ### Angular layer (platforms/angular/) — flows downward only:
-  modules/*        →  libs/shared, libs/core, libs/core-assets
+  modules/*        →  libs/shared, libs/core
   apps/experiences →  libs/shared, libs/core, apps/elements (Web Components used in templates)
-  libs/shared      →  libs/core, libs/core-assets
+  libs/shared      →  libs/core
   libs/rendering   →  libs/core, libs/shared
   libs/core        →  (nothing inside angular workspace)
-  libs/core-assets →  (nothing)
+
+  Los tokens SCSS NO son una librería de la plataforma: viven en
+  vitals/core-assets/ y se consumen por el alias @synergos/core-assets, que
+  tsconfig.base.json mapea a vitals/core-assets/src/index.ts. Esta guía decía
+  `libs/core-assets/`, que no existe en el disco (épica #40).
 
 ### Cross-layer (platform → vitals):
   platforms/angular/ importa de vitals/ vía @synergos/contracts y @synergos/core
@@ -132,7 +137,7 @@ NEVER USE:
 Angular 21 promotes concise, suffix-free file names. Apply this project-wide:
 
 Design system (libs/shared):
-  Foundation:    button.ts            (in components/foundations/button/)
+  Primitive:     button.ts            (in components/primitives/button/)
   Component:     card.ts              (in components/card/)
   Pattern:       data-grid.ts         (in components/patterns/data-grid/)
   Directive:     tooltip.directive.ts
@@ -157,28 +162,36 @@ Spec files always colocated:
 
 ## 5. DESIGN SYSTEM RULES (platforms/angular/libs/shared)
 
-The Angular design system is in platforms/angular/libs/shared/src/components/ with three tiers:
+The Angular design system is in platforms/angular/libs/shared/src/components/
+with FOUR tiers. Los nombres son los del disco — esta guía decía
+`foundations/` y `components/ (root)`, que no existen, y no nombraba
+`states/` (épica #40). Medido el 2026-09-15: 23 · 16 · 12 · 4.
 
-### foundations/
+### primitives/          (23)
 Primitive, single-responsibility UI building blocks. Angular equivalent of design system atoms.
 - Stateless (no internal state)
 - Inputs control 100% of appearance
 - No business logic, no service injection, no API calls
 - Examples: button.ts, icon.ts, badge.ts, spinner.ts, avatar.ts, skeleton.ts
 
-### components/ (root)
+### compositions/        (16)
 Composed, self-contained UI components.
-- Composed from foundations
+- Composed from primitives
 - May have internal interaction state (open/close, active, expanded)
 - No business logic, no API calls
-- Examples: card.ts, dialog.ts, dropdown.ts, input.ts, select.ts, tabs.ts
+- Examples: card.ts, dialog.ts, dropdown.ts, accordion.ts, tabs.ts, tooltip.ts
 
-### patterns/
-Compositions of 2–4 foundations/components that implement a recurring UI layout.
+### patterns/            (12)
+Compositions of 2–4 primitives/compositions that implement a recurring UI layout.
 - Encode platform UX conventions
 - May have richer internal state (pagination, multi-step, filtering)
 - Still purely presentational — never fetch data externally
-- Examples: data-grid.ts, form.ts, search-results.ts, page-header.ts, empty-state.ts
+- Examples: data-table.ts, configurable-form.ts, paginator.ts, filter-panel.ts, empty-state.ts
+
+### states/              (4)
+Lo que una pantalla enseña cuando NO hay qué enseñar: vacío, error, carga, aviso.
+- Examples: empty-state.ts, error-state.ts, skeleton.ts, status-banner.ts, view-state.ts
+- view-state.ts es el único fichero de todo libs/shared que no importa @angular/core
 
 Rules for all design system code:
   - selector prefix: syn- (syn-button, syn-card, syn-data-grid)
@@ -198,7 +211,7 @@ Features follow a container-based architecture with separated concerns:
   feature.view.html     → optional: when template is large enough to split out
 
 Rules:
-  - Container composes the view using patterns and foundations from libs/shared
+  - Container composes the view using patterns and primitives from libs/shared
   - Container delegates state to store, HTTP to api
   - Store exposes readonly signals: readonly items = this.#items.asReadonly()
   - API uses inject(HttpClient) and inject(ENVIRONMENT) — returns observables
@@ -272,11 +285,22 @@ Unit test rules:
   - Mock inject() dependencies with TestBed.overrideProvider
   - No HTTP in unit tests — use provideHttpClientTesting()
 
-ESTADO ACTUAL: el runner de tests de Angular está SUSPENDIDO desde la purga de
-Nx (era el executor @angular/build:unit-test). Los .spec.ts se siguen
-escribiendo y quedan en el árbol; recablearlos a vitest con compilación Angular
-es un pendiente declarado. Los specs de la raíz (tools/lib/) sí corren con
-`npm test`.
+ESTADO ACTUAL: los tests de Angular CORREN. `npm test` en la raíz lanza los dos
+conjuntos: los gates de tools/lib y los specs de la plataforma. Medido el
+2026-09-15: 213 + 1.580 tests en verde, 239 ficheros .spec.ts, cero it.skip —
+y que la cuarentena siga en cero lo defiende el gate `spec-quarantine`.
+
+Los specs se COMPILAN AOT antes de correr (platforms/angular/tools/build-specs.mjs,
+~35 s) con el mismo ngtsc que publica los elementos. No es preferencia de estilo:
+los signal inputs de Angular no funcionan en JIT — setInput() no llega nunca al
+input() y devuelve el valor por defecto, en silencio. Como esta misma guía
+prohíbe @Input(), cualquier transpilador al vuelo haría que los tests corran y
+mientan.
+
+(Esto decía «SUSPENDIDO … pendiente declarado» desde la purga de Nx, cuando el
+runner era el executor @angular/build:unit-test. Se recableó en el issue #1 y
+esta guía no se movió — y como CLAUDE.md y AGENTS.md declaran este fichero
+autoridad, quien entraba leía que no había tests. Épica #40.)
 
 
 ## 10. CODE GENERATION WORKFLOW
@@ -289,7 +313,7 @@ When creating or modifying code:
   5. Verify import directions comply with section 2
 
 Scaffolding (a mano — el build descubre por filesystem, ver AGENTS.md):
-  Design system: crear carpeta + fichero en libs/shared/src/components/{foundations|.|patterns}/<name>/<name>.ts
+  Design system: crear carpeta + fichero en libs/shared/src/components/{primitives|compositions|patterns|states}/<name>/<name>.ts
                  y exportar desde libs/shared/src/index.ts
   Elemento CDN:  carpeta apps/elements/<tier>/<nombre>/src/ con main.ts
                  (createApplication → createCustomElement → customElements.define),
