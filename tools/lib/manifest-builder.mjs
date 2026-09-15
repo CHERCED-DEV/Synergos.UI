@@ -4,6 +4,25 @@
  * Used by publish.mjs, manifest-gen.mjs, and contracts-export.mjs
  * so the manifest schema and contracts schema are defined in exactly one place.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * EL MANIFIESTO NO ES UNA FUENTE: ES LA PROYECCIÓN PUBLICADA (issue #43).
+ *
+ * De sus siete claves, cinco salen tal cual del repo —`tag`, `alias`, `tier` y
+ * `framework` del registry; `inputs` de `element-inputs.json`—, `version` la
+ * resuelve el publicador por contenido y `entryScript` es una constante. **No
+ * lleva un solo dato que no esté ya acá.** Por eso NO se convierte en la
+ * fuente de la forma de un elemento: sería un quinto sitio con una copia, y
+ * una copia que además vive en el CDN, o sea que un clon limpio no podría
+ * construir sin red.
+ *
+ * Lo que sí pasa a ser es **el embudo comprobado**: nada llega al registry ni
+ * al CDN sin producir un manifiesto que valide contra la interfaz
+ * `ElementManifest` declarada en `vitals/contracts/src/element-manifest.schema.ts`.
+ * Antes esa interfaz no la importaba nadie: se generaba, se publicaba y se
+ * tiraba, y si este fichero renombraba una clave, compilaba y nadie se
+ * enteraba. Ahora las claves emitidas se cruzan contra las declaradas, leídas
+ * del `.ts` (ver `contract-schema.mjs`).
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 // ── Manifest ─────────────────────────────────────────────────────────────────
@@ -32,6 +51,58 @@ export function buildManifest(entry, version, inputs) {
     entryScript: 'main.js',
     inputs,
   };
+}
+
+/**
+ * ¿Es esto un manifiesto válido según el contrato declarado?
+ *
+ * Se le pasan las claves y las uniones LEÍDAS del `.ts` —no una lista escrita
+ * acá— porque una lista escrita acá vuelve a ser la misma copia que el issue
+ * #43 vino a matar: cruzaría el builder contra sí mismo.
+ *
+ * @param {object} manifest Lo que se va a escribir en disco.
+ * @param {{ claves: {nombre: string, opcional: boolean}[], frameworks: string[], tiers: string[] }} contrato
+ * @returns {string[]} Líneas de error. Vacío es válido.
+ */
+export function validateManifest(manifest, contrato) {
+  const errores = [];
+  const presentes = new Set(Object.keys(manifest));
+
+  for (const { nombre, opcional } of contrato.claves) {
+    if (!presentes.has(nombre) && !opcional) {
+      errores.push(`falta la clave "${nombre}", que ElementManifest declara obligatoria`);
+    }
+  }
+
+  for (const clave of presentes) {
+    if (!contrato.claves.some((c) => c.nombre === clave)) {
+      errores.push(`emite la clave "${clave}", que ElementManifest no declara`);
+    }
+  }
+
+  if (presentes.has('framework') && !contrato.frameworks.includes(manifest.framework)) {
+    errores.push(
+      `framework "${manifest.framework}" no es uno de ${contrato.frameworks.join(', ')}`,
+    );
+  }
+
+  if (presentes.has('tier') && !contrato.tiers.includes(manifest.tier)) {
+    // Ojo: `ElementRegistryTier` admite `experience` y `ElementTier` no. Eso no
+    // se tapa acá poniéndole un valor: si alguien declara ese tier, el
+    // manifiesto no lo puede expresar y el presupuesto de tamaño tampoco tiene
+    // techo para él. Que falle y se decida.
+    errores.push(`tier "${manifest.tier}" no es uno de ${contrato.tiers.join(', ')}`);
+  }
+
+  if (presentes.has('entryScript') && manifest.entryScript !== 'main.js') {
+    errores.push(`entryScript "${manifest.entryScript}" — el contrato lo fija en "main.js"`);
+  }
+
+  if (presentes.has('inputs') && !Array.isArray(manifest.inputs)) {
+    errores.push('inputs no es un array');
+  }
+
+  return errores;
 }
 
 // ── Contracts ────────────────────────────────────────────────────────────────

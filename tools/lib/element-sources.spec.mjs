@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   descubrirFuentes, resolverFramework, revisarFrameworks, tierDelDisco,
-  elegirPlataforma, SIN_FUENTE_PROPIA, PLATAFORMAS,
+  elegirPlataforma, resolverTier, SIN_FUENTE_PROPIA, PLATAFORMAS,
 } from './element-sources.mjs';
 import { loadRegistry, contratoDelManifiesto } from './synergos-config.mjs';
 
@@ -242,5 +242,81 @@ describe('elegirPlataforma', () => {
     );
 
     expect(r.error).toContain('bundle construido en la plataforma "svelte"');
+  });
+});
+
+describe('resolverTier', () => {
+  /**
+   * El tier ya no se adivina (issue #43).
+   *
+   * El defecto que estos tests reproducen: `cms-sync` le ponía `composition` a
+   * lo que no conocía y **sobreescribía el del registry**, lo que le baja a un
+   * `module` el techo del presupuesto de 72 KB a 44 KB en silencio.
+   *
+   * EL FIXTURE TIENE QUE EXIGIR LA REGLA. Con un elemento cuyo tier ya está en
+   * el registry, adivinar y leer dan el mismo resultado y el defecto pasa en
+   * verde: por eso el caso que importa es el que NO está en ninguna de las dos
+   * fuentes, que es exactamente el que antes salía `composition`.
+   */
+  const registroCon = (...entradas) => new Map(entradas.map((e) => [e.alias, e]));
+
+  it('el registry manda cuando la entrada ya existe', () => {
+    const r = resolverTier(
+      { alias: 'elementSynStorefront', name: 'storefront' },
+      registroCon({ alias: 'elementSynStorefront', tier: 'module' }),
+      descubrirFuentes(discoFalso([])),
+    );
+
+    expect(r).toEqual({ tier: 'module', origen: 'registry' });
+  });
+
+  it('sin entrada en el registry, lo dice la carpeta donde vive la fuente', () => {
+    const r = resolverTier(
+      { alias: 'elementSynDataGrid', name: 'data-grid' },
+      registroCon(),
+      descubrirFuentes(discoFalso([`${APPS}/elements/modules/data-grid/src/main.ts`])),
+    );
+
+    expect(r).toEqual({ tier: 'module', origen: 'carpeta de la fuente' });
+  });
+
+  it('sin registry y sin fuente NO sale "composition": sale un error', () => {
+    // EL defecto, escrito como test. Antes esto devolvía `composition` con un
+    // WARN que nadie leía, y de paso se lo escribía al registry.
+    const r = resolverTier(
+      { alias: 'elementSynLoQueSea', name: 'lo-que-sea' },
+      registroCon(),
+      descubrirFuentes(discoFalso([])),
+    );
+
+    expect(r.tier).toBeUndefined();
+    expect(r.error).toContain('nadie sabe su tier');
+    expect(r.error).not.toMatch(/^composition/u);
+  });
+
+  it('registry y disco en desacuerdo no se resuelve eligiendo uno', () => {
+    // La fuente se movió de carpeta, o el registry quedó viejo. Las dos
+    // merecen que alguien mire; elegir una en silencio es cómo se degradó un
+    // module a composition la primera vez.
+    const r = resolverTier(
+      { alias: 'elementSynX', name: 'x' },
+      registroCon({ alias: 'elementSynX', tier: 'module' }),
+      descubrirFuentes(discoFalso([`${APPS}/elements/compositions/x/src/main.ts`])),
+    );
+
+    expect(r.error).toContain('el registry dice tier "module"');
+    expect(r.error).toContain('composition');
+  });
+
+  it('las 132 entradas de verdad resuelven a su propio tier, y ninguna falla', () => {
+    const registro = loadRegistry();
+    const porAlias = new Map(registro.map((e) => [e.alias, e]));
+    const fuentes = descubrirFuentes({ ...discoReal, plataformas: PLATAFORMAS });
+
+    const malas = registro
+      .map((e) => ({ name: e.name, esperado: e.tier, r: resolverTier(e, porAlias, fuentes) }))
+      .filter((x) => x.r.error || x.r.tier !== x.esperado);
+
+    expect(malas).toEqual([]);
   });
 });

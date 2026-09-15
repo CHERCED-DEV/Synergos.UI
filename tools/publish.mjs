@@ -29,9 +29,10 @@ import { createHash } from 'node:crypto';
 
 import {
   ROOT, PLATFORMS, loadRegistry, loadInputs, readPackageVersion, resolveCdnRoot,
+  contratoDelManifiesto,
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
-import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
+import { buildManifest, buildContracts, validateManifest } from './lib/manifest-builder.mjs';
 import { resolvePublishVersion } from './lib/cdn-registry.mjs';
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 import { elegirPlataforma } from './lib/element-sources.mjs';
@@ -69,6 +70,7 @@ function sha256(filePath) {
 
 let registry   = loadRegistry();
 const inputsData = loadInputs();
+const CONTRATO = contratoDelManifiesto();
 
 if (ELEMENT_FILTER) {
   const filtered = registry.filter((e) => e.name === ELEMENT_FILTER);
@@ -173,6 +175,15 @@ for (const entry of registry) {
     const elementVersion = resolved.version;
 
     const manifest = buildManifest(entry, elementVersion, inputsData[entry.name] ?? []);
+
+    // Se valida ANTES de escribirlo: un manifiesto que no cumple el contrato
+    // publicado no se arregla después, se sirve. Ver manifest-builder.mjs.
+    const malManifiesto = validateManifest(manifest, CONTRATO);
+    if (malManifiesto.length > 0) {
+      console.error(`\n❌ ${entry.name} [${platform.name}] — manifiesto inválido:`);
+      for (const linea of malManifiesto) console.error(`   - ${linea}`);
+      process.exit(1);
+    }
 
     const meta = {
       element:   entry.name,
