@@ -322,16 +322,23 @@ export interface AcademyStudent {
 
 /**
  * `POST /api/academy/enroll` response. A paid course opens one PSP session; a free
- * course short-circuits to `{ enrolled: true }` (modelled here as `free: true`).
+ * course short-circuits to `{ enrolled: true, enrollmentId }` (modelled here as
+ * `free: true`).
+ *
+ * **En la rama gratis `orderRef` va VACÍO y `enrollmentId` es obligatorio** — la
+ * matrícula ya está activa y nunca pasa por `POST /confirm` (CMS#117). Un `orderRef`
+ * inventado para esa rama sólo servía para pedirle al borde que confirmara una orden
+ * que no existe.
  */
 export interface EnrollResult {
+  /** Referencia de la orden a capturar. Vacía cuando `free` es `true`. */
   readonly orderRef: string;
   readonly paymentSessionId: string;
   readonly amount: number;
   readonly currency: string;
   /** `true` when the course was free → no payment, enrolment already active. */
   readonly free: boolean;
-  /** Set directly for free enrolments. */
+  /** El id que emitió el borde. Presente siempre que `free` sea `true`. */
   readonly enrollmentId?: string;
 }
 
