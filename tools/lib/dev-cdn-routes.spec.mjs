@@ -22,15 +22,15 @@ describe('resolverRuta — el layout que produce publish.mjs', () => {
   ])('%s → el bundle de %s', (ruta, elemento) => {
     // Los TRES slots apuntan al mismo fichero: en desarrollo no hay versionado,
     // hay lo último que compilaste.
-    expect(resolverRuta(ruta)).toEqual({ tipo: 'elemento', elemento, fichero: 'main.js' });
+    expect(resolverRuta(ruta, 'angular')).toEqual({ tipo: 'elemento', elemento, fichero: 'main.js' });
   });
 
   it('el runtime tiene otra profundidad y se resuelve aparte', () => {
-    expect(resolverRuta('/synergos/runtime/angular/21.1.6/ng-core.js')).toEqual({
+    expect(resolverRuta('/synergos/runtime/angular/21.1.6/ng-core.js', 'angular')).toEqual({
       tipo: 'runtime',
       fichero: 'ng-core.js',
     });
-    expect(resolverRuta('/synergos/runtime/angular/latest/import-map.json')).toEqual({
+    expect(resolverRuta('/synergos/runtime/angular/latest/import-map.json', 'angular')).toEqual({
       tipo: 'runtime',
       fichero: 'import-map.json',
     });
@@ -43,25 +43,44 @@ describe('resolverRuta — el layout que produce publish.mjs', () => {
     ['/synergos/contracts.json', 'contratos'],
     ['/synergos/__dev.json', 'senal'],
   ])('%s → %s', (ruta, tipo) => {
-    expect(resolverRuta(ruta).tipo).toBe(tipo);
+    expect(resolverRuta(ruta, 'angular').tipo).toBe(tipo);
   });
 
   describe('lo que NO se sirve', () => {
     it.each([
-      ['/synergos/badge/react/latest/main.js', 'un framework que no existe'],
+      ['/synergos/badge/react/latest/main.js', 'un framework que NO es el que se sirve'],
       ['/synergos/badge/angular/rama-rara/main.js', 'un slot que no es versión ni alias'],
       ['/synergos/badge/angular/latest', 'sin fichero'],
       ['/otra-cosa/badge/angular/latest/main.js', 'fuera de /synergos'],
       ['/synergos/runtime/angular/latest', 'runtime sin fichero'],
     ])('%s — %s', (ruta) => {
-      expect(resolverRuta(ruta).tipo).toBe('nada');
+      expect(resolverRuta(ruta, 'angular').tipo).toBe('nada');
+    });
+
+    it('sirviendo react, es `/angular/` lo que se rechaza (issue #44)', () => {
+      // El fixture tiene que ir en las DOS direcciones. Con sólo el caso de
+      // arriba, `framework !== 'angular'` y `framework !== frameworkServido`
+      // dan exactamente el mismo verde: lo que se prueba es que la comparación
+      // es contra lo que se sirve, no contra un literal.
+      expect(resolverRuta('/synergos/badge/react/latest/main.js', 'react')).toEqual({
+        tipo: 'elemento',
+        elemento: 'badge',
+        fichero: 'main.js',
+      });
+      expect(resolverRuta('/synergos/badge/angular/latest/main.js', 'react').tipo).toBe('nada');
+      expect(resolverRuta('/synergos/runtime/react/latest/x.js', 'react').tipo).toBe('runtime');
+      expect(resolverRuta('/synergos/runtime/angular/latest/x.js', 'react').tipo).toBe('nada');
+    });
+
+    it('sin saber qué plataforma se sirve NO se cae a angular: se para', () => {
+      expect(() => resolverRuta('/synergos/badge/angular/latest/main.js')).toThrow(/plataforma/);
     });
 
     it('no se puede salir de dist/ con un ..', () => {
       // Es un servidor de desarrollo, pero escucha en un puerto: lo que se
       // escribe acá se lee como permiso, así que mejor que no lo sea.
-      expect(resolverRuta('/synergos/badge/angular/latest/../../../../etc/passwd').tipo).toBe('nada');
-      expect(resolverRuta('/synergos/../../secreto/angular/latest/main.js').tipo).toBe('nada');
+      expect(resolverRuta('/synergos/badge/angular/latest/../../../../etc/passwd', 'angular').tipo).toBe('nada');
+      expect(resolverRuta('/synergos/../../secreto/angular/latest/main.js', 'angular').tipo).toBe('nada');
     });
   });
 });
@@ -115,13 +134,13 @@ describe('registryDeDesarrollo', () => {
     // se lleva un 404. Con --solo=badge,hero el registry tiene que decir dos,
     // o el CMS intenta hidratar los otros 137 y la página se llena de errores
     // que no son el que buscás.
-    const r = registryDeDesarrollo(REGISTRO, (n) => n !== 'card', '0.1.0');
+    const r = registryDeDesarrollo(REGISTRO, (n) => n !== 'card', '0.1.0', 'angular');
 
     expect(r.elements.map((e) => e.name)).toEqual(['badge', 'hero']);
   });
 
   it('conserva alias, tag y tier — el CMS resuelve por ahí', () => {
-    const r = registryDeDesarrollo(REGISTRO, () => true, '0.1.0');
+    const r = registryDeDesarrollo(REGISTRO, () => true, '0.1.0', 'angular');
     expect(r.elements[0]).toMatchObject({
       name: 'badge',
       alias: 'elementBadge',
@@ -131,13 +150,13 @@ describe('registryDeDesarrollo', () => {
   });
 
   it('trae baseUrl y los slots que el cliente del CMS espera', () => {
-    const r = registryDeDesarrollo(REGISTRO, () => true, '0.1.0');
+    const r = registryDeDesarrollo(REGISTRO, () => true, '0.1.0', 'angular');
     expect(r.baseUrl).toBe('/synergos');
     expect(r.elements[0].implementations.angular).toEqual({ latest: '0.1.0', v0: '0.1.0' });
   });
 
   it('nada compilado → registry vacío, no un registry a medias', () => {
-    const r = registryDeDesarrollo(REGISTRO, () => false, '0.1.0');
+    const r = registryDeDesarrollo(REGISTRO, () => false, '0.1.0', 'angular');
     expect(r.elements).toEqual([]);
   });
 
@@ -152,7 +171,7 @@ describe('registryDeDesarrollo', () => {
       { name: 'accordion', alias: 'elementCompAccordion', tag: 'synergos-accordion', tier: 'composition' },
       { name: 'accordion', alias: 'elementSynAccordion', tag: 'synergos-accordion', tier: 'composition' },
     ];
-    const r = registryDeDesarrollo(conDuplicados, () => true, '0.1.0');
+    const r = registryDeDesarrollo(conDuplicados, () => true, '0.1.0', 'angular');
 
     expect(r.elements).toHaveLength(1);
     expect(r.elements[0].alias).toBe('elementCompAccordion'); // gana la primera
@@ -168,7 +187,24 @@ describe('registryDeDesarrollo', () => {
     const soloEstos = new Set(['badge', 'hero']);
     const seSirve = (n) => soloEstos.has(n) && enDisco.has(n);
 
-    const r = registryDeDesarrollo(REGISTRO, seSirve, '0.1.0');
+    const r = registryDeDesarrollo(REGISTRO, seSirve, '0.1.0', 'angular');
     expect(r.elements.map((e) => e.name)).toEqual(['badge', 'hero']);
+  });
+});
+
+describe('el registry de desarrollo anuncia el framework que se sirve (issue #44)', () => {
+  const REG = [{ name: 'badge', alias: 'elementInfoBadge', tag: 'synergos-badge', tier: 'primitive' }];
+
+  it('bajo la clave del framework servido, no bajo `angular`', () => {
+    // El CMS resuelve por `implementations[<framework>]`. Anunciar `angular`
+    // sirviendo otra cosa le hace pedir una ruta que este servidor rechaza, y
+    // el síntoma es «el CDN de desarrollo no sirve nada».
+    const r = registryDeDesarrollo(REG, () => true, '0.1.0', 'react');
+    expect(Object.keys(r.elements[0].implementations)).toEqual(['react']);
+    expect(r.elements[0].implementations.react.latest).toBe('0.1.0');
+  });
+
+  it('sin framework NO se cae a angular: se para', () => {
+    expect(() => registryDeDesarrollo(REG, () => true, '0.1.0')).toThrow(/plataforma/);
   });
 });

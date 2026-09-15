@@ -14,9 +14,11 @@
  *   $CDN_ROOT/registry.json                     — (optional) published versions
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { frameworksConstruibles } from './lib/frameworks.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -40,7 +42,19 @@ if (existsSync(cdnRegistryPath)) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const FRAMEWORKS  = ['angular'];   // la purga dejó UNA plataforma
+//
+// Los frameworks se DERIVAN del disco (issue #44). Escritos a mano, el catálogo
+// enseñaría una sola columna el día que haya dos plataformas y nadie se
+// enteraría: una tabla a la que le falta una columna se lee como completa.
+// La lista es la de lo CONSTRUIBLE y no la de lo publicado, a propósito: el
+// catálogo existe para enseñar qué está publicado y qué NO, así que un
+// framework que este repo construye y todavía no publicó tiene que salir —
+// vacío, que es la información.
+const listarDirs = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+const FRAMEWORKS  = frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join });
 const TIER_ORDER  = { module: 0, composition: 1, primitive: 2 };
 const TIER_COLORS = { module: '#6366f1', composition: '#0ea5e9', primitive: '#10b981' };
 
