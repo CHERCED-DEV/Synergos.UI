@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { descubrirFuentes, PLATAFORMAS } from './lib/element-sources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
@@ -113,7 +115,7 @@ function printSection(title, issues, formatter) {
 }
 
 /**
- * Los elementos implementados, leídos del FILESYSTEM de platforms/angular.
+ * Los elementos implementados, leídos del FILESYSTEM de las plataformas.
  *
  * Antes esto escaneaba tags `element:<name>` en los project.json de Nx. Con la
  * purga, la fuente de verdad es la misma que usa el build (tools/build.mjs):
@@ -121,37 +123,38 @@ function printSection(title, issues, formatter) {
  * carpeta es su nombre en dist/. El check que protege sigue siendo el mismo —
  * una implementación cuyo nombre no está en el registry no se puede publicar
  * por ningún camino, y las dos rutas fallan en silencio.
+ *
+ * EL RECORRIDO YA NO ES PROPIO (issue #44). Era una copia del de
+ * `element-sources.mjs` con una diferencia de una palabra: escribía
+ * `framework: 'angular'` para todo lo que encontrara, así que con dos
+ * plataformas habría reportado los elementos de la segunda como si fueran de
+ * la primera. Dos recorridos del mismo árbol que pueden discrepar es la forma
+ * en que este repo ya perdió el tier (`TIER_BY_NAME`, issue #43).
  */
-function scanNxElementProjects() {
+function scanElementProjects() {
   const found = new Map();
-  const APPS = resolve(PLATFORMS_DIR, 'angular/apps');
 
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const full = resolve(dir, entry.name);
-      try {
-        readFileSync(resolve(full, 'src/main.ts'));
-        found.set(entry.name, { project: entry.name, framework: 'angular', buildable: true });
-      } catch {
-        walk(full);
-      }
-    }
+  const fuentes = descubrirFuentes({
+    listar: (dir) => {
+      const abs = resolve(ROOT, dir);
+      return existsSync(abs)
+        ? readdirSync(abs, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+        : [];
+    },
+    existe: (ruta) => existsSync(resolve(ROOT, ruta)),
+    plataformas: PLATAFORMAS,
+  });
+
+  for (const [nombre, { framework }] of fuentes) {
+    found.set(nombre, { project: nombre, framework, buildable: true });
   }
 
-  walk(APPS);
   return found;
 }
 
 const registryEntries = readJson(REGISTRY_JSON);
 const inputsData = readJson(INPUTS_JSON);
-const nxElementProjects = scanNxElementProjects();
+const nxElementProjects = scanElementProjects();
 const blockMapperSource = readFileSync(BLOCK_MAPPER_TS, 'utf8');
 const modelFiles = readdirSync(MODELS_DIR)
   .filter((name) => name.endsWith('-inputs.model.ts'))

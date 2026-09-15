@@ -37,7 +37,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getArg } from './lib/cli-utils.mjs';
-import { loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
+import { PLATFORMS, loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
 import { buildContracts } from './lib/manifest-builder.mjs';
 import { LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 import {
@@ -45,15 +45,31 @@ import {
 } from './lib/dev-cdn-routes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const NG = join(ROOT, 'platforms/angular');
+
+// ── Qué plataforma sirve este servidor (issue #44) ───────────────────────────
+//
+// Este servidor sirve UNA: traduce la ruta y lee de SU `dist/`. Con una sola
+// plataforma declarada, ésa es; con dos habría que elegir, y elegir en silencio
+// sería servir el bundle de una bajo el segmento de la otra — peor que un 404,
+// porque el CMS lo hidrataría creyendo que es de la que pidió.
+const FRAMEWORK = getArg('framework', null) ?? (PLATFORMS.length === 1 ? PLATFORMS[0].name : null);
+if (!FRAMEWORK || !PLATFORMS.some((p) => p.name === FRAMEWORK)) {
+  console.error(
+    `[dev-cdn] hay ${PLATFORMS.length} plataformas (${PLATFORMS.map((p) => p.name).join(', ')}): ` +
+      `decí cuál servir con --framework=<nombre>.`,
+  );
+  process.exit(2);
+}
+
+const NG = join(ROOT, 'platforms', FRAMEWORK);
 
 // Los elementos y el runtime salen a sitios DISTINTOS, y hace falta saberlo:
-// `build.mjs` escribe en `platforms/angular/dist/<elemento>/browser/`, y
-// `build-runtime.mjs` en `<raíz>/dist/runtime/angular/<versión>/`. Darlo por
+// `build.mjs` escribe en `platforms/<framework>/dist/<elemento>/browser/`, y
+// `build-runtime.mjs` en `<raíz>/dist/runtime/<framework>/<versión>/`. Darlo por
 // hecho al revés produce un 404 del runtime y elementos que cargan y se rompen
 // al arrancar, con un error que habla de módulos.
 const DIST = join(NG, 'dist');
-const DIST_RUNTIME = join(ROOT, 'dist', 'runtime', 'angular');
+const DIST_RUNTIME = join(ROOT, 'dist', 'runtime', FRAMEWORK);
 
 const PUERTO = Number(getArg('puerto', 4321));
 const SOLO = getArg('solo', null);
@@ -148,7 +164,7 @@ function servirFichero(res, ruta) {
 
 const servidor = createServer((req, res) => {
   const { pathname } = new URL(req.url, `http://localhost:${PUERTO}`);
-  const r = resolverRuta(pathname);
+  const r = resolverRuta(pathname, FRAMEWORK);
 
   switch (r.tipo) {
     case 'catalogo': {
@@ -159,7 +175,7 @@ const servidor = createServer((req, res) => {
     }
 
     case 'registry': {
-      const cuerpo = registryDeDesarrollo(loadRegistry(), seSirve, VERSION);
+      const cuerpo = registryDeDesarrollo(loadRegistry(), seSirve, VERSION, FRAMEWORK);
       return responder(res, 200, JSON.stringify(cuerpo, null, 2), tipoDe('.json'));
     }
 

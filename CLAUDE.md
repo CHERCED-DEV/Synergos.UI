@@ -68,7 +68,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 ## Quick reference
 - Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada elemento era una "application" independiente (un arranque del compilador cada uno, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
 - **Las cifras, medidas y no recordadas** (#42): **127** carpetas bajo `apps/` con `src/main.ts` (lo que el build compila) y **132** entradas en `element-registry.json` (lo que el CMS puede colocar). No son la misma cuenta y nunca lo fueron: seis entradas comparten el `synergos-text-block`, dos no las construye nada —`stat-counter` y `module-mount`— y tres fuentes son hosts deprecados que no están en el registry. Este fichero decía «136» en tres sitios, que no es ninguna de las dos.
-- **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento `/angular/` en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna.
+- **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
 - Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Ciclo editor→navegador**: `npm run dev:cdn [-- --solo=badge]` (issue #2). Sirve el layout COMPLETO del CDN desde el watch, sin pasar por `build:cdn`. El CMS lo consume con su cliente HTTP de siempre — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL=http://localhost:4321` — o sea cero código de desarrollo del lado del CMS.
   - No copia nada: **traduce la ruta y lee de `dist/`**, así que no hay sync que se quede a medias.
@@ -100,6 +100,7 @@ está vigilando nada.
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
+| `frameworks` | que ninguna herramienta de `tools/` resuelva el framework a un literal, y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, o aparece `platforms/react/` que el pipeline no ve (#44) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
@@ -118,7 +119,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veinticuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Veinticinco reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -447,3 +448,36 @@ se desincroniza):
    la que vive la fuente (`apps/elements/<tier>s/`), y cuando ninguno de los dos contesta
    **se para**: un elemento nuevo necesita que una persona decida si es un primitivo o una
    aplicación, y ese «no sé» no se rellena (#43).
+
+25. **Un gate que resuelve a una constante una DIMENSIÓN de lo que mide no falla: se pone
+   verde sobre el sitio equivocado.** `check-size-budget` pedía
+   `<elemento>/angular/latest/main.js` y hacía `if (!existsSync(bundle)) continue;`: el
+   bundle de un segundo framework no es que se pasara del techo — es que **nadie lo medía**,
+   y el gate informaba «✓ todos dentro de presupuesto». `humo-cdn` hacía lo mismo con
+   `/synergos/<el>/angular/…`: el humo de un despliegue con dos frameworks **certificaba
+   uno**. Medido: diez de las doce herramientas de `tools/` lo cableaban y sólo dos lo
+   tomaban como parámetro.
+   **El tell, y se busca con un grep, no leyendo lógica:** un gate que construye la ruta de
+   lo que mide en vez de RECORRERLA. Recorrer es lo único que encuentra un valor que nadie
+   escribió en ningún sitio; preguntar por una ruta sólo confirma lo que ya se suponía.
+   Es la regla 5 un piso más arriba —allá el método existía y nadie lo llamaba, acá el gate
+   corre y mira a otro lado— y la misma figura de `cdn-smoke` (#9), con el agravante de que
+   un humo contra `localhost` al menos no miente sobre QUÉ comprobó.
+   Cuatro cosas que costaron su mutación:
+   (a) **la lista se deriva del disco y son DOS listas, no una** — lo CONSTRUIBLE
+   (`platforms/*/` con package.json) y lo PUBLICADO (el segmento de la ruta del CDN, o las
+   `implementations` del registry). Un gate mide lo publicado: medir lo construible dejaría
+   sin techo justo al bundle huérfano de una plataforma que ya no está;
+   (b) **nunca un default a `'angular'`** — ni siquiera con una sola plataforma. Es
+   `feedback_an_omitted_key_can_be_an_assertion` del repo hermano: `getArg('framework') ||
+   'angular'` convertía una errata (`--framework=raect`) en «publicá Angular», callando;
+   (c) **el `continue` que salta lo que no encuentra es el escondite** — una carpeta de
+   elemento sin ningún bundle es un publish a medias y el gate la contaba como medida. Lo que
+   no se mide se rechaza, no se salta;
+   (d) **si el gate tiene varios rechazos en cadena, la mutación tiene que LLEGAR al que se
+   quiere probar.** El fixture del ticket —`<el>/react/latest/main.js` gordo— disparaba
+   primero «framework publicado que nadie construye» y nunca llegaba al techo: hizo falta
+   crear también `platforms/react/package.json` para que react fuera construible y el rechazo
+   del techo fuera el que hablara. Con un rechazo anterior tapando al de interés, la mutación
+   sale roja y **no prueba lo que uno cree** (es la regla 7 con el fixture correcto y el
+   camino equivocado) (#44).
