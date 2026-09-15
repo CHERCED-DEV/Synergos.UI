@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { valoresDeUnion, camposDeInterfaz } from './contract-schema.mjs';
+import { valoresDeConstante, camposDeInterfaz } from './contract-schema.mjs';
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 
@@ -24,11 +24,6 @@ export const PACKAGE_JSON  = resolve(ROOT, 'package.json');
 
 // ── Framework constants ──────────────────────────────────────────────────────
 
-// Las plataformas que HOY publican. No es la lista de frameworks válidos: ésa
-// la declara `ElementFramework` en el contrato y se lee de ahí (ver
-// `contratoDelManifiesto`), para que no haya dos listas que puedan discrepar.
-export const ALL_FRAMEWORKS = ['angular'];
-
 /**
  * El contrato del manifiesto, leído del `.ts` que lo declara.
  *
@@ -40,8 +35,8 @@ export function contratoDelManifiesto() {
   const fuente = readFileSync(MANIFEST_SCHEMA_TS, 'utf-8');
   const contrato = {
     claves:     camposDeInterfaz(fuente, 'ElementManifest'),
-    frameworks: valoresDeUnion(fuente, 'ElementFramework'),
-    tiers:      valoresDeUnion(fuente, 'ElementTier'),
+    frameworks: valoresDeConstante(fuente, 'ELEMENT_FRAMEWORKS'),
+    tiers:      valoresDeConstante(fuente, 'ELEMENT_TIERS'),
   };
 
   // Un parser que no encuentra nada devuelve listas vacías, y con listas
@@ -77,6 +72,13 @@ export const PLATFORMS = [
       resolve(ROOT, 'platforms/angular/dist', elementName),
   },
 ];
+
+// Las plataformas que HOY publican. NO es la lista de frameworks válidos: ésa
+// la declara `ELEMENT_FRAMEWORKS` en el contrato y se lee de ahí (ver
+// `contratoDelManifiesto`), para que no haya dos listas que puedan discrepar.
+// Se deriva de PLATFORMS, que es lo que de verdad decide quién construye: dos
+// listas de plataformas era otra pareja que podía desalinearse en silencio.
+export const ALL_FRAMEWORKS = PLATFORMS.map((p) => p.name);
 
 // ── CDN defaults ─────────────────────────────────────────────────────────────
 

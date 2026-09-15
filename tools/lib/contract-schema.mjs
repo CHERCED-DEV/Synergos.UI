@@ -108,6 +108,24 @@ export function valoresDeUnion(fuente, nombre) {
 }
 
 /**
+ * Los valores de una constante `as const` declarada como array de cadenas.
+ *
+ * Es la forma que usa el contrato desde que los tipos se DERIVAN de la lista y
+ * no al revés (`ELEMENT_FRAMEWORKS`, `ELEMENT_TIERS`): una unión de tipos no se
+ * puede recorrer en tiempo de ejecución, así que quien necesitara los valores
+ * acababa escribiendo su propia copia al lado.
+ *
+ * @returns {string[]} Vacío si la constante no está o no es un array de cadenas.
+ */
+export function valoresDeConstante(fuente, nombre) {
+  const limpio = sinComentarios(fuente);
+  const re = new RegExp(`\\bconst\\s+${nombre}\\s*=\\s*\\[([^\\]]*)\\]`, 'u');
+  const m = limpio.match(re);
+  if (!m) return [];
+  return [...m[1].matchAll(/'([^']*)'/gu)].map((x) => x[1]);
+}
+
+/**
  * Los nombres de campo de PRIMER NIVEL de una interfaz.
  *
  * Devuelve el nombre tal como se serializa, sin el `?` de opcional: lo que hay

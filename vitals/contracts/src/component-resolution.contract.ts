@@ -5,7 +5,7 @@
  * shared by runtime resolvers, registry readers and CMS adapters.
  */
 
-import type { ElementFramework } from './element-manifest.schema';
+import { ELEMENT_FRAMEWORKS, type ElementFramework } from './element-manifest.schema';
 
 /**
  * Alias de `ElementFramework`, que es donde vive la única declaración.
@@ -19,8 +19,8 @@ import type { ElementFramework } from './element-manifest.schema';
  */
 export type FrameworkKind = ElementFramework;
 
-/** Los cuatro valores, una sola vez, para quien necesite recorrerlos. */
-export const FRAMEWORK_KINDS: readonly FrameworkKind[] = ['angular', 'react', 'svelte', 'vanilla'];
+/** Los valores, una sola vez: es la misma lista, no una copia. */
+export const FRAMEWORK_KINDS: readonly FrameworkKind[] = ELEMENT_FRAMEWORKS;
 
 export type ComponentTier = 'primitive' | 'composition' | 'module' | 'experience';
 

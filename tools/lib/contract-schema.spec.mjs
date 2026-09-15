@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, it, expect } from 'vitest';
 
-import { sinComentarios, valoresDeUnion, camposDeInterfaz } from './contract-schema.mjs';
+import { sinComentarios, valoresDeUnion, valoresDeConstante, camposDeInterfaz } from './contract-schema.mjs';
 
 /**
  * El lector del contrato TypeScript (issue #43).
@@ -37,6 +37,21 @@ describe('sinComentarios', () => {
   it('las cadenas sobreviven intactas, que es de donde salen las uniones', () => {
     expect(sinComentarios(`const x = '// no es comentario'; // sí lo es`).trim())
       .toBe(`const x = '// no es comentario';`);
+  });
+});
+
+describe('valoresDeConstante', () => {
+  it('lee un array `as const` de varias líneas', () => {
+    const fuente = `export const X = [
+      'uno',   // un comentario en medio
+      'dos',
+    ] as const;`;
+
+    expect(valoresDeConstante(fuente, 'X')).toEqual(['uno', 'dos']);
+  });
+
+  it('un tipo suelto NO se lee como constante — y por eso quien llama comprueba', () => {
+    expect(valoresDeConstante(`export type X = 'uno' | 'dos';`, 'X')).toEqual([]);
   });
 });
 
@@ -86,6 +101,7 @@ describe('camposDeInterfaz', () => {
     // falla a propósito cuando esto ocurre.
     expect(camposDeInterfaz(SCHEMA, 'NoExiste')).toEqual([]);
     expect(valoresDeUnion(SCHEMA, 'NoExiste')).toEqual([]);
+    expect(valoresDeConstante(SCHEMA, 'NO_EXISTE')).toEqual([]);
   });
 });
 
@@ -96,11 +112,15 @@ describe('contra el contrato de verdad', () => {
     ]);
   });
 
-  it('las uniones del contrato se leen enteras', () => {
-    expect(valoresDeUnion(SCHEMA, 'ElementFramework')).toEqual([
+  it('las listas del contrato se leen enteras', () => {
+    // Van como constante `as const` con el tipo derivado: una unión de tipos no
+    // se puede recorrer, así que todo el que necesitara los valores escribía su
+    // propia copia al lado — que es la duplicación que el issue #42 encontró
+    // entre `ElementFramework` y `FrameworkKind`.
+    expect(valoresDeConstante(SCHEMA, 'ELEMENT_FRAMEWORKS')).toEqual([
       'angular', 'react', 'svelte', 'vanilla',
     ]);
-    expect(valoresDeUnion(SCHEMA, 'ElementTier')).toEqual([
+    expect(valoresDeConstante(SCHEMA, 'ELEMENT_TIERS')).toEqual([
       'primitive', 'composition', 'module',
     ]);
   });
