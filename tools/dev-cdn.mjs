@@ -40,6 +40,7 @@ import { getArg } from './lib/cli-utils.mjs';
 import { PLATFORMS, loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
 import { buildContracts } from './lib/manifest-builder.mjs';
 import { LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
+import { paginaDelBanco } from './lib/banco-de-pruebas.mjs';
 import {
   resolverRuta, cabecerasDev, tipoDe, registryDeDesarrollo,
 } from './lib/dev-cdn-routes.mjs';
@@ -172,6 +173,49 @@ const servidor = createServer((req, res) => {
       return existsSync(cat)
         ? servirFichero(res, cat)
         : responder(res, 200, 'dev-cdn en marcha. El catálogo no está en el repo.\n');
+    }
+
+    case 'banco': {
+      // El índice: qué se puede probar. Sale de lo que este servidor SIRVE de
+      // verdad —`seSirve` mira `dist/`— y no del registry entero: ofrecer un
+      // enlace a un elemento que no está compilado daría una página en blanco
+      // sin decir por qué, que es el modo de fallo que este banco viene a cerrar.
+      if (!r.elemento) {
+        const servibles = loadRegistry().filter((e) => seSirve(e.name));
+        const filas = servibles
+          .map((e) => `<li><a href="/probar/${e.name}"><code>${e.tag}</code></a></li>`)
+          .join('\n');
+        return responder(res, 200, `<!DOCTYPE html><meta charset="utf-8">
+<title>banco · qué se puede probar</title>
+<style>body{margin:2rem;font:14px/1.6 system-ui,sans-serif}li{margin:.15rem 0}</style>
+<h1>Banco de pruebas</h1>
+<p>${servibles.length} elemento(s) compilado(s) en <code>dist/</code>.
+${servibles.length === 0 ? `Ninguno: corré <code>npm run build:${FRAMEWORK}</code>.` : ''}</p>
+<ul>${filas}</ul>`, tipoDe('.html'));
+      }
+
+      const entrada = loadRegistry().find((e) => e.name === r.elemento);
+      if (!entrada) return responder(res, 404, `«${r.elemento}» no está en el registry\n`);
+      if (!seSirve(entrada.name)) {
+        return responder(res, 404,
+          `«${entrada.name}» está en el registry y NO está compilado en dist/. `
+          + `Corré: node tools/build.mjs --solo=${entrada.name}\n`);
+      }
+
+      const dirRuntime = runtimeDir();
+      const rutaMapa = dirRuntime ? join(dirRuntime, 'import-map.json') : null;
+      let importMap = null;
+      if (rutaMapa && existsSync(rutaMapa)) {
+        try { importMap = JSON.parse(readFileSync(rutaMapa, 'utf-8')); } catch { importMap = null; }
+      }
+
+      return responder(res, 200, paginaDelBanco({
+        elemento: entrada.name,
+        tag: entrada.tag,
+        framework: FRAMEWORK,
+        importMap,
+        inputs: loadInputs()[entrada.name] ?? [],
+      }), tipoDe('.html'));
     }
 
     case 'registry': {
