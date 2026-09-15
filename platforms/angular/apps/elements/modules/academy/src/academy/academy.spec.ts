@@ -375,6 +375,38 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(aula.marcadas).toEqual([leccion.id]);
   });
 
+  it('confirma la matrícula contra la base del ELEMENTO, no contra una cableada', async () => {
+    installMemoryStorage();
+    // Un elemento montado contra otra base: compraba en la suya y confirmaba en
+    // `/api/academy`, cableada a mano en `confirm` porque ese paso no recibe
+    // instrumento. Y no fallaba a la vista, porque el `catch` del cliente fabrica el
+    // acuse de la matrícula (#116).
+    const urls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        urls.push(String(url));
+        return Promise.reject(new Error('offline'));
+      }),
+    );
+    await createComponent();
+    fixture.componentRef.setInput('apiBase', '/entidad/aula');
+    fixture.detectChanges();
+    // La búsqueda inicial del constructor corrió con la base por defecto; lo que se
+    // mide es lo que sale DESPUÉS de que el host declare la suya.
+    urls.length = 0;
+
+    component.openCourse(component.courses().find((c) => c.amount <= 0)!);
+    await flushMicrotasks();
+    component.startEnrollment();
+    await flushMicrotasks(30);
+
+    const confirmaciones = urls.filter((url) => url.includes('/confirm'));
+    expect(confirmaciones.length).toBeGreaterThan(0);
+    expect(confirmaciones.every((url) => url.startsWith('/entidad/aula/'))).toBe(true);
+    expect(urls.some((url) => url.startsWith('/api/academy/'))).toBe(false);
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by escuela/categoría ──────────
   it('filters the catalogue by category through the discovery criteria (filter case)', async () => {
     installMemoryStorage();

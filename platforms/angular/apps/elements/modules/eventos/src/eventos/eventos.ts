@@ -1177,6 +1177,8 @@ export class EventosElementComponent {
       quantity: this.quantity(),
       seats: this.isReserved() ? this.selectedSeats() : [],
       cover: detail.event.cover,
+      // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
+      apiBase: this.apiBase(),
     };
     const selection = await this.#fulfillment.select(
       {
