@@ -191,16 +191,29 @@ El razonamiento, que es lo que hace falta cuando alguien lo discuta:
   *datos y sus traducciones*; `core-assets` son *decisiones visuales*. El
   criterio de admisión es distinto: a un modelo se le pregunta «¿lo emite el
   CMS?»; a un token, «¿lo respetan todos los temas?».
-- **Y ya tiene un espejo, que es la prueba de que es un `shared` y no un
-  vital.** `platforms/angular/libs/core-assets/` es una copia que
-  `npm run sync:tokens:check` mantiene cuadrada. Los modelos de `vitals/core`
-  no tienen espejo: se importan directo. Un paquete que hay que **copiar** a
-  cada plataforma es exactamente la forma de un `shared` compartido, no la de
-  un vital consumido.
+- **Y ya se TRADUCE a la plataforma, que es la prueba de que es un `shared` y
+  no un vital.** `npm run sync:tokens` genera
+  `platforms/angular/libs/shared/src/styles/_tokens-bridge.scss` desde
+  `vitals/core-assets/`, y `--check` lo mantiene cuadrado (G-1). Los modelos de
+  `vitals/core` no se traducen a nada: se importan directo. Un paquete que hay
+  que **volcar** al `shared` de cada plataforma es exactamente la forma de un
+  shared compartido, no la de un vital consumido.
+
+  > ⚠️ **Esto decía «`platforms/angular/libs/core-assets/` es una copia», y ese
+  > directorio NO EXISTE** (#40). `libs/` tiene siete entradas —`core`,
+  > `integrations`, `rendering`, `shared`, `shells`, `shop`,
+  > `transaction-engine`— y ninguna es ésa; `sync-tokens.mjs` escribe dentro de
+  > `shared/`, no al lado. La conclusión no cambia —de hecho se sostiene mejor,
+  > porque una traducción generada es todavía más «shared» que una copia— pero
+  > **la prueba que la sostenía era falsa**, y eso es peor que no darla: el
+  > siguiente que la lea da por hecho que existe un espejo que puede tocar. Lo
+  > escribió la misma tanda que este documento, o sea prosa por delante del
+  > código dentro del mismo commit.
 
 **Consecuencia práctica, que es para lo que sirve haberlo nombrado:** el día que
-exista React, `platforms/react/libs/core-assets/` es **otro espejo del mismo
-origen**, y `sync:tokens` tiene que cuadrar los dos. Lo que NO se hace es
+exista React, su `shared` lleva **otra traducción del mismo origen** —lo que
+`sync:tokens` genere para él, con la forma que React necesite— y el `--check`
+tiene que cuadrar las dos. Lo que NO se hace es
 escribir tokens en el `shared` de React: ahí se escribe la *traducción* (un
 `.module.css`, un tema de `styled-components`), nunca el valor.
 
