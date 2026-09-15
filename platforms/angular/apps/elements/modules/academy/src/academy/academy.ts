@@ -588,6 +588,13 @@ export class AcademyElementComponent {
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
     totalLabel: 'Total',
+    // Lo tecleado se queda donde está y el mensaje dice qué quedó del otro lado
+    // (CMS#117). Antes el asistente completaba igual con una matrícula fabricada.
+    payFailedMessage:
+      'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
+    confirmFailedMessage:
+      'Ya recibimos tu pago pero la matrícula todavía no quedó activa. ' +
+      'Vuelve a pulsar «Pagar e inscribirme»: no se te cobrará de nuevo.',
   }));
 
   /** Per-step gating for the SH-3 enrolment wizard. */
@@ -1271,9 +1278,18 @@ export class AcademyElementComponent {
     this.finishEnrollment(courseId, enrollmentId);
   }
 
+  /**
+   * El asistente no pudo cerrar la ronda. **El banner tiene que distinguir las dos
+   * mitades** (CMS#117): decirle «intenta de nuevo» a secas a quien ya pagó es
+   * exactamente lo que le invita a pagar por segunda vez. El detalle, con la
+   * referencia del cobro, lo enseña el propio asistente junto al botón.
+   */
   onEnrollFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos completar la inscripción. Intenta de nuevo.');
+    this.errorMessage.set(
+      reason.startsWith('confirm-')
+        ? 'Tu pago quedó registrado, pero la matrícula todavía no. Vuelve a confirmar — no se cobra de nuevo.'
+        : 'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
+    );
   }
 
   /** Free path: run pay+confirm directly (no wizard). */
@@ -1321,8 +1337,11 @@ export class AcademyElementComponent {
       this.loading.set(false);
       this.finishEnrollment(courseId, enrollmentId);
     } catch (error) {
+      // Nada se dio por hecho: sin respuesta del borde no hay matrícula, y la ficha
+      // se queda donde estaba con el botón listo para reintentar (CMS#117). Un curso
+      // gratis no mueve dinero, así que aquí no hay nada que rescatar salvo decirlo.
       this.loading.set(false);
-      this.errorMessage.set('No pudimos completar la inscripción. Intenta de nuevo.');
+      this.errorMessage.set('No pudimos completar tu inscripción. Intenta de nuevo.');
       this.#store.setStatus('building');
       void error;
     }

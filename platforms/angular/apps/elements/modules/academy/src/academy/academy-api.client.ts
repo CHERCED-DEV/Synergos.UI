@@ -69,6 +69,26 @@ export class AcademyWriteFailedError extends Error {
     super(`Academy write "${endpoint}" did not reach the server.`);
     this.name = 'AcademyWriteFailedError';
   }
+
+  /**
+   * El código con el que el borde contestó, o `null` si no se llegó a él.
+   *
+   * **«No llegó» y «llegó y falló» NO son la misma pantalla**, y por eso la
+   * distinción viaja en el error en vez de en una segunda clase: el vehículo sigue
+   * siendo uno —quien sólo necesita saber que nada se guardó hace `catch` y ya— y
+   * quien sí necesita el matiz lo lee aquí. `POST /confirm` contesta **404** cuando
+   * el `orderRef` no existe (reintentar no lo va a hacer existir) y **400** cuando
+   * el pago todavía no se puede capturar (reintentar es exactamente lo que toca);
+   * con un `Error('HTTP 4xx')` la única forma de separarlos era parsear un mensaje.
+   */
+  get status(): number | null {
+    return this.cause instanceof HttpStatusError ? this.cause.status : null;
+  }
+
+  /** `true` si el borde contestó y rechazó; `false` si la petición no llegó. */
+  get reached(): boolean {
+    return this.status !== null;
+  }
 }
 
 /**
@@ -102,10 +122,16 @@ export class AcademyWriteFailedError extends Error {
  * avanzaba sobre un servidor que no guardó nada: el alumno cerraba, volvía, y su
  * avance no estaba. Hoy **lanza** `AcademyWriteFailedError` y quien llama decide.
  *
- * **Lo que sigue mintiendo y NO entra aquí:** `enroll` y `confirm` fabrican un
- * `orderRef`/`enrollmentId` cuando el borde no contesta, o sea una matrícula que
- * nadie activó. Es la misma regla 4 y pide su propio ticket, porque arreglarlo
- * cruza el asistente de compra entero (SH-3) y no sólo este cliente.
+ * **Y `enroll`/`confirm` tampoco** (CHERCED-DEV/Synergos.CMS#117). Fabricaban un
+ * `MOCK-…`/`ENR-…` cuando el borde no contestaba: el alumno salía con un número de
+ * matrícula que no existe en ninguna parte —y había pagado—. Las dos **lanzan**, y
+ * el error dice si el borde contestó (`status`) o si no se llegó a él, porque un
+ * 404 en `confirm` («ese `orderRef` no existe») y un 400 («el pago todavía no se
+ * puede capturar») no piden lo mismo de quien llama.
+ *
+ * **`enroll` ya no recibe `fallbackAmount`.** Un parámetro `fallback*` en una
+ * ESCRITURA es la fabricación escrita en la firma (regla 19): quien decidía el
+ * resultado era el llamador y el servidor era decoración.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -277,12 +303,23 @@ export class AcademyApiClient {
     }
   }
 
+  /**
+   * Abre la matrícula. **Lanza si el borde no la abrió** (CMS#117).
+   *
+   * Antes devolvía un `MOCK-<ts>` con su `psp_mock_…` —o, con el curso gratis, un
+   * `ENR-<random>`— así que el asistente seguía adelante, cobraba contra una sesión
+   * de pago inventada y enseñaba un número de matrícula que no existe en ninguna
+   * parte. Un fallo del 100 % de las veces se veía igual que ninguno (regla 9).
+   *
+   * **Sin `fallbackAmount`**: era la fabricación escrita en la firma (regla 19) —
+   * el monto de la matrícula lo resuelve el borde desde el catálogo, precisamente
+   * para no confiarle el precio al cliente.
+   */
   async enroll(
     apiBase: string,
     courseId: string,
     planId: string,
     student: AcademyStudent,
-    fallbackAmount: number,
     currency: string,
   ): Promise<EnrollResult> {
     const url = `${apiBase}/enroll`;
@@ -294,29 +331,25 @@ export class AcademyApiClient {
       }
       throw new Error('enroll-shape');
     } catch (error) {
-      this.markDegraded('POST /api/academy/enroll', error);
-      if (fallbackAmount <= 0) {
-        return {
-          orderRef: `FREE-${Date.now().toString(36).toUpperCase()}`,
-          paymentSessionId: '',
-          amount: 0,
-          currency,
-          free: true,
-          enrollmentId: `ENR-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
-        };
-      }
-      return {
-        orderRef: `MOCK-${Date.now().toString(36).toUpperCase()}`,
-        paymentSessionId: `psp_mock_${Math.random().toString(36).slice(2, 10)}`,
-        amount: fallbackAmount,
-        currency,
-        free: false,
-      };
+      this.writeFailed('POST /api/academy/enroll', error);
     }
   }
 
   // ─── Confirm (activate the matrícula) ────────────────────────────────────────
 
+  /**
+   * Activa la matrícula capturando el pago. **Lanza si el borde no la activó.**
+   *
+   * Devolvía `{ status:'active', enrollmentId:'ENR-'+orderRef }` cuando el POST no
+   * llegaba: el aula se desbloqueaba, «mi aprendizaje» sembraba la fila y el alumno
+   * se iba con un identificador derivado de su propia referencia de orden. Es la
+   * regla 14 —un número de matrícula no es contenido, es la PRUEBA de que alguien
+   * pagó— con el agravante de que aquí ya había dinero de por medio.
+   *
+   * **Es idempotente del otro lado**: reconfirmar el mismo `orderRef` devuelve la
+   * matrícula sin recapturar, así que reintentar ESTE paso es seguro. Lo que no lo
+   * es es volver a `enroll`, que abre otra sesión de pago.
+   */
   async confirm(apiBase: string, orderRef: string): Promise<EnrollConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
@@ -327,11 +360,7 @@ export class AcademyApiClient {
       }
       throw new Error('confirm-shape');
     } catch (error) {
-      this.markDegraded('POST /api/academy/confirm', error);
-      return {
-        status: 'active',
-        enrollmentId: `ENR-${orderRef}`,
-      };
+      this.writeFailed('POST /api/academy/confirm', error);
     }
   }
 
@@ -999,21 +1028,34 @@ function normalizeCourseReviewSummary(value: unknown): CourseReviewSummary | nul
   };
 }
 
+/**
+ * **La rama gratis EXIGE el `enrollmentId` del borde y ya no fabrica un `orderRef`.**
+ *
+ * `POST /enroll` activa la matrícula de un curso gratis en el acto y devuelve su id
+ * (`EnrolledResponse`); esa rama **nunca pasa por `ConfirmAsync`**. El `FREE-<ts>`
+ * que se inventaba aquí acababa siendo el `orderRef` con el que el asistente llamaba
+ * a `POST /confirm` — que contesta 404 porque esa orden no existe— y el `catch`
+ * devolvía `ENR-FREE-<ts>`: contra un servidor VIVO, la matrícula gratis quedaba
+ * registrada de este lado con un id distinto del que el borde había emitido.
+ */
 function normalizeEnroll(value: unknown, fallbackCurrency: string): EnrollResult | null {
   if (!isRecord(value)) {
     return null;
   }
-  // Free path: `{ enrolled: true }` (optionally with an id).
+  // Free path: `{ enrolled: true, enrollmentId }` — ya activa, sin sesión de pago.
   if (readBoolean(value['enrolled']) || readBoolean(value['free'])) {
+    const enrollmentId =
+      readString(value['enrollmentId']).trim() || readString(value['id']).trim();
+    if (!enrollmentId) {
+      return null;
+    }
     return {
-      orderRef: readString(value['orderRef']).trim() || `FREE-${Date.now().toString(36).toUpperCase()}`,
+      orderRef: '',
       paymentSessionId: '',
       amount: 0,
       currency: readString(value['currency']).trim() || fallbackCurrency,
       free: true,
-      enrollmentId:
-        readString(value['enrollmentId']).trim() ||
-        `ENR-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+      enrollmentId,
     };
   }
   const orderRef = readString(value['orderRef']).trim() || readString(value['id']).trim();

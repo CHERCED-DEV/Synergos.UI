@@ -67,47 +67,101 @@ function bordeConAprendizaje(
  *  - **Apunta lo que recibió**, para poder afirmar que un reintento no duplica y que
  *    una marca que falló NO se dio por hecha.
  */
+interface BordeDeAula {
+  readonly fetch: (url: string, init?: RequestInit) => Promise<Response>;
+  /** Las lecciones que recibió `POST /progress`. */
+  readonly marcadas: string[];
+  /** Los cursos que recibió `POST /enroll` — una entrada por llamada. */
+  readonly matriculas: string[];
+  /** Las órdenes que recibió `POST /confirm` — una entrada por llamada. */
+  readonly confirmaciones: string[];
+  /** Toda URL pedida, en orden. */
+  readonly urls: string[];
+  /** Interruptores que se pueden mover A MITAD de un test (`'POST /confirm'`). */
+  caidos: string[];
+}
+
 function bordeDeAula(opciones: {
   readonly percentPorMarca: readonly number[];
   readonly caidos?: readonly string[];
   readonly certificado?: Record<string, unknown>;
-}): { fetch: (url: string, init?: RequestInit) => Promise<Response>; marcadas: string[] } {
+  /**
+   * Lo que contesta `POST /enroll`. Por defecto la rama GRATIS con el id que emite
+   * `EnrolledResponse` — la de pago se pide explícitamente porque el curso de pago
+   * es el que pasa por el asistente.
+   */
+  readonly enroll?: Record<string, unknown>;
+  /** Lo que contesta `POST /confirm`. */
+  readonly confirm?: Record<string, unknown>;
+}): BordeDeAula {
   const marcadas: string[] = [];
-  const caido = (metodo: string, url: string): boolean =>
-    (opciones.caidos ?? []).some((entrada) => {
-      const [cabeza, cola] = entrada.split(' ');
-      return cola === undefined
-        ? url.includes(cabeza)
-        : cabeza === metodo && url.includes(cola);
-    });
-  const responde = (body: unknown): Response =>
-    ({ ok: true, status: 200, json: () => Promise.resolve(body) }) as Response;
-
-  return {
+  const matriculas: string[] = [];
+  const confirmaciones: string[] = [];
+  const urls: string[] = [];
+  const estado: BordeDeAula = {
     marcadas,
+    matriculas,
+    confirmaciones,
+    urls,
+    caidos: [...(opciones.caidos ?? [])],
     fetch: (url: string, init?: RequestInit) => {
       const metodo = (init?.method ?? 'GET').toUpperCase();
       const ruta = String(url);
-      if (caido(metodo, ruta)) {
+      urls.push(ruta);
+      const caido = estado.caidos.some((entrada) => {
+        const [cabeza, cola] = entrada.split(' ');
+        return cola === undefined ? ruta.includes(cabeza) : cabeza === metodo && ruta.includes(cola);
+      });
+      if (caido) {
         return Promise.resolve({
           ok: false,
           status: 503,
           json: () => Promise.resolve({}),
         } as Response);
       }
+      const responde = (body: unknown): Promise<Response> =>
+        Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+
+      if (metodo === 'POST' && ruta.includes('/enroll')) {
+        const cuerpo = JSON.parse(String(init?.body ?? '{}')) as { courseId?: string };
+        matriculas.push(String(cuerpo.courseId ?? ''));
+        // La rama gratis de `EnrollAsync` activa la matrícula en el acto y devuelve
+        // su id; NUNCA pasa por `ConfirmAsync`.
+        return responde(opciones.enroll ?? { enrolled: true, enrollmentId: 'ENR-BORDE-GRATIS' });
+      }
+      if (metodo === 'POST' && ruta.includes('/confirm')) {
+        const cuerpo = JSON.parse(String(init?.body ?? '{}')) as { orderRef?: string };
+        confirmaciones.push(String(cuerpo.orderRef ?? ''));
+        return responde(
+          opciones.confirm ?? {
+            status: 'active',
+            enrollmentId: 'ENR-BORDE-PAGO',
+            courseId: 'CMOCK-1',
+          },
+        );
+      }
       if (metodo === 'POST' && ruta.includes('/progress')) {
         const cuerpo = JSON.parse(String(init?.body ?? '{}')) as { lessonId?: string };
         marcadas.push(String(cuerpo.lessonId ?? ''));
         const indice = Math.min(marcadas.length - 1, opciones.percentPorMarca.length - 1);
-        return Promise.resolve(responde({ percent: opciones.percentPorMarca[indice] }));
+        return responde({ percent: opciones.percentPorMarca[indice] });
       }
       if (metodo === 'GET' && ruta.includes('/certificate') && opciones.certificado) {
-        return Promise.resolve(responde({ certificate: opciones.certificado }));
+        return responde({ certificate: opciones.certificado });
       }
       return Promise.reject(new Error('offline'));
     },
   };
+  return estado;
 }
+
+/** La rama de PAGO de `POST /enroll` — abre una orden y su sesión de PSP. */
+const ENROLL_DE_PAGO = {
+  orderRef: 'ORD-BORDE-7',
+  paymentSessionId: 'psp_borde_7',
+  amount: 180_000,
+  currency: 'COP',
+} as const;
 
 /** Una matrícula con la forma que emite `EnrolledCourseDto`. */
 function matriculaServidor(): Record<string, unknown> {
@@ -207,6 +261,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     // de casa daría el mismo verde.
     const aula = bordeDeAula({
       percentPorMarca: [10, 20, 35, 50, 65, 80, 100],
+      enroll: ENROLL_DE_PAGO,
       certificado: {
         id: 'CERT-SELLADO-9',
         studentName: 'Ada Lovelace',
@@ -242,7 +297,11 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
 
     expect(component.view()).toBe('enrolled');
-    expect(component.enrollmentId().length).toBeGreaterThan(0);
+    // El id es el que emitió el BORDE. Con el acuse fabricado salía un `ENR-<orden>`
+    // derivado de la referencia que este mismo cliente acababa de inventarse.
+    expect(component.enrollmentId()).toBe('ENR-BORDE-PAGO');
+    expect(aula.matriculas).toEqual([component.detail()!.course.id]);
+    expect(aula.confirmaciones).toEqual(['ORD-BORDE-7']);
 
     // Enter the aula and complete every lesson → certificate available.
     component.enterClassroom();
@@ -277,7 +336,8 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   // ── free course: enroll directo skips the wizard ─────────────────────────────
   it('enrols a free course directly (no wizard, enroll directo)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const aula = bordeDeAula({ percentPorMarca: [] });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
     await createComponent();
 
     component.openCourse(component.courses().find((c) => c.amount <= 0)!);
@@ -287,7 +347,12 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     component.startEnrollment();
     await flushMicrotasks(30);
     expect(component.view()).toBe('enrolled');
-    expect(component.enrollmentId().length).toBeGreaterThan(0);
+    // El id es el que emitió el borde al matricular, y **no se pasa por `/confirm`**:
+    // la rama gratis nunca abre una orden, así que pedir confirmarla contestaba 404
+    // y el `catch` devolvía un `ENR-FREE-<ts>` que no existe en ninguna parte.
+    expect(component.enrollmentId()).toBe('ENR-BORDE-GRATIS');
+    expect(aula.confirmaciones).toEqual([]);
+    expect(aula.urls.some((url) => url.includes('/confirm'))).toBe(false);
   });
 
   // ── #116 · el avance que el servidor NO guardó ───────────────────────────────
@@ -379,32 +444,144 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     installMemoryStorage();
     // Un elemento montado contra otra base: compraba en la suya y confirmaba en
     // `/api/academy`, cableada a mano en `confirm` porque ese paso no recibe
-    // instrumento. Y no fallaba a la vista, porque el `catch` del cliente fabrica el
-    // acuse de la matrícula (#116).
-    const urls: string[] = [];
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) => {
-        urls.push(String(url));
-        return Promise.reject(new Error('offline'));
-      }),
-    );
+    // instrumento. Y no fallaba a la vista, porque el `catch` del cliente fabricaba
+    // el acuse de la matrícula (#116).
+    //
+    // Va sobre el curso de PAGO y contra un borde VIVO: desde CMS#117 el curso
+    // gratis no llama a `/confirm` —su matrícula ya está activa— así que con el
+    // gratis esta prueba se quedaría sin sujeto. Es el fixture que caduca con el
+    // defecto de al lado: antes daba igual porque la llamada salía y fallaba.
+    const aula = bordeDeAula({ percentPorMarca: [], enroll: ENROLL_DE_PAGO });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
     await createComponent();
     fixture.componentRef.setInput('apiBase', '/entidad/aula');
     fixture.detectChanges();
     // La búsqueda inicial del constructor corrió con la base por defecto; lo que se
     // mide es lo que sale DESPUÉS de que el host declare la suya.
-    urls.length = 0;
+    aula.urls.length = 0;
 
-    component.openCourse(component.courses().find((c) => c.amount <= 0)!);
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
     await flushMicrotasks();
+    component.studentName.set('Ada Lovelace');
+    component.studentEmail.set('ada@example.com');
     component.startEnrollment();
+    await flushMicrotasks();
+
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    wizard.next();
     await flushMicrotasks(30);
 
-    const confirmaciones = urls.filter((url) => url.includes('/confirm'));
+    const confirmaciones = aula.urls.filter((url) => url.includes('/confirm'));
     expect(confirmaciones.length).toBeGreaterThan(0);
     expect(confirmaciones.every((url) => url.startsWith('/entidad/aula/'))).toBe(true);
-    expect(urls.some((url) => url.startsWith('/api/academy/'))).toBe(false);
+    expect(aula.urls.some((url) => url.startsWith('/api/academy/'))).toBe(false);
+  });
+
+  // ── CMS#117 · la matrícula que nadie activó ──────────────────────────────────
+
+  /** El aviso de la FICHA (el banner de arriba), distinto del del asistente. */
+  function bannerDeLaFicha(): string {
+    return (
+      (fixture.nativeElement as HTMLElement).querySelector('.academy__error')?.textContent ?? ''
+    );
+  }
+
+  /** Lleva el asistente hasta el último paso, listo para pulsar «Pagar». */
+  async function hastaElBotonDePagar(): Promise<CheckoutWizardComponent> {
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
+    await flushMicrotasks();
+    component.studentName.set('Ada Lovelace');
+    component.studentEmail.set('ada@example.com');
+    component.startEnrollment();
+    await flushMicrotasks();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    return wizard;
+  }
+
+  it('EL caso: si el borde no abre la matrícula, NO hay acuse ni aula', async () => {
+    installMemoryStorage();
+    // Apagón PARCIAL y por MÉTODO: el catálogo y la ficha se leen, y lo único caído
+    // es la ESCRITURA que abre la matrícula. Un apagón total no llega nunca hasta
+    // aquí, porque comprar va detrás de una ficha que se pudo abrir (regla 18).
+    const aula = bordeDeAula({ percentPorMarca: [], caidos: ['POST /enroll'] });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
+    await createComponent();
+    const wizard = await hastaElBotonDePagar();
+
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    // Ni matrícula, ni aula, ni fila sembrada en «mi aprendizaje».
+    expect(component.enrollmentId()).toBe('');
+    expect(component.view()).toBe('checkout');
+    expect(aula.confirmaciones).toEqual([]);
+    // Lo tecleado sigue donde estaba: el asistente no se rebobina.
+    expect(component.studentEmail()).toBe('ada@example.com');
+    expect(wizard.isLastStep()).toBe(true);
+    // Y se DICE, sin fabricar un número de matrícula que no existe — en el aviso del
+    // asistente Y en el banner de la ficha, que son dos superficies distintas.
+    const aviso = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(aviso).toContain('no se te ha cobrado nada');
+    expect(bannerDeLaFicha()).toContain('no se te ha cobrado nada');
+  });
+
+  it('EL caso: cobrado y sin confirmar, reintentar NO vuelve a matricular', async () => {
+    installMemoryStorage();
+    // El primer paso SÍ sale (hay una orden abierta y una sesión de pago) y el
+    // segundo no. Es el único reparto que alcanza el camino que importa.
+    const aula = bordeDeAula({
+      percentPorMarca: [],
+      enroll: ENROLL_DE_PAGO,
+      caidos: ['POST /confirm'],
+    });
+    vi.stubGlobal('fetch', vi.fn(aula.fetch));
+    await createComponent();
+    const wizard = await hastaElBotonDePagar();
+
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(component.enrollmentId()).toBe('');
+    expect(aula.matriculas).toHaveLength(1);
+    // Se intentó confirmar y el borde lo rechazó antes de leer el cuerpo, así que
+    // la orden no queda anotada — lo que importa es que se intentó UNA vez.
+    expect(aula.urls.filter((url) => url.includes('/confirm'))).toHaveLength(1);
+    expect(aula.confirmaciones).toEqual([]);
+    // El mensaje nombra lo que SÍ quedó: decirle «no pudimos matricularte» a quien
+    // ya pagó le invita a pagar dos veces, y eso es daño propio.
+    const aviso = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(aviso).toContain('Ya recibimos tu pago');
+    expect(aviso).toContain('no se te cobrará de nuevo');
+    // El banner de la ficha tampoco puede decir «intenta de nuevo» a secas: es la
+    // frase que le pide un segundo pago a quien ya pagó.
+    expect(bannerDeLaFicha()).toContain('Tu pago quedó registrado');
+
+    // El borde vuelve: se reintenta SOLO la confirmación, que es idempotente del
+    // otro lado. Volver a `POST /enroll` abriría otra orden y otro cobro.
+    aula.caidos = [];
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(aula.matriculas).toHaveLength(1);
+    expect(aula.confirmaciones).toEqual(['ORD-BORDE-7']);
+    expect(aula.urls.filter((url) => url.includes('/confirm'))).toHaveLength(2);
+    expect(component.enrollmentId()).toBe('ENR-BORDE-PAGO');
+    expect(component.view()).toBe('enrolled');
   });
 
   // ── filter: SH-1 criteria filters the catalogue by escuela/categoría ──────────
