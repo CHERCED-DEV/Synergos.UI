@@ -34,6 +34,7 @@ import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
 import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
 import { resolvePublishVersion } from './lib/cdn-registry.mjs';
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
+import { elegirPlataforma } from './lib/element-sources.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,16 @@ const sharedImpl = [];
 for (const entry of registry) {
   let elementPublished = false;
 
-  for (const platform of PLATFORMS) {
+  // Desde el issue #42 el elemento DECLARA de qué plataforma es su bundle, y
+  // la decisión de a cuál mirar sale de ahí — ver `elegirPlataforma`, que vive
+  // en tools/lib para poder verse fallar.
+  const eleccion = elegirPlataforma(entry, PLATFORMS, existsSync);
+  if (eleccion.error) {
+    console.error(`\n❌ ${eleccion.error}`);
+    process.exit(1);
+  }
+
+  for (const platform of [eleccion.plataforma]) {
     if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
 
     // Varios tipos de elemento del CMS comparten UNA implementación: heading,
@@ -162,7 +172,7 @@ for (const entry of registry) {
         });
     const elementVersion = resolved.version;
 
-    const manifest = buildManifest(entry, platform.name, elementVersion, inputsData[entry.name] ?? []);
+    const manifest = buildManifest(entry, elementVersion, inputsData[entry.name] ?? []);
 
     const meta = {
       element:   entry.name,
