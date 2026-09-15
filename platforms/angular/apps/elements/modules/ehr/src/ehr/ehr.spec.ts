@@ -577,6 +577,22 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(host2.querySelector('.ehr__thread-unread')?.textContent?.trim()).toBe('1');
   });
 
+  it('los «sin leer» del home tampoco se reponen a cero (CMS#116)', async () => {
+    await createComponent();
+    await flushMicrotasks();
+
+    // Era el último de la familia: aquí la cifra no era una constante, se DERIVABA
+    // sumando los mensajes de cada hilo clínico — los del propio paciente incluidos—.
+    // Una derivación de lo que hay a mano se lee como un dato y fabrica igual.
+    expect(component.home()?.unreadMessages).toBeNull();
+
+    // Y cuando el backend sepa contarlos, se respeta el número que mande.
+    TestBed.resetTestingModule();
+    await createComponent({ opcionales: 'full' });
+    await flushMicrotasks();
+    expect(component.home()?.unreadMessages).toBe(4);
+  });
+
   it('sin farmacia no queda el separador colgante en la ficha del medicamento', async () => {
     await createComponent();
     component.navigate('medications');

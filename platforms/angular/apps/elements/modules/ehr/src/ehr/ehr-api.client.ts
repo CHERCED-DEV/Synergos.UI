@@ -794,7 +794,12 @@ function normalizePortalHome(value: unknown): PortalHome | null {
     nextAppointment: next,
     balanceMinor: Math.max(0, Math.trunc(readNumber(value['balanceMinor']))),
     currency: readString(value['currency']).trim() || 'COP',
-    unreadMessages: Math.max(0, Math.trunc(readNumber(value['unreadMessages']))),
+    // `null`/ausente ≠ 0 (CMS#116): reponer un cero aquí es afirmar «no tienes nada
+    // sin leer» con un servidor que no lo sabe. Igual que `unread` en cada hilo.
+    unreadMessages:
+      value['unreadMessages'] === undefined || value['unreadMessages'] === null
+        ? null
+        : Math.max(0, Math.trunc(readNumber(value['unreadMessages']))),
     pendingCheckins: Math.max(0, Math.trunc(readNumber(value['pendingCheckins']))),
   };
 }
