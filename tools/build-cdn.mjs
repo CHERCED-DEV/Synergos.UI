@@ -138,10 +138,25 @@ execFileSync('node', [join(ROOT, 'tools', 'publish.mjs'), '--cdn', SALIDA], {
 // ficheros que consume otro programa. Va como index para que la URL desnuda
 // muestre algo en vez de un 404 — que es lo que uno abre primero para
 // comprobar que el despliegue salió.
-if (await existe(join(ROOT, 'catalog.html'))) {
-  log('copiando el catálogo como index.html');
-  await copyFile(join(ROOT, 'catalog.html'), join(SALIDA, 'index.html'));
-}
+//
+// SE REGENERA, NO SE COPIA (#48). Esto copiaba el `catalog.html` versionado en
+// la raíz — una SALIDA commiteada como si fuera una entrada— y su última
+// escritura fue el 2026-08-04, en el commit de la purga: capturó el catálogo
+// ANTERIOR, con los elementos de las plataformas que ese mismo commit borraba.
+// Resultado, medido contra la URL pública: el índice anunciaba 141 nombres,
+// el registry servía 130, y `quiz-flow` y `rating-widget` contestaban 404.
+// Seis semanas siendo lo primero que ve quien abre el despliegue.
+//
+// Y se le pasa el árbol RECIÉN PUBLICADO como CDN_ROOT: así las insignias de
+// «publicado / no publicado» salen de lo que acaba de escribir `publish.mjs` y
+// no del `C:\LOCAL_CDN` por defecto, que fuera de la máquina del arquitecto no
+// existe y marcaba TODO como no publicado.
+log('generando el catálogo como index.html');
+execFileSync('node', [join(ROOT, 'tools', 'catalog.mjs'), '--out', join(SALIDA, 'index.html')], {
+  cwd: ROOT,
+  stdio: 'inherit',
+  env: { ...process.env, CDN_ROOT: join(SALIDA, 'synergos') },
+});
 
 // ── 5. Verificar que hay algo ────────────────────────────────────────────────
 //
