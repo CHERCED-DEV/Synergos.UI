@@ -6,9 +6,10 @@
  *
  * `element-registry.json` declaraba `name`, `alias`, `tag` y `tier`. No
  * declaraba framework. Y sin embargo el framework ya estaba en todas partes:
- * el tipo `ElementFramework` lo declara `element-manifest.schema.ts`, el tipo
- * `FrameworkKind` lo declara `component-resolution.contract.ts`, y
- * `publish.mjs` escribe el segmento en la ruta del CDN
+ * `ElementFramework` en `element-manifest.schema.ts`, `FrameworkKind` en
+ * `component-resolution.contract.ts` —los dos con los mismos cuatro valores
+ * escritos por separado, hoy uno alias del otro— y el segmento que
+ * `publish.mjs` escribe en la ruta del CDN
  * (`synergos/<element>/<framework>/latest/`).
  *
  * O sea que la CDN sabe de qué framework es cada bundle y **lo que el CMS lee,
@@ -37,8 +38,24 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-/** Las plataformas que publican elementos, y dónde viven sus fuentes. */
-export const PLATAFORMAS = [{ framework: 'angular', apps: 'platforms/angular/apps' }];
+import { PLATFORMS } from './synergos-config.mjs';
+
+/**
+ * Las plataformas que publican elementos, y dónde viven sus fuentes.
+ *
+ * Se DERIVA de `PLATFORMS`, que es lo que decide de verdad quién construye y
+ * publica. Escribir acá `[{ framework: 'angular', … }]` habría dejado el
+ * nombre de la plataforma en un tercer sitio: `PLATFORMS`, `ALL_FRAMEWORKS` y
+ * esto, y el día que vuelva otra plataforma hay que acordarse de los tres.
+ * Es la misma trampa que este fichero persigue con el framework de un elemento.
+ *
+ * La carpeta de fuentes es `platforms/<nombre>/apps` por convención — la misma
+ * que recorre `platforms/angular/tools/build.mjs`.
+ */
+export const PLATAFORMAS = PLATFORMS.map((p) => ({
+  framework: p.name,
+  apps: `platforms/${p.name}/apps`,
+}));
 
 /**
  * Los tiers tal como se escriben en el disco: `apps/elements/<plural>/<nombre>`.
