@@ -55,6 +55,41 @@ NEVER create files outside these directories without explicit user instruction.
   platforms/angular/ importa de vitals/ vía @synergos/contracts y @synergos/core
   (@synergos/shared resuelve a platforms/angular/libs/shared — ya no existe vitals/shared)
 
+### La frontera `vitals/` ↔ `<framework>/shared` — REGLA DE ARQUITECTURA
+
+  Cada framework tiene su propio `shared`, escrito en su propio lenguaje, y
+  TODOS se alimentan de `vitals`. En `vitals` vive el modelado de lo que viene
+  del CMS: el contrato intermedio entre el CMS y los frameworks del frontend.
+
+  ENTRA en vitals/   el MODELO de lo que emite el CMS (`*-inputs.model.ts`),
+                     el MAPPER que lo traduce, el PROTOCOLO del bridge y el
+                     VOCABULARIO (tipos, uniones, constantes, guards).
+  NO ENTRA           nada que renderice, toque el DOM o tenga estado reactivo
+                     de un framework: componentes, directivas, pipes, plantillas,
+                     `signal()`/`computed()`/`effect()`/`input()`/`inject()`,
+                     stores, servicios por inyección de dependencias.
+
+  La pregunta que lo decide: ¿habría que REESCRIBIR esto para React, o sólo
+  volver a LLAMARLO? Si hay que reescribirlo, es del shared de su framework.
+
+  Tres casos de borde pasan a propósito, y están razonados en
+  SynergosDocs/WHERE_DOES_THIS_GO.md §1: `HTMLElement` en la firma de
+  `ElementProtocol.mount` (es lib.dom, la superficie que comparten los cuatro),
+  `window.synergos` en el bridge (global del host, no de un framework) y
+  `console.*` en `createLogger` (objeto plano detrás de una interfaz).
+
+  Lo vigila el gate `vitals-purity` (tools/lib/vitals-purity.spec.mjs, corre con
+  `npm test`). Su criterio es una LISTA BLANCA derivada de tsconfig.base.json,
+  no una lista negra de nombres de framework — así `rxjs`, `zone.js` y el
+  paquete del año que viene caen sin nombrarlos. Lo que NO ve está escrito con
+  letra (a)-(f) arriba de tools/lib/vitals-purity.mjs: no ve globales, no ve un
+  framework copiado a mano, y no ve el SCSS.
+
+  Promoción: algo de libs/shared se muda a vitals AL SEGUNDO CONSUMIDOR, y el
+  segundo consumidor es el segundo framework. La medición de qué es candidato
+  ya está hecha — SynergosDocs/FRONTERA_VITALS.md §5 — y es una medición, no
+  una cola de trabajo.
+
 FORBIDDEN:
   - vitals/ importing from the platform
   - libs/core importing from libs/shared
