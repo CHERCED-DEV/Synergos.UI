@@ -3,6 +3,7 @@
  *
  * Used by publish.mjs, manifest-gen.mjs, and contracts-export.mjs
  * so the manifest schema and contracts schema are defined in exactly one place.
+ *
  */
 
 // ── Manifest ─────────────────────────────────────────────────────────────────
@@ -10,17 +11,22 @@
 /**
  * Build a single element manifest object.
  *
- * @param {{ name: string, tag: string, alias: string, tier: string }} entry — registry entry
- * @param {string} framework — angular | react | svelte | vanilla
+ * El `framework` ya NO llega como parámetro suelto: lo declara la entrada del
+ * registry (issue #42). Cuando lo elegía quien llamaba, el manifiesto decía
+ * de qué plataforma era el bundle según el bucle en el que se hubiera
+ * construido, no según lo que el elemento es — y el registry, que es lo que
+ * lee el CMS, no lo decía en absoluto.
+ *
+ * @param {{ name: string, tag: string, alias: string, tier: string, framework: string }} entry
  * @param {string} version — semver version string
  * @param {Array} inputs — input descriptors from element-inputs.json
  * @returns {object} manifest object ready to JSON.stringify
  */
-export function buildManifest(entry, framework, version, inputs) {
+export function buildManifest(entry, version, inputs) {
   return {
     tag:         entry.tag,
     alias:       entry.alias,
-    framework,
+    framework:   entry.framework,
     version,
     tier:        entry.tier,
     entryScript: 'main.js',
@@ -33,7 +39,7 @@ export function buildManifest(entry, framework, version, inputs) {
 /**
  * Build a single element contract entry (for contracts.json).
  *
- * @param {{ name: string, tag: string, alias: string, tier: string }} entry — registry entry
+ * @param {{ name: string, tag: string, alias: string, tier: string, framework: string }} entry
  * @param {Array} rawInputs — input descriptors from element-inputs.json
  * @returns {object} contract entry
  */
@@ -44,6 +50,7 @@ export function buildContractEntry(entry, rawInputs) {
     alias:        entry.alias,
     tag:          entry.tag,
     tier:         entry.tier,
+    framework:    entry.framework,
     configFields: inputs.map(({ name, type, required = false, default: def, description }) => ({
       name,
       type,

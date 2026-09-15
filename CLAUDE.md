@@ -51,10 +51,10 @@ que cambia por repo es la definición de hecho (ver `.github/pull_request_templa
 
 ## Workspace layout
 ```
-platforms/angular/   → LA plataforma (Angular ~21, catálogo de 136 elementos)
+platforms/angular/   → LA plataforma (Angular ~21; 127 fuentes con src/main.ts)
   apps/              → elementos + experiences; cada carpeta con src/main.ts ES un elemento
   libs/              → core, shared (design system), core-assets, rendering, integrations
-  tools/build.mjs    → EL build: un NgtscProgram + un esbuild — 136 elementos en ~26 s
+  tools/build.mjs    → EL build: un NgtscProgram + un esbuild — las 127 en ~26 s
   cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   contracts/         → interfaces puras (element-registry.json, element-inputs.json)
@@ -66,7 +66,8 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 ```
 
 ## Quick reference
-- Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada uno de los 136 elementos era una "application" independiente (136 arranques del compilador, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada elemento era una "application" independiente (un arranque del compilador cada uno, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
+- **Las cifras, medidas y no recordadas** (#42): **127** carpetas bajo `apps/` con `src/main.ts` (lo que el build compila) y **132** entradas en `element-registry.json` (lo que el CMS puede colocar). No son la misma cuenta y nunca lo fueron: seis entradas comparten el `synergos-text-block`, dos no las construye nada —`stat-counter` y `module-mount`— y tres fuentes son hosts deprecados que no están en el registry. Este fichero decía «136» en tres sitios, que no es ninguna de las dos.
 - **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento `/angular/` en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna.
 - Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Ciclo editor→navegador**: `npm run dev:cdn [-- --solo=badge]` (issue #2). Sirve el layout COMPLETO del CDN desde el watch, sin pasar por `build:cdn`. El CMS lo consume con su cliente HTTP de siempre — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL=http://localhost:4321` — o sea cero código de desarrollo del lado del CMS.
@@ -115,7 +116,9 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veinte reglas que costaron caro y no se deducen leyendo el código:**
+**Veintidós reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
+se desincroniza):
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -354,3 +357,28 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    apague la red entera lo ve — hace falta el borde de mentira con la forma del de
    verdad, apagado **por método y ruta** (regla 16 + 18)
    (CHERCED-DEV/Synergos.CMS#117).
+22. **Una clave que el ARTEFACTO escribe y el contrato no declara está afirmando el valor
+   por defecto de quien la lee — y lo afirma sin que nadie lo haya decidido.**
+   `publish.mjs` escribe el framework en la ruta del CDN desde siempre
+   (`synergos/<element>/<framework>/latest/`), `ElementFramework` y `FrameworkKind` ya
+   existían como tipos… y `element-registry.json` —lo que el CMS lee— tenía cuatro claves
+   y ninguna era ésa. Los 132 eran Angular **implícito**. Es
+   `feedback_an_omitted_key_can_be_an_assertion` del repo hermano con una vuelta más: acá
+   el valor por defecto ni siquiera estaba escrito, salía de que `PLATFORMS` tiene hoy un
+   solo miembro, así que no se podía ni buscar con un grep.
+   **La salida NO es poner `'angular'` por defecto**: eso es escribir la suposición en vez
+   de medirla. Se mide del disco, con la misma fuente que usa el build — cada carpeta bajo
+   `apps/` con un `src/main.ts`—, y salen 130 de 132.
+   Tres cosas que costaron su mutación:
+   (a) **lo que el disco no sabe se DECLARA con su razón al lado, y la tabla se vigila en
+   los dos sentidos** — `stat-counter` y `module-mount` no los construye nada, así que su
+   framework es una promesa y no un hecho; el día que alguien escriba la fuente, la
+   excepción **sobra y rompe el build**, porque una excepción que sobra deja de leerse;
+   (b) **una comprobación cableada dentro del publicador no se puede ver fallar** —
+   `elegirPlataforma` vive en `tools/lib` justamente por eso, y su caso feo (el bundle
+   construido en OTRA plataforma) hoy sólo existe en el spec, porque hay una sola
+   plataforma: decirlo es más honesto que insinuar que está probado contra el disco;
+   (c) **el segundo sitio donde estaba escrita la unión era el peligro real** — `FrameworkKind`
+   y `ElementFramework` tenían los mismos cuatro valores y nada las cruzaba. Mientras el
+   valor no viajaba, era feo; desde que viaja del registry al manifiesto y de ahí a la ruta
+   del CDN, es una avería esperando (#42).
