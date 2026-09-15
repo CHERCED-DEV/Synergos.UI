@@ -1724,6 +1724,8 @@ export class StorefrontElementComponent {
       quantity,
       image: product.images[0] ?? '',
       seller: product.seller,
+      // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
+      apiBase: this.apiBase(),
     };
     void this.#fulfillment
       .select(

@@ -108,6 +108,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         seats: [...payload.seats],
         // Engine pricing is in minor units; payload carries major units.
         unitAmount: Math.round(payload.amount * 100),
+        apiBase: payload.apiBase ?? '',
       },
       amount: Math.round(payload.amount * 100),
       quantity,
@@ -172,7 +173,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
     );
     const items = toCheckoutItems(session);
     const confirmation = await this.#api.confirm(
-      '/api/eventos',
+      this.apiBaseOf(session),
       orderRef,
       attendees,
       items,
@@ -195,6 +196,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         },
       })),
     };
+  }
+
+  /** Ver `TierSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */
+  private apiBaseOf(session: SessionData): string {
+    const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+    const base = selection?.['apiBase'];
+    return typeof base === 'string' && base.trim() ? base.trim() : '/api/eventos';
   }
 
   private lineId(payload: TierSelectionPayload): string {

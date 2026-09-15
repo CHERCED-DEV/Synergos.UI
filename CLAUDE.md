@@ -115,7 +115,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Diecinueve reglas que costaron caro y no se deducen leyendo el código:**
+**Veinte reglas que costaron caro y no se deducen leyendo el código:**
 
 1. **`[attr.foo]` y no `[foo]` cuando el valor puede ser `null`.** `[id]="x() || null"` es
    property binding: no quita el atributo, escribe la cadena `"null"`. Sólo `[attr.…]`,
@@ -313,3 +313,14 @@ del CMS sibling — que es público, así que **sin `token:`**, ver #14).
    Y el spec que lo tapaba era el «happy case» del ciclo entero: **completaba el curso
    con la red caída** y afirmaba `isCourseComplete()`, o sea codificaba el defecto
    (regla 9) sobre el camino que más se lee (CHERCED-DEV/Synergos.CMS#116).
+20. **Un `confirm` que no recibe instrumento acaba con la base del borde CABLEADA, y
+   el `catch` de al lado hace que no se note.** `search` y `pay` reciben `apiBase`;
+   `confirm(session)` no recibe nada, así que las tres estrategias que cierran una
+   compra —academy, storefront, eventos— tenían su `'/api/…'` escrito a mano. Un
+   elemento montado contra otra base compraba en la suya y confirmaba en la de por
+   defecto; **y no fallaba a la vista**, porque el cliente fabrica el acuse cuando el
+   `POST` no llega (regla 9 sobre el paso que entrega la matrícula/la entrada/el
+   pedido). Lo que falta va en la LÍNEA del carrito y no en un campo de la instancia:
+   entre `pay` y `confirm` la página puede recargarse y la sesión sobrevive, el campo
+   no. `travel-fulfillment.strategy` ya lo hacía bien —su `apiBaseOf(session)` era el
+   patrón y nadie lo copió— (CHERCED-DEV/Synergos.CMS#116).
