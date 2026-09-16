@@ -83,7 +83,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 - Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los specs de la plataforma, **con la cuarentena en cero** — y eso no es una foto, lo defiende `spec-quarantine`. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
 
-- **La frontera `vitals/` ↔ `<framework>/shared`**: cada framework tiene su propio `shared`, escrito en su propio lenguaje, y todos se alimentan de `vitals`. En `vitals` va el MODELO de lo que emite el CMS, el MAPPER que lo traduce, el PROTOCOLO del bridge y el VOCABULARIO; no va nada que renderice, toque el DOM o tenga estado reactivo de un framework. Escrita en `SynergosDocs/WHERE_DOES_THIS_GO.md` §1 y en `LLM.txt` §2; medida en `SynergosDocs/FRONTERA_VITALS.md`; vigilada por el gate `vitals-purity`.
+- **La frontera `vitals/` ↔ `<framework>/shared`**: cada framework tiene su propio `shared`, escrito en su propio lenguaje, y todos se alimentan de `vitals`. En `vitals` va el MODELO de lo que emite el CMS, el MAPPER que lo traduce, el PROTOCOLO del bridge y el VOCABULARIO; no va nada que renderice, toque el DOM o tenga estado reactivo de un framework. Escrita en `SynergosDocs/WHERE_DOES_THIS_GO.md` §1 y en `LLM.txt` §2; medida en `SynergosDocs/FRONTERA_VITALS.md`; vigilada por el gate `vitals-purity`. **Y qué hace falta para que exista la segunda plataforma está medido en `SynergosDocs/MEDICION_SEGUNDA_PLATAFORMA.md`** (épica #37): las siete obligaciones de una plataforma, el coste contado de un elemento duplicado (**~64 líneas**, con el SCSS reusado verbatim), el piso de peso de hoy (**≈209 KB transferidos** en una página con un solo badge) y el hallazgo que la bloquea — publicar el segundo runtime con los specifiers de hoy **apaga el sitio entero**, ver la regla 26.
 - Aliases agnósticos (`tsconfig.base.json`): `@synergos/contracts`, `@synergos/core`, `@synergos/core-assets` — los tres a `vitals/`.
 - Aliases Angular (`platforms/angular/tsconfig.json`, diez): `@synergos/core` → `libs/core/` **pisando el agnóstico**, que queda como `@synergos/vitals-core`; más `shared`, `rendering`, `integrations`, `shells`, `shop`, `transaction-engine`, y `contracts` / `core-assets` que siguen yendo a `vitals/`.
 - Tiers del design system (`libs/shared/src/components/`): `primitives/` (23) · `compositions/` (16) · `patterns/` (12) · `states/` (4).
@@ -139,7 +139,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veinticinco reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Veintiséis reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -501,3 +501,33 @@ se desincroniza):
    del techo fuera el que hablara. Con un rechazo anterior tapando al de interés, la mutación
    sale roja y **no prueba lo que uno cree** (es la regla 7 con el fixture correcto y el
    camino equivocado) (#44).
+
+
+26. **Un contrato entre dos árboles puede tener su REGLA en uno y su CAUSA en el otro — y el
+   gate del árbol que la vigila no protege al árbol que la rompe.** El CMS compone UN import
+   map juntando el de cada framework, y su regla es la correcta: el mismo specifier con URLs
+   distintas **no se resuelve, se PARA** — devuelve `null`, no conserva el mapa anterior, y la
+   vista no emite ningún `<script type="importmap">`. Sin mapa **nada hidrata**: 200, el SSR
+   entero, y todo lo interactivo muerto (el defecto CMS #126).
+   Y el import map que este repo publica hoy declara `@synergos/core` y `@synergos/shared` —
+   **nombres agnósticos con destinos específicos de Angular**—, así que el día que una segunda
+   plataforma publique lo obvio, el sitio se cae **entero, Angular incluido**, por un `publish`
+   de acá.
+   **Lo que lo vuelve una regla y no una anécdota es que el test que lo prueba ya existe,
+   verde, en el otro árbol, y su fixture es literalmente este caso** (`angular` y `react`
+   peleándose `@synergos/core` en `ImportMapComposerTests`). El CMS anticipó la colisión **como
+   regla** y nadie sacó la consecuencia, porque la consecuencia se escribe en el repo de al
+   lado. Es el reparto de #48 y de CMS #126 otra vez: las dos mitades en verde y el hueco justo
+   en medio.
+   **El tell, para reconocerlo en otro sitio:** un artefacto que este repo PUBLICA y que el otro
+   INTERPRETA con una regla que puede rechazarlo. La pregunta que lo caza —y se hace leyendo el
+   test del otro árbol, no el código de éste— es **¿qué rechaza el que lee esto, y hay algo acá
+   que impida producirlo?**
+   Dos corolarios medidos:
+   (a) **el mismo specifier con la MISMA URL no es conflicto, se deduplica** — así que la salida
+   barata es publicar los dos nombres apuntando al mismo fichero mientras convivan, y no retirar
+   nunca el viejo: los bundles ya publicados siguen haciendo el bare import;
+   (b) **una excepción «legítimamente de X» caduca el día que hay dos X.** `cdn-runtime-check`
+   pregunta por `runtime/angular` y está en el censo de #44 con su razón escrita — correcta
+   mientras hubiera una plataforma. Con dos, publicar elementos sin su runtime pasa en verde: es
+   la regla 25 con la constante escondida dentro de una excepción justificada (#58, #61, #37).
