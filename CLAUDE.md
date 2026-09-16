@@ -113,6 +113,7 @@ está vigilando nada.
 | `interactive` | que el CLI descubra lo que el build compila, y que **vacío sea un fallo** y no un menú en blanco | alguien vuelve a descubrir por `project.json` —o por cualquier cosa que pueda dar cero sin quejarse— (#52) |
 | `banco-de-pruebas` | que el banco emita las TRES cosas —mapa resuelto, módulo y tag— o ninguna, y que su ruta viva fuera de `/synergos/` | se sirve el import map de `dist/` sin sustituir `__BASE_URL__` (#49) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
+| `rutas-hermanas` | que el CMS se busque igual desde las dos herramientas que lo necesitan, y que ninguna lectura caiga por defecto a una ruta de una sola máquina | `cms-sync` vuelve a ignorar `SYNERGOS_CMS_PATH`, o alguien escribe otro default `C:\LOCAL_CDN` de lectura (#57) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
 | `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |

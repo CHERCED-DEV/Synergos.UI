@@ -208,6 +208,7 @@ describe('frameworksDelRegistry', () => {
  * a un framework: su respuesta tiene que valer igual con uno o con cuatro.
  */
 const CIEGAS_AL_FRAMEWORK = [
+  'lib/rutas-hermanas.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía

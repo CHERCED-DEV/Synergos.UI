@@ -55,12 +55,18 @@ import { fileURLToPath } from 'node:url';
 import { getArg, DRY_RUN } from './lib/cli-utils.mjs';
 import { loadRegistry, loadInputs, readPackageVersion, contratoDelManifiesto } from './lib/synergos-config.mjs';
 import { descubrirFuentes, resolverTier, resolverFramework } from './lib/element-sources.mjs';
+import { resolverRaizCms, comoApuntarAlCms } from './lib/rutas-hermanas.mjs';
 import { buildManifest, validateManifest } from './lib/manifest-builder.mjs';
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
 const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ROOT_CMS = resolve(getArg('cms-path', resolve(ROOT_UI, '..', 'Synergos.CMS')));
+// El CMS se busca en las TRES formas —bandera, SYNERGOS_CMS_PATH, hermano— y la
+// resolución vive en `lib/rutas-hermanas.mjs` desde #57. Acá aceptaba sólo dos:
+// no miraba la variable de entorno, así que en un contenedor exportarla hacía
+// pasar `cms:validate` y dejaba caer ESTE paso, que es el último del encadenado
+// `contracts:validate`.
+const { ruta: ROOT_CMS, origen: ORIGEN_CMS } = resolverRaizCms({ raizUi: ROOT_UI });
 
 const CMS_CONTENT_TYPES_DIR = resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/v9/ContentTypes');
 const REGISTRY_JSON_PATH    = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
@@ -443,7 +449,8 @@ function main() {
   console.log(`[cms-sync] Reading from: ${CMS_CONTENT_TYPES_DIR}`);
 
   if (!existsSync(CMS_CONTENT_TYPES_DIR)) {
-    console.error(`[cms-sync] ERROR: CMS path not found. Use --cms-path=PATH or place repos as siblings.`);
+    console.error(`[cms-sync] ERROR: ${comoApuntarAlCms(ROOT_CMS)}`);
+    console.error(`[cms-sync]   (la ruta salió de: ${ORIGEN_CMS})`);
     process.exit(1);
   }
 

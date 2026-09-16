@@ -22,6 +22,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { frameworksConstruibles } from './lib/frameworks.mjs';
+import { raizCdnLocal } from './lib/rutas-hermanas.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -33,7 +34,12 @@ const OUT = outFlag !== -1 ? resolve(args[outFlag + 1]) : join(ROOT, 'catalog.ht
 // ─── Data loading ─────────────────────────────────────────────────────────────
 const REGISTRY_PATH = join(ROOT, 'vitals/contracts/src/element-registry.json');
 const INPUTS_PATH   = join(ROOT, 'vitals/contracts/src/element-inputs.json');
-const CDN_ROOT      = process.env.CDN_ROOT ?? 'C:\\LOCAL_CDN\\synergos';
+// El default era `C:\LOCAL_CDN\synergos` — una ruta que sólo existe en la
+// máquina donde se escribió, y el patrón que este repo ya pagó caro. Hoy cae a
+// `public/synergos`, la salida de `npm run build:cdn`, que existe en cualquier
+// clon que haya construido; `CDN_ROOT` sigue mandando cuando se pasa, que es lo
+// que hace `build-cdn.mjs` con el árbol recién publicado (#57).
+const CDN_ROOT      = raizCdnLocal({ raizUi: ROOT });
 
 const registry   = JSON.parse(readFileSync(REGISTRY_PATH, 'utf-8'));
 const inputsData = JSON.parse(readFileSync(INPUTS_PATH, 'utf-8'));

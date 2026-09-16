@@ -240,12 +240,22 @@ sigue versionado es código y es decisión → HU.
   `synergos-bff-author`, `synergos-capability-author` y, la que importa,
   **`synergos-ticket-first`**: quien entra por este repo no se entera de que el
   proceso existe.
-- **`cms-sync.mjs` no honra `SYNERGOS_CMS_PATH`** (sólo `--cms-path` o el
-  hermano), mientras `validate-cms-contracts.mjs` sí. Como
-  `contracts:validate` encadena los dos, en un contenedor sin los repos como
-  hermanos el gate completo no corre aunque cada mitad sepa correr.
-- **`catalog.mjs` cae por defecto a `C:\LOCAL_CDN\synergos`**, una ruta de una
-  sola máquina.
+- ~~**`cms-sync.mjs` no honra `SYNERGOS_CMS_PATH`**~~ **CERRADO en #57.** Aceptaba sólo
+  `--cms-path` o el hermano, mientras `validate-cms-contracts.mjs` aceptaba las tres. Como
+  `contracts:validate` encadena los dos, en un contenedor sin los repos como hermanos el gate
+  completo no llegaba al final aunque cada mitad supiera correr. Hoy la resolución vive en
+  `tools/lib/rutas-hermanas.mjs` —promovida al **segundo** consumidor, que es cuando toca— y
+  devuelve **de dónde salió la ruta**, para que el mensaje de fallo no mande a adivinar cuál de
+  las tres formas falló. Verificado desde un clon con el CMS **fuera** del directorio hermano:
+  los cuatro pasos cruzados en `exit=0` con sólo `SYNERGOS_CMS_PATH`.
+- ~~**`catalog.mjs` cae por defecto a `C:\LOCAL_CDN\synergos`**~~ **CERRADO en el mismo commit**, y
+  **eran TRES copias, no una**: `catalog.mjs`, `refresh-skill-catalog.mjs` y dos líneas de prosa
+  que ese script **escribe dentro del catálogo generado** afirmando que el CMS lee de
+  `C:\LOCAL_CDN`. La tercera no la vio nadie hasta que el spec la cruzó. Hoy el default es
+  `public/synergos` —la salida de `build:cdn`, que existe en cualquier clon que haya
+  construido— y `CDN_ROOT` sigue mandando. `publish-runtime.mjs` conserva el suyo **a
+  propósito**: ahí `LOCAL_CDN` es el DESTINO de una publicación en la máquina del arquitecto, no
+  la fuente de una lectura, y el gate lo nombra como el único permitido.
 - **La definición de hecho del PR no incluye `npm test`**, ni `size:check`, ni
   `contracts:validate`.
 - **`.mcp.json` declara `angular-cli`**, un MCP de generadores, en un repo cuyo
