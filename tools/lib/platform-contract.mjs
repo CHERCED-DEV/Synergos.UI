@@ -37,9 +37,24 @@
  * que haya un segundo runtime que construir, el constructor deja de poder vivir
  * en la raíz y ahí la obligación 6 gana su mitad estática.
  * ─────────────────────────────────────────────────────────────────────────────
+ * LA OCTAVA, QUE LLEGÓ CON LA DECISIÓN DE #62.
+ *
+ * El despiece original medía SIETE. La octava no estaba porque `ElementProtocol`
+ * —la interfaz de `vitals/core` que dice ser *«the interface that every
+ * framework must implement to register a Web Component»*— **no la implementaba
+ * nadie**, así que exigirla habría sido escribir un contrato que la única
+ * plataforma viva incumple. Con la decisión tomada —**honrarlo**— pasa a ser
+ * obligación, y tiene dos dientes porque uno solo no la vuelve real:
+ *
+ *   - **existe un adaptador que la implementa** — si no, la interfaz es un
+ *     comentario con sintaxis (regla 24);
+ *   - **y es el ÚNICO que registra** — si un elemento llama a
+ *     `customElements.define` por su cuenta, el adaptador existe y no manda,
+ *     que es la forma en que un contrato se queda de adorno sin que nada falle.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
-/** Las siete, en el orden en que se leen. El texto es el contrato. */
+/** Las ocho, en el orden en que se leen. El texto es el contrato. */
 export const OBLIGACIONES = [
   { n: 1, titulo: 'package.json propio — es lo que la hace construible' },
   { n: 2, titulo: 'entrada en PLATFORMS con name, distDir, resolveBundlePath y elementDistDir' },
@@ -48,6 +63,7 @@ export const OBLIGACIONES = [
   { n: 5, titulo: 'un cdn.config.mjs con sus externals — el contrato del navegador' },
   { n: 6, titulo: 'runtime publicado con su import-map.json y un puntero latest/' },
   { n: 7, titulo: 'vitals/core-assets traducido a su lenguaje de estilos, con su comprobación' },
+  { n: 8, titulo: 'un adaptador de montaje que implementa ElementProtocol, y es el ÚNICO que registra' },
 ];
 
 /** Las que este gate NO mide, con quién las mide. Se informa, no se esconde. */
@@ -73,11 +89,13 @@ const unirPorDefecto = (...partes) => partes.join('/');
  *           unir?: (...p: string[]) => string }} io
  *   `declaradas` son los `name` de `PLATFORMS`; `fuentes` cuenta las que el
  *   descubrimiento ve para esa plataforma —se pasa como función para no
- *   duplicar acá la regla de qué cuenta como fuente (`todasLasFuentes`)—.
+ *   duplicar acá la regla de qué cuenta como fuente (`todasLasFuentes`)—; y
+ *   `fuentesDe(dir)` lista los ficheros de código bajo un directorio, que es lo
+ *   que la obligación 8 necesita recorrer.
  * @returns {{ n: number, titulo: string, detalle: string }[]} Lo que falta.
  */
 export function revisarPlataforma({
-  raiz, framework, declaradas, existe, leerJson, leer, fuentes, unir = unirPorDefecto,
+  raiz, framework, declaradas, existe, leerJson, leer, fuentes, fuentesDe, unir = unirPorDefecto,
 }) {
   const base = unir(raiz, 'platforms', framework);
   const faltan = [];
@@ -141,7 +159,32 @@ export function revisarPlataforma({
              `y esa traducción se DERIVA: sin comprobación, una copia stale pasa desapercibida.`);
   }
 
+  // 8 ── el adaptador de montaje, y que sea el único que registra (#62).
+  const adaptadores = fuentesDe(unir(base, 'libs'))
+    .filter((f) => /implements\s+ElementProtocol\b/.test(sinComentarios(leer(f))));
+
+  if (adaptadores.length === 0) {
+    falta(8, `ninguna fuente bajo ${unir(base, 'libs')} implementa ElementProtocol. Esa interfaz ` +
+             `vive en vitals/core y dice ser la que «every framework must implement to register ` +
+             `a Web Component»: sin nadie que la implemente es un comentario con sintaxis.`);
+  } else {
+    const registranPorSuCuenta = fuentesDe(unir(base, 'apps'))
+      .filter((f) => /customElements\.define\s*\(/.test(sinComentarios(leer(f))));
+
+    if (registranPorSuCuenta.length > 0) {
+      falta(8, `${registranPorSuCuenta.length} fuente(s) bajo ${unir(base, 'apps')} llaman a ` +
+               `customElements.define por su cuenta (${registranPorSuCuenta.slice(0, 3).join(', ')}` +
+               `${registranPorSuCuenta.length > 3 ? ', …' : ''}). El adaptador existe y no manda: ` +
+               `así es como un contrato se queda de adorno sin que nada falle.`);
+    }
+  }
+
   return faltan;
+}
+
+/** Los comentarios fuera: un gate que mide su propia explicación no mide nada. */
+function sinComentarios(fuente) {
+  return String(fuente).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
 /**

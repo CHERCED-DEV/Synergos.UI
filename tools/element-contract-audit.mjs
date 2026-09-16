@@ -174,6 +174,26 @@ function scanElementProjects() {
     existe: (r) => existsSync(resolve(ROOT, r)),
     leerJson: (r) => JSON.parse(readFileSync(resolve(ROOT, r), 'utf8')),
     leer: (r) => readFileSync(resolve(ROOT, r), 'utf8'),
+    // La obligación 8 (#62) recorre el código de la plataforma: el adaptador
+    // que implementa ElementProtocol, y que nadie registre por su cuenta.
+    fuentesDe: (dir) => {
+      const abs = resolve(ROOT, dir);
+      if (!existsSync(abs)) return [];
+      const salida = [];
+      const walk = (d) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const full = join(d, e.name);
+          if (e.isDirectory()) {
+            if (/^(node_modules|dist|\.cdn-out|\.test-out)$/.test(e.name)) continue;
+            walk(full);
+          } else if (/\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith('.spec.ts')) {
+            salida.push(full);
+          }
+        }
+      };
+      walk(abs);
+      return salida;
+    },
     fuentes: (framework) =>
       todasLasFuentes({
         listar: (dir) => listarDirs(dir),

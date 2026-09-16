@@ -1,13 +1,5 @@
-import { createApplication } from '@angular/platform-browser';
-import { createCustomElement } from '@angular/elements';
+import { registrarElementoAngular } from '@synergos/core';
 import { appConfig } from './app.config';
 import { QuantitySelectorComponent } from '@synergos/shop';
 
-createApplication(appConfig).then((appRef) => {
-  if (!customElements.get('synergos-quantity-selector')) {
-    customElements.define(
-      'synergos-quantity-selector',
-      createCustomElement(QuantitySelectorComponent, { injector: appRef.injector }),
-    );
-  }
-});
+registrarElementoAngular('synergos-quantity-selector', QuantitySelectorComponent, appConfig);
