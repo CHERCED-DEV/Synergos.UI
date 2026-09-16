@@ -44,6 +44,20 @@ NEVER create files outside these directories without explicit user instruction.
   vitals/contracts →  (nothing)
   vitals/core-assets → (nothing — SCSS only)
 
+### La plataforma Preact (platforms/preact/) — la SEGUNDA, desde #64:
+  libs/shared      →  vitals (via @synergos/core, @synergos/contracts)
+  libs/core        →  vitals (@synergos/core: ElementProtocol)
+  apps/*           →  libs/core, libs/shared, vitals
+
+  Nombra lo suyo con su prefijo —@synergos/preact-core, @synergos/preact-shared—
+  y NO pisa @synergos/core, al revés que Angular. Eso es historia de un repo con
+  una sola plataforma; repetirlo haría que el mismo specifier significara dos
+  cosas según la carpeta, que es lo que #58 prohibió para los import maps.
+
+  Su entrada es src/main.tsx y lo declara PLATFORMS[].entrada (#64): la
+  extensión es parte del contrato de una plataforma, no una constante del
+  descubrimiento.
+
 ### Angular layer (platforms/angular/) — flows downward only:
   modules/*        →  libs/shared, libs/core
   apps/experiences →  libs/shared, libs/core, apps/elements (Web Components used in templates)

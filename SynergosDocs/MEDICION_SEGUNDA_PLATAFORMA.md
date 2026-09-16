@@ -15,6 +15,28 @@ un elemento duplicado, y qué se pondría rojo solo.
 
 ## 0. El resumen, para quien sólo lea esto
 
+> ✅ **CONTESTADA (#64). La segunda plataforma existe, es Preact, y su `badge`
+> hidrata.** Lo de abajo es la medición que se hizo ANTES de construirla y se
+> conserva tal cual: es lo que se supo por adelantado y lo que no. El resultado
+> está en §9, al final, junto con las cuatro cosas que la medición no vio venir.
+>
+> **El número que la épica #37 preguntaba**, medido sobre el CDN construido, de
+> una página con UN badge, comprimido:
+>
+> | | runtime | bundle | **piso de la página** |
+> |---|---|---|---|
+> | angular | 214.828 B gz | 787 B | **215.615 B gz** |
+> | preact | 10.373 B gz | 515 B | **10.888 B gz** |
+> | | | | **19,8×** |
+>
+> Con su asterisco, y sin él la cifra miente: 82.189 B de los de Angular son
+> `sg-shared.js`, o sea **55 componentes** del design system, contra 2.120 B del
+> de Preact, que tiene **uno**. Runtime de framework contra runtime de
+> framework son **123.056 B gz contra 7.701**, o sea **16×**. Las dos cifras
+> hacen falta: la primera es lo que paga el visitante hoy, la segunda es lo que
+> se le puede achacar al framework.
+
+
 | | |
 |---|---|
 | **Lo que la épica suponía caro** | reescribir el design system en el segundo lenguaje |
@@ -670,3 +692,94 @@ a seis consumidores; acá alcanza con uno real.
   Mientras haya uno da igual; con dos, un elemento publicado sólo en react+svelte se
   serviría según el orden de publicación. Es del otro árbol y se anota acá para que
   quien abra la HU 2 lo sepa.
+
+---
+
+## 9. Lo que pasó al construirla — #64, y las cuatro que esta medición no vio
+
+Lo de arriba se midió el 2026-09-15 sin escribir una línea de la segunda
+plataforma. Esto se escribe el 2026-09-16, con ella publicada. **Lo que la
+medición acertó no se repite acá**; lo que sigue es lo que costó y no estaba.
+
+### Lo que la medición acertó
+
+El coste por elemento (**4 + 67 + 32 = 103 líneas** contra 188), el SCSS
+reusado **byte a byte** —`diff` vacío—, y que el hallazgo de §3 era el que
+bloqueaba todo: sin #58, publicar este runtime habría apagado el sitio entero.
+
+### Y el framework fue **Preact**, no React
+
+La medición dejó la decisión abierta. La decidió el peso —47 KB gz de React
+contra 6,4 de Preact, frente a los ≈133 de Angular: la primera cifra es un
+encogimiento de hombros y la segunda es una medición— y dos cosas más: Preact
+tiene su propio VDOM y sus propios hooks, así que **ejercita el contrato de
+verdad**, y su build es **un esbuild de 30 líneas** contra un `NgtscProgram`.
+Eso último contesta media pregunta de la épica: **el contrato de plataforma no
+exige un compilador.**
+
+### 1. `require.resolve()` devuelve el CommonJS, y la suite no lo vio
+
+El runtime se construía desde `createRequire(...).resolve('preact')`, que
+resuelve por la condición `require`: el CJS. Empaquetado como ESM sale con **un
+solo export**, y el navegador contesta *«does not provide an export named
+`render`»*. **Nada hidrata.**
+
+Los 8 specs del elemento estaban **verdes**, porque el `vitest.config.ts` de la
+plataforma resolvía `preact` al paquete de node —que sí tiene exports
+nombrados—. O sea que lo que estaba bajo prueba no era el artefacto publicado:
+la regla 16 con el sujeto movido. **Lo destapó Chromium**, igual que
+`humo-portada.mjs` destapó el `@using` que faltaba del lado del CMS.
+
+Hoy el alias apunta al **runtime construido** y la mutación lo confirma: con
+`require.resolve` puesto, 6 de 8 specs en rojo.
+
+### 2. Un `alias` de esbuild PISA a `external`
+
+El specifier deja de ser bare y la lista de externals ya no lo ve. El badge
+salía a **17.525 B** con el adaptador y el design system dentro — compilando,
+publicando y entrando en el techo de su tier. Lo único que se rompía era la idea
+fundacional del repo, en silencio.
+
+### 3. `@synergos/contracts` no se puede podar
+
+Hace `Object.freeze(Object.fromEntries(registry…))` en ámbito de módulo sobre
+las 132 entradas del registry, así que **cualquiera que toque el barril de
+`@synergos/core` se lleva el registry entero**: 16.114 B contra 998. En Angular
+no se nota porque se paga UNA vez en `sg-core.js`; en una plataforma que
+empaqueta `vitals`, se paga **por elemento**. Se importa por
+`@synergos/core/inputs`.
+
+### 4. Una tabla de alias se lee de arriba abajo — tres veces
+
+El alias casa por **prefijo y en orden**, no por clave exacta. Con el raíz
+delante, `@synergos/vitals-core/inputs` acaba en `…/index.js/inputs` y
+`preact/jsx-runtime` en `…/preact.js/jsx-runtime`. Pasó en el
+`vitest.config.ts` de Angular (236 ficheros de spec en rojo), en su `build.mjs`
+y en el `vitest.config.ts` de Preact. **Las tres veces en la misma épica.**
+
+### Lo que quedó ABIERTO, nombrado en vez de dado por hecho
+
+**Cuál de las dos implementaciones sirve el CMS lo decide un interruptor
+GLOBAL.** `ElegirFramework` prefiere `BundleRegistry:DefaultFramework` y cae al
+primero que haya. Verificado con el cliente real contra el CDN construido:
+
+| `DefaultFramework` | `synergos-badge` | los otros 129 |
+|---|---|---|
+| `angular` | `/badge/angular/0.1.0/main.js` | angular |
+| `preact` | `/badge/preact/0.1.0/main.js` | **angular** |
+
+O sea que el escaparate se enciende con una línea de configuración y **no
+arrastra a nadie**, porque un elemento sin implementación en el framework
+pedido cae al que tiene. Eso alcanza para lo que la épica quería enseñar. Lo
+que NO existe es pedir *este badge de Preact y aquél de Angular en la misma
+página*, y no hace falta hoy: sería producto, y un `badge` de Preact que fuera
+producto sería otro elemento con su nombre y su DocType (#59).
+
+**Y falta la página del CMS con el elemento colocado.** Lo verificado en
+Chromium es el HTML que el CMS produciría —su import map compuesto (23
+entradas, los dos runtimes, sin conflicto) y la URL que su propio cliente
+resolvió—, con los dos badges hidratando idénticos: mismo texto, mismas clases
+`syn-badge--brand` / `syn-badge--neutral`. Lo que falta es que un editor
+coloque el bloque en una página, y eso es contenido: **el agente no lo autora**
+(ADR 0129 del CMS).
+
