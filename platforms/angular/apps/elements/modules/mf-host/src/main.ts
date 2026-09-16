@@ -1,13 +1,5 @@
-import { createCustomElement } from '@angular/elements';
-import { createApplication } from '@angular/platform-browser';
+import { registrarElementoAngular } from '@synergos/core';
 import { appConfig } from './app.config';
 import { MfHostElementComponent } from './mf-host/mf-host';
 
-createApplication(appConfig).then((appRef) => {
-  if (!customElements.get('synergos-mf-host')) {
-    const MfHostElement = createCustomElement(MfHostElementComponent, {
-      injector: appRef.injector,
-    });
-    customElements.define('synergos-mf-host', MfHostElement);
-  }
-});
+registrarElementoAngular('synergos-mf-host', MfHostElementComponent, appConfig);

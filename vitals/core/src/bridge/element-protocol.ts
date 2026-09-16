@@ -1,14 +1,27 @@
 /**
- * Interface that every framework must implement to register a Web Component.
- * Defines the contract between the CMS orchestrator and any UI framework.
+ * La interfaz que toda plataforma implementa para montar un Web Component.
+ * Es el contrato entre el orquestador del CMS y cualquier framework de UI.
  *
- * ⚠ **HOY NO LO IMPLEMENTA NADIE** (hallazgo #67). `grep -rn "ElementProtocol"`
- * sobre `platforms/` y `vitals/`, fuera de este fichero, devuelve cero: Angular
- * registra sus elementos con `createCustomElement` de `@angular/elements`
- * directo. O sea que esto afirma una obligación que la única plataforma viva no
- * cumple — la regla 24 del `CLAUDE.md`, y en la capa agnóstica, que es donde lo
- * va a leer quien escriba la segunda plataforma. La decisión —honrarlo o
- * retirarlo— es de la HU #62, y hasta entonces nadie debería darlo por bueno.
+ * **Angular la implementa desde #62** (`AngularElement`, en
+ * `platforms/angular/libs/core/src/element-protocol/`), y es la **octava
+ * obligación del contrato de plataforma**: existe un adaptador que la
+ * implementa, y es el ÚNICO que llama a `customElements.define`. Hay gate
+ * (`platform-contract`), con los dos dientes — porque el primero solo deja que
+ * el adaptador exista y no mande, que es como un contrato honrado vuelve a ser
+ * decorativo sin que nada falle.
+ *
+ * Esta cabecera decía **«HOY NO LO IMPLEMENTA NADIE»** (hallazgo #67), y era
+ * cierto: `grep -rn "ElementProtocol"` fuera de este fichero devolvía cero. Se
+ * decidió **honrarlo** en vez de retirarlo, y lo que lo hizo barato fue medir:
+ * los **127 de 127** `main.ts` tenían la misma forma, así que no había un
+ * patrón que respetar sino una función que nadie había extraído.
+ *
+ * **Lo que el contrato NO exige, dicho para que nadie lo suponga:** que el
+ * camino de producción pase por `mount()`. El CMS emite `<synergos-badge>` en
+ * el SSR y el navegador monta por TAG; el adaptador registra ese tag y expone
+ * además el montaje imperativo, que es lo que esta interfaz describe. Reescribir
+ * el camino por tag para que pase por aquí obligaría a reimplementar la coerción
+ * de atributos que `@angular/elements` ya hace bien.
  */
 import type { FrameworkKind } from '@synergos/contracts';
 

@@ -50,7 +50,7 @@ Recorrido completo y clasificado. **(a)** obligatoria para cualquier plataforma 
 | `libs/` (7) | ver §6 | mixto | |
 | `apps/**/src/main.ts` | 127 ficheros | **(a)** | **La convención de descubrimiento**: `apps/**/src/main.ts`. Ver §5.2(e) — la extensión está cableada. |
 
-### El contrato, entonces, son SIETE obligaciones — ✅ escritas y con gate en #62
+### El contrato son OCHO obligaciones — ✅ escritas y con gate en #62
 
 > **Cerrado (#62), con su alcance dicho.** `tools/lib/platform-contract.mjs` lleva las siete como
 > dato (`OBLIGACIONES`) y rechaza nombrándolas **una por una con su ruta esperada**, no con un
@@ -76,7 +76,22 @@ Recorrido completo y clasificado. **(a)** obligatoria para cualquier plataforma 
 > Angular su `cdn.config.mjs`, el cruce contra el disco real se pone **rojo**, que es lo que
 > prueba que mira de verdad.
 >
-> **Lo que NO se decidió acá es el señuelo**, `ElementProtocol` — ver más abajo y #67.
+> **Y el señuelo se resolvió: se decidió HONRARLO, y es la OCTAVA obligación.** `AngularElement`
+> (`platforms/angular/libs/core/src/element-protocol/`) implementa `ElementProtocol`, los **127**
+> `main.ts` lo llaman, y ninguno vuelve a tocar `customElements.define` — eso es el segundo
+> diente del gate, porque con el primero solo el adaptador existe y no manda.
+>
+> **Lo que lo hizo barato fue medir**: los 127 de 127 tenían la MISMA forma, sólo con el orden de
+> los imports y el formato cambiando. Un patrón repetido 127 veces sin variación no es un patrón:
+> es una función que nadie extrajo. Y el registro se fue del bundle de cada elemento al runtime
+> compartido —`@synergos/core` es un external— así que se descarga una vez en vez de 127.
+>
+> **Y el adaptador tenía dos defectos que sólo el spec destapó**, los dos de la familia que este
+> repo persigue: `mount()` devuelve `void` mientras crear la aplicación es asíncrono, así que un
+> `update` en el mismo tick **se perdía sin que nada lo dijera**; y `listo` significaba «Angular
+> creó el componente» y no «el DOM lo refleja», así que quien montara para medir leía un DOM
+> vacío. Los dos se cierran encadenando sobre la promesa del montaje y esperando a `whenStable`.
+> Ver #67.
 
 1. `platforms/<nombre>/package.json` existe.
 2. Hay una entrada en `PLATFORMS` (`tools/lib/synergos-config.mjs`) con `name`,
