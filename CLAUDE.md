@@ -101,6 +101,7 @@ está vigilando nada.
 | gate | vigila | se ve fallar si… |
 |---|---|---|
 | `cdn-cache-policy` | qué puede llevar `immutable` | pones caché larga en una ruta que se mueve |
+| `platform-contract` | las **siete obligaciones** de una plataforma, nombradas una por una — y **dice cuáles NO mide** (la 4 a medias y la 6 entera, con quién sí las mide) | se crea `platforms/react/` a medias y el build pasa como si nada (#62) |
 | `cdn-runtime-check` | que el runtime de CADA framework que publicó elementos esté antes que ellos | se publica el runtime después de los elementos (#7), o se publican los de una plataforma sin el suyo (#61) |
 | `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida | un external se empaqueta dentro de un elemento (#8) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |

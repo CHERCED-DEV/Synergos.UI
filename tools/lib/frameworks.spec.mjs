@@ -208,6 +208,10 @@ describe('frameworksDelRegistry', () => {
  * a un framework: su respuesta tiene que valer igual con uno o con cuatro.
  */
 const CIEGAS_AL_FRAMEWORK = [
+  // Recibe el framework y compone la ruta. Lo nombra en su cabecera —para
+  // explicar por qué la obligación 6 no tiene mitad estática— y eso es prosa,
+  // que el censo quita antes de mirar (#62).
+  'lib/platform-contract.mjs',
   // Dejó de ser «legítimamente de Angular» en #61: la excepción valía mientras
   // hubiera UNA plataforma, y con dos publicar elementos de React sin su runtime
   // pasaba en verde. Hoy recorre lo publicado y le exige runtime a cada uno.
@@ -409,6 +413,10 @@ const RUTAS_DE_PLATAFORMA = {
   'lib/vitals-purity.spec.mjs':
     'El caso feo del gate es una FUGA RELATIVA desde vitals/ hacia un componente de Angular ' +
     '(#36): la ruta ES el defecto que se reproduce, así que tiene que estar escrita.',
+  'lib/platform-contract.spec.mjs':
+    'Los fixtures montan una `platforms/react/` a medias para ver el contrato rechazar pieza por ' +
+    'pieza (#62). La ruta ES el caso que se reproduce, igual que la fuga relativa de ' +
+    'vitals-purity: escribirla es el punto.',
   'lib/template-bindings.spec.mjs':
     'La ÚNICA de las seis cuya regla es de Angular: `[algo]="… || null"` es property binding ' +
     'de la sintaxis de plantillas de Angular, y un `[x]="y || null"` no significa nada en JSX. ' +
@@ -422,12 +430,28 @@ describe('el censo de RUTAS de plataforma en tools/lib (#60)', () => {
     .map((f) => `lib/${f}`)
     .sort();
 
-  /** `platforms/<framework>` fuera de los comentarios. La prosa puede nombrarlo. */
+  /**
+   * `platforms/<framework>` fuera de los comentarios. La prosa puede nombrarlo.
+   *
+   * **El corte tuvo que afilarse al primer uso**, que es para lo que sirve tener
+   * el caso feo del repo delante y no el bonito. La primera versión era
+   * `platforms[/'"`,\s]+([a-z]…)`, y eso casa con
+   * `unir(raiz, 'platforms', framework)` capturando **el nombre de la
+   * variable** — o sea marcaba como cableada justamente la forma DERIVADA, que
+   * es la que este censo existe para promover. Se vio al escribir
+   * `platform-contract.mjs`, no leyendo el regex.
+   *
+   * Hoy sólo cuenta el literal: `platforms/angular` dentro de una cadena, o
+   * `'platforms', 'angular'` como dos literales seguidos de `join`.
+   */
   const rutasCableadas = (relativo) => {
     const src = readFileSync(resolve(ROOT, 'tools', relativo), 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '');
-    return [...new Set([...src.matchAll(/platforms[/'"`,\s]+([a-z][a-z0-9-]*)/g)].map((m) => m[1]))];
+    return [...new Set([
+      ...[...src.matchAll(/platforms\/([a-z][a-z0-9-]*)/g)].map((m) => m[1]),
+      ...[...src.matchAll(/['"`]platforms['"`]\s*,\s*['"`]([a-z][a-z0-9-]*)['"`]/g)].map((m) => m[1]),
+    ])];
   };
 
   it('hay specs que censar, y son la mayoría', () => {
@@ -435,6 +459,16 @@ describe('el censo de RUTAS de plataforma en tools/lib (#60)', () => {
     // — que son justamente los que el censo de arriba no mira.
     expect(ficheros.length).toBeGreaterThan(30);
     expect(ficheros.filter((f) => f.endsWith('.spec.mjs')).length).toBeGreaterThan(15);
+  });
+
+  it('la forma DERIVADA no cuenta como cableada — el corte que costó afilar', () => {
+    // `unir(raiz, 'platforms', framework)` es lo que este censo quiere que la
+    // gente escriba, y la primera versión del regex lo marcaba como cableado
+    // capturando el nombre de la variable. Un gate que rechaza la salida buena
+    // enseña a desactivarlo.
+    expect(rutasCableadas('lib/platform-contract.mjs')).toEqual([]);
+    // Y el literal sigue contando, en las dos formas.
+    expect(rutasCableadas('lib/synergos-config.mjs')).toContain('angular');
   });
 
   it('nadie cablea `platforms/<algo>` sin estar declarado', () => {

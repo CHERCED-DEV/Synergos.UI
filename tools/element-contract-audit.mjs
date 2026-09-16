@@ -4,7 +4,12 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { descubrirFuentes, revisarFuentesDuplicadas, PLATAFORMAS } from './lib/element-sources.mjs';
+import {
+  descubrirFuentes, revisarFuentesDuplicadas, todasLasFuentes, PLATAFORMAS,
+} from './lib/element-sources.mjs';
+import { revisarContratoDePlataformas } from './lib/platform-contract.mjs';
+import { frameworksConstruibles } from './lib/frameworks.mjs';
+import { ALL_FRAMEWORKS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
@@ -149,6 +154,40 @@ function scanElementProjects() {
   // que dos plataformas con el mismo elemento dejaban UNA fuera sin decirlo — y
   // lo que se ponía rojo era el cruce contra el registry, con un mensaje que
   // culpaba a la entrada del registry. Acá se para antes, nombrando las dos.
+  // El contrato de una plataforma, ANTES que nada (#62). Si a `platforms/react/`
+  // le faltan piezas, lo que sale después son síntomas: «ninguna plataforma
+  // tiene su fuente» para cada entrada suya, que manda a mirar el registry. Las
+  // siete obligaciones nombradas una por una son la causa.
+  const listarDirs = (dir) => {
+    const abs = resolve(ROOT, dir);
+    return existsSync(abs)
+      ? readdirSync(abs, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+      : [];
+  };
+  const incumplen = revisarContratoDePlataformas({
+    raiz: ROOT,
+    // Del DISCO, no de PLATFORMS: lo que hay que auditar es la carpeta que
+    // alguien creó, y que le falte la entrada en PLATFORMS es justamente la
+    // obligación 2.
+    frameworks: frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join }),
+    declaradas: ALL_FRAMEWORKS,
+    existe: (r) => existsSync(resolve(ROOT, r)),
+    leerJson: (r) => JSON.parse(readFileSync(resolve(ROOT, r), 'utf8')),
+    leer: (r) => readFileSync(resolve(ROOT, r), 'utf8'),
+    fuentes: (framework) =>
+      todasLasFuentes({
+        listar: (dir) => listarDirs(dir),
+        existe: (r) => existsSync(resolve(ROOT, r)),
+        plataformas: [{ framework, apps: `platforms/${framework}/apps` }],
+      }).length,
+    unir: join,
+  });
+  if (incumplen.length > 0) {
+    console.error('\n[element-audit] ✗ el contrato de plataforma no se cumple:');
+    for (const linea of incumplen) console.error(`[element-audit]   ${linea}`);
+    process.exit(1);
+  }
+
   const duplicadas = revisarFuentesDuplicadas(io);
   if (duplicadas.length > 0) {
     console.error('\n[element-audit] ✗ el mismo elemento tiene fuente en dos plataformas:');
