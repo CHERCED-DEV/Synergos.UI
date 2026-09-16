@@ -410,7 +410,7 @@ verde sobre el sitio equivocado*.
 > plataformas; y con `platforms/react/package.json` pero sin un solo bundle
 > publicado → **verde**, que es la asimetría.
 
-**(b) Los seis gates que recorren el disco lo recorren sólo en `platforms/angular/`.**
+**(b) ✅ Los seis gates que recorren el disco lo recorrían sólo en `platforms/angular/` — CERRADO en #60.**
 Y el censo de #44 **no los ve**, porque filtra `!f.endsWith('.spec.mjs')` — y son
 los `.spec.mjs` los que llevan las rutas:
 
@@ -422,6 +422,25 @@ los `.spec.mjs` los que llevan las rutas:
 | `shell-consumers.spec.mjs` | `platforms/angular` | **no** — shells que nadie monta |
 | `facet-selection.spec.mjs` | `platforms/angular` | **no** — facetas multi-valor que viajan de a una |
 | `template-bindings.spec.mjs` | `platforms/angular` | **sí** — `[algo]="… \|\| null"` es *property binding* de Angular |
+
+> **Cerrado (#60).** Las cinco neutrales recorren `raicesEnDisco(REPO)` —todas las plataformas
+> construibles, derivadas del disco— y `template-bindings` se queda donde estaba con su razón
+> escrita. El censo de #44 se amplió con un **segundo** censo, y el criterio tuvo que ser otro:
+> para una herramienta la pregunta es «¿nombra un framework?», pero para un spec nombrarlo es
+> normal —medido, **18 de 21** specs lo nombran en fixtures—, así que ese criterio habría dado
+> dieciocho excepciones, que es como se consigue que un censo deje de leerse. Lo que se vigila
+> es la **ruta cableada** (`platforms/<algo>` fuera de los comentarios), que es exactamente lo
+> que esta tabla midió: siete ficheros, declarados con su razón, en los dos sentidos.
+>
+> Mutación del ticket, con `platforms/react/` construible, una `.badge__muerta` sin emisor y un
+> `it.skip` sin motivo: el gate **anterior** sale **verde** sobre ese árbol y el nuevo sale
+> **rojo** nombrando `badge: .badge__muerta (badge.scss:2)` y los dos saltados. Y el censo se
+> mutó en los dos sentidos: una ruta cableada sin declarar, rojo; una declaración que sobra,
+> rojo.
+>
+> **Lo que sigue sin cubrirse, dicho en vez de insinuado:** una plataforma cuyo árbol interno no
+> se parezca al de Angular —`apps/elements/<tier>s/`, `libs/`— queda invisible para estos gates,
+> porque cada uno sigue sabiendo qué subcarpeta mirar. Eso es #62.
 
 Cinco de seis son reglas **neutrales** apuntando a una ruta **cableada**. El censo
 está bien escrito y tiene un hueco justo donde vive el recorrido del disco.

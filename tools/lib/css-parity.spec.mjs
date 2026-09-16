@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
+
+import { raicesEnDisco } from './frameworks.mjs';
 import { clasesDeclaradas, clasesEmitidas, estaEmitida, huerfanas } from './css-parity.mjs';
 
 /**
@@ -24,7 +26,18 @@ import { clasesDeclaradas, clasesEmitidas, estaEmitida, huerfanas } from './css-
  */
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const APPS = path.join(REPO, 'platforms/angular/apps/elements/modules');
+/**
+ * Las raíces de TODAS las plataformas construibles, no `platforms/angular` (#60).
+ *
+ * La regla de este gate es NEUTRAL —el CSS muerto lo tiene cualquier framework: una app que cambia markup propio por una pieza del catálogo deja su SCSS atrás— y estaba apuntando a una ruta
+ * cableada: la regla 25. La lista sale del disco, que es lo único que encuentra
+ * una plataforma que nadie escribió en ningún sitio. Lo que NO cubre, dicho en
+ * vez de insinuado: una plataforma cuyo árbol interno no se parezca al de
+ * Angular queda invisible acá, porque este gate sigue sabiendo qué subcarpeta
+ * mirar. El contrato de layout es #62; hasta entonces lo que impide que esto
+ * pase en verde sin mirar nada es la red de seguridad de más abajo.
+ */
+const RAICES = raicesEnDisco(REPO);
 
 /**
  * Clases que se declaran a propósito sin emisor en la app, con la razón al lado.
@@ -36,9 +49,13 @@ const APPS = path.join(REPO, 'platforms/angular/apps/elements/modules');
 const EXENTAS = new Map();
 
 function apps() {
-  return readdirSync(APPS)
-    .map((app) => ({ app, dir: path.join(APPS, app, 'src', app) }))
-    .filter(({ dir }) => existsSync(dir));
+  return RAICES.flatMap((raiz) => {
+    const base = path.join(raiz, 'apps/elements/modules');
+    if (!existsSync(base)) return [];
+    return readdirSync(base)
+      .map((app) => ({ app, dir: path.join(base, app, 'src', app) }))
+      .filter(({ dir }) => existsSync(dir));
+  });
 }
 
 function fuentesDe(dir) {

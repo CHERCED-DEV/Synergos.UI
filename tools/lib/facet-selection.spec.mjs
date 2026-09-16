@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { raicesEnDisco } from './frameworks.mjs';
+
 
 /**
  * Facetas multi-valor que viajan de a una (issue #18).
@@ -39,7 +41,18 @@ import path from 'node:path';
  */
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const NG = path.join(REPO, 'platforms/angular');
+/**
+ * Las raíces de TODAS las plataformas construibles, no `platforms/angular` (#60).
+ *
+ * La regla de este gate es NEUTRAL —una faceta multi-valor que viaja de a una está rota en cualquier framework— y estaba apuntando a una ruta
+ * cableada: la regla 25. La lista sale del disco, que es lo único que encuentra
+ * una plataforma que nadie escribió en ningún sitio. Lo que NO cubre, dicho en
+ * vez de insinuado: una plataforma cuyo árbol interno no se parezca al de
+ * Angular queda invisible acá, porque este gate sigue sabiendo qué subcarpeta
+ * mirar. El contrato de layout es #62; hasta entonces lo que impide que esto
+ * pase en verde sin mirar nada es la red de seguridad de más abajo.
+ */
+const RAICES = raicesEnDisco(REPO);
 
 /** `facets['x'][0]`, `facets[key] ?? [])[0]`, `.facets[k]?.[0]` — todas las formas. */
 const APLANADO = /facets\s*(?:\[[^\]]+\]|\.\w+)\s*(?:\?\.)?\s*\[\s*0\s*\]|\(\s*\w*\.?facets\[[^\]]+\]\s*\?\?\s*\[\]\s*\)\s*\[\s*0\s*\]/;
@@ -94,12 +107,16 @@ function declaraValorUnicoEnPlantilla(dirApp) {
 }
 
 describe('selección de facetas', () => {
-  const raizApps = path.join(NG, 'apps/elements/modules');
-  const apps = existsSync(raizApps)
-    ? readdirSync(raizApps, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
-        .map((e) => path.join(raizApps, e.name))
-    : [];
+  // Todas las plataformas, no la primera: `RAICES[0]` es la constante con un paso
+  // más — hoy da angular porque es la única, y mañana lo decide el orden alfabético.
+  const raicesApps = RAICES.map((raiz) => path.join(raiz, 'apps/elements/modules'));
+  const apps = raicesApps.flatMap((raizApps) =>
+    existsSync(raizApps)
+      ? readdirSync(raizApps, { withFileTypes: true })
+          .filter((e) => e.isDirectory())
+          .map((e) => path.join(raizApps, e.name))
+      : [],
+  );
 
   it('hay apps que inspeccionar', () => {
     expect(apps.length).toBeGreaterThan(5);

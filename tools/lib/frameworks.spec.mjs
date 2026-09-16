@@ -364,3 +364,99 @@ describe('el censo de `angular` en tools/', () => {
     expect(menciones.length, `${relativo} ya no nombra a Angular: borrá la excepción`).toBeGreaterThan(0);
   });
 });
+
+/**
+ * El segundo censo: las RUTAS de plataforma, y por qué la pregunta es otra (#60).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * El censo de arriba filtra `!f.endsWith('.spec.mjs')` — y **los `.spec.mjs` son
+ * justo los que recorren el disco**. Las `lib/*.mjs` son funciones puras con el
+ * disco inyectado (por eso se pueden ver fallar), así que la ruta de verdad la
+ * escribe el spec. Seis lo hacían, y **cinco llevan reglas neutrales**: CSS
+ * muerto, un `it.skip` sin motivo, un helper del bridge sin consumidor, un shell
+ * que nadie monta, una faceta multi-valor que viaja de a una. Ninguna de esas
+ * cinco es de Angular; las cinco miraban sólo `platforms/angular/`.
+ *
+ * **Y el criterio NO puede ser el mismo.** Para una herramienta la pregunta es
+ * «¿nombra un framework?». Para un spec, nombrarlo es NORMAL —`'angular'` y
+ * `'react'` son datos de fixture, y medido, 18 de 21 specs lo nombran—, así que
+ * ese criterio daría un muro de dieciocho excepciones, que es como se consigue
+ * que un censo deje de leerse. Lo que hay que vigilar acá es **la RUTA
+ * CABLEADA**: `platforms/<algo>` escrito a mano, que es exactamente el defecto
+ * que §5.2(b) midió.
+ *
+ * Por eso son dos censos y no uno, y un fichero puede estar en los dos: no es
+ * doble contabilidad, son dos preguntas distintas sobre el mismo fichero.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+const RUTAS_DE_PLATAFORMA = {
+  'lib/synergos-config.mjs':
+    'Es DONDE vive PLATFORMS, con la ruta del dist de cada plataforma. Que escriba ' +
+    'platforms/angular es su trabajo; que lo escriba cualquier otro sitio es el defecto.',
+  'lib/cdn-size-budget.mjs':
+    'Un mensaje de error apunta a platforms/angular/cdn.config.mjs, que es donde se declara ' +
+    'la lista de externals. Es una pista para una persona, no una ruta que el gate recorra.',
+  'lib/shell-cta-tokens.mjs':
+    'Lee los shells de platforms/angular/libs para comprobar sus tokens de CTA (#25). Caduca ' +
+    'el día que exista un segundo catálogo de shells — es la misma forma que cdn-runtime-check ' +
+    'tenía antes de #61, y se arregla igual: recorriendo raicesDePlataformas.',
+  'lib/element-sources.spec.mjs':
+    'El fixture afirma dónde vive hoy la fuente de un elemento para que el descubrimiento no ' +
+    'se desvíe en silencio. Es una aserción SOBRE el disco, no un recorrido cableado.',
+  'lib/frameworks.spec.mjs':
+    'Es el censo mismo. Sus fixtures nombran platforms/react y platforms/notas a propósito, ' +
+    'para probar los dos sentidos de revisarPlataformas sin que exista ninguna de las dos.',
+  'lib/vitals-purity.spec.mjs':
+    'El caso feo del gate es una FUGA RELATIVA desde vitals/ hacia un componente de Angular ' +
+    '(#36): la ruta ES el defecto que se reproduce, así que tiene que estar escrita.',
+  'lib/template-bindings.spec.mjs':
+    'La ÚNICA de las seis cuya regla es de Angular: `[algo]="… || null"` es property binding ' +
+    'de la sintaxis de plantillas de Angular, y un `[x]="y || null"` no significa nada en JSX. ' +
+    'El día que haya un gate equivalente para otra sintaxis será otro fichero, no éste.',
+};
+
+describe('el censo de RUTAS de plataforma en tools/lib (#60)', () => {
+  const LIB = resolve(ROOT, 'tools/lib');
+  const ficheros = readdirSync(LIB)
+    .filter((f) => f.endsWith('.mjs'))
+    .map((f) => `lib/${f}`)
+    .sort();
+
+  /** `platforms/<framework>` fuera de los comentarios. La prosa puede nombrarlo. */
+  const rutasCableadas = (relativo) => {
+    const src = readFileSync(resolve(ROOT, 'tools', relativo), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    return [...new Set([...src.matchAll(/platforms[/'"`,\s]+([a-z][a-z0-9-]*)/g)].map((m) => m[1]))];
+  };
+
+  it('hay specs que censar, y son la mayoría', () => {
+    // Red de seguridad doble: que el descubrimiento vea, y que vea los `.spec.mjs`
+    // — que son justamente los que el censo de arriba no mira.
+    expect(ficheros.length).toBeGreaterThan(30);
+    expect(ficheros.filter((f) => f.endsWith('.spec.mjs')).length).toBeGreaterThan(15);
+  });
+
+  it('nadie cablea `platforms/<algo>` sin estar declarado', () => {
+    const conRuta = ficheros.filter((f) => rutasCableadas(f).length > 0);
+    const sinDeclarar = conRuta.filter((f) => !(f in RUTAS_DE_PLATAFORMA));
+
+    expect(
+      sinDeclarar,
+      'cablea platforms/<framework> y no está en RUTAS_DE_PLATAFORMA. Si la regla es neutral, ' +
+        'usá raicesEnDisco(REPO); si de verdad es de una plataforma, declaralo con su razón.',
+    ).toEqual([]);
+  });
+
+  it('…y en los dos sentidos: una declaración que sobra rompe', () => {
+    // La mitad que hace que el censo siga sirviendo. Una excepción sobre un
+    // fichero que ya no cablea nada deja de leerse, y la siguiente que entre lo
+    // hará sin discusión. Es lo que acaba de pasar con cdn-runtime-check (#61).
+    const sobran = Object.keys(RUTAS_DE_PLATAFORMA).filter((f) => rutasCableadas(f).length === 0);
+    expect(sobran, 'ya no cablea ninguna ruta de plataforma: borrá la declaración').toEqual([]);
+  });
+
+  it.each(Object.entries(RUTAS_DE_PLATAFORMA))('%s tiene razón escrita', (relativo, razon) => {
+    expect(razon.length, `${relativo}: la razón tiene que decir algo`).toBeGreaterThan(60);
+  });
+});
