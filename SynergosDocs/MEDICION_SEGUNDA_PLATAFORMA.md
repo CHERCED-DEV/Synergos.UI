@@ -50,7 +50,33 @@ Recorrido completo y clasificado. **(a)** obligatoria para cualquier plataforma 
 | `libs/` (7) | ver §6 | mixto | |
 | `apps/**/src/main.ts` | 127 ficheros | **(a)** | **La convención de descubrimiento**: `apps/**/src/main.ts`. Ver §5.2(e) — la extensión está cableada. |
 
-### El contrato, entonces, son SIETE obligaciones — y hoy no está escrito en ninguna parte
+### El contrato, entonces, son SIETE obligaciones — ✅ escritas y con gate en #62
+
+> **Cerrado (#62), con su alcance dicho.** `tools/lib/platform-contract.mjs` lleva las siete como
+> dato (`OBLIGACIONES`) y rechaza nombrándolas **una por una con su ruta esperada**, no con un
+> «falta algo». Corre dentro de `element:audit`, o sea en `contracts:validate`, y **antes** del
+> cruce de fuentes: si a una plataforma le faltan piezas, lo que sale después son síntomas.
+>
+> **Cinco se comprueban sin construir nada. Las otras dos no, y el gate lo DECLARA**
+> (`FUERA_DE_ALCANCE`) nombrando quién sí las mide: la **4** a medias —acá se exige que el build
+> esté declarado; que escriba donde `resolveBundlePath` promete lo comprueba `publish.mjs` con el
+> `dist/` hecho— y la **6** entera, que es `cdn-runtime-check` contra el árbol del CDN (#61). Un
+> gate que se cree más listo de lo que es es peor que no tenerlo.
+>
+> **Y derivar la 6 destapó algo:** hoy **no tiene expresión estática por plataforma**. Quien
+> construye el runtime de Angular es `tools/build-runtime.mjs`, que vive en la **raíz** y es
+> específico de Angular; no hay `platforms/angular/tools/build-runtime.mjs`. Exigir uno pondría
+> **roja a la única plataforma que existe** — y el ticket lo dice con todas las letras: si hace
+> falta escribirle una excepción a la única plataforma viva, el contrato se derivó de un ideal y
+> no de lo que hay. Su disparador es **#64**: con un segundo runtime que construir, el
+> constructor deja de poder vivir en la raíz.
+>
+> Verificado en las dos direcciones: con `platforms/react/` sólo con su `package.json`,
+> `element:audit` sale **exit 1** listando (2)(3)(4)(5)(7) con sus rutas; y escondiéndole a
+> Angular su `cdn.config.mjs`, el cruce contra el disco real se pone **rojo**, que es lo que
+> prueba que mira de verdad.
+>
+> **Lo que NO se decidió acá es el señuelo**, `ElementProtocol` — ver más abajo y #67.
 
 1. `platforms/<nombre>/package.json` existe.
 2. Hay una entrada en `PLATFORMS` (`tools/lib/synergos-config.mjs`) con `name`,
