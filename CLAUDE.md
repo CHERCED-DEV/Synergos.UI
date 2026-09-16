@@ -79,6 +79,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - **El número que compró esa plataforma**, medido sobre el CDN construido, de una página con UN badge y comprimido: **215.615 B gz en Angular contra 10.888 en Preact — 19,8×**. Con su asterisco, porque sin él miente: 82.189 de los de Angular son `sg-shared.js` (55 componentes) contra 2.120 del de Preact (uno). Runtime contra runtime son **123.056 contra 7.701**, o sea 16×.
   - **Cuál de las dos sirve el CMS lo decide `BundleRegistry:DefaultFramework`**, que es global: con `preact`, el badge sale de Preact y los otros 129 siguen saliendo de Angular, porque un elemento sin implementación en el framework pedido cae al que tiene. Verificado con el cliente real contra el CDN construido.
   - El resto de esta línea sigue en pie: **el contrato del CDN conserva el segmento de framework** en las rutas y `FrameworkKind` sigue existiendo. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
+- **Lo PRIMERO en un clon limpio: `npm run setup`** (#70). `npm ci` en la raíz **no instala las plataformas** —no hay `workspaces`, y `platforms/angular` y `platforms/preact` tienen cada uno su `package.json` y su `package-lock.json`—, así que hacen falta **tres** instalaciones. Medido el 2026-09-16 clonando en limpio: `npm ci` + `npm test` moría con `Cannot find module 'sass'` y una traza de `ngtsc.mjs` que no sugiere en ningún momento que falte instalar. El `setup` que existía decía `npm install --prefix platforms/angular` **a mano** y olvidó `preact` el día que #64 lo creó — la regla 25 en el camino de entrada. Hoy la lista se deriva del disco y `pretest`/`prebuild` la comprueban antes de arrancar, así que el mensaje dice qué teclear. Hay gate.
 - Build: `npm run build:angular` (19 s) · `npm run build:preact` (0,2 s) · `npm run build` los hace los dos más los runtimes. Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Verlo en el navegador**: `npm run dev:cdn` y abrir **`/probar`** — el banco (#49). `/probar/<elemento>` monta ESE elemento con su import map, su bundle y valores de muestra, y recarga al compilar. Es lo único del repo que hace que un elemento se vea: `GET /` es el catálogo, tarjetas informativas con **cero** `<script type="module">`. Medido: se podía compilar, publicar y servir un elemento sin tener nunca cómo mirarlo.
   - **No es una vista previa del producto** y la página lo dice: no hay tema del CMS ni contenido real. Un banco que se confunde con la realidad hace que alguien apruebe un diseño contra un fondo que no existe.
@@ -89,7 +90,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **399 + 50 + 1.535 + 8**.
+- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **415 + 50 + 1.535 + 8**.
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535**, y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
@@ -130,6 +131,7 @@ está vigilando nada.
 | `banco-de-pruebas` | que el banco emita las TRES cosas —mapa resuelto, módulo y tag— o ninguna, y que su ruta viva fuera de `/synergos/` | se sirve el import map de `dist/` sin sustituir `__BASE_URL__` (#49) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
 | `rutas-hermanas` | que el CMS se busque igual desde las dos herramientas que lo necesitan, y que ninguna lectura caiga por defecto a una ruta de una sola máquina | `cms-sync` vuelve a ignorar `SYNERGOS_CMS_PATH`, o alguien escribe otro default `C:\LOCAL_CDN` de lectura (#57) |
+| `setup-completo` | que el camino de ENTRADA instale cada plataforma, derivada del disco, y que `pretest`/`prebuild` lo comprueben | se crea `platforms/<algo>` y `npm run setup` sigue nombrando las de antes, o alguien quita el gancho y vuelve el `MODULE_NOT_FOUND` (#70) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
 | `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |
@@ -172,7 +174,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Treinta reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y una reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -662,3 +664,28 @@ se desincroniza):
    techo de su tier: lo único que se rompía era «veinte elementos, UN runtime», en silencio.
    La regla práctica: **los subcaminos van antes que su raíz**, y **lo que se comparte no se
    aliasea** (#63, #64).
+
+31. **Ningún test mide el camino de ENTRADA, así que hay que medirlo a mano — y el resultado
+   fue que un clon limpio no arrancaba.** Medido el 2026-09-16: `git clone`, `npm ci`,
+   `npm test` → `Error: Cannot find module 'sass'`, con una traza de
+   `platforms/angular/tools/ngtsc.mjs` que no sugiere en ningún momento que falte instalar.
+   `npm ci` en la raíz **no instala las plataformas**: no hay `workspaces`, y cada una tiene
+   su `package.json` y su `package-lock.json`.
+   **Y el script que existía para eso ya estaba desactualizado**:
+   `npm install && npm install --prefix platforms/angular` — una lista a mano que olvidó
+   `platforms/preact` el día que #64 lo creó, teniendo la lista derivada del disco
+   (`frameworksConstruibles`) a dos importaciones de distancia. Es la **regla 25 aplicada al
+   camino de entrada**: una dimensión de lo que se recorre resuelta a constante, y la
+   tercera plataforma habría caído igual.
+   Dos cosas que no se deducen del arreglo:
+   (a) **un `setup` correcto que nadie invoque deja el `MODULE_NOT_FOUND` puesto**, así que
+   lo que hay que probar no es que el script exista sino que `npm test` y `npm run build`
+   PASEN por él — es el addendum #14 del repo hermano, medir que la pieza esté ENCHUFADA y
+   no que exista, y por eso el gate lee `pretest`/`prebuild` del `package.json`;
+   (b) **el fixture tiene que llevar una plataforma INSTALADA y otra que no**: con todas sin
+   instalar, «devuelve todas» y «devuelve las que faltan» dan el mismo array y el defecto
+   pasa en verde (regla 7).
+   Es la **regla 11 del revés**: allí el error fue afirmar sin comprobar que algo no se
+   podía hacer; acá fue dar por hecho que algo funcionaba sin haberlo hecho nunca desde
+   cero. Lo único que lo destapa es clonar de verdad — igual que lo único que prueba que
+   una página hidrata es pedirla (#70).

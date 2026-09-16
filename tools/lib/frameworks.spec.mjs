@@ -216,6 +216,11 @@ const CIEGAS_AL_FRAMEWORK = [
   // tabla por framework. Es la misma caducidad que `cdn-runtime-check` tuvo en #61:
   // una excepción del censo no es una lista de las malas, es una con fecha.
   'publish-runtime.mjs',
+  // Deriva los sitios a instalar de `frameworksConstruibles` (#70). El `setup`
+  // anterior era `npm install --prefix platforms/angular` a mano y por eso olvidó
+  // `preact` el día que #64 lo creó: la regla 25 en el camino de entrada.
+  'lib/setup-completo.mjs',
+  'setup.mjs',
   // Cruza por NOMBRE DE FUNCIÓN y recorre todo `.ts` del repo (#63): no
   // pregunta por la ruta de ninguna plataforma, así que una copia puesta en
   // `platforms/react/libs/shared/` la caza igual que una en Angular.
@@ -439,6 +444,11 @@ const RUTAS_DE_PLATAFORMA = {
     'Los fixtures montan una `platforms/react/` a medias para ver el contrato rechazar pieza por ' +
     'pieza (#62). La ruta ES el caso que se reproduce, igual que la fuga relativa de ' +
     'vitals-purity: escribirla es el punto.',
+  'lib/setup-completo.spec.mjs':
+    'Los fixtures montan platforms/angular, /preact y una /react que no existe para probar que ' +
+    'el descubrimiento las encuentra SOLO — y una platforms/svelte sin package.json, que no es ' +
+    'una plataforma. Los nombres SON el caso. El gate y tools/setup.mjs no nombran ninguna, y ' +
+    'hay dos tests que lo exigen sobre la fuente de verdad (#70).',
   'lib/template-bindings.spec.mjs':
     'La ÚNICA de las seis cuya regla es de Angular: `[algo]="… || null"` es property binding ' +
     'de la sintaxis de plantillas de Angular, y un `[x]="y || null"` no significa nada en JSX. ' +
