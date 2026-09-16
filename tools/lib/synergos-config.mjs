@@ -81,6 +81,21 @@ export const PLATFORMS = [
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/angular/dist', elementName),
   },
+  {
+    name: 'preact',
+    // JSX: la entrada es `.tsx`, y por eso la extensión dejó de ser una
+    // constante del descubrimiento (#64). Ver la nota de `entrada` arriba.
+    entrada: 'src/main.tsx',
+    distDir: resolve(ROOT, 'platforms/preact/dist'),
+    // La MISMA forma que Angular —`dist/<element>/browser/main.js`— a
+    // propósito, aunque acá la escriba un esbuild de 30 líneas y allá un
+    // NgtscProgram. La ruta es contrato del pipeline (`publish.mjs` la lee),
+    // no una consecuencia de cómo construya cada plataforma.
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/preact/dist', elementName, 'browser', 'main.js'),
+    elementDistDir: (elementName) =>
+      resolve(ROOT, 'platforms/preact/dist', elementName),
+  },
 ];
 
 // Las plataformas que HOY publican. NO es la lista de frameworks válidos: ésa

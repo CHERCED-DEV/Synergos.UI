@@ -140,10 +140,16 @@ describe('qué cuenta como especificador', () => {
 
 describe('la lista blanca sale del disco, no de una constante', () => {
   it('son los alias de `tsconfig.base.json` que caen dentro de vitals/', () => {
+    // `@synergos/core/inputs` entró en #64: la segunda plataforma importa los
+    // normalizadores por su subcamino y no por el barril, porque el barril
+    // arrastra `@synergos/contracts` —que hace un `Object.freeze` en ámbito de
+    // módulo sobre las 132 entradas del registry— y eso NO se poda: el bundle
+    // del badge pasó de 998 B a 16.114 B sin que nada fallara.
     expect([...aliasPermitidos(REPO)].sort()).toEqual([
       '@synergos/contracts',
       '@synergos/core',
       '@synergos/core-assets',
+      '@synergos/core/inputs',
     ]);
   });
 
