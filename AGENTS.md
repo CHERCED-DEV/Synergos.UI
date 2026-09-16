@@ -96,8 +96,13 @@ npm test                       # Gates de tools/lib + los specs de Angular (comp
 # El ciclo editor→navegador (issue #2)
 npm run dev:cdn                     # sirve el CDN entero desde el watch incremental
 npm run dev:cdn -- --solo=badge     # sólo ese elemento — arranca en segundos
-#   El CMS lo consume por su ruta normal, sin código de desarrollo:
-#     SYNERGOS_CDN_MODE=Http · SYNERGOS_CDN_URL=http://localhost:4321
+#   El CMS lo consume por su ruta normal, sin código de desarrollo. Las claves
+#   son de CONFIGURACIÓN de .NET, no las del compose — acá decía
+#   SYNERGOS_CDN_MODE/SYNERGOS_CDN_URL, que sólo existen dentro de compose.yml
+#   y que un `dotnet run` ignora en silencio: la página sale sin import map y
+#   no hidrata nada (medido, ver CLAUDE.md).
+#     Synergos__BundleRegistry__Mode=Http
+#     Synergos__BundleRegistry__PublicBaseUrl=http://localhost:4321
 
 # Desde platforms/angular/
 npm run dev                    # build.mjs --watch (incremental, reusa el programa)
