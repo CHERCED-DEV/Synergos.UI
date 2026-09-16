@@ -51,13 +51,16 @@ que cambia por repo es la definición de hecho (ver `.github/pull_request_templa
 
 ## Workspace layout
 ```
-platforms/angular/   → LA plataforma (Angular ~21; 127 fuentes con src/main.ts)
+platforms/angular/   → la plataforma GRANDE (Angular ~21; 127 fuentes con src/main.ts)
   apps/              → elementos + experiences; cada carpeta con src/main.ts ES un elemento
   libs/              → SIETE: core · shared (design system) · rendering · integrations
                        · shells · shop · transaction-engine. core-assets NO está acá:
                        vive en vitals/ (abajo), y el alias apunta ahí.
   tools/build.mjs    → EL build: un NgtscProgram + un esbuild — las 127 en ~26 s
   cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
+platforms/preact/    → la SEGUNDA plataforma (#64). UN elemento —`badge`—, publicado y
+                       servido. Existe para sostenerlo, no al revés: su build es un
+                       esbuild de 30 líneas, sin compilador de framework.
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   contracts/         → interfaces puras (element-registry.json, element-inputs.json)
   core/              → utilidades agnósticas, mappers, bridge protocol,
@@ -72,8 +75,11 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
 - Stack: Angular ~21, TypeScript ~5.9, SCSS (Sass modules), esbuild + @angular/compiler-cli. **Sin Nx** — se purgó porque cada elemento era una "application" independiente (un arranque del compilador cada uno, caché deshabilitado) y el build moría por timeout; `build.mjs` compila UNA vez y termina en ~26 s.
 - **Toda la documentación, medida** (épica #40): qué afirma cada fichero que el disco desmiente, dónde se contradicen entre sí, y qué le falta a quien entra hoy — `SynergosDocs/MEDICION_DOCUMENTACION.md`. Se escribió porque `LLM.txt`, que este fichero y `AGENTS.md` declaran autoridad, afirmaba que los tests de Angular estaban «SUSPENDIDOS» mientras corrían 1.580 en verde.
 - **Las cifras, medidas y no recordadas** (#42): **127** carpetas bajo `apps/` con `src/main.ts` (lo que el build compila) y **132** entradas en `element-registry.json` (lo que el CMS puede colocar). No son la misma cuenta y nunca lo fueron: seis entradas comparten el `synergos-text-block`, dos no las construye nada —`stat-counter` y `module-mount`— y tres fuentes son hosts deprecados que no están en el registry. Este fichero decía «136» en tres sitios, que no es ninguna de las dos.
-- **Solo Angular publica elementos.** Las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
-- Build: `npm run build:angular` (26 s). Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
+- **Desde #64 publican DOS: `angular` y `preact`.** Esta línea decía «solo Angular publica elementos», y era cierta: las plataformas react/svelte/vanilla eran andamiaje sin elementos publicados y se eliminaron el 2026-08-04 por eso mismo. Hoy `platforms/preact/` publica **un** elemento —`badge`, el mismo que Angular— y está declarado como escaparate en `SHOWCASE_MULTIPLATAFORMA` con su razón y su fecha de retirada.
+  - **El número que compró esa plataforma**, medido sobre el CDN construido, de una página con UN badge y comprimido: **215.615 B gz en Angular contra 10.888 en Preact — 19,8×**. Con su asterisco, porque sin él miente: 82.189 de los de Angular son `sg-shared.js` (55 componentes) contra 2.120 del de Preact (uno). Runtime contra runtime son **123.056 contra 7.701**, o sea 16×.
+  - **Cuál de las dos sirve el CMS lo decide `BundleRegistry:DefaultFramework`**, que es global: con `preact`, el badge sale de Preact y los otros 129 siguen saliendo de Angular, porque un elemento sin implementación en el framework pedido cae al que tiene. Verificado con el cliente real contra el CDN construido.
+  - El resto de esta línea sigue en pie: **el contrato del CDN conserva el segmento de framework** en las rutas y `FrameworkKind` sigue existiendo. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
+- Build: `npm run build:angular` (19 s) · `npm run build:preact` (0,2 s) · `npm run build` los hace los dos más los runtimes. Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Verlo en el navegador**: `npm run dev:cdn` y abrir **`/probar`** — el banco (#49). `/probar/<elemento>` monta ESE elemento con su import map, su bundle y valores de muestra, y recarga al compilar. Es lo único del repo que hace que un elemento se vea: `GET /` es el catálogo, tarjetas informativas con **cero** `<script type="module">`. Medido: se podía compilar, publicar y servir un elemento sin tener nunca cómo mirarlo.
   - **No es una vista previa del producto** y la página lo dice: no hay tema del CMS ni contenido real. Un banco que se confunde con la realidad hace que alguien apruebe un diseño contra un fondo que no existe.
 - **Ciclo editor→navegador**: `npm run dev:cdn [-- --solo=badge]` (issue #2). Sirve el layout COMPLETO del CDN desde el watch, sin pasar por `build:cdn`. El CMS lo consume con su cliente HTTP de siempre — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL=http://localhost:4321` — o sea cero código de desarrollo del lado del CMS.
@@ -81,7 +87,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **tres** y no dos — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (los specs de la capa agnóstica) y `test:angular` (los specs de la plataforma), **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`.
+- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **399 + 50 + 1.535 + 8**.
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535**, y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
@@ -114,7 +120,7 @@ está vigilando nada.
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
-| `frameworks` | dos censos, dos preguntas: que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), o un gate neutral mira sólo `platforms/angular/` (#60) |
+| `frameworks` | dos censos, dos preguntas (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), o un gate neutral mira sólo `platforms/angular/` (#60) |
 | `mapa-del-runtime` | que los import maps publicados se puedan COMPONER: mismo specifier con URLs distintas, un framework declarando el nombre agnóstico de otro, y el dueño retirando su alias o publicándolo sin gemelo | se publica el segundo runtime con los specifiers de hoy y el CMS se queda sin mapa (#58) |
 | `normalizador-unico` | que **una sola** declaración de cada normalizador del CMS exista, y que viva en `vitals/` — por NOMBRE de función exportada, derivado del disco | alguien copia `config-input.util.ts` al `shared` del segundo framework, aunque le ponga otro nombre de fichero y otra carpeta (#63) |
 | `indice-publicado` | que el `index.html` del CDN salga del registry de HOY, y que lo declarado sin construir lleve su marca | se vuelve a copiar un `catalog.html` congelado en vez de regenerarlo (#48) |
@@ -151,7 +157,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veintiocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -603,3 +609,41 @@ se desincroniza):
    `import { TestBed } from '@angular/core/testing'`; **poner `globals: true`** es peor
    todavía, porque el import desaparece de la vista y el gate se pone verde **porque no hay
    nada que leer**, no porque no haya dependencia (#63).
+
+29. **`require.resolve()` devuelve el CommonJS, y una suite que aliasea el paquete de node
+   no lo ve NUNCA.** El runtime de Preact se construía desde
+   `createRequire(...).resolve('preact')`, que resuelve por la condición `require`. esbuild
+   lo empaqueta con `format: 'esm'` envolviéndolo, así que el fichero publicado sale con
+   **un solo export** y el navegador contesta *«does not provide an export named
+   `render`»*: 200, el SSR entero, y **nada hidrata**.
+   **Los 8 specs del elemento estaban en VERDE**, y no por casualidad: el `vitest.config.ts`
+   de la plataforma resolvía `preact` a `node_modules/preact`, que sí tiene exports
+   nombrados. O sea que lo que estaba bajo prueba **no era el artefacto publicado** — la
+   regla 16 con el sujeto movido un piso: allá no había servidor, acá no había *bundle*.
+   **Lo destapó Chromium**, exactamente como `humo-portada.mjs` destapó el `@using` que
+   faltaba del lado del CMS: lo único que prueba que algo hidrata es pedir la página.
+   Tres cortes:
+   (a) **la entrada de navegador se LEE del `exports` del paquete** (`browser`, si no
+   `import`), no se escribe `dist/preact.module.js` a mano — eso es una copia de un dato que
+   el paquete ya publica y se desvía en la siguiente versión;
+   (b) **el alias del runner apunta al runtime CONSTRUIDO**, no al paquete de node, o la
+   suite sigue probando otra cosa. Mutado: con `require.resolve` puesto, 6 de 8 en rojo;
+   (c) **el tell, y se busca con un grep**: un `require.resolve` dentro de un build que
+   produce ESM. Si lo que se empaqueta va al navegador, `require` es la condición
+   equivocada por definición (#64).
+
+30. **Una tabla de alias se lee de ARRIBA ABAJO: casa por prefijo, no por clave exacta.**
+   Con el raíz delante, `@synergos/vitals-core/inputs` se reescribe a
+   `…/vitals-core/index.js/inputs` y `preact/jsx-runtime` a `…/preact.js/jsx-runtime`.
+   **Pasó TRES veces en la misma épica** —el `vitest.config.ts` de Angular (236 ficheros de
+   spec en rojo de golpe), su `build.mjs`, y el `vitest.config.ts` de Preact— y la primera
+   vez escribí al lado un comentario afirmando lo contrario («vite resuelve por clave
+   exacta»), o sea documentación por delante del código en el mismo commit que la
+   introducía.
+   Vale para vite/rollup y para el `alias` de esbuild, y tiene un primo que muerde en la
+   otra dirección: **un `alias` PISA a `external`**. El specifier deja de ser bare, así que
+   la lista de externals ya no lo ve y se empaqueta. El badge de Preact salió a **17.525 B**
+   con el adaptador y el design system dentro — compilando, publicando y entrando en el
+   techo de su tier: lo único que se rompía era «veinte elementos, UN runtime», en silencio.
+   La regla práctica: **los subcaminos van antes que su raíz**, y **lo que se comparte no se
+   aliasea** (#63, #64).

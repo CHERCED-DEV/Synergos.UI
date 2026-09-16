@@ -48,12 +48,54 @@ const VERSION = require_('preact/package.json').version;
  */
 const SALIDA = path.join(REPO, 'dist/runtime/preact', VERSION);
 
+/**
+ * La entrada **de navegador** de un subcamino de `preact`, leída de su `exports`.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ⚠ `require.resolve()` DEVUELVE EL CommonJS, Y ESO ROMPE EL RUNTIME PUBLICADO.
+ *
+ * `createRequire(...).resolve('preact')` resuelve por la condición `require`, o
+ * sea `dist/preact.js`, que es CJS. esbuild lo empaqueta con `format: 'esm'`
+ * envolviéndolo en un módulo con **un solo export**, así que el navegador
+ * contesta:
+ *
+ *     SyntaxError: The requested module 'preact' does not provide an export
+ *                  named 'render'
+ *
+ * y NADA hidrata. **Ningún test de este repo lo vio**: el `vitest.config.ts` de
+ * la plataforma resuelve `preact` al paquete de node —que sí tiene exports
+ * nombrados— así que los 8 specs del elemento pasaban en verde contra un
+ * runtime que en el navegador no arranca. Es la regla 16 con el sujeto movido:
+ * lo que estaba bajo prueba no era el artefacto publicado. Lo destapó pedir la
+ * página en Chromium, que es lo mismo que `humo-portada.mjs` enseñó del lado del
+ * CMS.
+ *
+ * Se lee `browser` y si no `import`, de la propia tabla `exports` del paquete:
+ * escribir `dist/preact.module.js` a mano sería una copia de un dato que el
+ * paquete ya publica, y la copia se desvía en la siguiente versión.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+function entradaDeNavegador(subcamino) {
+  const pkg = require_('preact/package.json');
+  const raiz = path.dirname(require_.resolve('preact/package.json'));
+  const entrada = pkg.exports?.[subcamino];
+  const destino = entrada?.browser ?? entrada?.import;
+  if (!destino) {
+    throw new Error(
+      `preact no declara una entrada de navegador para "${subcamino}". ` +
+        `Sin ella habría que empaquetar el CommonJS, que sale sin exports nombrados ` +
+        `y el navegador se niega a cargarlo.`,
+    );
+  }
+  return path.join(raiz, destino);
+}
+
 /** Cada fichero del runtime y de dónde sale. Las dos mitades, en una tabla. */
 const PIEZAS = {
-  'preact.js': { entrada: require_.resolve('preact'), external: [] },
-  'preact-hooks.js': { entrada: require_.resolve('preact/hooks'), external: ['preact'] },
+  'preact.js': { entrada: entradaDeNavegador('.'), external: [] },
+  'preact-hooks.js': { entrada: entradaDeNavegador('./hooks'), external: ['preact'] },
   'preact-jsx-runtime.js': {
-    entrada: require_.resolve('preact/jsx-runtime'),
+    entrada: entradaDeNavegador('./jsx-runtime'),
     external: ['preact'],
   },
   'sg-preact-core.js': {
