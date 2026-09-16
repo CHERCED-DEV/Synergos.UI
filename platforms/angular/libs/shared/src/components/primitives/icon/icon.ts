@@ -7,7 +7,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 export type IconTone = 'neutral' | 'brand' | 'inverse';

@@ -17,7 +17,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 import { VisuallyHiddenComponent } from '../../primitives/visually-hidden/visually-hidden';
 
 type SectionPadding = 'sm' | 'md' | 'lg';

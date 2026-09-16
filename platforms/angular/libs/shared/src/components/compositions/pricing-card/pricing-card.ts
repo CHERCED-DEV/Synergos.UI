@@ -9,7 +9,7 @@ import {
   omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 import { BadgeComponent } from '../../primitives/badge/badge';
 import { ButtonComponent } from '../../primitives/button/button';
 import { HeadingComponent } from '../../primitives/heading/heading';

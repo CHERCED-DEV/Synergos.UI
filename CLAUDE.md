@@ -60,7 +60,8 @@ platforms/angular/   → LA plataforma (Angular ~21; 127 fuentes con src/main.ts
   cdn.config.mjs     → externals del CDN (contrato del navegador; antes enterrado en nx.json)
 vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   contracts/         → interfaces puras (element-registry.json, element-inputs.json)
-  core/              → utilidades agnósticas, mappers, bridge protocol
+  core/              → utilidades agnósticas, mappers, bridge protocol,
+                       inputs/ (los normalizadores de lo que emite el CMS, #63)
   core-assets/       → tokens SCSS, mixins, tipografía — EL SHARED DE ESTILOS
 tools/               → build-runtime, build-cdn, publish, catalog, validadores de contrato
 public/              → salida de `npm run build:cdn` — lo que sirve Cloudflare Workers
@@ -80,12 +81,18 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests Angular: **vivos** (issue #1). `npm test` en la raíz corre los dos: los gates de `tools/lib` y los specs de la plataforma, **con la cuarentena en cero** — y eso no es una foto, lo defiende `spec-quarantine`. Los specs se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~35 s) con el mismo ngtsc que publica los elementos.
+- Tests: `npm test` en la raíz corre **tres** y no dos — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (los specs de la capa agnóstica) y `test:angular` (los specs de la plataforma), **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`.
+  - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535**, y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
+  - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
 
 - **La frontera `vitals/` ↔ `<framework>/shared`**: cada framework tiene su propio `shared`, escrito en su propio lenguaje, y todos se alimentan de `vitals`. En `vitals` va el MODELO de lo que emite el CMS, el MAPPER que lo traduce, el PROTOCOLO del bridge y el VOCABULARIO; no va nada que renderice, toque el DOM o tenga estado reactivo de un framework. Escrita en `SynergosDocs/WHERE_DOES_THIS_GO.md` §1 y en `LLM.txt` §2; medida en `SynergosDocs/FRONTERA_VITALS.md`; vigilada por el gate `vitals-purity`. **Y qué hace falta para que exista la segunda plataforma está medido en `SynergosDocs/MEDICION_SEGUNDA_PLATAFORMA.md`** (épica #37): las **ocho** obligaciones de una plataforma, el coste contado de un elemento duplicado (**~64 líneas**, con el SCSS reusado verbatim), el piso de peso de hoy (**≈209 KB transferidos** en una página con un solo badge) y el hallazgo que la bloqueaba — publicar el segundo runtime con los specifiers de entonces **apagaba el sitio entero**, cerrado en #58; ver la regla 26.
 - Aliases agnósticos (`tsconfig.base.json`): `@synergos/contracts`, `@synergos/core`, `@synergos/core-assets` — los tres a `vitals/`.
-- Aliases Angular (`platforms/angular/tsconfig.json`, diez): `@synergos/core` → `libs/core/` **pisando el agnóstico**, que queda como `@synergos/vitals-core`; más `shared`, `rendering`, `integrations`, `shells`, `shop`, `transaction-engine`, y `contracts` / `core-assets` que siguen yendo a `vitals/`.
+- Aliases Angular (`platforms/angular/tsconfig.json`, **once**): `@synergos/core` → `libs/core/` **pisando el agnóstico**, que queda como `@synergos/vitals-core`; más `shared`, `rendering`, `integrations`, `shells`, `shop`, `transaction-engine`, y `contracts` / `core-assets` que siguen yendo a `vitals/`. El undécimo es `@synergos/vitals-core/inputs` (#63).
+  - ⚠️ **Esa tabla está escrita TRES veces** —`tsconfig.json`, `vitest.config.ts` y `tools/build.mjs`— y las tres tienen que decir lo mismo. Nada las cruza hoy; lo que hay es que una desviación se ve al primer `npm test`, porque la de vitest la ejercitan 1.535 specs.
+  - ⚠️ **Y el subcamino va ANTES que su raíz en las tres.** El alias casa por PREFIJO y en orden, así que con el raíz delante `@synergos/vitals-core/inputs` se reescribe a `…/index.js/inputs` y no resuelve. Costó 236 ficheros de spec en rojo, y el comentario que yo mismo había escrito al lado afirmaba lo contrario («vite resuelve por clave exacta»): documentación por delante del código, en el mismo commit que la introducía (#63).
 - Tiers del design system (`libs/shared/src/components/`): `primitives/` (23) · `compositions/` (16) · `patterns/` (12) · `states/` (4).
 - Component prefix: `syn-`
 - State: `signal()` only — no BehaviorSubject, no Zone.js
@@ -109,6 +116,7 @@ está vigilando nada.
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | dos censos, dos preguntas: que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), o un gate neutral mira sólo `platforms/angular/` (#60) |
 | `mapa-del-runtime` | que los import maps publicados se puedan COMPONER: mismo specifier con URLs distintas, un framework declarando el nombre agnóstico de otro, y el dueño retirando su alias o publicándolo sin gemelo | se publica el segundo runtime con los specifiers de hoy y el CMS se queda sin mapa (#58) |
+| `normalizador-unico` | que **una sola** declaración de cada normalizador del CMS exista, y que viva en `vitals/` — por NOMBRE de función exportada, derivado del disco | alguien copia `config-input.util.ts` al `shared` del segundo framework, aunque le ponga otro nombre de fichero y otra carpeta (#63) |
 | `indice-publicado` | que el `index.html` del CDN salga del registry de HOY, y que lo declarado sin construir lleve su marca | se vuelve a copiar un `catalog.html` congelado en vez de regenerarlo (#48) |
 | `interactive` | que el CLI descubra lo que el build compila, y que **vacío sea un fallo** y no un menú en blanco | alguien vuelve a descubrir por `project.json` —o por cualquier cosa que pueda dar cero sin quejarse— (#52) |
 | `banco-de-pruebas` | que el banco emita las TRES cosas —mapa resuelto, módulo y tag— o ninguna, y que su ruta viva fuera de `/synergos/` | se sirve el import map de `dist/` sin sustituir `__BASE_URL__` (#49) |
@@ -143,7 +151,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veintisiete reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Veintiocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -571,3 +579,27 @@ se desincroniza):
    **Y el censo se deja VACÍO cuando todavía no aplica**, con un test que lo exige: hoy sólo
    hay una plataforma construible, así que una entrada ahí declararía un escaparate que no
    puede existir. La primera la escribe #64 junto con el elemento (#59).
+
+28. **Un test que afirma el CONTENIDO de un censo no prueba que alguien lo LEA — y la
+   mutación que importa pasa en verde.** Al bajar los normalizadores a `vitals` (#63) sus
+   specs bajaron con ellos y nombran `vitest`, así que `vitals-purity` se puso rojo, con
+   razón. La excepción se escribió como censo (regla 27) y el test que la acompañaba decía
+   `expect(Object.keys(RUNNER_EN_SPECS)).toEqual(['vitest'])`. **Medido: cambiar la línea
+   del gate por un `if (esSpec(abs)) continue;` —o sea apagar el barrido en TODOS los specs,
+   que es justo lo que el censo existe para no hacer— dejaba los 21 tests en VERDE**, porque
+   el censo seguía diciendo `['vitest']` mientras nadie lo leía.
+   Es la regla 7 con el sujeto equivocado: el fixture estaba bien, lo que estaba mal era
+   **qué función se ejercita**. Un censo es un dato; lo que hay que probar es el CRUCE que lo
+   consume, y para eso hace falta un árbol en disco (`mkdtempSync` con la forma del repo:
+   casa + un fichero fuera), no una aserción sobre la constante.
+   **El tell, y sirve para cualquier censo del repo** —`SIN_FUENTE_PROPIA`,
+   `RUTAS_DE_PLATAFORMA`, `ALIAS_HEREDADOS`, `SHOWCASE_MULTIPLATAFORMA`—: si el test importa
+   la constante y no la función que la usa, la mutación que apaga la función pasa. Las tres
+   mutaciones que sí valen son (a) ensanchar la excepción a todo el tipo de fichero,
+   (b) quitarle la condición que la acota (acá `esSpec`), y (c) declarar una entrada que
+   nadie usa — y las tres tienen que ponerse rojas por separado.
+   Y el corolario sobre cuál de las dos salidas fáciles es peor: **excluir los `*.spec.ts`
+   del barrido** apaga el gate donde alguien escribiría «para probarlo rápido» un
+   `import { TestBed } from '@angular/core/testing'`; **poner `globals: true`** es peor
+   todavía, porque el import desaparece de la vista y el gate se pone verde **porque no hay
+   nada que leer**, no porque no haya dependencia (#63).

@@ -225,8 +225,19 @@ o sacarlo de `vitals/` sería renombrar sin cambiar nada y romper el alias
 
 ## 5. Qué de `libs/shared` es en realidad `vitals` — la medición
 
-**No se movió nada.** Es materia prima para el segundo `shared`, y moverla con
-un solo consumidor es exactamente lo que la regla de promoción prohíbe.
+> ⚠️ **El grupo A YA SE MOVIÓ (#63).** Este apartado se escribió diciendo «no se
+> movió nada» y era cierto entonces: el disparador era el segundo `shared`, y el
+> segundo `shared` llegó con la HU #64. Los cuatro ficheros —`config-input`,
+> `embed-url`, `form` y `monogram`, con sus specs— viven hoy en
+> `vitals/core/src/inputs/`, y `class-names.util.ts` se quedó (ver «lo que no
+> bajó», al final de este apartado). Los grupos **B** y **C** siguen medidos y
+> sin mover, con el mismo disparador. **Las cifras de abajo son las de la
+> medición original y NO se recalculan**: son el retrato del día en que se
+> decidió, y reescribirlas borraría de qué tamaño era la decisión.
+
+**Cuando esto se midió no se había movido nada.** Era materia prima para el
+segundo `shared`, y moverla con un solo consumidor es exactamente lo que la
+regla de promoción prohíbe.
 
 Método: AST de TypeScript (no regex) sobre los 80 ficheros de código de
 `platforms/angular/libs/shared/src`. **Las cifras se reproducen**, no se copian —
@@ -321,9 +332,37 @@ junta con ellos.
   (`DialogConfig`, `SkeletonState`), 29 líneas en total, y sólo si alguien las
   pide.
 
-### El disparador
+### El disparador — y qué pasó cuando saltó
 
-**El segundo `shared`.** Hasta que exista, esta lista es una medición. En el
-momento en que alguien empiece a escribir `platforms/react/libs/shared/`, el
-grupo A se muda primero (es gratis: ya son funciones puras), el C después
-(recortar un `computed` es mecánico) y el B sólo tras decidir lo del `*Config`.
+**El segundo `shared`.** Mientras no existió, esta lista fue una medición.
+
+**Saltó con #64**, y el grupo A se mudó primero, como estaba escrito. Lo que la
+mudanza enseñó y no estaba previsto:
+
+- **Costó menos de lo que #36 temía y por una razón concreta**: `@synergos/shared`
+  re-exporta desde `vitals`, así que los **122** elementos que importan algún
+  `coerce*` de `@synergos/shared` **no cambiaron ni una línea**. Medido:
+  `git status` no toca un solo fichero de `apps/`.
+- **Los specs bajaron con el código**, y eso obligó a un runner tercero
+  (`npm run test:vitals`). No es burocracia: sin él, correr 50 tests de funciones
+  puras exigiría arrancar el compilador AOT de Angular, que es justo el acople
+  que la frontera existe para cortar. La suite de Angular pasó de 1.585 a 1.535
+  y los 50 que faltan son exactamente esos — la cuenta cuadra y por eso se dice.
+- **La mudanza es neutra en peso**: `sg-shared.js` salió **byte a byte idéntico**
+  (809.386 B) y los normalizadores **no** se duplicaron en `sg-core.js`, porque
+  `libs/core` no re-exporta el barril de `vitals`.
+- **Hay gate y va por el NOMBRE de la función** (`normalizador-unico`), no por la
+  ruta del fichero. La mutación que lo prueba es una copia puesta en otra carpeta
+  y con otro nombre de fichero: un gate por ruta pasaría en verde.
+
+### Lo que NO bajó, y por qué — el caso de `class-names.util.ts`
+
+Tres líneas que unen clases CSS, con **31** consumidores en Angular. La cifra
+invita a mudarlo y el criterio dice que no: **el badge de la segunda plataforma
+no lo usa**, y cada framework tiene su idioma para componer clases (`clsx`, una
+plantilla, el `[class.x]` de Angular). Mudarlo por simetría es la abstracción
+prematura de `LLM.txt` §6. El día que el segundo `shared` lo pida, baja — con
+consumidor, como bajaron los otros cuatro.
+
+El **grupo C** se muda después (recortar un `computed` es mecánico) y el **B**
+sólo tras decidir lo del `*Config`.

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { coerceTrimmedStringInput } from '../../../utils/config-input.util';
+import { coerceTrimmedStringInput } from '@synergos/vitals-core/inputs';
 
 export interface SelectOption {
   readonly value: string;

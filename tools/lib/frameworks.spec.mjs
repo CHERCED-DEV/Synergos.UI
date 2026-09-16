@@ -209,6 +209,10 @@ describe('frameworksDelRegistry', () => {
  */
 const CIEGAS_AL_FRAMEWORK = [
   'lib/rutas-hermanas.mjs',
+  // Cruza por NOMBRE DE FUNCIÓN y recorre todo `.ts` del repo (#63): no
+  // pregunta por la ruta de ninguna plataforma, así que una copia puesta en
+  // `platforms/react/libs/shared/` la caza igual que una en Angular.
+  'lib/normalizador-unico.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía
@@ -414,6 +418,12 @@ const RUTAS_DE_PLATAFORMA = {
   'lib/frameworks.spec.mjs':
     'Es el censo mismo. Sus fixtures nombran platforms/react y platforms/notas a propósito, ' +
     'para probar los dos sentidos de revisarPlataformas sin que exista ninguna de las dos.',
+  'lib/normalizador-unico.spec.mjs':
+    'La mutación que el ticket #63 nombra es literal: una segunda declaración de '
+    + '`resolveConfigValue` en platforms/angular/libs/shared/src/utils/. El fixture la escribe '
+    + 'tal cual para reproducirla. El GATE no la nombra —recorre todo `.ts` del repo— y hay un '
+    + 'test que lo exige (`el barrido llega a los dos árboles`), que es lo que impide que esta '
+    + 'excepción tape una constante de verdad.',
   'lib/vitals-purity.spec.mjs':
     'El caso feo del gate es una FUGA RELATIVA desde vitals/ hacia un componente de Angular ' +
     '(#36): la ruta ES el defecto que se reproduce, así que tiene que estar escrita.',

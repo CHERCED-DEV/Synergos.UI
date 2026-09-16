@@ -355,13 +355,31 @@ traduce es el del elemento —4 líneas de `:host`— y eso es un `display: inli
 | | |
 |---|---|
 | `BadgeElementConfig` (`vitals/contracts/src/element-config.contract.ts`) | ✔ se importa igual |
-| `omitUndefinedProperties`, `coerceConfigInput`, `coerceTrimmedStringInput`, `coerceStringEnumInput`, `resolveConfigValue` | ✘ **viven en `platforms/angular/libs/shared/src/utils/config-input.util.ts`** |
+| `omitUndefinedProperties`, `coerceConfigInput`, `coerceTrimmedStringInput`, `coerceStringEnumInput`, `resolveConfigValue` | ✔ **desde #63 viven en `vitals/core/src/inputs/`** — cuando esto se midió estaban en `platforms/angular/libs/shared/src/utils/config-input.util.ts` |
 
 Ese fichero son **142 líneas y 13 funciones exportadas**, y lo importan **123 de los
 127 elementos**. Es el candidato **A** de #36 —*«literalmente el modelado de lo que
-viene del CMS, que es la definición de `vitals`»*— y hoy está del lado de Angular.
-Escribir el badge de React sin moverlo primero significa **copiarlo**, y dos
-normalizadores que se separan es cómo una clave deja de cruzar en silencio.
+viene del CMS, que es la definición de `vitals`»*— y al medir esto estaba del lado de
+Angular. Escribir el badge de la segunda plataforma sin moverlo primero significaba
+**copiarlo**, y dos normalizadores que se separan es cómo una clave deja de cruzar en
+silencio.
+
+> ✅ **Bloqueo levantado (#63), y lo que costó de verdad.** Los cuatro ficheros del grupo
+> A bajaron a `vitals/core/src/inputs/` **con sus specs**. `@synergos/shared` los
+> re-exporta, así que los **122** elementos que los importan de ahí **no cambiaron ni una
+> línea** — medido: `git status` no toca un solo fichero de `apps/`. La mudanza es neutra
+> en peso (`sg-shared.js` salió byte a byte idéntico) y hay gate contra la segunda
+> declaración (`normalizador-unico`, por NOMBRE de función y no por ruta).
+>
+> Lo que sí costó y no estaba previsto: **el alias del subcamino tiene que ir ANTES que su
+> raíz** en las tres tablas donde está escrito —casa por prefijo, no por clave exacta— y
+> **los specs necesitaron un runner tercero** (`npm run test:vitals`), porque correr 50
+> tests de funciones puras a través del compilador AOT de Angular es el acople que esta
+> frontera existe para cortar. Ése es el primer tropiezo real de la segunda plataforma, y
+> apareció antes de escribir una línea de ella.
+>
+> **`class-names.util.ts` NO bajó**, y es deliberado: el badge de la segunda plataforma no
+> lo usa. Ver `FRONTERA_VITALS.md` §5, «lo que no bajó».
 
 **La mudanza es más barata de lo que #36 temía**: `@synergos/shared` puede
 re-exportar desde `vitals`, así que los 123 elementos **no cambian ni una línea de

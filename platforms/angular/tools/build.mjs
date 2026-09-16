@@ -160,6 +160,10 @@ function copiarJson() {
 function aliasComunes() {
   const alias = {
     '@synergos/contracts': emitido(path.join(REPO, 'vitals/contracts/src/index.ts')),
+    // El subcamino antes que el raíz: el alias casa por prefijo, así que con el
+    // raíz delante `@synergos/vitals-core/inputs` acaba en `…/index.js/inputs`.
+    // Costó 236 specs en rojo en la tabla gemela de `vitest.config.ts` (#63).
+    '@synergos/vitals-core/inputs': emitido(path.join(REPO, 'vitals/core/src/inputs/index.ts')),
     '@synergos/vitals-core': emitido(path.join(REPO, 'vitals/core/src/index.ts')),
   };
   for (const lib of BUNDLED_SYNERGOS) {
