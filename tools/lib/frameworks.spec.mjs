@@ -290,6 +290,12 @@ const ESPECIFICAS_DE_ANGULAR = {
     'universales, y un mensaje de error apunta a platforms/angular/cdn.config.mjs.',
   'lib/interactive.mjs':
     '(a) los menús del release interactivo, que ofrecen el runtime compartido de Angular.',
+  'lib/mapa-del-runtime.mjs':
+    '(a) es DONDE vive la tabla del import map del runtime de Angular y el censo de sus alias ' +
+    'heredados. Que nombre a Angular es su trabajo — `ALIAS_HEREDADOS` declara quién es el ' +
+    'dueño de `@synergos/core`, y sin ese dato el gate no puede decir quién lo está usurpando ' +
+    '(#58). Lo que NO cablea el framework es el GATE: `recorrerMapasPublicados` RECORRE ' +
+    '`runtime/*/` y `revisarMapas` deriva los nombres calificados con `calificar()`.',
   'lib/shell-cta-tokens.mjs':
     '(a) lee los shells de platforms/angular/libs para comprobar sus tokens de CTA (#25).',
 };

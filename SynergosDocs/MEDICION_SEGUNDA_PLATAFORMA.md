@@ -120,9 +120,26 @@ exit 0 · `validate-cms-contracts.mjs` exit 0 · `build:angular` **127 elementos
 
 ---
 
-## 3. 🔴 El hallazgo que bloquea todo lo demás: publicar el segundo runtime APAGA el sitio
+## 3. ✅ El hallazgo que bloqueaba todo lo demás: publicar el segundo runtime APAGABA el sitio
 
-**Esto es lo que la épica no sabía, y cambia el orden del despiece.**
+**Esto es lo que la épica no sabía, y cambió el orden del despiece.**
+
+> **CERRADO en #58 (2026-09-16).** La salida de §3 está implementada tal cual: la tabla del
+> import map, que estaba escrita **dos veces** —`buildImportMap()` en `tools/build-runtime.mjs`
+> y el objeto `importMap` en `tools/publish-runtime.mjs`, con la lista de ficheros duplicada por
+> tercera y cuarta vez— vive hoy una sola vez en `tools/lib/mapa-del-runtime.mjs`, y publica el
+> alias heredado **junto a su gemelo calificado apuntando al mismo fichero**. El censo
+> `ALIAS_HEREDADOS` lleva el motivo de cada alias, y el gate —cuatro dientes, con su
+> `.spec.mjs`— corre dentro de `npm test` y **falla el `build:cdn`** antes de publicar.
+> Verificado contra el árbol real: con un `runtime/react/` declarando el nombre agnóstico, rojo
+> nombrando a los dos frameworks y a dónde ir; con el calificado, verde y las dos plataformas
+> conviviendo. Y el positivo de la convención se probó **del otro lado**, que es donde vive la
+> regla: `ImportMapComposerTests.La_convencion_del_repo_hermano_COMPONE_lo_que_este_test_ya_rechazaba`.
+>
+> Lo que queda del punto 3 de «la salida» y **no** se hizo: los elementos de Angular siguen
+> compilando contra `@synergos/core`. No hace falta y no es gratis —son 127 bundles y una
+> entrada de `tsconfig`— y el alias no se retira nunca de todos modos; el gemelo calificado
+> existe para que la plataforma NUEVA tenga a dónde ir, no para migrar la vieja.
 
 El CMS compone **un** import map juntando el de cada framework que el registry
 declara (`HttpBundleRegistryClient.TryGetImportMapAsync` →
@@ -234,6 +251,8 @@ también verde). Así que:
 Coste: dos entradas más en un JSON generado. **Cero riesgo, y sólo si se hace
 antes.** Hecho después, el día que se publique React el sitio se cae entero y el
 síntoma —«no hidrata nada»— no apunta a los specifiers por ningún lado.
+
+**Hecho antes** (#58). Los tres puntos, con el matiz del 3 en el aviso de arriba.
 
 > **La alternativa que NO se propone, y por qué va dicha.** Los import maps del
 > navegador tienen `scopes`, que resolverían esto en la plataforma en vez de en el
