@@ -174,6 +174,47 @@ lado de este repo no hay nada que impida publicarla. La mitad que vigila está e
 árbol y la mitad que la causa en el otro — el mismo reparto que dejó el import map
 sin vigilar en #126 y el índice sin cruzar en #48.
 
+### Lo que el runtime de la segunda plataforma tiene que PRODUCIR, exactamente
+
+Es la pregunta más importante de esta medición y la respuesta cabe en una URL. El
+CMS pide, por cada framework que el registry declara:
+
+```
+{PublicBaseUrl}/{BundlesNamespace}/runtime/{framework}/{DefaultSlot}/import-map.json
+```
+
+con `BundlesNamespace = "synergos"` y `DefaultSlot = "latest"` por defecto
+(`BundleRegistrySettings`). O sea, para React:
+
+```
+/synergos/runtime/react/latest/import-map.json
+```
+
+Y de ese fichero **lee sólo la propiedad `imports`** — un objeto `specifier → URL`.
+Si no está o no es un objeto, avisa y **sigue con los demás**; un framework caído no
+tumba a los otros (`HttpBundleRegistryClient.TryGetImportMapAsync`). Las URLs se
+reescriben a la base pública del lado del CMS, así que pueden ser relativas — y
+deben serlo, por la misma razón que `build-cdn.mjs` pasa `--base=/synergos`: con el
+origen cableado, el mismo artefacto no sirve en `workers.dev`, en el dominio propio
+y en local.
+
+**No lee `integrity`.** El bloque que `build-runtime.mjs` calcula y publica es hoy
+información sin lector de este lado del cable; el `integrity` que el CMS sí emite
+—en el `<script>` del elemento— sale del `meta.json` del bundle, no de aquí.
+
+Con eso, lo que la segunda plataforma tiene que producir son **tres cosas y ninguna
+más**:
+
+1. sus bundles de runtime bajo `synergos/runtime/<fw>/<versión>/`,
+2. un `import-map.json` con `imports` al lado, y **copiado también en `latest/`**
+   (que es lo único que el CMS pide),
+3. **specifiers que no choquen con los de nadie** — ver abajo, que es lo único
+   difícil de los tres.
+
+Todo lo demás del mecanismo —componer, deduplicar, reescribir la base, emitir el
+`<script type="importmap">` en el `<head>`— **ya está hecho del otro lado** (CMS
+#126 y #127). Esta épica no tiene que tocar el CMS.
+
 ### La salida, y por qué es barata
 
 El propio composer da el criterio: **el mismo specifier con la MISMA URL no es
