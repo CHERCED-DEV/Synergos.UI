@@ -114,6 +114,18 @@ está vigilando nada.
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
 | `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |
 
+> ⚠️ **`npm run test:tools` contaba de más, y la cifra llegó a dos cierres de ticket.** Su comando
+> —`npx vitest run tools/lib`— pasa un **filtro de substring**, no un directorio, así que también
+> casaba `.claude/worktrees/agent-<id>/tools/lib/*.spec.mjs`: las copias que deja un agente al
+> trabajar en un worktree. Medido en el clon primario: **20 specs reales y 22 copias**, reportadas
+> como 41 ficheros. Hoy hay `vitest.config.ts` en la raíz que excluye `.claude/**`.
+>
+> **Y la cifra era lo de menos.** Vitest estaba ejecutando **código duplicado y viejo como si fuera
+> del proyecto**: un spec borrado del árbol seguiría «pasando» desde una copia, y uno arreglado
+> convive con su versión rota dando las dos por buenas. Un verde que sale de código que no está en
+> el repo no dice nada sobre el repo. `.claude/*` está en `.gitignore`, pero vitest no mira el
+> gitignore para descubrir tests.
+
 Comandos que no cuelgan de `npm test`:
 
 ```bash
