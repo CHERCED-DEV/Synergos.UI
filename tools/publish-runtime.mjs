@@ -16,6 +16,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
+import { FICHEROS_DEL_RUNTIME, importsDelRuntimeAngular } from './lib/mapa-del-runtime.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
 
@@ -54,23 +56,8 @@ async function resolveRuntimeDir() {
   return { version: versions.at(-1), dir: path.join(runtimeBase, versions.at(-1)) };
 }
 
-const RUNTIME_FILES = [
-  'ng-core.js',
-  'ng-rxjs-interop.js',
-  'ng-primitives-di.js',
-  'ng-primitives-signals.js',
-  'ng-primitives-event-dispatch.js',
-  'ng-compiler.js',
-  'ng-common.js',
-  'ng-common-http.js',
-  'ng-elements.js',
-  'ng-forms.js',
-  'ng-platform-browser.js',
-  'ng-router.js',
-  'rxjs.js',
-  'sg-core.js',
-  'sg-shared.js',
-];
+/** La misma lista que produce el build — una sola copia desde #58. */
+const RUNTIME_FILES = FICHEROS_DEL_RUNTIME;
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
@@ -121,25 +108,12 @@ async function main() {
     } catch { /* file may not exist — skip */ }
   }
 
+  // La tabla la da `tools/lib/mapa-del-runtime.mjs`: acá estaba escrita por
+  // segunda vez, y con dos copias el alias heredado de #58 se publica en una
+  // y no en la otra — el mapa de `dist/` y el del CDN discrepando sobre el
+  // MISMO runtime, sin que nada falle.
   const importMap = {
-    imports: {
-      '@angular/core':             `${base}/ng-core.js`,
-      '@angular/core/rxjs-interop': `${base}/ng-rxjs-interop.js`,
-      '@angular/core/primitives/di': `${base}/ng-primitives-di.js`,
-      '@angular/core/primitives/signals': `${base}/ng-primitives-signals.js`,
-      '@angular/core/primitives/event-dispatch': `${base}/ng-primitives-event-dispatch.js`,
-      '@angular/compiler':          `${base}/ng-compiler.js`,
-      '@angular/common':           `${base}/ng-common.js`,
-      '@angular/common/http':      `${base}/ng-common-http.js`,
-      '@angular/elements':         `${base}/ng-elements.js`,
-      '@angular/forms':            `${base}/ng-forms.js`,
-      '@angular/platform-browser': `${base}/ng-platform-browser.js`,
-      '@angular/router':           `${base}/ng-router.js`,
-      'rxjs':                      `${base}/rxjs.js`,
-      'rxjs/operators':            `${base}/rxjs.js`,
-      '@synergos/core':            `${base}/sg-core.js`,
-      '@synergos/shared':          `${base}/sg-shared.js`,
-    },
+    imports: importsDelRuntimeAngular(base),
     integrity: integrityMap,
   };
   const importMapJson = JSON.stringify(importMap, null, 2);

@@ -22,12 +22,13 @@
  *   node tools/build-cdn.mjs --salida public
  */
 import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
+import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -182,6 +183,39 @@ if (runtime.estado !== RUNTIME_OK) {
   console.error(`[build-cdn] ✗ el runtime compartido no quedó publicado.`);
   for (const linea of runtime.lineas) console.error(`[build-cdn]   ${linea}`);
   console.error('[build-cdn]   Los elementos cargarían y se romperían al arrancar.');
+  process.exit(1);
+}
+
+// ── 5.bis. Que los import maps publicados se puedan COMPONER ─────────────────
+//
+// El paso 5 comprueba que el runtime esté; esto comprueba que lo que publica se
+// pueda juntar con el de la plataforma de al lado. No es lo mismo, y el orden
+// importa: un CDN con los dos runtimes presentes y dos mapas que se contradicen
+// pasa el paso 5 entero.
+//
+// El CMS compone UN import map juntando el de cada framework (CMS #127) y su
+// regla es la correcta: el mismo specifier con URLs distintas NO se resuelve,
+// se PARA. Sin mapa el navegador no resuelve un solo bare import, así que no
+// hidrata NADA — 200, el SSR entero, y todo lo interactivo muerto (CMS #126).
+//
+// O sea que la regla vive en un árbol y la causa en el otro, y el gate del que
+// vigila no protege al que rompe. Esto es ese gate, de este lado. Ver #58.
+const mapas = recorrerMapasPublicados({
+  raizCdn: join(SALIDA, 'synergos'),
+  listarDirs: (d) =>
+    existsSync(d)
+      ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : [],
+  existe: existsSync,
+  leerJson: (r) => JSON.parse(readFileSync(r, 'utf8')),
+  unir: join,
+});
+
+const problemas = [...mapas.errores, ...revisarMapas(mapas.mapas)];
+if (problemas.length > 0) {
+  console.error('[build-cdn] ✗ los import maps publicados no se pueden componer:');
+  for (const linea of problemas) console.error(`[build-cdn]   ${linea}`);
+  console.error('[build-cdn]   El CMS no emitiría ningún <script type="importmap">.');
   process.exit(1);
 }
 

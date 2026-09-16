@@ -20,9 +20,19 @@
  * Añadir una entrada exige tocar DOS sitios más, y los dos están acoplados a
  * esta lista a propósito:
  *   1. `tools/build-runtime.mjs` → produce el bundle de runtime que la sirve
- *   2. `buildImportMap()` ahí mismo → la ruta que el navegador resuelve
+ *   2. `importsDelRuntimeAngular()` en `tools/lib/mapa-del-runtime.mjs` → la
+ *      ruta que el navegador resuelve. Vivía en `buildImportMap()` dentro de
+ *      build-runtime y estaba escrita OTRA VEZ en `publish-runtime.mjs`; desde
+ *      #58 es una sola tabla, porque dos copias es cómo el mapa de `dist/` y el
+ *      del CDN acaban diciendo cosas distintas del mismo runtime.
  * Quitar una entrada es peor: los elementos ya publicados siguen haciendo el
- * bare import y el navegador no tiene de dónde resolverlo.
+ * bare import y el navegador no tiene de dónde resolverlo. Esa frase es
+ * exactamente la razón por la que `ALIAS_HEREDADOS` existe y es un censo con su
+ * motivo al lado: `@synergos/core` y `@synergos/shared` son nombres AGNÓSTICOS
+ * con destinos de Angular, así que se siguen publicando —no se pueden retirar—
+ * y a la vez se publica su gemelo calificado (`@synergos/angular-core`) con la
+ * MISMA url, que es lo que permite que una segunda plataforma publique el suyo
+ * sin que el CMS pare el mapa entero. Ver #58.
  */
 
 /** Lo que un elemento importa del runtime compartido y NUNCA empaqueta. */
