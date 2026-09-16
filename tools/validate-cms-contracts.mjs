@@ -54,6 +54,8 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolverRaizCms } from './lib/rutas-hermanas.mjs';
+
 import {
   computeE1,
   computeE2,
@@ -70,14 +72,11 @@ const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // El CMS se busca, en orden: --cms-path=..., SYNERGOS_CMS_PATH, hermano.
 // Antes SOLO existía el hermano, así que en cualquier entorno que no fuera el
 // portátil del arquitecto —CI, contenedor— no lo encontraba y se saltaba.
-function resolveCmsRoot() {
-  const flag = process.argv.slice(2).find(a => a.startsWith('--cms-path='));
-  if (flag) return resolve(flag.slice('--cms-path='.length));
-  if (process.env.SYNERGOS_CMS_PATH) return resolve(process.env.SYNERGOS_CMS_PATH);
-  return resolve(ROOT_UI, '..', 'Synergos.CMS');
-}
-
-const ROOT_CMS      = resolveCmsRoot();
+//
+// Desde #57 la resolución vive en `lib/rutas-hermanas.mjs`: `cms-sync.mjs` la
+// hacía distinta —sin la variable de entorno— y era el segundo consumidor, que
+// es cuando se promueve.
+const { ruta: ROOT_CMS } = resolverRaizCms({ raizUi: ROOT_UI });
 const BASELINE_JSON = resolve(ROOT_UI, 'tools/cms-contract-baseline.json');
 
 const REGISTRY_JSON       = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
