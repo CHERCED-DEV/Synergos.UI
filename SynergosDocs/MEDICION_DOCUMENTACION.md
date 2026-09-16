@@ -256,8 +256,10 @@ sigue versionado es código y es decisión → HU.
   construido— y `CDN_ROOT` sigue mandando. `publish-runtime.mjs` conserva el suyo **a
   propósito**: ahí `LOCAL_CDN` es el DESTINO de una publicación en la máquina del arquitecto, no
   la fuente de una lectura, y el gate lo nombra como el único permitido.
-- **La definición de hecho del PR no incluye `npm test`**, ni `size:check`, ni
-  `contracts:validate`.
+- ~~**La definición de hecho del PR no incluye `npm test`**, ni `size:check`, ni
+  `contracts:validate`.~~ **CERRADO en #54.** Los tres están, y `contracts:validate` con la
+  forma de correrlo sin repos hermanos (#57). Se añadió además el check que este repo cobra en
+  cada ticket y no pedía por escrito: **haber visto el gate en ROJO**.
 - **`.mcp.json` declara `angular-cli`**, un MCP de generadores, en un repo cuyo
   `LLM.txt` dice «NO hay generadores… Create files by hand».
 - La épica dice **251 ficheros `.spec.ts`**; en disco hay **239**. La cifra de
