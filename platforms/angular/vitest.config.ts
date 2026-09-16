@@ -30,6 +30,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '@synergos/contracts': emitido('vitals/contracts/src/index.ts'),
+      // ⚠ EL SUBCAMINO VA PRIMERO, Y NO ES COSMÉTICO. El alias de vite con
+      // clave de cadena casa por PREFIJO y en orden, no por clave exacta: con
+      // el raíz delante, `@synergos/vitals-core/inputs` se reescribía a
+      // `…/vitals/core/src/index.js/inputs` y los 17 ficheros de `libs/shared`
+      // dejaban de resolver. Lo destapó la suite —236 specs en rojo—, no leer
+      // esta tabla; el comentario que escribí primero afirmaba justo lo
+      // contrario, que es documentación por delante del código (#63).
+      '@synergos/vitals-core/inputs': emitido('vitals/core/src/inputs/index.ts'),
       '@synergos/vitals-core': emitido('vitals/core/src/index.ts'),
       '@synergos/core': emitido('platforms/angular/libs/core/src/index.ts'),
       '@synergos/shared': emitido('platforms/angular/libs/shared/src/index.ts'),

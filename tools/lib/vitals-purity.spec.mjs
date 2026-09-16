@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import {
   sinComentarios,
   especificadores,
@@ -9,6 +11,9 @@ import {
   ficherosDeVitals,
   impurezas,
   regexConComillas,
+  RUNNER_EN_SPECS,
+  esSpec,
+  excepcionesQueSobran,
 } from './vitals-purity.mjs';
 
 /**
@@ -200,5 +205,72 @@ describe('el árbol', () => {
     // literales de regex. Si esto deja de estar vacío el gate puede
     // descolocarse, y entonces hay que decirlo — no callarlo.
     expect(regexConComillas(REPO)).toEqual([]);
+  });
+});
+
+describe('el runner en los specs', () => {
+  // El censo de #63: los specs de `vitals/` bajaron con su código y nombran
+  // `vitest`. La excepción se declara, es UNA, y se vigila en los dos sentidos.
+
+  it('un spec de vitals PUEDE nombrar el runner, y un fichero de producción NO', () => {
+    const permitidos = aliasPermitidos(REPO);
+    const spec = path.join(REPO, 'vitals/core/src/inputs/monogram.util.spec.ts');
+    const produccion = path.join(REPO, 'vitals/core/src/inputs/monogram.util.ts');
+
+    // Ninguno de los dos pasa el criterio general — eso es lo que hace que la
+    // excepción sea una excepción y no un hueco del barrido.
+    expect(esPermitido('vitest', spec, REPO, permitidos)).toBe(false);
+    expect(esPermitido('vitest', produccion, REPO, permitidos)).toBe(false);
+
+    // Lo que los separa es el nombre del fichero, que es lo que mira vitest.
+    expect(esSpec(spec)).toBe(true);
+    expect(esSpec(produccion)).toBe(false);
+  });
+
+  it('el censo NO abre la puerta a otra cosa: un framework en un spec sigue siendo impureza', () => {
+    // ⚠ Este test empezó afirmando el CONTENIDO del censo
+    // (`Object.keys(RUNNER_EN_SPECS)`), y con eso la mutación que de verdad
+    // importa —cambiar la línea del censo por un `if (esSpec(abs)) continue;`—
+    // pasaba en VERDE: el censo seguía diciendo `['vitest']` mientras nadie lo
+    // leía. Es la regla 7 del `CLAUDE.md` con el sujeto equivocado. Lo que hay
+    // que ejercitar es `impurezas`, y para eso hace falta un árbol en disco.
+    const raiz = mkdtempSync(path.join(tmpdir(), 'vitals-purity-'));
+    try {
+      mkdirSync(path.join(raiz, 'vitals/core/src'), { recursive: true });
+      writeFileSync(
+        path.join(raiz, 'tsconfig.base.json'),
+        JSON.stringify({ compilerOptions: { paths: { '@synergos/core': ['./vitals/core/src/index.ts'] } } }),
+      );
+      // Un spec con el runner (permitido) y con un framework (no).
+      writeFileSync(
+        path.join(raiz, 'vitals/core/src/x.util.spec.ts'),
+        "import { describe } from 'vitest';\nimport { TestBed } from '@angular/core/testing';\n",
+      );
+
+      const malas = impurezas(raiz).map((m) => m.especificador);
+      expect(malas).toEqual(['@angular/core/testing']);
+    } finally {
+      rmSync(raiz, { recursive: true, force: true });
+    }
+  });
+
+  it('el runner en un fichero de PRODUCCIÓN de vitals sigue siendo impureza', () => {
+    const raiz = mkdtempSync(path.join(tmpdir(), 'vitals-purity-'));
+    try {
+      mkdirSync(path.join(raiz, 'vitals/core/src'), { recursive: true });
+      writeFileSync(
+        path.join(raiz, 'tsconfig.base.json'),
+        JSON.stringify({ compilerOptions: { paths: { '@synergos/core': ['./vitals/core/src/index.ts'] } } }),
+      );
+      writeFileSync(path.join(raiz, 'vitals/core/src/x.util.ts'), "import { expect } from 'vitest';\n");
+
+      expect(impurezas(raiz).map((m) => m.especificador)).toEqual(['vitest']);
+    } finally {
+      rmSync(raiz, { recursive: true, force: true });
+    }
+  });
+
+  it('cada entrada del censo la usa algún spec — una excepción que sobra deja de leerse', () => {
+    expect(excepcionesQueSobran(REPO)).toEqual([]);
   });
 });

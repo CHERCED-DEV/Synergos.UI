@@ -293,6 +293,42 @@ export function esPermitido(especificador, ficheroAbs, repo, permitidos) {
   return false;
 }
 
+/**
+ * Lo único que un `*.spec.ts` de `vitals/` puede importar de fuera: el runner.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ES UN CENSO CON SU RAZÓN, Y NO UN «SALTAR LOS SPECS». La diferencia importa.
+ *
+ * Al bajar los normalizadores del CMS a `vitals` (#63) bajaron también sus
+ * specs —el código y su prueba viven juntos, o el segundo framework no puede
+ * correrlas sin arrancar el compilador de Angular—. Y sus specs nombran
+ * `vitest`, que no es un alias de `vitals/` ni una ruta relativa: el gate se
+ * puso rojo, con razón.
+ *
+ * Las dos salidas fáciles son las dos malas. **Excluir `*.spec.ts` del barrido**
+ * apaga el gate justo donde alguien escribiría «para probarlo rápido» un
+ * `import { TestBed } from '@angular/core/testing'`, y de un helper de spec a
+ * código compartido hay un `Extract function`. **Poner `globals: true`** hace
+ * que el import desaparezca de la vista, que es peor: el gate se pondría verde
+ * porque no hay nada que leer, no porque no haya dependencia.
+ *
+ * Así que la excepción se escribe, es UNA, y se vigila **en los dos sentidos**:
+ * si mañana ningún spec de `vitals/` la usa, la entrada sobra y el build se pone
+ * rojo — una excepción que sobra deja de leerse (la lección de #44 y #61).
+ *
+ * Y sólo vale en `*.spec.ts`: el mismo `vitest` en un fichero de producción de
+ * `vitals/` sigue siendo una impureza.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export const RUNNER_EN_SPECS = Object.freeze({
+  vitest: 'El runner de los specs de este repo. Sólo en `*.spec.ts`, y no se empaqueta.',
+});
+
+/** ¿El fichero es un spec? Se decide por el nombre, que es lo que vitest mira. */
+export function esSpec(abs) {
+  return abs.endsWith('.spec.ts');
+}
+
 /** Todos los `.ts` de `vitals/`, recursivo, sin `node_modules` ni `dist`. */
 export function ficherosDeVitals(repo) {
   const raiz = path.join(repo, 'vitals');
@@ -321,6 +357,7 @@ export function impurezas(repo) {
     const src = readFileSync(abs, 'utf8');
     for (const uso of especificadores(src)) {
       if (esPermitido(uso.especificador, abs, repo, permitidos)) continue;
+      if (esSpec(abs) && Object.hasOwn(RUNNER_EN_SPECS, uso.especificador ?? '')) continue;
       salida.push({
         fichero: path.relative(repo, abs),
         linea: uso.linea,
@@ -349,4 +386,21 @@ export function regexConComillas(repo) {
     }
   }
   return salida;
+}
+
+/**
+ * Las entradas de `RUNNER_EN_SPECS` que ya no usa ningún spec de `vitals/`.
+ *
+ * El otro sentido del censo: una excepción declarada sobre algo que nadie
+ * importa es ruido, y el ruido deja de leerse.
+ */
+export function excepcionesQueSobran(repo) {
+  const usados = new Set();
+  for (const abs of ficherosDeVitals(repo)) {
+    if (!esSpec(abs)) continue;
+    for (const uso of especificadores(readFileSync(abs, 'utf8'))) {
+      if (uso.especificador) usados.add(uso.especificador);
+    }
+  }
+  return Object.keys(RUNNER_EN_SPECS).filter((nombre) => !usados.has(nombre));
 }

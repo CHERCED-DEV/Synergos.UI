@@ -1,9 +1,11 @@
 // Public API Surface of @synergos/shared
 export * from './utils/class-names.util';
-export * from './utils/config-input.util';
-export * from './utils/embed-url.util';
-export * from './utils/form.util';
-export * from './utils/monogram.util';
+// Los normalizadores de lo que emite el CMS bajaron a `vitals` al segundo
+// consumidor (#63): la segunda plataforma los necesita idénticos y dos copias
+// que se separan es cómo una clave deja de cruzar en silencio. Se re-exportan
+// desde aquí para que los 123 elementos que los importan de `@synergos/shared`
+// no cambien ni una línea — que es lo que hace barata la mudanza.
+export * from '@synergos/vitals-core/inputs';
 export { ClickOutsideDirective } from './directives/click-outside.directive';
 export { FocusOutDirective } from './directives/focus-out.directive';
 export { FocusVisibleDirective } from './directives/focus-visible.directive';

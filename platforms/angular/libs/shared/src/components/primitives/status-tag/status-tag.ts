@@ -6,7 +6,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 export type StatusTagStyle = 'outline' | 'filled';
 export type StatusTagTone =

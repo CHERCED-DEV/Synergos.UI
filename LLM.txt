@@ -95,6 +95,17 @@ NEVER create files outside these directories without explicit user instruction.
   ya está hecha — SynergosDocs/FRONTERA_VITALS.md §5 — y es una medición, no
   una cola de trabajo.
 
+  El disparador SALTÓ con la segunda plataforma (#64) y el grupo A bajó (#63):
+  los normalizadores de lo que emite el CMS viven en vitals/core/src/inputs/
+  (coerce*, resolve*, resolveEmbedSrc, monogram, form). @synergos/shared los
+  re-exporta, así que los 122 elementos que los importan de ahí no cambiaron
+  ni una línea. Los grupos B y C siguen medidos y sin mover.
+
+  Y hay gate: `normalizador-unico` rechaza una SEGUNDA declaración de
+  cualquiera de esos nombres fuera de vitals. Va por el nombre de la función
+  exportada, derivado del disco, y NO por la ruta del fichero — la séptima
+  copia no se llamará config-input.util.ts.
+
 FORBIDDEN:
   - vitals/ importing from the platform
   - libs/core importing from libs/shared
