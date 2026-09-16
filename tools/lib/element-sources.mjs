@@ -107,8 +107,62 @@ export function slugDeTag(tag) {
  *           plataformas?: typeof PLATAFORMAS }} io
  * @returns {Map<string, { framework: string, dir: string, tier: string|null }>}
  */
-export function descubrirFuentes({ listar, existe, plataformas = PLATAFORMAS }) {
+export function descubrirFuentes(io) {
   const fuentes = new Map();
+  // Primera gana, no última — y sólo importa en el camino de error, porque una
+  // colisión la rechaza `revisarFuentesDuplicadas`. Se fija para que el informe
+  // sea estable: con «última gana» el mismo árbol da resultados distintos según
+  // el orden de `PLATAFORMAS`, y eso convierte un fallo en algo que «a veces
+  // pasa».
+  for (const fuente of todasLasFuentes(io)) {
+    if (!fuentes.has(fuente.nombre)) {
+      fuentes.set(fuente.nombre, { framework: fuente.framework, dir: fuente.dir, tier: fuente.tier });
+    }
+  }
+  return fuentes;
+}
+
+/**
+ * El recorrido crudo: TODAS las fuentes, sin colapsar por nombre.
+ *
+ * Es la pieza que faltaba (#59). `descubrirFuentes` devuelve un `Map` por
+ * nombre de elemento, así que con dos plataformas que tengan el mismo elemento
+ * una desaparecía **sin decirlo** — y lo que se ponía rojo era el cruce contra
+ * el registry, con un mensaje que **culpaba al registry**:
+ *
+ *   > `badge: declara framework "angular" y el disco dice "react" (fuente propia).`
+ *
+ * Quien leyera eso corregiría la entrada a `react` y dejaría de publicar el
+ * bundle de Angular sin haber decidido nada. La verdad —«hay DOS fuentes para
+ * este elemento»— no la decía nadie. Es la regla 25 en la fuente en vez de en
+ * el CDN: un recorrido que colapsa una dimensión no falla, contesta sobre el
+ * sitio equivocado.
+ *
+ * Vive acá y no en un segundo recorrido porque la regla de qué cuenta como
+ * fuente —`<dir>/src/main.ts`— tiene que estar escrita **una vez**. Con dos
+ * copias, la de al lado se desvía; es lo que costó la tabla del import map de
+ * #58.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LO QUE ESTA REGLA DA POR HECHO, ANOTADO EN VEZ DE ARREGLADO ACÁ (#59 → #62).
+ *
+ * Una fuente es `<dir>/src/main.ts`, **con esa extensión**. Un `platforms/react/`
+ * que use `main.tsx` —lo normal— descubriría **CERO** elementos, y el cruce
+ * contra el registry diría «ninguna plataforma tiene su fuente» para cada
+ * entrada de React: falla ruidosamente, que está bien, pero **por la razón
+ * equivocada**, y manda a alguien a mirar el registry.
+ *
+ * No se arregla acá a ojo —aceptar `.tsx` «por si acaso» es escribir una
+ * suposición sobre un contrato que nadie ha escrito—. Quien decide si la
+ * extensión es parte del contrato de una plataforma o se deriva de ella es
+ * **#62**. Queda dicho para que el día que pase, el mensaje no mande a nadie al
+ * sitio equivocado dos veces.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * @returns {{ nombre: string, framework: string, dir: string, tier: string|null }[]}
+ */
+export function todasLasFuentes({ listar, existe, plataformas = PLATAFORMAS }) {
+  const encontradas = [];
 
   for (const plataforma of plataformas) {
     const recorrer = (dir) => {
@@ -120,7 +174,7 @@ export function descubrirFuentes({ listar, existe, plataformas = PLATAFORMAS }) 
           // y no el disco, y decir `null` es decir la verdad.
           const segmentos = completo.split('/');
           const tier = TIER_POR_CARPETA.get(segmentos[segmentos.length - 2]) ?? null;
-          fuentes.set(nombre, { framework: plataforma.framework, dir: completo, tier });
+          encontradas.push({ nombre, framework: plataforma.framework, dir: completo, tier });
         } else {
           recorrer(completo);
         }
@@ -129,7 +183,59 @@ export function descubrirFuentes({ listar, existe, plataformas = PLATAFORMAS }) 
     recorrer(plataforma.apps);
   }
 
-  return fuentes;
+  return encontradas;
+}
+
+/**
+ * Dos plataformas con fuente para el MISMO nombre de elemento (#59).
+ *
+ * **Nombra las dos rutas; no elige.** Elegir es lo que hacía el `Map`, y el
+ * precio era que el error salía en otro sitio culpando a otro fichero.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ESTO RECHAZA BAJO LAS DOS LECTURAS POSIBLES, Y POR ESO SE PUEDE ESCRIBIR HOY.
+ *
+ * La pregunta de producto que #59 abre —**¿un mismo elemento puede existir en
+ * dos frameworks a la vez?**— NO está contestada, y este gate no la contesta:
+ *
+ *   - **(A) un elemento, un framework** — un `badge` de React es *otro*
+ *     elemento, con su nombre y su DocType. Dos fuentes son un error, punto.
+ *   - **(B) un elemento, N implementaciones** — que es lo que el registry
+ *     PUBLICADO ya modela (`implementations` es un mapa) y lo que hace falta
+ *     para el experimento de la épica: el MISMO badge en dos frameworks,
+ *     midiendo los dos pisos de peso. Ahí dos fuentes son legítimas **y el
+ *     rechazo sigue haciendo falta**, porque el `Map` colapsado publicaría una
+ *     sola de las dos en silencio.
+ *
+ * O sea: bajo (A) el error es el veredicto; bajo (B) es el aviso de que hay que
+ * enseñarle al pipeline a publicar las dos. Lo que NO se puede dejar es que
+ * desaparezca una fuente sin que nada lo diga. El día que se decida (B), este
+ * gate cambia de mensaje —no de sitio— y `elegirPlataforma` deja de rechazar.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * @returns {string[]} Líneas de error. Vacío es que cuadra.
+ */
+export function revisarFuentesDuplicadas(io) {
+  const porNombre = new Map();
+  for (const fuente of todasLasFuentes(io)) {
+    if (!porNombre.has(fuente.nombre)) porNombre.set(fuente.nombre, []);
+    porNombre.get(fuente.nombre).push(fuente);
+  }
+
+  const errores = [];
+  for (const [nombre, encontradas] of [...porNombre].sort()) {
+    if (encontradas.length < 2) continue;
+    errores.push(
+      `${nombre}: tiene fuente en ${encontradas.length} plataformas — ` +
+        encontradas.map((f) => `${f.framework} (${f.dir})`).join('  |  ') +
+        `. El descubrimiento devuelve UNA y la otra no se publica; el cruce contra el ` +
+        `registry se pondría rojo culpando a la entrada del registry, que no tiene la culpa. ` +
+        `Decidí: o son dos elementos con nombres distintos, o el pipeline tiene que publicar ` +
+        `las dos implementaciones (ver #59).`,
+    );
+  }
+
+  return errores;
 }
 
 /**
