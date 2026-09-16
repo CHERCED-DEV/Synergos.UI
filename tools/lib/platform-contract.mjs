@@ -128,9 +128,10 @@ export function revisarPlataforma({
     falta(3, `no existe ${unir(base, 'apps')}. Es donde el descubrimiento busca.`);
   } else if (fuentes(framework) === 0) {
     falta(3, `${unir(base, 'apps')} existe y el descubrimiento no encuentra ni una fuente. ` +
-             `Una fuente es <dir>/src/main.ts, con esa extensión — si tu plataforma usa otra, ` +
-             `eso es parte del contrato y hay que decidirlo, no dejarlo fallar por el sitio ` +
-             `equivocado.`);
+             `La entrada la DECLARA la plataforma en PLATFORMS[].entrada (#64), porque la ` +
+             `extensión no es la misma en todas. Si la tuya no está declarada o no coincide ` +
+             `con lo que hay en el disco, el descubrimiento ve cero y el error sale por el ` +
+             `sitio equivocado: culpando al registry.`);
   }
 
   // 4 ── un build declarado (la mitad estática; ver FUERA_DE_ALCANCE).
