@@ -1,786 +1,792 @@
 {
-  "medido": "2026-08-05",
-  "nota": "Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs. La llave es <elemento>/<framework> desde #44; las 130 entradas del 2026-08-05 llevan \"angular\" porque en esa fecha era la unica plataforma publicando (purga 2026-08-04) — es un hecho medido, no un valor por defecto.",
+  "medido": "2026-09-16",
+  "nota": "Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs.",
   "elementos": {
     "academy/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 350537,
-      "gzip": 58293
+      "bytes": 459345,
+      "gzip": 76123
     },
     "accordion/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 17082,
-      "gzip": 4435
+      "bytes": 16908,
+      "gzip": 4370
     },
     "alert-bar/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 12983,
-      "gzip": 2912
+      "bytes": 12809,
+      "gzip": 2843
     },
     "app-launcher/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 33145,
-      "gzip": 7236
+      "bytes": 32966,
+      "gzip": 7168
     },
     "audio-player/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 28748,
-      "gzip": 5971
+      "bytes": 28571,
+      "gzip": 5901
     },
     "autocomplete/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 23848,
-      "gzip": 5996
+      "bytes": 23671,
+      "gzip": 5931
     },
     "avatar-group/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 19016,
-      "gzip": 4692
+      "bytes": 18839,
+      "gzip": 4626
     },
     "avatar-upload/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 28578,
-      "gzip": 6844
+      "bytes": 28400,
+      "gzip": 6784
     },
     "avatar/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16059,
-      "gzip": 3894
+      "bytes": 15888,
+      "gzip": 3825
     },
     "badge-group/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 23244,
-      "gzip": 5155
+      "bytes": 23068,
+      "gzip": 5087
     },
     "badge/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 1845,
-      "gzip": 853
+      "bytes": 1675,
+      "gzip": 787
+    },
+    "badge/preact": {
+      "tier": "primitive",
+      "framework": "preact",
+      "bytes": 998,
+      "gzip": 515
     },
     "banner-slider/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 19029,
-      "gzip": 4421
+      "bytes": 18851,
+      "gzip": 4354
     },
     "banner/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 18963,
-      "gzip": 4041
+      "bytes": 18792,
+      "gzip": 3969
     },
     "blogs/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 308720,
-      "gzip": 53423
+      "bytes": 336676,
+      "gzip": 58459
     },
     "booking-wizard/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 46830,
-      "gzip": 9614
+      "bytes": 91579,
+      "gzip": 18123
     },
     "breadcrumb/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 14326,
-      "gzip": 3338
+      "bytes": 14151,
+      "gzip": 3272
     },
     "button-container/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 11902,
-      "gzip": 2662
+      "bytes": 11721,
+      "gzip": 2590
     },
     "button-group/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 13100,
-      "gzip": 3003
+      "bytes": 12923,
+      "gzip": 2939
     },
     "calendar/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 24531,
-      "gzip": 6201
+      "bytes": 24358,
+      "gzip": 6138
     },
     "card/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 19155,
-      "gzip": 4098
+      "bytes": 18986,
+      "gzip": 4024
     },
     "carousel/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 12965,
-      "gzip": 3216
+      "bytes": 12792,
+      "gzip": 3148
     },
     "cart-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 35445,
-      "gzip": 7131
+      "bytes": 35282,
+      "gzip": 7068
     },
     "cart-summary/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 62476,
-      "gzip": 10875
+      "bytes": 62310,
+      "gzip": 10815
     },
     "chart-bar/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 23727,
-      "gzip": 5235
+      "bytes": 23553,
+      "gzip": 5169
     },
     "code-block/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 20451,
-      "gzip": 4821
+      "bytes": 20276,
+      "gzip": 4755
     },
     "color-picker/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 21161,
-      "gzip": 5218
+      "bytes": 20984,
+      "gzip": 5149
     },
     "color-swatches/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 21311,
-      "gzip": 5214
+      "bytes": 21132,
+      "gzip": 5145
     },
     "comments-widget/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 30857,
-      "gzip": 6749
+      "bytes": 30677,
+      "gzip": 6685
     },
     "cookie-consent/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 26847,
-      "gzip": 5850
+      "bytes": 26668,
+      "gzip": 5783
     },
     "copy-button/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16831,
-      "gzip": 4017
+      "bytes": 16655,
+      "gzip": 3950
     },
     "countdown-clock/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 17028,
-      "gzip": 4197
+      "bytes": 16848,
+      "gzip": 4130
     },
     "countdown-digital/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 17101,
-      "gzip": 4127
+      "bytes": 16919,
+      "gzip": 4059
     },
     "cta-group/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 12704,
-      "gzip": 2585
+      "bytes": 12530,
+      "gzip": 2514
     },
     "data-grid/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 28809,
-      "gzip": 6728
+      "bytes": 28633,
+      "gzip": 6661
     },
     "data-table/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 18695,
-      "gzip": 4277
+      "bytes": 18520,
+      "gzip": 4210
     },
     "date-picker/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 28927,
-      "gzip": 6774
+      "bytes": 28749,
+      "gzip": 6708
     },
     "divider/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 10359,
-      "gzip": 2219
+      "bytes": 10187,
+      "gzip": 2145
     },
     "drawer/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 19739,
-      "gzip": 4757
+      "bytes": 19568,
+      "gzip": 4691
     },
     "dropdown/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 26315,
-      "gzip": 6004
+      "bytes": 26142,
+      "gzip": 5935
     },
     "dropzone/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 29656,
-      "gzip": 6909
+      "bytes": 29483,
+      "gzip": 6840
     },
     "ehr/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 288484,
-      "gzip": 51162
+      "bytes": 294748,
+      "gzip": 51444
     },
     "eventos/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 338469,
-      "gzip": 56882
+      "bytes": 399833,
+      "gzip": 66373
     },
     "eyebrow/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "fab/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 18452,
-      "gzip": 4337
+      "bytes": 18284,
+      "gzip": 4267
     },
     "faq-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 10807,
-      "gzip": 2298
+      "bytes": 10634,
+      "gzip": 2225
     },
     "faq-section/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 13272,
-      "gzip": 3140
+      "bytes": 13096,
+      "gzip": 3074
     },
     "feature-grid/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 16916,
-      "gzip": 3916
+      "bytes": 16739,
+      "gzip": 3847
     },
     "feature-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 14347,
-      "gzip": 3082
+      "bytes": 14170,
+      "gzip": 3009
     },
     "feature-journey/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 22540,
-      "gzip": 5092
+      "bytes": 22360,
+      "gzip": 5017
     },
     "file-uploader/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 27172,
-      "gzip": 6280
+      "bytes": 26994,
+      "gzip": 6214
     },
     "form-stepper/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 30158,
-      "gzip": 6079
+      "bytes": 29981,
+      "gzip": 6009
     },
     "gallery-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 13323,
-      "gzip": 2862
+      "bytes": 13146,
+      "gzip": 2792
     },
     "gov/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 288953,
-      "gzip": 47665
+      "bytes": 326598,
+      "gzip": 54489
     },
     "heading/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "hero-banner/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 18072,
-      "gzip": 4174
+      "bytes": 17896,
+      "gzip": 4104
     },
     "hero/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 16194,
-      "gzip": 3727
+      "bytes": 16025,
+      "gzip": 3659
     },
     "icon-block/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 10544,
-      "gzip": 2251
+      "bytes": 10369,
+      "gzip": 2178
     },
     "icon-label/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16619,
-      "gzip": 3835
+      "bytes": 16444,
+      "gzip": 3765
     },
     "image-block/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 11807,
-      "gzip": 2510
+      "bytes": 11631,
+      "gzip": 2441
     },
     "info-block/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 14183,
-      "gzip": 3134
+      "bytes": 14008,
+      "gzip": 3061
     },
     "insight-explorer/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 24678,
-      "gzip": 5918
+      "bytes": 24497,
+      "gzip": 5849
     },
     "key-value/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 11631,
-      "gzip": 2477
+      "bytes": 11457,
+      "gzip": 2407
     },
     "kpi-card/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 18848,
-      "gzip": 4618
+      "bytes": 18675,
+      "gzip": 4552
     },
     "label/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "lightbox-gallery/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 24830,
-      "gzip": 5773
+      "bytes": 24649,
+      "gzip": 5703
     },
     "link-block/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 11363,
-      "gzip": 2445
+      "bytes": 11188,
+      "gzip": 2371
     },
     "livestream/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 20533,
-      "gzip": 5112
+      "bytes": 20358,
+      "gzip": 5060
     },
     "logo-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 14161,
-      "gzip": 3011
+      "bytes": 13987,
+      "gzip": 2940
     },
     "map-pin/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 21403,
-      "gzip": 5305
+      "bytes": 21231,
+      "gzip": 5248
     },
     "media-explorer/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 31055,
-      "gzip": 6377
+      "bytes": 30874,
+      "gzip": 6319
     },
     "media-text/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 16134,
-      "gzip": 3491
+      "bytes": 15959,
+      "gzip": 3415
     },
     "modal-trigger/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 20272,
-      "gzip": 4685
+      "bytes": 20094,
+      "gzip": 4615
     },
     "newsletter-form/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 24779,
-      "gzip": 5564
+      "bytes": 24599,
+      "gzip": 5494
     },
     "notification-center/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 27904,
-      "gzip": 6194
+      "bytes": 27718,
+      "gzip": 6130
     },
     "notification-toast/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 20671,
-      "gzip": 5043
+      "bytes": 20488,
+      "gzip": 4977
     },
     "oembed/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 15358,
-      "gzip": 3726
+      "bytes": 15187,
+      "gzip": 3669
     },
     "otp-input/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 17171,
-      "gzip": 4390
+      "bytes": 16997,
+      "gzip": 4323
     },
     "pagination/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 20918,
-      "gzip": 4966
+      "bytes": 20743,
+      "gzip": 4896
     },
     "paragraph/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "pax-selector/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 30184,
-      "gzip": 6011
+      "bytes": 30007,
+      "gzip": 5942
     },
     "poll/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 23037,
-      "gzip": 5461
+      "bytes": 22868,
+      "gzip": 5398
     },
     "popover/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 20041,
-      "gzip": 4635
+      "bytes": 19869,
+      "gzip": 4570
     },
     "price-display/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16185,
-      "gzip": 3190
+      "bytes": 16020,
+      "gzip": 3126
     },
     "product-card/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 32859,
-      "gzip": 7072
+      "bytes": 32682,
+      "gzip": 7003
     },
     "product-detail/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 90463,
-      "gzip": 13764
+      "bytes": 90295,
+      "gzip": 13703
     },
     "product-grid/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 44660,
-      "gzip": 8632
+      "bytes": 44494,
+      "gzip": 8566
     },
     "progress-bar/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 15061,
-      "gzip": 3485
+      "bytes": 14884,
+      "gzip": 3414
     },
     "qr-code/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 19723,
-      "gzip": 5899
+      "bytes": 19549,
+      "gzip": 5830
     },
     "quantity-selector/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16862,
-      "gzip": 3911
+      "bytes": 16693,
+      "gzip": 3850
     },
     "quote-animated/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 22763,
-      "gzip": 5207
+      "bytes": 22584,
+      "gzip": 5138
     },
     "quote/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "range-slider/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 20401,
-      "gzip": 4792
+      "bytes": 20224,
+      "gzip": 4722
     },
     "rating-stars/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 19060,
-      "gzip": 4617
+      "bytes": 18883,
+      "gzip": 4553
     },
     "realty/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 349920,
-      "gzip": 59160
+      "bytes": 406176,
+      "gzip": 67661
     },
     "rich-text/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "rich-tooltip/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 21244,
-      "gzip": 4487
+      "bytes": 21067,
+      "gzip": 4418
     },
     "scroll-top/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 14282,
-      "gzip": 3510
+      "bytes": 14107,
+      "gzip": 3442
     },
     "search-box/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 22282,
-      "gzip": 5178
+      "bytes": 22107,
+      "gzip": 5111
     },
     "seat-map/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 30980,
-      "gzip": 7327
+      "bytes": 30805,
+      "gzip": 7258
     },
     "select-multi/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 27782,
-      "gzip": 6215
+      "bytes": 27605,
+      "gzip": 6145
     },
     "seller/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 138576,
-      "gzip": 25786
+      "bytes": 144482,
+      "gzip": 27161
     },
     "separator/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12937,
-      "gzip": 2810
+      "bytes": 12763,
+      "gzip": 2741
     },
     "share-bar/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 19106,
-      "gzip": 5171
+      "bytes": 18932,
+      "gzip": 5106
     },
     "signature-pad/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 21597,
-      "gzip": 5113
+      "bytes": 21419,
+      "gzip": 5042
     },
     "skeleton/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 14239,
-      "gzip": 3377
+      "bytes": 14066,
+      "gzip": 3308
     },
     "social-proof/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 17186,
-      "gzip": 4095
+      "bytes": 17009,
+      "gzip": 4028
     },
     "social-share/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 11993,
-      "gzip": 2808
+      "bytes": 11816,
+      "gzip": 2744
     },
     "spacer/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 1972,
-      "gzip": 928
+      "bytes": 1801,
+      "gzip": 861
     },
     "splitter/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 18555,
-      "gzip": 4281
+      "bytes": 18382,
+      "gzip": 4209
     },
     "stat-ticker/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 13260,
-      "gzip": 3124
+      "bytes": 13084,
+      "gzip": 3054
     },
     "stepper/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 22385,
-      "gzip": 5282
+      "bytes": 22213,
+      "gzip": 5216
     },
     "storefront/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 269455,
-      "gzip": 45061
+      "bytes": 432805,
+      "gzip": 70870
     },
     "tab-group/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 14778,
-      "gzip": 3350
+      "bytes": 14604,
+      "gzip": 3283
     },
     "tabs/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 18047,
-      "gzip": 4430
+      "bytes": 17878,
+      "gzip": 4366
     },
     "tag/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16178,
-      "gzip": 3692
+      "bytes": 16010,
+      "gzip": 3621
     },
     "testimonial-carousel/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 26599,
-      "gzip": 5998
+      "bytes": 26414,
+      "gzip": 5929
     },
     "testimonial-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 15323,
-      "gzip": 3320
+      "bytes": 15142,
+      "gzip": 3247
     },
     "testimonial-section/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 16744,
-      "gzip": 3932
+      "bytes": 16560,
+      "gzip": 3862
     },
     "text-block/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12354,
-      "gzip": 2663
+      "bytes": 12179,
+      "gzip": 2592
     },
     "timeline-horizontal/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 17388,
-      "gzip": 4006
+      "bytes": 17204,
+      "gzip": 3935
     },
     "timeline-item/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 13631,
-      "gzip": 2941
+      "bytes": 13453,
+      "gzip": 2870
     },
     "timeline/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 15887,
-      "gzip": 3581
+      "bytes": 15714,
+      "gzip": 3514
     },
     "toast-center/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 25186,
-      "gzip": 6013
+      "bytes": 25009,
+      "gzip": 5944
     },
     "tooltip/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 16167,
-      "gzip": 3640
+      "bytes": 15995,
+      "gzip": 3570
     },
     "tour-guide/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 23731,
-      "gzip": 5534
+      "bytes": 23556,
+      "gzip": 5469
     },
     "travel-shell/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 259700,
-      "gzip": 44580
+      "bytes": 417430,
+      "gzip": 67337
     },
     "tree-view/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 20272,
-      "gzip": 5035
+      "bytes": 20098,
+      "gzip": 4968
     },
     "variant-picker/angular": {
       "tier": "composition",
       "framework": "angular",
-      "bytes": 22067,
-      "gzip": 4834
+      "bytes": 21901,
+      "gzip": 4772
     },
     "video-block/angular": {
       "tier": "primitive",
       "framework": "angular",
-      "bytes": 12297,
-      "gzip": 2681
+      "bytes": 12121,
+      "gzip": 2610
     },
     "video-player/angular": {
       "tier": "module",
       "framework": "angular",
-      "bytes": 28934,
-      "gzip": 5990
+      "bytes": 28757,
+      "gzip": 5920
     }
   }
 }

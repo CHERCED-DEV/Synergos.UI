@@ -116,7 +116,7 @@ está vigilando nada.
 | `cdn-cache-policy` | qué puede llevar `immutable` | pones caché larga en una ruta que se mueve |
 | `platform-contract` | las **ocho obligaciones** de una plataforma, nombradas una por una — y **dice cuáles NO mide** (la 4 a medias y la 6 entera, con quién sí las mide). La 8ª es `ElementProtocol`: un adaptador que lo implementa **y que sea el único que registra** | se crea `platforms/react/` a medias y el build pasa como si nada, o un elemento vuelve a llamar a `customElements.define` por su cuenta (#62) |
 | `cdn-runtime-check` | que el runtime de CADA framework que publicó elementos esté antes que ellos | se publica el runtime después de los elementos (#7), o se publican los de una plataforma sin el suyo (#61) |
-| `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida | un external se empaqueta dentro de un elemento (#8) |
+| `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida, **y que lo que se mudó al runtime lo importe quien lo tiene ahora** | un external se empaqueta dentro de un elemento (#8), o `sg-core.js` deja de importar lo que #62 le pasó (#64) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
@@ -143,6 +143,19 @@ está vigilando nada.
 > convive con su versión rota dando las dos por buenas. Un verde que sale de código que no está en
 > el repo no dice nada sobre el repo. `.claude/*` está en `.gitignore`, pero vitest no mira el
 > gitignore para descubrir tests.
+
+> ⚠️ **`check-size-budget` NO corre en `npm test`, y por eso el CDN llevaba semanas rojo sin
+> que nadie lo supiera** (#68). Vive dentro de `build:cdn`; entre #62 y #64 nadie lo corrió y
+> seis verticales se habían pasado de su techo. Es la forma del CMS #128 —un gate que no se
+> dispara en el cambio que lo necesita no falla, se *salta*— con el agravante de que acá ni
+> aparece como «skipped»: no lo invoca nadie.
+>
+> Los techos se resubieron el 2026-09-16 **después de medir qué entró**, que es la mitad que
+> hace legítima una excepción: lo que entró es `libs/shells`, el **38-65 %** de cada bundle
+> vertical. Y eso contesta con datos la parte de #65 que preguntaba si `shells` debería ser un
+> external — **no**: le hablan diez elementos y los diez son verticales; empaquetado cada uno
+> carga sólo lo que usa (109-263 KB) y compartido una página cargaría la unión (~420 KB)
+> aunque lleve un solo vertical. Una página del producto lleva UN vertical.
 
 Comandos que no cuelgan de `npm test`:
 

@@ -113,14 +113,26 @@ describe('revisarBundle', () => {
 
   it('storefront como salió durante la purga —712 KB— NO pasa', () => {
     // El defecto real, con su número real.
-    const v = revisarBundle({ framework: 'angular',
+    const v = revisarBundle({
+      framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
       bytes: 712_000,
       codigo: bundleSano(),
     });
+
     expect(v.ok).toBe(false);
-    expect(v.veces).toBeGreaterThan(2);
+    // Y lo rechaza SU TECHO, no los externals ni el trinquete: el bundle está
+    // sano y no hay línea base en este fixture.
+    expect(v.externalsAusentes).toEqual([]);
+    expect(v.bytes).toBeGreaterThan(v.techo);
+
+    // ⚠ Esto decía `veces > 2`, y el 2 no era de este test: salía de que el
+    // techo de `storefront` eran 304 KB (712/304 = 2,34). Al resubir los techos
+    // con lo medido (#68) pasó a 456 KB y el ratio cayó a 1,56 — el fixture
+    // afirmaba un número que era de OTRA pieza. Lo que este test prueba es que
+    // el defecto de la purga sigue sin pasar, y eso no depende del ratio.
+    expect(v.veces).toBeGreaterThan(1);
   });
 
   it('un primitivo que engorda 10× NO pasa — y NO lo caza el techo del tier', () => {
