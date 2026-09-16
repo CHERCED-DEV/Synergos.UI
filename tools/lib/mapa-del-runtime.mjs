@@ -69,23 +69,59 @@
  */
 
 /** Los ficheros que produce el build del runtime de Angular, en orden de publicación. */
-export const FICHEROS_DEL_RUNTIME = [
-  'ng-core.js',
-  'ng-rxjs-interop.js',
-  'ng-primitives-di.js',
-  'ng-primitives-signals.js',
-  'ng-primitives-event-dispatch.js',
-  'ng-compiler.js',
-  'ng-common.js',
-  'ng-common-http.js',
-  'ng-elements.js',
-  'ng-forms.js',
-  'ng-platform-browser.js',
-  'ng-router.js',
-  'rxjs.js',
-  'sg-core.js',
-  'sg-shared.js',
-];
+export const FICHEROS_POR_FRAMEWORK = {
+  angular: [
+    'ng-core.js',
+    'ng-rxjs-interop.js',
+    'ng-primitives-di.js',
+    'ng-primitives-signals.js',
+    'ng-primitives-event-dispatch.js',
+    'ng-compiler.js',
+    'ng-common.js',
+    'ng-common-http.js',
+    'ng-elements.js',
+    'ng-forms.js',
+    'ng-platform-browser.js',
+    'ng-router.js',
+    'rxjs.js',
+    'sg-core.js',
+    'sg-shared.js',
+  ],
+  /**
+   * Preact (#64). Son CINCO ficheros contra los quince de Angular, y esa
+   * diferencia es la respuesta que la épica #37 estaba buscando — no una
+   * simplificación de este fichero.
+   */
+  preact: [
+    'preact.js',
+    'preact-hooks.js',
+    'preact-jsx-runtime.js',
+    'sg-preact-core.js',
+    'sg-preact-shared.js',
+  ],
+};
+
+/**
+ * Los ficheros del runtime de un framework.
+ *
+ * ⚠ Se pide POR FRAMEWORK y no hay default. `FICHEROS_DEL_RUNTIME` era una
+ * lista a secas —la de Angular— y quien publicara una segunda plataforma
+ * copiaría sus quince nombres sobre cinco ficheros que no existen; el publish
+ * avisaría de catorce ausentes y nadie sabría si eso está bien. Es la regla 25:
+ * una dimensión resuelta a una constante no falla, contesta sobre el sitio
+ * equivocado.
+ */
+export function ficherosDelRuntime(framework) {
+  const ficheros = FICHEROS_POR_FRAMEWORK[framework];
+  if (!ficheros) {
+    throw new Error(
+      `No hay tabla de runtime para "${framework}". Declarala en FICHEROS_POR_FRAMEWORK ` +
+        `(tools/lib/mapa-del-runtime.mjs) junto con sus imports — las dos mitades van juntas ` +
+        `o el import map nombra ficheros que nadie publica.`,
+    );
+  }
+  return ficheros;
+}
 
 /**
  * El censo de los specifiers AGNÓSTICOS que ya están publicados, con su dueño.
@@ -161,6 +197,65 @@ export function importsDelRuntimeAngular(base) {
   }
 
   return imports;
+}
+
+/**
+ * Los imports del runtime de Preact (#64).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TODOS LOS `@synergos/*` VAN CALIFICADOS, Y ÉSA ES LA REGLA 26 EN UNA LÍNEA.
+ *
+ * Angular publica `@synergos/core` y `@synergos/shared` —nombres AGNÓSTICOS— y
+ * NO puede retirarlos: sus 127 bundles ya publicados hacen ese bare import. Por
+ * eso están en `ALIAS_HEREDADOS`, con su razón, y desde #58 publican además su
+ * gemelo calificado a la MISMA url, que es lo que permite deduplicar.
+ *
+ * Una plataforma NUEVA no arrastra nada, así que publica **sólo** el calificado.
+ * Si esto dijera `@synergos/core`, el CMS vería el mismo specifier con dos URLs
+ * distintas, su compositor devolvería `null`, la vista no emitiría ningún
+ * `<script type="importmap">` y **la página no hidrataría NADA, Angular
+ * incluido** — el defecto CMS #126, provocado desde este repo por un `publish`.
+ * El gate `mapa-del-runtime` lo rechaza antes de subir; esta nota está para que
+ * nadie tenga que descubrirlo mutándolo.
+ *
+ * `preact/compat` NO se publica hoy. Sería el alias que hace que un paquete de
+ * React funcione sobre Preact, y no hay ninguno: publicarlo sería declarar un
+ * camino que nadie recorre.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export function importsDelRuntimePreact(base) {
+  const b = String(base).replace(/\/$/, '');
+  return {
+    preact: `${b}/preact.js`,
+    'preact/hooks': `${b}/preact-hooks.js`,
+    'preact/jsx-runtime': `${b}/preact-jsx-runtime.js`,
+    [calificar('@synergos/core', 'preact')]: `${b}/sg-preact-core.js`,
+    [calificar('@synergos/shared', 'preact')]: `${b}/sg-preact-shared.js`,
+  };
+}
+
+/** Por framework, sin default — la misma razón que `ficherosDelRuntime`. */
+const IMPORTS_POR_FRAMEWORK = {
+  angular: importsDelRuntimeAngular,
+  preact: importsDelRuntimePreact,
+};
+
+/**
+ * Los imports del runtime de un framework, sobre una base de URL.
+ *
+ * Las dos mitades —qué ficheros se copian y qué nombres los resuelven— se piden
+ * por el MISMO framework a propósito: es lo que impide que el import map nombre
+ * `sg-preact-shared.js` mientras el publish copia los quince de Angular.
+ */
+export function importsDelRuntime(framework, base) {
+  const construir = IMPORTS_POR_FRAMEWORK[framework];
+  if (!construir) {
+    throw new Error(
+      `No hay import map para "${framework}". Declaralo en IMPORTS_POR_FRAMEWORK ` +
+        `(tools/lib/mapa-del-runtime.mjs) junto con sus ficheros.`,
+    );
+  }
+  return construir(base);
 }
 
 // ── El gate ─────────────────────────────────────────────────────────────────

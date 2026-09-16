@@ -28,7 +28,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 
-import { FICHEROS_DEL_RUNTIME, importsDelRuntimeAngular } from './lib/mapa-del-runtime.mjs';
+import { ficherosDelRuntime, importsDelRuntimeAngular } from './lib/mapa-del-runtime.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -239,7 +239,7 @@ async function main() {
 
   if (!isDryRun) {
     // Compute SRI integrity hashes for all built runtime files
-    const runtimeFiles = FICHEROS_DEL_RUNTIME;
+    const runtimeFiles = ficherosDelRuntime('angular');
     const integrity = {};
     for (const file of runtimeFiles) {
       try {

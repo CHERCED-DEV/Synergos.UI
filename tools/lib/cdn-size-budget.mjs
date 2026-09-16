@@ -117,23 +117,80 @@ export const EXCEPCIONES = {
 export const FACTOR_TRINQUETE = 2;
 
 /**
- * Los externals que TODO elemento importa, sin excepción.
+ * Los externals que TODO elemento de un framework importa, sin excepción.
  *
- * No es una suposición: los tres salen del patrón de arranque que
- * `AGENTS.md` obliga a copiar en cada `src/main.ts` — `createApplication`
- * (@angular/platform-browser), `createCustomElement` (@angular/elements) y el
- * `appConfig` con sus providers (@angular/core). Un bundle al que le falte
- * cualquiera de los tres se los tragó.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ESTA LISTA SIGUIÓ A UNA IMPLEMENTACIÓN Y CADUCÓ CON ELLA (#64).
  *
- * El resto de EXTERNALS (rxjs, forms, router, @synergos/*) NO se comprueba: un
- * elemento puede legítimamente no usarlos, y un gate que no distingue «no lo
- * usa» de «se lo comió» es ruido.
+ * Decía tres para Angular y su razón era exacta: salían del patrón de arranque
+ * que cada `src/main.ts` copiaba — `createApplication`
+ * (`@angular/platform-browser`), `createCustomElement` (`@angular/elements`) y
+ * el `appConfig` (`@angular/core`)—. **#62 se llevó ese patrón**: hoy lo hace
+ * `registrarElementoAngular`, que vive en `@synergos/core`, o sea en el runtime
+ * compartido. Medido sobre los 127 bundles: `@angular/core` sigue en 127,
+ * `@angular/platform-browser` en 4 y **`@angular/elements` en CERO**.
+ *
+ * O sea que el gate llevaba desde #62 diciendo «se lo empaquetó» de 127
+ * elementos que no habían empaquetado nada — el badge pasó de 1.845 a 1.675 B—.
+ * No lo vio nadie porque **este gate no corre en `npm test`**: corre dentro de
+ * `build:cdn`, y entre #62 y #64 nadie lo corrió. Es la forma del CMS #128: un
+ * gate que no se dispara en el cambio que lo necesita no falla, se salta.
+ *
+ * La lección es la del defecto #120 del repo hermano: **el gate seguía a un
+ * FICHERO en vez de a una PROPIEDAD**. La propiedad es «el elemento no
+ * empaqueta su framework», y sigue valiendo; lo que cambió es dónde está la
+ * llamada. Por eso lo que se movió no se deja de vigilar: pasa a
+ * `MIGRADOS_AL_RUNTIME`, abajo.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
-export const EXTERNALS_UNIVERSALES = [
-  '@angular/core',
-  '@angular/elements',
-  '@angular/platform-browser',
-];
+export const EXTERNALS_UNIVERSALES_POR_FRAMEWORK = {
+  // `appConfig` sigue en cada elemento y sigue importando `@angular/core`.
+  angular: ['@angular/core'],
+  // El JSX de cualquier elemento compila a `jsx(...)`, y registrar el tag es
+  // `registrarElementoPreact`. `preact` a secas NO es universal: lo importa el
+  // adaptador, no el elemento.
+  preact: ['preact/jsx-runtime', '@synergos/preact-core'],
+};
+
+/**
+ * Lo que DEJÓ de estar en cada elemento porque se mudó al runtime compartido.
+ *
+ * Es la otra mitad del cambio de arriba, y sin ella el gate se habría vuelto
+ * más débil en vez de más correcto: quitar `@angular/elements` de la lista de
+ * universales, a secas, deja de vigilar que NADIE lo empaquete. Acá se declara
+ * quién lo importa ahora, y el gate lo comprueba sobre ESE fichero.
+ *
+ * Entrar exige escribir la razón; salir es automático, porque si el fichero
+ * deja de importarlo el gate lo dice.
+ */
+export const MIGRADOS_AL_RUNTIME = {
+  angular: {
+    fichero: 'sg-core.js',
+    externals: ['@angular/elements', '@angular/platform-browser'],
+    razon:
+      'Los dos los usaba el patrón de arranque de cada `main.ts`. #62 lo movió a ' +
+      '`registrarElementoAngular`, dentro de `@synergos/core`, para honrar `ElementProtocol`. ' +
+      'Que estén acá y no en cada elemento es el resultado que se buscaba; lo que hay que ' +
+      'seguir vigilando es que estén EN ALGÚN sitio y como import, no empaquetados.',
+  },
+};
+
+/**
+ * Los universales de un framework. Sin default: una plataforma sin declararlos
+ * no tendría vigilancia de externals y el gate informaría «✓» sobre ella, que
+ * es la regla 25 otra vez.
+ */
+export function externalsUniversales(framework) {
+  const lista = EXTERNALS_UNIVERSALES_POR_FRAMEWORK[framework];
+  if (!lista) {
+    throw new Error(
+      `No hay externals universales declarados para "${framework}". Declaralos en ` +
+        `EXTERNALS_UNIVERSALES_POR_FRAMEWORK (tools/lib/cdn-size-budget.mjs): sin ellos este ` +
+        `gate no comprueba nada sobre esa plataforma y lo informa como si estuviera bien.`,
+    );
+  }
+  return lista;
+}
 
 /**
  * El techo que le toca a un elemento: su excepción si la tiene, si no la de su tier.
@@ -182,7 +239,8 @@ export function importaExterno(codigo, external) {
  *            codigo?: string, base?: number }} bundle
  *        `base` es lo que pesaba en `cdn-size-baseline.json`. Un elemento nuevo
  *        no lo tiene: nace sin trinquete y sólo responde ante el techo del tier.
- *        `framework` viaja SÓLO para que el mensaje lo nombre (issue #44): el
+ *        `framework` era SÓLO para el mensaje (issue #44) y desde #64 **elige los
+ *        externals universales**, así que es obligatorio. El
  *        techo es del elemento y de su tier, no del framework — un bundle de
  *        React que pese el triple que el de Angular es el mismo defecto de
  *        externals, no una plataforma con derecho a pesar más.
@@ -197,7 +255,23 @@ export function revisarBundle({ nombre, framework = null, tier, bytes, codigo = 
   // Se mira SIEMPRE, pase o no pase el tamaño. Un external tragado que aún
   // quepa bajo el techo es el mismo defecto un poco antes — y es justo cuando
   // sale barato arreglarlo.
-  const externalsAusentes = EXTERNALS_UNIVERSALES.filter((e) => !importaExterno(codigo, e));
+  // Los universales son del FRAMEWORK. Antes eran una lista única —la de
+  // Angular— así que el primer bundle de otra plataforma habría salido rojo con
+  // tres externals «ausentes» que esa plataforma no tiene.
+  //
+  // ⚠ Y si no viene, se LANZA en vez de saltarse la comprobación. El `framework`
+  // era hasta #64 un dato para el mensaje, así que omitirlo no costaba nada;
+  // ahora elige qué se vigila, y un `?? []` convertiría un olvido en «este
+  // bundle no tiene externals ausentes» — verde por no haber mirado.
+  if (!framework) {
+    throw new Error(
+      `revisarBundle("${nombre}") sin framework. Desde #64 el framework elige qué externals ` +
+        `son universales, así que sin él este gate no comprobaría ninguno y lo diría en verde.`,
+    );
+  }
+  const externalsAusentes = externalsUniversales(framework).filter(
+    (e) => !importaExterno(codigo, e),
+  );
 
   const cabe = techo !== null && bytes <= techo;
   const crecimiento = base ? Number((bytes / base).toFixed(2)) : null;
@@ -275,7 +349,7 @@ export function explicar(v) {
     if (v.externalsAusentes.length === 0) {
       // Sin external ausente el diagnóstico no está cerrado, y decirlo importa:
       // el gate acusa un síntoma y quien lo lee tiene que buscar la causa.
-      lineas.push(`  Los tres externals universales siguen ahí, así que no es el caso típico.`);
+      lineas.push(`  Los externals universales siguen ahí, así que no es el caso típico.`);
       lineas.push(`  Sospechá de una lib de feature nueva, o de que se perdió el`);
       lineas.push(`  \`sideEffects: false\` de .cdn-out/package.json (build.mjs:201) — ese`);
       lineas.push(`  exacto defecto dejó storefront en 712 KB durante la purga.`);
@@ -284,4 +358,40 @@ export function explicar(v) {
   }
 
   return lineas;
+}
+
+/**
+ * Los externals migrados que el fichero de runtime declarado ya NO importa.
+ *
+ * Es el complemento de `EXTERNALS_UNIVERSALES_POR_FRAMEWORK`: al sacar
+ * `@angular/elements` de lo que se le exige a cada elemento, **alguien tiene que
+ * seguir mirando que nadie se lo empaquete**. Sin esto, el gate habría quedado
+ * más débil que antes de #64 y con mejor cara.
+ *
+ * @param {(fichero: string) => string|null} leerRuntime Devuelve el código del
+ *   fichero de runtime de ese framework, o `null` si no está publicado.
+ * @returns {string[]} Líneas de error. Vacío es que cuadra.
+ */
+export function revisarMigradosAlRuntime(framework, leerRuntime) {
+  const migrado = MIGRADOS_AL_RUNTIME[framework];
+  if (!migrado) return [];
+
+  const codigo = leerRuntime(migrado.fichero);
+  if (codigo === null) {
+    // NO se salta: un runtime que falta es exactamente cuando esto importa.
+    return [
+      `${framework}: no se encuentra ${migrado.fichero}, que es quien tiene que importar ` +
+        `${migrado.externals.join(', ')} desde que #62 los sacó de cada elemento.`,
+    ];
+  }
+
+  const ausentes = migrado.externals.filter((e) => !importaExterno(codigo, e));
+  if (ausentes.length === 0) return [];
+
+  return [
+    `${framework}: ${migrado.fichero} ya NO importa ${ausentes.join(', ')} — se lo empaquetó.`,
+    `  Esos externals salieron de cada elemento a propósito (${migrado.razon})`,
+    `  Si de verdad ya no hacen falta, sacalos de MIGRADOS_AL_RUNTIME con su razón; ` +
+      `dejarlos declarados y sin importar es un external tragado que nadie mira.`,
+  ];
 }
