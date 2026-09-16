@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   descubrirFuentes, todasLasFuentes, revisarFuentesDuplicadas,
+  implementacionesDe, SHOWCASE_MULTIPLATAFORMA,
   resolverFramework, revisarFrameworks, tierDelDisco,
   elegirPlataforma, resolverTier, SIN_FUENTE_PROPIA, PLATAFORMAS,
 } from './element-sources.mjs';
@@ -79,7 +80,7 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
     plataformas: DOS_PLATAFORMAS,
   };
 
-  it('EL CASO: se rechaza nombrando LAS DOS rutas, no se elige una', () => {
+  it('EL CASO: sin declarar se rechaza nombrando LAS DOS rutas, no se elige una', () => {
     const errores = revisarFuentesDuplicadas(disco);
 
     expect(errores).toHaveLength(1);
@@ -90,6 +91,40 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
     expect(errores[0]).toContain('react (platforms/react/apps/elements/primitives/badge)');
     // Y no culpa al registry, que es lo que el mensaje viejo hacía.
     expect(errores[0]).not.toMatch(/declara framework/);
+  });
+
+  it('DECLARADO como escaparate, se acepta — y es la decisión, no una excepción', () => {
+    // «Sí podría existir, pero no deberíamos tener esas cosas así»: se habilita
+    // porque la épica #37 no se contesta sin el mismo elemento en dos
+    // plataformas, y se declara uno por uno porque no es la forma normal.
+    expect(revisarFuentesDuplicadas(disco, { badge: { razon: 'el escaparate de #37' } }))
+      .toEqual([]);
+  });
+
+  it('…y en el OTRO sentido: una declaración que ya no aplica rompe', () => {
+    // Una excepción que sobra deja de leerse, y la siguiente que entre lo hará
+    // sin discusión. Es la misma regla que SIN_FUENTE_PROPIA.
+    const errores = revisarFuentesDuplicadas(disco, {
+      badge: { razon: 'el escaparate de #37' },
+      hero: { razon: 'esto ya no es cierto' },
+    });
+
+    expect(errores).toHaveLength(1);
+    expect(errores[0]).toContain('declara "hero" y no tiene fuente en más de una');
+  });
+
+  it('el censo de verdad está VACÍO, y ése es el estado correcto hoy', () => {
+    // Sólo hay una plataforma construible, así que no hay nada que declarar.
+    // La primera entrada la escribe #64 junto con el elemento — si esto deja de
+    // estar vacío sin que exista la segunda plataforma, alguien declaró un
+    // escaparate que no puede existir.
+    expect(Object.keys(SHOWCASE_MULTIPLATAFORMA)).toEqual([]);
+  });
+
+  it('implementacionesDe dice en qué plataformas vive, para quien publica', () => {
+    expect(implementacionesDe('badge', disco)).toEqual(['angular', 'react']);
+    expect(implementacionesDe('hero', disco)).toEqual(['angular']);
+    expect(implementacionesDe('no-existe', disco)).toEqual([]);
   });
 
   it('el recorrido crudo NO colapsa: ve las tres fuentes', () => {
@@ -285,14 +320,16 @@ describe('elegirPlataforma', () => {
       conBundles('dist/angular/hero/main.js'),
     );
 
-    expect(r.plataforma.name).toBe('angular');
+    // Plural incluso con una: así quien publica no tiene dos formas que
+    // distinguir. `publish.mjs` ya iteraba sobre una lista de uno (#59).
+    expect(r.plataformas.map((p) => p.name)).toEqual(['angular']);
   });
 
   it('un framework que ninguna plataforma publica se para, en vez de quedar en "not built"', () => {
     const r = elegirPlataforma({ name: 'hero', framework: 'react' }, plataformas, conBundles());
 
     expect(r.error).toContain('ninguna plataforma lo publica');
-    expect(r.plataforma).toBeUndefined();
+    expect(r.plataformas).toBeUndefined();
   });
 
   it('un bundle construido en OTRA plataforma no se publica bajo el slot declarado', () => {
@@ -306,6 +343,41 @@ describe('elegirPlataforma', () => {
     );
 
     expect(r.error).toContain('bundle construido en la plataforma "svelte"');
+    // Y dice la salida, que desde #59 son DOS y no una: separarlos en dos
+    // elementos —lo normal— o declararlo escaparate.
+    expect(r.error).toContain('SHOWCASE_MULTIPLATAFORMA');
+  });
+
+  it('…SALVO que esté declarado como escaparate: entonces se publican las DOS', () => {
+    // La decisión de #59: puede existir, y no es la forma normal de escribir un
+    // elemento — por eso va declarado uno por uno y no por convención. El
+    // experimento de la épica es el MISMO badge en dos plataformas, midiendo
+    // los dos pisos de peso.
+    const r = elegirPlataforma(
+      { name: 'badge', framework: 'angular' },
+      plataformas,
+      conBundles('dist/angular/badge/main.js', 'dist/svelte/badge/main.js'),
+      { badge: { razon: 'el escaparate de la épica #37' } },
+    );
+
+    expect(r.error).toBeUndefined();
+    // En el orden de PLATAFORMAS, no en el del descubrimiento: el publicador
+    // escribe un slot por framework y el informe tiene que leerse igual en dos
+    // máquinas.
+    expect(r.plataformas.map((p) => p.name)).toEqual(['angular', 'svelte']);
+  });
+
+  it('un escaparate declarado con bundle en UNA sola sigue devolviendo una', () => {
+    // La declaración habilita, no obliga: mientras la segunda plataforma no
+    // haya construido, no hay nada que publicar por ahí.
+    const r = elegirPlataforma(
+      { name: 'badge', framework: 'angular' },
+      plataformas,
+      conBundles('dist/angular/badge/main.js'),
+      { badge: { razon: 'el escaparate de la épica #37' } },
+    );
+
+    expect(r.plataformas.map((p) => p.name)).toEqual(['angular']);
   });
 });
 

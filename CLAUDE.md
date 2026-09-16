@@ -143,7 +143,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Veintiséis reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Veintisiete reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -549,3 +549,25 @@ se desincroniza):
    plataformas construibles?» sino «¿tiene runtime cada framework que publicó ELEMENTOS?»**.
    Al revés daría rojo el día que alguien crea `platforms/react/` y antes de su primer publish,
    o sea exactamente cuando tiene que estar callado (#58, #61, #37).
+
+27. **Lo que se habilita porque hace falta UNA vez, y que no es la forma normal de hacer las
+   cosas, se DECLARA una por una — no se abre por bandera ni por convención de nombres.**
+   ¿Puede un mismo elemento existir en dos frameworks a la vez? La respuesta fue *«sí podría,
+   pero para qué; no deberíamos tener esas cosas así — dejémoslo habilitado para mostrar»*, y
+   las dos mitades deciden el diseño. Se **habilita** porque la épica #37 no se contesta sin
+   ello: el experimento es el MISMO `badge` en dos plataformas, midiendo los dos pisos de peso.
+   Y **no se abre en general** porque un `badge` de React que fuera producto sería otro
+   elemento, con su nombre y su DocType; lo que vive ahí es un escaparate.
+   **Las tres formas de habilitarlo no son equivalentes**, y sólo una sobrevive a que alguien
+   lo haga sin querer:
+   (a) una **bandera** (`--permitir-duplicados`) la deja puesta quien la encendió una vez, y
+   desde entonces el duplicado por accidente pasa callado — que era el defecto entero de #59;
+   (b) una **convención de nombres** (`*.showcase/`) no obliga a escribir por qué, así que la
+   razón se pierde y la excepción deja de leerse;
+   (c) un **censo con su razón**, vigilado **en los dos sentidos** — sin declarar rompe, y
+   declarado sobre algo que ya no está duplicado también rompe. Es la forma de
+   `SIN_FUENTE_PROPIA` y de la lista de `HttpClient` del CMS, y es la única en la que el coste
+   de hacerlo lo paga quien lo hace y no quien lo hereda.
+   **Y el censo se deja VACÍO cuando todavía no aplica**, con un test que lo exige: hoy sólo
+   hay una plataforma construible, así que una entrada ahí declararía un escaparate que no
+   puede existir. La primera la escribe #64 junto con el elemento (#59).
