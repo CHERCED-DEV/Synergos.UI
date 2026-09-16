@@ -445,7 +445,7 @@ los `.spec.mjs` los que llevan las rutas:
 Cinco de seis son reglas **neutrales** apuntando a una ruta **cableada**. El censo
 está bien escrito y tiene un hueco justo donde vive el recorrido del disco.
 
-**(c) Dos fuentes para el mismo elemento se PISAN en silencio.** Medido ejecutando
+**(c) ✅ Dos fuentes para el mismo elemento se PISABAN en silencio — CERRADO en #59.** Medido ejecutando
 `descubrirFuentes` con un disco de mentira que tiene `badge` en las dos
 plataformas:
 
@@ -460,12 +460,31 @@ sale después **culpa al registry**: quien lo lea corregirá la entrada a `react
 dejará de publicar el bundle de Angular sin haber decidido nada. La verdad —«hay dos
 fuentes para este elemento»— no la dice nadie.
 
+> **Cerrado (#59), sin contestar la pregunta de producto.** El recorrido se partió en dos:
+> `todasLasFuentes` devuelve TODAS sin colapsar —una sola regla en el repo de qué cuenta como
+> fuente— y sobre ella se construyen `descubrirFuentes` (el `Map` de siempre, ahora **primera
+> gana** para que el informe sea estable) y `revisarFuentesDuplicadas`, que **nombra las dos
+> rutas y no elige**. Corre en `element:audit`, o sea dentro de `contracts:validate`.
+>
+> **La pregunta —¿un mismo elemento puede existir en dos frameworks a la vez?— sigue abierta, y
+> este gate no la contesta a propósito**, porque el rechazo hace falta bajo las dos lecturas: con
+> **(A)** dos fuentes son un error y el mensaje es el veredicto; con **(B)** son legítimas y el
+> mensaje es el aviso de que hay que enseñarle al pipeline a publicar las dos. Lo que no se puede
+> dejar es que una fuente desaparezca sin que nada lo diga. El día que se decida **(B)**, este
+> gate cambia de mensaje —no de sitio— y `elegirPlataforma` deja de rechazar.
+>
+> Verificado reproduciendo primero el defecto con el mismo disco de mentira (el `Map` daba
+> `[['badge', {framework:'react'}]]` y `revisarFrameworks` decía *«declara framework "angular" y
+> el disco dice "react"»*), y después contra el **disco real** con un
+> `platforms/react/apps/elements/primitives/badge/src/main.ts`: `element:audit` sale con **exit
+> 1** nombrando las dos rutas.
+
 **(d) Un barril que nadie exporta no lo compila nadie.** Ver §6: 16 ficheros de
 `libs/core/src/models/` están fuera de todo programa de compilación y tres de ellos
 no resuelven. Ningún gate cruza «carpeta de una lib» contra «alcanzable desde su
 `index.ts`».
 
-**(e) El descubrimiento exige `src/main.ts`, con esa extensión.** `descubrirFuentes`
+**(e) El descubrimiento exige `src/main.ts`, con esa extensión.** *(Anotado en el `todasLasFuentes` de `element-sources.mjs` con #59; lo decide #62, que es quien escribe el contrato de plataforma.)* `descubrirFuentes`
 comprueba `${completo}/src/main.ts`. Un `platforms/react/` que use `main.tsx` —lo
 normal— descubre **cero** elementos, y el gate dice «ninguna plataforma tiene su
 fuente» para cada entrada de React. Falla ruidosamente, que es lo correcto; pero

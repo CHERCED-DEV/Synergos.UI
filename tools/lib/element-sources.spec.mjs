@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import {
-  descubrirFuentes, resolverFramework, revisarFrameworks, tierDelDisco,
+  descubrirFuentes, todasLasFuentes, revisarFuentesDuplicadas,
+  resolverFramework, revisarFrameworks, tierDelDisco,
   elegirPlataforma, resolverTier, SIN_FUENTE_PROPIA, PLATAFORMAS,
 } from './element-sources.mjs';
 import { loadRegistry, contratoDelManifiesto } from './synergos-config.mjs';
@@ -57,6 +58,69 @@ const discoFalso = (rutas) => {
 };
 
 const APPS = 'platforms/angular/apps';
+
+/** Las dos plataformas, para los casos de #59. `PLATAFORMAS` hoy tiene una sola. */
+const DOS_PLATAFORMAS = [
+  { framework: 'angular', apps: 'platforms/angular/apps' },
+  { framework: 'react', apps: 'platforms/react/apps' },
+];
+
+describe('dos fuentes para el mismo elemento (#59)', () => {
+  // EL FIXTURE TIENE QUE TENER EL ELEMENTO EN LAS DOS. Con `badge` sólo en
+  // angular y `hero` sólo en react el `Map` no colapsa nada y la mutación no
+  // prueba nada — regla 7. Por eso `badge` está dos veces y `hero` una: hace
+  // falta el caso que NO colisiona para que el gate no rechace de más.
+  const disco = {
+    ...discoFalso([
+      'platforms/angular/apps/elements/primitives/badge/src/main.ts',
+      'platforms/angular/apps/elements/modules/hero/src/main.ts',
+      'platforms/react/apps/elements/primitives/badge/src/main.ts',
+    ]),
+    plataformas: DOS_PLATAFORMAS,
+  };
+
+  it('EL CASO: se rechaza nombrando LAS DOS rutas, no se elige una', () => {
+    const errores = revisarFuentesDuplicadas(disco);
+
+    expect(errores).toHaveLength(1);
+    expect(errores[0]).toContain('badge');
+    // Las dos, con su framework y su ruta. Nombrar una sola es lo que hacía el
+    // `Map`, y el precio era que el error salía en otro fichero.
+    expect(errores[0]).toContain('angular (platforms/angular/apps/elements/primitives/badge)');
+    expect(errores[0]).toContain('react (platforms/react/apps/elements/primitives/badge)');
+    // Y no culpa al registry, que es lo que el mensaje viejo hacía.
+    expect(errores[0]).not.toMatch(/declara framework/);
+  });
+
+  it('el recorrido crudo NO colapsa: ve las tres fuentes', () => {
+    // Es lo que `descubrirFuentes` no podía decir. Sin esto, el gate de arriba
+    // tendría que recorrer por su cuenta y habría dos copias de la regla de qué
+    // cuenta como fuente.
+    expect(todasLasFuentes(disco).map((f) => `${f.framework}/${f.nombre}`).sort()).toEqual([
+      'angular/badge',
+      'angular/hero',
+      'react/badge',
+    ]);
+  });
+
+  it('el Map se queda con la PRIMERA, no con la última', () => {
+    // Antes ganaba la última del bucle, así que el mismo árbol daba resultados
+    // distintos según el orden de PLATAFORMAS — y eso convierte un fallo en algo
+    // que «a veces pasa». Sólo importa en el camino de error: la colisión ya la
+    // rechaza el gate de arriba.
+    expect(descubrirFuentes(disco).get('badge').framework).toBe('angular');
+  });
+
+  it('un elemento en UNA sola plataforma no da rojo', () => {
+    // La otra mitad, y la que impide que el gate rechace de más: `hero` existe
+    // sólo en angular y eso es el caso normal.
+    expect(revisarFuentesDuplicadas(disco).some((e) => e.includes('hero'))).toBe(false);
+  });
+
+  it('y el disco de VERDAD no tiene ninguna duplicada', () => {
+    expect(revisarFuentesDuplicadas({ ...discoReal, plataformas: PLATAFORMAS })).toEqual([]);
+  });
+});
 
 describe('descubrirFuentes', () => {
   it('cada carpeta con src/main.ts es un elemento, y su plataforma es su framework', () => {

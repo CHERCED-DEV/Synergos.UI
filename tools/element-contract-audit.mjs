@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { descubrirFuentes, PLATAFORMAS } from './lib/element-sources.mjs';
+import { descubrirFuentes, revisarFuentesDuplicadas, PLATAFORMAS } from './lib/element-sources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
@@ -134,7 +134,7 @@ function printSection(title, issues, formatter) {
 function scanElementProjects() {
   const found = new Map();
 
-  const fuentes = descubrirFuentes({
+  const io = {
     listar: (dir) => {
       const abs = resolve(ROOT, dir);
       return existsSync(abs)
@@ -143,7 +143,20 @@ function scanElementProjects() {
     },
     existe: (ruta) => existsSync(resolve(ROOT, ruta)),
     plataformas: PLATAFORMAS,
-  });
+  };
+
+  // ANTES de colapsar por nombre (#59). `descubrirFuentes` devuelve un `Map`, así
+  // que dos plataformas con el mismo elemento dejaban UNA fuera sin decirlo — y
+  // lo que se ponía rojo era el cruce contra el registry, con un mensaje que
+  // culpaba a la entrada del registry. Acá se para antes, nombrando las dos.
+  const duplicadas = revisarFuentesDuplicadas(io);
+  if (duplicadas.length > 0) {
+    console.error('\n[element-audit] ✗ el mismo elemento tiene fuente en dos plataformas:');
+    for (const linea of duplicadas) console.error(`[element-audit]   ${linea}`);
+    process.exit(1);
+  }
+
+  const fuentes = descubrirFuentes(io);
 
   for (const [nombre, { framework }] of fuentes) {
     found.set(nombre, { project: nombre, framework, buildable: true });
