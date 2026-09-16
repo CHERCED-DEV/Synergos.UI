@@ -208,6 +208,10 @@ describe('frameworksDelRegistry', () => {
  * a un framework: su respuesta tiene que valer igual con uno o con cuatro.
  */
 const CIEGAS_AL_FRAMEWORK = [
+  // Dejó de ser «legítimamente de Angular» en #61: la excepción valía mientras
+  // hubiera UNA plataforma, y con dos publicar elementos de React sin su runtime
+  // pasaba en verde. Hoy recorre lo publicado y le exige runtime a cada uno.
+  'lib/cdn-runtime-check.mjs',
   'check-size-budget.mjs',
   'humo-cdn.mjs',
   'catalog.mjs',
@@ -283,8 +287,6 @@ const ESPECIFICAS_DE_ANGULAR = {
   'lib/element-sources.mjs':
     '(a) `SIN_FUENTE_PROPIA` declara el framework de las dos entradas que ninguna plataforma ' +
     'construye, cada una con su razón escrita (issue #42).',
-  'lib/cdn-runtime-check.mjs':
-    '(a) comprueba que el runtime de Angular llegó al CDN antes que los elementos (#7).',
   'lib/cdn-size-budget.mjs':
     '(b) `@angular/core`, `@angular/elements` y `@angular/platform-browser` son los externals ' +
     'universales, y un mensaje de error apunta a platforms/angular/cdn.config.mjs.',

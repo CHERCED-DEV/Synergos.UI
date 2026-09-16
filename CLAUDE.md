@@ -101,7 +101,7 @@ está vigilando nada.
 | gate | vigila | se ve fallar si… |
 |---|---|---|
 | `cdn-cache-policy` | qué puede llevar `immutable` | pones caché larga en una ruta que se mueve |
-| `cdn-runtime-check` | que el runtime esté antes que quien lo necesita | se publica el runtime después de los elementos (#7) |
+| `cdn-runtime-check` | que el runtime de CADA framework que publicó elementos esté antes que ellos | se publica el runtime después de los elementos (#7), o se publican los de una plataforma sin el suyo (#61) |
 | `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida | un external se empaqueta dentro de un elemento (#8) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
@@ -535,6 +535,14 @@ se desincroniza):
    barata es publicar los dos nombres apuntando al mismo fichero mientras convivan, y no retirar
    nunca el viejo: los bundles ya publicados siguen haciendo el bare import;
    (b) **una excepción «legítimamente de X» caduca el día que hay dos X.** `cdn-runtime-check`
-   pregunta por `runtime/angular` y está en el censo de #44 con su razón escrita — correcta
-   mientras hubiera una plataforma. Con dos, publicar elementos sin su runtime pasa en verde: es
-   la regla 25 con la constante escondida dentro de una excepción justificada (#58, #61, #37).
+   preguntaba por `runtime/angular` y estaba en el censo de #44 con su razón escrita — correcta
+   mientras hubiera una plataforma. Con dos, publicar elementos sin su runtime pasaba en verde:
+   la regla 25 con la constante escondida dentro de una excepción justificada. **Cerrado en
+   #61**, y lo que enseña es que una excepción del censo **no es una lista de las malas: es una
+   con fecha de caducidad**, y la fecha la pone un hecho del disco, no una revisión. Por eso el
+   movimiento entre las dos listas del censo va en el mismo commit que el código — el censo lo
+   exige en los dos sentidos y el build se pone rojo si no.
+   Y la forma del gate nuevo es la asimetría: **la pregunta no es «¿está el runtime de las
+   plataformas construibles?» sino «¿tiene runtime cada framework que publicó ELEMENTOS?»**.
+   Al revés daría rojo el día que alguien crea `platforms/react/` y antes de su primer publish,
+   o sea exactamente cuando tiene que estar callado (#58, #61, #37).

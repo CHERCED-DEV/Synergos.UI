@@ -105,7 +105,17 @@ console.log('');
 // a mano contra un CDN existente, el aviso es la única red que hay.
 
 if (!DRY_RUN) {
-  const { estado, lineas } = revisarRuntime(CDN_SYNERGOS, existsSync);
+  const { estado, lineas } = revisarRuntime({
+    cdnSynergos: CDN_SYNERGOS,
+    existe: existsSync,
+    // Desde #61 la pregunta es por CADA framework que publicó elementos, así
+    // que hace falta recorrer en vez de preguntar por una ruta.
+    listarDirs: (d) =>
+      existsSync(d)
+        ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+        : [],
+    unir: join,
+  });
   if (estado !== RUNTIME_OK) {
     for (const linea of lineas) console.warn(`${LOG_PREFIX}   ⚠ ${linea}`);
     console.warn('');

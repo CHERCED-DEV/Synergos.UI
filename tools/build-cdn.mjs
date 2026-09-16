@@ -178,7 +178,15 @@ if (!(await existe(registry))) {
 // Cierra además el agujero del paso 2: la publicación del runtime está detrás
 // de un `if (existe(publish-runtime.mjs))` que, de faltar el fichero, se salta
 // en silencio y produce un CDN completo y muerto.
-const runtime = revisarRuntime(join(SALIDA, 'synergos'), existsSync);
+const runtime = revisarRuntime({
+  cdnSynergos: join(SALIDA, 'synergos'),
+  existe: existsSync,
+  listarDirs: (d) =>
+    existsSync(d)
+      ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : [],
+  unir: join,
+});
 if (runtime.estado !== RUNTIME_OK) {
   console.error(`[build-cdn] ✗ el runtime compartido no quedó publicado.`);
   for (const linea of runtime.lineas) console.error(`[build-cdn]   ${linea}`);
