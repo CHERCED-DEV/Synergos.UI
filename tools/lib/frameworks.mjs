@@ -142,13 +142,20 @@ export function revisarPlataformas(enDisco, declaradas) {
  *     plataforma que ya no está. Se nombra: el bundle sigue ahí fuera,
  *     sirviéndose, sin nadie que lo reconstruya.
  *
- * @param {{ raizCdn: string, construibles: string[],
+ * **`construibles` es opcional a propósito** (#61). Quien quiere el censo entero
+ * lo pasa y se lleva el aviso del huérfano; quien sólo necesita saber QUÉ
+ * frameworks publicaron elementos —`cdn-runtime-check.mjs`, para exigirle
+ * runtime a cada uno— lo omite, y así no hay una segunda copia de la regla de
+ * qué cuenta como bundle publicado. Con dos copias, la de al lado se desvía: es
+ * literalmente el defecto de la tabla del import map de #58.
+ *
+ * @param {{ raizCdn: string, construibles?: string[] | null,
  *           listarDirs: (d: string) => string[], existe: (r: string) => boolean,
  *           unir?: (...p: string[]) => string }} io
  * @returns {{ bundles: { elemento: string, framework: string, ruta: string }[],
  *             frameworks: string[], errores: string[] }}
  */
-export function recorrerPublicado({ raizCdn, construibles, listarDirs, existe, unir = unirPorDefecto }) {
+export function recorrerPublicado({ raizCdn, construibles = null, listarDirs, existe, unir = unirPorDefecto }) {
   const bundles = [];
   const errores = [];
   const frameworks = new Set();
@@ -168,7 +175,7 @@ export function recorrerPublicado({ raizCdn, construibles, listarDirs, existe, u
       frameworks.add(framework);
       bundles.push({ elemento, framework, ruta });
 
-      if (!construibles.includes(framework)) {
+      if (construibles !== null && !construibles.includes(framework)) {
         errores.push(
           `${elemento}: publicado bajo el framework "${framework}", que ninguna plataforma ` +
             `construye (hay: ${construibles.join(', ') || '(ninguna)'}). Es un huérfano: el ` +

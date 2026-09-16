@@ -387,14 +387,28 @@ navegador se trae el módulo completo.
 
 ### 5.2 🔴 No lo vigila nadie
 
-**(a) El runtime de la segunda plataforma.** `tools/lib/cdn-runtime-check.mjs`
-pregunta por `${cdnSynergos}/runtime/angular` y por
-`.../runtime/angular/latest/import-map.json`, literal. Está en el censo de #44 como
-*legítimamente de Angular* — y lo era mientras hubiera una. Con dos, publicar
-elementos de React sin su runtime pasa el gate **en verde**: es el defecto #7 tal
+**(a) ✅ El runtime de la segunda plataforma — CERRADO en #61.**
+`tools/lib/cdn-runtime-check.mjs` preguntaba por `${cdnSynergos}/runtime/angular` y
+por `.../runtime/angular/latest/import-map.json`, literal. Estaba en el censo de #44
+como *legítimamente de Angular* — y lo era mientras hubiera una. Con dos, publicar
+elementos de React sin su runtime pasaba el gate **en verde**: el defecto #7 tal
 cual, servido en el segundo framework. Es además la regla 25 del `CLAUDE.md`:
 *un gate que resuelve a una constante una dimensión de lo que mide no falla, se pone
 verde sobre el sitio equivocado*.
+
+> Hoy consume `recorrerPublicado` —una sola regla en el repo de qué cuenta como
+> bundle publicado, con `construibles` opcional para quien sólo necesita la lista—
+> y le exige runtime a **cada framework que publicó elementos**. La asimetría es el
+> diseño: un framework construible que todavía no publicó nada **no** da rojo, que
+> es el estado normal de una plataforma nueva. `lib/cdn-runtime-check.mjs` pasó de
+> `ESPECIFICAS_DE_ANGULAR` a `CIEGAS_AL_FRAMEWORK` en el mismo commit, porque el
+> censo lo exige en los dos sentidos.
+>
+> Verificado contra el árbol real, en cuatro pasos: tal cual → `ok`; con un
+> `badge/react/latest/main.js` y sin `runtime/react/` → **rojo nombrando `react`**
+> (el gate anterior daba `ok`); con el runtime de react → verde, las dos
+> plataformas; y con `platforms/react/package.json` pero sin un solo bundle
+> publicado → **verde**, que es la asimetría.
 
 **(b) Los seis gates que recorren el disco lo recorren sólo en `platforms/angular/`.**
 Y el censo de #44 **no los ve**, porque filtra `!f.endsWith('.spec.mjs')` — y son
