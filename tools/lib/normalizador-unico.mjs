@@ -41,12 +41,14 @@
  *      `coerceConfigInput` es una copia y acá pasa. Lo que el gate impide es la
  *      forma que de verdad ocurre —copiar el fichero, conservando los nombres,
  *      porque los llamadores ya los usan—, no el plagio con renombrado.
- *  (c) **El SCSS y los `.mjs`.** Sólo se leen `.ts`.
+ *  (c) **El SCSS.** Se leen las extensiones de `EXTENSIONES_DE_CODIGO`; una
+ *      copia escrita en Sass no es código y no se caza acá.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { esFuenteDeCodigo } from './element-sources.mjs';
 import { sinComentarios } from './vitals-purity.mjs';
 
 /** Dónde vive el normalizador. Todo lo demás es «fuera». */
@@ -83,7 +85,9 @@ export function ficherosTs(repo) {
       let st;
       try { st = statSync(abs); } catch { continue; }
       if (st.isDirectory()) { pendientes.push(abs); continue; }
-      if (abs.endsWith('.ts')) salida.push(abs);
+      // `.tsx` incluido: una copia del normalizador dentro de un componente de
+      // JSX es exactamente la que este gate tiene que ver (#64).
+      if (esFuenteDeCodigo(entrada)) salida.push(abs);
     }
   }
   return salida.sort();

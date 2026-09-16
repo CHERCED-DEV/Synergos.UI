@@ -90,7 +90,12 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
   };
 
   it('EL CASO: sin declarar se rechaza nombrando LAS DOS rutas, no se elige una', () => {
-    const errores = revisarFuentesDuplicadas(disco);
+    // El censo va EXPLÍCITAMENTE vacío. Antes se omitía y se usaba el de
+    // verdad, que estaba vacío — así que el día que el censo tuvo su primera
+    // entrada (`badge`, #64) este test pasó a probar el caso contrario del que
+    // dice probar, y se puso rojo. Un fixture que depende de que una constante
+    // del repo siga vacía es la regla 7 con el sujeto fuera del fichero.
+    const errores = revisarFuentesDuplicadas(disco, {});
 
     expect(errores).toHaveLength(1);
     expect(errores[0]).toContain('badge');
@@ -122,12 +127,29 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
     expect(errores[0]).toContain('declara "hero" y no tiene fuente en más de una');
   });
 
-  it('el censo de verdad está VACÍO, y ése es el estado correcto hoy', () => {
-    // Sólo hay una plataforma construible, así que no hay nada que declarar.
-    // La primera entrada la escribe #64 junto con el elemento — si esto deja de
-    // estar vacío sin que exista la segunda plataforma, alguien declaró un
-    // escaparate que no puede existir.
-    expect(Object.keys(SHOWCASE_MULTIPLATAFORMA)).toEqual([]);
+  it('el censo de verdad tiene la entrada de #64, y cada una lleva su razón escrita', () => {
+    // Estaba VACÍO hasta esta HU, y ese era el estado correcto mientras hubiera
+    // una sola plataforma construible. La primera entrada la escribe #64 junto
+    // con el elemento, que es la mitad del diseño: el coste de declarar un
+    // escaparate lo paga quien lo crea y no quien lo hereda (regla 27).
+    expect(Object.keys(SHOWCASE_MULTIPLATAFORMA)).toEqual(['badge']);
+
+    for (const [nombre, entrada] of Object.entries(SHOWCASE_MULTIPLATAFORMA)) {
+      // Una razón de dos palabras no es una razón: tiene que decir POR QUÉ
+      // existe y CUÁNDO se retira, o la excepción deja de leerse.
+      expect(entrada.razon, `${nombre} sin razón`).toBeTypeOf('string');
+      expect(entrada.razon.length, `${nombre}: la razón es demasiado corta`).toBeGreaterThan(80);
+    }
+  });
+
+  it('…y cada entrada del censo está DE VERDAD duplicada en el disco', () => {
+    // El otro sentido, que es el que evita el muro de excepciones muertas: una
+    // entrada sobre algo que ya no está en dos plataformas rompe el build.
+    for (const nombre of Object.keys(SHOWCASE_MULTIPLATAFORMA)) {
+      const plataformas = implementacionesDe(nombre, { ...discoReal, plataformas: PLATAFORMAS });
+      expect(plataformas.length, `${nombre} declarado como escaparate y no está duplicado`)
+        .toBeGreaterThan(1);
+    }
   });
 
   it('implementacionesDe dice en qué plataformas vive, para quien publica', () => {
@@ -158,7 +180,7 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
   it('un elemento en UNA sola plataforma no da rojo', () => {
     // La otra mitad, y la que impide que el gate rechace de más: `hero` existe
     // sólo en angular y eso es el caso normal.
-    expect(revisarFuentesDuplicadas(disco).some((e) => e.includes('hero'))).toBe(false);
+    expect(revisarFuentesDuplicadas(disco, {}).some((e) => e.includes('hero'))).toBe(false);
   });
 
   it('y el disco de VERDAD no tiene ninguna duplicada', () => {

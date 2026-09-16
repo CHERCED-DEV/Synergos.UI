@@ -10,7 +10,7 @@ import {
   revisarContratoDePlataformas,
 } from './platform-contract.mjs';
 import { frameworksConstruibles } from './frameworks.mjs';
-import { PLATAFORMAS, todasLasFuentes } from './element-sources.mjs';
+import { PLATAFORMAS, esFuenteDeCodigo, todasLasFuentes } from './element-sources.mjs';
 import { ALL_FRAMEWORKS } from './synergos-config.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
@@ -37,7 +37,11 @@ const discoReal = {
         if (e.isDirectory()) {
           if (/^(node_modules|dist|\.cdn-out|\.test-out)$/.test(e.name)) continue;
           walk(full);
-        } else if (/\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith('.spec.ts')) {
+        } else if (esFuenteDeCodigo(e.name)) {
+          // ⚠ Esto decía `/\.(ts|mjs|js)$/`, y con una plataforma de JSX el gate
+          // informaba «ninguna fuente implementa ElementProtocol» sobre una que
+          // sí lo implementa, en un `.tsx` (#64). La lista vive en un solo sitio
+          // con su razón.
           salida.push(full);
         }
       }

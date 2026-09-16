@@ -133,9 +133,47 @@ export const SIN_FUENTE_PROPIA = {
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export const SHOWCASE_MULTIPLATAFORMA = {
-  // 'badge': { razon: 'El experimento de la épica #37: el mismo elemento en dos ' +
-  //                   'plataformas para medir los dos pisos de peso (#64).' },
+  badge: {
+    razon:
+      'El experimento de la épica #37 y el objeto de la HU #64: el MISMO elemento en dos ' +
+      'plataformas, para medir los dos pisos de peso con todo lo demás igual. Medido: el ' +
+      'bundle de Angular pesa 1.845 B y el de Preact 998 B, y el piso de la página —lo que ' +
+      'se descarga lleve uno o veinte— es ≈209 KB contra ≈16 KB. Ese número no se puede ' +
+      'estimar: sale de publicar los dos. NO es producto: un `badge` de Preact que fuera ' +
+      'producto sería otro elemento, con su nombre y su DocType. Se retira el día que la ' +
+      'épica #37 esté contestada y alguien decida cuál de los dos se queda.',
+  },
 };
+
+/**
+ * Las extensiones que cuentan como fuente de código en una plataforma.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ESTO NACE DE UN GATE QUE SE PUSO VERDE SOBRE EL SITIO EQUIVOCADO (#64).
+ *
+ * `platform-contract` recorría `libs/` buscando quién implementa
+ * `ElementProtocol` y sólo miraba `.ts|.mjs|.js`. En cuanto existió una
+ * plataforma de JSX —cuyo adaptador es un `.tsx`— el gate informó «ninguna
+ * fuente implementa ElementProtocol», que es **falso**: la implementa y el gate
+ * no sabía mirarla. Es la regla 25 con la constante escondida en un filtro de
+ * extensiones, y con el agravante de que el mensaje mandaba a escribir algo que
+ * ya estaba escrito.
+ *
+ * `normalizador-unico` (#63) tenía el mismo hueco por el otro lado: una segunda
+ * declaración de `coerceTrimmedStringInput` dentro de un `.tsx` no la veía nadie.
+ *
+ * Se escribe UNA vez y la usan los dos, que es la razón por la que esto vive en
+ * `element-sources.mjs` y no copiado en cada gate. **No se deriva del disco** —no
+ * hay dónde leerlo— así que es una lista, y por eso lleva su razón al lado.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export const EXTENSIONES_DE_CODIGO = ['.ts', '.tsx', '.mjs', '.js', '.jsx'];
+
+/** ¿Este fichero es fuente de código? Los specs NO cuentan. */
+export function esFuenteDeCodigo(nombre) {
+  if (/\.spec\.(ts|tsx|mjs|js|jsx)$/.test(nombre)) return false;
+  return EXTENSIONES_DE_CODIGO.some((ext) => nombre.endsWith(ext));
+}
 
 /** `synergos-text-block` → `text-block` */
 export function slugDeTag(tag) {
