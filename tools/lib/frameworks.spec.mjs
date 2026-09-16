@@ -208,6 +208,11 @@ describe('frameworksDelRegistry', () => {
  * a un framework: su respuesta tiene que valer igual con uno o con cuatro.
  */
 const CIEGAS_AL_FRAMEWORK = [
+  // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
+  // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
+  // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía
+  // «Angular shared».
+  'lib/interactive.mjs',
   // Recibe el framework y compone la ruta. Lo nombra en su cabecera —para
   // explicar por qué la obligación 6 no tiene mitad estática— y eso es prosa,
   // que el censo quita antes de mirar (#62).
@@ -294,8 +299,6 @@ const ESPECIFICAS_DE_ANGULAR = {
   'lib/cdn-size-budget.mjs':
     '(b) `@angular/core`, `@angular/elements` y `@angular/platform-browser` son los externals ' +
     'universales, y un mensaje de error apunta a platforms/angular/cdn.config.mjs.',
-  'lib/interactive.mjs':
-    '(a) los menús del release interactivo, que ofrecen el runtime compartido de Angular.',
   'lib/mapa-del-runtime.mjs':
     '(a) es DONDE vive la tabla del import map del runtime de Angular y el censo de sus alias ' +
     'heredados. Que nombre a Angular es su trabajo — `ALIAS_HEREDADOS` declara quién es el ' +
