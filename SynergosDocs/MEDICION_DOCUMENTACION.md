@@ -222,11 +222,14 @@ sigue versionado es código y es decisión → HU.
 
 ## 6. Hallazgos de camino (no son documentación, se anotan acá)
 
-- **`tools/cli.mjs` está muerto.** Construye su menú entero con
-  `glob('**/project.json')`, y no queda ninguno: `discoverProjects()` devuelve
-  **0**. Sigue ofreciendo «Graph» (era `nx graph`) y «All frameworks» (hay una).
-  `README` y `ONBOARDING` mandan correr `npm run cli`. Lleva además un `U+FFFD`
-  suelto en una etiqueta del menú.
+- ~~**`tools/cli.mjs` está muerto.**~~ **CERRADO en #52.** Construía su menú entero con
+  `glob('**/project.json')`, y no quedaba ninguno: `discoverProjects()` devolvía **0**, sin
+  fallar. Ofrecía «Graph» (era `nx graph`) y «All frameworks» (había una), y llevaba un
+  `U+FFFD` suelto en una etiqueta. Hoy descubre con `descubrirFuentes` —el mismo recorrido que
+  usa el build, con specs— y **lista 127**, el número que imprime el build; «Graph» se fue, el
+  menú de framework se deriva del disco y no se pregunta si hay uno solo, y **vacío es un fallo
+  que dice dónde buscó**. `interactive.mjs` tenía su propia copia del mismo glob muerto y
+  estrenó `.spec.mjs`: no tenía ninguno, que es por qué llevaba seis semanas así.
 - **`tools/refresh-skill-catalog.mjs` escribe FUERA del repo**
   (`resolve(ROOT_UI, '..', '.claude/skills/...')`) y rotula el fichero
   `AUTO-GENERATED` con **«122 bundles» a mano**. El script npm `skill:refresh`
