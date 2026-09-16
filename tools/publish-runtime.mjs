@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
-import { FICHEROS_DEL_RUNTIME, importsDelRuntimeAngular } from './lib/mapa-del-runtime.mjs';
+import { ficherosDelRuntime, importsDelRuntime } from './lib/mapa-del-runtime.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
@@ -33,46 +33,83 @@ const CDN_ORIGIN = process.env.SYNERGOS_CDN_ORIGIN || 'https://synergos-static-l
 
 // ── Locate built runtime version ────────────────────────────────────────────
 
-async function resolveRuntimeDir() {
-  const runtimeBase = path.join(ROOT, 'dist/runtime/angular');
-  let entries;
+/**
+ * Los runtimes que hay de verdad en `dist/`, uno por framework.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SE RECORRE, NO SE PREGUNTA POR `dist/runtime/angular` (#64).
+ *
+ * Esto preguntaba por esa ruta exacta y publicaba lo que hubiera dentro. Con una
+ * segunda plataforma construida, `npm run publish:runtime` habría subido el
+ * runtime de Angular y **nada más**, informando «Done» — y los elementos de la
+ * otra plataforma habrían quedado publicados sin de dónde resolver sus bare
+ * imports. No falla: el sitio contesta 200, el SSR entero, y lo de esa
+ * plataforma no hidrata (el defecto CMS #126).
+ *
+ * Es la regla 25 en el publicador en vez de en un gate, y con el agravante de
+ * que `cdn-runtime-check` —que exige runtime por framework PUBLICADO (#61)— se
+ * habría puesto rojo DESPUÉS de subir, culpando al publish de otra cosa.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+async function resolverRuntimes() {
+  const runtimeBase = path.join(ROOT, 'dist/runtime');
+  let frameworks;
   try {
-    entries = await readdir(runtimeBase);
+    frameworks = await readdir(runtimeBase, { withFileTypes: true });
   } catch {
     throw new Error(
-      `[publish-runtime] dist/runtime/angular/ not found.\n` +
+      `[publish-runtime] dist/runtime/ not found.\n` +
       `  → Run: npm run build:runtime`,
     );
   }
-  const versions = entries.filter((e) => /^\d+\.\d+\.\d+$/.test(e));
-  if (versions.length === 0) {
-    throw new Error(
-      `[publish-runtime] No versioned runtime found in dist/runtime/angular/.\n` +
-      `  → Run: npm run build:runtime`,
-    );
-  }
-  // Use the highest semver folder
-  versions.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  return { version: versions.at(-1), dir: path.join(runtimeBase, versions.at(-1)) };
-}
 
-/** La misma lista que produce el build — una sola copia desde #58. */
-const RUNTIME_FILES = FICHEROS_DEL_RUNTIME;
+  const encontrados = [];
+  for (const entrada of frameworks) {
+    if (!entrada.isDirectory()) continue;
+    const framework = entrada.name;
+    const versions = (await readdir(path.join(runtimeBase, framework)))
+      .filter((e) => /^\d+\.\d+\.\d+$/.test(e))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (versions.length === 0) {
+      // NO se salta en silencio: una carpeta de framework sin versión es un
+      // build a medias, y saltarla informa «✓» sobre nada (regla 25c).
+      throw new Error(
+        `[publish-runtime] dist/runtime/${framework}/ no tiene ninguna versión.\n` +
+        `  → Es un build a medias. Corré el build de runtime de esa plataforma.`,
+      );
+    }
+    const version = versions.at(-1);
+    encontrados.push({
+      framework,
+      version,
+      dir: path.join(runtimeBase, framework, version),
+    });
+  }
+
+  if (encontrados.length === 0) {
+    throw new Error(
+      `[publish-runtime] dist/runtime/ está vacío.\n` +
+      `  → Run: npm run build:runtime`,
+    );
+  }
+
+  return encontrados;
+}
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-async function main() {
-  const { version, dir } = await resolveRuntimeDir();
+async function publicarUno({ framework, version, dir }) {
+  const RUNTIME_FILES = ficherosDelRuntime(framework);
 
-  const cdnVersionedDir = path.join(CDN_ROOT, 'synergos', 'runtime', 'angular', version);
-  const cdnLatestDir    = path.join(CDN_ROOT, 'synergos', 'runtime', 'angular', 'latest');
+  const cdnVersionedDir = path.join(CDN_ROOT, 'synergos', 'runtime', framework, version);
+  const cdnLatestDir    = path.join(CDN_ROOT, 'synergos', 'runtime', framework, 'latest');
 
   const base = baseArg
-    ? `${baseArg.slice('--base='.length).replace(/\/$/, '')}/runtime/angular/${version}`
-    : `${CDN_ORIGIN}/synergos/runtime/angular/${version}`;
+    ? `${baseArg.slice('--base='.length).replace(/\/$/, '')}/runtime/${framework}/${version}`
+    : `${CDN_ORIGIN}/synergos/runtime/${framework}/${version}`;
 
-  console.log(`\nSynergos Runtime Publish${isDryRun ? ' (dry-run)' : ''}`);
-  console.log(`  Source  : dist/runtime/angular/${version}/`);
+  console.log(`\nSynergos Runtime Publish — ${framework}${isDryRun ? ' (dry-run)' : ''}`);
+  console.log(`  Source  : dist/runtime/${framework}/${version}/`);
   console.log(`  CDN     : ${cdnVersionedDir}`);
   console.log(`  Latest  : ${cdnLatestDir}`);
   console.log('─'.repeat(72));
@@ -82,8 +119,15 @@ async function main() {
     try {
       await stat(src);
     } catch {
-      console.warn(`  ⚠ skipped (not found): ${file}`);
-      continue;
+      // ⚠ Esto era `console.warn` + `continue`, o sea publicar un runtime
+      // INCOMPLETO informando «Done». Un fichero que la tabla declara y el
+      // build no produjo deja un bare import sin resolver, que es 200 y nada
+      // hidrata. Lo que no se puede copiar se rechaza, no se salta (regla 25c).
+      throw new Error(
+        `[publish-runtime] ${framework}: la tabla declara ${file} y no está en ` +
+        `dist/runtime/${framework}/${version}/.\n` +
+        `  → O lo produce el build de esa plataforma, o sobra en FICHEROS_POR_FRAMEWORK.`,
+      );
     }
 
     if (isDryRun) {
@@ -113,7 +157,7 @@ async function main() {
   // y no en la otra — el mapa de `dist/` y el del CDN discrepando sobre el
   // MISMO runtime, sin que nada falle.
   const importMap = {
-    imports: importsDelRuntimeAngular(base),
+    imports: importsDelRuntime(framework, base),
     integrity: integrityMap,
   };
   const importMapJson = JSON.stringify(importMap, null, 2);
@@ -126,10 +170,23 @@ async function main() {
     console.log(`  ✓ import-map.json`);
   }
 
-  console.log(`\n  Done. Inject this into <head> before any element <script>:\n`);
-  console.log(`  <script type="importmap">`);
-  console.log(`  ${importMapJson.split('\n').join('\n  ')}`);
-  console.log(`  </script>\n`);
+  console.log(`  ✓ ${framework} ${version} — ${RUNTIME_FILES.length} ficheros + import-map.json`);
+}
+
+async function main() {
+  const runtimes = await resolverRuntimes();
+
+  for (const runtime of runtimes) {
+    await publicarUno(runtime);
+  }
+
+  console.log(
+    `\n  Done — ${runtimes.length} runtime(s): ` +
+      `${runtimes.map((r) => `${r.framework}@${r.version}`).join(', ')}.`,
+  );
+  console.log(
+    `  El CMS COMPONE los import maps de todos (ADR del compositor, #127): no se elige uno.\n`,
+  );
 }
 
 try {

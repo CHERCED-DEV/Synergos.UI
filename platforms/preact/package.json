@@ -8,7 +8,8 @@
     "build": "node tools/build.mjs",
     "sync:tokens": "node tools/sync-tokens.mjs",
     "sync:tokens:check": "node tools/sync-tokens.mjs --check",
-    "test": "node tools/build.mjs && npx --prefix ../.. vitest run --config vitest.config.ts"
+    "test": "node tools/build.mjs && npx --prefix ../.. vitest run --config vitest.config.ts",
+    "build:runtime": "node tools/build-runtime.mjs"
   },
   "dependencies": {
     "preact": "^10.27.2"

@@ -24,7 +24,9 @@ import { gzipSync } from 'node:zlib';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { revisarBundle, explicar } from './lib/cdn-size-budget.mjs';
+import { revisarBundle, explicar,
+  revisarMigradosAlRuntime,
+} from './lib/cdn-size-budget.mjs';
 import { frameworksConstruibles, recorrerPublicado } from './lib/frameworks.mjs';
 import { getArg } from './lib/cli-utils.mjs';
 
@@ -126,6 +128,20 @@ const veredictos = medidos.map((m) =>
 );
 const rotos = veredictos.filter((v) => !v.ok);
 
+// ── Y el otro lado del mismo contrato: lo que se mudó al runtime ────────────
+//
+// `EXTERNALS_UNIVERSALES_POR_FRAMEWORK` dejó de exigirle `@angular/elements` a
+// cada elemento porque #62 lo movió al runtime compartido. Si eso fuera todo,
+// el gate habría quedado sin vigilar que nadie lo empaquete — más débil y con
+// mejor cara. Acá se comprueba sobre el fichero que lo tiene ahora.
+const frameworksPublicados = [...new Set(medidos.map((m) => m.framework))].filter(Boolean);
+const erroresDeRuntime = frameworksPublicados.flatMap((framework) =>
+  revisarMigradosAlRuntime(framework, (fichero) => {
+    const ruta = join(CDN, 'synergos', 'runtime', framework, 'latest', fichero);
+    return existsSync(ruta) ? readFileSync(ruta, 'utf8') : null;
+  }),
+);
+
 if (ACTUALIZAR) {
   const elementos = {};
   for (const m of [...medidos].sort((a, b) => a.llave.localeCompare(b.llave))) {
@@ -172,6 +188,16 @@ if (base && movidos.length > 0) {
   if (movidos.length > 20) log(`    …y ${movidos.length - 20} más`);
 } else if (base) {
   log(`sin movimientos sobre la línea base del ${base.medido}`);
+}
+
+if (erroresDeRuntime.length > 0) {
+  err('');
+  for (const linea of erroresDeRuntime) err(linea);
+  err('');
+}
+
+if (rotos.length === 0 && erroresDeRuntime.length > 0) {
+  process.exit(1);
 }
 
 if (rotos.length === 0) {

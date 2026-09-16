@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 import {
   ALIAS_HEREDADOS,
-  FICHEROS_DEL_RUNTIME,
+  ficherosDelRuntime,
   calificar,
   importsDelRuntimeAngular,
+  importsDelRuntimePreact,
   recorrerMapasPublicados,
   revisarMapas,
 } from './mapa-del-runtime.mjs';
@@ -20,6 +21,10 @@ const mapa = (framework, imports) => ({ framework, imports });
 /** Lo que Angular publica hoy, resuelto contra una base cualquiera. */
 const angularHoy = (base = '/synergos/runtime/angular/21.1.6') =>
   mapa('angular', importsDelRuntimeAngular(base));
+
+/** Y lo que publica Preact (#64), que es la segunda plataforma de verdad. */
+const preactHoy = (base = '/synergos/runtime/preact/10.29.8') =>
+  mapa('preact', importsDelRuntimePreact(base));
 
 describe('el import map del runtime — la tabla', () => {
   it('publica el alias heredado y su gemelo calificado APUNTANDO AL MISMO fichero', () => {
@@ -41,8 +46,12 @@ describe('el import map del runtime — la tabla', () => {
   it('todo alias del censo apunta a un fichero que el runtime construye de verdad', () => {
     // Sin esto, el censo podría nombrar un `sg-loquesea.js` que nadie publica y
     // el mapa saldría apuntando a un 404 — con el gate en verde.
-    for (const { fichero } of Object.values(ALIAS_HEREDADOS)) {
-      expect(FICHEROS_DEL_RUNTIME).toContain(fichero);
+    // Se pide por el framework de CADA entrada del censo, no contra una lista
+    // única. `FICHEROS_DEL_RUNTIME` era la de Angular a secas, así que con una
+    // segunda plataforma esto habría medido el alias de una contra los ficheros
+    // de la otra — verde o rojo por casualidad (#64).
+    for (const { framework, fichero } of Object.values(ALIAS_HEREDADOS)) {
+      expect(ficherosDelRuntime(framework), `${framework}: ${fichero}`).toContain(fichero);
     }
   });
 });
@@ -188,5 +197,77 @@ describe('el import map del runtime — lo que hay en el disco', () => {
     expect(errores).toEqual([]);
     expect(mapas.length).toBeGreaterThan(0);
     expect(revisarMapas(mapas)).toEqual([]);
+  });
+});
+
+
+describe('los DOS mapas que se publican de verdad (#64)', () => {
+  // Hasta esta HU el gate se probaba con un `react` inventado. El fixture es
+  // ahora lo que hay en el disco, que es la única forma de que un cambio en
+  // cualquiera de las dos tablas se vea: un gate probado sólo contra un fixture
+  // de mentira mide su fixture.
+
+  it('EL CRUCE: los de Angular y Preact COMPONEN — sin esto no hidrata nada', () => {
+    expect(revisarMapas([angularHoy(), preactHoy()])).toEqual([]);
+  });
+
+  it('Preact publica SÓLO nombres calificados — no arrastra bundles viejos', () => {
+    const { imports } = preactHoy();
+    const agnosticos = Object.keys(imports).filter(
+      (k) => k.startsWith('@synergos/') && !k.startsWith('@synergos/preact-'),
+    );
+    expect(agnosticos, 'un @synergos agnóstico desde una plataforma nueva').toEqual([]);
+  });
+
+  it('LA MUTACIÓN que apaga el sitio: Preact publicando `@synergos/core`', () => {
+    // Es lo que uno escribe por simetría con Angular, y es lo que el gate
+    // existe para rechazar. Angular NO lo puede retirar —sus 127 bundles ya lo
+    // importan— así que el conflicto sale sí o sí.
+    const roto = mapa('preact', {
+      ...preactHoy().imports,
+      '@synergos/core': '/synergos/runtime/preact/10.29.8/sg-preact-core.js',
+    });
+
+    const errores = revisarMapas([angularHoy(), roto]);
+
+    // Saltan DOS dientes, no uno, y esperaba uno: el del conflicto de URLs y el
+    // del censo —una plataforma nueva declarando el alias agnóstico de otra—.
+    // Que sean dos es mejor que uno: el primero dice qué pasa y el segundo dice
+    // de quién es el nombre y por qué no se puede retirar. La aserción se
+    // corrige al gate y no al revés.
+    expect(errores).toHaveLength(2);
+
+    const conflicto = errores.find((e) => e.includes('URLs distintas'));
+    expect(conflicto).toContain('"@synergos/core"');
+    expect(conflicto).toContain('no hidrata NADA');
+    expect(conflicto).toContain('@synergos/preact-core');
+
+    const censo = errores.find((e) => e.includes('specifier agnóstico'));
+    expect(censo).toContain('que es de angular');
+    expect(censo).toContain('@synergos/preact-core');
+  });
+
+  it('un specifier compartido con la MISMA url no es conflicto', () => {
+    // El caso legítimo, y hace falta para que el gate no rechace de más: dos
+    // frameworks pueden servir el mismo fichero. Si esto se pusiera rojo, la
+    // salida barata de #58 —publicar los dos nombres a la misma url— dejaría de
+    // existir.
+    const compartido = '/synergos/comun/tslib.js';
+    expect(
+      revisarMapas([
+        mapa('angular', { ...angularHoy().imports, tslib: compartido }),
+        mapa('preact', { ...preactHoy().imports, tslib: compartido }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('cada fichero que el mapa de Preact nombra está en su tabla de ficheros', () => {
+    // Las dos mitades —qué se copia y qué lo resuelve— se desalinean en
+    // silencio: el mapa apuntaría a un 404 y el gate seguiría verde. Ya pasó
+    // entre `build-runtime` y `publish-runtime` en #58.
+    const declarados = ficherosDelRuntime('preact');
+    for (const url of Object.values(preactHoy().imports)) {
+      expect(declarados, url).toContain(url.split('/').at(-1));
+    }
   });
 });

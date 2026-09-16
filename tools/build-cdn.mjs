@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mjs';
+import { PLATFORMS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -63,11 +64,33 @@ if (await existe(join(NG, 'node_modules'))) {
 log('compilando contratos…');
 correr('npm', ['run', 'build:vitals']);
 
-log('compilando elementos (un compilador, un esbuild)…');
-correr('npm', ['run', 'build:angular']);
+// ── Los builds, DERIVADOS de PLATFORMS ───────────────────────────────────────
+//
+// Esto era `build:angular` + `build:runtime`, escrito a mano. Su entrada en el
+// censo de #44 lo decía con todas las letras —«el día que haya dos, itera sobre
+// PLATFORMS»— y ese día llegó con #64: con la lista a mano, `npm run build:cdn`
+// habría armado un CDN con los elementos de Preact SIN construir y su runtime
+// SIN construir, y los pasos de más abajo lo habrían publicado sin quejarse de
+// nada que nombrara a Preact.
+//
+// Qué runtime construye cada plataforma se lee de SU package.json y no de una
+// tabla: Angular lo construye desde la raíz (el linker vive ahí), Preact desde
+// su propia carpeta. Preguntar por el script es preguntarle al disco.
+for (const { name } of PLATFORMS) {
+  log(`compilando elementos de ${name}…`);
+  correr('npm', ['run', `build:${name}`]);
+}
 
-log('compilando runtime (con el linker de Angular)…');
+log('compilando runtime de angular (con el linker)…');
 correr('npm', ['run', 'build:runtime']);
+
+for (const { name } of PLATFORMS) {
+  const pkg = join(ROOT, 'platforms', name, 'package.json');
+  if (!existsSync(pkg)) continue;
+  if (!JSON.parse(readFileSync(pkg, 'utf8')).scripts?.['build:runtime']) continue;
+  log(`compilando runtime de ${name}…`);
+  correr('npm', ['run', '--prefix', `platforms/${name}`, 'build:runtime']);
+}
 
 // ── 1. Empezar de cero ───────────────────────────────────────────────────────
 //

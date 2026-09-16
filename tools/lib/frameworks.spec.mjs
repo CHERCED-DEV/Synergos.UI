@@ -209,6 +209,13 @@ describe('frameworksDelRegistry', () => {
  */
 const CIEGAS_AL_FRAMEWORK = [
   'lib/rutas-hermanas.mjs',
+  // Estaba en ESPECIFICAS_DE_ANGULAR —«publica al slot runtime/angular/<version>/»—
+  // y era cierto mientras hubiera una plataforma. Con dos, publicaba el runtime de
+  // Angular y nada más, informando «Done», y los elementos de la otra quedaban sin
+  // de dónde resolver sus bare imports. Desde #64 RECORRE `dist/runtime/` y pide la
+  // tabla por framework. Es la misma caducidad que `cdn-runtime-check` tuvo en #61:
+  // una excepción del censo no es una lista de las malas, es una con fecha.
+  'publish-runtime.mjs',
   // Cruza por NOMBRE DE FUNCIÓN y recorre todo `.ts` del repo (#63): no
   // pregunta por la ruta de ninguna plataforma, así que una copia puesta en
   // `platforms/react/libs/shared/` la caza igual que una en Angular.
@@ -271,17 +278,18 @@ const ESPECIFICAS_DE_ANGULAR = {
   'build-runtime.mjs':
     '(a) construye EL runtime de Angular: pasa el linker sobre los @angular/* de npm. ' +
     'Otro framework traerá su propia herramienta, con su propio linker o ninguno.',
-  'publish-runtime.mjs':
-    '(a) publica lo que construye build-runtime.mjs, al slot runtime/angular/<version>/.',
   'build-cdn.mjs':
-    '(a) orquesta el build: llama a `npm run build:angular` y al runtime de Angular. ' +
-    'El día que haya dos, itera sobre PLATFORMS — hoy inventarlo es adivinar el script.',
+    '(a) orquesta el build llamando a `npm run build:angular` y al runtime de Angular. ' +
+    'Su razón decía «el día que haya dos, itera sobre PLATFORMS» y ESE DÍA LLEGÓ (#64): ' +
+    'hoy nombra a Angular porque todavía no itera, y eso es deuda medida y no una ' +
+    'excepción legítima. Lo que la tapa mientras tanto es que `publish-runtime` sí ' +
+    'recorre, así que un runtime construido a mano se publica igual.',
   'medir-frontera-shared.mjs':
     '(a) mide cuánto de platforms/angular/libs/shared está acoplado a la API de Angular. ' +
     'Su sujeto ES Angular; sin Angular la medición no significa nada.',
   'release-cdn.mjs':
     '(a) el framework ya NO tiene default (issue #44): lo exige. Lo que queda nombrando a ' +
-    'Angular son las dos herramientas de runtime, que sólo Angular tiene.',
+    'Angular es `build-runtime.mjs`, cuyo linker es suyo, y la orquestación de `build-cdn`.',
   'cli.mjs':
     '(a) atajos de consola que lanzan los scripts de platforms/angular.',
   'cms-sync.mjs':
