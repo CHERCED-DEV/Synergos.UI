@@ -10,7 +10,7 @@ import {
   revisarContratoDePlataformas,
 } from './platform-contract.mjs';
 import { frameworksConstruibles } from './frameworks.mjs';
-import { todasLasFuentes } from './element-sources.mjs';
+import { PLATAFORMAS, todasLasFuentes } from './element-sources.mjs';
 import { ALL_FRAMEWORKS } from './synergos-config.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
@@ -45,11 +45,15 @@ const discoReal = {
     walk(abs);
     return salida;
   },
+  // La entrada sale de `PLATAFORMAS`, o sea de la declaración de la plataforma
+  // (#64), y NO se cablea acá. Escribir `src/main.ts` en este fixture haría que
+  // el gate midiera bien Angular y mintiera sobre cualquier plataforma de JSX —
+  // la regla 25 escondida dentro de un doble de tests.
   fuentes: (framework) =>
     todasLasFuentes({
       listar: (dir) => listarDirs(resolve(ROOT, dir)),
       existe: (r) => existsSync(resolve(ROOT, r)),
-      plataformas: [{ framework, apps: `platforms/${framework}/apps` }],
+      plataformas: PLATAFORMAS.filter((p) => p.framework === framework),
     }).length,
   unir: join,
 };
@@ -145,7 +149,10 @@ describe('el contrato de una plataforma (#62)', () => {
 
     expect(conApps.map((f) => f.n)).toContain(3);
     expect(conApps.find((f) => f.n === 3)).toBeDefined();
-    expect(conApps[0].detalle).toContain('main.ts');
+    // El mensaje tiene que mandar a donde se ARREGLA —la declaración de la
+    // plataforma— y no a una extensión concreta: la extensión ya no es una
+    // constante del descubrimiento (#64).
+    expect(conApps[0].detalle).toContain('PLATFORMS[].entrada');
   });
 
   it('un cdn.config.mjs que no exporta EXTERNALS no vale por existir', () => {

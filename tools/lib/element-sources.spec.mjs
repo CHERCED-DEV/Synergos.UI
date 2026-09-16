@@ -60,10 +60,19 @@ const discoFalso = (rutas) => {
 
 const APPS = 'platforms/angular/apps';
 
-/** Las dos plataformas, para los casos de #59. `PLATAFORMAS` hoy tiene una sola. */
+/**
+ * Las dos plataformas, para los casos de #59.
+ *
+ * ⚠ **Las entradas son DISTINTAS a propósito** (#64). Con las dos en `main.ts`
+ * el fixture no ejercita `PLATFORMS[].entrada`: quitar la declaración y volver a
+ * cablear `src/main.ts` en `todasLasFuentes` pasaría en verde, que es la regla 7
+ * —una mutación que no cambia el resultado no prueba nada—. La segunda usa la
+ * extensión que de verdad usa una plataforma de JSX, que es el caso que costó
+ * que esto se decidiera.
+ */
 const DOS_PLATAFORMAS = [
-  { framework: 'angular', apps: 'platforms/angular/apps' },
-  { framework: 'react', apps: 'platforms/react/apps' },
+  { framework: 'angular', apps: 'platforms/angular/apps', entrada: 'src/main.ts' },
+  { framework: 'react', apps: 'platforms/react/apps', entrada: 'src/main.tsx' },
 ];
 
 describe('dos fuentes para el mismo elemento (#59)', () => {
@@ -75,7 +84,7 @@ describe('dos fuentes para el mismo elemento (#59)', () => {
     ...discoFalso([
       'platforms/angular/apps/elements/primitives/badge/src/main.ts',
       'platforms/angular/apps/elements/modules/hero/src/main.ts',
-      'platforms/react/apps/elements/primitives/badge/src/main.ts',
+      'platforms/react/apps/elements/primitives/badge/src/main.tsx',
     ]),
     plataformas: DOS_PLATAFORMAS,
   };

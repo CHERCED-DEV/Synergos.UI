@@ -24,7 +24,8 @@
  * suposición en vez de medirla, que es exactamente lo que hacía el agujero.
  * Se MIDE: la fuente de verdad es la misma que usa el build
  * (`platforms/angular/tools/build.mjs`) — cada carpeta bajo `apps/` con un
- * `src/main.ts` es un elemento, y la plataforma que la contiene es su
+ * la entrada que su plataforma declara es un elemento, y la plataforma que la
+ * contiene es su
  * framework. 130 de los 132 se derivan así.
  *
  * LOS DOS QUE NO, y por qué van con su razón escrita al lado: `stat-counter` y
@@ -55,6 +56,21 @@ import { PLATFORMS } from './synergos-config.mjs';
 export const PLATAFORMAS = PLATFORMS.map((p) => ({
   framework: p.name,
   apps: `platforms/${p.name}/apps`,
+  // La declara la plataforma (ver `PLATFORMS`).
+  //
+  // ⚠ NO lleva `?? 'src/main.ts'`, y la razón NO es la que escribí primero.
+  // Puse que un default dejaría a una plataforma sin declarar «descubriendo cero
+  // elementos en silencio», y al mutarlo —quitar la declaración de Angular y
+  // poner el default— los 42 tests pasaron en VERDE: con default o sin él, una
+  // plataforma que no declara entrada descubre cero y falla igual de fuerte
+  // (`undefined` tampoco existe como fichero). O sea que la ventaja que afirmaba
+  // no existe, y afirmarla era documentación por delante del código.
+  //
+  // La razón que SÍ se sostiene es más modesta: un default escribe la convención
+  // `src/main.ts` en un SEGUNDO sitio, y en este repo la segunda copia de una
+  // regla es la que se desvía (la tabla del import map, #58; `TIER_BY_NAME`,
+  // #43). Sin default hay un solo sitio donde mirar.
+  entrada: p.entrada,
 }));
 
 /**
@@ -78,7 +94,7 @@ export const SIN_FUENTE_PROPIA = {
   'stat-counter': {
     framework: 'angular',
     razon:
-      'declarado en el registry y sin src/main.ts en ninguna plataforma — publish.mjs lo ' +
+      'declarado en el registry y sin fuente en ninguna plataforma — publish.mjs lo ' +
       'reporta como "not built" y element-contract-audit ya lo nombra. Declara angular ' +
       'porque es la única plataforma que publica; el día que alguien lo escriba, se mide.',
   },
@@ -169,24 +185,26 @@ export function descubrirFuentes(io) {
  * sitio equivocado.
  *
  * Vive acá y no en un segundo recorrido porque la regla de qué cuenta como
- * fuente —`<dir>/src/main.ts`— tiene que estar escrita **una vez**. Con dos
+ * fuente —la entrada que declara la plataforma— tiene que estar escrita **una
+ * vez**. Con dos
  * copias, la de al lado se desvía; es lo que costó la tabla del import map de
  * #58.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * LO QUE ESTA REGLA DA POR HECHO, ANOTADO EN VEZ DE ARREGLADO ACÁ (#59 → #62).
  *
- * Una fuente es `<dir>/src/main.ts`, **con esa extensión**. Un `platforms/react/`
- * que use `main.tsx` —lo normal— descubriría **CERO** elementos, y el cruce
- * contra el registry diría «ninguna plataforma tiene su fuente» para cada
- * entrada de React: falla ruidosamente, que está bien, pero **por la razón
- * equivocada**, y manda a alguien a mirar el registry.
+ * ✅ **DECIDIDO EN #64: la entrada la DECLARA cada plataforma.** Esto decía que
+ * una fuente es `<dir>/src/main.ts` **con esa extensión**, y avisaba de que un
+ * `platforms/preact/` con `main.tsx` —lo normal en JSX— descubriría **CERO**
+ * elementos y fallaría *por la razón equivocada*, mandando a alguien a mirar el
+ * registry. Pasó exactamente eso en cuanto hubo una segunda plataforma.
  *
- * No se arregla acá a ojo —aceptar `.tsx` «por si acaso» es escribir una
- * suposición sobre un contrato que nadie ha escrito—. Quien decide si la
- * extensión es parte del contrato de una plataforma o se deriva de ella es
- * **#62**. Queda dicho para que el día que pase, el mensaje no mande a nadie al
- * sitio equivocado dos veces.
+ * La salida NO fue aceptar `.tsx` «por si acaso» —eso es escribir una suposición
+ * sobre un contrato que nadie escribió—. `PLATFORMS[].entrada` lo dice: Angular
+ * declara `src/main.ts`, Preact declara `src/main.tsx`, la tercera declara la
+ * suya. Se escribe **una vez**, en la misma tabla que ya declara
+ * `resolveBundlePath`, y **sin default**: una plataforma que se olvide de
+ * declararla rompe, en vez de descubrir cero elementos callando.
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * @returns {{ nombre: string, framework: string, dir: string, tier: string|null }[]}
@@ -198,7 +216,7 @@ export function todasLasFuentes({ listar, existe, plataformas = PLATAFORMAS }) {
     const recorrer = (dir) => {
       for (const nombre of listar(dir)) {
         const completo = `${dir}/${nombre}`;
-        if (existe(`${completo}/src/main.ts`)) {
+        if (existe(`${completo}/${plataforma.entrada}`)) {
           // El tier sale del segmento de carpeta cuando lo hay. `apps/domains/`
           // y `apps/experiences/` no lo llevan: ahí el tier lo sabe el registry
           // y no el disco, y decir `null` es decir la verdad.

@@ -64,6 +64,16 @@ export function contratoDelManifiesto() {
 export const PLATFORMS = [
   {
     name: 'angular',
+    // La entrada de un elemento, RELATIVA a su carpeta. Es parte de la
+    // declaración de la plataforma y no una constante global: `todasLasFuentes`
+    // descubría por `src/main.ts` a secas, y su propia cabecera avisaba de que
+    // una plataforma con `main.tsx` —lo normal en JSX— descubriría CERO
+    // elementos y fallaría **por la razón equivocada**, mandando a alguien a
+    // mirar el registry. #62 lo dejó anotado y lo decide #64: la extensión la
+    // declara quien la usa, y no hay default silencioso que aceptar `.tsx` «por
+    // si acaso» — eso sería escribir una suposición sobre un contrato que nadie
+    // escribió.
+    entrada: 'src/main.ts',
     distDir: resolve(ROOT, 'platforms/angular/dist'),
     // Angular: dist/<element>/browser/main.js
     resolveBundlePath: (elementName) =>
