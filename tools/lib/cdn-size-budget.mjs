@@ -71,16 +71,55 @@ export const TECHO_POR_TIER = {
  * Entrar acá exige escribir la razón. Es el único trámite que impide que la
  * tabla se convierta en una lista de permisos.
  */
+/**
+ * ⚠️ **LOS TECHOS DE LOS VERTICALES SE RESUBIERON EL 2026-09-16, Y LA RAZÓN IMPORTA
+ * MÁS QUE LOS NÚMEROS.**
+ *
+ * Los de antes se fijaron el **2026-08-05** y seis verticales los pasaron: el build
+ * del CDN llevaba semanas saliendo con 1 sin que nadie lo notara, porque este gate
+ * **no corre en `npm test`** — vive dentro de `build:cdn`. Es la forma del CMS #128
+ * y está abierto como **#68**.
+ *
+ * Antes de subir un número se midió QUÉ entró, porque subirlo sin eso es
+ * exactamente cómo un presupuesto deja de serlo. Lo que entró es **`libs/shells`**,
+ * y es el **38-65 % de cada bundle vertical**:
+ *
+ *     academy   449 KB · 257 de shells (57 %)    storefront    423 · 253 (60 %)
+ *     realty    397 KB · 229 de shells (58 %)    travel-shell  408 · 263 (65 %)
+ *     eventos   390 KB · 231 de shells (59 %)    gov           319 · 181 (57 %)
+ *     blogs     329 KB · 142 de shells (43 %)    ehr           288 · 109 (38 %)
+ *     seller    141 KB ·  71 de shells (50 %)    booking-wizard 89 ·  41 (46 %)
+ *
+ * **Y eso CONTESTA con datos la parte de #65 que preguntaba si `shells` debería ser
+ * un external.** La respuesta es NO, y no por la razón que estaba escrita
+ * —«acoplaría el despliegue de todos los elementos»—, que además es falsa: a
+ * `shells` le hablan **diez** elementos y los diez son `elements/modules/*`, o sea
+ * los verticales. La razón de verdad es aritmética:
+ *
+ *   · **empaquetado** (hoy), cada vertical carga **sólo lo que usa**: 109-263 KB;
+ *   · **compartido**, una página cargaría **la unión de todos los shells** (~420 KB)
+ *     aunque lleve un solo vertical.
+ *
+ * Una página del producto lleva UN vertical —el vertical *es* la página—, así que
+ * compartir cambiaría 180 KB por 420 en el caso normal para ahorrar en uno que no
+ * ocurre. Empaquetar es lo correcto, y ahora está medido en vez de supuesto.
+ *
+ * **El margen es ~8 % sobre lo medido, a propósito y no por tacañería**: el techo es
+ * el tope ABSOLUTO y el trinquete de 2× es quien vigila el crecimiento. Un techo
+ * holgado no vigila nada; uno justo vuelve a saltar pronto, y cuando salte habrá que
+ * mirar otra vez qué entró — que es el trabajo que este gate existe para provocar.
+ */
 export const EXCEPCIONES = {
-  academy: { techo: 396 * KB, razon: 'vertical completa: cursos, matrícula, progreso' },
-  realty: { techo: 396 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas' },
-  eventos: { techo: 384 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map' },
-  blogs: { techo: 348 * KB, razon: 'vertical completa: índice, artículo, comentarios' },
-  gov: { techo: 328 * KB, razon: 'vertical completa: trámites, formularios, expediente' },
-  ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas' },
-  storefront: { techo: 304 * KB, razon: 'tienda entera: catálogo, carrito, checkout' },
-  'travel-shell': { techo: 292 * KB, razon: 'vertical completa: búsqueda, pax, itinerario' },
-  seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas' },
+  academy: { techo: 484 * KB, razon: 'vertical completa: cursos, matrícula, progreso. 449 KB medidos, 257 de shells (57 %)' },
+  realty: { techo: 428 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas. 397 KB medidos, 229 de shells (58 %)' },
+  eventos: { techo: 420 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map. 390 KB medidos, 231 de shells (59 %)' },
+  blogs: { techo: 356 * KB, razon: 'vertical completa: índice, artículo, comentarios. 329 KB medidos, 142 de shells (43 %)' },
+  gov: { techo: 344 * KB, razon: 'vertical completa: trámites, formularios, expediente. 319 KB medidos, 181 de shells (57 %)' },
+  ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas. 288 KB medidos, 109 de shells (38 %)' },
+  storefront: { techo: 456 * KB, razon: 'tienda entera: catálogo, carrito, checkout. 423 KB medidos, 253 de shells (60 %)' },
+  'travel-shell': { techo: 440 * KB, razon: 'vertical completa: búsqueda, pax, itinerario. 408 KB medidos, 263 de shells (65 %)' },
+  seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
+  'booking-wizard': { techo: 100 * KB, razon: 'asistente de reserva: pasos, cobro y acuse. 89 KB medidos, 41 de shells (46 %) — el tier «module» son 72 KB y ninguna vertical cabe ahí' },
   'product-detail': { techo: 104 * KB, razon: 'ficha con galería, variantes y motor de precio' },
 };
 

@@ -137,7 +137,13 @@ const rotos = veredictos.filter((v) => !v.ok);
 const frameworksPublicados = [...new Set(medidos.map((m) => m.framework))].filter(Boolean);
 const erroresDeRuntime = frameworksPublicados.flatMap((framework) =>
   revisarMigradosAlRuntime(framework, (fichero) => {
-    const ruta = join(CDN, 'synergos', 'runtime', framework, 'latest', fichero);
+    // `CDN` ya es `<salida>/synergos` (ver arriba). Poner el namespace otra vez
+    // —lo que escribí primero— daba `…/synergos/synergos/runtime/…` y el gate
+    // se puso rojo diciendo «no se encuentra sg-core.js». Falló A GRITOS en vez
+    // de saltárselo, que es exactamente para lo que se escribió así (regla 25c):
+    // con un `continue` habría informado «✓» sobre una comprobación que nunca
+    // llegó a hacerse.
+    const ruta = join(CDN, 'runtime', framework, 'latest', fichero);
     return existsSync(ruta) ? readFileSync(ruta, 'utf8') : null;
   }),
 );
