@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { raicesEnDisco } from './frameworks.mjs';
+
 /**
  * La cuarentena de specs no puede crecer sola (issue #1).
  *
@@ -31,8 +33,18 @@ import path from 'node:path';
  */
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const APPS = path.join(REPO, 'platforms/angular/apps');
-const LIBS = path.join(REPO, 'platforms/angular/libs');
+/**
+ * Las raíces de TODAS las plataformas construibles, no `platforms/angular` (#60).
+ *
+ * La regla de este gate es NEUTRAL —un `it.skip` sin motivo es igual de malo en React que en Angular— y estaba apuntando a una ruta
+ * cableada: la regla 25. La lista sale del disco, que es lo único que encuentra
+ * una plataforma que nadie escribió en ningún sitio. Lo que NO cubre, dicho en
+ * vez de insinuado: una plataforma cuyo árbol interno no se parezca al de
+ * Angular queda invisible acá, porque este gate sigue sabiendo qué subcarpeta
+ * mirar. El contrato de layout es #62; hasta entonces lo que impide que esto
+ * pase en verde sin mirar nada es la red de seguridad de más abajo.
+ */
+const RAICES = raicesEnDisco(REPO);
 
 /**
  * Lo que queda en cuarentena. Sube este número sólo con un ticket que lo diga.
@@ -65,9 +77,12 @@ function specs(raiz) {
   return encontrados;
 }
 
-const todos = [...specs(APPS), ...specs(LIBS)];
+const todos = RAICES.flatMap((raiz) => [
+  ...specs(path.join(raiz, 'apps')),
+  ...specs(path.join(raiz, 'libs')),
+]);
 
-describe('cuarentena de specs Angular', () => {
+describe('cuarentena de specs — de cualquier plataforma (#60)', () => {
   it('los specs siguen en el árbol y se encuentran', () => {
     // Si esto baja de golpe es que alguien movió o borró specs — que es el otro
     // modo de que una suite se quede callada.

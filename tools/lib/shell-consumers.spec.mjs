@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { raicesEnDisco } from './frameworks.mjs';
+
 
 /**
  * Shells del catálogo que nadie monta.
@@ -38,8 +40,30 @@ import path from 'node:path';
  */
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const NG = path.join(REPO, 'platforms/angular');
-const SHELLS_INDEX = path.join(NG, 'libs/shells/src/index.ts');
+/**
+ * Las raíces de TODAS las plataformas construibles, no `platforms/angular` (#60).
+ *
+ * La regla de este gate es NEUTRAL —un shell que nadie monta es peso muerto en cualquier framework— y estaba apuntando a una ruta
+ * cableada: la regla 25. La lista sale del disco, que es lo único que encuentra
+ * una plataforma que nadie escribió en ningún sitio. Lo que NO cubre, dicho en
+ * vez de insinuado: una plataforma cuyo árbol interno no se parezca al de
+ * Angular queda invisible acá, porque este gate sigue sabiendo qué subcarpeta
+ * mirar. El contrato de layout es #62; hasta entonces lo que impide que esto
+ * pase en verde sin mirar nada es la red de seguridad de más abajo.
+ */
+const RAICES = raicesEnDisco(REPO);
+
+/**
+ * El catálogo de shells de cada plataforma que lo tenga.
+ *
+ * **No es `RAICES[0]`**, que sería el defecto con un paso más: hoy el primero es
+ * angular y mañana el orden alfabético lo decide otro. Se recorren todas y se
+ * quedan las que de verdad tienen catálogo — una plataforma nueva sin `shells/`
+ * no da rojo, que es la misma asimetría de #61.
+ */
+const CATALOGOS = RAICES
+  .map((raiz) => path.join(raiz, 'libs/shells/src'))
+  .filter((dir) => existsSync(path.join(dir, 'index.ts')));
 
 /**
  * Shells sin consumidor, con la razón por la que se acepta hoy.
@@ -67,13 +91,12 @@ function plantillas() {
       }
     }
   };
-  walk(path.join(NG, 'apps'));
+  for (const raiz of RAICES) walk(path.join(raiz, 'apps'));
   return encontradas;
 }
 
 /** Los selectores del catálogo, leídos de los propios ficheros del shell. */
 function selectoresDelCatalogo() {
-  const dir = path.join(NG, 'libs/shells/src');
   const selectores = new Set();
   const walk = (d) => {
     for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -88,7 +111,7 @@ function selectoresDelCatalogo() {
       }
     }
   };
-  walk(dir);
+  for (const dir of CATALOGOS) walk(dir);
   return [...selectores];
 }
 
@@ -96,7 +119,10 @@ describe('consumidores del catálogo de shells', () => {
   const selectores = selectoresDelCatalogo();
 
   it('el catálogo existe y se lee de los ficheros, no de una lista', () => {
-    expect(existsSync(SHELLS_INDEX)).toBe(true);
+    // Red de seguridad: al menos una plataforma tiene catálogo de shells. Sin
+    // esto, un descubrimiento que deja de ver haría pasar en verde «ningún shell
+    // sin consumidor» sobre cero shells.
+    expect(CATALOGOS.length).toBeGreaterThan(0);
     expect(selectores.length).toBeGreaterThan(8);
   });
 

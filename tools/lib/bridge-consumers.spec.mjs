@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
+import { raicesEnDisco } from './frameworks.mjs';
+
 /**
  * Helpers del host bridge que nadie llama (issue #17).
  *
@@ -40,7 +42,18 @@ import path from 'node:path';
  */
 
 const REPO = path.resolve(import.meta.dirname, '../..');
-const NG = path.join(REPO, 'platforms/angular');
+/**
+ * Las raíces de TODAS las plataformas construibles, no `platforms/angular` (#60).
+ *
+ * La regla de este gate es NEUTRAL —un helper de `window.synergos` sin llamadores es una decisión pendiente disfrazada de activo, en cualquier framework— y estaba apuntando a una ruta
+ * cableada: la regla 25. La lista sale del disco, que es lo único que encuentra
+ * una plataforma que nadie escribió en ningún sitio. Lo que NO cubre, dicho en
+ * vez de insinuado: una plataforma cuyo árbol interno no se parezca al de
+ * Angular queda invisible acá, porque este gate sigue sabiendo qué subcarpeta
+ * mirar. El contrato de layout es #62; hasta entonces lo que impide que esto
+ * pase en verde sin mirar nada es la red de seguridad de más abajo.
+ */
+const RAICES = raicesEnDisco(REPO);
 const BRIDGE = path.join(REPO, 'vitals/core/src/bridge/synergos-bridge.ts');
 
 /**
@@ -166,11 +179,18 @@ describe('consumidores del host bridge', () => {
     expect(helpers.length).toBeGreaterThan(3);
   });
 
+  it('hay plataformas que recorrer', () => {
+    // La otra red, y hace falta desde #60: la lista sale del disco, así que si
+    // el descubrimiento deja de ver, `fuentes` sale vacío y «ningún helper tiene
+    // consumidor» se convertiría en «todos lo tienen» sin mirar nada.
+    expect(RAICES.length).toBeGreaterThan(0);
+  });
+
   it('cada helper del bridge tiene al menos un consumidor de producción', () => {
-    const fuentes = [
-      ...ficheros(path.join(NG, 'apps'), ['.ts']),
-      ...ficheros(path.join(NG, 'libs'), ['.ts']),
-    ]
+    const fuentes = RAICES.flatMap((raiz) => [
+      ...ficheros(path.join(raiz, 'apps'), ['.ts']),
+      ...ficheros(path.join(raiz, 'libs'), ['.ts']),
+    ])
       .filter((f) => !f.includes(`${path.sep}bridge${path.sep}`))
       .map((f) => sinComentarios(readFileSync(f, 'utf8')));
 

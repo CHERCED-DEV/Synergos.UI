@@ -55,6 +55,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
 /** La carpeta del CDN que NO es un elemento: el runtime compartido. */
 export const RUNTIME = 'runtime';
 
@@ -81,6 +84,60 @@ export function frameworksConstruibles({ raiz, listarDirs, existe, unir = unirPo
   return listarDirs(base)
     .filter((nombre) => existe(unir(base, nombre, 'package.json')))
     .sort();
+}
+
+/**
+ * La raíz de código de cada plataforma construible (#60).
+ *
+ * Existe para que los gates que recorren FUENTES —los que viven en un
+ * `.spec.mjs`, donde está la ruta de verdad porque las `lib/*.mjs` tienen el
+ * disco inyectado— no escriban `platforms/angular` a mano. Cinco de los seis
+ * que lo hacían llevan reglas **neutrales** (CSS muerto, un `it.skip` sin
+ * motivo, un helper del bridge sin consumidor) apuntando a una ruta cableada:
+ * la regla 25, un gate que resuelve a una constante una dimensión de lo que
+ * mide y se pone verde sobre el sitio equivocado.
+ *
+ * **Lo que esto NO resuelve, y va dicho en vez de insinuado:** una plataforma
+ * cuyo árbol interno no se parezca al de Angular —`apps/elements/<tier>s/`,
+ * `libs/`— queda INVISIBLE para esos gates, porque cada uno sigue sabiendo qué
+ * subcarpeta mirar. El contrato de layout de una plataforma es #62; hasta
+ * entonces lo honesto es que el gate recorra lo que existe y que su red de
+ * seguridad exija haber encontrado algo, no fingir que cubre un árbol que nadie
+ * ha descrito todavía.
+ *
+ * @param {{ raiz: string, listarDirs: (d: string) => string[],
+ *           existe: (r: string) => boolean, unir?: (...p: string[]) => string }} io
+ * @returns {{ framework: string, raiz: string }[]}
+ */
+export function raicesDePlataformas({ raiz, listarDirs, existe, unir = unirPorDefecto }) {
+  return frameworksConstruibles({ raiz, listarDirs, existe, unir }).map((framework) => ({
+    framework,
+    raiz: unir(raiz, CARPETA_PLATAFORMAS, framework),
+  }));
+}
+
+/**
+ * Lo mismo, cableado al disco de verdad, para los `.spec.mjs` (#60).
+ *
+ * Los gates puros de `tools/lib/*.mjs` inyectan el disco porque así se pueden
+ * ver fallar; los que recorren fuentes viven en un `.spec.mjs` y ahí el disco es
+ * el de verdad. Esta envoltura existe para que ese recorrido sea **una línea** y
+ * no veinticinco copiadas cinco veces: una tabla duplicada se desvía, que es el
+ * defecto que #58 acaba de pagar con el import map.
+ *
+ * @param {string} raiz Raíz del repo.
+ * @returns {string[]} Las rutas absolutas de cada plataforma construible.
+ */
+export function raicesEnDisco(raiz) {
+  return raicesDePlataformas({
+    raiz,
+    listarDirs: (d) =>
+      existsSync(d)
+        ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+        : [],
+    existe: existsSync,
+    unir: join,
+  }).map((p) => p.raiz);
 }
 
 /**
