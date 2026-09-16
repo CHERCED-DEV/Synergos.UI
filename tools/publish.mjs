@@ -140,7 +140,10 @@ for (const entry of registry) {
     process.exit(1);
   }
 
-  for (const platform of [eleccion.plataforma]) {
+  // Iterar era ya la forma de este bucle, sobre una lista de UNO. Desde #59
+  // `elegirPlataforma` devuelve las que hay: una en el caso normal, y las dos
+  // de un escaparate declarado.
+  for (const platform of eleccion.plataformas) {
     if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
 
     // Varios tipos de elemento del CMS comparten UNA implementación: heading,

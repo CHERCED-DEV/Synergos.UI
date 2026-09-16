@@ -91,6 +91,36 @@ export const SIN_FUENTE_PROPIA = {
   },
 };
 
+/**
+ * Los elementos que existen A PROPÓSITO en más de una plataforma (#59).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LA DECISIÓN, Y SU MITAD INCÓMODA.
+ *
+ * ¿Puede un mismo elemento existir en dos frameworks a la vez? **Sí, y no
+ * deberíamos tener esas cosas así.** Las dos mitades importan: se habilita
+ * porque la épica #37 no se puede contestar sin ello —el experimento es el
+ * MISMO `badge` en dos plataformas, midiendo los dos pisos de peso— y se
+ * declara una por una porque **no es la forma normal de escribir un elemento**.
+ * Un `badge` de React que fuera producto sería otro elemento, con su nombre y
+ * su DocType; lo que vive acá es un ESCAPARATE.
+ *
+ * Por eso no es una bandera ni una convención de nombres: es un censo, como
+ * `SIN_FUENTE_PROPIA`, y se vigila **en los dos sentidos**. Un duplicado sin
+ * declarar rompe el build —era el defecto: la fuente de una plataforma
+ * desaparecía en silencio— y una declaración cuyo elemento ya no está duplicado
+ * también, porque una excepción que sobra deja de leerse.
+ *
+ * **Hoy está VACÍO, y eso es el estado correcto**: sólo hay una plataforma
+ * construible, así que no hay nada que declarar. La primera entrada la escribe
+ * #64 junto con el elemento.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+export const SHOWCASE_MULTIPLATAFORMA = {
+  // 'badge': { razon: 'El experimento de la épica #37: el mismo elemento en dos ' +
+  //                   'plataformas para medir los dos pisos de peso (#64).' },
+};
+
 /** `synergos-text-block` → `text-block` */
 export function slugDeTag(tag) {
   return tag.startsWith('synergos-') ? tag.slice('synergos-'.length) : tag;
@@ -215,27 +245,62 @@ export function todasLasFuentes({ listar, existe, plataformas = PLATAFORMAS }) {
  *
  * @returns {string[]} Líneas de error. Vacío es que cuadra.
  */
-export function revisarFuentesDuplicadas(io) {
+export function revisarFuentesDuplicadas(io, censo = SHOWCASE_MULTIPLATAFORMA) {
+  const errores = [];
+  const duplicados = new Set();
+
+  for (const [nombre, encontradas] of implementacionesPorNombre(io)) {
+    if (encontradas.length < 2) continue;
+    duplicados.add(nombre);
+
+    // Declarado: es un escaparate y el publicador saca las dos. No es un error.
+    if (nombre in censo) continue;
+
+    errores.push(
+      `${nombre}: tiene fuente en ${encontradas.length} plataformas — ` +
+        encontradas.map((f) => `${f.framework} (${f.dir})`).join('  |  ') +
+        `. Sin declarar, el descubrimiento devuelve UNA y la otra no se publica; el cruce ` +
+        `contra el registry se pondría rojo culpando a la entrada del registry, que no tiene ` +
+        `la culpa. O son dos elementos con nombres distintos —que es lo normal— o es un ` +
+        `escaparate y va en SHOWCASE_MULTIPLATAFORMA con su razón (ver #59).`,
+    );
+  }
+
+  // El otro sentido. Una declaración sobre un elemento que ya no está duplicado
+  // deja de leerse, y la siguiente que entre lo hará sin discusión.
+  for (const [nombre, { razon }] of Object.entries(censo)) {
+    if (duplicados.has(nombre)) continue;
+    errores.push(
+      `SHOWCASE_MULTIPLATAFORMA declara "${nombre}" y no tiene fuente en más de una ` +
+        `plataforma. Borrá la declaración (razón que sobra: "${razon}").`,
+    );
+  }
+
+  return errores;
+}
+
+/** Todas las fuentes agrupadas por nombre de elemento, en orden estable. */
+function implementacionesPorNombre(io) {
   const porNombre = new Map();
   for (const fuente of todasLasFuentes(io)) {
     if (!porNombre.has(fuente.nombre)) porNombre.set(fuente.nombre, []);
     porNombre.get(fuente.nombre).push(fuente);
   }
+  return [...porNombre].sort();
+}
 
-  const errores = [];
-  for (const [nombre, encontradas] of [...porNombre].sort()) {
-    if (encontradas.length < 2) continue;
-    errores.push(
-      `${nombre}: tiene fuente en ${encontradas.length} plataformas — ` +
-        encontradas.map((f) => `${f.framework} (${f.dir})`).join('  |  ') +
-        `. El descubrimiento devuelve UNA y la otra no se publica; el cruce contra el ` +
-        `registry se pondría rojo culpando a la entrada del registry, que no tiene la culpa. ` +
-        `Decidí: o son dos elementos con nombres distintos, o el pipeline tiene que publicar ` +
-        `las dos implementaciones (ver #59).`,
-    );
-  }
-
-  return errores;
+/**
+ * En qué plataformas vive un elemento, en orden.
+ *
+ * Existe para que el publicador no tenga que volver a recorrer: quien publica
+ * un escaparate necesita LAS DOS, y la regla de qué cuenta como fuente ya está
+ * escrita una vez.
+ *
+ * @returns {string[]} Los frameworks, ordenados.
+ */
+export function implementacionesDe(nombre, io) {
+  const encontradas = implementacionesPorNombre(io).find(([n]) => n === nombre);
+  return encontradas ? encontradas[1].map((f) => f.framework).sort() : [];
 }
 
 /**
@@ -368,12 +433,26 @@ export function revisarFrameworks(registro, fuentes, frameworksValidos) {
  *     sobre quién produjo el bundle. Hoy no puede pasar porque sólo hay una
  *     plataforma; el día que vuelva otra, pasa el primer día.
  *
+ * **Y el tercer caso, desde #59: el ESCAPARATE.** Un elemento declarado en
+ * `SHOWCASE_MULTIPLATAFORMA` existe en dos plataformas a propósito, así que ahí
+ * un bundle de la otra no es que mienta: es el punto. Se devuelven LAS DOS y el
+ * publicador saca las dos —el registry publicado ya modela `implementations`
+ * como un mapa y `upsertCdnRegistryEntry` conserva las demás entradas—. Sin la
+ * declaración se sigue rechazando, que es lo que impide que un duplicado por
+ * accidente se publique como si fuera intencional.
+ *
+ * **Devuelve `plataformas` en plural incluso con una.** Es una lista de un
+ * elemento en el caso normal, y así quien publica no tiene dos formas que
+ * distinguir — `publish.mjs` ya iteraba sobre `[eleccion.plataforma]`, así que
+ * el cambio ahí es quitar los corchetes.
+ *
  * @param {{ name: string, framework: string }} entrada
  * @param {{ name: string, resolveBundlePath: (n: string) => string }[]} plataformas
  * @param {(ruta: string) => boolean} existe
- * @returns {{ plataforma: object } | { error: string }}
+ * @param {Record<string, {razon: string}>} [censo] El de escaparates.
+ * @returns {{ plataformas: object[] } | { error: string }}
  */
-export function elegirPlataforma(entrada, plataformas, existe) {
+export function elegirPlataforma(entrada, plataformas, existe, censo = SHOWCASE_MULTIPLATAFORMA) {
   const suya = plataformas.find((p) => p.name === entrada.framework);
 
   if (!suya) {
@@ -384,18 +463,25 @@ export function elegirPlataforma(entrada, plataformas, existe) {
     };
   }
 
-  const intrusa = plataformas.find(
+  const otrasConBundle = plataformas.filter(
     (p) => p.name !== entrada.framework && existe(p.resolveBundlePath(entrada.name)),
   );
-  if (intrusa) {
-    return {
-      error:
-        `${entrada.name}: declara framework "${entrada.framework}" y hay un bundle construido ` +
-        `en la plataforma "${intrusa.name}". Uno de los dos miente.`,
-    };
+
+  if (otrasConBundle.length === 0) return { plataformas: [suya] };
+
+  if (entrada.name in censo) {
+    // El orden sale de `plataformas`, no del descubrimiento: el publicador
+    // escribe un slot por framework y el informe tiene que leerse igual en dos
+    // máquinas.
+    return { plataformas: plataformas.filter((p) => p === suya || otrasConBundle.includes(p)) };
   }
 
-  return { plataforma: suya };
+  return {
+    error:
+      `${entrada.name}: declara framework "${entrada.framework}" y hay un bundle construido ` +
+      `en la plataforma "${otrasConBundle[0].name}". Uno de los dos miente — o es un ` +
+      `escaparate y va en SHOWCASE_MULTIPLATAFORMA con su razón (#59).`,
+  };
 }
 
 /**

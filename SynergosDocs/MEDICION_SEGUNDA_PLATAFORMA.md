@@ -492,12 +492,22 @@ fuentes para este elemento»— no la dice nadie.
 > gana** para que el informe sea estable) y `revisarFuentesDuplicadas`, que **nombra las dos
 > rutas y no elige**. Corre en `element:audit`, o sea dentro de `contracts:validate`.
 >
-> **La pregunta —¿un mismo elemento puede existir en dos frameworks a la vez?— sigue abierta, y
-> este gate no la contesta a propósito**, porque el rechazo hace falta bajo las dos lecturas: con
-> **(A)** dos fuentes son un error y el mensaje es el veredicto; con **(B)** son legítimas y el
-> mensaje es el aviso de que hay que enseñarle al pipeline a publicar las dos. Lo que no se puede
-> dejar es que una fuente desaparezca sin que nada lo diga. El día que se decida **(B)**, este
-> gate cambia de mensaje —no de sitio— y `elegirPlataforma` deja de rechazar.
+> **Y la pregunta —¿un mismo elemento puede existir en dos frameworks a la vez?— ya está
+> contestada**, con las dos mitades que decidieron el diseño: *«sí podría, pero para qué; no
+> deberíamos tener esas cosas así — dejémoslo habilitado para mostrar»*. O sea **(B), pero como
+> ESCAPARATE y declarado uno por uno**, no como forma normal de escribir un elemento.
+>
+> El censo es `SHOWCASE_MULTIPLATAFORMA`, con la razón de cada entrada y vigilado en los dos
+> sentidos: un duplicado sin declarar rompe el build, y una declaración sobre algo que ya no
+> está duplicado también. **Hoy está vacío y hay un test que lo exige** — sólo existe una
+> plataforma construible, así que una entrada ahí declararía un escaparate imposible; la primera
+> la escribe #64 junto con el elemento.
+>
+> `elegirPlataforma` devuelve **`plataformas` en plural**, una lista de uno en el caso normal y
+> las dos en un escaparate. El publicador **ya iteraba** —`for (const platform of
+> [eleccion.plataforma])`— así que el cambio ahí fue quitar los corchetes: el bucle estaba
+> escrito para esto desde antes de que hiciera falta. Por qué las tres formas de habilitarlo no
+> son equivalentes está en la regla 27 del `CLAUDE.md`.
 >
 > Verificado reproduciendo primero el defecto con el mismo disco de mentira (el `Map` daba
 > `[['badge', {framework:'react'}]]` y `revisarFrameworks` decía *«declara framework "angular" y
