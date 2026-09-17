@@ -359,10 +359,120 @@
               <button type="button" class="travel__btn travel__btn--sm travel__btn--primary" (click)="select()">
                 Ver detalle
               </button>
+              <button
+                type="button"
+                class="travel__cmp"
+                [class.is-on]="inCompare(offer)"
+                [attr.aria-pressed]="inCompare(offer)"
+                (click)="toggleCompare(offer)"
+              >
+                {{ inCompare(offer) ? 'Comparando' : 'Comparar' }}
+              </button>
             </div>
           </div>
         </article>
       </ng-template>
+
+      <!-- SH-14 (#30). Dos selecciones separadas en este dominio: un hotel y un auto
+           no tienen eje común, así que una tabla compartida daría filas con tres de
+           cuatro celdas vacías. -->
+      @if (compareStays.count() > 0) {
+        <syn-compare-table
+          class="travel__compare"
+          [config]="stayCompareConfig"
+          [candidates]="compareStays.items()"
+          [attributes]="stayCompareAttributes"
+          [limit]="compareStays.limit"
+          (removecandidate)="removeFromStayCompare($event)"
+          (opencandidate)="openComparedStay($event)"
+          (clearall)="clearStayCompare()"
+        />
+        @if (compareMessage(); as aviso) {
+          <p class="travel__compare-msg" role="status">{{ aviso }}</p>
+        }
+      }
+    </div>
+  }
+
+  <!-- ═══ AUTOS: SH-1 discovery-shell (orden + facetas) ════════════════════
+       La superficie que el auto no tenía: buscar uno caía en la vista de VUELOS
+       y `addCarToCart` no tenía un solo llamador (#27). Y trae lo que ninguna
+       lista de esta app tenía — poder ordenar por precio. -->
+  @if (view() === 'cars') {
+    <div class="travel__results">
+      <div class="travel__results-head">
+        <h1 class="travel__heading">Autos disponibles</h1>
+        <button type="button" class="travel__link" (click)="goHome()">← Modificar búsqueda</button>
+      </div>
+
+      <syn-discovery-shell
+        [config]="carConfig()"
+        [items]="carResults()"
+        [facets]="carFacets()"
+        [sortOptions]="carSortOptions"
+        [criteria]="carCriteria()"
+        [loading]="loading()"
+        [itemTemplate]="carCard"
+        (criteriachange)="onCarCriteriaChange($event)"
+      />
+
+      <ng-template #carCard let-offer>
+        <article class="travel__car-card">
+          <span class="travel__car-icon travel__icon" aria-hidden="true">
+            <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: 'car' }"></ng-container>
+          </span>
+          <div class="travel__car-body">
+            <h3 class="travel__car-title">{{ offer.title }}</h3>
+            <p class="travel__car-sub">{{ offer.subtitle }}</p>
+            @if (offer.badges.length > 0) {
+              <ul class="travel__chips">
+                @for (badge of offer.badges; track badge) {
+                  <li class="travel__chip">{{ badge }}</li>
+                }
+              </ul>
+            }
+          </div>
+          <div class="travel__car-aside">
+            <span class="travel__car-price">
+              <span class="travel__flight-from">desde</span>
+              <span class="travel__flight-amount">{{ offerPriceLabel(offer) }}</span>
+            </span>
+            <!-- El llamador que faltaba: sin esto el auto era inalcanzable. -->
+            <button
+              type="button"
+              class="travel__btn travel__btn--sm travel__btn--primary"
+              [attr.aria-label]="'Agregar ' + offer.title + ' al viaje'"
+              (click)="addCarToCart(offer)"
+            >
+              Agregar al viaje
+            </button>
+            <button
+              type="button"
+              class="travel__cmp"
+              [class.is-on]="inCompare(offer)"
+              [attr.aria-pressed]="inCompare(offer)"
+              (click)="toggleCompare(offer)"
+            >
+              {{ inCompare(offer) ? 'Comparando' : 'Comparar' }}
+            </button>
+          </div>
+        </article>
+      </ng-template>
+
+      @if (compareCars.count() > 0) {
+        <syn-compare-table
+          class="travel__compare"
+          [config]="carCompareConfig"
+          [candidates]="compareCars.items()"
+          [attributes]="carCompareAttributes"
+          [limit]="compareCars.limit"
+          (removecandidate)="removeFromCarCompare($event)"
+          (clearall)="clearCarCompare()"
+        />
+        @if (compareMessage(); as aviso) {
+          <p class="travel__compare-msg" role="status">{{ aviso }}</p>
+        }
+      }
     </div>
   }
 
@@ -396,6 +506,29 @@
             {{ detail.address }}
           </p>
         }
+
+        <!-- ═══ OPINIONES: SH-13 syn-review-panel (#28) ═══════════════════════
+             `rating` y `reviewCount` se mostraban desde siempre y no se podían
+             ganar. Los criterios son los de una ESTADÍA: limpieza, ubicación y
+             relación precio-valor. -->
+        <div class="travel__stay-reviews">
+          <syn-review-panel
+            [config]="stayReviewConfig()"
+            [summary]="stayReviewSummary()"
+            [entries]="stayReviews()"
+            [canReview]="canReviewStay()"
+            [blockedReason]="stayReviewBlocked()"
+            [criteriaPrompts]="stayReviewPrompts()"
+            [notice]="reviewNotice()"
+            [noticeIsError]="reviewFailed()"
+            [sending]="reviewSending()"
+            [canReport]="canReportStayReview()"
+            [reportedIds]="reportedReviewIds()"
+            [reportingId]="reportingReviewId()"
+            (submitreview)="submitStayReview($event)"
+            (reportreview)="reportStayReview($event)"
+          />
+        </div>
       </ng-template>
 
       <ng-template #stayCta>
@@ -478,50 +611,30 @@
   }
 
   <!-- ═══ CART: carrito de viaje multi-ítem (hotel + vuelo + auto) ═════════ -->
+  <!-- ═══ CARRITO: SH-12 syn-cart-shell (#22) ═════════════════════════════ -->
+  <!-- El icono por tipo de producto es lo único de esta vitrina que es de Viajes,
+       y por eso entra por template y no por un `if` dentro de la pieza. -->
+  <ng-template #cartIconTpl let-line>
+    <span class="travel__cart-icon travel__icon">
+      <ng-container
+        [ngTemplateOutlet]="productIconTpl"
+        [ngTemplateOutletContext]="{ $implicit: line.kind }"
+      ></ng-container>
+    </span>
+  </ng-template>
   @if (view() === 'cart') {
-    <div class="travel__cart-page">
-      <h1 class="travel__heading">Tu viaje</h1>
-      @if (!hasCart()) {
-        <p class="travel__empty">Todavía no has agregado nada a tu viaje.</p>
-        <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Empezar a buscar</button>
-      } @else {
-        <ul class="travel__cart-lines">
-          @for (item of cartItems(); track item.id) {
-            <li class="travel__cart-line">
-              <span class="travel__cart-icon travel__icon" aria-hidden="true">
-                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
-              </span>
-              <div class="travel__cart-main">
-                <p class="travel__cart-name">{{ item.label }}</p>
-                <p class="travel__cart-sub">{{ itemSubtitle(item) }}</p>
-              </div>
-              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
-              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
-                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </li>
-          }
-        </ul>
-
-        @if (crossSell()) {
-          <div class="travel__crosssell" role="note">
-            <span>{{ crossSellLabel() }}</span>
-            <button type="button" class="travel__btn travel__btn--sm travel__btn--ghost" (click)="addCrossSell()">Agregar</button>
-          </div>
-        }
-
-        <div class="travel__cart-foot">
-          <p class="travel__cart-total">
-            <span>Total del viaje</span>
-            <span>{{ cartTotalLabel() }}</span>
-          </p>
-          <div class="travel__actions">
-            <button type="button" class="travel__btn travel__btn--ghost" (click)="continueShopping()">Seguir buscando</button>
-            <button type="button" class="travel__btn travel__btn--primary" (click)="goToCheckout()">Ir a pagar</button>
-          </div>
-        </div>
-      }
-    </div>
+    <syn-cart-shell
+      [config]="cartPageConfig()"
+      [lines]="cartLines()"
+      [total]="cartTotalLabel()"
+      [actions]="cartPageActions()"
+      [note]="cartNote()"
+      [holdExpiresAt]="cartHoldExpiresAt()"
+      [leadingTemplate]="cartIconTpl"
+      (remove)="removeFromCart($event)"
+      (action)="onCartAction($event)"
+      (holdexpired)="onCartHoldExpired()"
+    />
   }
 
   <!-- ═══ CHECKOUT: SH-3 checkout-wizard (viajeros → pago → revisar) ═══════ -->
@@ -596,21 +709,19 @@
 
   <!-- ═══ CONFIRMATION: SH-10 credential-wallet (voucher + PNR) ════════════ -->
   @if (view() === 'confirmation') {
-    <div class="travel__confirmation">
-      <p class="travel__confirm-badge">Reserva confirmada</p>
-      <p class="travel__confirm-code">{{ confirmationCode() }}</p>
-      <p class="travel__confirm-order">Guarda tus credenciales para el check-in.</p>
-
-      <syn-credential-wallet
-        [config]="walletConfig"
-        [credentials]="confirmationCredentials()"
-      />
-
-      <div class="travel__actions">
-        <button type="button" class="travel__btn travel__btn--ghost" (click)="goToAccount()">Ver mis viajes</button>
-        <button type="button" class="travel__btn travel__btn--primary" (click)="startOver()">Planear otro viaje</button>
-      </div>
-    </div>
+    <!-- SH-11 (#19). El wallet de credenciales (voucher + PNR) es SH-10 y sigue
+         siendo del dominio: entra como artefacto dentro de la confirmación. -->
+    <ng-template #credenciales>
+      <syn-credential-wallet [config]="walletConfig" [credentials]="confirmationCredentials()" />
+    </ng-template>
+    <syn-confirmation-shell
+      [config]="confirmationConfig()"
+      [reference]="confirmationCode()"
+      [steps]="confirmationSteps"
+      [actions]="confirmationActions"
+      [artifactTemplate]="credenciales"
+      (action)="onConfirmationAction($event)"
+    />
   }
 
   <!-- ═══ ACCOUNT: SH-4 account-shell (mis viajes + timeline + cancelar) ═══ -->
@@ -697,43 +808,22 @@
   }
 
   <!-- ═══ CART DRAWER (floating) ═══════════════════════════════════════════ -->
+  <!-- El cajón es la MISMA pieza en densidad `drawer`. Tenerlo aparte es lo que
+       hacía que dijera «Total» donde la página dice «Total del viaje». -->
   @if (cartOpen()) {
     <div class="travel__drawer" [id]="fieldId + '-cart'" role="dialog" aria-label="Tu viaje">
-      <div class="travel__drawer-head">
-        <h2 class="travel__drawer-title">Tu viaje ({{ cartCount() }})</h2>
-        <button type="button" class="travel__cart-close" (click)="toggleCart()" aria-label="Cerrar">
-          <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-        </button>
-      </div>
-      @if (!hasCart()) {
-        <p class="travel__empty">Todavía no has agregado nada.</p>
-      } @else {
-        <ul class="travel__drawer-items">
-          @for (item of cartItems(); track item.id) {
-            <li class="travel__drawer-item">
-              <span class="travel__cart-icon travel__icon" aria-hidden="true">
-                <ng-container [ngTemplateOutlet]="productIconTpl" [ngTemplateOutletContext]="{ $implicit: item.kind }"></ng-container>
-              </span>
-              <div class="travel__cart-main">
-                <span class="travel__cart-name">{{ item.label }}</span>
-                <span class="travel__cart-sub">{{ itemSubtitle(item) }}</span>
-              </div>
-              <span class="travel__cart-price">{{ itemPriceLabel(item) }}</span>
-              <button type="button" class="travel__cart-remove" (click)="removeFromCart(item.id)" [attr.aria-label]="'Quitar ' + item.label">
-                <svg class="travel__icon-svg travel__icon-svg--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </li>
-          }
-        </ul>
-        <div class="travel__cart-foot">
-          <p class="travel__cart-total">
-            <span>Total</span>
-            <span>{{ cartTotalLabel() }}</span>
-          </p>
-          <button type="button" class="travel__btn travel__btn--ghost travel__btn--block" (click)="goToCart()">Ver tu viaje</button>
-          <button type="button" class="travel__btn travel__btn--primary travel__btn--block" (click)="goToCheckout()">Ir a pagar</button>
-        </div>
-      }
+      <syn-cart-shell
+        [config]="cartDrawerConfig()"
+        [lines]="cartLines()"
+        [total]="cartTotalLabel()"
+        [actions]="cartDrawerActions()"
+        [holdExpiresAt]="cartHoldExpiresAt()"
+        [leadingTemplate]="cartIconTpl"
+        (remove)="removeFromCart($event)"
+        (action)="onCartAction($event)"
+        (holdexpired)="onCartHoldExpired()"
+        (close)="toggleCart()"
+      />
     </div>
   }
 </section>

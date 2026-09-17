@@ -8,7 +8,7 @@ import {
   omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 import { HeadingComponent } from '../../primitives/heading/heading';
 import {
   StatusTagComponent,

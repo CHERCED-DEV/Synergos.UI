@@ -9,7 +9,7 @@ import {
   omitUndefinedProperties,
   resolveConfigArray,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 export type ListDensity = 'comfortable' | 'compact';
 export type ListMarker = 'disc' | 'check' | 'none';

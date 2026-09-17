@@ -29,19 +29,24 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { raizCdnLocal } from './lib/rutas-hermanas.mjs';
+
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
 const ROOT_UI       = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOT_REPO     = resolve(ROOT_UI, '..');
 
-// Mismo override que catalog.mjs: CDN_ROOT gana, y si no, el default de
-// Windows. Antes esto era un literal `C:/LOCAL_CDN/...` sin escapatoria, así
-// que el script sólo podía correr en la máquina del arquitecto — y como está
-// al final de `release:angular`, la cadena de release entera era Windows-only.
-// `join`, no `resolve`: en Linux un default `C:/...` no es absoluto, y
-// resolve lo pegaría al cwd escupiendo rutas tipo `/workspace/ui/C:/LOCAL_CDN`
-// en el mensaje de error. join lo deja literal y el skip se lee claro.
-const CDN_ROOT          = process.env.CDN_ROOT ?? 'C:/LOCAL_CDN/synergos';
+// Mismo override que catalog.mjs, y desde #57 el mismo CÓDIGO: `CDN_ROOT` gana
+// y el default ya no es una ruta de Windows sino `public/synergos`, la salida de
+// `npm run build:cdn`, que existe en cualquier clon que haya construido.
+//
+// La historia, porque explica por qué había DOS copias: el literal
+// `C:/LOCAL_CDN/...` no tenía escapatoria, así que este script sólo corría en la
+// máquina del arquitecto — y como está al final de `release:angular`, la cadena
+// de release entera era Windows-only. Se le añadió el override y se quedó con su
+// propio default; `catalog.mjs` hizo lo mismo por su lado. Dos copias de «dónde
+// está el CDN local», y ninguna la cruzaba nada.
+const CDN_ROOT          = raizCdnLocal({ raizUi: ROOT_UI });
 const CDN_REGISTRY      = join(CDN_ROOT, 'registry.json');
 const RICH_CONFIGS      = resolve(ROOT_UI, 'vitals/contracts/src/element-config.contract.ts');
 const SCHEMA_MIRROR     = resolve(ROOT_UI, 'vitals/contracts/src/elements-syn.contract.ts');
@@ -139,7 +144,7 @@ function buildCatalog() {
 > **AUTO-GENERATED** by \`tools/refresh-skill-catalog.mjs\`. Re-run via \`npm run skill:refresh\`
 > o automáticamente al final de \`npm run release:angular\`. Edits manuales se pierden.
 >
-> Snapshot del CDN registry (\`C:\\LOCAL_CDN\\synergos\\registry.json\`) + UI contracts
+> Snapshot del CDN registry (\`\${CDN_REGISTRY}\`) + UI contracts
 > (\`vitals/contracts/src/{element-config,elements-syn,element-inputs}\`).
 >
 > Generated: ${new Date().toISOString()}
@@ -231,8 +236,8 @@ shape que el bundle espera (rich si existe, schema si no).
 Cuando un ContentType (e.g. \`elementSynHero\`) renderiza, el partial Razor en
 \`Views/Partials/SynHost/{Block}.cshtml\` invoca \`ISynHostEmitter.EmitAsync\` que:
 
-1. Resuelve el bundle vía \`IBundleRegistryClient\` (default \`FileSystemBundleRegistryClient\`
-   leyendo \`C:\\LOCAL_CDN\\synergos\\registry.json\`).
+1. Resuelve el bundle vía \`IBundleRegistryClient\`, que tiene tres modos: \`Stub\` (el default,
+   siempre null), \`FileSystem\` (un CDN local) y \`Http\` (el CDN publicado). Ver ADR 0132.
 2. Emite \`<script type="module" defer src="/cdn-bundles/{name}/{framework}/{slot}/main.js"
    integrity="sha384-..." crossorigin="anonymous"></script>\`.
 3. Emite \`<synergos-{name} config='{...JSON con culture+props+overrides}'></synergos-{name}>\`.

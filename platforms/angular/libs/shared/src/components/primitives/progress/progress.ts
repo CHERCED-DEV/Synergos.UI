@@ -8,7 +8,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 type ProgressSize = 'sm' | 'md' | 'lg';
 type ProgressVariant = 'brand' | 'success' | 'warning' | 'critical';

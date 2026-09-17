@@ -61,6 +61,21 @@
             <span class="gov__badge" [attr.aria-label]="applications().length + ' solicitudes'">{{ applications().length }}</span>
           }
         </button>
+        <button
+          type="button"
+          class="gov__nav-btn"
+          [class.gov__nav-btn--active]="view() === 'notifications'"
+          (click)="goToNotifications()"
+        >
+          Notificaciones
+          @if (unopenedCount() > 0) {
+            <span
+              class="gov__badge"
+              [attr.aria-label]="unopenedCount() + ' actos sin abrir'"
+              >{{ unopenedCount() }}</span
+            >
+          }
+        </button>
       } @else {
         <button
           type="button"
@@ -120,6 +135,7 @@
           {
             key: 'category',
             label: 'Categoría',
+            kind: 'SingleSelect',
             values: [
               { value: 'identidad', label: 'Identidad' },
               { value: 'salud', label: 'Salud' },
@@ -250,38 +266,108 @@
 
   <!-- ════════════════════ RADICADO (confirmation + QR) ════════════════════ -->
   @if (view() === 'receipt' && confirmedApplication(); as app) {
-    <section class="receipt" aria-label="Comprobante de radicación">
-      <span class="receipt__check" aria-hidden="true">
-        <svg class="receipt__check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-4-4" /></svg>
-      </span>
-      <h1 class="receipt__title">Solicitud radicada</h1>
-      <p class="receipt__number">
-        Su número de radicado es <strong class="receipt__radicado">{{ app.reference }}</strong>
-      </p>
+    <!-- SH-11: el comprobante lo pone la pieza; el QR del radicado es del dominio y
+         entra por template. Antes eran 32 líneas propias que hacían lo mismo que en
+         otros cinco verticales, cada uno a su manera (#19). -->
+    <ng-template #radicadoQr>
+      <synergos-qr-code [attr.data]="app.reference" [attr.size]="160"></synergos-qr-code>
+    </ng-template>
+    <syn-confirmation-shell
+      [config]="receiptConfig()"
+      [reference]="app.reference"
+      [facts]="receiptFacts()"
+      [steps]="receiptSteps()"
+      [actions]="receiptActions"
+      [artifactTemplate]="radicadoQr"
+      (action)="onReceiptAction($event)"
+    />
+  }
 
-      <!-- Reuses the published qr-code element (CUSTOM_ELEMENTS_SCHEMA). -->
-      <div class="receipt__qr">
-        <synergos-qr-code [attr.data]="app.reference" [attr.size]="160"></synergos-qr-code>
-      </div>
+  <!-- ══════════════ MIS NOTIFICACIONES · actos administrativos ══════════════ -->
+  <!-- HU CMS#62 (#20). Tres reglas que aquí se vuelven visibles y no se negocian:
+       1. El listado trae el TÍTULO, nunca el cuerpo. Si lo trajera, el acuse sería
+          decoración y el término no empezaría nunca.
+       2. Abrir es un gesto EXPLÍCITO (un botón, un POST). Nada de abrir al pintar
+          ni al pasar el ratón: un acceso que la persona no pidió le arranca un
+          plazo que no sabe que empezó.
+       3. Si abrir falla, se dice. Pintar el cuerpo igual le diría que ya acusó
+          recibo cuando la entidad no registró nada. -->
+  @if (view() === 'notifications') {
+    <section class="folder" aria-label="Mis notificaciones">
+      @if (citizenAccess() !== 'ok') {
+        <div class="folder__access" role="status">
+          @if (citizenAccess() === 'anon') {
+            <h2 class="folder__title">Inicie sesión para ver sus notificaciones</h2>
+            <a class="gv-btn gv-btn--brand" href="/account/login">Iniciar sesión</a>
+          } @else {
+            <h2 class="folder__title">Estas notificaciones no son suyas</h2>
+            <p class="ficha__text">Volver a iniciar sesión no cambia esto.</p>
+          }
+        </div>
+      } @else {
+        <syn-account-shell
+          [config]="notificationsConfig()"
+          [items]="notifications()"
+          [loading]="loading()"
+          [itemTemplate]="actoRow"
+          [detailTemplate]="actoDetalle"
+          (itemselect)="onActSelect($event)"
+        />
 
-      <dl class="receipt__detail">
-        <div><dt>Trámite</dt><dd>{{ app.serviceName }}</dd></div>
-        <div><dt>Estado</dt><dd><span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span></dd></div>
-        <div><dt>Etapa actual</dt><dd>{{ app.currentStage }}</dd></div>
-      </dl>
+        <ng-template #actoRow let-acto>
+          <span class="acto__head">
+            <span class="acto__title">{{ acto.title }}</span>
+            @if (!acto.opened) {
+              <span class="acto__pill acto__pill--nuevo">Sin abrir</span>
+            }
+          </span>
+          <span class="acto__meta">
+            Radicado {{ acto.reference }} · notificado el {{ formatDate(acto.notifiedAt) }}
+          </span>
+          @if (actDeadlineLabel(acto)) {
+            <span class="acto__deadline">{{ actDeadlineLabel(acto) }}</span>
+          }
+        </ng-template>
 
-      <div class="receipt__next">
-        <h2 class="receipt__next-title">¿Qué sigue?</h2>
-        <p class="ficha__text">
-          Guarde su número de radicado. Le avisamos por correo cuando cambie el estado. Puede ver el
-          avance cuando quiera en <strong>Mis solicitudes</strong>.
-        </p>
-      </div>
+        <ng-template #actoDetalle let-acto>
+          <article class="acto">
+            <h3 class="acto__detail-title">{{ acto.title }}</h3>
+            <p class="acto__meta">Radicado {{ acto.reference }}</p>
 
-      <div class="receipt__actions">
-        <button type="button" class="gv-btn gv-btn--brand" (click)="openApplication(app)">Ver mi solicitud</button>
-        <button type="button" class="gv-btn gv-btn--ghost" (click)="backToCatalog()">Volver al catálogo</button>
-      </div>
+            @if (acto.opened) {
+              <p class="acto__acuse" role="status">
+                Usted abrió este acto el <strong>{{ formatDate(acto.openedAt) }}</strong>.
+                Desde esa fecha corre el término.
+              </p>
+              <div class="acto__body">{{ acto.body }}</div>
+              @if (acto.documentRef) {
+                <p class="ficha__text">Documento adjunto: {{ acto.documentRef }}</p>
+              }
+            } @else {
+              <!-- El cuerpo NO está en pantalla: el backend no lo manda hasta abrir. -->
+              <p class="ficha__text">
+                Al abrir este acto quedará registrada la fecha de acceso y
+                <strong>empezará a correr el término</strong> para responder o recurrir.
+              </p>
+              @if (actDeadlineLabel(acto)) {
+                <p class="acto__deadline">{{ actDeadlineLabel(acto) }}</p>
+              }
+              <button
+                type="button"
+                class="gv-btn gv-btn--brand"
+                [disabled]="openingId() === acto.id"
+                (click)="onOpenAct(acto)"
+              >
+                {{ openingId() === acto.id ? 'Abriendo…' : 'Abrir y acusar recibo' }}
+              </button>
+            }
+
+            @if (openError()) {
+              <p class="acto__error" role="alert">{{ openError() }}</p>
+            }
+          </article>
+        </ng-template>
+      }
     </section>
   }
 
@@ -347,6 +433,11 @@
           <span class="app-row__ref">{{ app.reference }}</span>
           <span class="app-row__name">{{ app.serviceName }}</span>
           <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
+          <!-- Una tasa que no se cobró se ve DESDE LA LISTA: el expediente la guardaba
+               y ninguna pantalla la devolvía (CMS#116). -->
+          @if (feeNeedsAttention(app.feeStatus, app.feeMinor)) {
+            <span class="fee-tag fee-tag--attention">{{ feeStatusLabel(app.feeStatus, app.feeMinor) }}</span>
+          }
         </span>
       </ng-template>
 
@@ -372,6 +463,9 @@
         <p class="tracking__status" role="status">
           <span class="status-tag status-tag--{{ app.status }}">{{ statusLabel(app.status) }}</span>
           <span class="tracking__stage">{{ app.currentStage }}</span>
+          @if (feeStatusLabel(app.feeStatus, app.feeMinor); as tasa) {
+            <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(app.feeStatus, app.feeMinor)">{{ tasa }}</span>
+          }
         </p>
         <p class="tracking__hint">{{ statusHint(app.status) }}</p>
       </header>
@@ -495,11 +589,13 @@
       <syn-console-shell
         [config]="consoleConfig()"
         [kpis]="consoleKpis()"
-        [rows]="queueCases()"
+        [rows]="consoleRows()"
         [columns]="consoleColumns"
         [filters]="consoleFilters()"
         [actions]="consoleActions"
         [loading]="loading()"
+        [defaultSort]="consoleDefaultSort"
+        [pageSize]="consolePageSize"
         [cellTemplate]="queueCell"
         (filterchange)="onConsoleFilterChange($event)"
         (rowaction)="onConsoleRowAction($event)"
@@ -514,8 +610,15 @@
           @case ('priority') {
             <span class="prio prio--{{ row.priority }}">{{ priorityLabel(row.priority) }}</span>
           }
-          @case ('sla') {
+          @case ('slaDaysLeft') {
             <span class="sla" [class.sla--overdue]="row.slaDaysLeft < 0">{{ slaLabel(row.slaDaysLeft) }}</span>
+          }
+          @case ('feeStatus') {
+            @if (feeStatusLabel(row.feeStatus, row.feeMinor); as tasa) {
+              <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(row.feeStatus, row.feeMinor)">{{ tasa }}</span>
+            } @else {
+              <span class="fee-tag fee-tag--exempt">Sin tasa</span>
+            }
           }
           @case ('reference') { <strong>{{ row.reference }}</strong> }
           @default { {{ row[column.key] }} }
@@ -535,6 +638,9 @@
         <p class="tracking__status">
           <span class="status-tag status-tag--{{ kase.application.status }}">{{ statusLabel(kase.application.status) }}</span>
           <span class="tracking__stage">{{ kase.application.currentStage }}</span>
+          @if (feeStatusLabel(kase.application.feeStatus, kase.application.feeMinor); as tasa) {
+            <span class="fee-tag" [class.fee-tag--attention]="feeNeedsAttention(kase.application.feeStatus, kase.application.feeMinor)">{{ tasa }}</span>
+          }
         </p>
       </header>
 
@@ -611,6 +717,52 @@
             <p class="ficha__cta-hint">Solo se muestran las decisiones válidas. Cada una queda registrada.</p>
           } @else {
             <p class="case__closed">Caso cerrado. No admite más acciones.</p>
+          }
+
+          <!-- Poner en conocimiento (HU CMS#62 · #20). Va junto a la decisión y no
+               en otra pantalla porque es lo que se hace DESPUÉS de decidir: el acto
+               es la decisión puesta en conocimiento del ciudadano, y separarlos
+               invita a decidir y no notificar. -->
+          <h2 class="tracking__section-title">Notificar un acto</h2>
+          @if (notifyDone()) {
+            <p class="acto__acuse" role="status">
+              Acto notificado. El término empezará a correr cuando el ciudadano lo abra —
+              todavía no.
+            </p>
+          } @else {
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Título del acto</span>
+              <input
+                class="gv-input"
+                type="text"
+                [value]="notifyTitle()"
+                (input)="bind(notifyTitle.set)($event)"
+              />
+            </label>
+            <label class="gv-field gv-field--full">
+              <span class="gv-field__label">Texto del acto</span>
+              <textarea
+                class="gv-textarea"
+                rows="4"
+                [value]="notifyBody()"
+                (input)="bind(notifyBody.set)($event)"
+              ></textarea>
+            </label>
+            <button
+              type="button"
+              class="gv-btn gv-btn--brand gv-btn--block"
+              [disabled]="!canNotify() || notifying()"
+              (click)="onNotifyAct(kase)"
+            >
+              {{ notifying() ? 'Notificando…' : 'Poner en conocimiento' }}
+            </button>
+            <p class="ficha__cta-hint">
+              El destinatario sale del expediente, no de este formulario. El ciudadano verá
+              el título; el texto solo cuando abra.
+            </p>
+          }
+          @if (notifyError()) {
+            <p class="acto__error" role="alert">{{ notifyError() }}</p>
           }
         </aside>
       </div>

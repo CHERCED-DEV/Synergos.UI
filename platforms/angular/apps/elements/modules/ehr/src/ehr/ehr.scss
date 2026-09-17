@@ -234,15 +234,39 @@
     color: var(--eh-text-secondary);
     font-size: syn.$font-size-xs;
 
-    &--warn {
-      background: var(--eh-warn-soft);
-      color: var(--eh-warn);
-    }
-
     &--error {
       background: var(--eh-danger-soft);
       color: var(--eh-danger);
     }
+  }
+
+  /* ─── Lectura que falló (#106) ───────────────────────────────────────────── */
+  /* No es un empty-state: un empty-state dice «todavía no hay», y esto dice «no lo
+     pudimos leer». La diferencia es la que separa «no tienes alergias» de «no sabemos
+     qué alergias tienes», y sobre la segunda nadie puede recetar. */
+  &__unreadable {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: syn.$space-2;
+    padding: syn.$space-md;
+    border: syn.px-to-rem(1) solid var(--eh-danger);
+    border-left: syn.px-to-rem(4) solid var(--eh-danger);
+    border-radius: syn.$radius-md;
+    background: var(--eh-danger-soft);
+  }
+
+  &__unreadable-title {
+    margin: 0;
+    font-size: syn.$font-size-lg;
+    font-weight: syn.$font-weight-bold;
+    color: var(--eh-danger);
+  }
+
+  &__unreadable-text {
+    margin: 0;
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-sm;
   }
 
   /* ─── Headings ───────────────────────────────────────────────────────────── */
@@ -267,8 +291,6 @@
     margin: 0 0 syn.$space-2;
     color: var(--eh-text-secondary);
   }
-
-  &__loading,
   &__empty {
     margin: 0;
     padding: syn.$space-lg;
@@ -772,6 +794,12 @@
   &__maint-name { margin: 0; font-weight: syn.$font-weight-semibold; }
   &__maint-detail { margin: 0; color: var(--eh-muted); font-size: syn.$font-size-xs; }
 
+  &__maint-status {
+    color: var(--eh-text-secondary);
+    font-size: syn.$font-size-xs;
+    white-space: nowrap;
+  }
+
   /* ─── Billing ────────────────────────────────────────────────────────────── */
   &__balance {
     padding: syn.$space-md;
@@ -1104,6 +1132,14 @@
     color: var(--eh-brand-text);
     font-size: syn.$font-size-xs;
     font-weight: syn.$font-weight-bold;
+
+    /* «No consta» no se pinta como una cuenta: ni el color ni el peso de un número. */
+    &--unknown {
+      background: var(--eh-surface-sunken);
+      color: var(--eh-muted);
+      border: syn.px-to-rem(1) dashed var(--eh-border);
+      cursor: help;
+    }
   }
 
   &__thread-subject { font-size: syn.$font-size-sm; color: var(--eh-text-secondary); }
@@ -1140,11 +1176,36 @@
       align-self: flex-end;
       background: var(--eh-brand-soft);
     }
+
+    /* El que no llegó no se ve como el que sí: una burbuja igual es un acuse. */
+    &.is-failed {
+      background: var(--eh-danger-soft);
+      border: syn.px-to-rem(1) solid var(--eh-danger);
+    }
   }
 
   &__msg-author { font-size: syn.$font-size-xs; font-weight: syn.$font-weight-semibold; color: var(--eh-text-secondary); }
   &__msg-body { font-size: syn.$font-size-sm; }
   &__msg-time { font-size: syn.$font-size-xs; color: var(--eh-muted); }
+
+  &__msg-failed {
+    display: flex;
+    align-items: center;
+    gap: syn.$space-xs;
+    font-size: syn.$font-size-xs;
+    font-weight: syn.$font-weight-semibold;
+    color: var(--eh-danger);
+  }
+
+  &__msg-retry {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
 
   /* ─── Responsive ─────────────────────────────────────────────────────────── */
   @media (max-width: #{syn.px-to-rem(760)}) {

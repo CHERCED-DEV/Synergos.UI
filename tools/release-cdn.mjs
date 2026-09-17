@@ -15,10 +15,12 @@
  *   node tools/release-cdn.mjs --scope=elements --framework=angular --element=hero --dry-run
  */
 
-import { resolve, dirname } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { interactiveRelease } from './lib/interactive.mjs';
+import { frameworksConstruibles } from './lib/frameworks.mjs';
 import { getArg } from './lib/cli-utils.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,8 +29,19 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // ── Parse CLI or interactive ─────────────────────────────────────────────────
 
+// Los frameworks construibles salen del disco (issue #44). NO hay default:
+// `getArg('framework') || 'angular'` significaba que
+// `--scope=framework --framework=raect` (con la errata) publicaba Angular sin
+// decir nada, y el día que haya dos plataformas, olvidar la bandera publicaría
+// la equivocada. Un default convierte una omisión en una afirmación.
+const listarDirs = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+const CONSTRUIBLES = frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join });
+
 let scope       = getArg('scope');
-let framework   = getArg('framework') || 'angular';   // la purga dejó una
+let framework   = getArg('framework');
 let elements    = getArg('element')?.split(',').map((e) => e.trim()) || [];
 let verify      = !process.argv.includes('--no-verify');
 let clean       = process.argv.includes('--clean');
@@ -42,6 +55,28 @@ if (!scope) {
   verify      = answers.verify;
   clean       = answers.clean;
   rebuildLibs = answers.rebuildLibs;
+}
+
+// ── El framework, cuando el alcance lo necesita ──────────────────────────────
+//
+// `runtime` y `full` no lo necesitan; `elements` y `framework` no pueden seguir
+// sin él. Se comprueba acá y no dentro de cada flujo para que el que lo olvidó
+// se entere ANTES de que empiece a construir.
+if (scope === 'elements' || scope === 'framework') {
+  if (!framework) {
+    console.error(
+      `\n  ❌ --scope=${scope} necesita --framework. Construibles hoy: ` +
+        `${CONSTRUIBLES.join(', ') || '(ninguno)'}\n`,
+    );
+    process.exit(1);
+  }
+  if (!CONSTRUIBLES.includes(framework)) {
+    console.error(
+      `\n  ❌ "${framework}" no es una plataforma de este repo. Hay: ` +
+        `${CONSTRUIBLES.join(', ') || '(ninguna)'}\n`,
+    );
+    process.exit(1);
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,9 +110,11 @@ function run(cmd, label, cwd = ROOT, env) {
  * lista de lo que no encontró, que es el mismo aviso que daba resolveNxProjects.
  */
 function buildElements(elementList) {
-  const cwd = resolve(ROOT, 'platforms/angular');
+  // La carpeta de la plataforma sale del framework elegido, no de un literal:
+  // es la misma convención `platforms/<nombre>/` de la que se deriva la lista.
+  const cwd = resolve(ROOT, 'platforms', framework);
   const cmd = `node tools/build.mjs --solo=${elementList.join(',')}`;
-  return run(cmd, `Building ${elementList.length} element(s) [angular]`, cwd);
+  return run(cmd, `Building ${elementList.length} element(s) [${framework}]`, cwd);
 }
 
 // ── Release flows ────────────────────────────────────────────────────────────
@@ -122,10 +159,15 @@ async function releaseFramework() {
   const buildCmd = `npm run build:${framework}`;
   if (!run(buildCmd, `Building ${framework}`)) return false;
 
-  // Build runtime if Angular
+  // El runtime compartido de Angular tiene sus dos herramientas propias; otra
+  // plataforma traerá las suyas. Mientras no existan, decirlo es mejor que
+  // publicar los elementos y dejar el runtime sin actualizar en silencio.
   if (framework === 'angular') {
     if (!run('node tools/build-runtime.mjs', 'Building Angular runtime')) return false;
     if (!run('node tools/publish-runtime.mjs', 'Publishing Angular runtime')) return false;
+  } else {
+    console.log(`\n  ⚠  "${framework}" no tiene todavía herramienta de runtime compartido.`);
+    console.log(`     Se publican los elementos; el runtime de ${framework} queda como esté.\n`);
   }
 
   // Publish all elements for this framework

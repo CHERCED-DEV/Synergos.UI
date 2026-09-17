@@ -158,6 +158,45 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.queueCases().length).toBeLessThanOrEqual(all);
   });
 
+  // ── CMS#116 · la tasa pendiente se VE, y no sólo abriendo el expediente ──────
+  it('la cola del funcionario enseña la tasa que no se cobró', async () => {
+    await createComponent();
+
+    component.setRole('officer');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const conTasa = component.queueCases().find((c) => c.feeStatus === 'unavailable');
+    expect(conTasa).toBeTruthy();
+
+    // Y se ve EN LA COLA: un cobro que sólo aparece abriendo los expedientes de uno
+    // en uno no lo persigue nadie. El caso sembrado es el único con tasa, así que
+    // pintar todas iguales no pasaría por aquí.
+    const host: HTMLElement = fixture.nativeElement;
+    const tasas = Array.from(host.querySelectorAll('.fee-tag--attention')).map((n) =>
+      n.textContent?.trim(),
+    );
+    expect(tasas).toContain('No se pudo cobrar la tasa');
+  });
+
+  it('«no consta» no se pinta como «pagada», y un exento no se pinta como pendiente', async () => {
+    await createComponent();
+    const componente = component;
+
+    // Con tasa y sin estado, la verdad es que no se sabe — y hay que mirarlo.
+    expect(componente.feeStatusLabel(null, 42000)).toBe('Tasa: sin dato del cobro');
+    expect(componente.feeNeedsAttention(null, 42000)).toBe(true);
+    // Sin tasa no hay nada que decir ni nada que perseguir.
+    expect(componente.feeStatusLabel(null, 0)).toBe('');
+    expect(componente.feeNeedsAttention(null, 0)).toBe(false);
+    // Cobrada es lo ÚNICO que no pide atención.
+    expect(componente.feeNeedsAttention('captured', 42000)).toBe(false);
+    expect(componente.feeNeedsAttention('unavailable', 42000)).toBe(true);
+    // Un estado que el motor de pago estrene tiene que verse RARO, no verse cobrado.
+    expect(componente.feeStatusLabel('en-disputa', 42000)).toBe('Tasa: en-disputa');
+    expect(componente.feeNeedsAttention('en-disputa', 42000)).toBe(true);
+  });
+
   // ── happy (officer): open a case → decide → status advances + queue refetch ───
   it('opens a case and records an approve decision (officer happy case)', async () => {
     await createComponent();
@@ -943,6 +982,62 @@ describe('GovApiClient (v2 contract)', () => {
     expect(services.every((s) => s.category === 'vehiculos')).toBe(true);
   });
 
+  // ── CMS#116 · la tasa que el expediente escribía y nadie leía ────────────────
+
+  /** Un borde que contesta `GET /application/{id}` con el cuerpo que se le dé. */
+  function bordeConExpediente(application: Record<string, unknown>): () => Promise<Response> {
+    return () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ application }),
+      } as Response);
+  }
+
+  /** El expediente sin lo que no se está probando. */
+  function expedienteBase(): Record<string, unknown> {
+    return {
+      id: 'app-1',
+      reference: 'GOV-2026-10001',
+      serviceId: 'svc-matricula',
+      serviceName: 'Renovación de matrícula mercantil',
+      status: 'submitted',
+      submittedAt: '2026-07-02T15:20:00Z',
+      currentStage: 'Radicada',
+      timeline: [],
+      documents: [],
+      messages: [],
+    };
+  }
+
+  it('el estado de la tasa se LEE — antes se escribía y no salía de ninguna parte', async () => {
+    // El fixture lleva el caso que el default NO produce: una tasa que NO se cobró.
+    // Con todo `captured` —o con todo exento— emitir la clave o no daría el mismo JSON.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConExpediente({ ...expedienteBase(), feeMinor: 42000, feeStatus: 'unavailable' })),
+    );
+    const client = createClient();
+
+    const detail = await client.application('/api/gov', 'app-1');
+    expect(detail.feeStatus).toBe('unavailable');
+    expect(detail.feeMinor).toBe(42000);
+  });
+
+  it('sin estado de la tasa es «no consta», y NO se repone a «cobrada»', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(bordeConExpediente({ ...expedienteBase(), feeMinor: 42000, feeStatus: null })),
+    );
+    const client = createClient();
+
+    const detail = await client.application('/api/gov', 'app-1');
+    // `null` y no `''`: la pantalla distingue «no consta» de «sin tasa» mirando el
+    // monto, y con una cadena vacía las dos se verían igual (es decir, no se verían).
+    expect(detail.feeStatus).toBeNull();
+    expect(detail.feeMinor).toBe(42000);
+  });
+
   // ── Barrido IDOR (cliente): el 403 se re-lanza, no se degrada ────────────────
   it('un 403 en application(id) re-lanza en vez de devolver el expediente de otro', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
@@ -1045,4 +1140,128 @@ describe('GovApiClient (v2 contract)', () => {
     expect(services.length).toBeGreaterThan(0);
     expect(client.degraded).toBe(true);
   });
+
+  // ─── Actos administrativos notificados (HU CMS#62 · #20) ──────────────────────
+  //
+  // Lo que se prueba acá no es que la pantalla pinte: es que las TRES reglas que
+  // sostienen un plazo legal se cumplan. Si alguna se rompe, el acuse deja de
+  // probar nada y el término empieza (o no empieza) cuando no debe.
+  describe('bandeja de actos notificados', () => {
+    /** Un acto sin abrir, como lo manda el backend: SIN cuerpo. */
+    const SIN_ABRIR = {
+      id: 'act-1',
+      caseId: 'case-1',
+      reference: 'RAD-2026-000481',
+      title: 'Resolución 1042 de 2026',
+      body: null,
+      documentRef: null,
+      notifiedAt: '2026-09-01T14:00:00Z',
+      acknowledgeBefore: '2026-09-16T23:59:59Z',
+      openedAt: null,
+      openedWith: null,
+      opened: false,
+    };
+
+    const ABIERTO = {
+      ...SIN_ABRIR,
+      body: 'Se resuelve conceder lo solicitado.',
+      openedAt: '2026-09-11T10:30:00Z',
+      openedWith: 'IdentityToken',
+      opened: true,
+    };
+
+    function clientWith(handler: (url: string, init?: RequestInit) => unknown): GovApiClient {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string, init?: RequestInit) =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(handler(url, init)),
+          }),
+        ),
+      );
+      return createClient();
+    }
+
+    it('vacío: sin actos la bandeja no inventa nada', async () => {
+      const client = clientWith(() => ({ notifications: [] }));
+
+      await expect(client.notifications('/api/gov')).resolves.toEqual([]);
+    });
+
+    it('el listado NO trae el cuerpo — si lo trajera, el acuse sería decoración', async () => {
+      const client = clientWith(() => ({ notifications: [SIN_ABRIR] }));
+
+      const [acto] = await client.notifications('/api/gov');
+
+      expect(acto.title).toBe('Resolución 1042 de 2026');
+      // `null` es «todavía no te toca verlo», no «vacío».
+      expect(acto.body).toBeNull();
+      expect(acto.opened).toBe(false);
+    });
+
+    it('abrir es POST — con GET lo dispararía un prefetch y el término arrancaría solo', async () => {
+      const llamadas: { url: string; method?: string }[] = [];
+      const client = clientWith((url, init) => {
+        llamadas.push({ url, method: init?.method });
+        return { notification: ABIERTO };
+      });
+
+      await client.openNotification('/api/gov', 'act-1');
+
+      expect(llamadas).toHaveLength(1);
+      expect(llamadas[0].method).toBe('POST');
+      expect(llamadas[0].url).toContain('/notification/act-1/open');
+    });
+
+    it('al abrir llegan el cuerpo y la fecha desde la que corre el término', async () => {
+      const client = clientWith(() => ({ notification: ABIERTO }));
+
+      const acto = await client.openNotification('/api/gov', 'act-1');
+
+      expect(acto.opened).toBe(true);
+      expect(acto.body).toBe('Se resuelve conceder lo solicitado.');
+      expect(acto.openedAt).toBe('2026-09-11T10:30:00Z');
+      // Con qué se afirmó la identidad lo decide la capacidad, no este lado.
+      expect(acto.openedWith).toBe('IdentityToken');
+    });
+
+    it('abrir NO se degrada: si falla, falla a la vista', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(new Error('offline'))),
+      );
+      const client = createClient();
+
+      // A diferencia de la bandeja, acá no hay mock que devolver: decirle a la
+      // persona que abrió cuando la entidad no registró nada es lo único que esta
+      // HU no puede hacer.
+      await expect(client.openNotification('/api/gov', 'act-1')).rejects.toThrow();
+    });
+
+    it('la bandeja SÍ se degrada — el expediente se sigue leyendo con la capacidad caída', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() => Promise.reject(new Error('offline'))),
+      );
+      const client = createClient();
+
+      await expect(client.notifications('/api/gov')).resolves.toEqual([]);
+      expect(client.degraded).toBe(true);
+    });
+
+    it('un 403 al abrir no se degrada: el acto es de otra persona', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) }),
+        ),
+      );
+      const client = createClient();
+
+      await expect(client.openNotification('/api/gov', 'act-1')).rejects.toSatisfy(isGovForbidden);
+    });
+  });
+
 });

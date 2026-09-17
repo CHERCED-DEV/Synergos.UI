@@ -54,6 +54,8 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolverRaizCms } from './lib/rutas-hermanas.mjs';
+
 import {
   computeE1,
   computeE2,
@@ -70,14 +72,11 @@ const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // El CMS se busca, en orden: --cms-path=..., SYNERGOS_CMS_PATH, hermano.
 // Antes SOLO existía el hermano, así que en cualquier entorno que no fuera el
 // portátil del arquitecto —CI, contenedor— no lo encontraba y se saltaba.
-function resolveCmsRoot() {
-  const flag = process.argv.slice(2).find(a => a.startsWith('--cms-path='));
-  if (flag) return resolve(flag.slice('--cms-path='.length));
-  if (process.env.SYNERGOS_CMS_PATH) return resolve(process.env.SYNERGOS_CMS_PATH);
-  return resolve(ROOT_UI, '..', 'Synergos.CMS');
-}
-
-const ROOT_CMS      = resolveCmsRoot();
+//
+// Desde #57 la resolución vive en `lib/rutas-hermanas.mjs`: `cms-sync.mjs` la
+// hacía distinta —sin la variable de entorno— y era el segundo consumidor, que
+// es cuando se promueve.
+const { ruta: ROOT_CMS } = resolverRaizCms({ raizUi: ROOT_UI });
 const BASELINE_JSON = resolve(ROOT_UI, 'tools/cms-contract-baseline.json');
 
 const REGISTRY_JSON       = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
@@ -360,6 +359,18 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementEventZone',
   'elementTramiteFormSection',
   'elementTramiteFormField',
+
+  // Y el temario de un curso (#100). MISMA tercera categoría: el editor escribe
+  // módulos y lecciones dentro de la ficha de `coursePage`, y quien los pinta es
+  // el bundle de Educación leyéndolos ya proyectados por `UmbracoCourseCatalogSource`.
+  // No montan web component y no tienen partial Razor propio.
+  //
+  // ⚠️ ESTA LISTA ES EL PASO 7b DEL MOLDE DE UN VERTICAL, Y VIVE EN EL OTRO REPO.
+  // Estos dos entraron con #100 y nadie vino acá, así que `design-gates-ui.yml`
+  // quedó ROJO y `CLAUDE.md` del CMS siguió diciendo «los dos pasan hoy» — la guía
+  // afirmando verde sobre un gate en rojo, que es peor que el rojo.
+  'elementCourseLesson',
+  'elementCourseModule',
 ]);
 
 // NOTA (issue #16). Acá vivían tres listas más —`UI_ONLY_ALIASES`,

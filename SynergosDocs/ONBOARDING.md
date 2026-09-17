@@ -35,12 +35,17 @@ This installs `node_modules/` for each platform independently (Angular, React, S
 ## First Build
 
 ```bash
-# Build all frameworks
+# Vitals + los 127 elementos + el runtime compartido (~26 s)
 npm run build
 
-# Or use the interactive CLI
+# O el CLI interactivo, que lista lo que el build compila
 npm run cli
 ```
+
+> El CLI **descubre lo mismo que el build** (`platforms/<plataforma>/apps/**/src/main.ts`), así
+> que si lista 127 elementos es porque hay 127. Descubría proyectos de Nx y llevaba desde la
+> purga listando **cero** sin fallar (#52): si algún día abre vacío, ahora falla y te dice dónde
+> buscó.
 
 ---
 

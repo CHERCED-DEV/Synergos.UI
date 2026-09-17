@@ -14,8 +14,21 @@
  *
  *   2. vitals/contracts/src/element-registry.json
  *      → Para cada elementSyn* del CMS: añade entry { name, alias,
- *        tag, tier } si no existe; deja intactas las entries existentes
- *        (incluidas las de elementComp/Corp/Info/Media legacy).
+ *        tag, tier, framework } si no existe; deja intactas las entries
+ *        existentes (incluidas las de elementComp/Corp/Info/Media legacy).
+ *
+ *        El tier y el framework de una entrada nueva NO se adivinan
+ *        (issue #43): salen del registry si ya está, o del disco —de la
+ *        carpeta donde vive la fuente y de la plataforma que la
+ *        contiene—, y si ninguno de los dos contesta, el sync SE PARA
+ *        sin escribir nada. Antes escribía `composition` por defecto y
+ *        eso le bajaba a un `module` el techo del presupuesto de tamaño
+ *        de 72 KB a 44 KB, en silencio.
+ *
+ *        Y lo que va a entrar pasa por el manifiesto: si la entrada no
+ *        puede producir un `ElementManifest` válido, no entra. El
+ *        manifiesto no es la fuente de nada —es la proyección de esto
+ *        mismo— pero sí es el embudo donde se comprueba.
  *
  * NO toca:
  *   - Web Components Angular (apps/elements/{tier}/{name}/) — el
@@ -32,7 +45,7 @@
  *
  * Exit codes:
  *   0 — sync OK (con o sin cambios)
- *   1 — error de parsing o I/O
+ *   1 — error de parsing o I/O, o un elemento sin tier/framework resoluble
  *   2 — drift detectado en --dry-run (CI mode: faltan sincronizar archivos)
  */
 
@@ -40,11 +53,20 @@ import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getArg, DRY_RUN } from './lib/cli-utils.mjs';
+import { loadRegistry, loadInputs, readPackageVersion, contratoDelManifiesto } from './lib/synergos-config.mjs';
+import { descubrirFuentes, resolverTier, resolverFramework } from './lib/element-sources.mjs';
+import { resolverRaizCms, comoApuntarAlCms } from './lib/rutas-hermanas.mjs';
+import { buildManifest, validateManifest } from './lib/manifest-builder.mjs';
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
 const ROOT_UI  = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const ROOT_CMS = resolve(getArg('cms-path', resolve(ROOT_UI, '..', 'Synergos.CMS')));
+// El CMS se busca en las TRES formas —bandera, SYNERGOS_CMS_PATH, hermano— y la
+// resolución vive en `lib/rutas-hermanas.mjs` desde #57. Acá aceptaba sólo dos:
+// no miraba la variable de entorno, así que en un contenedor exportarla hacía
+// pasar `cms:validate` y dejaba caer ESTE paso, que es el último del encadenado
+// `contracts:validate`.
+const { ruta: ROOT_CMS, origen: ORIGEN_CMS } = resolverRaizCms({ raizUi: ROOT_UI });
 
 const CMS_CONTENT_TYPES_DIR = resolve(ROOT_CMS, 'Synergos.CMS.Web/uSync/v9/ContentTypes');
 const REGISTRY_JSON_PATH    = resolve(ROOT_UI,  'vitals/contracts/src/element-registry.json');
@@ -70,91 +92,15 @@ const UNIVERSAL_PROP_ALIASES = new Set([
   'configOverride',
 ]);
 
-// Tier classification for elementSyn* — hand-tuned heuristic. When a
-// new elementSyn* appears that isn't here, the script will assign
-// 'composition' as default + log a warning recommending review.
-const TIER_BY_NAME = new Map([
-  // primitives
-  ['avatar', 'primitive'], ['badge', 'primitive'], ['breadcrumb', 'primitive'],
-  ['copy-button', 'primitive'], ['divider', 'primitive'], ['fab', 'primitive'],
-  ['icon-label', 'primitive'], ['popover', 'primitive'], ['progress-bar', 'primitive'],
-  ['qr-code', 'primitive'], ['scroll-top', 'primitive'], ['separator', 'primitive'],
-  ['skeleton', 'primitive'], ['spacer', 'primitive'], ['stat-ticker', 'primitive'],
-  ['tag', 'primitive'], ['tooltip', 'primitive'],
-  // compositions
-  ['accordion', 'composition'], ['autocomplete', 'composition'],
-  ['avatar-group', 'composition'], ['avatar-upload', 'composition'],
-  ['badge-group', 'composition'], ['code-block', 'composition'],
-  ['color-picker', 'composition'], ['color-swatches', 'composition'],
-  ['date-picker', 'composition'], ['dropdown', 'composition'],
-  ['form-stepper', 'composition'], ['modal-trigger', 'composition'],
-  ['otp-input', 'composition'], ['pagination', 'composition'],
-  ['range-slider', 'composition'], ['rating-stars', 'composition'],
-  ['rich-tooltip', 'composition'], ['search-box', 'composition'],
-  ['select-multi', 'composition'], ['share-bar', 'composition'],
-  ['signature-pad', 'composition'], ['social-proof', 'composition'],
-  ['splitter', 'composition'], ['stepper', 'composition'], ['tabs', 'composition'],
-  ['timeline-horizontal', 'composition'],
-  // modules
-  ['audio-player', 'module'], ['calendar', 'module'], ['carousel', 'module'],
-  ['chart-bar', 'module'], ['comments-widget', 'module'], ['cookie-consent', 'module'],
-  ['countdown-clock', 'module'], ['countdown-digital', 'module'],
-  ['data-grid', 'module'], ['drawer', 'module'], ['dropzone', 'module'],
-  ['file-uploader', 'module'], ['hero-banner', 'module'], ['kpi-card', 'module'],
-  ['lightbox-gallery', 'module'], ['livestream', 'module'], ['map-pin', 'module'],
-  ['notification-center', 'module'], ['notification-toast', 'module'],
-  ['oembed', 'module'], ['poll', 'module'], ['quote-animated', 'module'],
-  ['testimonial-carousel', 'module'], ['timeline', 'module'],
-  ['toast-center', 'module'], ['tour-guide', 'module'], ['tree-view', 'module'],
-  ['video-player', 'module'],
-
-  // ── Las verticales completas (issue #3) ────────────────────────────────────
-  //
-  // Faltaban las de abajo, y el default de `composition` NO era una
-  // aproximación razonable: era una regresión silenciosa. El registry ya las
-  // declaraba bien como `module`, y sincronizar las habría SOBREESCRITO con el
-  // valor por defecto — o sea que `cms-sync` no corregía el drift, lo metía.
-  //
-  // Y no es cosmético. El presupuesto de tamaño (issue #8) elige el techo POR
-  // TIER, así que degradar un `module` a `composition` le baja el techo de
-  // 72 KB a 44 KB. Se comprobó corriendo el sync de verdad:
-  //
-  //     ✗ booking-wizard: 45.7 KB > 44.0 KB (tier composition) — 1.04× el techo
-  //
-  // Los otros diez sobrevivían sólo porque tienen excepción nombrada: la avería
-  // quedaba tapada por casualidad, no por diseño.
-  //
-  // Cada una es una APLICACIÓN entera montada en una página —una tienda, una
-  // historia clínica, un portal de trámites—, no un elemento compuesto.
-  ['academy', 'module'], ['app-launcher', 'module'], ['blogs', 'module'],
-  ['booking-wizard', 'module'], ['ehr', 'module'], ['eventos', 'module'],
-  ['gov', 'module'], ['realty', 'module'], ['seller', 'module'],
-  ['storefront', 'module'], ['travel-shell', 'module'],
-
-  // Estas cuatro entran NUEVAS al registry, y su tier no se elige libre: el
-  // mismo `name` ya existe bajo un alias `elementComp*`, y `publish.mjs`
-  // deduplica por nombre quedándose con la primera. Con tiers distintos, el
-  // tier publicado dependería del ORDEN del array — así que se copia el que ya
-  // tiene la entrada existente.
-  ['faq-section', 'module'],          // ya existe como elementCompFaqList [module]
-  ['feature-grid', 'module'],         // ya existe como elementCompFeatureGrid [module]
-  ['testimonial-section', 'module'],  // ya existe como elementCompTestimonialList [module]
-  ['media-text', 'composition'],      // ya existe como elementCompMediaTextSplit [composition]
-
-  // Sin precedente en el registry. Su propio DocType lo dice: «Monta una app
-  // Angular completa (módulo) en la página».
-  ['module-mount', 'module'],
-
-  // Ya salía bien por el default, pero explícito no avisa — y no se puede
-  // degradar sin que alguien lo escriba.
-  ['seat-map', 'composition'],
-
-  // Estrenaron DocType al cerrar el issue #16: eran bundles publicados que
-  // ningún editor podía colocar. El tier coincide con el que ya traían en el
-  // registry; se escribe igual, porque el default no avisa.
-  ['button-group', 'composition'],
-  ['info-block', 'composition'],
-]);
+// El tier YA NO se adivina acá. Vivía en un `TIER_BY_NAME` de 90 entradas
+// escritas a mano que, medido, resultó ser una COPIA EXACTA del registry — las
+// 90 decían lo mismo — con un `?? 'composition'` detrás para lo que no
+// estuviera. Ese default no era una aproximación razonable: sobreescribía el
+// tier autorado y le bajaba el techo del presupuesto de tamaño de 72 KB a
+// 44 KB sin decir nada (regla 2 del CLAUDE.md, issue #43).
+//
+// Ahora lo resuelve `resolverTier` en tools/lib/element-sources.mjs: el
+// registry, o la carpeta donde vive la fuente, o se para.
 
 // ── XML parsing helpers ──────────────────────────────────────────────────────
 
@@ -244,27 +190,24 @@ function mergeRegistry(existing, syncEntries) {
   // Index existing by alias for fast lookup
   const byAlias = new Map(existing.map(e => [e.alias, e]));
   let added = 0;
-  let updated = 0;
 
   for (const sync of syncEntries) {
-    const current = byAlias.get(sync.alias);
-    if (!current) {
-      existing.push({
-        name: sync.kebab,
-        alias: sync.alias,
-        tag: `synergos-${sync.kebab}`,
-        tier: sync.tier,
-      });
-      added++;
-      continue;
-    }
-    // Update tier if mismatch (tag/name preserved if they match)
-    if (current.tier !== sync.tier) {
-      current.tier = sync.tier;
-      updated++;
-    }
+    if (byAlias.has(sync.alias)) continue;
+
+    // El tier y el framework de una entrada NUEVA ya vienen resueltos desde
+    // main() —del disco, o del registry si la entrada existía— y validados a
+    // través del manifiesto. Acá no se decide nada: si algo no se pudo
+    // resolver, main() ya paró.
+    existing.push({
+      name: sync.kebab,
+      alias: sync.alias,
+      tag: `synergos-${sync.kebab}`,
+      tier: sync.tier,
+      framework: sync.framework,
+    });
+    added++;
   }
-  return { added, updated };
+  return { added };
 }
 
 // ── Auto-generation of 4 contract artifacts per elementSyn* ─────────────────
@@ -506,7 +449,8 @@ function main() {
   console.log(`[cms-sync] Reading from: ${CMS_CONTENT_TYPES_DIR}`);
 
   if (!existsSync(CMS_CONTENT_TYPES_DIR)) {
-    console.error(`[cms-sync] ERROR: CMS path not found. Use --cms-path=PATH or place repos as siblings.`);
+    console.error(`[cms-sync] ERROR: ${comoApuntarAlCms(ROOT_CMS)}`);
+    console.error(`[cms-sync]   (la ruta salió de: ${ORIGEN_CMS})`);
     process.exit(1);
   }
 
@@ -516,7 +460,28 @@ function main() {
 
   console.log(`[cms-sync] Found ${synFiles.length} elementSyn* XMLs.`);
 
+  // El registry se carga VALIDADO (`loadRegistry`), no con un `JSON.parse`
+  // suelto: es la misma puerta por la que pasan el publicador y el generador de
+  // manifiestos, así que un registry que no cumple su contrato para acá también.
+  const existingRegistry = loadRegistry();
+  const registroPorAlias = new Map(existingRegistry.map(e => [e.alias, e]));
+  const inputsData = loadInputs();
+  const CONTRATO = contratoDelManifiesto();
+  const VERSION = readPackageVersion();
+
+  const fuentes = descubrirFuentes({
+    listar: (dir) => {
+      try {
+        return readdirSync(resolve(ROOT_UI, dir), { withFileTypes: true })
+          .filter(e => e.isDirectory())
+          .map(e => e.name);
+      } catch { return []; }
+    },
+    existe: (ruta) => existsSync(resolve(ROOT_UI, ruta)),
+  });
+
   const entries = [];
+  const bloqueos = [];
   let warnings = 0;
   for (const file of synFiles) {
     const parsed = parseElementSynXml(join(CMS_CONTENT_TYPES_DIR, file));
@@ -526,24 +491,59 @@ function main() {
       continue;
     }
     const kebab = aliasToKebab(parsed.alias);
-    let tier = TIER_BY_NAME.get(kebab);
-    if (!tier) {
-      tier = 'composition';
-      console.warn(`[cms-sync] WARN: ${parsed.alias} (${kebab}) has no tier assigned in TIER_BY_NAME — defaulting to "composition". Review tools/cms-sync.mjs.`);
-      warnings++;
+    const entrada = { alias: parsed.alias, name: kebab, tag: `synergos-${kebab}` };
+
+    const tier = resolverTier(entrada, registroPorAlias, fuentes);
+    if (tier.error) { bloqueos.push(tier.error); continue; }
+
+    // El framework de una entrada nueva sale del mismo sitio que el de las 132
+    // (issue #42): el disco. Si nadie la construye, no hay framework que
+    // escribir y no se inventa uno.
+    const framework = registroPorAlias.get(parsed.alias)?.framework
+      ?? resolverFramework(entrada, fuentes)?.framework
+      ?? null;
+    if (framework === null) {
+      bloqueos.push(
+        `${kebab} (${parsed.alias}): ninguna plataforma tiene su fuente, así que no hay ` +
+        `framework que declarar. Escribí el Web Component antes de meterlo al registry.`,
+      );
+      continue;
     }
-    entries.push({ alias: parsed.alias, kebab, tier, props: parsed.props });
+
+    // El embudo del issue #43: lo que va a entrar al registry tiene que poder
+    // producir un manifiesto válido. Un tier que el contrato del manifiesto no
+    // sabe expresar no se escribe y se descubre acá, no en el CDN.
+    const malManifiesto = validateManifest(
+      buildManifest({ ...entrada, tier: tier.tier, framework }, VERSION, inputsData[kebab] ?? []),
+      CONTRATO,
+    );
+    if (malManifiesto.length > 0) {
+      bloqueos.push(`${kebab} (${parsed.alias}): ${malManifiesto.join('; ')}`);
+      continue;
+    }
+
+    entries.push({ alias: parsed.alias, kebab, tier: tier.tier, framework, props: parsed.props });
   }
   entries.sort((a, b) => a.alias.localeCompare(b.alias));
+
+  // Se para ANTES de escribir nada. Un sync a medias deja el registry, los
+  // modelos, el mapper y los inputs contando historias distintas, y la
+  // siguiente corrida arranca desde ahí.
+  if (bloqueos.length > 0) {
+    console.error('');
+    console.error(`[cms-sync] ERROR: ${bloqueos.length} elemento(s) sin forma resoluble. No se escribe nada.`);
+    for (const linea of bloqueos) console.error(`  - ${linea}`);
+    console.error('');
+    process.exit(1);
+  }
 
   // 2. Build new contracts file. Naming `Syn{Pascal}Schema` ya NO colisiona
   // con el manual `{Pascal}ElementConfig` — los dos archivos coexisten.
   const contractsContent = buildContractsFile(entries);
 
   // 3. Merge registry (existing entries preserved)
-  const existingRegistry = JSON.parse(readFileSync(REGISTRY_JSON_PATH, 'utf8'));
   const beforeCount = existingRegistry.length;
-  const { added, updated } = mergeRegistry(existingRegistry, entries);
+  const { added } = mergeRegistry(existingRegistry, entries);
   const newRegistryJson = JSON.stringify(existingRegistry, null, 2) + '\n';
 
   // 4. Detect missing Web Components
@@ -568,7 +568,6 @@ function main() {
   console.log(`  input entries added:   ${inputsResult.added}`);
   console.log(`  input entries enriched: ${inputsResult.enriched}`);
   console.log(`  mapper entries added:  ${mapperResult.added}`);
-  console.log(`  registry tier-updated: ${updated}`);
   console.log(`  missing Web Components: ${missing.length}`);
   console.log(`  parse warnings:        ${warnings}`);
   if (missing.length > 0) {
@@ -586,7 +585,7 @@ function main() {
       ? readFileSync(CONTRACT_OUT_PATH, 'utf8')
       : '';
     const contractsChanged = currentContracts !== contractsContent;
-    const registryChanged = added > 0 || updated > 0;
+    const registryChanged = added > 0;
     if (contractsChanged || registryChanged) {
       console.log('[cms-sync] DRY-RUN: changes pending.');
       console.log(`  contracts file:  ${contractsChanged ? 'WOULD UPDATE' : 'unchanged'}`);
@@ -600,9 +599,9 @@ function main() {
   writeFileSync(CONTRACT_OUT_PATH, contractsContent, 'utf8');
   console.log(`[cms-sync] Wrote ${CONTRACT_OUT_PATH}`);
 
-  if (added > 0 || updated > 0) {
+  if (added > 0) {
     writeFileSync(REGISTRY_JSON_PATH, newRegistryJson, 'utf8');
-    console.log(`[cms-sync] Wrote ${REGISTRY_JSON_PATH} (+${added} added, ${updated} tier-updated)`);
+    console.log(`[cms-sync] Wrote ${REGISTRY_JSON_PATH} (+${added} added)`);
   } else {
     console.log(`[cms-sync] Registry unchanged.`);
   }

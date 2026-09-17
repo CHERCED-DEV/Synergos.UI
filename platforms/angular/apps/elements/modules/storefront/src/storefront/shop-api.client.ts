@@ -14,6 +14,19 @@ import {
   type ProductVariant,
   type ReturnReceipt,
   type ReviewSubmission,
+  type ShopPromo,
+  type ShopPromoResult,
+  type ReturnAdvance,
+  type ReturnAdvanceResult,
+  type ReturnCase,
+  type ReturnReason,
+  type ReturnRequestResult,
+  type ReturnStatus,
+  type SellerDeskResult,
+  type SellerOrder,
+  type ShopModerationItem,
+  type ShopModerationResult,
+  type ReviewReportResult,
   type ReviewSubmitResult,
   type SearchCriteria,
   type SearchResult,
@@ -110,6 +123,63 @@ export class ShopApiClient {
    * El motivo se lee del STATUS, no de `error.name` ni de `instanceof`: aquel depende de que
    * alguien recuerde tipar el error, y este último ni siquiera cruza bundles.
    */
+  /**
+   * `POST /{apiBase}/promo` — valida un cupón contra el carrito (#29).
+   *
+   * **No degrada a mock.** Un descuento inventado del lado del cliente es una
+   * promesa de plata que el checkout va a romper; el peor momento para descubrirlo
+   * es al pagar. Si el endpoint no responde, esto contesta `failed` y la pantalla
+   * lo dice.
+   */
+  async applyPromo(
+    apiBase: string,
+    code: string,
+    subtotalMinor: number,
+  ): Promise<ShopPromoResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    try {
+      const response = await fetch(`${apiBase}/promo`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotalMinor }),
+      });
+
+      if (response.ok) {
+        const data: unknown = await response.json();
+        const promo = normalizePromo(data, code);
+        // Una respuesta 200 que no trae un descuento utilizable NO es un cupón
+        // aplicado: decir que sí dejaría el total sin cambiar y al comprador
+        // creyendo que ahorró.
+        return promo ? { ok: true, promo } : { ok: false, reason: 'unknown' };
+      }
+
+      if (response.status === 409) {
+        return { ok: false, reason: 'already-used' };
+      }
+      if (response.status === 410) {
+        return { ok: false, reason: 'expired' };
+      }
+      if (response.status === 404) {
+        return { ok: false, reason: 'unknown' };
+      }
+      if (response.status === 422) {
+        // El servidor dice por qué no aplica, y cuánto falta si es el mínimo.
+        const data: unknown = await response.json().catch(() => null);
+        const motivo = isRecord(data) ? readString(data['reason']).trim() : '';
+        if (motivo === 'minimum-not-met') {
+          const falta = isRecord(data) ? readNumber(data['shortfallMinor']) : 0;
+          return { ok: false, reason: 'minimum-not-met', shortfallMinor: Math.max(0, falta) };
+        }
+        return { ok: false, reason: 'not-applicable' };
+      }
+      return { ok: false, reason: 'failed' };
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
   async submitReview(
     apiBase: string,
     sku: string,
@@ -132,7 +202,9 @@ export class ShopApiClient {
       });
 
       if (response.ok) {
-        return { ok: true };
+        // **202 no es 201.** `response.ok` es cierto para TODO 2xx, así que un borde
+        // que encola para revisión se leía como publicación y el acuse mentía (#31).
+        return { ok: true, pending: response.status === 202 };
       }
       switch (response.status) {
         case 401:
@@ -147,6 +219,43 @@ export class ShopApiClient {
     } catch {
       // Red caída. NO es lo mismo que "no puedes reseñar": el mensaje debe invitar a
       // reintentar, no acusar al comprador.
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * Reporta una reseña (#31).
+   *
+   * **No degrada a mock ni a éxito silencioso.** Un «gracias por avisar» que no
+   * salió de la máquina es la regla 4 de `CLAUDE.md` sobre la escritura que más
+   * confianza pide: quien reporta está diciendo que algo está mal y espera que
+   * alguien lo mire.
+   */
+  async reportReview(apiBase: string, reviewId: string): Promise<ReviewReportResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        // El servidor deduplica por (reseña, quien reporta). No es un fallo.
+        case 409:
+          return { ok: false, reason: 'already-reported' };
+        case 404:
+          return { ok: false, reason: 'not-found' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
       return { ok: false, reason: 'failed' };
     }
   }
@@ -285,21 +394,169 @@ export class ShopApiClient {
 
   // ─── Returns (devoluciones / reclamos) ───────────────────────────────────────
 
-  async requestReturn(apiBase: string, orderRef: string, reason: string): Promise<ReturnReceipt> {
+  /**
+   * Pide la devolución de UNA LÍNEA de un pedido (#32).
+   *
+   * **Manda `lineId`, que es lo que faltaba.** El borde lo exige junto al motivo
+   * (`ShopCatalogController:746`) y esta llamada enviaba sólo `{ reason }`, así
+   * que contestaba `400` — *siempre*. Y no se notaba porque el `catch` inventaba
+   * un `claimId` local y devolvía «abierto»: la devolución **nunca funcionó** y
+   * el mock lo tapó entero. Es la regla 4 de `CLAUDE.md` en su forma más cara,
+   * porque el comprador se llevaba un número de reclamo que no existe en ninguna
+   * parte.
+   *
+   * Por eso ahora **no degrada**: un fallo se dice.
+   */
+  async requestReturn(
+    apiBase: string,
+    orderRef: string,
+    lineId: string,
+    reason: ReturnReason,
+  ): Promise<ReturnRequestResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
     try {
-      const data = await this.postJson(url, { reason });
-      const receipt = normalizeReturn(data);
-      if (receipt) {
-        return receipt;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineId, reason }),
+      });
+      if (response.ok) {
+        const claim = normalizeReturnCase(await response.json());
+        // Un 200 con una forma que no se entiende NO es un reclamo abierto:
+        // decir que sí dejaría al comprador sin nada y creyendo que sí.
+        return claim ? { ok: true, claim } : { ok: false, reason: 'failed' };
       }
-      throw new Error('return-shape');
-    } catch (error) {
-      this.markDegraded('POST /api/shop/order/{ref}/return', error);
       return {
-        claimId: `CLM-${Date.now().toString(36).toUpperCase()}`,
-        status: 'abierto',
+        ok: false,
+        reason: RETURN_REQUEST_REASONS[response.status] ?? 'failed',
+        detail: await readErrorDetail(response),
       };
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * Los reclamos de un pedido (#32).
+   *
+   * **Devuelve `null` cuando no se pudo leer, y eso NO es lo mismo que «no hay
+   * ninguno».** Con una lista vacía en el fallo, la pantalla volvería a ofrecer
+   * «Iniciar devolución» sobre un pedido que ya tiene una abierta, y el comprador
+   * abriría un segundo reclamo. Es el defecto que esta HU vino a cerrar.
+   */
+  async orderReturns(apiBase: string, orderRef: string): Promise<readonly ReturnCase[] | null> {
+    const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
+    try {
+      const data = await this.getJson(url);
+      const raw = isRecord(data) && Array.isArray(data['returns']) ? data['returns'] : [];
+      return raw
+        .map((entry) => normalizeReturnCase(entry))
+        .filter((entry): entry is ReturnCase => entry !== null);
+    } catch (error) {
+      this.markDegraded('GET /api/shop/order/{ref}/return', error);
+      return null;
+    }
+  }
+
+  /**
+   * El vendedor mueve un reclamo de estado (#32).
+   *
+   * El endpoint existía desde siempre y **no lo llamaba nadie**. Tampoco degrada:
+   * llegar a `refunded` dispara un reembolso de verdad, así que decir «listo»
+   * cuando el POST falló sería prometer plata que no se movió.
+   */
+  async advanceReturn(
+    apiBase: string,
+    rmaId: string,
+    status: ReturnAdvance,
+    note?: string,
+  ): Promise<ReturnAdvanceResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(note ? { status, note } : { status }),
+      });
+      if (response.ok) {
+        const claim = normalizeReturnCase(await response.json());
+        return claim ? { ok: true, claim } : { ok: false, reason: 'failed' };
+      }
+      return {
+        ok: false,
+        reason: RETURN_ADVANCE_REASONS[response.status] ?? 'failed',
+        detail: await readErrorDetail(response),
+      };
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /**
+   * El vendedor decide sobre una opinión en cola (#32).
+   *
+   * Gemelo del de Educación (#31) — mismo contrato, mismo criterio: no degrada,
+   * porque dejar una opinión publicada mientras la pantalla dice que se rechazó
+   * deja a alguien expuesto y al vendedor creyendo que lo atendió.
+   */
+  async decideShopModeration(
+    apiBase: string,
+    reviewId: string,
+    decision: 'approve' | 'reject',
+  ): Promise<ShopModerationResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/moderation/${encodeURIComponent(reviewId)}/${decision}`;
+    try {
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'forbidden' };
+        // Otra persona ya decidió: la fila sale de la cola igual.
+        case 409:
+          return { ok: false, reason: 'already-decided' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  // ─── Consola del vendedor (#32) ──────────────────────────────────────────────
+
+  /**
+   * Lo que el vendedor tiene por atender.
+   *
+   * **Esta LECTURA sí degrada a mock**, con el cartel de degradado que ya pintan
+   * las otras dos consolas: un escritorio de ejemplo rotulado no engaña a nadie
+   * (regla 4). Las escrituras de esta misma consola —avanzar un reclamo, decidir
+   * una opinión— no degradan ninguna.
+   */
+  async sellerDesk(apiBase: string): Promise<SellerDeskResult> {
+    const url = `${apiBase}/seller/desk`;
+    try {
+      const data = await this.getJson(url);
+      const desk = normalizeSellerDesk(data);
+      if (desk) {
+        return desk;
+      }
+      throw new Error('seller-desk-shape');
+    } catch (error) {
+      this.markDegraded('GET /api/shop/seller/desk', error);
+      return mockSellerDesk();
     }
   }
 
@@ -676,22 +933,24 @@ function normalizeOrders(value: unknown, fallbackCurrency: string): readonly Sho
         return null;
       }
       const rawLines = Array.isArray(entry['items']) ? entry['items'] : [];
-      const statusRaw = readString(entry['status']).trim().toLowerCase();
-      const status = (
-        ['pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled'] as const
-      ).includes(statusRaw as never)
-        ? (statusRaw as ShopOrder['status'])
-        : 'paid';
       return {
         orderNumber,
         date: readString(entry['date']).trim(),
-        status,
+        status: readOrderStatus(entry['status']),
         total: readNumber(entry['total'] ?? entry['amount']),
         currency: readString(entry['currency']).trim() || fallbackCurrency,
         items: rawLines.map((line) => ({
           title: isRecord(line) ? readString(line['title']).trim() : '',
           qty: isRecord(line) ? Math.max(1, Math.trunc(readNumber(line['qty']))) : 1,
           amount: isRecord(line) ? readNumber(line['amount']) : 0,
+          // El borde los emitía desde siempre y nadie los leía; sin el
+          // `productId` no se puede pedir una devolución (#32).
+          productId: isRecord(line) ? readString(line['productId']).trim() : '',
+          variantId: (isRecord(line) ? readString(line['variantId']).trim() : '') || undefined,
+          // Ausente = NO se puede (#34). Lo decide el servidor; la UI ya no lo
+          // deduce, que es lo que hizo que su copia se desviara (#33).
+          canReturn: isRecord(line) && line['canReturn'] === true,
+          returnBlock: (isRecord(line) ? readString(line['returnBlock']).trim() : '') || undefined,
         })),
       };
     })
@@ -773,19 +1032,164 @@ function normalizeTracking(value: unknown, orderRef: string): OrderTracking | nu
   };
 }
 
-function normalizeReturn(value: unknown): ReturnReceipt | null {
+/**
+ * Qué significa cada código al pedir una devolución (#32).
+ *
+ * `400` es `invalid` y no `failed` porque el borde manda el motivo en `{ error }`
+ * —«La línea X no está en la orden», «Solo se puede devolver sobre una orden
+ * pagada»— y esa frase le sirve a quien compró. `failed` es «no sabemos».
+ */
+const RETURN_REQUEST_REASONS: Readonly<
+  Record<number, 'unauthenticated' | 'forbidden' | 'not-found' | 'invalid' | 'failed'>
+> = {
+  400: 'invalid',
+  401: 'unauthenticated',
+  403: 'forbidden',
+  404: 'not-found',
+};
+
+/** Al avanzar, un `400` es una transición ilegal: el borde nombra cuál. */
+const RETURN_ADVANCE_REASONS: Readonly<
+  Record<number, 'unauthenticated' | 'forbidden' | 'not-found' | 'illegal' | 'failed'>
+> = {
+  400: 'illegal',
+  401: 'unauthenticated',
+  403: 'forbidden',
+  404: 'not-found',
+};
+
+const ORDER_STATUSES: readonly ShopOrder['status'][] = [
+  'pending',
+  'paid',
+  'preparing',
+  'shipped',
+  'delivered',
+  'cancelled',
+];
+
+/** `paid` por defecto: es el estado con el que un pedido existe de verdad. */
+function readOrderStatus(value: unknown): ShopOrder['status'] {
+  const raw = readString(value).trim().toLowerCase();
+  return ORDER_STATUSES.includes(raw as ShopOrder['status'])
+    ? (raw as ShopOrder['status'])
+    : 'paid';
+}
+
+/** Los estados del reclamo que emite el borde, en su vocabulario. */
+const RETURN_STATUSES: readonly ReturnStatus[] = [
+  'abierto',
+  'en-revision',
+  'resuelto',
+  'rechazado',
+];
+
+function normalizeReturnCase(value: unknown): ReturnCase | null {
   if (!isRecord(value)) {
     return null;
   }
-  const claimId = readString(value['claimId']).trim() || readString(value['id']).trim();
+  const claimId = readString(value['claimId']).trim() || readString(value['rmaId']).trim();
   if (!claimId) {
     return null;
   }
   const statusRaw = readString(value['status']).trim().toLowerCase();
-  const status = (['abierto', 'en-revision', 'resuelto'] as const).includes(statusRaw as never)
-    ? (statusRaw as ReturnReceipt['status'])
-    : 'abierto';
-  return { claimId, status };
+  return {
+    claimId,
+    orderRef: readString(value['orderRef']).trim(),
+    lineRef: readString(value['lineRef']).trim(),
+    productName: readString(value['productName']).trim() || 'Producto',
+    quantity: Math.max(1, Math.trunc(readNumber(value['quantity'])) || 1),
+    // Ya formateado por el servidor. Si no lo mandó se queda vacío en vez de
+    // inventar un número: la UI no calcula dinero (#22, #29).
+    refundAmountFormatted: readString(value['refundAmountFormatted']).trim(),
+    reason: readString(value['reason']).trim(),
+    // Un estado desconocido cae a `abierto`, que es el conservador: dar por
+    // resuelto lo que no se entiende cerraría un reclamo vivo en pantalla.
+    status: RETURN_STATUSES.includes(statusRaw as ReturnStatus)
+      ? (statusRaw as ReturnStatus)
+      : 'abierto',
+    requestedAt: readString(value['requestedAt']).trim(),
+    updatedAt: readString(value['updatedAt']).trim(),
+    note: readString(value['note']).trim() || undefined,
+  };
+}
+
+function normalizeShopModerationItem(value: unknown): ShopModerationItem | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    author: readString(value['author']).trim() || 'Comprador',
+    productTitle: readString(value['productTitle']).trim() || 'Producto',
+    rating: Math.min(5, Math.max(0, Math.trunc(readNumber(value['rating'])))),
+    body: readString(value['body']).trim(),
+    createdAt: readString(value['createdAt']).trim(),
+    // `reported` sólo si el servidor lo dice: por defecto es una pendiente, que
+    // es la lectura conservadora (misma regla que la cola de Educación, #31).
+    reason: readString(value['reason']).trim() === 'reported' ? 'reported' : 'pending',
+    reportCount: Math.max(0, Math.trunc(readNumber(value['reportCount']))),
+  };
+}
+
+function normalizeSellerOrder(value: unknown): SellerOrder | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const orderRef = readString(value['orderRef']).trim() || readString(value['orderNumber']).trim();
+  if (!orderRef) {
+    return null;
+  }
+  return {
+    orderRef,
+    orderNumber: readString(value['orderNumber']).trim() || orderRef,
+    buyer: readString(value['buyer']).trim() || readString(value['customerName']).trim() || 'Comprador',
+    date: readString(value['date']).trim(),
+    status: readOrderStatus(value['status']),
+    totalFormatted: readString(value['totalFormatted']).trim(),
+    itemCount: Math.max(0, Math.trunc(readNumber(value['itemCount']))),
+  };
+}
+
+function normalizeSellerDesk(value: unknown): SellerDeskResult | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawOrders = Array.isArray(value['orders']) ? value['orders'] : [];
+  const rawReturns = Array.isArray(value['returns']) ? value['returns'] : [];
+  const rawModeration = Array.isArray(value['moderation']) ? value['moderation'] : [];
+  if (rawOrders.length === 0 && rawReturns.length === 0 && rawModeration.length === 0) {
+    return null;
+  }
+  const orders = rawOrders
+    .map((entry) => normalizeSellerOrder(entry))
+    .filter((entry): entry is SellerOrder => entry !== null);
+  return {
+    orders,
+    returns: rawReturns
+      .map((entry) => normalizeReturnCase(entry))
+      .filter((entry): entry is ReturnCase => entry !== null),
+    moderation: rawModeration
+      .map((entry) => normalizeShopModerationItem(entry))
+      .filter((entry): entry is ShopModerationItem => entry !== null),
+    salesFormatted: readString(value['salesFormatted']).trim(),
+    pendingShipments:
+      Math.max(0, Math.trunc(readNumber(value['pendingShipments']))) ||
+      orders.filter((order) => order.status === 'paid' || order.status === 'preparing').length,
+  };
+}
+
+/** El texto que el borde manda en `{ error }`. Se enseña tal cual: lo escribió él. */
+async function readErrorDetail(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.json();
+    return isRecord(body) ? readString(body['error']).trim() || undefined : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function normalizeThreads(value: unknown): readonly MessageThread[] | null {
@@ -1082,37 +1486,88 @@ function mockDetail(id: string, currency: string): ProductDetail {
   };
 }
 
+/**
+ * Pedidos de ejemplo.
+ *
+ * **Los dos van en `paid`, que es lo ÚNICO que un pedido comprado puede valer.**
+ * Traían `delivered` y `shipped` —estados que el enum del CMS no tiene: sólo
+ * `Pending`, `Paid` y `Cancelled`—, y eso fue lo que escondió el #33: el gate de
+ * la devolución pedía justo esos dos, así que en producción el botón no aparecía
+ * nunca y acá sí. Un dato de ejemplo que no puede existir en producción hace
+ * verde un camino que en producción está cortado.
+ *
+ * En qué fase va cada uno lo dice el SEGUIMIENTO, que es donde el dominio lo
+ * guarda (`StubOrderTrackingService.ShopPipeline`).
+ */
 function mockOrders(currency: string): readonly ShopOrder[] {
   return [
     {
       orderNumber: 'ORD-2026-00481',
       date: '2026-06-10',
-      status: 'delivered',
+      status: 'paid',
       total: 1_888_000,
       currency,
-      items: [{ title: 'Audífonos Sony WH-1000XM5', qty: 1, amount: 1_499_000 }],
+      // El ejemplo también trae el veredicto, porque lo trae el servidor (#34).
+      items: [
+        {
+          title: 'Audífonos Sony WH-1000XM5',
+          qty: 1,
+          amount: 1_499_000,
+          productId: 'SONY-XM5',
+          canReturn: true,
+        },
+      ],
     },
     {
       orderNumber: 'ORD-2026-00512',
       date: '2026-06-22',
-      status: 'shipped',
+      status: 'paid',
       total: 389_000,
       currency,
-      items: [{ title: 'Mouse Logitech MX Master 3S', qty: 1, amount: 389_000 }],
+      // Éste también sale con permiso del servidor: la única condición que el
+      // dominio impone es que la orden esté pagada, y lo está. Que todavía vaya
+      // en camino lo sabe el SEGUIMIENTO, y ése es el refinamiento de la UI
+      // (#33) — no un motivo del servidor.
+      items: [
+        {
+          title: 'Mouse Logitech MX Master 3S',
+          qty: 1,
+          amount: 389_000,
+          productId: 'LOGI-MX3S',
+          canReturn: true,
+        },
+      ],
     },
   ];
 }
 
+/**
+ * Hasta dónde llegó cada pedido de ejemplo.
+ *
+ * Vive acá y no en `status` a propósito (#33): uno entregado y otro en camino es
+ * lo que hace útil el ejemplo, y los dos son `paid` porque es lo que el servidor
+ * emite. Un pedido que no esté acá arranca en «pago confirmado».
+ */
+const MOCK_TRACKING_STAGE: Readonly<Record<string, string>> = {
+  'ORD-2026-00481': 'delivered',
+  'ORD-2026-00512': 'shipped',
+};
+
 function mockTracking(orderRef: string, status: string): OrderTracking {
-  // Derive a coherent timeline from the coarse order status.
+  // Los ids son los del pipeline de la Tienda en el CMS
+  // (`StubOrderTrackingService.ShopPipeline`), no una invención de este mock.
   const order: readonly { id: string; label: string; date?: string }[] = [
     { id: 'paid', label: 'Pago aprobado', date: '2026-06-22' },
     { id: 'preparing', label: 'Preparando el paquete', date: '2026-06-23' },
     { id: 'shipped', label: 'En camino', date: '2026-06-24' },
     { id: 'delivered', label: 'Entregado' },
   ];
+  // La fase sale del PEDIDO, no de su estado: un pedido comprado siempre vale
+  // `paid`, y derivar la fase de ahí dejaría a todos en «pago confirmado» (#33).
+  // Un pedido sin pagar o cancelado no avanza, pase lo que pase en el mapa.
+  const etapa = status === 'paid' ? (MOCK_TRACKING_STAGE[orderRef] ?? 'paid') : 'paid';
   const reached =
-    status === 'delivered' ? 4 : status === 'shipped' ? 3 : status === 'preparing' ? 2 : 1;
+    etapa === 'delivered' ? 4 : etapa === 'shipped' ? 3 : etapa === 'preparing' ? 2 : 1;
   return {
     orderRef,
     carrier: 'Envíos Synergos',
@@ -1120,6 +1575,60 @@ function mockTracking(orderRef: string, status: string): OrderTracking {
       ...stage,
       state: index < reached - 1 ? 'done' : index === reached - 1 ? 'current' : 'pending',
     })),
+  };
+}
+
+/**
+ * El escritorio de ejemplo del vendedor.
+ *
+ * **Va DESORDENADO a propósito** —una devolución vieja antes que una nueva, y la
+ * opinión pendiente antes que las reportadas—: si llegara ya ordenado, quitar el
+ * orden de la consola pasaría en verde y el spec no vigilaría nada. Es la regla 7
+ * de `CLAUDE.md`, aprendida en la #31 con esta misma cola.
+ */
+function mockSellerDesk(): SellerDeskResult {
+  return {
+    orders: [
+      { orderRef: 'ord_9f21', orderNumber: 'SYN-10241', buyer: 'María González', date: '2026-09-10', status: 'paid', totalFormatted: '$248.000', itemCount: 2 },
+      { orderRef: 'ord_9f22', orderNumber: 'SYN-10242', buyer: 'Julián Pérez', date: '2026-09-09', status: 'preparing', totalFormatted: '$96.000', itemCount: 1 },
+      { orderRef: 'ord_9f18', orderNumber: 'SYN-10238', buyer: 'Camila Rodríguez', date: '2026-09-05', status: 'delivered', totalFormatted: '$412.000', itemCount: 3 },
+    ],
+    returns: [
+      {
+        claimId: 'rma_a1',
+        orderRef: 'ord_9f18',
+        lineRef: 'SKU-114',
+        productName: 'Audífonos inalámbricos',
+        quantity: 1,
+        refundAmountFormatted: '$180.000',
+        reason: 'changed-mind',
+        status: 'en-revision',
+        requestedAt: '2026-09-07',
+        updatedAt: '2026-09-08',
+      },
+      {
+        claimId: 'rma_a2',
+        orderRef: 'ord_9f21',
+        lineRef: 'SKU-220',
+        productName: 'Cafetera de goteo',
+        quantity: 1,
+        refundAmountFormatted: '$124.000',
+        reason: 'damaged',
+        status: 'abierto',
+        requestedAt: '2026-09-11',
+        updatedAt: '2026-09-11',
+      },
+    ],
+    moderation: [
+      { id: 'SMOD-2', author: 'Julián Pérez', productTitle: 'Cafetera de goteo', rating: 4, body: 'Buena, aunque el filtro se ensucia rápido.', createdAt: '2026-09-09', reason: 'pending', reportCount: 0 },
+      // Reportada SIN conteo: el normalizador deja 0 cuando el servidor no lo
+      // manda, y aun así tiene que ir por delante de la pendiente. Sin esta fila,
+      // ordenar sólo por conteo daría el mismo resultado que ordenar bien.
+      { id: 'SMOD-3', author: 'Sofía Marín', productTitle: 'Audífonos inalámbricos', rating: 2, body: 'La descripción decía cancelación activa y no la tiene.', createdAt: '2026-09-10', reason: 'reported', reportCount: 0 },
+      { id: 'SMOD-1', author: 'Andrés Gómez', productTitle: 'Audífonos inalámbricos', rating: 1, body: 'No compren acá, escríbanme y se los vendo más barato.', createdAt: '2026-09-11', reason: 'reported', reportCount: 4 },
+    ],
+    salesFormatted: '$756.000',
+    pendingShipments: 2,
   };
 }
 
@@ -1142,4 +1651,27 @@ function mockThreads(): readonly MessageThread[] {
       unread: false,
     },
   ];
+}
+
+/** El cupón que devuelve el servidor. Sin descuento utilizable, no hay cupón. */
+function normalizePromo(value: unknown, fallbackCode: string): ShopPromo | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const source = isRecord(value['promo']) ? (value['promo'] as Record<string, unknown>) : value;
+  const raw = readNumber(source['amountMinor'] ?? source['discountMinor']);
+  if (!Number.isFinite(raw) || raw === 0) {
+    return null;
+  }
+  // Se fuerza el signo: un backend que mande el descuento en positivo SUMARÍA al
+  // total, y el error se vería como un cargo sorpresa.
+  const amountMinor = -Math.abs(Math.round(raw));
+  const code = readString(source['code']).trim().toUpperCase() || fallbackCode.toUpperCase();
+  const detail = readString(source['detail']).trim();
+  return {
+    code,
+    amountMinor,
+    label: readString(source['label']).trim() || `Cupón ${code}`,
+    ...(detail ? { detail } : {}),
+  };
 }

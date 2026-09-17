@@ -311,35 +311,30 @@
     }
 
     <!-- ─── CART: ítems + fees + total ────────────────────────────────────── -->
+    <!-- ─── CARRITO: SH-12 syn-cart-shell (#22) ──────────────────────────── -->
     @if (view() === 'cart') {
-      <div class="eventos__cart">
-        <h1 class="eventos__heading">Tu carrito</h1>
-        @if (!hasCart()) {
-          <p class="eventos__empty">Tu carrito está vacío.</p>
-          <button type="button" class="eventos__btn eventos__btn--ghost" (click)="goToCatalog()">Explorar eventos</button>
-        } @else {
-          <ul class="eventos__cart-lines">
-            @for (item of cartItems(); track item.id) {
-              <li class="eventos__cart-line">
-                <div class="eventos__cart-line-main">
-                  <p class="eventos__cart-line-name">{{ item.label }}</p>
-                  <p class="eventos__cart-line-qty">{{ item.quantity }} {{ item.quantity === 1 ? 'entrada' : 'entradas' }}</p>
-                </div>
-                <p class="eventos__cart-line-total">{{ formatPrice(item.amount * item.quantity / 100, currency()) }}</p>
-              </li>
-            }
-          </ul>
-          <dl class="eventos__cart-summary">
-            <div class="eventos__cart-row"><dt>Subtotal</dt><dd>{{ cartSubtotalLabel() }}</dd></div>
-            <div class="eventos__cart-row"><dt>Cargos por servicio ({{ feePercent() }}%)</dt><dd>{{ feesLabel() }}</dd></div>
-            <div class="eventos__cart-row eventos__cart-row--total"><dt>Total</dt><dd>{{ cartTotalLabel() }}</dd></div>
-          </dl>
-          <div class="eventos__actions">
-            <button type="button" class="eventos__btn eventos__btn--ghost" (click)="backToEvent()">Volver</button>
-            <button type="button" class="eventos__btn eventos__btn--primary" (click)="goToCheckout()">Continuar al pago</button>
-          </div>
-        }
-      </div>
+      <syn-cart-shell
+        [config]="cartConfig()"
+        [lines]="cartLines()"
+        [summary]="cartSummary()"
+        [actions]="cartActions()"
+        [holdExpiresAt]="cartHoldExpiresAt()"
+        [footerTemplate]="promoSlot"
+        (action)="onCartAction($event)"
+        (holdexpired)="onCartHoldExpired()"
+      />
+
+      <!-- El cupón, dentro del panel y sobre el total (#29). -->
+      <ng-template #promoSlot>
+        <syn-promo-code
+          [applied]="appliedPromo()"
+          [busy]="promoBusy()"
+          [rejection]="promoRejection()"
+          [rejectionDetail]="promoDetail()"
+          (apply)="applyPromo($event)"
+          (remove)="removePromo()"
+        />
+      </ng-template>
     }
 
     <!-- ─── CHECKOUT: SH-3 checkout-wizard sobre el engine ────────────────── -->
@@ -422,10 +417,9 @@
 
     <!-- ─── CONFIRMED: order + e-ticket QR por asistente ──────────────────── -->
     @if (view() === 'confirmed') {
-      <div class="eventos__confirmation">
-        <p class="eventos__confirm-badge">¡Compra confirmada!</p>
-        <p class="eventos__confirm-code">Orden {{ orderRef() }}</p>
-        <p class="eventos__confirm-order">Tus e-tickets están en "Mis tickets". Preséntalos en la entrada.</p>
+      <!-- SH-11 (#19). Las entradas con su QR son el ARTEFACTO del dominio y
+           entran por template: la pieza les hace sitio y no sabe qué son. -->
+      <ng-template #entradas>
         @if (tickets().length > 0) {
           <ul class="eventos__tickets">
             @for (ticket of tickets(); track ticket.id) {
@@ -442,12 +436,15 @@
             }
           </ul>
         }
-        <div class="eventos__actions">
-          <button type="button" class="eventos__btn eventos__btn--ghost" (click)="printTickets()">Imprimir</button>
-          <button type="button" class="eventos__btn eventos__btn--ghost" (click)="goToWallet()">Ver mis tickets</button>
-          <button type="button" class="eventos__btn eventos__btn--primary" (click)="startOver()">Explorar más eventos</button>
-        </div>
-      </div>
+      </ng-template>
+      <syn-confirmation-shell
+        [config]="confirmationConfig()"
+        [reference]="orderRef()"
+        [steps]="confirmationSteps"
+        [actions]="confirmationActions"
+        [artifactTemplate]="tickets().length > 0 ? entradas : null"
+        (action)="onConfirmationAction($event)"
+      />
     }
 
     <!-- ─── WALLET: SH-10 credential-wallet (e-ticket QR + transferir) ─────── -->

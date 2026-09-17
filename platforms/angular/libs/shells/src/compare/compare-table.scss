@@ -1,0 +1,261 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --scp-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --scp-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --scp-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --scp-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --scp-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --scp-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --scp-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --scp-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --scp-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --scp-diff-soft: var(--syn-color-state-info-soft, #{syn.$color-brand-100});
+  --scp-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+
+  display: block;
+  max-width: 100%;
+  color: var(--scp-text);
+}
+
+.syn-compare {
+  display: flex;
+  flex-direction: column;
+  gap: syn.$space-md;
+}
+
+.syn-compare__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: syn.$space-sm;
+}
+
+.syn-compare__heading {
+  margin: 0;
+  font-size: syn.$font-size-lg;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-compare__count {
+  margin-inline-start: syn.$space-xs;
+  color: var(--scp-muted);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-regular;
+}
+
+.syn-compare__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-md;
+}
+
+.syn-compare__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: syn.$space-xs;
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+}
+
+.syn-compare__filter-input {
+  accent-color: var(--scp-brand);
+}
+
+.syn-compare__filter-count {
+  color: var(--scp-muted);
+}
+
+.syn-compare__clear {
+  @include syn.focus-visible;
+
+  border: syn.px-to-rem(1) solid var(--scp-border);
+  border-radius: syn.$radius-md;
+  padding: syn.$space-xxs syn.$space-sm;
+  background: transparent;
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--scp-text);
+  }
+}
+
+// El scroll horizontal es de ESTE contenedor y no de la página: una tabla de
+// cuatro columnas no cabe en un móvil, y dejar que desborde el body rompe el
+// resto del layout.
+.syn-compare__scroll {
+  overflow-x: auto;
+  max-width: 100%;
+  border: syn.px-to-rem(1) solid var(--scp-border);
+  border-radius: syn.$radius-lg;
+  background: var(--scp-surface);
+}
+
+.syn-compare__table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: syn.px-to-rem(560);
+}
+
+.syn-compare__caption {
+  @include syn.visually-hidden;
+}
+
+.syn-compare__corner,
+.syn-compare__attr {
+  // La columna del eje se queda pegada al borde: con scroll horizontal, una fila
+  // cuyo atributo se fue de pantalla son cuatro valores sin pregunta.
+  position: sticky;
+  inline-size: syn.px-to-rem(160);
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--scp-surface-muted);
+}
+
+.syn-compare__corner {
+  border-end-end-radius: 0;
+}
+
+.syn-compare__col {
+  min-inline-size: syn.px-to-rem(150);
+  border-inline-start: syn.px-to-rem(1) solid var(--scp-border-subtle);
+  padding: syn.$space-sm;
+  text-align: start;
+  vertical-align: top;
+}
+
+.syn-compare__thumb {
+  display: block;
+  inline-size: 100%;
+  block-size: syn.px-to-rem(84);
+  border-radius: syn.$radius-md;
+  margin-block-end: syn.$space-xs;
+  object-fit: cover;
+}
+
+.syn-compare__headline {
+  margin: 0;
+  color: var(--scp-text);
+  font-size: syn.$font-size-base;
+  font-weight: syn.$font-weight-semibold;
+}
+
+.syn-compare__title {
+  margin: 0;
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+}
+
+.syn-compare__open {
+  @include syn.focus-visible;
+
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.syn-compare__subtitle {
+  margin: syn.$space-xxs 0 0;
+  color: var(--scp-muted);
+  font-size: syn.$font-size-xs;
+}
+
+.syn-compare__remove {
+  @include syn.focus-visible;
+
+  margin-block-start: syn.$space-xs;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-xs;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.syn-compare__group {
+  position: sticky;
+  inset-inline-start: 0;
+  padding: syn.$space-xs syn.$space-sm;
+  background: var(--scp-surface-muted);
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  letter-spacing: 0.04em;
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.syn-compare__row {
+  border-block-start: syn.px-to-rem(1) solid var(--scp-border-subtle);
+}
+
+.syn-compare__attr {
+  padding: syn.$space-sm;
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-sm;
+  font-weight: syn.$font-weight-medium;
+  text-align: start;
+  vertical-align: top;
+}
+
+.syn-compare__attr-label {
+  display: block;
+}
+
+.syn-compare__hint {
+  display: block;
+  margin-block-start: syn.px-to-rem(2);
+  color: var(--scp-muted);
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-regular;
+}
+
+.syn-compare__cell {
+  border-inline-start: syn.px-to-rem(1) solid var(--scp-border-subtle);
+  padding: syn.$space-sm;
+  font-size: syn.$font-size-sm;
+  vertical-align: top;
+}
+
+.syn-compare__cell.is-missing {
+  color: var(--scp-muted);
+}
+
+// La fila que difiere se marca con un fondo suave Y con la barra de inicio: el
+// color solo no sirve a quien no lo distingue (WCAG 1.4.1).
+.syn-compare__row.is-diff {
+  background: var(--scp-diff-soft);
+}
+
+.syn-compare__row.is-diff .syn-compare__attr {
+  box-shadow: inset #{syn.px-to-rem(3)} 0 0 var(--scp-brand);
+}
+
+.syn-compare__notice {
+  margin: 0;
+  border-radius: syn.$radius-md;
+  padding: syn.$space-sm syn.$space-md;
+  background: var(--scp-surface-muted);
+  color: var(--scp-text-secondary);
+  font-size: syn.$font-size-sm;
+}
+
+.syn-compare__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: syn.$space-sm;
+}

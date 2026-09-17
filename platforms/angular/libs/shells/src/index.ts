@@ -15,6 +15,56 @@
 //  - SH-8 `syn-results-map`      — geo tiles + clustering + viewport sync
 //  - SH-9 `syn-dynamic-form`     — schema-driven task-list + multi-step + check-answers + error summary
 //  - SH-10 `syn-credential-wallet` — signed QR credential + public verify + transfer
+//  - SH-11 `syn-confirmation-shell` — el acuse: referencia, qué sigue, artefacto del dominio
+//  - SH-12 `syn-cart-shell`       — el carrito: líneas, grupos, resumen y el reloj del apartado
+//  - SH-13 `syn-review-panel`    — prueba social: resumen, lista, captura verificada y reporte
+//  - SH-14 `syn-compare-table`   — comparar: eje por atributo, techo de selección y qué difiere
+
+// ─── SH-14 Comparar ──────────────────────────────────────────────────────────
+export {
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareRow,
+  type CompareTableConfig,
+} from './compare/compare-table';
+
+// ─── SH-13 Reseñas ───────────────────────────────────────────────────────────
+export {
+  ReviewPanelComponent,
+  type ReviewBlockedReason,
+  type ReviewCriterion,
+  type ReviewCriterionPrompt,
+  type ReviewDistributionBar,
+  type ReviewDraft,
+  type ReviewEntry,
+  type ReviewOutcome,
+  type ReviewPanelConfig,
+  type ReviewSummary,
+} from './reviews/review-panel';
+
+// ─── SH-12 Carrito ───────────────────────────────────────────────────────────
+export {
+  CartShellComponent,
+  type CartAction,
+  type CartGroup,
+  type CartLine,
+  type CartNote,
+  type CartQuantityChange,
+  type CartShellConfig,
+  type CartSummaryRow,
+} from './cart/cart-shell';
+
+// ─── SH-11 Confirmación ──────────────────────────────────────────────────────
+export {
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationFact,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
+} from './confirmation/confirmation-shell';
 
 // ─── SH-1 Discovery ──────────────────────────────────────────────────────────
 export {
@@ -69,6 +119,7 @@ export {
   type ConsoleRowAction,
   type ConsoleRowActionEvent,
   type ConsoleSection,
+  type ConsoleSort,
   type ConsoleSectionContext,
   type ConsoleShellConfig,
 } from './console/console-shell';

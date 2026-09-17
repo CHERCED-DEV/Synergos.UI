@@ -187,6 +187,39 @@
     padding: syn.$space-1 0;
   }
 
+  // SH-14 (#30). Sólido y con su tinta: `state-brand-surface` es un lavado y el
+  // rótulo desaparecería en cinco de los siete temas (#25).
+  &__cmp {
+    border: syn.px-to-rem(1) solid var(--ts-border);
+    border-radius: syn.$radius-full;
+    padding: syn.$space-1 syn.$space-2;
+    background: var(--ts-surface);
+    color: var(--ts-muted);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__compare {
+    display: block;
+    margin-block-start: syn.$space-6;
+  }
+
+  &__compare-msg {
+    margin: syn.$space-2 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-2 syn.$space-3;
+    background: var(--ts-surface-muted);
+    color: var(--ts-muted);
+    font-size: syn.$font-size-sm;
+  }
+
   &__empty {
     margin: syn.$space-4 0;
     padding: syn.$space-4;
@@ -220,11 +253,6 @@
     &--block { display: block; width: 100%; }
   }
 
-  &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-3;
-  }
 
   // ─── Home: hero + tabs + search ───────────────────────────────────────────
   &__home {
@@ -337,8 +365,7 @@
 
     &:focus-visible { outline: syn.px-to-rem(2) solid var(--ts-focus-ring); outline-offset: syn.px-to-rem(1); }
   }
-
-  &__pax, &__daterange { display: block; }
+  &__pax { display: block; }
 
   &__search-btn { align-self: flex-end; min-height: syn.px-to-rem(42); }
 
@@ -356,7 +383,7 @@
     gap: syn.$space-3;
   }
 
-  &__flight-list, &__cart-lines, &__drawer-items, &__fares, &__rates, &__amenities {
+  &__flight-list, &__fares, &__rates, &__amenities {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -620,68 +647,14 @@
   }
 
   // ─── Cart ─────────────────────────────────────────────────────────────────
-  &__cart-page { display: flex; flex-direction: column; gap: syn.$space-md; }
 
-  &__cart-lines { display: flex; flex-direction: column; gap: syn.$space-2; }
 
-  &__cart-line, &__drawer-item {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-3;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--ts-border-subtle);
-    border-radius: syn.$radius-md;
-    background: var(--ts-surface);
-  }
 
   &__cart-icon { display: inline-flex; align-items: center; color: var(--ts-brand); flex: 0 0 auto; }
-  &__cart-main { display: flex; flex-direction: column; gap: syn.px-to-rem(2); flex: 1 1 auto; min-width: 0; }
-  &__cart-name { font-weight: 600; }
-  &__cart-sub { font-size: syn.$font-size-sm; color: var(--ts-text-secondary); }
-  &__cart-price { font-weight: 700; white-space: nowrap; }
 
-  &__cart-remove {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--ts-muted);
-    padding: syn.$space-1;
-    flex: 0 0 auto;
 
-    &:hover { color: var(--ts-danger); }
-  }
 
-  &__crosssell {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-3;
-    padding: syn.$space-3 syn.$space-4;
-    border-radius: syn.$radius-md;
-    background: var(--ts-brand-soft);
-    color: var(--ts-text);
-    font-size: syn.$font-size-sm;
-  }
 
-  &__cart-foot {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding-top: syn.$space-3;
-    border-top: syn.px-to-rem(1) solid var(--ts-border);
-  }
-
-  &__cart-total {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
 
   // ─── Checkout / review ────────────────────────────────────────────────────
   &__form {
@@ -722,27 +695,6 @@
   }
 
   &__ship-to { margin: 0; color: var(--ts-text-secondary); font-size: syn.$font-size-sm; }
-
-  // ─── Confirmation ─────────────────────────────────────────────────────────
-  &__confirmation {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    align-items: stretch;
-    text-align: center;
-  }
-
-  &__confirm-badge {
-    margin: 0 auto;
-    padding: syn.$space-2 syn.$space-4;
-    border-radius: syn.$radius-full;
-    background: var(--ts-success-soft);
-    color: var(--ts-text);
-    font-weight: 700;
-  }
-
-  &__confirm-code { margin: 0; font-size: syn.$font-size-2xl; font-weight: syn.$font-weight-bold; letter-spacing: 0.03em; }
-  &__confirm-order { margin: 0; color: var(--ts-text-secondary); }
 
   // ─── Account: trips ───────────────────────────────────────────────────────
   &__trip-head {
@@ -793,28 +745,8 @@
     box-shadow: var(--ts-shadow-pop);
   }
 
-  &__drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: syn.$space-3;
-  }
 
-  &__drawer-title { margin: 0; font-size: syn.$font-size-base; font-weight: 700; }
-  &__drawer-items { display: flex; flex-direction: column; gap: syn.$space-2; }
 
-  &__cart-close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--ts-muted);
-    padding: syn.$space-1;
-
-    &:hover { color: var(--ts-text); }
-  }
 
   // ─── Stay skeleton ────────────────────────────────────────────────────────
   // Mirrors syn-detail-shell's `__top` grid (gallery / info / sticky CTA) and
@@ -968,4 +900,61 @@
   .travel__bone {
     animation: none;
   }
+}
+
+/* ── Autos: tarjeta de resultado dentro de SH-1 (#27) ─────────────────────────
+   SH-1 trae la rejilla, el orden y las facetas; acá va sólo la tarjeta. */
+.travel__car-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: syn.$space-3;
+  padding: syn.$space-3;
+  border: syn.px-to-rem(1) solid var(--ts-border);
+  border-radius: syn.$radius-lg;
+  background: var(--ts-surface);
+}
+
+.travel__car-icon {
+  flex: 0 0 auto;
+  color: var(--ts-brand);
+}
+
+.travel__car-body {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.travel__car-title {
+  margin: 0;
+  font-size: syn.$font-size-base;
+  font-weight: 700;
+}
+
+.travel__car-sub {
+  margin: syn.px-to-rem(2) 0 0;
+  font-size: syn.$font-size-sm;
+  color: var(--ts-text-secondary);
+}
+
+.travel__car-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: syn.$space-2;
+}
+
+.travel__car-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+/* ── Opiniones de la estadía: SH-13 (#28) ─────────────────────────────────────
+   La pieza trae su maquetación; acá sólo el aire que la separa de la dirección. */
+.travel__stay-reviews {
+  margin-block-start: syn.$space-5;
+  padding-block-start: syn.$space-4;
+  border-block-start: syn.px-to-rem(1) solid var(--ts-border);
 }

@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  descubrirFuentes, revisarFuentesDuplicadas, todasLasFuentes, PLATAFORMAS,
+} from './lib/element-sources.mjs';
+import { revisarContratoDePlataformas } from './lib/platform-contract.mjs';
+import { frameworksConstruibles } from './lib/frameworks.mjs';
+import { ALL_FRAMEWORKS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
@@ -113,7 +120,7 @@ function printSection(title, issues, formatter) {
 }
 
 /**
- * Los elementos implementados, leídos del FILESYSTEM de platforms/angular.
+ * Los elementos implementados, leídos del FILESYSTEM de las plataformas.
  *
  * Antes esto escaneaba tags `element:<name>` en los project.json de Nx. Con la
  * purga, la fuente de verdad es la misma que usa el build (tools/build.mjs):
@@ -121,37 +128,105 @@ function printSection(title, issues, formatter) {
  * carpeta es su nombre en dist/. El check que protege sigue siendo el mismo —
  * una implementación cuyo nombre no está en el registry no se puede publicar
  * por ningún camino, y las dos rutas fallan en silencio.
+ *
+ * EL RECORRIDO YA NO ES PROPIO (issue #44). Era una copia del de
+ * `element-sources.mjs` con una diferencia de una palabra: escribía
+ * `framework: 'angular'` para todo lo que encontrara, así que con dos
+ * plataformas habría reportado los elementos de la segunda como si fueran de
+ * la primera. Dos recorridos del mismo árbol que pueden discrepar es la forma
+ * en que este repo ya perdió el tier (`TIER_BY_NAME`, issue #43).
  */
-function scanNxElementProjects() {
+function scanElementProjects() {
   const found = new Map();
-  const APPS = resolve(PLATFORMS_DIR, 'angular/apps');
 
-  function walk(dir) {
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const full = resolve(dir, entry.name);
-      try {
-        readFileSync(resolve(full, 'src/main.ts'));
-        found.set(entry.name, { project: entry.name, framework: 'angular', buildable: true });
-      } catch {
-        walk(full);
-      }
-    }
+  const io = {
+    listar: (dir) => {
+      const abs = resolve(ROOT, dir);
+      return existsSync(abs)
+        ? readdirSync(abs, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+        : [];
+    },
+    existe: (ruta) => existsSync(resolve(ROOT, ruta)),
+    plataformas: PLATAFORMAS,
+  };
+
+  // ANTES de colapsar por nombre (#59). `descubrirFuentes` devuelve un `Map`, así
+  // que dos plataformas con el mismo elemento dejaban UNA fuera sin decirlo — y
+  // lo que se ponía rojo era el cruce contra el registry, con un mensaje que
+  // culpaba a la entrada del registry. Acá se para antes, nombrando las dos.
+  // El contrato de una plataforma, ANTES que nada (#62). Si a `platforms/react/`
+  // le faltan piezas, lo que sale después son síntomas: «ninguna plataforma
+  // tiene su fuente» para cada entrada suya, que manda a mirar el registry. Las
+  // siete obligaciones nombradas una por una son la causa.
+  const listarDirs = (dir) => {
+    const abs = resolve(ROOT, dir);
+    return existsSync(abs)
+      ? readdirSync(abs, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+      : [];
+  };
+  const incumplen = revisarContratoDePlataformas({
+    raiz: ROOT,
+    // Del DISCO, no de PLATFORMS: lo que hay que auditar es la carpeta que
+    // alguien creó, y que le falte la entrada en PLATFORMS es justamente la
+    // obligación 2.
+    frameworks: frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join }),
+    declaradas: ALL_FRAMEWORKS,
+    existe: (r) => existsSync(resolve(ROOT, r)),
+    leerJson: (r) => JSON.parse(readFileSync(resolve(ROOT, r), 'utf8')),
+    leer: (r) => readFileSync(resolve(ROOT, r), 'utf8'),
+    // La obligación 8 (#62) recorre el código de la plataforma: el adaptador
+    // que implementa ElementProtocol, y que nadie registre por su cuenta.
+    fuentesDe: (dir) => {
+      const abs = resolve(ROOT, dir);
+      if (!existsSync(abs)) return [];
+      const salida = [];
+      const walk = (d) => {
+        for (const e of readdirSync(d, { withFileTypes: true })) {
+          const full = join(d, e.name);
+          if (e.isDirectory()) {
+            if (/^(node_modules|dist|\.cdn-out|\.test-out)$/.test(e.name)) continue;
+            walk(full);
+          } else if (/\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith('.spec.ts')) {
+            salida.push(full);
+          }
+        }
+      };
+      walk(abs);
+      return salida;
+    },
+    fuentes: (framework) =>
+      todasLasFuentes({
+        listar: (dir) => listarDirs(dir),
+        existe: (r) => existsSync(resolve(ROOT, r)),
+        plataformas: [{ framework, apps: `platforms/${framework}/apps` }],
+      }).length,
+    unir: join,
+  });
+  if (incumplen.length > 0) {
+    console.error('\n[element-audit] ✗ el contrato de plataforma no se cumple:');
+    for (const linea of incumplen) console.error(`[element-audit]   ${linea}`);
+    process.exit(1);
   }
 
-  walk(APPS);
+  const duplicadas = revisarFuentesDuplicadas(io);
+  if (duplicadas.length > 0) {
+    console.error('\n[element-audit] ✗ el mismo elemento tiene fuente en dos plataformas:');
+    for (const linea of duplicadas) console.error(`[element-audit]   ${linea}`);
+    process.exit(1);
+  }
+
+  const fuentes = descubrirFuentes(io);
+
+  for (const [nombre, { framework }] of fuentes) {
+    found.set(nombre, { project: nombre, framework, buildable: true });
+  }
+
   return found;
 }
 
 const registryEntries = readJson(REGISTRY_JSON);
 const inputsData = readJson(INPUTS_JSON);
-const nxElementProjects = scanNxElementProjects();
+const nxElementProjects = scanElementProjects();
 const blockMapperSource = readFileSync(BLOCK_MAPPER_TS, 'utf8');
 const modelFiles = readdirSync(MODELS_DIR)
   .filter((name) => name.endsWith('-inputs.model.ts'))

@@ -42,7 +42,7 @@ la siguiente petición lo sirve; si no lo tiene, da **404** en vez del de antes.
 ## Uso
 
 ```bash
-npm run dev:cdn                        # los 139 elementos
+npm run dev:cdn                        # las 127 fuentes
 npm run dev:cdn -- --solo=badge,hero   # sólo esos — arranca en ~6 s
 npm run dev:cdn -- --puerto 5000
 npm run dev:cdn -- --sin-livereload
@@ -57,8 +57,8 @@ se retiraron con el rework — existían porque antes había N procesos.)
 ### `--solo` manda sobre lo que hay en el disco
 
 `dist/` conserva lo de builds anteriores. Sin ese filtro, un `--solo=badge,hero`
-anunciaría los 139 en el `registry.json` y el CMS hidrataría 137 bundles de
-antigüedad desconocida.
+anunciaría las 132 entradas del `registry.json` y el CMS hidrataría las otras 130
+con bundles de antigüedad desconocida.
 
 > Código viejo con cara de nuevo es **peor que un 404**, porque un 404 se investiga.
 

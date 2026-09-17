@@ -39,6 +39,13 @@ export interface ShopSelectionPayload {
   readonly image: string;
   /** Marketplace seller — the cart groups lines per seller. */
   readonly seller?: string;
+  /**
+   * La base del borde con la que se seleccionó. **Viaja en la línea porque `confirm`
+   * no recibe instrumento** y tenía `/api/shop` cableada a mano: un elemento montado
+   * contra otra base compraba en la suya y confirmaba en la de por defecto —y el
+   * `catch` del cliente fabricaba el acuse, así que no fallaba a la vista— (CMS#116).
+   */
+  readonly apiBase?: string;
 }
 
 /** PSP instrument the storefront hands the strategy on `pay`. */
@@ -109,6 +116,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
         image: payload.image,
         seller: payload.seller ?? '',
         unitAmount: Math.round(payload.unitAmount * 100),
+        apiBase: payload.apiBase ?? '',
       },
       // Engine pricing is in minor units; payload carries major units.
       amount: Math.round(payload.unitAmount * 100),
@@ -137,7 +145,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
     const lines = this.toLines(session);
-    const confirmation = await this.#api.confirm('/api/shop', orderRef, lines);
+    const confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef, lines);
     const itemByProduct = new Map(session.items.map((item) => [item.productRef, item.id]));
     return {
       confirmed: confirmation.status.toLowerCase() === 'confirmed',
@@ -148,6 +156,13 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
         detail: { title: entry.title, qty: entry.qty, orderNumber: confirmation.orderNumber },
       })),
     };
+  }
+
+  /** Ver `EnrollSelectionPayload.apiBase`: sale de la LÍNEA, que sobrevive a una recarga. */
+  private apiBaseOf(session: SessionData): string {
+    const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
+    const base = selection?.['apiBase'];
+    return typeof base === 'string' && base.trim() ? base.trim() : '/api/shop';
   }
 
   private lineId(payload: ShopSelectionPayload): string {

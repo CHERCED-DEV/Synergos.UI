@@ -59,6 +59,7 @@ export type InstructorView =
   | 'courses' // mis cursos (tabla + KPIs)
   | 'students' // alumnos matriculados (tabla)
   | 'qa' // Q&A dashboard (cola de preguntas)
+  | 'moderation' // cola de opiniones: pendientes y reportadas (#31)
   | 'performance' // performance / ingresos (KPIs + reporte)
   | 'create'; // SH-6 authoring wizard: crear/editar curso
 
@@ -177,7 +178,98 @@ export interface CourseDetail {
   readonly sections: readonly AcademySection[];
   readonly plans: readonly AcademyPlan[];
   readonly instructor: AcademyInstructor;
+  /** Las opiniones de quienes ya cursaron (#28). Vacío = todavía no hay. */
+  readonly reviews: readonly CourseReview[];
+  /**
+   * El resumen YA calculado por el servidor: promedio, conteo, distribución y los
+   * criterios propios de un curso. No se calcula en el cliente porque con la lista
+   * paginada el promedio de lo que se ve no es el promedio real.
+   */
+  readonly reviewSummary: CourseReviewSummary | null;
+  /**
+   * Si ESTE estudiante puede opinar. Lo decide el SERVIDOR con el mismo gate que
+   * aplica el POST (matriculado en este curso). **No se deduce acá**: deducirlo
+   * sería adivinar y ofrecer un formulario que va a rebotar — el mismo criterio
+   * que `ProductDetail.canReview` de la Tienda.
+   */
+  readonly canReview: boolean;
 }
+
+/** Una opinión de un curso. */
+export interface CourseReview {
+  readonly id: string;
+  readonly author: string;
+  /** 1..5. */
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** Ya formateada por el servidor. */
+  readonly date: string;
+  /** Cursó de verdad. Lo afirma el servidor. */
+  readonly verified: boolean;
+  /** Respuesta del docente, si la hay. */
+  readonly reply?: string;
+}
+
+/** Un tramo de la distribución por estrella. */
+export interface CourseReviewBar {
+  readonly stars: number;
+  readonly count: number;
+}
+
+/** Un criterio propio de un curso, ya promediado. */
+export interface CourseReviewCriterion {
+  readonly id: string;
+  readonly label: string;
+  readonly score: number;
+}
+
+export interface CourseReviewSummary {
+  readonly average: number;
+  readonly count: number;
+  readonly distribution: readonly CourseReviewBar[];
+  /** Claridad, utilidad, ritmo… lo que este dominio califica además de la nota. */
+  readonly criteria: readonly CourseReviewCriterion[];
+}
+
+/** Lo que el estudiante escribe. El autor lo pone el servidor desde la sesión. */
+export interface CourseReviewSubmission {
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** `criterioId → 1..5`. */
+  readonly criteria: Readonly<Record<string, number>>;
+}
+
+/**
+ * Resultado del envío. Tipado y **sin degradar a mock**: fingir una escritura que
+ * no ocurrió es peor que el error (ADR 0112, y la regla 4 de `CLAUDE.md`). El
+ * endpoint todavía no existe, así que hoy esto devuelve `failed` — y eso es la
+ * verdad, no un placeholder.
+ */
+export type CourseReviewResult =
+  | {
+      readonly ok: true;
+      /**
+       * Quedó ENCOLADA para revisión del docente, no publicada (#31). Sale de un
+       * `202 Accepted`: `response.ok` es cierto para todo 2xx, así que sin este
+       * campo el acuse decía «ya está publicada» y recargaba una lista donde la
+       * reseña no está — el defecto #26 con la prueba en la misma pantalla.
+       */
+      readonly pending: boolean;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'not-student' | 'invalid' | 'failed';
+    };
+
+/** Resultado de reportar una reseña (#31). `already-reported` no es un fallo. */
+export type CourseReviewReportResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'already-reported' | 'not-found' | 'failed';
+    };
 
 // ─── Catalogue search ────────────────────────────────────────────────────────
 
@@ -187,6 +279,12 @@ export interface AcademyFacet {
   readonly key: string;
   readonly label: string;
   readonly values: readonly AcademyFacetValue[];
+  /**
+   * Cómo se comporta la faceta al filtrar, como en `DiscoveryFacet`. Las que viajan de a
+   * un valor al backend se declaran `SingleSelect` para que el shell pinte radios y no
+   * casillas (#18) — prometer multi-selección y mandar uno devolvía menos de lo pedido.
+   */
+  readonly kind?: string;
 }
 
 /** One selectable value within a facet group, with a result count. */
@@ -224,16 +322,23 @@ export interface AcademyStudent {
 
 /**
  * `POST /api/academy/enroll` response. A paid course opens one PSP session; a free
- * course short-circuits to `{ enrolled: true }` (modelled here as `free: true`).
+ * course short-circuits to `{ enrolled: true, enrollmentId }` (modelled here as
+ * `free: true`).
+ *
+ * **En la rama gratis `orderRef` va VACÍO y `enrollmentId` es obligatorio** — la
+ * matrícula ya está activa y nunca pasa por `POST /confirm` (CMS#117). Un `orderRef`
+ * inventado para esa rama sólo servía para pedirle al borde que confirmara una orden
+ * que no existe.
  */
 export interface EnrollResult {
+  /** Referencia de la orden a capturar. Vacía cuando `free` es `true`. */
   readonly orderRef: string;
   readonly paymentSessionId: string;
   readonly amount: number;
   readonly currency: string;
   /** `true` when the course was free → no payment, enrolment already active. */
   readonly free: boolean;
-  /** Set directly for free enrolments. */
+  /** El id que emitió el borde. Presente siempre que `free` sea `true`. */
   readonly enrollmentId?: string;
 }
 
@@ -293,11 +398,35 @@ export interface LearningPath {
   readonly percent: number;
 }
 
-/** `GET /api/academy/learning?student=` response — the student's dashboard. */
-export interface LearningResult {
-  readonly enrollments: readonly EnrolledCourse[];
-  readonly paths: readonly LearningPath[];
-}
+/**
+ * `GET /api/academy/learning` — el expediente del alumno.
+ *
+ * **Tres estados y no dos**, porque «no tienes cursos» y «no pudimos leerlos» no se
+ * pueden pintar igual, y el sitio donde vive esa diferencia es el TIPO (regla 15 del
+ * `CLAUDE.md`, escrita con el EHR y aplicada aquí a una colección).
+ *
+ * Con la forma anterior —dos listas y nada más— el estado vacío honesto era
+ * INALCANZABLE: el normalizador devolvía `null` para dos listas vacías y el cliente
+ * lo leía como fallo, así que el alumno recién llegado caía al mock y veía tres
+ * cursos que nunca compró con el cartel de «datos de ejemplo» encendido. El peor
+ * usuario posible para una mentira: el que estrena la pantalla.
+ *
+ * `anon` es su propio estado y no un error: el borde toma al alumno de la SESIÓN
+ * (cerró un IDOR haciéndolo, CMS#102) y contesta 401 al anónimo. Un invitado que ve
+ * cursos de ejemplo cree que tiene matrículas.
+ */
+export type LearningResult =
+  | {
+      readonly status: 'ok';
+      readonly enrollments: readonly EnrolledCourse[];
+      /**
+       * Sale SIEMPRE vacío y es deliberado del borde: una ruta es una colección
+       * curada que no existe en ningún seam. Vacío → la sección no se pinta.
+       */
+      readonly paths: readonly LearningPath[];
+    }
+  | { readonly status: 'anon' }
+  | { readonly status: 'unreadable' };
 
 // ─── Classroom Q&A (polymorphic with Blogs comments) ─────────────────────────
 
@@ -347,7 +476,15 @@ export interface Certificate {
 export interface InstructorCourse {
   readonly id: string;
   readonly title: string;
-  readonly status: CourseStatus;
+  /**
+   * `null` = **no consta**, y no es lo mismo que «publicado».
+   *
+   * El normalizador resolvía `'published'` cuando la clave faltaba, así que la
+   * omisión no degradaba: AFIRMABA. Un borrador se veía publicado en la consola de
+   * quien lo escribió —que es justo quien decide si ya puede promocionarlo—. Es la
+   * regla 15 sobre un enum en vez de sobre una lista.
+   */
+  readonly status: CourseStatus | null;
   readonly price: number;
   readonly currency: string;
   readonly studentCount: number;
@@ -365,7 +502,12 @@ export type CourseStatus = 'published' | 'draft' | 'review';
 export interface InstructorStudent {
   readonly id: string;
   readonly name: string;
-  readonly email: string;
+  /**
+   * **NO hay correo, y es una decisión del TIPO** (CMS#107). El borde dejó de
+   * emitirlo para que dejarlo fuera no fuera una convención que el próximo campo
+   * olvida; aquí se quita por lo mismo. Mientras estuvo, la celda «Alumno» pintaba
+   * una sub-línea vacía debajo de cada nombre.
+   */
   readonly courseId: string;
   readonly courseTitle: string;
   /** Percent complete (0–100). */
@@ -386,6 +528,45 @@ export interface InstructorQuestion {
 }
 
 /**
+ * Una opinión esperando decisión del docente (#31).
+ *
+ * **Es la otra mitad del bucle.** Reportar sin cola no sirve de nada: el reporte
+ * cae en un sitio que nadie mira. `Api.Moderation` guarda `Reporter` y `DecidedBy`
+ * precisamente porque el bucle tiene dos extremos.
+ */
+export interface ModerationItem {
+  readonly id: string;
+  /** Quién la escribió. */
+  readonly author: string;
+  readonly courseTitle: string;
+  readonly rating: number;
+  readonly body: string;
+  readonly createdAt: string;
+  /**
+   * Por qué está en la cola: `pending` = nunca se publicó; `reported` = está
+   * pública y alguien avisó. **No son lo mismo y no se atienden igual**: una
+   * reportada ya está haciendo daño, así que va primero.
+   */
+  readonly reason: 'pending' | 'reported';
+  /** Cuántas personas la reportaron. `0` en las pendientes. */
+  readonly reportCount: number;
+}
+
+/** Qué decidió el docente sobre una opinión en cola (#31). */
+export type ModerationDecision = 'approve' | 'reject';
+
+/**
+ * Resultado de decidir. Tipado y **sin degradar a mock**: dejar una opinión
+ * publicada creyendo que se rechazó es peor que el error (regla 4 de `CLAUDE.md`).
+ */
+export type ModerationDecisionResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'already-decided' | 'failed';
+    };
+
+/**
  * `GET /api/academy/instructor/courses?instructor=` response — the instructor's
  * operational view (cursos + alumnos + Q&A) for the SH-5 console.
  */
@@ -393,6 +574,8 @@ export interface InstructorDeskResult {
   readonly courses: readonly InstructorCourse[];
   readonly students: readonly InstructorStudent[];
   readonly questions: readonly InstructorQuestion[];
+  /** La cola de moderación (#31). Vacía = nada que decidir. */
+  readonly moderation: readonly ModerationItem[];
   /** Aggregate metrics for the performance KPIs. */
   readonly totalStudents: number;
   readonly totalRevenue: number;
@@ -411,8 +594,23 @@ export interface CreateCourseRequest {
   readonly modules: readonly string[];
 }
 
-/** `POST /api/academy/course` response — the created course's id + status. */
+/**
+ * `POST /api/academy/course` response — the created course's id + status.
+ *
+ * `persisted` es lo que distingue «el servidor lo creó» de «no se pudo». Una
+ * ESCRITURA no se degrada a mock (regla 4 de `CLAUDE.md`): quien llama tiene que
+ * poder decirle al instructor que su curso NO quedó publicado, en vez de pintarle
+ * un id inventado que no existe en ninguna parte.
+ */
 export interface CreateCourseResult {
   readonly id: string;
-  readonly status: CourseStatus;
+  /**
+   * `false` cuando el POST no llegó o el servidor no lo confirmó.
+   *
+   * **No hay `status` aquí**: `PublishCourseResponse` emite `{ courseId }` y nada
+   * más, así que el campo salía siempre de un valor por defecto —`'published'`— que
+   * nadie leía. Un campo que nadie lee y que afirma algo que el borde no dijo es la
+   * próxima mentira esperando a que alguien lo pinte.
+   */
+  readonly persisted: boolean;
 }

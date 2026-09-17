@@ -29,11 +29,13 @@ import { createHash } from 'node:crypto';
 
 import {
   ROOT, PLATFORMS, loadRegistry, loadInputs, readPackageVersion, resolveCdnRoot,
+  contratoDelManifiesto,
 } from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
-import { buildManifest, buildContracts } from './lib/manifest-builder.mjs';
+import { buildManifest, buildContracts, validateManifest } from './lib/manifest-builder.mjs';
 import { resolvePublishVersion } from './lib/cdn-registry.mjs';
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
+import { elegirPlataforma } from './lib/element-sources.mjs';
 
 // ── CLI args ─────────────────────────────────────────────────────────────────
 
@@ -68,6 +70,7 @@ function sha256(filePath) {
 
 let registry   = loadRegistry();
 const inputsData = loadInputs();
+const CONTRATO = contratoDelManifiesto();
 
 if (ELEMENT_FILTER) {
   const filtered = registry.filter((e) => e.name === ELEMENT_FILTER);
@@ -102,7 +105,17 @@ console.log('');
 // a mano contra un CDN existente, el aviso es la única red que hay.
 
 if (!DRY_RUN) {
-  const { estado, lineas } = revisarRuntime(CDN_SYNERGOS, existsSync);
+  const { estado, lineas } = revisarRuntime({
+    cdnSynergos: CDN_SYNERGOS,
+    existe: existsSync,
+    // Desde #61 la pregunta es por CADA framework que publicó elementos, así
+    // que hace falta recorrer en vez de preguntar por una ruta.
+    listarDirs: (d) =>
+      existsSync(d)
+        ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+        : [],
+    unir: join,
+  });
   if (estado !== RUNTIME_OK) {
     for (const linea of lineas) console.warn(`${LOG_PREFIX}   ⚠ ${linea}`);
     console.warn('');
@@ -118,7 +131,19 @@ const sharedImpl = [];
 for (const entry of registry) {
   let elementPublished = false;
 
-  for (const platform of PLATFORMS) {
+  // Desde el issue #42 el elemento DECLARA de qué plataforma es su bundle, y
+  // la decisión de a cuál mirar sale de ahí — ver `elegirPlataforma`, que vive
+  // en tools/lib para poder verse fallar.
+  const eleccion = elegirPlataforma(entry, PLATFORMS, existsSync);
+  if (eleccion.error) {
+    console.error(`\n❌ ${eleccion.error}`);
+    process.exit(1);
+  }
+
+  // Iterar era ya la forma de este bucle, sobre una lista de UNO. Desde #59
+  // `elegirPlataforma` devuelve las que hay: una en el caso normal, y las dos
+  // de un escaparate declarado.
+  for (const platform of eleccion.plataformas) {
     if (FRAMEWORK_FILTER && platform.name !== FRAMEWORK_FILTER) continue;
 
     // Varios tipos de elemento del CMS comparten UNA implementación: heading,
@@ -162,7 +187,16 @@ for (const entry of registry) {
         });
     const elementVersion = resolved.version;
 
-    const manifest = buildManifest(entry, platform.name, elementVersion, inputsData[entry.name] ?? []);
+    const manifest = buildManifest(entry, elementVersion, inputsData[entry.name] ?? []);
+
+    // Se valida ANTES de escribirlo: un manifiesto que no cumple el contrato
+    // publicado no se arregla después, se sirve. Ver manifest-builder.mjs.
+    const malManifiesto = validateManifest(manifest, CONTRATO);
+    if (malManifiesto.length > 0) {
+      console.error(`\n❌ ${entry.name} [${platform.name}] — manifiesto inválido:`);
+      for (const linea of malManifiesto) console.error(`   - ${linea}`);
+      process.exit(1);
+    }
 
     const meta = {
       element:   entry.name,

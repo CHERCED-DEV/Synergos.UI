@@ -295,6 +295,7 @@ export interface CountdownClockElementData extends BaseElementData {
 // ── Element Registry ─────────────────────────────────────────────────────────
 
 import registry from './element-registry.json';
+import type { ElementFramework } from './element-manifest.schema';
 
 export type ElementAlias = `${'element' | 'experience'}${string}`;
 export type ElementTag = `synergos-${string}`;
@@ -305,6 +306,17 @@ export interface ElementRegistryEntry {
   alias: ElementAlias;
   tag: ElementTag;
   tier: ElementRegistryTier;
+
+  /**
+   * Plataforma que produce el bundle publicado (issue #42).
+   *
+   * NO es opcional y NO tiene valor por defecto. Omitirlo no dejaba un hueco:
+   * afirmaba `angular` —porque `PLATFORMS` tiene hoy un solo miembro— sin que
+   * nadie lo hubiera decidido, mientras la CDN sí lo escribe en la ruta
+   * (`synergos/<element>/<framework>/latest/`). El tipo es el mismo que declara
+   * el manifiesto, a propósito: el registry es de donde el manifiesto lo saca.
+   */
+  framework: ElementFramework;
 }
 
 // ── Element Type Alias Registry (derived from element-registry.json) ────────

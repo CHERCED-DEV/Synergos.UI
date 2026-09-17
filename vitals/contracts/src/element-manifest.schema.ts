@@ -13,11 +13,34 @@
 /** Supported primitive input types for HTML attribute serialization */
 export type InputType = 'string' | 'boolean' | 'number' | 'json';
 
-/** Element tier within the design system hierarchy */
-export type ElementTier = 'primitive' | 'composition' | 'module';
+/**
+ * Element tier within the design system hierarchy.
+ *
+ * La LISTA es el valor y el tipo se deriva de ella, no al revés. Una unión de
+ * tipos no se puede recorrer en tiempo de ejecución, así que quien necesite los
+ * valores acaba escribiendo un array al lado — y ahí ya hay dos sitios que
+ * pueden discrepar sin que nada compile mal. Ver `ELEMENT_FRAMEWORKS`.
+ */
+export const ELEMENT_TIERS = ['primitive', 'composition', 'module'] as const;
+export type ElementTier = (typeof ELEMENT_TIERS)[number];
 
-/** Framework that produced the bundle */
-export type ElementFramework = 'angular' | 'react' | 'svelte' | 'vanilla';
+/**
+ * Los frameworks que pueden producir un bundle — la ÚNICA declaración.
+ *
+ * `FrameworkKind`, en `component-resolution.contract.ts`, es hoy un alias de
+ * `ElementFramework`, y `FRAMEWORK_KINDS` reexporta esta misma lista. Estaban
+ * escritas dos veces con los mismos cuatro valores y nada cruzaba las dos —
+ * añadir un framework en una y no en la otra compilaba. Desde el issue #42 el
+ * valor viaja del registry al manifiesto y de ahí al segmento de ruta del CDN,
+ * así que la duplicación dejó de ser fea para ser peligrosa.
+ *
+ * Y va como CONSTANTE con el tipo derivado, no como unión suelta: una unión no
+ * se puede recorrer, así que todo el que necesite los valores —el validador del
+ * registry, el del manifiesto, el type guard— tendría que escribirse su propia
+ * copia. `tools/lib/contract-schema.mjs` lee esta lista de este fichero.
+ */
+export const ELEMENT_FRAMEWORKS = ['angular', 'react', 'svelte', 'vanilla'] as const;
+export type ElementFramework = (typeof ELEMENT_FRAMEWORKS)[number];
 
 /**
  * Describes a single public input property of a Web Component.
@@ -60,13 +83,29 @@ export interface ElementManifest {
   /** CMS alias used by Umbraco content types (e.g. "elementCompHero") */
   alias: string;
 
-  /** Framework that produced this bundle */
+  /**
+   * Framework that produced this bundle.
+   *
+   * Sale de `ElementRegistryEntry.framework` (issue #42), no de en qué bucle se
+   * construyó. Antes lo elegía quien llamaba a `buildManifest`, y el registry
+   * —que es lo que lee el CMS— no lo declaraba en absoluto: los 132 elementos
+   * eran Angular implícito mientras la ruta del CDN lo escribía explícito.
+   */
   framework: ElementFramework;
 
   /** Full semver string of this bundle (e.g. "1.2.3") */
   version: string;
 
-  /** Design system tier */
+  /**
+   * Design system tier.
+   *
+   * OJO: `ElementRegistryTier` (elements.contract.ts) admite además
+   * `experience`, y esta unión no. Hoy ninguna entrada lo usa, así que la
+   * diferencia está latente; no se tapa añadiéndolo acá porque el presupuesto
+   * de tamaño tampoco tiene techo para ese tier y lo publicaría sin vigilancia.
+   * El día que alguien declare una `experience`, la validación del manifiesto
+   * se pone roja y lo nombra — que es lo que se quiere.
+   */
   tier: ElementTier;
 
   /** Entry point filename — always "main.js" for CDN bundles */

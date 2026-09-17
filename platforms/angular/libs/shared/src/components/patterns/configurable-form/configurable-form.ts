@@ -7,7 +7,7 @@ import {
   output,
 } from '@angular/core';
 import { classNames } from '../../../utils/class-names.util';
-import type { FieldError } from '../../../utils/form.util';
+import type { FieldError } from '@synergos/vitals-core/inputs';
 import { ButtonComponent } from '../../primitives/button/button';
 import { CheckboxComponent } from '../../primitives/checkbox/checkbox';
 import { HeadingComponent } from '../../primitives/heading/heading';

@@ -51,11 +51,13 @@ import {
   type ChartTab,
   type ClinicalAlert,
   type Doctor,
+  type EhrDataset,
   type EhrPortal,
   type EhrRole,
   type EhrView,
   type Encounter,
   type EvolutionSeries,
+  type HealthMaintenanceItem,
   type HealthSummary,
   type HealthTab,
   type HomeCard,
@@ -64,6 +66,7 @@ import {
   type KpiTile,
   type LabResult,
   type Medication,
+  type ClinicalMessage,
   type MessageThread,
   type Patient,
   type PatientChart,
@@ -95,8 +98,9 @@ import {
  *
  * 100% composable: no business is hardcoded; every knob comes from CMS props
  * (`apiBase`/`clinic`/`config` JSON, patrón createConfigInputTransform/
- * resolveConfigValue) and the data always comes from the API with visible mock
- * degradation. The shells stay domain-free (contrato D3) — the module only feeds
+ * resolveConfigValue) and the data always comes from the API — a read that fails shows
+ * a gap, never someone else's record (#106). The shells stay domain-free (contrato D3)
+ * — the module only feeds
  * data, templates and its `EhrFulfillmentStrategy` (cita/copago).
  */
 export interface EhrRuntimeConfig {
@@ -417,6 +421,8 @@ export class EhrElementComponent {
   // Patient chart (clinician)
   readonly chart = signal<PatientChart | null>(null);
   readonly chartTab = signal<ChartTab>('summary');
+  /** The id the last `loadChart` was asked for — kept so a failed open can retry. */
+  readonly chartRequestId = signal('');
 
   // Encounter (SOAP) draft
   readonly soapSubjective = signal('');
@@ -441,20 +447,47 @@ export class EhrElementComponent {
   // Encounter close → AVS
   readonly closedAvs = signal('');
 
-  // ─── Degradation flag (mock fallback surfaced to both portals) ───────────────
-  readonly degraded = computed(() => {
-    void this.homeLoaded();
-    void this.resultsLoaded();
-    void this.medsLoaded();
-    void this.healthLoaded();
-    void this.billingLoaded();
-    void this.threadsLoaded();
-    void this.boardLoaded();
-    void this.patientsLoaded();
-    void this.inboxLoaded();
-    void this.chart();
-    return this.#api.degraded;
-  });
+  // ─── Reads that FAILED (#106) ────────────────────────────────────────────────
+  /**
+   * Which reads could not be served. A failed clinical read no longer degrades to
+   * seeded data, so its signal stays pristine — and a pristine signal is
+   * indistinguishable from «the server answered, and there is nothing». The two have
+   * to look different on screen: «no pudimos leer tus alergias» is not «no tienes
+   * alergias», and saying the second when the first is true is the same defect with a
+   * politer face.
+   */
+  readonly #unavailable = signal<ReadonlySet<EhrDataset>>(new Set());
+
+  /** True when THIS dataset's last read failed. Read from templates by name. */
+  readFailed(dataset: EhrDataset): boolean {
+    return this.#unavailable().has(dataset);
+  }
+
+  /** Record the outcome of a read round for `dataset`. */
+  private markRead(dataset: EhrDataset, ok: boolean): void {
+    this.#unavailable.update((current) => {
+      if (current.has(dataset) === !ok) {
+        return current;
+      }
+      const next = new Set(current);
+      if (ok) {
+        next.delete(dataset);
+      } else {
+        next.add(dataset);
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Re-run the current view's load. The `*Loaded` flags stay `false` after a failure,
+   * so re-dispatching the route is enough — and the chart needs the id it was opened
+   * with, which the failed load remembered.
+   */
+  retryRead(): void {
+    this.errorMessage.set('');
+    this.applyRoute(this.view(), this.chart()?.patient.id ?? this.chartRequestId());
+  }
 
   // ─── Derived: results (grid + trend) ─────────────────────────────────────────
   readonly releasedResults = computed(() => this.results().filter((result) => result.released));
@@ -587,7 +620,12 @@ export class EhrElementComponent {
     kpisLabel: 'Indicadores del día',
     filtersLabel: 'Filtrar In Basket',
     actionsLabel: 'Acciones',
-    emptyMessage: 'No hay filas en esta sección.',
+    // «No hay filas» es una afirmación sobre el día del médico, y no se puede hacer
+    // cuando lo que pasó es que no se pudo leer (#106): una agenda vacía y una agenda
+    // ilegible se ven igual en una tabla.
+    emptyMessage: this.consoleSectionUnreadable()
+      ? 'No pudimos leer esta sección. La tabla está vacía porque la lectura falló, no porque no haya filas.'
+      : 'No hay filas en esta sección.',
     loadingMessage: 'Cargando…',
     sections: [
       { id: 'board', label: 'Agenda del día', kind: 'table', badge: this.board().length || undefined },
@@ -597,6 +635,14 @@ export class EhrElementComponent {
   }));
 
   readonly pendingInboxCount = computed(() => this.inbox().filter((item) => !item.done).length);
+
+  /** Whether the read behind the console section on screen failed. */
+  readonly consoleSectionUnreadable = computed(() => {
+    const section = this.consoleSection();
+    const dataset: EhrDataset =
+      section === 'patients' ? 'patients' : section === 'inbasket' ? 'inbox' : 'board';
+    return this.readFailed(dataset);
+  });
 
   readonly boardColumns: readonly ConsoleColumn[] = [
     { key: 'time', label: 'Hora' },
@@ -802,10 +848,10 @@ export class EhrElementComponent {
    * not the patient scope) is only reset when we're actually in the clinician portal.
    */
   private reloadForIdentity(): void {
-    // Fresh round for the new identity: clear the degradation latch so a stale
-    // first-tick default 404 does not keep the "datos de ejemplo" banner up once the
-    // real `config.patient` data lands (the flag re-latches only if THIS load degrades).
-    this.#api.resetDegraded();
+    // Fresh round for the new identity: a read that failed for the first-tick default
+    // (`P-1`) says nothing about the real `config.patient`, so its failure mark is
+    // cleared here and re-latches only if THIS round fails too.
+    this.#unavailable.set(new Set());
     // Patient-scoped caches — always stale when the identity changes.
     this.homeLoaded.set(false);
     this.appointmentsLoaded.set(false);
@@ -1058,7 +1104,10 @@ export class EhrElementComponent {
       );
       this.home.set(home);
       this.homeLoaded.set(true);
+      this.markRead('home', true);
     } catch (error) {
+      this.home.set(null);
+      this.markRead('home', false);
       this.errorMessage.set('No pudimos cargar tu portal. Intenta de nuevo.');
       void error;
     } finally {
@@ -1090,7 +1139,10 @@ export class EhrElementComponent {
       }
       this.myAppointments.set(list);
       this.appointmentsLoaded.set(true);
+      this.markRead('appointments', true);
     } catch (error) {
+      this.myAppointments.set([]);
+      this.markRead('appointments', false);
       this.errorMessage.set('No pudimos cargar tus citas.');
       void error;
     } finally {
@@ -1171,7 +1223,10 @@ export class EhrElementComponent {
       const results = await this.#api.results(this.apiBase(), this.patientId());
       this.results.set(results);
       this.resultsLoaded.set(true);
+      this.markRead('results', true);
     } catch (error) {
+      this.results.set([]);
+      this.markRead('results', false);
       this.errorMessage.set('No pudimos cargar tus resultados.');
       void error;
     } finally {
@@ -1210,7 +1265,10 @@ export class EhrElementComponent {
       const meds = await this.#api.medications(this.apiBase(), this.patientId());
       this.medications.set(meds);
       this.medsLoaded.set(true);
+      this.markRead('medications', true);
     } catch (error) {
+      this.medications.set([]);
+      this.markRead('medications', false);
       this.errorMessage.set('No pudimos cargar tus medicamentos.');
       void error;
     } finally {
@@ -1218,18 +1276,34 @@ export class EhrElementComponent {
     }
   }
 
+  /**
+   * Optimista mientras va, y **se DESHACE si no llegó** (#111).
+   *
+   * Antes el `catch` del cliente devolvía el `'requested'` que le pasaba este mismo
+   * llamador, así que la píldora quedaba «Solicitada» para siempre con el servidor
+   * sin nada: el paciente esperaba una renovación que nadie pidió y se quedaba sin
+   * medicamento. El estado vuelve al que tenía —no a `null`, que sería otra
+   * afirmación— y la pantalla lo dice.
+   */
   requestRefill(medication: Medication): void {
     if (medication.refillStatus === 'requested') {
       return;
     }
-    // Optimistic: mark requested immediately, then reconcile with the server.
+    const previo = medication.refillStatus;
     this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: 'requested' as RefillStatus }));
     const payload = { medicationId: medication.id, patientId: this.patientId() };
     this.refillrequested.emit(payload);
     this.#bus.publish('refillrequested', payload);
     void this.#api
-      .requestRefill(this.apiBase(), payload, 'requested')
-      .then((status) => this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: status })));
+      .requestRefill(this.apiBase(), payload)
+      .then((status) => this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: status })))
+      .catch((error) => {
+        this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: previo }));
+        this.errorMessage.set(
+          'No pudimos enviar tu solicitud de renovación: NO quedó registrada. Intenta de nuevo.',
+        );
+        void error;
+      });
   }
 
   private patchMedication(id: string, patch: (med: Medication) => Medication): void {
@@ -1256,7 +1330,10 @@ export class EhrElementComponent {
       const summary = await this.#api.healthSummary(this.apiBase(), this.patientId());
       this.healthSummary.set(summary);
       this.healthLoaded.set(true);
+      this.markRead('health', true);
     } catch (error) {
+      this.healthSummary.set(null);
+      this.markRead('health', false);
       this.errorMessage.set('No pudimos cargar tu resumen de salud.');
       void error;
     } finally {
@@ -1268,7 +1345,31 @@ export class EhrElementComponent {
     this.healthTab.set(tab);
   }
 
-  /** Timeline stages from the immunization record (SH-4 tracking-timeline reuse). */
+  /**
+   * Chip copy for a preventive-care item. `null` is **no consta**, never «al día»:
+   * the recommendation derives from age + sex (real data), whether the person had it
+   * done needs a seam that does not exist (#106).
+   */
+  maintenanceStatusLabel(status: HealthMaintenanceItem['status']): string {
+    switch (status) {
+      case 'complete':
+        return 'Al día';
+      case 'overdue':
+        return 'Vencido';
+      case 'due':
+        return 'Pendiente';
+      default:
+        return 'Sin registro';
+    }
+  }
+
+  /**
+   * Timeline stages from the immunization record (SH-4 tracking-timeline reuse).
+   *
+   * Only ever rendered when `immunizations` is a real list. `null` (no vaccination
+   * registry, #106) takes its own branch in the template — an empty timeline reading
+   * «Sin vacunas registradas» would state a clinical fact nobody established.
+   */
   readonly immunizationStages = computed<readonly TrackingStage[]>(() =>
     (this.healthSummary()?.immunizations ?? []).map((imm) => ({
       id: imm.id,
@@ -1287,7 +1388,10 @@ export class EhrElementComponent {
       const statement = await this.#api.billing(this.apiBase(), this.patientId());
       this.billing.set(statement);
       this.billingLoaded.set(true);
+      this.markRead('billing', true);
     } catch (error) {
+      this.billing.set(null);
+      this.markRead('billing', false);
       this.errorMessage.set('No pudimos cargar tu facturación.');
       void error;
     } finally {
@@ -1308,10 +1412,14 @@ export class EhrElementComponent {
       const doctors = await this.#api.doctors(this.apiBase());
       this.doctors.set(doctors);
       this.doctorsLoaded.set(true);
+      this.markRead('doctors', true);
       if (!this.scheduleDoctorId() && doctors[0]) {
         this.scheduleDoctorId.set(doctors[0].id);
       }
     } catch (error) {
+      this.doctors.set([]);
+      this.markRead('doctors', false);
+      this.errorMessage.set('No pudimos cargar el directorio médico.');
       void error;
     }
   }
@@ -1385,6 +1493,9 @@ export class EhrElementComponent {
           reason: this.scheduleReason().trim() || 'Consulta',
           mode: this.scheduleMode(),
           copayMinor: this.copayMinor(),
+          // Para que `confirm` pueda RESERVAR contra el borde y no acuñar un
+          // comprobante en local (#111).
+          apiBase: this.apiBase(),
         },
       },
       session,
@@ -1402,20 +1513,28 @@ export class EhrElementComponent {
     });
   }
 
+  /**
+   * Sólo se llega aquí cuando el borde YA reservó: el comprobante y la hora salen
+   * del voucher, que la estrategia arma con lo que devolvió `POST /appointment`
+   * (#111). Antes esto pintaba la cita con lo que el paciente había elegido en
+   * pantalla, que es exactamente lo mismo se hubiera reservado o no.
+   */
   onScheduleCompleted(result: CheckoutWizardResult): void {
     const voucher = result.vouchers[0];
     const detail = voucher?.detail ?? {};
-    this.confirmedAppointmentRef.set(result.reference);
+    const texto = (key: string): string =>
+      typeof detail[key] === 'string' ? (detail[key] as string) : '';
+    this.confirmedAppointmentRef.set(voucher?.reference ?? result.reference);
     const appointment: Appointment = {
       id: voucher?.reference ?? result.reference,
       patientId: this.patientId(),
-      patientName: this.home()?.patient.name ?? 'Paciente',
-      doctorId: this.scheduleDoctorId(),
-      doctorName: typeof detail['doctorName'] === 'string' ? detail['doctorName'] : '',
-      date: this.scheduleDate(),
-      time: this.scheduleTime(),
+      patientName: texto('patientName') || this.home()?.patient.name || 'Paciente',
+      doctorId: texto('doctorId') || this.scheduleDoctorId(),
+      doctorName: texto('doctorName'),
+      date: texto('date') || this.scheduleDate(),
+      time: texto('time') || this.scheduleTime(),
       durationMin: 30,
-      reason: this.scheduleReason().trim() || 'Consulta',
+      reason: texto('reason') || this.scheduleReason().trim() || 'Consulta',
       status: 'booked',
     };
     this.myAppointments.update((list) => [appointment, ...list]);
@@ -1428,9 +1547,16 @@ export class EhrElementComponent {
     this.navigate('visits');
   }
 
+  /**
+   * **La cita NO quedó agendada, y el mensaje lo dice con todas las letras.** Lo que
+   * el paciente eligió sigue en el carrito: el asistente se queda donde está y
+   * reintentar es un clic, sin volver a escribir nada.
+   */
   onScheduleFailed(reason: string): void {
     void reason;
-    this.errorMessage.set('No pudimos agendar la cita. Intenta de nuevo.');
+    this.errorMessage.set(
+      'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.',
+    );
   }
 
   onScheduleExit(): void {
@@ -1445,7 +1571,11 @@ export class EhrElementComponent {
       const threads = await this.#api.messages(this.apiBase(), user);
       this.threads.set(threads);
       this.threadsLoaded.set(true);
+      this.markRead('threads', true);
     } catch (error) {
+      this.threads.set([]);
+      this.activeThread.set(null);
+      this.markRead('threads', false);
       this.errorMessage.set('No pudimos cargar tus mensajes.');
       void error;
     } finally {
@@ -1483,6 +1613,57 @@ export class EhrElementComponent {
     this.sendingMessage.set(true);
     void this.#api
       .sendMessage(this.apiBase(), { threadId, body, user: this.patientId() })
+      .catch((error) => {
+        this.markMessageFailed(threadId, local.id);
+        this.errorMessage.set('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
+        void error;
+      })
+      .finally(() => this.sendingMessage.set(false));
+  }
+
+  /**
+   * El mensaje que no llegó se queda en el hilo **marcado**, no desaparece ni se
+   * queda con cara de enviado (#111).
+   *
+   * Las dos alternativas mienten o pierden: una burbuja sin marca es un acuse —y en
+   * mensajería clínica el paciente cuenta con que su médico lo leyó—, y borrarla se
+   * lleva lo que acaba de escribir. Marcada, el texto sigue ahí y se reintenta desde
+   * el propio hilo.
+   */
+  private markMessageFailed(threadId: string, messageId: string): void {
+    this.patchThread(threadId, (thread) => ({
+      ...thread,
+      messages: thread.messages.map((message) =>
+        message.id === messageId ? { ...message, failed: true } : message,
+      ),
+    }));
+  }
+
+  /** Reintentar el envío del mensaje marcado, sin volver a teclearlo. */
+  retryMessage(thread: MessageThread, message: ClinicalMessage): void {
+    if (!message.failed || this.sendingMessage()) {
+      return;
+    }
+    this.sendingMessage.set(true);
+    void this.#api
+      .sendMessage(this.apiBase(), {
+        threadId: thread.id,
+        body: message.body,
+        user: this.patientId(),
+      })
+      .then(() => {
+        this.patchThread(thread.id, (entry) => ({
+          ...entry,
+          messages: entry.messages.map((item) =>
+            item.id === message.id ? { ...item, failed: false } : item,
+          ),
+        }));
+        this.errorMessage.set('');
+      })
+      .catch((error) => {
+        this.errorMessage.set('Tu mensaje sigue sin enviarse. Queda en el hilo.');
+        void error;
+      })
       .finally(() => this.sendingMessage.set(false));
   }
 
@@ -1511,7 +1692,16 @@ export class EhrElementComponent {
       this.patientsLoaded.set(true);
       this.inbox.set(inbox);
       this.inboxLoaded.set(true);
+      this.markRead('board', true);
+      this.markRead('patients', true);
+      this.markRead('inbox', true);
     } catch (error) {
+      this.board.set([]);
+      this.patients.set([]);
+      this.inbox.set([]);
+      this.markRead('board', false);
+      this.markRead('patients', false);
+      this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar la agenda del día.');
       void error;
     } finally {
@@ -1567,7 +1757,10 @@ export class EhrElementComponent {
       const patients = await this.#api.patients(this.apiBase(), this.patientQuery());
       this.patients.set(patients);
       this.patientsLoaded.set(true);
+      this.markRead('patients', true);
     } catch (error) {
+      this.patients.set([]);
+      this.markRead('patients', false);
       this.errorMessage.set('No pudimos cargar los pacientes.');
       void error;
     } finally {
@@ -1586,7 +1779,10 @@ export class EhrElementComponent {
       const inbox = await this.#api.inbox(this.apiBase(), this.role());
       this.inbox.set(inbox);
       this.inboxLoaded.set(true);
+      this.markRead('inbox', true);
     } catch (error) {
+      this.inbox.set([]);
+      this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar el In Basket.');
       void error;
     } finally {
@@ -1679,6 +1875,7 @@ export class EhrElementComponent {
   private async loadChart(id: string): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
+    this.chartRequestId.set(id);
     try {
       const chart = await this.#api.patientChart(this.apiBase(), id);
       this.chart.set(chart);
@@ -1686,7 +1883,13 @@ export class EhrElementComponent {
       this.view.set('chart');
       this.patientselect.emit(id);
       this.viewchange.emit('chart');
+      this.markRead('chart', true);
     } catch (error) {
+      // Nothing is shown in place of a chart we could not read. The previous branch
+      // handed back patient zero's record under this id (#106).
+      this.chart.set(null);
+      this.view.set('chart');
+      this.markRead('chart', false);
       this.errorMessage.set('No pudimos abrir la ficha del paciente.');
       void error;
     } finally {
@@ -1715,6 +1918,7 @@ export class EhrElementComponent {
   }
 
   cancelEncounter(): void {
+    this.resetWriteProgress();
     this.view.set('chart');
     this.chartTab.set('summary');
     this.errorMessage.set('');
@@ -1722,6 +1926,10 @@ export class EhrElementComponent {
   }
 
   private resetEncounterDraft(): void {
+    // Un intento anterior a medias NO se hereda: con `notaGuardada` viva, el
+    // encuentro SIGUIENTE se saltaría su propia nota y el paciente se quedaría sin
+    // ella. La memoria del reintento dura lo que dura el formulario.
+    this.resetWriteProgress();
     this.soapSubjective.set('');
     this.soapAssessment.set('');
     this.soapPlan.set('');
@@ -1773,6 +1981,22 @@ export class EhrElementComponent {
     };
   }
 
+  /**
+   * Cerrar el encuentro: nota SOAP → receta → orden. **Nada se pinta en la historia
+   * antes de que el servidor lo devuelva** (#111).
+   *
+   * Lo que había: la nota se metía en la historia ANTES de llamar, y el `catch` del
+   * cliente devolvía esa misma nota optimista, así que un fallo del `POST` acababa
+   * en la pantalla de siempre —encuentro documentado, vuelta a la historia, AVS
+   * escrito— con el expediente del paciente **sin nada**. La firma del médico
+   * incluida. Lo mismo con la receta.
+   *
+   * **Lo tecleado no se pierde y no se duplica.** Al fallar, el formulario se queda
+   * como está —texto, vitales, ítems de receta— y lo que YA quedó guardado se
+   * recuerda (`#notaGuardada`, `#recetaEmitida`), así que reintentar continúa donde
+   * se cortó en vez de abrir un segundo encuentro para la misma consulta. Un
+   * expediente clínico duplicado es un daño propio, no «un botón de más».
+   */
   async saveEncounter(): Promise<void> {
     const chart = this.chart();
     if (!chart || !this.soapValid() || !this.canClinicalWrite() || this.loading()) {
@@ -1785,43 +2009,65 @@ export class EhrElementComponent {
       plan: this.soapPlan().trim(),
     };
     const patientId = chart.patient.id;
-    const optimistic: Encounter = {
-      id: `${patientId}-E-${Date.now().toString(36)}`,
-      patientId,
-      doctorId: chart.patient.primaryDoctorId,
-      doctorName: this.doctorName(chart.patient.primaryDoctorId),
-      date: new Date().toISOString().slice(0, 10),
-      reason: this.soapAssessment().trim() || 'Consulta',
-      soap,
-      signature: this.soapSignature().trim(),
-    };
-    this.applyEncounter(chart, optimistic);
     this.loading.set(true);
+    this.errorMessage.set('');
     try {
-      const saved = await this.#api.saveEncounter(this.apiBase(), { patientId, soap }, optimistic);
-      this.replaceEncounter(optimistic.id, saved);
-      if (this.rxItems().length > 0) {
+      let saved = this.notaGuardada();
+      if (!saved) {
+        saved = await this.#api.saveEncounter(this.apiBase(), { patientId, soap });
+        this.notaGuardada.set(saved);
+        this.applyEncounter(this.chart() ?? chart, saved);
+      }
+      if (this.rxItems().length > 0 && !this.recetaEmitida()) {
         await this.persistPrescription(patientId);
+        this.recetaEmitida.set(true);
+      }
+      if (this.rxItems().length > 0 && !this.ordenCursada()) {
         await this.#api.placeOrder(this.apiBase(), {
           patientId,
           kind: 'prescription',
           detail: this.rxItems().map((item) => item.drug).join(', '),
         });
+        this.ordenCursada.set(true);
       }
       this.encountersaved.emit({ patientId, encounterId: saved.id });
       // Encounter close → AVS (the same datum the patient sees in MyChart).
       this.closedAvs.set(
-        `Resumen de la visita (${optimistic.date}): ${soap.assessment}. Plan: ${soap.plan || 'seguimiento'}.`,
+        `Resumen de la visita (${saved.date}): ${soap.assessment}. Plan: ${soap.plan || 'seguimiento'}.`,
       );
+      this.resetWriteProgress();
       this.view.set('chart');
       this.chartTab.set('evolution');
       this.viewchange.emit('chart');
     } catch (error) {
-      this.errorMessage.set('No pudimos guardar la nota. Intenta de nuevo.');
+      // El mensaje nombra lo que SÍ quedó: decirle «no pudimos guardar la nota» a
+      // quien ya la tiene guardada le invita a escribirla otra vez.
+      this.errorMessage.set(this.mensajeDeEscrituraFallida());
       void error;
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** Qué se llevó el servidor de este encuentro, para no repetirlo al reintentar. */
+  readonly notaGuardada = signal<Encounter | null>(null);
+  readonly recetaEmitida = signal(false);
+  readonly ordenCursada = signal(false);
+
+  private resetWriteProgress(): void {
+    this.notaGuardada.set(null);
+    this.recetaEmitida.set(false);
+    this.ordenCursada.set(false);
+  }
+
+  private mensajeDeEscrituraFallida(): string {
+    if (!this.notaGuardada()) {
+      return 'No pudimos guardar la nota: NO quedó en la historia. Tu texto sigue acá.';
+    }
+    if (!this.recetaEmitida()) {
+      return 'La nota quedó guardada, pero la receta NO se emitió. Reintenta: la nota no se duplica.';
+    }
+    return 'La nota y la receta quedaron guardadas, pero la orden no salió. Reintenta para cursarla.';
   }
 
   private applyEncounter(chart: PatientChart, encounter: Encounter): void {
@@ -1832,44 +2078,22 @@ export class EhrElementComponent {
     });
   }
 
-  private replaceEncounter(tempId: string, saved: Encounter): void {
-    const chart = this.chart();
-    if (!chart) {
-      return;
-    }
-    const swap = (list: readonly Encounter[]): readonly Encounter[] =>
-      list.map((encounter) => (encounter.id === tempId ? saved : encounter));
-    this.chart.set({ ...chart, history: swap(chart.history), encounters: swap(chart.encounters) });
-  }
-
+  /**
+   * Emite la receta y **la pinta sólo si el servidor la devolvió**. Lanza si no: una
+   * receta en la historia que la farmacia no puede ver es peor que ninguna.
+   */
   private async persistPrescription(patientId: string): Promise<void> {
     const chart = this.chart();
     if (!chart || this.rxItems().length === 0) {
       return;
     }
-    const optimistic: Prescription = {
-      id: `${patientId}-RX-${Date.now().toString(36)}`,
+    const saved = await this.#api.savePrescription(this.apiBase(), {
       patientId,
-      doctorId: chart.patient.primaryDoctorId,
-      doctorName: this.doctorName(chart.patient.primaryDoctorId),
-      date: new Date().toISOString().slice(0, 10),
       items: this.rxItems(),
-      interactions: this.rxInteractions(),
-    };
-    this.chart.set({ ...chart, prescriptions: [optimistic, ...chart.prescriptions] });
-    const saved = await this.#api.savePrescription(
-      this.apiBase(),
-      { patientId, items: optimistic.items },
-      optimistic,
-    );
+    });
     const current = this.chart();
     if (current) {
-      this.chart.set({
-        ...current,
-        prescriptions: current.prescriptions.map((prescription) =>
-          prescription.id === optimistic.id ? saved : prescription,
-        ),
-      });
+      this.chart.set({ ...current, prescriptions: [saved, ...current.prescriptions] });
     }
   }
 

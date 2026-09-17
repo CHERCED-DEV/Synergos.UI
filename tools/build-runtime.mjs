@@ -28,6 +28,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 
+import { ficherosDelRuntime, importsDelRuntimeAngular } from './lib/mapa-del-runtime.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
 const NG_DIR    = path.join(ROOT, 'platforms/angular');
@@ -170,29 +172,12 @@ async function gzipSize(filePath) {
 // ── Import map builder ──────────────────────────────────────────────────────
 
 function buildImportMap(base, integrity = {}) {
-  const b = base.replace(/\/$/, '');
-  return {
-    imports: {
-      '@angular/core':             `${b}/ng-core.js`,
-      '@angular/core/rxjs-interop': `${b}/ng-rxjs-interop.js`,
-      '@angular/core/primitives/di': `${b}/ng-primitives-di.js`,
-      '@angular/core/primitives/signals': `${b}/ng-primitives-signals.js`,
-      '@angular/core/primitives/event-dispatch': `${b}/ng-primitives-event-dispatch.js`,
-      '@angular/compiler':         `${b}/ng-compiler.js`,
-      '@angular/common':           `${b}/ng-common.js`,
-      '@angular/common/http':      `${b}/ng-common-http.js`,
-      '@angular/elements':         `${b}/ng-elements.js`,
-      '@angular/forms':            `${b}/ng-forms.js`,
-      '@angular/platform-browser': `${b}/ng-platform-browser.js`,
-      '@angular/router':           `${b}/ng-router.js`,
-      'rxjs':                      `${b}/rxjs.js`,
-      'rxjs/operators':            `${b}/rxjs.js`,
-      '@synergos/core':            `${b}/sg-core.js`,
-      '@synergos/shared':          `${b}/sg-shared.js`,
-    },
-    integrity,
-  };
+  // La tabla vive en `tools/lib/mapa-del-runtime.mjs` desde #58: estaba escrita
+  // dos veces —acá y en `publish-runtime.mjs`— y dos copias es cómo el mapa de
+  // `dist/` y el del CDN acaban diciendo cosas distintas del MISMO runtime.
+  return { imports: importsDelRuntimeAngular(base), integrity };
 }
+
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
@@ -254,12 +239,7 @@ async function main() {
 
   if (!isDryRun) {
     // Compute SRI integrity hashes for all built runtime files
-    const runtimeFiles = [
-      'ng-core.js', 'ng-rxjs-interop.js', 'ng-primitives-di.js', 'ng-primitives-signals.js',
-      'ng-primitives-event-dispatch.js', 'ng-compiler.js', 'ng-common.js', 'ng-common-http.js',
-      'ng-elements.js', 'ng-forms.js', 'ng-platform-browser.js', 'ng-router.js',
-      'rxjs.js', 'sg-core.js', 'sg-shared.js',
-    ];
+    const runtimeFiles = ficherosDelRuntime('angular');
     const integrity = {};
     for (const file of runtimeFiles) {
       try {
