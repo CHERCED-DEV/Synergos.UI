@@ -40,6 +40,13 @@ export interface SeedApplication {
   timeline: readonly TimelineEntry[];
   priority: string;
   slaDaysLeft: number;
+  /** Tasa del trámite en unidades menores. `0` (default) = exento. */
+  feeMinor?: number;
+  /**
+   * Estado del cobro de la tasa. Ausente = **no consta**, que es lo que el borde
+   * manda para un expediente exento o anterior al campo (CMS#116).
+   */
+  feeStatus?: string;
   decision?: CaseDecision;
 }
 
@@ -499,6 +506,11 @@ export const SEED_APPLICATIONS: readonly SeedApplication[] = [
     currentStage: 'Radicada',
     priority: 'urgent',
     slaDaysLeft: 1,
+    // Una tasa que NO se cobró: es el caso que la cola del funcionario existe para
+    // perseguir y el que no se podía ver desde ninguna pantalla (CMS#116). Con todos
+    // los sembrados exentos, emitir el estado o no daría exactamente lo mismo.
+    feeMinor: 42_000,
+    feeStatus: 'unavailable',
     answers: [
       { label: 'NIT del negocio', value: '901234567' },
       { label: 'Activos totales del último año (COP)', value: '25000000' },

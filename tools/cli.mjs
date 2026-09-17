@@ -1,40 +1,22 @@
 #!/usr/bin/env node
 
 import { select, checkbox, confirm } from '@inquirer/prompts';
-import { glob } from 'glob';
-import { readFileSync } from 'fs';
 import { execSync } from 'child_process';
-import { resolve, dirname, relative } from 'path';
-import { interactiveDevCdnFull } from './lib/interactive.mjs';
+import { resolve, dirname } from 'path';
+import {
+  interactiveDevCdnFull, descubrirElementos, elementosOFallar, selectFramework,
+} from './lib/interactive.mjs';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Z]:)/, '$1')));
 const WORKSPACE_ROOT = resolve(ROOT, '..');
 
-// ── Discover projects ──────────────────────────────────────────────────────
-
-async function discoverProjects() {
-  const files = await glob('**/project.json', {
-    cwd: WORKSPACE_ROOT,
-    ignore: ['**/node_modules/**', '**/dist/**'],
-  });
-
-  return files.map((f) => {
-    const fullPath = resolve(WORKSPACE_ROOT, f);
-    const json = JSON.parse(readFileSync(fullPath, 'utf8'));
-    const tags = json.tags || [];
-    const dir = dirname(relative(WORKSPACE_ROOT, fullPath));
-
-    return {
-      name: json.name || dir,
-      path: dir,
-      tags,
-      framework: tags.find((t) => t.startsWith('framework:'))?.split(':')[1] || 'unknown',
-      tier: tags.find((t) => t.startsWith('tier:'))?.split(':')[1] || '',
-      scope: tags.find((t) => t.startsWith('scope:'))?.split(':')[1] || '',
-      element: tags.find((t) => t.startsWith('element:'))?.split(':')[1] || '',
-    };
-  });
-}
+// ── Descubrimiento ─────────────────────────────────────────────────────────
+//
+// Esto tenía su PROPIA copia del `glob('**/project.json')` de Nx, idéntica a la
+// de `lib/interactive.mjs` y muerta desde la purga: 0 proyectos, y sin fallar
+// (#52). Hoy las dos llaman al mismo descubrimiento que usa el build. Dos
+// recorridos del mismo árbol que pueden discrepar es como este repo perdió el
+// tier (#43) y la tabla del import map (#58).
 
 function unique(arr) {
   return [...new Set(arr)].sort();
@@ -57,20 +39,21 @@ function run(cmd, cwd = WORKSPACE_ROOT, env) {
 async function main() {
   console.log('\n  \u{1F527} Synergos UI \u2014 Multi-Framework CLI\n');
 
-  const projects = await discoverProjects();
+  // Falla si el descubrimiento no ve nada, en vez de abrir un menú vacío: ése
+  // era el defecto entero de #52.
+  const projects = elementosOFallar();
 
   // Step 1: Action
   const action = await select({
     message: 'What do you want to do?',
     choices: [
       { name: '🔥 Dev CDN (hot reload)', value: 'dev-cdn' },
-      { name: '�🚀 Release to CDN', value: 'release-cdn' },
+      { name: '🚀 Release to CDN', value: 'release-cdn' },
       { name: 'Build', value: 'build' },
       { name: 'Test', value: 'test' },
       { name: 'Lint', value: 'lint' },
       { name: 'Publish to CDN (no build)', value: 'publish' },
       { name: 'Clean dist', value: 'clean' },
-      { name: 'Graph', value: 'graph' },
       { name: 'Setup (npm install)', value: 'setup' },
       { name: '← Salir', value: '__exit' },
     ],
@@ -117,16 +100,20 @@ async function main() {
 
   // ── Framework selection ────────────────────────────────────────────────
 
-  const frameworks = unique(projects.map((p) => p.framework).filter((f) => f !== 'unknown'));
-
-  const framework = await select({
-    message: 'Which framework?',
-    choices: [
-      { name: 'All frameworks', value: 'all' },
-      ...frameworks.map((f) => ({ name: f.charAt(0).toUpperCase() + f.slice(1), value: f })),
-      { name: '← Volver', value: '__back' },
-    ],
-  });
+  // Se deriva de lo descubierto, no de una lista. Y «All frameworks» sólo se
+  // ofrece si de verdad hay más de uno: un menú de una opción es teatro, y
+  // «todos» sobre uno solo hacía creer que había varios (#52).
+  const frameworks = unique(projects.map((p) => p.framework));
+  const framework = frameworks.length === 1
+    ? frameworks[0]
+    : await select({
+        message: 'Which framework?',
+        choices: [
+          { name: 'All frameworks', value: 'all' },
+          ...frameworks.map((f) => ({ name: f.charAt(0).toUpperCase() + f.slice(1), value: f })),
+          { name: '← Volver', value: '__back' },
+        ],
+      });
 
   if (framework === '__back') {
     return main(); // restart from beginning
@@ -215,8 +202,10 @@ async function main() {
   if (action === 'build') {
     run(`node tools/build.mjs --solo=${nombres}`, ngDir);
   } else {
-    // test está suspendido tras la purga (lo dice el propio script) y lint
-    // corre sobre el árbol entero: la granularidad por elemento era de Nx.
+    // `test` y `lint` corren sobre el árbol entero: la granularidad por elemento
+    // era de Nx. Y `test` NO está suspendido —eso lo decía este comentario y lo
+    // desmintió el issue #1: la suite de Angular corre, 1580 specs, compilados
+    // AOT porque los signal inputs no funcionan en JIT.
     run(`npm run ${action}`, ngDir);
   }
 }

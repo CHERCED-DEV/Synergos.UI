@@ -17,11 +17,18 @@
  * contra él y no puede notar la diferencia:
  *
  *     /synergos/registry.json
- *     /synergos/<elemento>/angular/{latest|v0|0.1.0}/main.js
- *     /synergos/runtime/angular/{latest|21.1.6}/ng-core.js
+ *     /synergos/<elemento>/<framework>/{latest|v0|0.1.0}/main.js
+ *     /synergos/runtime/<framework>/{latest|21.1.6}/ng-core.js
  *
  * Los tres slots de versión apuntan al MISMO fichero de `dist/`, que es lo
  * correcto en desarrollo: no hay versionado, hay lo último que compilaste.
+ *
+ * EL FRAMEWORK SE RECIBE, NO SE SUPONE (issue #44). Este servidor sirve UNA
+ * plataforma: traduce la ruta y lee de SU `dist/`. Por eso no basta con
+ * aceptar cualquier segmento — servir el bundle de Angular a una petición de
+ * `/react/` sería peor que un 404, porque el CMS lo hidrataría creyendo que es
+ * de React. Lo que se hace es COMPARAR con la plataforma que se está
+ * sirviendo, que la decide quien arranca el servidor.
  */
 
 /** Las carpetas de versión que el CDN publica por elemento. Todas apuntan igual. */
@@ -33,6 +40,8 @@ const SLOT = /^(latest|v\d+|\d+\.\d+\.\d+(?:[-+][\w.]+)?)$/;
  * Devuelve un objeto con `tipo`, y el resto de campos según el tipo:
  *
  *   `catalogo`  → la vitrina, servida desde `catalog.html`
+ *   `banco`     → { elemento } — el banco de pruebas de desarrollo (#49); con
+ *                  `elemento: null` es el índice de qué se puede probar
  *   `registry`  → el índice, generado al vuelo
  *   `contratos` → contracts.json, generado al vuelo
  *   `senal`     → el latido del livereload
@@ -41,10 +50,32 @@ const SLOT = /^(latest|v\d+|\d+\.\d+\.\d+(?:[-+][\w.]+)?)$/;
  *   `nada`      → 404
  *
  * @param {string} pathname Ruta pedida, con barra inicial.
+ * @param {string} frameworkServido El framework de la plataforma que se sirve.
  * @returns {{tipo: string, elemento?: string, fichero?: string}}
  */
-export function resolverRuta(pathname) {
+export function resolverRuta(pathname, frameworkServido) {
+  if (!frameworkServido) {
+    // Sin framework no hay con qué comparar, y caer a 'angular' sería servir el
+    // bundle de una plataforma bajo el segmento de otra.
+    throw new Error('resolverRuta necesita saber qué plataforma se está sirviendo');
+  }
+
   if (pathname === '/' || pathname === '/index.html') return { tipo: 'catalogo' };
+
+  // El banco de pruebas (#49) — la única página que MONTA un elemento.
+  //
+  // Vive FUERA de `/synergos/` a propósito: ese prefijo imita el layout que
+  // publica `publish.mjs`, y este gate existe justamente para que no se desvíe.
+  // Una ruta de desarrollo dentro de ese espacio ensuciaría el contrato que se
+  // está protegiendo, así que se le nota en la URL que es de desarrollo.
+  if (pathname === '/probar' || pathname === '/probar/') return { tipo: 'banco', elemento: null };
+  if (pathname.startsWith('/probar/')) {
+    const resto = pathname.slice('/probar/'.length).split('/').filter(Boolean);
+    // Un solo segmento: el nombre del elemento. Nada de rutas anidadas — no hay
+    // nada que anidar, y aceptarlas invitaría a colarle un path traversal.
+    if (resto.length !== 1) return { tipo: 'nada' };
+    return { tipo: 'banco', elemento: resto[0] };
+  }
   if (pathname === '/synergos/registry.json') return { tipo: 'registry' };
   if (pathname === '/synergos/contracts.json') return { tipo: 'contratos' };
   if (pathname === '/synergos/__dev.json') return { tipo: 'senal' };
@@ -52,18 +83,18 @@ export function resolverRuta(pathname) {
   const partes = pathname.split('/').filter(Boolean);
   if (partes[0] !== 'synergos') return { tipo: 'nada' };
 
-  // /synergos/runtime/angular/<slot>/<fichero>
+  // /synergos/runtime/<framework>/<slot>/<fichero>
   if (partes[1] === 'runtime') {
     const [, , framework, slot, ...resto] = partes;
-    if (framework !== 'angular' || !slot || !SLOT.test(slot) || resto.length === 0) {
+    if (framework !== frameworkServido || !slot || !SLOT.test(slot) || resto.length === 0) {
       return { tipo: 'nada' };
     }
     return { tipo: 'runtime', fichero: resto.join('/') };
   }
 
-  // /synergos/<elemento>/angular/<slot>/<fichero>
+  // /synergos/<elemento>/<framework>/<slot>/<fichero>
   const [, elemento, framework, slot, ...resto] = partes;
-  if (!elemento || framework !== 'angular' || !slot || !SLOT.test(slot)) {
+  if (!elemento || framework !== frameworkServido || !slot || !SLOT.test(slot)) {
     return { tipo: 'nada' };
   }
   if (resto.length === 0) return { tipo: 'nada' };
@@ -145,8 +176,16 @@ export function tipoDe(fichero) {
  * @param {Array} registro `element-registry.json` completo.
  * @param {(nombre: string) => boolean} seSirve Si ese elemento se está sirviendo.
  * @param {string} version Versión que se anuncia para todos.
+ * @param {string} framework La plataforma que este servidor sirve (issue #44).
  */
-export function registryDeDesarrollo(registro, seSirve, version) {
+export function registryDeDesarrollo(registro, seSirve, version, framework) {
+  if (!framework) {
+    // El CMS resuelve el bundle por `implementations[<framework>]`. Anunciar
+    // `angular` sirviendo otra cosa le haría pedir una ruta que este servidor
+    // rechaza, y el síntoma sería «el CDN de desarrollo no sirve nada».
+    throw new Error('registryDeDesarrollo necesita saber qué plataforma se anuncia');
+  }
+
   const porNombre = new Map();
 
   for (const e of registro) {
@@ -157,7 +196,7 @@ export function registryDeDesarrollo(registro, seSirve, version) {
       tag: e.tag,
       tier: e.tier,
       implementations: {
-        angular: { latest: version, [`v${version.split('.')[0]}`]: version },
+        [framework]: { latest: version, [`v${version.split('.')[0]}`]: version },
       },
     });
   }

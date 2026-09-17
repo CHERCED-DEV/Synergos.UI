@@ -11,6 +11,7 @@ import {
   type CreateApplicationRequest,
   type DecisionOutcome,
   type DecisionRequest,
+  type GovActNotification,
   type GovCase,
   type GovDocument,
   type GovForm,
@@ -38,6 +39,9 @@ import {
  *  - `GET  /api/gov/form/{serviceId}`           → `{ form }`
  *  - `POST /api/gov/application`                → `{ application }`   (summary)
  *  - `GET  /api/gov/applications`               → `{ applications }`  🔒 sesión
+ *  - `GET  /api/gov/notifications`              → `{ notifications }` 🔒 sesión
+ *  - `POST /api/gov/notification/{id}/open`     → `{ notification }`  🔒 sesión
+ *  - `POST /api/gov/notification`               → `{ notification }`  🔒 funcionario
  *  - `GET  /api/gov/application/{id}`           → `{ application }`   🔒 sesión
  *  - `POST /api/gov/document`                   → `{ document }`      🔒 sesión
  *  - `GET  /api/gov/queue?agency=&status=`      → `{ cases }`
@@ -370,6 +374,82 @@ export class GovApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
+  // ─── Actos administrativos notificados (HU CMS#62 · #20) ────────────────────
+
+  /**
+   * La bandeja del ciudadano.
+   *
+   * **NO trae el cuerpo del acto mientras no esté abierto**, y eso lo decide el
+   * backend (`revealBody: false`). Si el listado lo trajera, el acuse sería un
+   * botón decorativo: el ciudadano se enteraría de lo resuelto sin que nada
+   * registrara que accedió, y el término legal no empezaría a contar nunca.
+   *
+   * **Se LEE de este lado aunque `Api.Messaging` esté caída** —el expediente vive
+   * en el CMS— así que acá sí se degrada: con la capacidad abajo el ciudadano
+   * sigue viendo qué le notificaron. Lo que no se puede degradar es ABRIR.
+   */
+  async notifications(apiBase: string): Promise<readonly GovActNotification[]> {
+    const url = `${apiBase}/notifications`;
+    try {
+      const data = await this.getJson(url);
+      const list = normalizeNotifications(data);
+      if (list) {
+        return list;
+      }
+      throw new Error('notifications-shape');
+    } catch (error) {
+      this.rethrowIfAuthError(error);
+      this.markDegraded('GET /api/gov/notifications', error);
+      return [];
+    }
+  }
+
+  /**
+   * Abrir un acto: el instante en que empieza a correr el término.
+   *
+   * **Esto NO se degrada a mock, y es la diferencia que sostiene la HU.** Fingir
+   * que se abrió le diría al ciudadano que su plazo arrancó cuando la entidad no
+   * tiene registro de nada — y el día que reclame, no hay con qué. Si falla,
+   * falla a la vista.
+   *
+   * Es `POST` porque ESCRIBE. Con un `GET` lo dispararía el prefetch del
+   * navegador o un rastreador siguiendo el enlace de un correo, y la persona
+   * perdería días sin haber leído nada.
+   */
+  async openNotification(apiBase: string, id: string): Promise<GovActNotification> {
+    const url = `${apiBase}/notification/${encodeURIComponent(id)}/open`;
+    const data = await this.postJson(url, {});
+    const one = normalizeNotification(isRecord(data) ? data['notification'] : null);
+    if (!one) {
+      throw new Error('open-notification-shape');
+    }
+    return one;
+  }
+
+  /**
+   * Poner un acto en conocimiento (ventanilla).
+   *
+   * Tampoco se degrada: si no se pudo notificar, decirle al funcionario que sí
+   * deja a la entidad creyendo que un término corre. El destinatario lo saca el
+   * backend del EXPEDIENTE, no de lo que mande este cliente.
+   */
+  async notifyAct(
+    apiBase: string,
+    request: {
+      readonly caseId: string;
+      readonly title: string;
+      readonly body: string;
+      readonly acknowledgeBefore?: string;
+    },
+  ): Promise<GovActNotification> {
+    const data = await this.postJson(`${apiBase}/notification`, request);
+    const one = normalizeNotification(isRecord(data) ? data['notification'] : null);
+    if (!one) {
+      throw new Error('notify-act-shape');
+    }
+    return one;
+  }
+
   private getJson(url: string): Promise<unknown> {
     return this.request(url, { method: 'GET' });
   }
@@ -533,6 +613,10 @@ function toSummary(app: SeedApplication): ApplicationSummary {
     status: app.status,
     submittedAt: app.submittedAt,
     currentStage: app.currentStage,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -548,6 +632,10 @@ function toDetail(app: SeedApplication): ApplicationDetail {
     timeline: app.timeline,
     documents: app.documents,
     messages: app.messages,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -561,6 +649,10 @@ function toQueueCase(app: SeedApplication): QueueCase {
     submittedAt: app.submittedAt,
     priority: app.priority,
     slaDaysLeft: app.slaDaysLeft,
+    // La siembra no declara tasa salvo donde la hay: `undefined` cae a «no consta»,
+    // que es la verdad sobre un expediente de demostración exento.
+    feeMinor: app.feeMinor ?? 0,
+    feeStatus: app.feeStatus ?? null,
   };
 }
 
@@ -574,6 +666,8 @@ function toCase(app: SeedApplication): GovCase {
       status: app.status,
       submittedAt: app.submittedAt,
       currentStage: app.currentStage,
+      feeMinor: app.feeMinor ?? 0,
+      feeStatus: app.feeStatus ?? null,
     },
     answers: app.answers,
     documents: app.documents,
@@ -793,6 +887,11 @@ function normalizeSummary(value: unknown): ApplicationSummary | null {
     status: readStatus(value['status']),
     submittedAt: readString(value['submittedAt']).trim(),
     currentStage: readString(value['currentStage']).trim(),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -902,6 +1001,11 @@ function normalizeDetail(value: unknown): ApplicationDetail | null {
     timeline: normalizeTimeline(value['timeline']),
     documents: normalizeDocuments(value['documents']),
     messages: normalizeMessages(value['messages']),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -923,6 +1027,11 @@ function normalizeQueueCase(value: unknown): QueueCase | null {
     submittedAt: readString(value['submittedAt']).trim(),
     priority: readString(value['priority']).trim() || 'normal',
     slaDaysLeft: Math.trunc(readNumber(value['slaDaysLeft'])),
+    // `null`/ausente ≠ «pagada» (CMS#116): el borde declara la clave siempre, y cuando
+    // no hay dato manda null. Reponer aquí un `'captured'`, o un `''` que la pantalla
+    // pinta como nada, afirmaría un cobro que nadie hizo.
+    feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
+    feeStatus: readString(value['feeStatus']).trim() || null,
   };
 }
 
@@ -988,6 +1097,9 @@ function normalizeCase(value: unknown): GovCase | null {
       status: readStatus(app['status']),
       submittedAt: readString(app['submittedAt']).trim(),
       currentStage: readString(app['currentStage']).trim(),
+      // CMS#116 — ver el lector de `normalizeSummary`. `null` es «no consta».
+      feeMinor: Math.max(0, Math.trunc(readNumber(app['feeMinor']))),
+      feeStatus: readString(app['feeStatus']).trim() || null,
     },
     answers: normalizeAnswers(value['answers']),
     documents: normalizeDocuments(value['documents']),
@@ -1034,4 +1146,40 @@ function mockServiceDetail(id: string): MockServiceDetail {
 
 function mockForm(serviceId: string): GovForm {
   return MOCK_FORMS[serviceId] ?? MOCK_FORMS[MOCK_SERVICES[0].id];
+}
+
+
+function normalizeNotification(value: unknown): GovActNotification | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim();
+  if (!id) {
+    return null;
+  }
+  return {
+    id,
+    caseId: readString(value['caseId']).trim(),
+    reference: readString(value['reference']).trim(),
+    title: readString(value['title']).trim(),
+    // `null` y '' NO significan lo mismo acá: el backend manda null mientras el
+    // acto no está abierto, y eso es «todavía no te toca verlo», no «vacío».
+    body: typeof value['body'] === 'string' ? value['body'] : null,
+    documentRef: typeof value['documentRef'] === 'string' ? value['documentRef'] : null,
+    notifiedAt: readString(value['notifiedAt']).trim(),
+    acknowledgeBefore: typeof value['acknowledgeBefore'] === 'string' ? value['acknowledgeBefore'] : null,
+    openedAt: typeof value['openedAt'] === 'string' ? value['openedAt'] : null,
+    openedWith: typeof value['openedWith'] === 'string' ? value['openedWith'] : null,
+    opened: value['opened'] === true,
+  };
+}
+
+function normalizeNotifications(value: unknown): readonly GovActNotification[] | null {
+  const raw = isRecord(value) ? value['notifications'] : null;
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  return raw
+    .map((entry) => normalizeNotification(entry))
+    .filter((entry): entry is GovActNotification => entry !== null);
 }

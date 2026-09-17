@@ -8,9 +8,9 @@
   --shc-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
   --shc-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
   --shc-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
-  --shc-brand: var(--syn-color-state-brand-surface, #{syn.$color-brand-500});
+  --shc-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
   --shc-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
-  --shc-brand-text: var(--syn-color-text-on-brand, #{syn.$color-neutral-0});
+  --shc-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
   --shc-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
   --shc-up: var(--syn-color-state-success-surface, #{syn.$color-success-600});
   --shc-up-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
@@ -292,5 +292,84 @@
   .syn-console *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* ── El sobre de lista: orden y página (#21) ────────────────────────────────── */
+.syn-console__th.is-sortable {
+  padding: 0;
+}
+
+.syn-console__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: inherit;
+  padding: 0.6rem 0.8rem;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+
+  .is-end & {
+    justify-content: flex-end;
+  }
+
+  &:hover {
+    color: var(--shc-brand, currentColor);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--shc-focus-ring, currentColor);
+    outline-offset: -2px;
+  }
+}
+
+/* Reserva el hueco de la flecha SIEMPRE: sin esto la cabecera se mueve al
+   ordenar, y una tabla que salta al pulsarla se siente rota. */
+.syn-console__sort-mark {
+  display: inline-block;
+  min-inline-size: 0.85em;
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.syn-console__paging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-block-start: 0.85rem;
+}
+
+.syn-console__page-status {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--shc-text-secondary, inherit);
+}
+
+.syn-console__page-btn {
+  padding: 0.4rem 0.85rem;
+  font: inherit;
+  font-size: 0.87rem;
+  color: inherit;
+  background: var(--shc-surface, transparent);
+  border: 1px solid var(--shc-border, currentColor);
+  border-radius: 0.35rem;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--shc-focus-ring, currentColor);
+    outline-offset: 2px;
   }
 }

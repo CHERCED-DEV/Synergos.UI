@@ -1,0 +1,256 @@
+@use '../../../../../../vitals/core-assets/src/scss' as syn;
+
+:host {
+  --scf-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --scf-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --scf-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --scf-border-subtle: var(--syn-color-border-subtle, #{syn.$color-neutral-100});
+  --scf-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --scf-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --scf-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+  --scf-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --scf-brand-soft: var(--syn-color-state-brand-soft, #{syn.$color-brand-100});
+  --scf-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+  --scf-focus-ring: var(--syn-color-focus-ring, #{syn.$color-brand-300});
+  --scf-ok: var(--syn-color-state-success-surface, #{syn.$color-success-500});
+  --scf-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --scf-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --scf-warn-text: var(--syn-color-state-warning-surface, #{syn.$color-warning-500});
+  --scf-danger: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+  --scf-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+  --scf-shadow: var(--syn-shadow-panel, #{syn.$shadow-xs});
+
+  display: block;
+  max-width: 100%;
+  color: var(--scf-text);
+}
+
+.syn-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 44rem;
+}
+
+/* ── el acuse ──────────────────────────────────────────────────────────────── */
+.syn-confirm__ack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.syn-confirm__tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: 50%;
+  background: var(--scf-ok-soft);
+  color: var(--scf-ok);
+
+  svg {
+    inline-size: 1.5rem;
+    block-size: 1.5rem;
+  }
+}
+
+.syn-confirm__heading {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.syn-confirm__summary {
+  margin: 0;
+  color: var(--scf-text-secondary);
+  max-inline-size: 42ch;
+}
+
+/* ── la referencia: lo que la persona se lleva ─────────────────────────────── */
+.syn-confirm__ref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 1rem 1.15rem;
+  background: var(--scf-surface-muted);
+  border: 1px solid var(--scf-border);
+  border-radius: 0.5rem;
+}
+
+.syn-confirm__ref-label {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--scf-muted);
+  flex: 1 0 100%;
+}
+
+.syn-confirm__ref-value {
+  font-family: var(--syn-font-mono, ui-monospace, monospace);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  /* Se selecciona entero de un doble clic: copiar a mano es el camino que queda
+     cuando el portapapeles no está disponible. */
+  user-select: all;
+  word-break: break-all;
+}
+
+.syn-confirm__copy {
+  margin-inline-start: auto;
+  padding: 0.4rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--scf-text);
+  background: var(--scf-surface);
+  border: 1px solid var(--scf-border);
+  border-radius: 0.35rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--scf-brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--scf-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.syn-confirm__missing {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  color: var(--scf-danger);
+  background: var(--scf-danger-soft);
+  border-radius: 0.45rem;
+}
+
+.syn-confirm__warning {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  color: var(--scf-warn-text);
+  background: var(--scf-warn-soft);
+  border-radius: 0.45rem;
+}
+
+/* ── los datos del acuse ───────────────────────────────────────────────────── */
+.syn-confirm__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.85rem 1.25rem;
+  margin: 0;
+}
+
+.syn-confirm__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-inline-size: 0;
+}
+
+.syn-confirm__fact-label {
+  font-size: 0.78rem;
+  color: var(--scf-muted);
+}
+
+.syn-confirm__fact-value {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.syn-confirm__artifact {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── qué sigue ─────────────────────────────────────────────────────────────── */
+.syn-confirm__steps-title {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.syn-confirm__steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: syn-confirm-step;
+}
+
+.syn-confirm__step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-inline-start: 2rem;
+  position: relative;
+  counter-increment: syn-confirm-step;
+
+  &::before {
+    content: counter(syn-confirm-step);
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: 0.05rem;
+    inline-size: 1.4rem;
+    block-size: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    background: var(--scf-surface-muted);
+    border: 1px solid var(--scf-border);
+    color: var(--scf-text-secondary);
+  }
+
+  &.is-done::before {
+    content: '✓';
+    background: var(--scf-ok-soft);
+    border-color: var(--scf-ok);
+    color: var(--scf-ok);
+  }
+}
+
+.syn-confirm__step-detail {
+  font-size: 0.87rem;
+  color: var(--scf-text-secondary);
+}
+
+/* ── acciones ──────────────────────────────────────────────────────────────── */
+.syn-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.syn-confirm__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+  font: inherit;
+  font-size: 0.92rem;
+  text-decoration: none;
+  color: var(--scf-text);
+  background: var(--scf-surface);
+  border: 1px solid var(--scf-border);
+  border-radius: 0.4rem;
+  cursor: pointer;
+
+  &.is-primary {
+    color: var(--scf-brand-text);
+    background: var(--scf-brand);
+    border-color: var(--scf-brand);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--scf-focus-ring);
+    outline-offset: 2px;
+  }
+}

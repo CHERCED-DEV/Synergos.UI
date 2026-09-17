@@ -9,6 +9,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -19,9 +20,36 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CompareSelection,
+  CompareTableComponent,
+  type CompareAttribute,
+  type CompareCandidate,
+  type CompareRejection,
+  type CompareTableConfig,
+  CartShellComponent,
+  type CartAction,
+  type CartLine,
+  type CartNote,
+  type CartShellConfig,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   CheckoutWizardComponent,
   CredentialWalletComponent,
   DetailShellComponent,
+  DiscoveryShellComponent,
+  ReviewPanelComponent,
+  type ReviewBlockedReason,
+  type ReviewCriterionPrompt,
+  type ReviewDraft,
+  type ReviewEntry,
+  type ReviewPanelConfig,
+  type ReviewSummary,
+  type DiscoveryCriteria,
+  type DiscoveryFacet,
+  type DiscoveryShellConfig,
+  type DiscoverySortOption,
   ResultsMapComponent,
   TrackingTimelineComponent,
   type AccountShellConfig,
@@ -111,6 +139,18 @@ const DEFAULT_API_BASE = '/api/travel';
 const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'travel';
 const DEFAULT_HEADING = 'Tu próximo viaje empieza aquí';
+/**
+ * A qué vista lleva buscar cada producto. Es una TABLA y no un ternario a
+ * propósito: el ternario que había dejaba `car` colgando en la rama de vuelos, y
+ * añadir un cuarto producto lo habría repetido (#27). Con el `Record` completo,
+ * un producto nuevo sin vista no compila.
+ */
+const RESULTS_VIEW: Readonly<Record<TravelProduct, TravelView>> = {
+  hotel: 'stays',
+  flight: 'flights',
+  car: 'cars',
+};
+
 const DEFAULT_SUBHEADING = 'Estadías, vuelos y autos en un solo lugar · un solo pago';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SECTIONS: readonly TravelAccountSection[] = ['viajes', 'credenciales', 'perfil'];
@@ -164,9 +204,14 @@ let travelShellInstanceId = 0;
   imports: [
     NgTemplateOutlet,
     ResultsMapComponent,
+    DiscoveryShellComponent,
+    ReviewPanelComponent,
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
+    CartShellComponent,
+    CompareTableComponent,
     TrackingTimelineComponent,
     CredentialWalletComponent,
     SynSkeletonComponent,
@@ -251,6 +296,39 @@ export class TravelShellElementComponent {
 
   // ─── Router (signals + hash deep-links) ─────────────────────────────────────
   readonly view = signal<TravelView>('home');
+
+  // ─── Reserva confirmada (SH-11) ─────────────────────────────────────────────
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: 'Reserva confirmada',
+    summary: 'Guarda tus credenciales: son las que te piden en el check-in.',
+    referenceLabel: 'Código de reserva',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar código',
+    copiedLabel: 'Código copiado',
+  }));
+
+  readonly confirmationSteps: readonly ConfirmationStep[] = [
+    { id: 'pagado', label: 'Pago recibido', done: true },
+    { id: 'credenciales', label: 'Voucher y PNR emitidos', done: true },
+    {
+      id: 'checkin',
+      label: 'Presenta el código en el check-in',
+      detail: 'Lo tienes también en «Mis viajes».',
+    },
+  ];
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'viajes', label: 'Ver mis viajes', kind: 'primary' },
+    { id: 'otro', label: 'Planear otro viaje' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'viajes') {
+      this.goToAccount();
+      return;
+    }
+    this.startOver();
+  }
   readonly activeProduct = signal<TravelProduct>('hotel');
   readonly loading = signal(false);
   readonly errorMessage = signal('');
@@ -296,6 +374,267 @@ export class TravelShellElementComponent {
     const families = this.fareFamilies();
     return families.find((fare) => fare.id === this.selectedFareId()) ?? families[0] ?? null;
   });
+
+  // ─── Opiniones de la estadía: SH-13 `syn-review-panel` (#28) ─────────────────
+  //
+  // `StayDetail` traía `rating` y `reviewCount` desde siempre —mostrados, nunca
+  // ganados—. Los criterios son los de una ESTADÍA: limpieza, ubicación y relación
+  // precio-valor. Y sólo opina quien se alojó, y lo decide el servidor.
+  readonly reviewPanel = viewChild(ReviewPanelComponent);
+  readonly reviewSending = signal(false);
+  readonly reviewNotice = signal('');
+  readonly reviewFailed = signal(false);
+
+  readonly stayReviews = computed<readonly ReviewEntry[]>(() =>
+    (this.stay()?.reviews ?? []).map((review) => ({
+      id: review.id,
+      author: review.author,
+      rating: review.rating,
+      title: review.title,
+      body: review.body,
+      date: review.date,
+      verified: review.verified,
+      ...(review.reply ? { reply: review.reply } : {}),
+    })),
+  );
+
+  readonly stayReviewSummary = computed<ReviewSummary>(() => {
+    const resumen = this.stay()?.reviewSummary;
+    if (!resumen) {
+      // Sin resumen del servidor se usa lo que la ficha SÍ trae. No se calcula
+      // nada: `rating` y `reviewCount` ya vienen agregados.
+      const detalle = this.stay();
+      return { average: detalle?.rating ?? 0, count: detalle?.reviewCount ?? 0 };
+    }
+    return {
+      average: resumen.average,
+      count: resumen.count,
+      distribution: resumen.distribution,
+      criteria: resumen.criteria,
+    };
+  });
+
+  readonly canReviewStay = computed(() => this.stay()?.canReview === true);
+
+  /** Se pregunta por lo que se muestra: los prompts salen del resumen del servidor. */
+  readonly stayReviewPrompts = computed<readonly ReviewCriterionPrompt[]>(() =>
+    (this.stay()?.reviewSummary?.criteria ?? []).map((criterion) => ({
+      id: criterion.id,
+      label: criterion.label,
+    })),
+  );
+
+  // ─── Reportar una opinión (#31) ──────────────────────────────────────────────
+  readonly reportedReviewIds = signal<readonly string[]>([]);
+  readonly reportingReviewId = signal<string | null>(null);
+
+  /**
+   * Lo decide el SERVIDOR, no una sesión local: esta app no monta
+   * `HostIdentityService`, así que acá no hay forma honesta de saber si hay sesión
+   * — y un botón que rebota con 401 es lo que `canReview` ya evita.
+   */
+  readonly canReportStayReview = computed(() => this.stay()?.canReport === true);
+
+  async reportStayReview(reviewId: string): Promise<void> {
+    if (this.reportingReviewId() !== null || this.reportedReviewIds().includes(reviewId)) {
+      return;
+    }
+    this.reportingReviewId.set(reviewId);
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.reportStayReview(this.apiBase(), reviewId);
+    this.reportingReviewId.set(null);
+
+    // `already-reported` es éxito: el servidor deduplica.
+    if (result.ok || result.reason === 'already-reported') {
+      this.reportedReviewIds.update((ids) => [...ids, reviewId]);
+      this.reviewNotice.set('Gracias por avisar. Vamos a revisarla.');
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    this.reviewNotice.set(
+      result.reason === 'unauthenticated'
+        ? 'Inicia sesión para reportar una opinión.'
+        : 'No pudimos registrar el reporte. Intenta de nuevo.',
+    );
+  }
+
+  readonly stayReviewBlocked = computed<ReviewBlockedReason | null>(() => {
+    if (this.canReviewStay() || !this.stay()) {
+      return null;
+    }
+    // `not-consumer` y no `not-guest`: la pieza no sabe qué es un huésped. El
+    // rótulo concreto lo pone la config.
+    return 'not-consumer';
+  });
+
+  readonly stayReviewConfig = computed<ReviewPanelConfig>(() => ({
+    heading: 'Opiniones de huéspedes',
+    countLabel: 'opiniones',
+    formTitle: 'Cuenta cómo te fue',
+    submitLabel: 'Publicar opinión',
+    verifiedLabel: 'Se alojó acá',
+    blockedNotConsumer:
+      'Solo quien ya se alojó puede opinar. Después de tu estadía te avisamos para que nos cuentes.',
+    emptyMessage: 'Todavía no hay opiniones de esta estadía.',
+  }));
+
+  /** Publica la opinión. No dice «gracias» si el servidor no aceptó. */
+  async submitStayReview(draft: ReviewDraft): Promise<void> {
+    const detalle = this.stay();
+    if (!detalle || this.reviewSending()) {
+      return;
+    }
+    this.reviewSending.set(true);
+    this.reviewNotice.set('');
+    this.reviewFailed.set(false);
+
+    const result = await this.#api.submitStayReview(this.apiBase(), detalle.id, {
+      rating: draft.rating,
+      title: draft.title,
+      body: draft.body,
+      criteria: draft.criteria,
+    });
+
+    this.reviewSending.set(false);
+
+    if (result.ok) {
+      // Se limpia en los DOS casos: encolada también es aceptada.
+      this.reviewPanel()?.reset();
+
+      if (result.pending) {
+        // Ni «publicada» ni recarga (#31).
+        this.reviewNotice.set(
+          'Gracias. Tu opinión quedó en revisión y se publicará cuando la aprueben.',
+        );
+        return;
+      }
+
+      this.reviewNotice.set('¡Gracias! Tu opinión ya está publicada.');
+      return;
+    }
+
+    this.reviewFailed.set(true);
+    switch (result.reason) {
+      case 'unauthenticated':
+        this.reviewNotice.set('Inicia sesión para dejar tu opinión.');
+        break;
+      case 'not-guest':
+        // Sin oferta de login: la sesión no es el problema (ADR 0112).
+        this.reviewNotice.set('Solo quien ya se alojó puede opinar sobre esta estadía.');
+        break;
+      case 'invalid':
+        this.reviewNotice.set('Revisa la calificación y el texto de tu opinión.');
+        break;
+      default:
+        this.reviewNotice.set('No pudimos publicar tu opinión. Intenta de nuevo.');
+    }
+  }
+
+  // ─── Autos: SH-1 `syn-discovery-shell` (#27) ─────────────────────────────────
+  //
+  // El auto no tenía superficie de resultados: buscar uno caía en la vista de
+  // vuelos y `addCarToCart` no tenía un solo llamador. SH-1 es el sitio, y de
+  // paso trae lo que NINGUNA lista de esta app tenía: orden. Cada tarjeta dice
+  // «desde $156.000» y no había forma de ordenar por precio.
+  readonly carOffers = computed<readonly TravelOffer[]>(() =>
+    this.offers().filter((offer) => offer.product === 'car'),
+  );
+
+  readonly carCriteria = signal<DiscoveryCriteria>({
+    term: '',
+    facets: {},
+    sort: 'price-asc',
+    page: 1,
+  });
+
+  readonly carSortOptions: readonly DiscoverySortOption[] = [
+    { key: 'price-asc', label: 'Menor precio' },
+    { key: 'price-desc', label: 'Mayor precio' },
+    { key: 'name', label: 'Nombre' },
+  ];
+
+  /**
+   * Las facetas salen de los DATOS, no de una lista escrita a mano: si el backend
+   * no emite `carCategory`, esa faceta no se pinta. Van como `SingleSelect`
+   * porque el transporte manda un valor por clave — declararlas MultiSelect
+   * pintaría casillas y perdería la selección en silencio (#18).
+   */
+  readonly carFacets = computed<readonly DiscoveryFacet[]>(() => {
+    const grupos: readonly { readonly key: string; readonly label: string; readonly de: (o: TravelOffer) => string | undefined }[] = [
+      { key: 'category', label: 'Categoría', de: (o) => o.carCategory },
+      { key: 'transmission', label: 'Transmisión', de: (o) => o.carTransmission },
+    ];
+    const facetas: DiscoveryFacet[] = [];
+    for (const grupo of grupos) {
+      const cuenta = new Map<string, number>();
+      for (const offer of this.carOffers()) {
+        const valor = grupo.de(offer)?.trim();
+        if (valor) {
+          cuenta.set(valor, (cuenta.get(valor) ?? 0) + 1);
+        }
+      }
+      if (cuenta.size > 1) {
+        // Una faceta con un solo valor no filtra nada: sería un control que no
+        // hace nada, y ocupa el sitio de los que sí.
+        facetas.push({
+          key: grupo.key,
+          label: grupo.label,
+          kind: 'SingleSelect',
+          values: [...cuenta.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0], 'es'))
+            .map(([value, count]) => ({ value, label: value, count })),
+        });
+      }
+    }
+    return facetas;
+  });
+
+  /** Lo que SH-1 pinta: filtrado y ordenado acá, que es donde están los datos. */
+  readonly carResults = computed<readonly TravelOffer[]>(() => {
+    const criteria = this.carCriteria();
+    const categoria = criteria.facets['category']?.[0] ?? '';
+    const transmision = criteria.facets['transmission']?.[0] ?? '';
+    const filtradas = this.carOffers().filter((offer) => {
+      if (categoria && offer.carCategory !== categoria) {
+        return false;
+      }
+      if (transmision && offer.carTransmission !== transmision) {
+        return false;
+      }
+      return true;
+    });
+    const ordenadas = [...filtradas];
+    switch (criteria.sort) {
+      case 'price-desc':
+        ordenadas.sort((a, b) => b.amount - a.amount);
+        break;
+      case 'name':
+        ordenadas.sort((a, b) => a.title.localeCompare(b.title, 'es'));
+        break;
+      default:
+        ordenadas.sort((a, b) => a.amount - b.amount);
+    }
+    return ordenadas;
+  });
+
+  readonly carConfig = computed<DiscoveryShellConfig>(() => ({
+    // La búsqueda es el formulario estructurado de la home (lugar + fechas), no
+    // un término libre: pintar una caja de texto acá ofrecería buscar dos veces.
+    showSearch: false,
+    filtersHeading: 'Filtrar',
+    clearLabel: 'Limpiar filtros',
+    anyLabel: 'Cualquiera',
+    sortLabel: 'Ordenar por',
+    emptyTitle: 'Sin autos',
+    emptyMessage: 'No encontramos autos con esos filtros. Prueba quitando alguno.',
+    loadingMessage: 'Buscando autos…',
+  }));
+
+  onCarCriteriaChange(criteria: DiscoveryCriteria): void {
+    this.carCriteria.set(criteria);
+  }
 
   // ─── Stays: SH-8 map + SH-2 detail ──────────────────────────────────────────
   readonly stayOffers = computed<readonly TravelOffer[]>(() =>
@@ -623,6 +962,7 @@ export class TravelShellElementComponent {
         return;
       case 'flights':
       case 'stays':
+      case 'cars':
         // Guard: results pages need a prior search of the matching product.
         this.view.set(view);
         return;
@@ -640,6 +980,8 @@ export class TravelShellElementComponent {
         return `${base}/vuelos`;
       case 'stays':
         return `${base}/estadias`;
+      case 'cars':
+        return `${base}/autos`;
       case 'stay':
         return `${base}/estadia/${encodeURIComponent(param)}`;
       case 'cart':
@@ -694,6 +1036,9 @@ export class TravelShellElementComponent {
       case 'estadias':
         this.applyRoute('stays', '');
         return;
+      case 'autos':
+        this.applyRoute('cars', '');
+        return;
       case 'estadia':
         this.applyRoute('stay', decodeURIComponent(tail));
         return;
@@ -721,7 +1066,10 @@ export class TravelShellElementComponent {
     }
     const product = this.activeProduct();
     void this.runSearch(product).then(() => {
-      this.navigate(product === 'flight' ? 'flights' : product === 'hotel' ? 'stays' : 'flights');
+      // Cada producto a SU vista. El ternario anterior mandaba `car` a `'flights'`
+      // —no era un default olvidado, era el valor escrito— así que un auto se
+      // pintaba como vuelo y pedía una tarifa que no existe (#27).
+      this.navigate(RESULTS_VIEW[product]);
     });
   }
 
@@ -754,6 +1102,8 @@ export class TravelShellElementComponent {
           fareFamilies: this.metaFares(entry.meta),
           stayId: this.metaString(entry.meta, 'stayId') || entry.productRef,
           rating: this.metaNumber(entry.meta, 'rating'),
+          carCategory: this.metaString(entry.meta, 'carCategory') || undefined,
+          carTransmission: this.metaString(entry.meta, 'carTransmission') || undefined,
           detail: entry.selection,
         })),
       );
@@ -934,6 +1284,92 @@ export class TravelShellElementComponent {
     this.cartOpen.update((open) => !open);
   }
 
+  // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
+  // Un viaje son ítems heterogéneos —un vuelo, dos noches, un auto— y ninguno se
+  // compra «de a dos»: no hay paso de cantidad, se agrega o se quita. El icono
+  // por tipo entra por template, que es lo único de esta vitrina que es de Viajes.
+  readonly cartLines = computed<readonly CartLine[]>(() =>
+    this.cartItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: this.itemSubtitle(item),
+      total: this.itemPriceLabel(item),
+      kind: item.kind,
+    })),
+  );
+
+  readonly cartNote = computed<CartNote | null>(() => {
+    if (!this.crossSell()) {
+      return null;
+    }
+    return { text: this.crossSellLabel(), actionId: 'cross-sell', actionLabel: 'Agregar' };
+  });
+
+  /**
+   * El apartado más cercano de las tres reservas. **El más cercano y no el del
+   * viaje**: en un paquete el primero que vence se lleva el resto detrás, así
+   * que enseñar cualquier otro prometería un tiempo que no existe.
+   */
+  readonly cartHoldExpiresAt = computed<string | null>(() => {
+    const vencimientos = this.cartItems()
+      .map((item) => item.expiresAt)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .sort();
+    return vencimientos[0] ?? null;
+  });
+
+  readonly cartPageConfig = computed<CartShellConfig>(() => ({
+    heading: 'Tu viaje',
+    emptyMessage: 'Todavía no has agregado nada a tu viaje.',
+    totalLabel: 'Total del viaje',
+    holdLabel: 'Tu viaje está apartado',
+    holdExpiredLabel: 'El apartado venció. Vuelve a buscar para asegurar la disponibilidad.',
+  }));
+
+  readonly cartDrawerConfig = computed<CartShellConfig>(() => ({
+    ...this.cartPageConfig(),
+    totalLabel: 'Total',
+    density: 'drawer',
+    closeLabel: 'Cerrar',
+  }));
+
+  readonly cartPageActions = computed<readonly CartAction[]>(() => [
+    { id: 'search', label: 'Empezar a buscar', visibility: 'empty' },
+    { id: 'search-more', label: 'Seguir buscando', visibility: 'filled' },
+    { id: 'checkout', label: 'Ir a pagar', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  readonly cartDrawerActions = computed<readonly CartAction[]>(() => [
+    { id: 'view', label: 'Ver tu viaje', visibility: 'filled' },
+    { id: 'checkout', label: 'Ir a pagar', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  onCartAction(id: string): void {
+    switch (id) {
+      case 'search':
+      case 'search-more':
+        this.continueShopping();
+        break;
+      case 'view':
+        this.goToCart();
+        break;
+      case 'checkout':
+        this.goToCheckout();
+        break;
+      case 'cross-sell':
+        this.addCrossSell();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Venció el apartado: se repregunta el precio, que es lo que destapa el cupo. */
+  onCartHoldExpired(): void {
+    this.reprice();
+    this.emitCartUpdate();
+  }
+
   continueShopping(): void {
     this.navigate('home');
   }
@@ -963,6 +1399,129 @@ export class TravelShellElementComponent {
 
   offerPriceLabel(offer: TravelOffer): string {
     return this.formatPrice(offer.amount, offer.currency || this.currency());
+  }
+
+  // ─── SH-14 Comparar (#30) ────────────────────────────────────────────────────
+  //
+  // **DOS selecciones y no una**, que es lo que este dominio demuestra y los otros
+  // tres no podían: un hotel y un auto no tienen eje común, así que meterlos en la
+  // misma tabla daría filas donde tres de cuatro celdas están vacías. La pieza no
+  // guarda estado global; cada lista trae el suyo.
+  readonly compareStays = new CompareSelection<CompareCandidate>(4);
+  readonly compareCars = new CompareSelection<CompareCandidate>(4);
+  readonly compareRejection = signal<CompareRejection | null>(null);
+
+  /**
+   * `board` y `location` se declaran y hoy NO se pintan, y eso es deliberado.
+   *
+   * El régimen («Desayuno incluido») y la zona viajan dentro de `subtitle` como
+   * prosa, y partir una cadena de presentación para sacar columnas es adivinar
+   * —el error que #27 cerró volviendo `carCategory` un dato—. Declararlas deja
+   * escrito cuál es el eje completo y cuáles son las dos filas que el día que el
+   * backend las emita aparecen solas: la pieza omite el atributo que nadie trae.
+   */
+  readonly stayCompareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta', hint: 'Desde, por la estadía' },
+    { id: 'rating', label: 'Categoría', group: 'Lo que ofrece' },
+    { id: 'board', label: 'Régimen', group: 'Lo que ofrece' },
+    { id: 'location', label: 'Zona', group: 'Dónde está' },
+    { id: 'perks', label: 'Incluye', group: 'Lo que ofrece' },
+  ];
+
+  readonly carCompareAttributes: readonly CompareAttribute[] = [
+    { id: 'price', label: 'Precio', group: 'Lo que cuesta' },
+    { id: 'category', label: 'Categoría', group: 'Qué auto es' },
+    { id: 'transmission', label: 'Transmisión', group: 'Qué auto es' },
+    { id: 'perks', label: 'Incluye', group: 'Qué trae' },
+  ];
+
+  readonly stayCompareConfig: CompareTableConfig = {
+    heading: 'Comparar estadías',
+    nounPlural: 'estadías',
+    needMoreMessage: 'Marca al menos dos estadías para verlas lado a lado.',
+  };
+
+  readonly carCompareConfig: CompareTableConfig = {
+    heading: 'Comparar autos',
+    nounPlural: 'autos',
+    needMoreMessage: 'Marca al menos dos autos para verlos lado a lado.',
+  };
+
+  readonly compareMessage = computed(() => {
+    switch (this.compareRejection()) {
+      case 'limit-reached':
+        return 'Puedes comparar hasta 4 a la vez. Quita uno para añadir otro.';
+      case 'already-added':
+        return 'Ya está en la comparación.';
+      default:
+        return '';
+    }
+  });
+
+  inCompare(offer: TravelOffer): boolean {
+    return this.#compareFor(offer).has(offer.offerId);
+  }
+
+  toggleCompare(offer: TravelOffer): void {
+    this.compareRejection.set(this.#compareFor(offer).toggle(this.toCandidate(offer)));
+  }
+
+  removeFromStayCompare(id: string): void {
+    this.compareStays.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  removeFromCarCompare(id: string): void {
+    this.compareCars.remove(id);
+    this.compareRejection.set(null);
+  }
+
+  clearStayCompare(): void {
+    this.compareStays.clear();
+    this.compareRejection.set(null);
+  }
+
+  clearCarCompare(): void {
+    this.compareCars.clear();
+    this.compareRejection.set(null);
+  }
+
+  openComparedStay(candidate: CompareCandidate): void {
+    const offer = this.stayOffers().find((item) => item.offerId === candidate.id);
+    if (offer) {
+      this.openStay(offer);
+    }
+  }
+
+  #compareFor(offer: TravelOffer): CompareSelection<CompareCandidate> {
+    return offer.product === 'car' ? this.compareCars : this.compareStays;
+  }
+
+  /**
+   * **El `subtitle` NO se parte para sacar filas.** Llega como prosa
+   * —«Económico · Automático · A/C»— y derivar columnas partiendo una cadena de
+   * presentación es adivinar: es el mismo error que #27 cerró al volver
+   * `carCategory` y `carTransmission` datos de verdad. Lo que el backend no emita
+   * como dato NO aparece como fila, y el `subtitle` se queda donde sirve: de
+   * resumen bajo el título.
+   */
+  private toCandidate(offer: TravelOffer): CompareCandidate {
+    const values: Record<string, string> = {
+      price: this.offerPriceLabel(offer),
+      rating: offer.rating ? `${offer.rating} / 5` : '',
+      category: offer.carCategory ?? '',
+      transmission: offer.carTransmission ?? '',
+      // Las insignias son lo que el hotel o la renta decidió destacar: «Desayuno
+      // incluido», «Cancelación gratis». Es la fila que más decide y no tenía sitio.
+      perks: offer.badges.join(' · '),
+    };
+    return {
+      id: offer.offerId,
+      title: offer.title,
+      subtitle: offer.subtitle,
+      headline: this.offerPriceLabel(offer),
+      values,
+    };
   }
 
   ratePriceLabel(rate: StayRate): string {

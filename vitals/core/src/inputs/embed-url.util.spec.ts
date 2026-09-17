@@ -1,4 +1,5 @@
 import { resolveEmbedSrc, isDirectVideoUrl } from './embed-url.util';
+import { describe, expect, it } from 'vitest';
 
 /**
  * La frontera de seguridad de los embeds (issue #10).

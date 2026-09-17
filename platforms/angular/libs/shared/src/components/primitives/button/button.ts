@@ -6,7 +6,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 type ButtonVariant = 'solid' | 'outline' | 'ghost' | 'danger' | 'gradient';
 type ButtonSize = 'sm' | 'md' | 'lg';

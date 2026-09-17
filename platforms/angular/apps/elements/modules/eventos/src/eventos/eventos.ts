@@ -8,6 +8,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -17,6 +18,15 @@ import {
 } from '@synergos/transaction-engine';
 import {
   AccountShellComponent,
+  CartShellComponent,
+  type CartAction,
+  type CartLine,
+  type CartShellConfig,
+  type CartSummaryRow,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   AuthoringWizardComponent,
   CheckoutWizardComponent,
   ConsoleShellComponent,
@@ -47,6 +57,9 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
+  PromoCodeComponent,
+  type AppliedPromo,
+  type PromoRejection,
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
@@ -78,6 +91,7 @@ import {
   type TierSelectionPayload,
   type VenueZone,
   type WalletTicket,
+  type EventPromo,
 } from './eventos.model';
 
 /**
@@ -192,6 +206,9 @@ let eventosInstanceId = 0;
     DetailShellComponent,
     CheckoutWizardComponent,
     AccountShellComponent,
+    ConfirmationShellComponent,
+    CartShellComponent,
+    PromoCodeComponent,
     TrackingTimelineComponent,
     ConsoleShellComponent,
     AuthoringWizardComponent,
@@ -333,6 +350,44 @@ export class EventosElementComponent {
    * degradar, y pintar datos de ejemplo mostraría asistentes a quien no debe verlos.
    */
   readonly organizerAccess = signal<'ok' | 'anon' | 'forbidden'>('ok');
+
+  // ─── Compra confirmada (SH-11) ──────────────────────────────────────────────
+  readonly confirmationConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: '¡Compra confirmada!',
+    summary: 'Tus entradas están listas. También las tienes en «Mis tickets».',
+    referenceLabel: 'Número de orden',
+    stepsLabel: 'Qué sigue',
+    copyLabel: 'Copiar orden',
+    copiedLabel: 'Orden copiada',
+  }));
+
+  readonly confirmationSteps: readonly ConfirmationStep[] = [
+    { id: 'pagado', label: 'Pago recibido', done: true },
+    { id: 'entradas', label: 'Tus entradas quedaron emitidas', done: true },
+    {
+      id: 'puerta',
+      label: 'Preséntalas en la entrada',
+      detail: 'Basta con el QR en el teléfono; no hace falta imprimir.',
+    },
+  ];
+
+  readonly confirmationActions: readonly ConfirmationAction[] = [
+    { id: 'wallet', label: 'Ver mis tickets', kind: 'primary' },
+    { id: 'imprimir', label: 'Imprimir' },
+    { id: 'explorar', label: 'Explorar más eventos' },
+  ];
+
+  onConfirmationAction(id: string): void {
+    if (id === 'wallet') {
+      this.goToWallet();
+      return;
+    }
+    if (id === 'imprimir') {
+      this.printTickets();
+      return;
+    }
+    this.startOver();
+  }
   readonly attendeeFilter = signal('');
   readonly checkinCode = signal('');
   readonly lastScan = signal<CheckInResult | null>(null);
@@ -357,11 +412,15 @@ export class EventosElementComponent {
     const categories = this.facetValues((event) => event.category);
     const cities = this.facetValues((event) => event.city);
     const facets: DiscoveryFacet[] = [];
+    // Las dos viajan de a UN valor al backend (`category`/`city` son campos sueltos
+    // del criteria, no listas), así que se declaran de valor único: el shell pinta
+    // radios y lo que se marca es lo que se filtra. Ofrecer casillas y mandar el
+    // primero devolvía menos de lo pedido, sin fallar y sin avisar (#18).
     if (categories.length > 0) {
-      facets.push({ key: 'category', label: 'Categoría', values: categories });
+      facets.push({ key: 'category', label: 'Categoría', kind: 'SingleSelect', values: categories });
     }
     if (cities.length > 0) {
-      facets.push({ key: 'city', label: 'Ciudad', values: cities });
+      facets.push({ key: 'city', label: 'Ciudad', kind: 'SingleSelect', values: cities });
     }
     return facets;
   });
@@ -462,7 +521,10 @@ export class EventosElementComponent {
     this.#store.items().reduce((sum, item) => sum + item.amount * item.quantity, 0),
   );
   readonly feesMinor = computed(() => Math.round((this.cartSubtotalMinor() * this.feePercent()) / 100));
-  readonly cartTotalMinor = computed(() => this.cartSubtotalMinor() + this.feesMinor());
+  readonly cartTotalMinor = computed(() =>
+    // Con el cupón restado y con suelo en cero — mismo criterio que `reprice()`.
+    Math.max(0, this.cartSubtotalMinor() + this.feesMinor() + this.promoMinor()),
+  );
   readonly cartSubtotalLabel = computed(() =>
     this.formatPrice(this.cartSubtotalMinor() / 100, this.currency()),
   );
@@ -1115,6 +1177,8 @@ export class EventosElementComponent {
       quantity: this.quantity(),
       seats: this.isReserved() ? this.selectedSeats() : [],
       cover: detail.event.cover,
+      // La base viaja en la línea para que `confirm` no tenga que adivinarla (#116).
+      apiBase: this.apiBase(),
     };
     const selection = await this.#fulfillment.select(
       {
@@ -1129,6 +1193,93 @@ export class EventosElementComponent {
     // Single-event cart: one tier line per order (replace prior selection).
     this.#store.reset();
     this.#store.addItem(selection.item);
+    this.reprice();
+  }
+
+  // ─── Carrito: SH-12 `syn-cart-shell` (#22) ──────────────────────────────────
+  // El carrito de Eventos es de un solo evento: la selección se REEMPLAZA desde
+  // la página del evento, no se edita línea a línea. Por eso sus líneas no
+  // llevan paso de cantidad ni botón de quitar — quitar la única línea dejaría
+  // a la persona en el vacío sin haber decidido volver.
+  readonly cartLines = computed<readonly CartLine[]>(() =>
+    this.cartItems().map((item) => ({
+      id: item.id,
+      label: item.label,
+      detail: `${item.quantity} ${item.quantity === 1 ? 'entrada' : 'entradas'}`,
+      total: this.formatPrice((item.amount * item.quantity) / 100, this.currency()),
+      removable: false,
+    })),
+  );
+
+  /**
+   * Los cargos por servicio son una fila propia y no un número sumado al total:
+   * quien compra una entrada tiene derecho a ver cuánto de lo que paga NO es la
+   * entrada. La pieza sólo las pinta — los importes los calcula este dominio.
+   */
+  readonly cartSummary = computed<readonly CartSummaryRow[]>(() => {
+    const filas: CartSummaryRow[] = [
+      { id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() },
+      { id: 'fees', label: `Cargos por servicio (${this.feePercent()}%)`, value: this.feesLabel() },
+    ];
+    const promo = this.promo();
+    if (promo) {
+      // El descuento se VE: un total más bajo sin la línea que lo explica se lee
+      // como un error de precio.
+      filas.push({
+        id: 'promo',
+        label: promo.label,
+        value: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      });
+    }
+    filas.push({ id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true });
+    return filas;
+  });
+
+  /**
+   * El aforo apartado vence solo. Esta vista se declaraba desde el primer día
+   * como «carrito + fees + hold countdown» y el countdown no existía: alguien
+   * apartaba butacas, se iba a buscar la tarjeta y volvía a un cupo muerto sin
+   * que la pantalla se lo hubiera dicho nunca (#22).
+   */
+  readonly cartHoldExpiresAt = computed<string | null>(() => {
+    const vencimientos = this.cartItems()
+      .map((item) => item.expiresAt)
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .sort();
+    return vencimientos[0] ?? null;
+  });
+
+  readonly cartConfig = computed<CartShellConfig>(() => ({
+    heading: 'Tu carrito',
+    emptyMessage: 'Tu carrito está vacío.',
+    holdLabel: 'Tus entradas están apartadas',
+    holdExpiredLabel: 'El aforo apartado venció. Vuelve a elegir tus entradas.',
+  }));
+
+  readonly cartActions = computed<readonly CartAction[]>(() => [
+    { id: 'catalog', label: 'Explorar eventos', visibility: 'empty' },
+    { id: 'back', label: 'Volver', visibility: 'filled' },
+    { id: 'checkout', label: 'Continuar al pago', kind: 'primary', visibility: 'filled' },
+  ]);
+
+  onCartAction(id: string): void {
+    switch (id) {
+      case 'catalog':
+        this.goToCatalog();
+        break;
+      case 'back':
+        this.backToEvent();
+        break;
+      case 'checkout':
+        this.goToCheckout();
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Venció el apartado: se repregunta el precio, que es lo que destapa el cupo. */
+  onCartHoldExpired(): void {
     this.reprice();
   }
 
@@ -1611,7 +1762,10 @@ export class EventosElementComponent {
     const items = this.#store.items();
     const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
     const fees = Math.round((subtotal * this.feePercent()) / 100);
-    const total = subtotal + fees;
+    const promo = this.promo();
+    // El descuento se aplica sobre subtotal + cargos, y nunca deja el total bajo
+    // cero: un carrito que se debe a sí mismo lo cobraría el checkout en negativo.
+    const total = Math.max(0, subtotal + fees + (promo?.amountMinor ?? 0));
     this.#store.setPricing({
       currency: this.currency(),
       totalAmount: total,
@@ -1623,8 +1777,64 @@ export class EventosElementComponent {
           amount: item.amount * item.quantity,
         })),
         ...(fees > 0 ? [{ code: 'fees', label: 'Cargos por servicio', amount: fees }] : []),
+        // La línea NEGATIVA que el motor esperaba desde el primer día.
+        ...(promo ? [{ code: `promo:${promo.code}`, label: promo.label, amount: promo.amountMinor }] : []),
       ],
     });
+  }
+
+  // ─── Cupones: `syn-promo-code` (#29) ────────────────────────────────────────
+  readonly promoControl = viewChild(PromoCodeComponent);
+  readonly promo = signal<EventPromo | null>(null);
+  readonly promoBusy = signal(false);
+  readonly promoRejection = signal<PromoRejection | null>(null);
+  readonly promoDetail = signal('');
+
+  readonly appliedPromo = computed<AppliedPromo | null>(() => {
+    const promo = this.promo();
+    if (!promo) {
+      return null;
+    }
+    return {
+      code: promo.code,
+      discountLabel: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      ...(promo.detail ? { detail: promo.detail } : {}),
+    };
+  });
+
+  readonly promoMinor = computed(() => this.promo()?.amountMinor ?? 0);
+
+  async applyPromo(code: string): Promise<void> {
+    if (this.promoBusy()) {
+      return;
+    }
+    this.promoBusy.set(true);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+
+    const result = await this.#api.applyPromo(this.apiBase(), code, this.cartSubtotalMinor());
+    this.promoBusy.set(false);
+
+    if (result.ok) {
+      this.promo.set(result.promo);
+      this.promoControl()?.clear();
+      this.reprice();
+      return;
+    }
+
+    this.promoRejection.set(result.reason);
+    if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
+      this.promoDetail.set(
+        `Te faltan ${this.formatPrice(result.shortfallMinor / 100, this.currency())}.`,
+      );
+    }
+  }
+
+  removePromo(): void {
+    this.promo.set(null);
+    this.promoRejection.set(null);
+    this.promoDetail.set('');
+    this.reprice();
   }
 
   formatPrice(amount: number, currency: string): string {

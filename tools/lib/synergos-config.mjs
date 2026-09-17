@@ -9,6 +9,8 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { valoresDeConstante, camposDeInterfaz } from './contract-schema.mjs';
+
 // ── Root ─────────────────────────────────────────────────────────────────────
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -17,11 +19,40 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 export const REGISTRY_JSON = resolve(ROOT, 'vitals/contracts/src/element-registry.json');
 export const INPUTS_JSON   = resolve(ROOT, 'vitals/contracts/src/element-inputs.json');
+export const MANIFEST_SCHEMA_TS = resolve(ROOT, 'vitals/contracts/src/element-manifest.schema.ts');
 export const PACKAGE_JSON  = resolve(ROOT, 'package.json');
 
 // ── Framework constants ──────────────────────────────────────────────────────
 
-export const ALL_FRAMEWORKS = ['angular'];
+/**
+ * El contrato del manifiesto, leído del `.ts` que lo declara.
+ *
+ * Es lo que convierte a `ElementManifest` en algo que alguien consume (issue
+ * #43): las claves que el publicador escribe y los valores que puede tomar
+ * `framework` y `tier` salen de la interfaz, no de una copia en un `.mjs`.
+ */
+export function contratoDelManifiesto() {
+  const fuente = readFileSync(MANIFEST_SCHEMA_TS, 'utf-8');
+  const contrato = {
+    claves:     camposDeInterfaz(fuente, 'ElementManifest'),
+    frameworks: valoresDeConstante(fuente, 'ELEMENT_FRAMEWORKS'),
+    tiers:      valoresDeConstante(fuente, 'ELEMENT_TIERS'),
+  };
+
+  // Un parser que no encuentra nada devuelve listas vacías, y con listas
+  // vacías toda validación pasa. Ése es el modo de fallo silencioso de un gate
+  // que lee fuente: sale verde justo cuando dejó de mirar.
+  if (contrato.claves.length === 0 || contrato.frameworks.length === 0 || contrato.tiers.length === 0) {
+    fail(
+      `no se pudo leer el contrato de ${MANIFEST_SCHEMA_TS}: ` +
+      `ElementManifest/${contrato.claves.length} claves, ` +
+      `ElementFramework/${contrato.frameworks.length} valores, ` +
+      `ElementTier/${contrato.tiers.length} valores.`,
+    );
+  }
+
+  return contrato;
+}
 
 // ── Platform dist configurations ─────────────────────────────────────────────
 // Angular es LA plataforma (purga 2026-08-04). El array se conserva —no una
@@ -33,6 +64,16 @@ export const ALL_FRAMEWORKS = ['angular'];
 export const PLATFORMS = [
   {
     name: 'angular',
+    // La entrada de un elemento, RELATIVA a su carpeta. Es parte de la
+    // declaración de la plataforma y no una constante global: `todasLasFuentes`
+    // descubría por `src/main.ts` a secas, y su propia cabecera avisaba de que
+    // una plataforma con `main.tsx` —lo normal en JSX— descubriría CERO
+    // elementos y fallaría **por la razón equivocada**, mandando a alguien a
+    // mirar el registry. #62 lo dejó anotado y lo decide #64: la extensión la
+    // declara quien la usa, y no hay default silencioso que aceptar `.tsx` «por
+    // si acaso» — eso sería escribir una suposición sobre un contrato que nadie
+    // escribió.
+    entrada: 'src/main.ts',
     distDir: resolve(ROOT, 'platforms/angular/dist'),
     // Angular: dist/<element>/browser/main.js
     resolveBundlePath: (elementName) =>
@@ -40,7 +81,29 @@ export const PLATFORMS = [
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/angular/dist', elementName),
   },
+  {
+    name: 'preact',
+    // JSX: la entrada es `.tsx`, y por eso la extensión dejó de ser una
+    // constante del descubrimiento (#64). Ver la nota de `entrada` arriba.
+    entrada: 'src/main.tsx',
+    distDir: resolve(ROOT, 'platforms/preact/dist'),
+    // La MISMA forma que Angular —`dist/<element>/browser/main.js`— a
+    // propósito, aunque acá la escriba un esbuild de 30 líneas y allá un
+    // NgtscProgram. La ruta es contrato del pipeline (`publish.mjs` la lee),
+    // no una consecuencia de cómo construya cada plataforma.
+    resolveBundlePath: (elementName) =>
+      resolve(ROOT, 'platforms/preact/dist', elementName, 'browser', 'main.js'),
+    elementDistDir: (elementName) =>
+      resolve(ROOT, 'platforms/preact/dist', elementName),
+  },
 ];
+
+// Las plataformas que HOY publican. NO es la lista de frameworks válidos: ésa
+// la declara `ELEMENT_FRAMEWORKS` en el contrato y se lee de ahí (ver
+// `contratoDelManifiesto`), para que no haya dos listas que puedan discrepar.
+// Se deriva de PLATFORMS, que es lo que de verdad decide quién construye: dos
+// listas de plataformas era otra pareja que podía desalinearse en silencio.
+export const ALL_FRAMEWORKS = PLATFORMS.map((p) => p.name);
 
 // ── CDN defaults ─────────────────────────────────────────────────────────────
 
@@ -79,7 +142,7 @@ function ensureObject(value, fieldName) {
   }
 }
 
-function validateRegistryEntry(entry, index, seenAliases) {
+function validateRegistryEntry(entry, index, seenAliases, frameworks) {
   ensureObject(entry, `registry[${index}]`);
 
   const { name, alias, tag, tier } = entry;
@@ -103,6 +166,17 @@ function validateRegistryEntry(entry, index, seenAliases) {
 
   if (!VALID_TIERS.includes(tier)) {
     fail(`registry[${index}].tier "${String(tier)}" is invalid. Expected one of: ${VALID_TIERS.join(', ')}.`);
+  }
+
+  // El framework NO tiene valor por defecto, y ésa es toda la gracia (issue
+  // #42): una entrada que no lo declara no se publica. Caer a 'angular' porque
+  // hoy es la única plataforma sería escribir la suposición en el código en vez
+  // de medirla, y dejaría el registry afirmando algo que nadie decidió.
+  if (!frameworks.includes(entry.framework)) {
+    fail(
+      `registry[${index}] ("${String(name)}") framework "${String(entry.framework)}" is invalid. ` +
+      `Expected one of: ${frameworks.join(', ')}. Sin framework no se publica.`,
+    );
   }
 }
 
@@ -128,7 +202,8 @@ function validateRegistry(rawRegistry) {
   }
 
   const seenAliases = new Set();
-  rawRegistry.forEach((entry, index) => validateRegistryEntry(entry, index, seenAliases));
+  const { frameworks } = contratoDelManifiesto();
+  rawRegistry.forEach((entry, index) => validateRegistryEntry(entry, index, seenAliases, frameworks));
   return rawRegistry;
 }
 

@@ -78,6 +78,17 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
   }
 
+  /** Search cars offline → mock offers with category + transmission facets. */
+  async function searchCars(): Promise<void> {
+    component.selectProduct('car');
+    component.carLocation.set('Aeropuerto El Dorado');
+    component.carPickUp.set('2026-08-01');
+    component.carDropOff.set('2026-08-05');
+    component.search();
+    await flushMicrotasks();
+    fixture.detectChanges();
+  }
+
   afterEach(() => {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
@@ -183,12 +194,110 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     component.addFlightToCart();
     await flushMicrotasks();
 
+    // Car: el tercer producto. ANTES este test se llamaba «stay + flight + car»,
+    // nunca agregaba un auto, y afirmaba `cartCount() === 2` celebrando el
+    // cross-sell hacia el producto que no se podía agregar (#27). El auto era
+    // inalcanzable: buscar uno caía en la vista de vuelos y `addCarToCart` no
+    // tenía llamador.
+    await searchCars();
+    expect(component.view()).toBe('cars');
+    // Se pulsa el BOTÓN, no el método: el defecto era precisamente que
+    // `addCarToCart` existía y ninguna plantilla lo invocaba, así que un test que
+    // llame al método directamente no vería volver la regresión.
+    const agregar = fixture.nativeElement.querySelector(
+      '.travel__car-card .travel__btn--primary',
+    ) as HTMLButtonElement | null;
+    expect(agregar).not.toBeNull();
+    agregar!.click();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
     const kinds = component.cartItems().map((item) => item.kind).sort();
-    expect(kinds).toEqual(['flight', 'hotel']);
-    expect(component.cartCount()).toBe(2);
+    expect(kinds).toEqual(['car', 'flight', 'hotel']);
+    expect(component.cartCount()).toBe(3);
     expect(component.hasCart()).toBe(true);
-    // Cross-sell nudges the missing product (car).
-    expect(component.crossSell()).toBe('car');
+    // Con los tres productos dentro ya no hay nada que sugerir.
+    expect(component.crossSell()).toBeNull();
+  });
+
+  // ── EL caso: buscar un auto llega a la vista de autos ────────────────────────
+  it('buscar un auto lleva a la vista de AUTOS, no a la de vuelos', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    await searchCars();
+
+    // El ternario anterior mandaba `car` a `'flights'`, así que un auto se pintaba
+    // bajo «Vuelos disponibles», pedía elegir una tarifa que no existe y el botón
+    // de agregar quedaba gris: callejón sin salida.
+    expect(component.view()).toBe('cars');
+    expect(component.carResults().length).toBeGreaterThan(0);
+    expect(component.carResults().every((offer) => offer.product === 'car')).toBe(true);
+    expect(fixture.nativeElement.querySelector('syn-discovery-shell')).not.toBeNull();
+  });
+
+  it('los autos salen ordenados por precio, y se puede invertir', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    // Ninguna lista de esta app tenía orden: cada tarjeta decía «desde $X» y no
+    // había forma de ordenar por precio.
+    const ascendente = component.carResults().map((o) => o.amount);
+    expect(ascendente).toEqual([...ascendente].sort((a, b) => a - b));
+
+    component.onCarCriteriaChange({ ...component.carCriteria(), sort: 'price-desc' });
+    fixture.detectChanges();
+    const descendente = component.carResults().map((o) => o.amount);
+    expect(descendente).toEqual([...ascendente].reverse());
+  });
+
+  it('las facetas salen de los datos y filtran', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    const claves = component.carFacets().map((f) => f.key);
+    expect(claves).toContain('category');
+    expect(claves).toContain('transmission');
+    // De valor único, no casillas: el transporte manda un valor por clave, y
+    // declararlas MultiSelect perdería la selección en silencio (#18).
+    expect(component.carFacets().every((f) => f.kind === 'SingleSelect')).toBe(true);
+
+    const total = component.carResults().length;
+    component.onCarCriteriaChange({
+      ...component.carCriteria(),
+      facets: { transmission: ['Manual'] },
+    });
+    fixture.detectChanges();
+
+    const filtrados = component.carResults();
+    expect(filtrados.length).toBeGreaterThan(0);
+    expect(filtrados.length).toBeLessThan(total);
+    expect(filtrados.every((o) => o.carTransmission === 'Manual')).toBe(true);
+  });
+
+  it('una faceta con un solo valor no se pinta', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchCars();
+
+    // Con la transmisión fijada en Manual, «Manual» queda como único valor de esa
+    // faceta: un control que no filtra nada y ocupa el sitio de los que sí.
+    component.onCarCriteriaChange({
+      ...component.carCriteria(),
+      facets: { transmission: ['Manual'] },
+    });
+    fixture.detectChanges();
+    // La faceta se calcula sobre TODAS las ofertas, no sobre las filtradas, así
+    // que sigue pintándose — quitarla dejaría a la persona sin poder deshacer.
+    expect(component.carFacets().map((f) => f.key)).toContain('transmission');
+
+    // El caso real de faceta única: una sola oferta.
+    const una = component.carResults()[0];
+    component.offers.set([una]);
+    fixture.detectChanges();
+    expect(component.carFacets()).toEqual([]);
   });
 
   // ── filter: removing one line keeps the rest ─────────────────────────────────
@@ -302,6 +411,115 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     component.navigate('checkout');
     expect(component.view()).toBe('cart');
   });
+  // ── opiniones de la estadía: SH-13 (#28) ─────────────────────────────────────
+  it('la ficha de la estadía monta SH-13 con los criterios de una ESTADÍA', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchStays();
+    component.openStay(component.stayOffers()[0]);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('syn-review-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.syn-reviews__dist-row').length).toBe(5);
+    // Limpieza, ubicación y precio-valor: NO son los criterios de un curso.
+    expect(component.stayReviewSummary().criteria?.map((c) => c.id)).toEqual([
+      'limpieza',
+      'ubicacion',
+      'precio-valor',
+    ]);
+    expect(component.stayReviewPrompts().map((p) => p.id)).toEqual([
+      'limpieza',
+      'ubicacion',
+      'precio-valor',
+    ]);
+  });
+
+  it('un envío contra un endpoint que no existe NO dice «gracias»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    await searchStays();
+    component.openStay(component.stayOffers()[0]);
+    await flushMicrotasks();
+
+    await component.submitStayReview({
+      rating: 5,
+      title: 'Volvería',
+      body: 'La ubicación es inmejorable.',
+      criteria: { limpieza: 5, ubicacion: 5, 'precio-valor': 4 },
+    });
+
+    expect(component.reviewFailed()).toBe(true);
+    expect(component.reviewNotice()).not.toContain('publicada');
+    expect(component.reviewNotice()).toContain('No pudimos publicar');
+  });
+
+  // ── SH-14 comparar (#30) ─────────────────────────────────────────────────────
+  //
+  // Lo que este dominio prueba y los otros tres no pueden: **dos selecciones
+  // separadas**. Un hotel y un auto no tienen eje común, así que compartir la
+  // selección daría una tabla con filas vacías en tres de cada cuatro celdas.
+  it('estadías y autos comparan POR SEPARADO: no comparten selección', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const marcarDos = async (): Promise<void> => {
+      const botones = Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.travel__cmp'),
+      ) as HTMLButtonElement[];
+      expect(botones.length).toBeGreaterThan(1);
+      botones[0].click();
+      botones[1].click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+    };
+
+    await searchStays();
+    await marcarDos();
+    expect(component.compareStays.count()).toBe(2);
+    expect(component.compareCars.count()).toBe(0);
+
+    await searchCars();
+    await marcarDos();
+    expect(component.compareCars.count()).toBe(2);
+    // Y lo de estadías NO se perdió al cambiar de producto.
+    expect(component.compareStays.count()).toBe(2);
+
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    // El eje de los autos, no el de las estadías: categoría y transmisión son los
+    // datos que #27 volvió datos de verdad en vez de prosa del `subtitle`.
+    expect(filas).toContain('Categoría');
+    expect(filas).toContain('Transmisión');
+    expect(filas).not.toContain('Zona');
+  });
+
+  it('régimen y zona NO se pintan: viajan dentro del subtitle como prosa', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    await searchStays();
+    const botones = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.travel__cmp'),
+    ) as HTMLButtonElement[];
+    botones[0].click();
+    botones[1].click();
+    fixture.detectChanges();
+
+    const filas = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.syn-compare__attr-label'),
+    ).map((el) => el.textContent?.trim());
+    // Están DECLARADAS en el eje y no se pintan porque ningún candidato las trae:
+    // partir el `subtitle` para rellenarlas sería adivinar (#27).
+    expect(component.stayCompareAttributes.map((a) => a.id)).toContain('board');
+    expect(filas).not.toContain('Régimen');
+    expect(filas).not.toContain('Zona');
+    // Y lo que sí es dato, sí sale.
+    expect(filas).toContain('Precio');
+  });
 });
 
 describe('TravelApiClient', () => {
@@ -392,6 +610,26 @@ describe('TravelApiClient', () => {
     expect(confirmation.status).toBe('confirmed');
     expect(confirmation.items[0].reservationId).toBe('RES-1');
   });
+  // ── #28: el default de `canReview` ──
+  it('`canReview` ausente significa NO (default seguro)', async () => {
+    const client = createClient();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ stay: { id: 'S-1', title: 'Hotel', currency: 'COP' } }),
+        } as Response),
+      ),
+    );
+
+    const detalle = await client.stay('/api/travel', 'S-1', 'COP');
+
+    expect(detalle.canReview).toBe(false);
+    expect(detalle.reviews).toEqual([]);
+    expect(detalle.reviewSummary).toBeNull();
+  });
 });
 
 // ── ficha de estadía cargando: esqueleto CON forma + aviso audible ────────────
@@ -475,4 +713,5 @@ describe('TravelShellElementComponent — stay loading surface', () => {
     expect(host.querySelector('.travel__sr')).toBeNull();
     expect(host.textContent).not.toContain('Cargando alojamiento');
   });
+
 });

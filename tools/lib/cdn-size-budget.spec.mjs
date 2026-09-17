@@ -6,7 +6,9 @@ import {
   importaExterno,
   TECHO_POR_TIER,
   EXCEPCIONES,
-  EXTERNALS_UNIVERSALES,
+  externalsUniversales,
+  revisarMigradosAlRuntime,
+  MIGRADOS_AL_RUNTIME,
   FACTOR_TRINQUETE,
 } from './cdn-size-budget.mjs';
 
@@ -28,7 +30,7 @@ import {
 
 /** Un bundle de mentira que importa lo que debe. */
 const bundleSano = (extra = '') =>
-  `${EXTERNALS_UNIVERSALES.map((e) => `import{x}from"${e}";`).join('')}${extra}`;
+  `${externalsUniversales('angular').map((e) => `import{x}from"${e}";`).join('')}${extra}`;
 
 describe('techoDe', () => {
   it('un elemento normal hereda el techo de su tier', () => {
@@ -94,12 +96,12 @@ describe('revisarBundle', () => {
   it('badge tal como está publicado hoy: pasa', () => {
     // 1845 bytes — el número de la purga, escrito acá para que sobreviva a la
     // sesión de quien lo midió.
-    const v = revisarBundle({ nombre: 'badge', tier: 'primitive', bytes: 1845, codigo: bundleSano() });
+    const v = revisarBundle({ framework: 'angular', nombre: 'badge', tier: 'primitive', bytes: 1845, codigo: bundleSano() });
     expect(v.ok).toBe(true);
   });
 
   it('storefront tal como está publicado hoy: pasa por su excepción', () => {
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
       bytes: 269_455,
@@ -112,13 +114,25 @@ describe('revisarBundle', () => {
   it('storefront como salió durante la purga —712 KB— NO pasa', () => {
     // El defecto real, con su número real.
     const v = revisarBundle({
+      framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
       bytes: 712_000,
       codigo: bundleSano(),
     });
+
     expect(v.ok).toBe(false);
-    expect(v.veces).toBeGreaterThan(2);
+    // Y lo rechaza SU TECHO, no los externals ni el trinquete: el bundle está
+    // sano y no hay línea base en este fixture.
+    expect(v.externalsAusentes).toEqual([]);
+    expect(v.bytes).toBeGreaterThan(v.techo);
+
+    // ⚠ Esto decía `veces > 2`, y el 2 no era de este test: salía de que el
+    // techo de `storefront` eran 304 KB (712/304 = 2,34). Al resubir los techos
+    // con lo medido (#68) pasó a 456 KB y el ratio cayó a 1,56 — el fixture
+    // afirmaba un número que era de OTRA pieza. Lo que este test prueba es que
+    // el defecto de la purga sigue sin pasar, y eso no depende del ratio.
+    expect(v.veces).toBeGreaterThan(1);
   });
 
   it('un primitivo que engorda 10× NO pasa — y NO lo caza el techo del tier', () => {
@@ -129,7 +143,7 @@ describe('revisarBundle', () => {
     const bytes = 1845 * 10;
     expect(bytes).toBeLessThan(TECHO_POR_TIER.primitive); // el techo lo dejaría pasar
 
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'badge',
       tier: 'primitive',
       bytes,
@@ -143,7 +157,7 @@ describe('revisarBundle', () => {
   it('un elemento nuevo no tiene trinquete: sólo responde ante el techo', () => {
     // Sin línea base no hay contra qué comparar, y inventar una lo volvería un
     // gate que rechaza elementos por existir.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'recien-nacido',
       tier: 'primitive',
       bytes: 18_000,
@@ -155,7 +169,7 @@ describe('revisarBundle', () => {
 
   it('crecer por debajo del factor es trabajar, no romper', () => {
     // Un gate que salta cada vez que alguien añade una vista se apaga.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'badge',
       tier: 'primitive',
       bytes: Math.round(1845 * 1.8),
@@ -168,7 +182,7 @@ describe('revisarBundle', () => {
   it('el trinquete no salva a quien se pasa del techo absoluto', () => {
     // Regenerar la línea base no puede ser la forma de bendecir un elemento
     // que rompió el tope de su tier.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'popover',
       tier: 'primitive',
       bytes: 30_000,
@@ -182,7 +196,7 @@ describe('revisarBundle', () => {
     // Es el mismo defecto un poco antes, y es cuando sale barato arreglarlo.
     // Un gate que sólo mira bytes lo deja pasar hasta que duele.
     const sinCore = `import{x}from"@angular/elements";import{y}from"@angular/platform-browser";`;
-    const v = revisarBundle({ nombre: 'badge', tier: 'primitive', bytes: 2000, codigo: sinCore });
+    const v = revisarBundle({ framework: 'angular', nombre: 'badge', tier: 'primitive', bytes: 2000, codigo: sinCore });
 
     expect(v.ok).toBe(false);
     expect(v.externalsAusentes).toEqual(['@angular/core']);
@@ -192,9 +206,12 @@ describe('revisarBundle', () => {
 describe('explicar — el mensaje habla de la causa, no de los bytes', () => {
   it('cuando falta un external, lo NOMBRA y dice dónde mirar', () => {
     const v = revisarBundle({
+      framework: 'angular',
       nombre: 'hero',
       tier: 'module',
       bytes: 400_000,
+      // Sin `@angular/core`, que es el único universal que le queda a Angular
+      // desde que #62 mudó los otros dos al runtime compartido.
       codigo: 'import{x}from"@angular/elements";',
     });
     const texto = explicar(v).join('\n');
@@ -204,10 +221,45 @@ describe('explicar — el mensaje habla de la causa, no de los bytes', () => {
     expect(texto).toContain('cdn.config.mjs');
   });
 
+  it('los externals universales son POR FRAMEWORK, y sin framework se LANZA', () => {
+    // Preact no tiene `@angular/core`, y exigírselo sería rojo por mirar la
+    // lista de otra plataforma — la regla 25 dentro de un gate de tamaño.
+    expect(externalsUniversales('angular')).toEqual(['@angular/core']);
+    expect(externalsUniversales('preact')).toContain('preact/jsx-runtime');
+    expect(() => externalsUniversales('svelte')).toThrow(/Declaralos en/);
+
+    // Y omitirlo no puede degradar a «no hay externals ausentes».
+    expect(() =>
+      revisarBundle({ nombre: 'x', tier: 'primitive', bytes: 10, codigo: '' }),
+    ).toThrow(/sin framework/);
+  });
+
+  it('lo que se MUDÓ al runtime se sigue vigilando, sobre el fichero que lo tiene', () => {
+    // La mitad que evita que quitar `@angular/elements` de los universales
+    // debilite el gate en vez de corregirlo (#64).
+    const conLosDos =
+      'import{a}from"@angular/elements";import{b}from"@angular/platform-browser";';
+
+    expect(revisarMigradosAlRuntime('angular', () => conLosDos)).toEqual([]);
+
+    const sinElements = 'import{b}from"@angular/platform-browser";';
+    const errores = revisarMigradosAlRuntime('angular', () => sinElements);
+    expect(errores[0]).toContain('sg-core.js');
+    expect(errores[0]).toContain('@angular/elements');
+    expect(errores[0]).toContain('se lo empaquetó');
+
+    // Un runtime que falta NO se salta: es justo cuando esto importa.
+    expect(revisarMigradosAlRuntime('angular', () => null)[0]).toContain('no se encuentra');
+
+    // Y un framework sin migraciones declaradas no inventa errores.
+    expect(revisarMigradosAlRuntime('preact', () => null)).toEqual([]);
+    expect(Object.keys(MIGRADOS_AL_RUNTIME)).toEqual(['angular']);
+  });
+
   it('cuando los externals están, dice que el diagnóstico NO está cerrado', () => {
     // Importa que el gate no finja saber. Acusa un síntoma y quien lo lee tiene
     // que buscar la causa — decirlo evita que se cierre el ticket subiendo el techo.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'hero',
       tier: 'module',
       bytes: 400_000,
@@ -220,7 +272,7 @@ describe('explicar — el mensaje habla de la causa, no de los bytes', () => {
   });
 
   it('un tier sin techo se explica como lo que es: una tabla desactualizada', () => {
-    const v = revisarBundle({ nombre: 'x', tier: 'experience', bytes: 1, codigo: bundleSano() });
+    const v = revisarBundle({ framework: 'angular', nombre: 'x', tier: 'experience', bytes: 1, codigo: bundleSano() });
     expect(explicar(v).join('\n')).toContain('TECHO_POR_TIER');
   });
 
@@ -228,7 +280,7 @@ describe('explicar — el mensaje habla de la causa, no de los bytes', () => {
     // Lo destapó la mutación de storefront a 712 KB: el mensaje decía a la vez
     // «cabe bajo el techo» y «695 KB > 304 KB». Una mentira en el mensaje de un
     // gate es exactamente cómo empezó el issue #7.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'storefront',
       tier: 'module',
       bytes: 712_000,
@@ -245,7 +297,7 @@ describe('explicar — el mensaje habla de la causa, no de los bytes', () => {
   it('cuando el trinquete salta, dice cómo bendecirlo si es legítimo', () => {
     // Sin esta línea el gate es un muro: quien tiene un crecimiento legítimo no
     // sabe qué hacer y termina borrando el gate en vez de regenerar el registro.
-    const v = revisarBundle({
+    const v = revisarBundle({ framework: 'angular',
       nombre: 'badge',
       tier: 'primitive',
       bytes: 1845 * (FACTOR_TRINQUETE + 1),

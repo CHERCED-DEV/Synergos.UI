@@ -1,4 +1,5 @@
 import { monogram } from './monogram.util';
+import { describe, expect, it } from 'vitest';
 
 // Casos límite del monograma. Vivían en `product-card.spec.ts`; se mudaron aquí
 // junto a la regla cuando storefront y product-card dejaron de tener cada uno su

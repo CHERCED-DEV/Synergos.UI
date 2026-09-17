@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { maxAge, elementoDePrueba, comprobaciones, juzgar } from './cdn-smoke.mjs';
+import {
+  maxAge,
+  muestrasPorFramework,
+  comprobacionesGlobales,
+  comprobacionesDeFramework,
+  runtimeDelImportMap,
+  juzgar,
+} from './cdn-smoke.mjs';
 import { UN_ANO, CORTO, INDICE } from './cdn-cache-policy.mjs';
 
 /**
@@ -42,7 +49,16 @@ describe('el humo apunta hacia afuera', () => {
 
   it('ningún elemento va cableado: la muestra sale del registry', () => {
     // Un `badge` escrito a mano se pudre el día que alguien lo renombre.
-    expect(fuente).toMatch(/elementoDePrueba\(registry\)/);
+    expect(fuente).toMatch(/muestrasPorFramework\(registry\)/);
+  });
+
+  it('ningún FRAMEWORK va cableado (issue #44)', () => {
+    // Éste es el que importa más, y por una razón fea: un elemento cableado da
+    // rojo el día que se renombra, y se nota. Un framework cableado da VERDE
+    // sobre el framework equivocado, y no se nota nunca.
+    const codigo = fuente.replace(/^\s*(\/\/.*|\*.*|\/\*.*)$/gm, ''); // sin comentarios
+    expect(codigo).not.toMatch(/['"`\/]angular[\/'"`]/);
+    expect(codigo).not.toMatch(/ng-core\.js/);
   });
 });
 
@@ -57,35 +73,94 @@ describe('maxAge', () => {
   });
 });
 
-describe('elementoDePrueba', () => {
-  const conAngular = (name) => ({
+describe('muestrasPorFramework', () => {
+  const con = (name, impls) => ({
     name,
-    implementations: { angular: { latest: '0.1.0' } },
+    implementations: Object.fromEntries(
+      Object.entries(impls).map(([fw, latest]) => [fw, { latest }]),
+    ),
   });
 
   it('toma el primero que tenga bundle publicado', () => {
-    const r = { elements: [conAngular('academy'), conAngular('badge')] };
-    expect(elementoDePrueba(r)).toEqual({ nombre: 'academy', version: '0.1.0' });
+    const r = { elements: [con('academy', { angular: '0.1.0' }), con('badge', { angular: '0.1.0' })] };
+    expect(muestrasPorFramework(r)).toEqual([
+      { framework: 'angular', nombre: 'academy', version: '0.1.0' },
+    ]);
   });
 
   it('se salta los que sólo están declarados y no publicados', () => {
     // Que el registry traiga entradas sin implementación es legítimo: el CMS
     // declara tipos antes de que exista el web component. Pero con esas no hay
     // nada que pedirle al CDN, y pedirlas daría un 404 que no significa nada.
-    const r = { elements: [{ name: 'fantasma', implementations: {} }, conAngular('badge')] };
-    expect(elementoDePrueba(r).nombre).toBe('badge');
+    const r = { elements: [{ name: 'fantasma', implementations: {} }, con('badge', { angular: '0.1.0' })] };
+    expect(muestrasPorFramework(r)[0].nombre).toBe('badge');
+  });
+
+  it('DOS frameworks publicados dan DOS muestras — el defecto del issue #44', () => {
+    // Con `angular` cableado, el humo comprobaba una y daba el despliegue por
+    // bueno. El fixture tiene que llevar un elemento que SÓLO exista en el
+    // segundo framework: si los dos publicaran los mismos elementos, tomar el
+    // primero de cada uno daría el mismo nombre y no se distinguiría «miré los
+    // dos» de «miré uno».
+    const r = {
+      elements: [con('badge', { angular: '0.1.0' }), con('solo-react', { react: '9.9.9' })],
+    };
+    expect(muestrasPorFramework(r)).toEqual([
+      { framework: 'angular', nombre: 'badge', version: '0.1.0' },
+      { framework: 'react', nombre: 'solo-react', version: '9.9.9' },
+    ]);
   });
 
   it('un registry vacío es un despliegue vacío, y se dice así', () => {
     // Un despliegue vacío es peor que uno fallido: responde 200 a la portada y
     // 404 a todo lo demás, sin que nada se haya puesto rojo.
-    expect(() => elementoDePrueba({ elements: [] })).toThrow(/vacío/);
+    expect(() => muestrasPorFramework({ elements: [] })).toThrow(/vacío/);
+  });
+
+  it('elementos declarados y NINGUNO publicado también se dice', () => {
+    // No se cae a pedir `/angular/`: eso daría un 404 que se lee como CDN roto
+    // cuando lo que pasa es que no hay nada publicado.
+    expect(() => muestrasPorFramework({ elements: [{ name: 'x', implementations: {} }] })).toThrow(
+      /ninguno con implementación publicada/,
+    );
   });
 });
 
+describe('runtimeDelImportMap', () => {
+  const mapa = (fw, ver) => ({
+    imports: { '@angular/core': `/synergos/runtime/${fw}/${ver}/ng-core.js` },
+  });
+
+  it('la versión y la ruta salen del propio mapa, no de una constante', () => {
+    expect(runtimeDelImportMap(mapa('angular', '21.1.6'), 'angular')).toEqual({
+      version: '21.1.6',
+      ruta: '/synergos/runtime/angular/21.1.6/ng-core.js',
+    });
+  });
+
+  it('y eso vale para un framework cuyo asset NO se llama ng-core.js', () => {
+    const r = { imports: { react: '/synergos/runtime/react/19.2.0/react-runtime.js' } };
+    expect(runtimeDelImportMap(r, 'react')).toEqual({
+      version: '19.2.0',
+      ruta: '/synergos/runtime/react/19.2.0/react-runtime.js',
+    });
+  });
+
+  it('un mapa del framework EQUIVOCADO no se da por bueno', () => {
+    // El regex viejo era `/runtime\/angular\/([^/]+)\//` sobre el primer
+    // import cualquiera: pedirle el mapa de react y leerlo con ese patrón daba
+    // `undefined` y el humo decía «no dice qué versión sirve», sin nombrar al
+    // framework. Acá falla y lo nombra.
+    expect(() => runtimeDelImportMap(mapa('angular', '21.1.6'), 'react')).toThrow(/react/);
+  });
+});
+
+const RUNTIME_NG = { version: '21.1.6', ruta: '/synergos/runtime/angular/21.1.6/ng-core.js' };
+const MUESTRA = { nombre: 'badge', version: '0.1.0', framework: 'angular' };
+
 describe('juzgar', () => {
   const cabeceras = (o) => new Map(Object.entries(o));
-  const rutas = () => comprobaciones({ nombre: 'badge', version: '0.1.0' }, '21.1.6');
+  const rutas = () => [...comprobacionesGlobales(), ...comprobacionesDeFramework(MUESTRA, RUNTIME_NG)];
   const buscar = (frag) => rutas().find((c) => c.ruta.includes(frag));
 
   it('un bundle versionado, servido bien, pasa', () => {
@@ -154,9 +229,11 @@ describe('juzgar', () => {
 });
 
 describe('las comprobaciones cubren lo que sólo se ve en vivo', () => {
-  const todas = comprobaciones({ nombre: 'badge', version: '0.1.0' }, '21.1.6');
+  const todas = [...comprobacionesGlobales(), ...comprobacionesDeFramework(MUESTRA, RUNTIME_NG)];
 
-  it('las seis rutas del ticket', () => {
+  it('las seis rutas del ticket: dos del despliegue y cuatro por framework', () => {
+    expect(comprobacionesGlobales()).toHaveLength(2);
+    expect(comprobacionesDeFramework(MUESTRA, RUNTIME_NG)).toHaveLength(4);
     expect(todas).toHaveLength(6);
   });
 
@@ -169,5 +246,25 @@ describe('las comprobaciones cubren lo que sólo se ve en vivo', () => {
 
   it('y el runtime, que es lo que se olvidó en el CDN del CMS', () => {
     expect(todas.some((c) => c.ruta.includes('/runtime/angular/'))).toBe(true);
+  });
+
+  it('un SEGUNDO framework pide sus cuatro rutas bajo SU segmento (issue #44)', () => {
+    // Con el literal cableado, éstas cuatro se pedían bajo `/angular/`: cuatro
+    // 404 si el elemento no existe ahí, o —peor— cuatro 200 del bundle de otra
+    // plataforma dando el despliegue de React por bueno.
+    const react = comprobacionesDeFramework(
+      { nombre: 'card', version: '2.0.0', framework: 'react' },
+      { version: '19.2.0', ruta: '/synergos/runtime/react/19.2.0/react-runtime.js' },
+    );
+    expect(react.every((c) => c.ruta.includes('/react/'))).toBe(true);
+    expect(react.some((c) => c.ruta.includes('/angular/'))).toBe(false);
+    expect(react.map((c) => c.ruta)).toContain('/synergos/card/react/latest/main.js');
+    expect(react.map((c) => c.ruta)).toContain('/synergos/runtime/react/19.2.0/react-runtime.js');
+  });
+
+  it('una muestra sin framework NO cae a angular: se para', () => {
+    expect(() => comprobacionesDeFramework({ nombre: 'x', version: '1' }, RUNTIME_NG)).toThrow(
+      /de qué framework/,
+    );
   });
 });

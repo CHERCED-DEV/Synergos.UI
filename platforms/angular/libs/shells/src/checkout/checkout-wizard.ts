@@ -51,6 +51,17 @@ export interface CheckoutWizardConfig {
   /** Label of the final submit button (e.g. "Pagar y confirmar" / "Radicar"). */
   readonly submitLabel?: string;
   readonly processingLabel?: string;
+  /**
+   * Lo que se dice cuando el cobro NO salió. **Nada se cobró**, así que el mensaje
+   * invita a reintentar sin más.
+   */
+  readonly payFailedMessage?: string;
+  /**
+   * Lo que se dice cuando el cobro SÍ salió y la confirmación no. **Tiene que nombrar
+   * lo que YA quedó**: decirle «no pudimos completar la compra» a quien acaba de
+   * pagar le invita a pagar otra vez, y eso es daño propio, no «un botón de más».
+   */
+  readonly confirmFailedMessage?: string;
   /** BCP-47 locale for the built-in price formatting. Default `es-CO`. */
   readonly locale?: string;
   /** Fraction digits for the built-in price formatting. Default 0. */
@@ -243,7 +254,40 @@ export class CheckoutWizardComponent {
     this.stepchange.emit(this.currentStep()?.id ?? '');
   }
 
+  /**
+   * El cobro que el servidor YA se llevó para este carrito, si lo hay.
+   *
+   * **Sale de la SESIÓN y no de un campo de la instancia**: entre `pay` y `confirm`
+   * la página puede recargarse y la sesión sobrevive, el campo no (regla 20). Se
+   * exige además que el monto capturado siga siendo el total del carrito — si el
+   * carrito cambió, ese cobro ya no lo cubre y hay que volver a cobrar.
+   */
+  readonly capturedReference = computed(() => {
+    const session = this.#store.session();
+    for (let index = session.payments.length - 1; index >= 0; index -= 1) {
+      const payment = session.payments[index];
+      if (payment.status !== 'captured' || !payment.reference) {
+        continue;
+      }
+      return payment.amount === session.pricing.totalAmount ? payment.reference : '';
+    }
+    return '';
+  });
+
   // ─── Engine round: pay → record → confirm → vouchers ───────────────────────
+  /**
+   * Una ronda del motor. **Un reintento no vuelve a cobrar** (CMS#117).
+   *
+   * Son dos pasos y el primero mueve dinero: si `pay` salió y `confirm` no, volver a
+   * pulsar llamaba otra vez a `pay` —otra sesión de pago, otro cargo— y además
+   * apilaba un segundo registro de pago sobre el mismo carrito. Hoy el cobro ya
+   * capturado se reconoce en la sesión y sólo se reintenta la confirmación, que es
+   * el paso que los bordes hacen idempotente justamente para esto.
+   *
+   * **Y el mensaje nombra lo que SÍ quedó**: «no pudimos completar la compra» a
+   * secas, dicho a alguien a quien ya se le cobró, es una invitación a pagar dos
+   * veces.
+   */
   async submit(): Promise<void> {
     if (this.processing() || !this.hasItems()) {
       return;
@@ -251,30 +295,36 @@ export class CheckoutWizardComponent {
     this.processing.set(true);
     this.errorMessage.set('');
     this.#store.setStatus('paying');
+    const alreadyPaid = this.capturedReference();
     try {
-      const session = this.#store.getValidSession();
-      const instrument = this.instrument();
-      const payResult = await this.#fulfillment.pay({ session, instrument });
-      if (!payResult.accepted || !payResult.reference) {
-        throw new Error(payResult.reason || 'payment-rejected');
-      }
+      let reference = alreadyPaid;
+      if (!reference) {
+        const session = this.#store.getValidSession();
+        const instrument = this.instrument();
+        const payResult = await this.#fulfillment.pay({ session, instrument });
+        if (!payResult.accepted || !payResult.reference) {
+          throw new Error(payResult.reason || 'payment-rejected');
+        }
+        reference = payResult.reference;
 
-      const providerValue = instrument['provider'];
-      const paid = this.#store.getValidSession();
-      this.#store.setSession({
-        ...paid,
-        payments: [
-          ...paid.payments,
-          {
-            id: `pay-${Date.now().toString(36)}`,
-            amount: paid.pricing.totalAmount,
-            provider: typeof providerValue === 'string' && providerValue !== '' ? providerValue : 'psp',
-            status: 'captured' as const,
-            reference: payResult.reference,
-          },
-        ],
-        status: 'paying' as const,
-      });
+        const providerValue = instrument['provider'];
+        const paid = this.#store.getValidSession();
+        this.#store.setSession({
+          ...paid,
+          payments: [
+            ...paid.payments,
+            {
+              id: `pay-${Date.now().toString(36)}`,
+              amount: paid.pricing.totalAmount,
+              provider:
+                typeof providerValue === 'string' && providerValue !== '' ? providerValue : 'psp',
+              status: 'captured' as const,
+              reference,
+            },
+          ],
+          status: 'paying' as const,
+        });
+      }
 
       const confirmation = await this.#fulfillment.confirm(this.#store.getValidSession());
       if (!confirmation.confirmed) {
@@ -282,15 +332,33 @@ export class CheckoutWizardComponent {
       }
 
       this.#store.setStatus('confirmed');
-      this.completed.emit({ reference: payResult.reference, vouchers: confirmation.vouchers });
+      this.completed.emit({ reference, vouchers: confirmation.vouchers });
     } catch (error) {
       this.#store.setStatus('building');
       const reason = error instanceof Error ? error.message : 'unknown';
-      this.errorMessage.set(reason);
+      // Lo que decide el mensaje no es POR QUÉ falló: es si el servidor ya se llevó
+      // el cobro. Se relee de la sesión porque este mismo intento pudo haberlo
+      // dejado escrito antes de fallar al confirmar.
+      this.errorMessage.set(this.failureMessage(this.capturedReference()));
       this.failed.emit(reason);
     } finally {
       this.processing.set(false);
     }
+  }
+
+  private failureMessage(capturedReference: string): string {
+    const config = this.config();
+    if (capturedReference) {
+      return (
+        config.confirmFailedMessage ||
+        `Ya recibimos tu pago (referencia ${capturedReference}) pero no pudimos confirmarlo. ` +
+          'Vuelve a intentarlo: no se te cobrará de nuevo.'
+      );
+    }
+    return (
+      config.payFailedMessage ||
+      'No pudimos completar el cobro, así que no se te ha cobrado nada. Intenta de nuevo.'
+    );
   }
 
   // ─── Formatting ────────────────────────────────────────────────────────────

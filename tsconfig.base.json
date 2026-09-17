@@ -14,6 +14,7 @@
     "paths": {
       "@synergos/contracts": ["./vitals/contracts/src/index.ts"],
       "@synergos/core": ["./vitals/core/src/index.ts"],
+      "@synergos/core/inputs": ["./vitals/core/src/inputs/index.ts"],
       "@synergos/core-assets": ["./vitals/core-assets/src/index.ts"]
     }
   },

@@ -40,6 +40,7 @@ export type TravelView =
   | 'home' // multi-tab search (Estadías · Vuelos · Autos)
   | 'flights' // flight results + fare families + seat map
   | 'stays' // stay results (SH-8 list↔map)
+  | 'cars' // car results (SH-1 discovery: orden + facetas)
   | 'stay' // one stay's rich detail (SH-2) → room × rate
   | 'cart' // travel cart (multi-ítem: hotel + vuelo + auto)
   | 'checkout' // SH-3 wizard over the engine
@@ -140,6 +141,18 @@ export interface TravelOffer {
   readonly stayId?: string;
   /** Star rating (hotels) for the card. */
   readonly rating?: number;
+  /**
+   * Categoría del auto («Económico», «SUV»). Sólo la emiten los autos, igual que
+   * `fareFamilies` sólo los vuelos.
+   *
+   * Existe porque la faceta la necesita como DATO: hoy esto viaja dentro de
+   * `subtitle` como prosa —`'Económico · Automático · A/C'`— y derivar una faceta
+   * partiendo una cadena de presentación es adivinar (#27). Opcional: un backend
+   * que no lo emita no pinta la faceta, en vez de pintar una inventada.
+   */
+  readonly carCategory?: string;
+  /** Transmisión del auto («Automático», «Manual»). Misma razón. */
+  readonly carTransmission?: string;
   /** Carried into the cart line untouched (opaque to the engine). */
   readonly detail: Readonly<Record<string, unknown>>;
 }
@@ -177,7 +190,94 @@ export interface StayDetail {
   readonly specs: readonly StaySpec[];
   readonly rates: readonly StayRate[];
   readonly geo?: TravelGeo;
+  /** Las opiniones de quienes ya se alojaron (#28). */
+  readonly reviews: readonly StayReview[];
+  /** Resumen YA calculado por el servidor: promedio, distribución y criterios. */
+  readonly reviewSummary: StayReviewSummary | null;
+  /**
+   * Si ESTE viajero puede opinar. Lo decide el SERVIDOR con el mismo gate que
+   * aplica el POST (estadía completada). No se deduce acá — el mismo criterio que
+   * `ProductDetail.canReview` de la Tienda.
+   */
+  readonly canReview: boolean;
+  /**
+   * Si ESTE viajero puede reportar una opinión (#31).
+   *
+   * **Sale del servidor y no de una sesión local**, al revés que en la Tienda y
+   * Educación: esta app no monta `HostIdentityService`, así que acá no hay forma
+   * honesta de saber si hay sesión. Deducirlo por la existencia de reseñas sería
+   * adivinar, y ofrecer un botón que rebota con 401 es el error que `canReview`
+   * ya evita. Ausente = NO puede.
+   */
+  readonly canReport: boolean;
 }
+
+/** Una opinión de una estadía. */
+export interface StayReview {
+  readonly id: string;
+  readonly author: string;
+  /** 1..5. */
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  /** Ya formateada por el servidor. */
+  readonly date: string;
+  /** Se alojó de verdad. Lo afirma el servidor. */
+  readonly verified: boolean;
+  /** Respuesta del anfitrión. */
+  readonly reply?: string;
+}
+
+export interface StayReviewBar {
+  readonly stars: number;
+  readonly count: number;
+}
+
+/** Un criterio propio de una ESTADÍA: limpieza, ubicación, relación precio-valor. */
+export interface StayReviewCriterion {
+  readonly id: string;
+  readonly label: string;
+  readonly score: number;
+}
+
+export interface StayReviewSummary {
+  readonly average: number;
+  readonly count: number;
+  readonly distribution: readonly StayReviewBar[];
+  readonly criteria: readonly StayReviewCriterion[];
+}
+
+/** Lo que el viajero escribe. El autor lo pone el servidor desde la sesión. */
+export interface StayReviewSubmission {
+  readonly rating: number;
+  readonly title: string;
+  readonly body: string;
+  readonly criteria: Readonly<Record<string, number>>;
+}
+
+/** Resultado tipado y sin degradar a mock — ADR 0112 y regla 4 de `CLAUDE.md`. */
+export type StayReviewResult =
+  | {
+      readonly ok: true;
+      /**
+       * Quedó ENCOLADA para revisión, no publicada (#31). Sale de un `202
+       * Accepted`, que `response.ok` no distingue de un 201 — y sin distinguirlos
+       * el acuse decía «ya está publicada».
+       */
+      readonly pending: boolean;
+    }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'not-guest' | 'invalid' | 'failed';
+    };
+
+/** Resultado de reportar una opinión (#31). `already-reported` no es un fallo. */
+export type StayReviewReportResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'already-reported' | 'not-found' | 'failed';
+    };
 
 /** One label/value row on the stay's specs panel. */
 export interface StaySpec {

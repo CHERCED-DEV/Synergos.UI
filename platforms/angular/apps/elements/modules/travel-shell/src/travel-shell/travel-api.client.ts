@@ -6,6 +6,11 @@ import {
   type SeatMapPayload,
   type StayDetail,
   type StayRate,
+  type StayReview,
+  type StayReviewReportResult,
+  type StayReviewResult,
+  type StayReviewSubmission,
+  type StayReviewSummary,
   type StaySpec,
   type TravelCheckoutLine,
   type TravelCheckoutResult,
@@ -78,6 +83,75 @@ export class TravelApiClient {
   }
 
   // ─── Stay detail (SH-2 rich ficha) ───────────────────────────────────────────
+
+  /**
+   * `POST /api/travel/stays/{id}/reviews` — publica la opinión de una estadía (#28).
+   *
+   * **No degrada a mock**: el endpoint todavía no existe, así que hoy contesta
+   * `failed` de verdad y la pantalla lo dice. Fingir la escritura le diría a quien
+   * se alojó que su opinión está publicada cuando el servidor no recibió nada
+   * (ADR 0112, regla 4 de `CLAUDE.md`).
+   */
+  async submitStayReview(
+    apiBase: string,
+    stayId: string,
+    submission: StayReviewSubmission,
+  ): Promise<StayReviewResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/stays/${encodeURIComponent(stayId)}/reviews`;
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(submission),
+      });
+      if (response.ok) {
+        // **202 no es 201** (#31): el borde que encola para revisión contesta 202.
+        return { ok: true, pending: response.status === 202 };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 403:
+          return { ok: false, reason: 'not-guest' };
+        case 400:
+          return { ok: false, reason: 'invalid' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      // Red caída NO es «no puedes opinar».
+      return { ok: false, reason: 'failed' };
+    }
+  }
+
+  /** Reporta una opinión (#31). Sin degradar a mock: regla 4 de `CLAUDE.md`. */
+  async reportStayReview(apiBase: string, reviewId: string): Promise<StayReviewReportResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, reason: 'failed' };
+    }
+    const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
+    try {
+      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      if (response.ok) {
+        return { ok: true };
+      }
+      switch (response.status) {
+        case 401:
+          return { ok: false, reason: 'unauthenticated' };
+        case 409:
+          return { ok: false, reason: 'already-reported' };
+        case 404:
+          return { ok: false, reason: 'not-found' };
+        default:
+          return { ok: false, reason: 'failed' };
+      }
+    } catch {
+      return { ok: false, reason: 'failed' };
+    }
+  }
 
   async stay(apiBase: string, id: string, currency: string): Promise<StayDetail> {
     const url = `${apiBase}/stay/${encodeURIComponent(id)}`;
@@ -359,6 +433,12 @@ function normalizeOffer(
   const rating = product === 'hotel' ? readNumber(value['rating']) : undefined;
   const stayId =
     product === 'hotel' ? readString(value['stayId']).trim() || offerId : undefined;
+  // Facetas del auto: se LEEN, no se derivan del subtítulo (#27). Sin el dato la
+  // faceta no se pinta, que es la verdad — mejor que inventarla partiendo prosa.
+  const carCategory =
+    product === 'car' ? readString(value['carCategory'] ?? value['category']).trim() : '';
+  const carTransmission =
+    product === 'car' ? readString(value['carTransmission'] ?? value['transmission']).trim() : '';
   return {
     offerId,
     product,
@@ -371,6 +451,8 @@ function normalizeOffer(
     fareFamilies,
     stayId,
     rating: rating && rating > 0 ? rating : undefined,
+    ...(carCategory ? { carCategory } : {}),
+    ...(carTransmission ? { carTransmission } : {}),
     detail: { ...detail, title, subtitle },
   };
 }
@@ -439,6 +521,13 @@ function normalizeStay(value: unknown, id: string, fallbackCurrency: string): St
     specs,
     rates: normalizeStayRates(source['rates'], currency),
     geo: readGeo(source['geo']),
+    reviews: normalizeStayReviews(source['reviews']),
+    reviewSummary: normalizeStayReviewSummary(source['reviewSummary']),
+    // Ausente = NO puede: ofrecer el formulario a quien el servidor no autorizó
+    // es prometer algo que va a rebotar con 403.
+    canReview: source['canReview'] === true,
+    // Mismo criterio: ausente = NO puede (#31).
+    canReport: source['canReport'] === true,
   };
 }
 
@@ -628,9 +717,11 @@ function mockOffers(product: TravelProduct, currency: string): readonly TravelOf
       ];
     case 'car':
       return [
-        offerMock('CMOCK-1', 'car', 'Chevrolet Onix', 'Económico · Automático · A/C', 156_000, currency, ['Kilometraje ilimitado']),
-        offerMock('CMOCK-2', 'car', 'Toyota Fortuner', 'SUV · 4x4 · 7 plazas', 384_000, currency, ['Seguro incluido']),
-        offerMock('CMOCK-3', 'car', 'Renault Kwid', 'Económico · Manual', 118_000, currency, ['El más barato']),
+        carMock('CMOCK-1', 'Chevrolet Onix', 'Económico · Automático · A/C', 156_000, currency, ['Kilometraje ilimitado'], 'Económico', 'Automático'),
+        carMock('CMOCK-2', 'Toyota Fortuner', 'SUV · 4x4 · 7 plazas', 384_000, currency, ['Seguro incluido'], 'SUV', 'Automático'),
+        carMock('CMOCK-3', 'Renault Kwid', 'Económico · Manual', 118_000, currency, ['El más barato'], 'Económico', 'Manual'),
+        carMock('CMOCK-4', 'Nissan Versa', 'Intermedio · Automático', 214_000, currency, ['Aire acondicionado'], 'Intermedio', 'Automático'),
+        carMock('CMOCK-5', 'Kia Picanto', 'Económico · Manual · 5 puertas', 132_000, currency, [], 'Económico', 'Manual'),
       ];
   }
 }
@@ -680,6 +771,24 @@ function flightMock(
   };
 }
 
+/** Una oferta de auto, con sus facetas como DATO (#27). */
+function carMock(
+  offerId: string,
+  title: string,
+  subtitle: string,
+  amount: number,
+  currency: string,
+  badges: readonly string[],
+  carCategory: string,
+  carTransmission: string,
+): TravelOffer {
+  return {
+    ...offerMock(offerId, 'car', title, subtitle, amount, currency, badges),
+    carCategory,
+    carTransmission,
+  };
+}
+
 function offerMock(
   offerId: string,
   product: TravelProduct,
@@ -690,6 +799,68 @@ function offerMock(
   badges: readonly string[],
 ): TravelOffer {
   return { offerId, product, title, subtitle, amount, currency, badges, detail: { title, subtitle } };
+}
+
+function normalizeStayReviews(value: unknown): readonly StayReview[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry): StayReview | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+      const id = readString(entry['id']).trim();
+      const body = readString(entry['body']).trim();
+      if (!id || !body) {
+        return null;
+      }
+      const reply = readString(entry['reply']).trim();
+      return {
+        id,
+        author: readString(entry['author']).trim() || 'Viajero',
+        rating: Math.min(5, Math.max(1, Math.round(readNumber(entry['rating'])))),
+        title: readString(entry['title']).trim(),
+        body,
+        date: readString(entry['date']).trim(),
+        verified: entry['verified'] === true,
+        ...(reply ? { reply } : {}),
+      };
+    })
+    .filter((entry): entry is StayReview => entry !== null);
+}
+
+function normalizeStayReviewSummary(value: unknown): StayReviewSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawDist = Array.isArray(value['distribution']) ? value['distribution'] : [];
+  const rawCrit = Array.isArray(value['criteria']) ? value['criteria'] : [];
+  return {
+    average: readNumber(value['average']),
+    count: Math.trunc(readNumber(value['count'])),
+    distribution: rawDist
+      .map((entry) =>
+        isRecord(entry)
+          ? {
+              stars: Math.min(5, Math.max(1, Math.round(readNumber(entry['stars'])))),
+              count: Math.trunc(readNumber(entry['count'])),
+            }
+          : null,
+      )
+      .filter((entry): entry is { stars: number; count: number } => entry !== null),
+    criteria: rawCrit
+      .map((entry) => {
+        if (!isRecord(entry)) {
+          return null;
+        }
+        const id = readString(entry['id']).trim();
+        return id
+          ? { id, label: readString(entry['label']).trim() || id, score: readNumber(entry['score']) }
+          : null;
+      })
+      .filter((entry): entry is { id: string; label: string; score: number } => entry !== null),
+  };
 }
 
 function mockStay(id: string, currency: string): StayDetail {
@@ -725,6 +896,57 @@ function mockStay(id: string, currency: string): StayDetail {
       { label: 'Política', value: 'Cancelación gratis hasta 48h antes' },
       { label: 'Mascotas', value: 'No se admiten' },
     ],
+    // Demo: su trabajo es que la funcionalidad se VEA. El envío sigue fallando a
+    // la vista porque el endpoint no existe todavía (#28).
+    reviews: [
+      {
+        id: 'STR-1',
+        author: 'Mariana L.',
+        rating: 5,
+        title: 'La ubicación lo es todo',
+        body: 'A dos cuadras de la muralla. El desayuno es sencillo pero el balcón compensa cualquier cosa.',
+        date: '18 de agosto de 2026',
+        verified: true,
+      },
+      {
+        id: 'STR-2',
+        author: 'Sebastián T.',
+        rating: 4,
+        title: 'Muy bien, con una salvedad',
+        body: 'Impecable de limpieza. El aire acondicionado del cuarto interior hace ruido de madrugada.',
+        date: '9 de agosto de 2026',
+        verified: true,
+        reply: 'Gracias Sebastián — ya programamos el mantenimiento de ese equipo.',
+      },
+      {
+        id: 'STR-3',
+        author: 'Ana María G.',
+        rating: 3,
+        title: '',
+        body: 'Buen hotel pero para el precio esperaba más en el restaurante.',
+        date: '30 de julio de 2026',
+        verified: true,
+      },
+    ],
+    reviewSummary: {
+      average: 4.4,
+      count: 842,
+      distribution: [
+        { stars: 5, count: 512 },
+        { stars: 4, count: 224 },
+        { stars: 3, count: 78 },
+        { stars: 2, count: 18 },
+        { stars: 1, count: 10 },
+      ],
+      // Los criterios de una ESTADÍA. No son los de un curso.
+      criteria: [
+        { id: 'limpieza', label: 'Limpieza', score: 4.7 },
+        { id: 'ubicacion', label: 'Ubicación', score: 4.9 },
+        { id: 'precio-valor', label: 'Relación precio-valor', score: 3.9 },
+      ],
+    },
+    canReview: true,
+    canReport: true,
     rates: [
       {
         id: `${id}-r1`,

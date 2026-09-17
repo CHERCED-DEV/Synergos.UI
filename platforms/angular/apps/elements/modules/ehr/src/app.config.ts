@@ -16,8 +16,9 @@ import { EhrFulfillmentStrategy } from './ehr/ehr-fulfillment.strategy';
  * cita (slot = médico, copago apagable). The module never branches on "cita/copago";
  * it asks the <c>FulfillmentContext</c>, which routes by `flow === 'ehr'`.
  *
- * A single shared <c>EhrApiClient</c> instance backs every view so both portals read
- * the same <c>degraded</c> flag (visible mock fallback).
+ * A single shared <c>EhrApiClient</c> instance backs every view so both portals hit the
+ * same seam. That client does **not** degrade a failed clinical read to demo data
+ * (CHERCED-DEV/Synergos.CMS#106): it throws, and the container paints the gap.
  */
 export const appConfig: ApplicationConfig = {
   providers: [

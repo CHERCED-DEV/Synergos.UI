@@ -120,6 +120,34 @@ function findLiveStatus(host: HTMLElement, text: RegExp): Element | undefined {
   );
 }
 
+/** Un post con la forma mínima que `normalizePost` acepta: id + autor válido. */
+function postDeServidor(over: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'srv-1',
+    author: { id: 'a-1', handle: 'camila', displayName: 'Camila Restrepo' },
+    body: 'cuerpo',
+    createdAtUtc: '2026-09-12T10:00:00Z',
+    ...over,
+  };
+}
+
+/** `fetch` que acepta el POST de publicar y rechaza todo lo demás (modo demo). */
+function fetchQuePublica(post: Record<string, unknown>): ReturnType<typeof vi.fn> {
+  const mock = vi.fn((url: string, init?: RequestInit) => {
+    const esPublicar = init?.method === 'POST' && /\/(post|article)$/.test(url);
+    if (!esPublicar) {
+      return Promise.reject(new Error('offline'));
+    }
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ post }),
+    } as Response);
+  });
+  vi.stubGlobal('fetch', mock as unknown as typeof fetch);
+  return mock;
+}
+
 describe('BlogsElementComponent', () => {
   let fixture: ComponentFixture<BlogsElementComponent>;
   let component: BlogsElementComponent;
@@ -189,11 +217,18 @@ describe('BlogsElementComponent', () => {
   });
 
   // ── happy: publish a post → optimistic insert at the top of the feed ─────────
+  //
+  // Este caso se llamaba «happy» y dejaba `fetch` RECHAZANDO: o sea comprobaba el
+  // camino degradado y lo daba por bueno. Desde #26 un post que el servidor no
+  // acepta no entra al feed, así que el caso feliz tiene que ser feliz de verdad
+  // — el servidor acepta el POST y el resto sigue en modo demo.
   it('publishes a post and inserts it optimistically at the top (happy case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-
     const before = component.posts().length;
+
+    fetchQuePublica(
+      postDeServidor({ body: 'Mi primer post en Synergos Social #hola', hashtags: ['hola'] }),
+    );
     component.draftBody.set('Mi primer post en Synergos Social #hola');
     expect(component.draftValid()).toBe(true);
 
@@ -606,21 +641,152 @@ describe('BlogsElementComponent', () => {
     expect(component.isSaved(second.id)).toBe(true);
   });
 
-  // ── v2 long-form: publishing an article inserts a postPage at the top ────────
-  it('publishes a long-form article and inserts it at the top of the feed', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+  // ── v2 long-form: el editor de artículo sobre SH-6 (#26) ─────────────────────
+  //
+  // ⚠️ ESTE BLOQUE REEMPLAZA UN TEST QUE AFIRMABA EL DEFECTO. El anterior
+  // rechazaba `fetch` a propósito y comprobaba que el artículo aparecía arriba
+  // del feed — o sea consagraba que un fallo del servidor se viera como
+  // publicación exitosa, mientras el editor se vaciaba. Por eso el defecto no lo
+  // vio nadie: no faltaba cobertura, sobraba la equivocada.
+  const TITULO = 'Por qué el motor compartido escala';
+  const CUERPO = 'Un cuerpo suficientemente largo para pasar la validación del editor.';
 
+  function escribirArticulo(): void {
+    component.articleTitle.set(TITULO);
+    component.articleBody.set(CUERPO);
+  }
+
+  it('publica un artículo y lo inserta arriba del feed cuando el servidor lo ACEPTA', async () => {
+    await createComponent();
     const before = component.posts().length;
-    component.articleTitle.set('Por qué el motor compartido escala');
-    component.articleBody.set('Un cuerpo suficientemente largo para pasar la validación del editor.');
+    escribirArticulo();
     expect(component.articleValid()).toBe(true);
+
+    fetchQuePublica(postDeServidor({ id: 'art-1', objectKind: 'postPage', body: CUERPO }));
+    const publicados: string[] = [];
+    component.articlepublished.subscribe((e) => publicados.push(e.id));
 
     component.publishArticle();
     await flushMicrotasks();
 
     expect(component.posts().length).toBe(before + 1);
     expect(component.posts()[0].objectKind).toBe('postPage');
+    expect(publicados).toEqual(['art-1']);
+    // Ahora sí se limpia: hay confirmación del servidor.
+    expect(component.articleTitle()).toBe('');
+    expect(component.articleBody()).toBe('');
+    expect(component.articleNotSaved()).toBe(false);
+  });
+
+  // ── EL caso: el servidor no lo acepta ────────────────────────────────────────
+  it('si el servidor NO lo acepta, el texto se queda y NO se da por publicado', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    const before = component.posts().length;
+    escribirArticulo();
+
+    const publicados: string[] = [];
+    component.articlepublished.subscribe((e) => publicados.push(e.id));
+
+    component.publishArticle();
+    await flushMicrotasks();
+
+    // Lo que antes pasaba y ya no: el texto se borraba, el artículo aparecía en
+    // el feed como publicado y el CMS recibía un id inventado.
+    expect(component.articleTitle()).toBe(TITULO);
+    expect(component.articleBody()).toBe(CUERPO);
+    expect(component.posts().length).toBe(before);
+    expect(publicados).toEqual([]);
+    // Y se dice, en vez de dejar la pantalla como si nada hubiera pasado.
+    expect(component.articleNotSaved()).toBe(true);
+  });
+
+  it('el post corto tampoco se da por publicado si el servidor no lo acepta', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    const before = component.posts().length;
+    component.draftBody.set('Un post corto que no va a llegar a ninguna parte.');
+
+    component.publish();
+    await flushMicrotasks();
+
+    expect(component.draftBody()).toBe('Un post corto que no va a llegar a ninguna parte.');
+    expect(component.posts().length).toBe(before);
+    expect(component.errorMessage()).toContain('sigue acá');
+  });
+
+  it('el doble clic no publica dos veces', async () => {
+    await createComponent();
+    let articulos = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (!/\/article$/.test(url)) {
+          return Promise.reject(new Error('offline'));
+        }
+        articulos += 1;
+        return new Promise(() => undefined); // nunca resuelve: deja el latch puesto
+      }) as unknown as typeof fetch,
+    );
+    escribirArticulo();
+
+    component.publishArticle();
+    component.publishArticle();
+    await flushMicrotasks();
+
+    // La guarda es sincrónica (`publishing.set(true)` corre en el mismo tick), al
+    // revés que el `input` `publishing` de SH-6, que llegaría un tick tarde.
+    expect(articulos).toBe(1);
+  });
+
+  it('monta SH-6 en la vista de escribir, no el formulario a mano', async () => {
+    await createComponent();
+    component.go('write');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('syn-authoring-wizard')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('form.blogs__editor')).toBeNull();
+  });
+
+  it('un borrador rehidratado siembra el espejo y deja CONTINUAR, no un botón muerto', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    component.go('write');
+    fixture.detectChanges();
+
+    const wizard = component.articleWizard();
+    expect(wizard).toBeTruthy();
+
+    // Así llega un borrador restaurado: el wizard lo tiene y el espejo del
+    // dominio NO, porque SH-6 no emite `draftchange` al rehidratar.
+    wizard!.patchDraft({ title: TITULO, body: CUERPO });
+    fixture.detectChanges();
+
+    expect(component.articleTitle()).toBe(TITULO);
+    expect(component.articleBody()).toBe(CUERPO);
+    // Lo que de verdad importa: sin la siembra, el autor vería su texto en los
+    // campos y el botón de continuar gris, porque `validity` sale del espejo.
+    expect(component.articleValidity()['contenido']).toBe(true);
+  });
+
+  it('quitar la portada limpia su texto alternativo', async () => {
+    await createComponent();
+    component.articleCover.set('https://ejemplo.test/portada.jpg');
+    component.articleCoverAlt.set('Una portada');
+    expect(component.articleValid()).toBe(false); // falta título y cuerpo
+
+    const patched: Record<string, unknown>[] = [];
+    component.onArticleField(
+      (v) => patched.push(v as Record<string, unknown>),
+      'coverUrl',
+      { target: { value: '' } } as unknown as Event,
+    );
+
+    // Antes el alt se quedaba rancio: el input vive dentro de un `@if` que lo
+    // oculta sin borrar la señal, así que el POST salía con `coverAlt` y sin
+    // `coverUrl`.
+    expect(component.articleCoverAlt()).toBe('');
+    expect(patched).toEqual([{ coverUrl: '', coverAlt: '' }]);
   });
 
   // ── v2 studio (SH-5): loading the creator dashboard aggregate + KPIs ─────────

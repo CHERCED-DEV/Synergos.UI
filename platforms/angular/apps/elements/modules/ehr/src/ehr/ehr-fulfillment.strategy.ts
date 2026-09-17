@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   FulfillmentStrategyBase,
   type FulfillmentConfirmation,
@@ -10,6 +10,7 @@ import {
   type SessionData,
   type SessionItem,
 } from '@synergos/transaction-engine';
+import { EhrApiClient } from './ehr-api.client';
 import { type AppointmentSelectionPayload } from './ehr.model';
 
 /** The flow id the engine routes the appointment checkout on — one strategy owns it. */
@@ -35,6 +36,8 @@ export const EHR_KIND = 'appointment';
 export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
   readonly id = EHR_FLOW;
   protected readonly flow = EHR_FLOW;
+
+  readonly #api = inject(EhrApiClient);
 
   /** No engine-driven catalogue search — scheduling starts at `select`. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
@@ -67,6 +70,7 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
         slotTime: payload.slot.time,
         reason: payload.reason,
         mode: payload.mode,
+        apiBase: payload.apiBase,
       },
       amount: Math.max(0, payload.copayMinor),
       quantity: 1,
@@ -86,28 +90,59 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
     return { accepted: true, reference: `APPT-${Date.now().toString(36).toUpperCase()}` };
   }
 
-  /** Confirm the reservation: mint the appointment voucher (comprobante de cita). */
+  /**
+   * Confirmar es **RESERVAR EN EL SERVIDOR**, y el comprobante es el que vuelve
+   * de allí (#111).
+   *
+   * Esto acuñaba un `CITA-<timestamp>` en local y contestaba `confirmed: true` sin
+   * tocar la red: `POST /api/ehr/appointment` existía en el cliente y **no lo
+   * llamaba nadie**. El paciente salía del asistente con un número que no existe en
+   * ninguna parte, y se presentaba a una hora que el consultorio no tenía apartada
+   * —un hueco ocupado por nadie es, además, el que la clínica le vende a otro—.
+   *
+   * Si la reserva no llega, se contesta `confirmed: false` **y no se emite
+   * comprobante**: el asistente enseña su error, la selección sigue en el carrito y
+   * se puede reintentar. Es el piso de #111 aplicado donde más se ve: no confirmar
+   * lo que no se guardó.
+   */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const line = session.items[0];
     if (!line) {
       return { confirmed: false, vouchers: [] };
     }
     const selection = line.selection as Record<string, unknown>;
+    const apiBase = readString(selection['apiBase']) || '/api/ehr';
+    const date = readString(selection['slotDate']);
+    const time = readString(selection['slotTime']);
+
+    let booked;
+    try {
+      booked = await this.#api.bookAppointment(apiBase, {
+        patientId: readString(selection['patientId']),
+        doctorId: readString(selection['doctorId']),
+        slot: { date, time },
+      });
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'booking-unavailable', vouchers: [] };
+    }
+
     return {
       confirmed: true,
       vouchers: [
         {
           itemId: line.id,
-          reference: `CITA-${Date.now().toString(36).toUpperCase()}`,
-          status: 'confirmed',
+          // El id del SERVIDOR: es lo que el paciente va a enseñar en recepción.
+          reference: booked.id,
+          status: booked.status,
           detail: {
-            patientId: readString(selection['patientId']),
-            patientName: readString(selection['patientName']),
-            doctorId: readString(selection['doctorId']),
-            doctorName: readString(selection['doctorName']),
-            date: readString(selection['slotDate']),
-            time: readString(selection['slotTime']),
-            reason: readString(selection['reason']),
+            patientId: booked.patientId,
+            patientName: booked.patientName || readString(selection['patientName']),
+            doctorId: booked.doctorId,
+            doctorName: booked.doctorName || readString(selection['doctorName']),
+            date: booked.date || date,
+            time: booked.time || time,
+            reason: booked.reason || readString(selection['reason']),
             mode: readString(selection['mode']),
           },
         },

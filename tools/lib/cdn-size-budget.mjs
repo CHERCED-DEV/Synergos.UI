@@ -71,16 +71,55 @@ export const TECHO_POR_TIER = {
  * Entrar acá exige escribir la razón. Es el único trámite que impide que la
  * tabla se convierta en una lista de permisos.
  */
+/**
+ * ⚠️ **LOS TECHOS DE LOS VERTICALES SE RESUBIERON EL 2026-09-16, Y LA RAZÓN IMPORTA
+ * MÁS QUE LOS NÚMEROS.**
+ *
+ * Los de antes se fijaron el **2026-08-05** y seis verticales los pasaron: el build
+ * del CDN llevaba semanas saliendo con 1 sin que nadie lo notara, porque este gate
+ * **no corre en `npm test`** — vive dentro de `build:cdn`. Es la forma del CMS #128
+ * y está abierto como **#68**.
+ *
+ * Antes de subir un número se midió QUÉ entró, porque subirlo sin eso es
+ * exactamente cómo un presupuesto deja de serlo. Lo que entró es **`libs/shells`**,
+ * y es el **38-65 % de cada bundle vertical**:
+ *
+ *     academy   449 KB · 257 de shells (57 %)    storefront    423 · 253 (60 %)
+ *     realty    397 KB · 229 de shells (58 %)    travel-shell  408 · 263 (65 %)
+ *     eventos   390 KB · 231 de shells (59 %)    gov           319 · 181 (57 %)
+ *     blogs     329 KB · 142 de shells (43 %)    ehr           288 · 109 (38 %)
+ *     seller    141 KB ·  71 de shells (50 %)    booking-wizard 89 ·  41 (46 %)
+ *
+ * **Y eso CONTESTA con datos la parte de #65 que preguntaba si `shells` debería ser
+ * un external.** La respuesta es NO, y no por la razón que estaba escrita
+ * —«acoplaría el despliegue de todos los elementos»—, que además es falsa: a
+ * `shells` le hablan **diez** elementos y los diez son `elements/modules/*`, o sea
+ * los verticales. La razón de verdad es aritmética:
+ *
+ *   · **empaquetado** (hoy), cada vertical carga **sólo lo que usa**: 109-263 KB;
+ *   · **compartido**, una página cargaría **la unión de todos los shells** (~420 KB)
+ *     aunque lleve un solo vertical.
+ *
+ * Una página del producto lleva UN vertical —el vertical *es* la página—, así que
+ * compartir cambiaría 180 KB por 420 en el caso normal para ahorrar en uno que no
+ * ocurre. Empaquetar es lo correcto, y ahora está medido en vez de supuesto.
+ *
+ * **El margen es ~8 % sobre lo medido, a propósito y no por tacañería**: el techo es
+ * el tope ABSOLUTO y el trinquete de 2× es quien vigila el crecimiento. Un techo
+ * holgado no vigila nada; uno justo vuelve a saltar pronto, y cuando salte habrá que
+ * mirar otra vez qué entró — que es el trabajo que este gate existe para provocar.
+ */
 export const EXCEPCIONES = {
-  academy: { techo: 396 * KB, razon: 'vertical completa: cursos, matrícula, progreso' },
-  realty: { techo: 396 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas' },
-  eventos: { techo: 384 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map' },
-  blogs: { techo: 348 * KB, razon: 'vertical completa: índice, artículo, comentarios' },
-  gov: { techo: 328 * KB, razon: 'vertical completa: trámites, formularios, expediente' },
-  ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas' },
-  storefront: { techo: 304 * KB, razon: 'tienda entera: catálogo, carrito, checkout' },
-  'travel-shell': { techo: 292 * KB, razon: 'vertical completa: búsqueda, pax, itinerario' },
-  seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas' },
+  academy: { techo: 484 * KB, razon: 'vertical completa: cursos, matrícula, progreso. 449 KB medidos, 257 de shells (57 %)' },
+  realty: { techo: 428 * KB, razon: 'vertical completa: fichas, mapa, agenda de visitas. 397 KB medidos, 229 de shells (58 %)' },
+  eventos: { techo: 420 * KB, razon: 'vertical completa: agenda, artistas, sesiones, seat-map. 390 KB medidos, 231 de shells (59 %)' },
+  blogs: { techo: 356 * KB, razon: 'vertical completa: índice, artículo, comentarios. 329 KB medidos, 142 de shells (43 %)' },
+  gov: { techo: 344 * KB, razon: 'vertical completa: trámites, formularios, expediente. 319 KB medidos, 181 de shells (57 %)' },
+  ehr: { techo: 328 * KB, razon: 'vertical completa: historia clínica, agenda, recetas. 288 KB medidos, 109 de shells (38 %)' },
+  storefront: { techo: 456 * KB, razon: 'tienda entera: catálogo, carrito, checkout. 423 KB medidos, 253 de shells (60 %)' },
+  'travel-shell': { techo: 440 * KB, razon: 'vertical completa: búsqueda, pax, itinerario. 408 KB medidos, 263 de shells (65 %)' },
+  seller: { techo: 160 * KB, razon: 'panel de vendedor: inventario, pedidos, métricas. 141 KB medidos, 71 de shells (50 %)' },
+  'booking-wizard': { techo: 100 * KB, razon: 'asistente de reserva: pasos, cobro y acuse. 89 KB medidos, 41 de shells (46 %) — el tier «module» son 72 KB y ninguna vertical cabe ahí' },
   'product-detail': { techo: 104 * KB, razon: 'ficha con galería, variantes y motor de precio' },
 };
 
@@ -117,23 +156,80 @@ export const EXCEPCIONES = {
 export const FACTOR_TRINQUETE = 2;
 
 /**
- * Los externals que TODO elemento importa, sin excepción.
+ * Los externals que TODO elemento de un framework importa, sin excepción.
  *
- * No es una suposición: los tres salen del patrón de arranque que
- * `AGENTS.md` obliga a copiar en cada `src/main.ts` — `createApplication`
- * (@angular/platform-browser), `createCustomElement` (@angular/elements) y el
- * `appConfig` con sus providers (@angular/core). Un bundle al que le falte
- * cualquiera de los tres se los tragó.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ESTA LISTA SIGUIÓ A UNA IMPLEMENTACIÓN Y CADUCÓ CON ELLA (#64).
  *
- * El resto de EXTERNALS (rxjs, forms, router, @synergos/*) NO se comprueba: un
- * elemento puede legítimamente no usarlos, y un gate que no distingue «no lo
- * usa» de «se lo comió» es ruido.
+ * Decía tres para Angular y su razón era exacta: salían del patrón de arranque
+ * que cada `src/main.ts` copiaba — `createApplication`
+ * (`@angular/platform-browser`), `createCustomElement` (`@angular/elements`) y
+ * el `appConfig` (`@angular/core`)—. **#62 se llevó ese patrón**: hoy lo hace
+ * `registrarElementoAngular`, que vive en `@synergos/core`, o sea en el runtime
+ * compartido. Medido sobre los 127 bundles: `@angular/core` sigue en 127,
+ * `@angular/platform-browser` en 4 y **`@angular/elements` en CERO**.
+ *
+ * O sea que el gate llevaba desde #62 diciendo «se lo empaquetó» de 127
+ * elementos que no habían empaquetado nada — el badge pasó de 1.845 a 1.675 B—.
+ * No lo vio nadie porque **este gate no corre en `npm test`**: corre dentro de
+ * `build:cdn`, y entre #62 y #64 nadie lo corrió. Es la forma del CMS #128: un
+ * gate que no se dispara en el cambio que lo necesita no falla, se salta.
+ *
+ * La lección es la del defecto #120 del repo hermano: **el gate seguía a un
+ * FICHERO en vez de a una PROPIEDAD**. La propiedad es «el elemento no
+ * empaqueta su framework», y sigue valiendo; lo que cambió es dónde está la
+ * llamada. Por eso lo que se movió no se deja de vigilar: pasa a
+ * `MIGRADOS_AL_RUNTIME`, abajo.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
-export const EXTERNALS_UNIVERSALES = [
-  '@angular/core',
-  '@angular/elements',
-  '@angular/platform-browser',
-];
+export const EXTERNALS_UNIVERSALES_POR_FRAMEWORK = {
+  // `appConfig` sigue en cada elemento y sigue importando `@angular/core`.
+  angular: ['@angular/core'],
+  // El JSX de cualquier elemento compila a `jsx(...)`, y registrar el tag es
+  // `registrarElementoPreact`. `preact` a secas NO es universal: lo importa el
+  // adaptador, no el elemento.
+  preact: ['preact/jsx-runtime', '@synergos/preact-core'],
+};
+
+/**
+ * Lo que DEJÓ de estar en cada elemento porque se mudó al runtime compartido.
+ *
+ * Es la otra mitad del cambio de arriba, y sin ella el gate se habría vuelto
+ * más débil en vez de más correcto: quitar `@angular/elements` de la lista de
+ * universales, a secas, deja de vigilar que NADIE lo empaquete. Acá se declara
+ * quién lo importa ahora, y el gate lo comprueba sobre ESE fichero.
+ *
+ * Entrar exige escribir la razón; salir es automático, porque si el fichero
+ * deja de importarlo el gate lo dice.
+ */
+export const MIGRADOS_AL_RUNTIME = {
+  angular: {
+    fichero: 'sg-core.js',
+    externals: ['@angular/elements', '@angular/platform-browser'],
+    razon:
+      'Los dos los usaba el patrón de arranque de cada `main.ts`. #62 lo movió a ' +
+      '`registrarElementoAngular`, dentro de `@synergos/core`, para honrar `ElementProtocol`. ' +
+      'Que estén acá y no en cada elemento es el resultado que se buscaba; lo que hay que ' +
+      'seguir vigilando es que estén EN ALGÚN sitio y como import, no empaquetados.',
+  },
+};
+
+/**
+ * Los universales de un framework. Sin default: una plataforma sin declararlos
+ * no tendría vigilancia de externals y el gate informaría «✓» sobre ella, que
+ * es la regla 25 otra vez.
+ */
+export function externalsUniversales(framework) {
+  const lista = EXTERNALS_UNIVERSALES_POR_FRAMEWORK[framework];
+  if (!lista) {
+    throw new Error(
+      `No hay externals universales declarados para "${framework}". Declaralos en ` +
+        `EXTERNALS_UNIVERSALES_POR_FRAMEWORK (tools/lib/cdn-size-budget.mjs): sin ellos este ` +
+        `gate no comprueba nada sobre esa plataforma y lo informa como si estuviera bien.`,
+    );
+  }
+  return lista;
+}
 
 /**
  * El techo que le toca a un elemento: su excepción si la tiene, si no la de su tier.
@@ -178,20 +274,43 @@ export function importaExterno(codigo, external) {
 /**
  * El veredicto de un elemento publicado.
  *
- * @param {{ nombre: string, tier: string, bytes: number, codigo?: string, base?: number }} bundle
+ * @param {{ nombre: string, framework?: string, tier: string, bytes: number,
+ *            codigo?: string, base?: number }} bundle
  *        `base` es lo que pesaba en `cdn-size-baseline.json`. Un elemento nuevo
  *        no lo tiene: nace sin trinquete y sólo responde ante el techo del tier.
- * @returns {{ ok: boolean, nombre: string, tier: string, bytes: number, techo: number|null,
- *             origen: string, razon?: string, veces: number|null, externalsAusentes: string[],
+ *        `framework` era SÓLO para el mensaje (issue #44) y desde #64 **elige los
+ *        externals universales**, así que es obligatorio. El
+ *        techo es del elemento y de su tier, no del framework — un bundle de
+ *        React que pese el triple que el de Angular es el mismo defecto de
+ *        externals, no una plataforma con derecho a pesar más.
+ * @returns {{ ok: boolean, nombre: string, framework: string|null, tier: string,
+ *             bytes: number, techo: number|null, origen: string, razon?: string,
+ *             veces: number|null, externalsAusentes: string[],
  *             base: number|null, crecimiento: number|null }}
  */
-export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null }) {
+export function revisarBundle({ nombre, framework = null, tier, bytes, codigo = '', base = null }) {
   const { techo, origen, razon } = techoDe(nombre, tier);
 
   // Se mira SIEMPRE, pase o no pase el tamaño. Un external tragado que aún
   // quepa bajo el techo es el mismo defecto un poco antes — y es justo cuando
   // sale barato arreglarlo.
-  const externalsAusentes = EXTERNALS_UNIVERSALES.filter((e) => !importaExterno(codigo, e));
+  // Los universales son del FRAMEWORK. Antes eran una lista única —la de
+  // Angular— así que el primer bundle de otra plataforma habría salido rojo con
+  // tres externals «ausentes» que esa plataforma no tiene.
+  //
+  // ⚠ Y si no viene, se LANZA en vez de saltarse la comprobación. El `framework`
+  // era hasta #64 un dato para el mensaje, así que omitirlo no costaba nada;
+  // ahora elige qué se vigila, y un `?? []` convertiría un olvido en «este
+  // bundle no tiene externals ausentes» — verde por no haber mirado.
+  if (!framework) {
+    throw new Error(
+      `revisarBundle("${nombre}") sin framework. Desde #64 el framework elige qué externals ` +
+        `son universales, así que sin él este gate no comprobaría ninguno y lo diría en verde.`,
+    );
+  }
+  const externalsAusentes = externalsUniversales(framework).filter(
+    (e) => !importaExterno(codigo, e),
+  );
 
   const cabe = techo !== null && bytes <= techo;
   const crecimiento = base ? Number((bytes / base).toFixed(2)) : null;
@@ -200,6 +319,7 @@ export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null })
   return {
     ok: cabe && !trinqueteRoto && externalsAusentes.length === 0,
     nombre,
+    framework,
     tier,
     bytes,
     techo,
@@ -225,16 +345,20 @@ export function revisarBundle({ nombre, tier, bytes, codigo = '', base = null })
 export function explicar(v) {
   const lineas = [];
   const kb = (n) => `${(n / KB).toFixed(1)} KB`;
+  // Sin el framework en el rótulo, «storefront: 412 KB > 304 KB» no dice cuál
+  // de los dos bundles hay que mirar. Se omite cuando no lo hay para que los
+  // mensajes de siempre no cambien de forma sin motivo.
+  const quien = v.framework ? `${v.nombre} [${v.framework}]` : v.nombre;
 
   if (v.techo === null) {
-    lineas.push(`${v.nombre}: tier "${v.tier}" sin techo definido (${kb(v.bytes)}).`);
+    lineas.push(`${quien}: tier "${v.tier}" sin techo definido (${kb(v.bytes)}).`);
     lineas.push(`  Añadí el tier a TECHO_POR_TIER en tools/lib/cdn-size-budget.mjs.`);
     return lineas;
   }
 
   if (v.externalsAusentes.length > 0) {
     lineas.push(
-      `${v.nombre}: el bundle ya NO importa ${v.externalsAusentes.join(', ')} — se lo empaquetó.`,
+      `${quien}: el bundle ya NO importa ${v.externalsAusentes.join(', ')} — se lo empaquetó.`,
     );
     lineas.push(`  Eso rompe el contrato de externals: este elemento ya no comparte el runtime.`);
     lineas.push(`  Mirá platforms/angular/cdn.config.mjs (EXTERNALS) y cómo lo consume build.mjs.`);
@@ -242,7 +366,7 @@ export function explicar(v) {
 
   if (v.crecimiento !== null && v.crecimiento > FACTOR_TRINQUETE) {
     lineas.push(
-      `${v.nombre}: ${kb(v.base)} → ${kb(v.bytes)} — ${v.crecimiento}× la última medida.`,
+      `${quien}: ${kb(v.base)} → ${kb(v.bytes)} — ${v.crecimiento}× la última medida.`,
     );
     // OJO con afirmar que cabe: cuando el crecimiento es tan bruto que además
     // rompe el techo, decirlo sería mentira — y una mentira en el mensaje de un
@@ -259,12 +383,12 @@ export function explicar(v) {
 
   if (v.bytes > v.techo) {
     lineas.push(
-      `${v.nombre}: ${kb(v.bytes)} > ${kb(v.techo)} (${v.origen}) — ${v.veces}× el techo.`,
+      `${quien}: ${kb(v.bytes)} > ${kb(v.techo)} (${v.origen}) — ${v.veces}× el techo.`,
     );
     if (v.externalsAusentes.length === 0) {
       // Sin external ausente el diagnóstico no está cerrado, y decirlo importa:
       // el gate acusa un síntoma y quien lo lee tiene que buscar la causa.
-      lineas.push(`  Los tres externals universales siguen ahí, así que no es el caso típico.`);
+      lineas.push(`  Los externals universales siguen ahí, así que no es el caso típico.`);
       lineas.push(`  Sospechá de una lib de feature nueva, o de que se perdió el`);
       lineas.push(`  \`sideEffects: false\` de .cdn-out/package.json (build.mjs:201) — ese`);
       lineas.push(`  exacto defecto dejó storefront en 712 KB durante la purga.`);
@@ -273,4 +397,40 @@ export function explicar(v) {
   }
 
   return lineas;
+}
+
+/**
+ * Los externals migrados que el fichero de runtime declarado ya NO importa.
+ *
+ * Es el complemento de `EXTERNALS_UNIVERSALES_POR_FRAMEWORK`: al sacar
+ * `@angular/elements` de lo que se le exige a cada elemento, **alguien tiene que
+ * seguir mirando que nadie se lo empaquete**. Sin esto, el gate habría quedado
+ * más débil que antes de #64 y con mejor cara.
+ *
+ * @param {(fichero: string) => string|null} leerRuntime Devuelve el código del
+ *   fichero de runtime de ese framework, o `null` si no está publicado.
+ * @returns {string[]} Líneas de error. Vacío es que cuadra.
+ */
+export function revisarMigradosAlRuntime(framework, leerRuntime) {
+  const migrado = MIGRADOS_AL_RUNTIME[framework];
+  if (!migrado) return [];
+
+  const codigo = leerRuntime(migrado.fichero);
+  if (codigo === null) {
+    // NO se salta: un runtime que falta es exactamente cuando esto importa.
+    return [
+      `${framework}: no se encuentra ${migrado.fichero}, que es quien tiene que importar ` +
+        `${migrado.externals.join(', ')} desde que #62 los sacó de cada elemento.`,
+    ];
+  }
+
+  const ausentes = migrado.externals.filter((e) => !importaExterno(codigo, e));
+  if (ausentes.length === 0) return [];
+
+  return [
+    `${framework}: ${migrado.fichero} ya NO importa ${ausentes.join(', ')} — se lo empaquetó.`,
+    `  Esos externals salieron de cada elemento a propósito (${migrado.razon})`,
+    `  Si de verdad ya no hacen falta, sacalos de MIGRADOS_AL_RUNTIME con su razón; ` +
+      `dejarlos declarados y sin importar es un external tragado que nadie mira.`,
+  ];
 }

@@ -167,38 +167,6 @@
     color: var(--gv-danger);
     font-size: syn.$font-size-sm;
   }
-
-  &__empty {
-    padding: syn.$space-lg;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-sm;
-    text-align: center;
-    list-style: none;
-  }
-
-  // ─── Search + chips ────────────────────────────────────────────────────────
-  &__search {
-    display: flex;
-    gap: syn.$space-2;
-    max-width: syn.px-to-rem(560);
-  }
-
-  &__search-input {
-    flex: 1;
-    min-width: 0;
-    border: syn.px-to-rem(1) solid var(--gv-border);
-    border-radius: syn.$radius-md;
-    padding: syn.$space-2 syn.$space-3;
-    background: var(--gv-surface);
-    color: var(--gv-text);
-    font: inherit;
-  }
-
-  &__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-2;
-  }
 }
 
 // ─── Buttons / links / chips / tags ───────────────────────────────────────────
@@ -346,6 +314,31 @@
   }
 }
 
+// ─── Tasa del trámite (CMS#116) ───────────────────────────────────────────────
+// Se ve en la bandeja del ciudadano, en su seguimiento, en la cola y en el caso: un
+// cobro pendiente que sólo se ve abriendo el expediente no lo persigue nadie.
+.fee-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: syn.px-to-rem(2) syn.$space-2;
+  border-radius: syn.$radius-sm;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  background: var(--gv-surface-muted);
+  color: var(--gv-text-secondary);
+  white-space: nowrap;
+
+  &--attention {
+    background: var(--gv-warn-soft);
+    color: var(--gv-text);
+  }
+
+  &--exempt {
+    background: var(--gv-surface-muted);
+    color: var(--gv-text-secondary);
+  }
+}
+
 // ─── Priority + SLA chips (officer queue cells) ───────────────────────────────
 .prio {
   display: inline-flex;
@@ -386,18 +379,6 @@
     color: var(--gv-text);
     font-size: syn.$font-size-sm;
     font-weight: syn.$font-weight-semibold;
-  }
-
-  &__opt {
-    color: var(--gv-muted);
-    font-weight: syn.$font-weight-regular;
-    font-style: normal;
-  }
-
-  &__hint {
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-regular;
   }
 }
 
@@ -447,24 +428,6 @@
     margin: 0;
     color: var(--gv-text-secondary);
   }
-
-  &__count {
-    display: flex;
-    align-items: center;
-    gap: syn.$space-2;
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
 }
 
 .tramite-card {
@@ -479,54 +442,6 @@
   transition: box-shadow var(--syn-duration-fast, #{syn.$duration-fast}) var(--syn-easing-default, #{syn.$easing-default});
 
   &:hover { box-shadow: var(--gv-shadow); }
-
-  &__body {
-    flex: 1 1 syn.px-to-rem(340);
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-  }
-
-  &__entity {
-    margin: 0;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  &__title {
-    margin: 0;
-    font-size: syn.$font-size-lg;
-  }
-
-  &__link {
-    border: 0;
-    padding: 0;
-    background: none;
-    cursor: pointer;
-    color: var(--gv-text);
-    font: inherit;
-    font-weight: syn.$font-weight-bold;
-    text-align: left;
-
-    &:hover { color: var(--gv-brand); }
-  }
-
-  &__summary {
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-1;
-    margin: syn.$space-1 0 0;
-    padding: 0;
-  }
 }
 
 // ─── Ficha del trámite ───────────────────────────────────────────────────────
@@ -539,15 +454,6 @@
     display: flex;
     flex-direction: column;
     gap: syn.$space-2;
-  }
-
-  &__entity {
-    margin: 0;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   &__title {
@@ -641,64 +547,6 @@
   display: flex;
   flex-direction: column;
   gap: syn.$space-md;
-
-  &__subject {
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__panel {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    margin: 0;
-    padding: syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
-    border-radius: syn.$radius-lg;
-    background: var(--gv-surface);
-  }
-
-  &__panel-title {
-    margin: 0;
-    padding: 0;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__hint {
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__fields {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-3;
-  }
-
-  &__file-fallback {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-    font-size: syn.$font-size-sm;
-  }
-
-  &__declaration {
-    margin: 0;
-    padding: syn.$space-2 syn.$space-3;
-    border-left: syn.px-to-rem(3) solid var(--gv-brand);
-    background: var(--gv-surface-muted);
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__actions {
-    display: flex;
-    justify-content: space-between;
-    gap: syn.$space-2;
-  }
 }
 
 .stepper {
@@ -708,40 +556,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-
-  &__step {
-    display: inline-flex;
-    align-items: center;
-    gap: syn.$space-1;
-    padding: syn.$space-1 syn.$space-2;
-    border-radius: syn.$radius-full;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-sm;
-
-    &--active {
-      background: var(--gv-brand-soft);
-      color: var(--gv-text);
-      font-weight: syn.$font-weight-semibold;
-    }
-
-    &--done { color: var(--gv-success); }
-  }
-
-  &__num {
-    display: inline-grid;
-    place-items: center;
-    width: syn.px-to-rem(22);
-    height: syn.px-to-rem(22);
-    border-radius: syn.$radius-full;
-    background: var(--gv-surface-muted);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__step--active &__num {
-    background: var(--gv-brand);
-    color: var(--gv-brand-text);
-  }
 }
 
 // ─── Check answers (GOV.UK) ───────────────────────────────────────────────────
@@ -750,27 +564,6 @@
   flex-direction: column;
   gap: syn.$space-3;
   margin: 0;
-
-  &__section {
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
-    border-radius: syn.$radius-md;
-  }
-
-  &--flat &__section { border: 0; padding: 0; }
-
-  &__section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: syn.$space-2;
-  }
-
-  &__section-title {
-    margin: 0;
-    font-size: syn.$font-size-base;
-    font-weight: syn.$font-weight-bold;
-  }
 
   &__row {
     display: grid;
@@ -825,17 +618,6 @@
     color: var(--gv-muted);
     font-size: syn.$font-size-xs;
   }
-
-  &__remove {
-    border: 0;
-    background: none;
-    cursor: pointer;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-lg;
-    line-height: 1;
-
-    &:hover { color: var(--gv-danger); }
-  }
 }
 
 // ─── Pago (stub) ─────────────────────────────────────────────────────────────
@@ -844,36 +626,6 @@
   flex-direction: column;
   gap: syn.$space-3;
   max-width: syn.px-to-rem(400);
-
-  &__summary {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    padding: syn.$space-3;
-    border: syn.px-to-rem(1) solid var(--gv-border);
-    border-radius: syn.$radius-md;
-    background: var(--gv-surface-muted);
-  }
-
-  &__label {
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__amount {
-    font-size: syn.$font-size-xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__ok {
-    margin: 0;
-    padding: syn.$space-2 syn.$space-3;
-    border-radius: syn.$radius-md;
-    background: var(--gv-success-soft);
-    color: var(--gv-success);
-    font-size: syn.$font-size-sm;
-    font-weight: syn.$font-weight-semibold;
-  }
 }
 
 // ─── Radicado (confirmation) ─────────────────────────────────────────────────
@@ -884,82 +636,6 @@
   gap: syn.$space-3;
   padding: syn.$space-lg 0;
   text-align: center;
-
-  &__check {
-    display: grid;
-    place-items: center;
-    width: syn.px-to-rem(56);
-    height: syn.px-to-rem(56);
-    border-radius: syn.$radius-full;
-    background: var(--gv-success-soft);
-    color: var(--gv-success);
-  }
-
-  &__check-icon {
-    inline-size: syn.px-to-rem(28);
-    block-size: syn.px-to-rem(28);
-  }
-
-  &__title {
-    margin: 0;
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__number {
-    margin: 0;
-    color: var(--gv-text-secondary);
-  }
-
-  &__radicado {
-    display: inline-block;
-    margin-left: syn.$space-1;
-    padding: syn.$space-1 syn.$space-3;
-    border-radius: syn.$radius-md;
-    background: var(--gv-brand-soft);
-    color: var(--gv-text);
-    font-size: syn.$font-size-lg;
-    letter-spacing: 0.04em;
-  }
-
-  &__qr { display: flex; justify-content: center; }
-
-  &__detail {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-1;
-    margin: 0;
-    padding: syn.$space-3;
-    min-width: min(syn.px-to-rem(380), 100%);
-    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
-    border-radius: syn.$radius-lg;
-    text-align: left;
-
-    div {
-      display: flex;
-      justify-content: space-between;
-      gap: syn.$space-3;
-      font-size: syn.$font-size-sm;
-    }
-
-    dt { color: var(--gv-muted); }
-    dd { margin: 0; font-weight: syn.$font-weight-semibold; }
-  }
-
-  &__next { max-width: syn.px-to-rem(480); }
-
-  &__next-title {
-    margin: 0 0 syn.$space-1;
-    font-size: syn.$font-size-lg;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: syn.$space-2;
-  }
 }
 
 // ─── Mi carpeta ───────────────────────────────────────────────────────────────
@@ -1007,20 +683,6 @@
     font-size: syn.$font-size-2xl;
     font-weight: syn.$font-weight-bold;
   }
-
-  &__lead {
-    margin: 0;
-    color: var(--gv-text-secondary);
-  }
-
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
 }
 
 .case-card {
@@ -1031,32 +693,6 @@
   padding: syn.$space-3 syn.$space-md;
   border: syn.px-to-rem(1) solid var(--gv-border-subtle);
   border-radius: syn.$radius-lg;
-
-  &__body {
-    flex: 1 1 syn.px-to-rem(300);
-    display: flex;
-    flex-direction: column;
-    gap: syn.px-to-rem(2);
-  }
-
-  &__radicado {
-    margin: 0;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-xs;
-    font-weight: syn.$font-weight-semibold;
-    letter-spacing: 0.04em;
-  }
-
-  &__title {
-    margin: 0;
-    font-size: syn.$font-size-base;
-  }
-
-  &__meta {
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-xs;
-  }
 }
 
 // ─── Seguimiento / expediente ─────────────────────────────────────────────────
@@ -1087,11 +723,6 @@
     margin: 0;
   }
 
-  &__days {
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
   &__hint {
     margin: 0;
     color: var(--gv-text-secondary);
@@ -1118,46 +749,6 @@
 }
 
 .expediente {
-  &__grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(syn.px-to-rem(240), syn.px-to-rem(320));
-    gap: syn.$space-lg;
-    align-items: start;
-
-    @media (max-width: #{syn.px-to-rem(820)}) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  &__main {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-  }
-
-  &__actions {
-    position: sticky;
-    top: syn.$space-md;
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-3;
-    padding: syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--gv-border-subtle);
-    border-radius: syn.$radius-lg;
-    background: var(--gv-surface-muted);
-  }
-
-  &__buttons {
-    display: flex;
-    flex-direction: column;
-    gap: syn.$space-2;
-  }
-
-  &__closed {
-    margin: 0;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-sm;
-  }
 }
 
 // Native audited history (officer face).
@@ -1168,51 +759,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-
-  &__item {
-    display: flex;
-    gap: syn.$space-3;
-  }
-
-  &__dot {
-    flex: none;
-    width: syn.px-to-rem(12);
-    height: syn.px-to-rem(12);
-    margin-top: syn.px-to-rem(5);
-    border-radius: syn.$radius-full;
-    background: var(--gv-border);
-  }
-
-  &__body {
-    display: flex;
-    flex-direction: column;
-    gap: syn.px-to-rem(2);
-  }
-
-  &__head {
-    display: flex;
-    align-items: baseline;
-    gap: syn.$space-2;
-    margin: 0;
-    font-size: syn.$font-size-sm;
-  }
-
-  &__date {
-    color: var(--gv-muted);
-    font-size: syn.$font-size-xs;
-  }
-
-  &__note {
-    margin: 0;
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-sm;
-  }
-
-  &__actor {
-    margin: 0;
-    color: var(--gv-muted);
-    font-size: syn.$font-size-xs;
-  }
 }
 
 .status-dot--radicado { background: var(--gv-brand-soft); }
@@ -1226,48 +772,6 @@
   display: flex;
   flex-direction: column;
   gap: syn.$space-3;
-
-  &__title {
-    margin: 0;
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__kpis {
-    display: flex;
-    flex-wrap: wrap;
-    gap: syn.$space-3;
-  }
-
-  &__table-wrap { overflow-x: auto; }
-
-  &__table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: syn.$font-size-sm;
-
-    th {
-      padding: syn.$space-2 syn.$space-3;
-      border-bottom: syn.px-to-rem(2) solid var(--gv-border);
-      color: var(--gv-text-secondary);
-      font-size: syn.$font-size-xs;
-      font-weight: syn.$font-weight-semibold;
-      text-align: left;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    td {
-      padding: syn.$space-2 syn.$space-3;
-      border-bottom: syn.px-to-rem(1) solid var(--gv-border-subtle);
-      vertical-align: middle;
-    }
-  }
-
-  &__radicado {
-    font-weight: syn.$font-weight-semibold;
-    white-space: nowrap;
-  }
 }
 
 .kpi {
@@ -1281,16 +785,6 @@
 
   &--warn { border-color: var(--gv-warn); }
   &--ok { border-color: var(--gv-success); }
-
-  &__value {
-    font-size: syn.$font-size-2xl;
-    font-weight: syn.$font-weight-bold;
-  }
-
-  &__label {
-    color: var(--gv-text-secondary);
-    font-size: syn.$font-size-xs;
-  }
 }
 
 // ─── SH-1 discovery result card ───────────────────────────────────────────────
@@ -1607,4 +1101,78 @@
   .gv-btn:hover:not(:disabled) {
     transform: none;
   }
+}
+
+/* ── Actos administrativos notificados (HU CMS#62 · #20) ───────────────────── */
+.acto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acto__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.acto__title,
+.acto__detail-title {
+  font-weight: 600;
+}
+
+.acto__detail-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.acto__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.acto__pill--nuevo {
+  color: var(--syn-color-text-on-brand, #fff);
+  background: var(--syn-color-state-brand-surface, #1b5e7e);
+}
+
+.acto__meta {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--syn-color-text-secondary, #56646c);
+}
+
+.acto__deadline {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--syn-color-state-warning-surface, #8a6a12);
+}
+
+/* El acuse es el dato que sostiene el plazo: se lee antes que el cuerpo. */
+.acto__acuse {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.4rem;
+  background: var(--syn-color-state-success-soft, #dde9e2);
+  color: var(--syn-color-text-primary, #13181c);
+}
+
+.acto__body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.acto__error {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.4rem;
+  color: var(--syn-color-state-danger-surface, #a8481a);
+  background: var(--syn-color-state-danger-soft, #f3e2d8);
 }

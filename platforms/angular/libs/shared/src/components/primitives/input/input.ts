@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import {
   coerceStringEnumInput,
   coerceTrimmedStringInput,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 
 export type InputType = 'text' | 'email' | 'password' | 'search' | 'tel' | 'number' | 'url';
 

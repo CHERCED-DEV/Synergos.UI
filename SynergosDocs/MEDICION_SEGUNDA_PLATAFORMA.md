@@ -1,0 +1,785 @@
+# La segunda plataforma — medición, el hallazgo que la bloquea, y el despiece
+
+Documento de la épica **#37** («Un shared por framework, en su propio lenguaje, y el
+mismo contrato para los cuatro»). Su entrada es `SynergosDocs/FRONTERA_VITALS.md`
+(épica #36), que midió **qué** de `libs/shared` es portable. Acá se mide lo otro:
+**qué hace falta para que exista una segunda plataforma**, cuánto cuesta de verdad
+un elemento duplicado, y qué se pondría rojo solo.
+
+> Todo lo de abajo se midió contra el disco y contra la URL pública el
+> **2026-09-15**. Donde la épica supone algo que el disco desmiente, está dicho.
+> Las cifras que se pueden recalcular llevan el comando al lado; las que no
+> —porque dependen de la red— llevan el mío y la fecha.
+
+---
+
+## 0. El resumen, para quien sólo lea esto
+
+> ✅ **CONTESTADA (#64). La segunda plataforma existe, es Preact, y su `badge`
+> hidrata.** Lo de abajo es la medición que se hizo ANTES de construirla y se
+> conserva tal cual: es lo que se supo por adelantado y lo que no. El resultado
+> está en §9, al final, junto con las cuatro cosas que la medición no vio venir.
+>
+> **El número que la épica #37 preguntaba**, medido sobre el CDN construido, de
+> una página con UN badge, comprimido:
+>
+> | | runtime | bundle | **piso de la página** |
+> |---|---|---|---|
+> | angular | 214.828 B gz | 787 B | **215.615 B gz** |
+> | preact | 10.373 B gz | 515 B | **10.888 B gz** |
+> | | | | **19,8×** |
+>
+> Con su asterisco, y sin él la cifra miente: 82.189 B de los de Angular son
+> `sg-shared.js`, o sea **55 componentes** del design system, contra 2.120 B del
+> de Preact, que tiene **uno**. Runtime de framework contra runtime de
+> framework son **123.056 B gz contra 7.701**, o sea **16×**. Las dos cifras
+> hacen falta: la primera es lo que paga el visitante hoy, la segunda es lo que
+> se le puede achacar al framework.
+
+
+| | |
+|---|---|
+| **Lo que la épica suponía caro** | reescribir el design system en el segundo lenguaje |
+| **Lo medido** | un elemento completo en React son **~64 líneas** (más **46 una vez por plataforma**), y su CSS se reusa **verbatim** — contra las **188** que tiene hoy el de Angular |
+| **Lo que la épica no nombraba** | publicar el runtime del segundo framework **con los specifiers de hoy apaga el sitio entero**, Angular incluido |
+| **Lo que ya está hecho y no hay que rehacer** | el techo de tamaño, el humo, el índice, el registry, el `<script>` del elemento y la composición del import map en el CMS |
+| **Lo que nadie vigila todavía** | el runtime de la segunda plataforma, seis gates que recorren sólo `platforms/angular/`, y dos fuentes para un mismo elemento |
+| **Lo que hay que no copiar** | `libs/core/src/models/` (16 ficheros fuera de todo compilador, tres que no resuelven) y `ElementProtocol`, que dice ser el contrato y no lo implementa nadie |
+
+**El orden que sale de la medición no es el de la épica.** La épica pone primero
+«escribir el contrato del wrapper» y luego «un elemento real». La medición dice que
+antes de las dos va **el specifier del runtime compartido** (§3), porque es lo único
+de esta lista que, hecho tarde, se lleva por delante lo que ya funciona.
+
+---
+
+## 1. Lo que hoy tiene `platforms/angular/`, pieza por pieza
+
+Recorrido completo y clasificado. **(a)** obligatoria para cualquier plataforma ·
+**(b)** específica de Angular · **(c)** derivable de lo que ya hay.
+
+| pieza | líneas | clase | qué obliga de verdad |
+|---|---|---|---|
+| `package.json` | 37 | **(a)** | Es lo que hace a la carpeta *construible* (`frameworksConstruibles`). Sin él, `platforms/react/` es una carpeta que alguien dejó ahí. |
+| `tsconfig.json` | 28 | **(a) + (b)** | Los `paths` son obligatorios (el árbol resuelve `@synergos/*` por alias); `angularCompilerOptions` es de Angular. |
+| `cdn.config.mjs` | 61 | **(a)** | **El contrato del navegador**: qué NO se empaqueta. Cada plataforma necesita el suyo, y su contenido es distinto por definición. |
+| `tools/build.mjs` | 271 | **(b)** | Un `NgtscProgram` + un esbuild. Lo único **(a)** de él es la salida: `dist/<elemento>/browser/main.js`, y eso ya es parametrizable — `PLATFORMS[].resolveBundlePath` lo declara por plataforma. |
+| `tools/ngtsc.mjs` | 157 | **(b)** | El compilador de Angular. React no tiene equivalente: el JSX lo transforma el propio esbuild. |
+| `tools/build-specs.mjs` | 107 | **(b)** | Existe **sólo** porque los *signal inputs* de Angular no funcionan en JIT. React no necesita este paso. |
+| `tools/sync-tokens.mjs` | 493 | **(a) + (c)** | G-1 (el bridge de tokens) es **por plataforma** y hoy está cableado a `libs/shared/src/styles/_tokens-bridge.scss`. G-2 (el barrido anti-copias) ya recorre **todo** `.scss`/`.css` del repo: **ese ya cubre a React gratis**. |
+| `vitest.config.ts` | 60 | **(a)** | Toda plataforma necesita correr sus specs; el *cómo* cambia. |
+| `eslint.config.mjs` | 36 | **(b)** | |
+| `libs/` (7) | ver §6 | mixto | |
+| `apps/**/src/main.ts` | 127 ficheros | **(a)** | **La convención de descubrimiento**: `apps/**/src/main.ts`. Ver §5.2(e) — la extensión está cableada. |
+
+### El contrato son OCHO obligaciones — ✅ escritas y con gate en #62
+
+> **Cerrado (#62), con su alcance dicho.** `tools/lib/platform-contract.mjs` lleva las siete como
+> dato (`OBLIGACIONES`) y rechaza nombrándolas **una por una con su ruta esperada**, no con un
+> «falta algo». Corre dentro de `element:audit`, o sea en `contracts:validate`, y **antes** del
+> cruce de fuentes: si a una plataforma le faltan piezas, lo que sale después son síntomas.
+>
+> **Cinco se comprueban sin construir nada. Las otras dos no, y el gate lo DECLARA**
+> (`FUERA_DE_ALCANCE`) nombrando quién sí las mide: la **4** a medias —acá se exige que el build
+> esté declarado; que escriba donde `resolveBundlePath` promete lo comprueba `publish.mjs` con el
+> `dist/` hecho— y la **6** entera, que es `cdn-runtime-check` contra el árbol del CDN (#61). Un
+> gate que se cree más listo de lo que es es peor que no tenerlo.
+>
+> **Y derivar la 6 destapó algo:** hoy **no tiene expresión estática por plataforma**. Quien
+> construye el runtime de Angular es `tools/build-runtime.mjs`, que vive en la **raíz** y es
+> específico de Angular; no hay `platforms/angular/tools/build-runtime.mjs`. Exigir uno pondría
+> **roja a la única plataforma que existe** — y el ticket lo dice con todas las letras: si hace
+> falta escribirle una excepción a la única plataforma viva, el contrato se derivó de un ideal y
+> no de lo que hay. Su disparador es **#64**: con un segundo runtime que construir, el
+> constructor deja de poder vivir en la raíz.
+>
+> Verificado en las dos direcciones: con `platforms/react/` sólo con su `package.json`,
+> `element:audit` sale **exit 1** listando (2)(3)(4)(5)(7) con sus rutas; y escondiéndole a
+> Angular su `cdn.config.mjs`, el cruce contra el disco real se pone **rojo**, que es lo que
+> prueba que mira de verdad.
+>
+> **Y el señuelo se resolvió: se decidió HONRARLO, y es la OCTAVA obligación.** `AngularElement`
+> (`platforms/angular/libs/core/src/element-protocol/`) implementa `ElementProtocol`, los **127**
+> `main.ts` lo llaman, y ninguno vuelve a tocar `customElements.define` — eso es el segundo
+> diente del gate, porque con el primero solo el adaptador existe y no manda.
+>
+> **Lo que lo hizo barato fue medir**: los 127 de 127 tenían la MISMA forma, sólo con el orden de
+> los imports y el formato cambiando. Un patrón repetido 127 veces sin variación no es un patrón:
+> es una función que nadie extrajo. Y el registro se fue del bundle de cada elemento al runtime
+> compartido —`@synergos/core` es un external— así que se descarga una vez en vez de 127.
+>
+> **Y el adaptador tenía dos defectos que sólo el spec destapó**, los dos de la familia que este
+> repo persigue: `mount()` devuelve `void` mientras crear la aplicación es asíncrono, así que un
+> `update` en el mismo tick **se perdía sin que nada lo dijera**; y `listo` significaba «Angular
+> creó el componente» y no «el DOM lo refleja», así que quien montara para medir leía un DOM
+> vacío. Los dos se cierran encadenando sobre la promesa del montaje y esperando a `whenStable`.
+> Ver #67.
+
+1. `platforms/<nombre>/package.json` existe.
+2. Hay una entrada en `PLATFORMS` (`tools/lib/synergos-config.mjs`) con `name`,
+   `distDir`, `resolveBundlePath` y `elementDistDir`.
+3. Las fuentes viven en `platforms/<nombre>/apps/**/src/main.<ext>`.
+4. El build escribe donde `resolveBundlePath` promete.
+5. Hay un `cdn.config.mjs` que declara sus externals.
+6. Se publica un runtime en `synergos/runtime/<nombre>/<versión>/` **con su
+   `import-map.json`**, y un puntero `latest/`.
+7. Se traduce `vitals/core-assets` al lenguaje de estilos de la plataforma.
+
+De las siete, **la 2 ya tiene gate en los dos sentidos** (`revisarPlataformas`, #44):
+una carpeta que `PLATFORMS` no declara rompe el build, y una entrada sin carpeta
+también. **Las otras seis no las comprueba nadie.**
+
+> ### Y hay un señuelo en el árbol, que es justo lo que la HU 1 de la épica iba a escribir
+>
+> `vitals/core/src/bridge/element-protocol.ts` declara `ElementProtocol` —
+> *«Interface that every framework must implement to register a Web Component»* —
+> con `mount` / `update` / `destroy`.
+>
+> **No lo importa nadie.** Medido: `grep -rn "ElementProtocol" platforms/ vitals/`
+> fuera de su propio fichero devuelve **cero**. Angular no lo implementa: usa
+> `createCustomElement` de `@angular/elements` directo. O sea que el contrato que
+> la épica quiere escribir **ya existe como texto y la única plataforma viva no lo
+> honra** — la regla 24 del `CLAUDE.md` con todas las letras: *un contrato que no
+> importa nadie no es un contrato, es un comentario con sintaxis*.
+>
+> Y traía además **la última copia a mano de la lista de frameworks** que el issue
+> #42 vino a matar: `framework: 'angular' | 'react' | 'svelte' | 'vanilla'`
+> escrito a pelo, en vez de `FrameworkKind`. #42 quitó la copia de
+> `component-resolution.contract.ts` y **ésta no la vio nadie**, porque estaba en
+> `vitals/core` y no en `vitals/contracts`. Medido: `grep` de la unión sobre
+> `vitals/` y `platforms/angular/libs/` devuelve exactamente dos sitios, y uno es
+> la declaración buena.
+
+---
+
+## 2. Lo que YA está hecho — confirmado, no asumido
+
+| | estado | cómo se comprobó |
+|---|---|---|
+| El pipeline no cablea `angular` (#44) | ✔ | `frameworks.spec.mjs` censa las 39 herramientas de `tools/` (20 + 19 en `lib/`), en los dos sentidos |
+| El techo de tamaño mide por framework | ✔ | `cdn-size-baseline.json` va indexado `<elemento>/<framework>` — 130 entradas, todas `angular` |
+| El humo recorre lo publicado | ✔ | `frameworksDelRegistry` lee las `implementations` del registry servido |
+| El índice sale del registry de hoy (#48) | ✔ | |
+| El registry declara `framework` (#42) | ✔ | 132 entradas, las 132 lo llevan |
+| El manifiesto es el embudo comprobado (#43) | ✔ | `validateManifest` cruza contra el `.ts` |
+| El `<script>` del elemento es agnóstico (CMS #126) | ✔ | `DefaultSynHostEmitter` emite `<script src type="module" defer>`; la palabra *Framework* aparece una vez y es un comentario |
+| El CMS **compone** el import map por framework (CMS #127) | ✔ | `ImportMapComposer.Componer` funde los mapas de todos los frameworks que el registry declara |
+| La frontera `vitals` ↔ `shared` escrita y con gate (#36) | ✔ | `node tools/medir-frontera-shared.mjs` reproduce **8.804 líneas, suelo 1.649 (18,7 %), techo 1.755 (19,9 %)** — idéntico a lo publicado |
+
+**Verificación del árbol, hoy:** `test:tools` 19 ficheros / **288 tests** (1 skip
+declarado) · `test:angular` 239 ficheros / **1 580 tests** · `contracts:validate`
+exit 0 · `validate-cms-contracts.mjs` exit 0 · `build:angular` **127 elementos en
+20,8 s**.
+
+> **Una cifra de #44 no reproduce, y va dicha porque la próxima auditoría la va a
+> leer.** El cierre de #44 reporta «`test:tools` **39 ficheros / 578 tests**». Medido
+> hoy en el mismo árbol: **19 ficheros / 288 tests**, y `git log` confirma que desde
+> ese commit **no se borró ni un `.spec.mjs`**. El 39 es además engañosamente
+> plausible —es exactamente el número de `.mjs` que el censo recorre (20 + 19)— y el
+> 578 es el doble justo del real, que es la huella de una corrida que contó el
+> proyecto dos veces. No hay nada roto —`CLAUDE.md` no cita esa cifra, y la que sí
+> cita (1 580) cuadra— pero un número al doble en el cierre de un ticket es de los
+> que alguien copia.
+
+---
+
+## 3. ✅ El hallazgo que bloqueaba todo lo demás: publicar el segundo runtime APAGABA el sitio
+
+**Esto es lo que la épica no sabía, y cambió el orden del despiece.**
+
+> **CERRADO en #58 (2026-09-16).** La salida de §3 está implementada tal cual: la tabla del
+> import map, que estaba escrita **dos veces** —`buildImportMap()` en `tools/build-runtime.mjs`
+> y el objeto `importMap` en `tools/publish-runtime.mjs`, con la lista de ficheros duplicada por
+> tercera y cuarta vez— vive hoy una sola vez en `tools/lib/mapa-del-runtime.mjs`, y publica el
+> alias heredado **junto a su gemelo calificado apuntando al mismo fichero**. El censo
+> `ALIAS_HEREDADOS` lleva el motivo de cada alias, y el gate —cuatro dientes, con su
+> `.spec.mjs`— corre dentro de `npm test` y **falla el `build:cdn`** antes de publicar.
+> Verificado contra el árbol real: con un `runtime/react/` declarando el nombre agnóstico, rojo
+> nombrando a los dos frameworks y a dónde ir; con el calificado, verde y las dos plataformas
+> conviviendo. Y el positivo de la convención se probó **del otro lado**, que es donde vive la
+> regla: `ImportMapComposerTests.La_convencion_del_repo_hermano_COMPONE_lo_que_este_test_ya_rechazaba`.
+>
+> Lo que queda del punto 3 de «la salida» y **no** se hizo: los elementos de Angular siguen
+> compilando contra `@synergos/core`. No hace falta y no es gratis —son 127 bundles y una
+> entrada de `tsconfig`— y el alias no se retira nunca de todos modos; el gemelo calificado
+> existe para que la plataforma NUEVA tenga a dónde ir, no para migrar la vieja.
+
+El CMS compone **un** import map juntando el de cada framework que el registry
+declara (`HttpBundleRegistryClient.TryGetImportMapAsync` →
+`ImportMapComposer.Componer`). Y tiene una regla, que es la correcta:
+
+> **el mismo specifier apuntando a URLs distintas no se resuelve: se PARA.**
+> `Componer` devuelve `(null, conflicto)`, `TryGetImportMapAsync` devuelve `null`
+> — *y no conserva el mapa anterior, a propósito* — y `_SynHostRuntime.cshtml`
+> **no emite ningún `<script type="importmap">`**.
+
+Sin mapa, ningún `<synergos-*>` resuelve `@angular/core` y **nada hidrata**: 200,
+el SSR entero en pantalla, y todo lo interactivo muerto. Es el defecto CMS #126
+otra vez, esta vez causado por un `publish` de este repo.
+
+### Lo que hace que esto no sea teórico
+
+El import map que el CDN sirve **hoy** (medido el 2026-09-15 contra
+`https://synergos-ui.synergos-labs.workers.dev/synergos/runtime/angular/latest/import-map.json`)
+declara, entre sus 16 entradas:
+
+```json
+"@synergos/core":   "/synergos/runtime/angular/21.1.6/sg-core.js",
+"@synergos/shared": "/synergos/runtime/angular/21.1.6/sg-shared.js"
+```
+
+Los dos specifiers son **agnósticos en el nombre y específicos en el destino**. Una
+segunda plataforma que haga lo obvio —publicar su `sg-core.js` y su `sg-shared.js`
+bajo los mismos dos nombres— produce exactamente el conflicto.
+
+**Y no hay que imaginárselo: el test que lo prueba ya existe, verde, en el CMS, y
+su fixture es literalmente este caso.**
+
+```csharp
+// Synergos.CMS.Tests/Services/ImportMapComposerTests.cs
+public void El_mismo_specifier_con_URLS_DISTINTAS_para_el_mapa_y_nombra_a_los_dos()
+{
+    var (mapa, conflicto) = ImportMapComposer.Componer(new[]
+    {
+        Mapa("angular", ("@synergos/core", "/cdn/ng/synergos-core.js")),
+        Mapa("react",   ("@synergos/core", "/cdn/react/synergos-core.js")),
+    });
+    Assert.Null(mapa);          // ← el sitio se queda sin import map
+    ...
+}
+```
+
+El CMS **anticipó la colisión como regla** y nadie sacó la consecuencia: que del
+lado de este repo no hay nada que impida publicarla. La mitad que vigila está en un
+árbol y la mitad que la causa en el otro — el mismo reparto que dejó el import map
+sin vigilar en #126 y el índice sin cruzar en #48.
+
+### Lo que el runtime de la segunda plataforma tiene que PRODUCIR, exactamente
+
+Es la pregunta más importante de esta medición y la respuesta cabe en una URL. El
+CMS pide, por cada framework que el registry declara:
+
+```
+{PublicBaseUrl}/{BundlesNamespace}/runtime/{framework}/{DefaultSlot}/import-map.json
+```
+
+con `BundlesNamespace = "synergos"` y `DefaultSlot = "latest"` por defecto
+(`BundleRegistrySettings`). O sea, para React:
+
+```
+/synergos/runtime/react/latest/import-map.json
+```
+
+Y de ese fichero **lee sólo la propiedad `imports`** — un objeto `specifier → URL`.
+Si no está o no es un objeto, avisa y **sigue con los demás**; un framework caído no
+tumba a los otros (`HttpBundleRegistryClient.TryGetImportMapAsync`). Las URLs se
+reescriben a la base pública del lado del CMS, así que pueden ser relativas — y
+deben serlo, por la misma razón que `build-cdn.mjs` pasa `--base=/synergos`: con el
+origen cableado, el mismo artefacto no sirve en `workers.dev`, en el dominio propio
+y en local.
+
+**No lee `integrity`.** El bloque que `build-runtime.mjs` calcula y publica es hoy
+información sin lector de este lado del cable; el `integrity` que el CMS sí emite
+—en el `<script>` del elemento— sale del `meta.json` del bundle, no de aquí.
+
+Con eso, lo que la segunda plataforma tiene que producir son **tres cosas y ninguna
+más**:
+
+1. sus bundles de runtime bajo `synergos/runtime/<fw>/<versión>/`,
+2. un `import-map.json` con `imports` al lado, y **copiado también en `latest/`**
+   (que es lo único que el CMS pide),
+3. **specifiers que no choquen con los de nadie** — ver abajo, que es lo único
+   difícil de los tres.
+
+Todo lo demás del mecanismo —componer, deduplicar, reescribir la base, emitir el
+`<script type="importmap">` en el `<head>`— **ya está hecho del otro lado** (CMS
+#126 y #127). Esta épica no tiene que tocar el CMS.
+
+### La salida, y por qué es barata
+
+El propio composer da el criterio: **el mismo specifier con la MISMA URL no es
+conflicto — se deduplica** (`El_mismo_specifier_con_la_MISMA_url_no_es_conflicto`,
+también verde). Así que:
+
+1. El runtime de Angular publica **los dos nombres apuntando al mismo fichero**:
+   `@synergos/core` (el de hoy, que los 127 bundles ya publicados importan y que
+   **no se puede retirar** — `cdn.config.mjs` lo dice: *«quitar una entrada es
+   peor: los elementos ya publicados siguen haciendo el bare import»*) **y**
+   `@synergos/angular-core`.
+2. Toda plataforma nueva publica **sólo** su par con nombre
+   (`@synergos/react-core`, `@synergos/react-shared`) y **nunca** el agnóstico.
+3. Los elementos nuevos de Angular se compilan contra el nombre con framework; los
+   ya publicados siguen resolviendo por el alias viejo mientras exista.
+
+Coste: dos entradas más en un JSON generado. **Cero riesgo, y sólo si se hace
+antes.** Hecho después, el día que se publique React el sitio se cae entero y el
+síntoma —«no hidrata nada»— no apunta a los specifiers por ningún lado.
+
+**Hecho antes** (#58). Los tres puntos, con el matiz del 3 en el aviso de arriba.
+
+> **La alternativa que NO se propone, y por qué va dicha.** Los import maps del
+> navegador tienen `scopes`, que resolverían esto en la plataforma en vez de en el
+> nombre: `/synergos/badge/react/` resolvería `@synergos/core` a la build de React
+> y `/synergos/hero/angular/` a la de Angular. Es la respuesta *correcta* de la
+> web. No se propone **ahora** porque el tipo `ImportMap` del CMS lleva un solo
+> campo (`Imports`) y la vista serializa `new { imports = mapa.Imports }`: son
+> cuatro ficheros del otro árbol —el record, la vista, el composer y los dos
+> clientes— por un beneficio que el prefijo compra con dos líneas. Queda escrito
+> como el disparador: **el día que dos frameworks necesiten el MISMO specifier de
+> un tercero con versiones distintas** (dos `react` de mayor distinta, o `rxjs`
+> versionado), el prefijo deja de alcanzar y hay que subir `scopes`.
+
+---
+
+## 4. El coste real de un elemento duplicado — medido sobre `badge`
+
+`badge` es el primitivo más pequeño del catálogo (bundle publicado: **1 845 bytes**).
+Se escribió su equivalente React **fuera del repo**, para contar y no estimar.
+
+### Lo que hay hoy en Angular
+
+| fichero | líneas |
+|---|---|
+| `apps/elements/primitives/badge/src/main.ts` | 13 |
+| `apps/.../src/app.config.ts` | 7 |
+| `apps/.../src/badge/badge.ts` (el envoltorio del elemento) | 50 |
+| `apps/.../src/badge/badge.html` | 3 |
+| `apps/.../src/badge/badge.scss` | 4 |
+| `libs/shared/.../badge/badge.ts` (la pieza del design system) | 61 |
+| `libs/shared/.../badge/badge.scss` | 50 |
+| **total de código** | **188** |
+| los dos `.spec.ts` | 57 |
+
+### Lo que costaría en React — contado, no estimado
+
+| pieza | líneas | nota |
+|---|---|---|
+| `main.ts` | **4** | registra el custom element y ya |
+| `badge-element.tsx` (el envoltorio) | **39** | lee atributos, sanea, delega |
+| `badge.tsx` (la pieza del design system) | **21** | |
+| `badge.scss` | **0** | **se reusa verbatim** — ver abajo |
+| **por elemento** | **~64** | |
+| `define-element.tsx` (el adaptador de montaje) | **46** | **una vez por plataforma**, no por elemento |
+
+**Y el CSS es el hallazgo barato.** `libs/shared/.../badge/badge.scss` son 50
+líneas de `@use` sobre `vitals/core-assets` y clases `.syn-badge--*` planas: **ni
+una construcción de Angular**. Se copia sin tocar una línea. El único SCSS que se
+traduce es el del elemento —4 líneas de `:host`— y eso es un `display: inline-flex`.
+
+> Generalizando con la medición de #36: el 24,2 % de `libs/shared` es plantilla y
+> el 33,9 % cuerpo reactivo — **eso** se reescribe. Pero el SCSS no entra en esa
+> cuenta y **no se reescribe casi nada de él**, porque el design system ya está
+> tokenizado sobre `vitals/core-assets`. La épica hablaba de «reescribir el design
+> system»; lo que se reescribe es su *cableado*, no su *aspecto*.
+
+### Lo que sale de `vitals` sin tocarse, y lo que NO sale y debería
+
+| | |
+|---|---|
+| `BadgeElementConfig` (`vitals/contracts/src/element-config.contract.ts`) | ✔ se importa igual |
+| `omitUndefinedProperties`, `coerceConfigInput`, `coerceTrimmedStringInput`, `coerceStringEnumInput`, `resolveConfigValue` | ✔ **desde #63 viven en `vitals/core/src/inputs/`** — cuando esto se midió estaban en `platforms/angular/libs/shared/src/utils/config-input.util.ts` |
+
+Ese fichero son **142 líneas y 13 funciones exportadas**, y lo importan **123 de los
+127 elementos**. Es el candidato **A** de #36 —*«literalmente el modelado de lo que
+viene del CMS, que es la definición de `vitals`»*— y al medir esto estaba del lado de
+Angular. Escribir el badge de la segunda plataforma sin moverlo primero significaba
+**copiarlo**, y dos normalizadores que se separan es cómo una clave deja de cruzar en
+silencio.
+
+> ✅ **Bloqueo levantado (#63), y lo que costó de verdad.** Los cuatro ficheros del grupo
+> A bajaron a `vitals/core/src/inputs/` **con sus specs**. `@synergos/shared` los
+> re-exporta, así que los **122** elementos que los importan de ahí **no cambiaron ni una
+> línea** — medido: `git status` no toca un solo fichero de `apps/`. La mudanza es neutra
+> en peso (`sg-shared.js` salió byte a byte idéntico) y hay gate contra la segunda
+> declaración (`normalizador-unico`, por NOMBRE de función y no por ruta).
+>
+> Lo que sí costó y no estaba previsto: **el alias del subcamino tiene que ir ANTES que su
+> raíz** en las tres tablas donde está escrito —casa por prefijo, no por clave exacta— y
+> **los specs necesitaron un runner tercero** (`npm run test:vitals`), porque correr 50
+> tests de funciones puras a través del compilador AOT de Angular es el acople que esta
+> frontera existe para cortar. Ése es el primer tropiezo real de la segunda plataforma, y
+> apareció antes de escribir una línea de ella.
+>
+> **`class-names.util.ts` NO bajó**, y es deliberado: el badge de la segunda plataforma no
+> lo usa. Ver `FRONTERA_VITALS.md` §5, «lo que no bajó».
+
+**La mudanza es más barata de lo que #36 temía**: `@synergos/shared` puede
+re-exportar desde `vitals`, así que los 123 elementos **no cambian ni una línea de
+import**. El coste es un fichero movido y un `export *`.
+
+### El número que de verdad importa para el norte de la épica: el peso
+
+Medido contra la URL pública el 2026-09-15, lo que descarga una página con **un
+solo badge** (transferido, o sea comprimido):
+
+| fichero | transferido |
+|---|---|
+| `ng-core.js` | 110 006 B |
+| `sg-shared.js` | 72 819 B |
+| `sg-core.js` | 9 534 B |
+| `ng-elements.js` | 8 928 B |
+| `ng-platform-browser.js` | 8 194 B |
+| **runtime compartido** | **≈ 209 KB** |
+| `badge/angular/latest/main.js` | 1 845 B (sin comprimir) |
+
+**Ese es el argumento entero de la arquitectura y también su techo.** Los 209 KB se
+pagan **una vez por página**, lleve un elemento o veinte — eso es exactamente lo
+que compra el import map, y es correcto. Pero el **piso** de una página con un solo
+badge son 209 KB, y de ellos 72,8 KB son `sg-shared.js`: el design system entero,
+porque el bundle del badge hace `import {...} from "@synergos/shared"` y el
+navegador se trae el módulo completo.
+
+> Una segunda plataforma no es sólo una demo de portabilidad: **es la medición del
+> piso**. Medido el 2026-09-15 contra jsdelivr, comprimido: **React + ReactDOM
+> (18, UMD producción) = 47 056 B** (4 263 + 42 793) y **Preact 10 = 4 827 B**.
+>
+> ```bash
+> curl -s https://cdn.jsdelivr.net/npm/preact@10/dist/preact.min.js | gzip -9 | wc -c
+> ```
+>
+> Un `badge` que hidrata con **4,7 KB** de runtime al lado de uno que hidrata con
+> **209 KB** es el experimento que contesta, con números, si el import map
+> compartido paga por sí mismo en páginas con pocos elementos. **Eso no lo contesta
+> ningún documento: hay que publicar el segundo.**
+>
+> ⚠ **Y no es una comparación limpia, así que va con su asterisco:** los 209 KB
+> incluyen `sg-shared.js` (72,8 KB), que es **el design system entero de este
+> repo**, no Angular. El runtime de Angular solo son ≈133 KB (y 9,5 de ésos son `sg-core`). La comparación
+> honesta es runtime contra runtime —133 KB contra 4,7— y el `shared` de la segunda
+> plataforma pesará lo que pese cuando exista. La medición del piso sale del
+> experimento, no de esta tabla.
+
+---
+
+## 5. Qué se pondría rojo solo, y qué no vigila nadie
+
+### 5.1 Cubierto — no hay que hacer nada
+
+| gate | por qué ya cubre |
+|---|---|
+| `cdn-size-budget` | recorre el árbol publicado, mide **por framework**, y la línea base va indexada `<elemento>/<framework>` (#44) |
+| `cdn-smoke` / `humo-cdn` | deriva los frameworks de las `implementations` del registry servido |
+| `cdn-cache-policy` | la política es por forma de ruta, no por framework |
+| `dev-cdn-routes` | rechaza sin framework en vez de caer a `angular` (#44) |
+| `indice-publicado` | recorre, no pregunta (#48) |
+| `frameworks` / `revisarPlataformas` | **una `platforms/react/` sin entrada en `PLATFORMS` rompe el build**, y al revés también |
+| `vitals-purity` | la lista blanca sale del `tsconfig`; un import de React en `vitals/` cae por la misma puerta que uno de Angular, **sin nombrarlo** |
+| G-2 de `sync-tokens` | barre **todo** `.scss`/`.css` del repo: el SCSS de React entra solo |
+
+### 5.2 🔴 No lo vigila nadie
+
+**(a) ✅ El runtime de la segunda plataforma — CERRADO en #61.**
+`tools/lib/cdn-runtime-check.mjs` preguntaba por `${cdnSynergos}/runtime/angular` y
+por `.../runtime/angular/latest/import-map.json`, literal. Estaba en el censo de #44
+como *legítimamente de Angular* — y lo era mientras hubiera una. Con dos, publicar
+elementos de React sin su runtime pasaba el gate **en verde**: el defecto #7 tal
+cual, servido en el segundo framework. Es además la regla 25 del `CLAUDE.md`:
+*un gate que resuelve a una constante una dimensión de lo que mide no falla, se pone
+verde sobre el sitio equivocado*.
+
+> Hoy consume `recorrerPublicado` —una sola regla en el repo de qué cuenta como
+> bundle publicado, con `construibles` opcional para quien sólo necesita la lista—
+> y le exige runtime a **cada framework que publicó elementos**. La asimetría es el
+> diseño: un framework construible que todavía no publicó nada **no** da rojo, que
+> es el estado normal de una plataforma nueva. `lib/cdn-runtime-check.mjs` pasó de
+> `ESPECIFICAS_DE_ANGULAR` a `CIEGAS_AL_FRAMEWORK` en el mismo commit, porque el
+> censo lo exige en los dos sentidos.
+>
+> Verificado contra el árbol real, en cuatro pasos: tal cual → `ok`; con un
+> `badge/react/latest/main.js` y sin `runtime/react/` → **rojo nombrando `react`**
+> (el gate anterior daba `ok`); con el runtime de react → verde, las dos
+> plataformas; y con `platforms/react/package.json` pero sin un solo bundle
+> publicado → **verde**, que es la asimetría.
+
+**(b) ✅ Los seis gates que recorren el disco lo recorrían sólo en `platforms/angular/` — CERRADO en #60.**
+Y el censo de #44 **no los ve**, porque filtra `!f.endsWith('.spec.mjs')` — y son
+los `.spec.mjs` los que llevan las rutas:
+
+| spec | qué vigila | ¿la regla es de Angular? |
+|---|---|---|
+| `css-parity.spec.mjs` | `platforms/angular/apps/elements/modules` | **no** — CSS muerto lo tiene cualquier framework |
+| `spec-quarantine.spec.mjs` | `platforms/angular/{apps,libs}` | **no** — un `it.skip` sin motivo es igual de malo en React |
+| `bridge-consumers.spec.mjs` | `platforms/angular` | **no** — helpers de `window.synergos` sin consumidor |
+| `shell-consumers.spec.mjs` | `platforms/angular` | **no** — shells que nadie monta |
+| `facet-selection.spec.mjs` | `platforms/angular` | **no** — facetas multi-valor que viajan de a una |
+| `template-bindings.spec.mjs` | `platforms/angular` | **sí** — `[algo]="… \|\| null"` es *property binding* de Angular |
+
+> **Cerrado (#60).** Las cinco neutrales recorren `raicesEnDisco(REPO)` —todas las plataformas
+> construibles, derivadas del disco— y `template-bindings` se queda donde estaba con su razón
+> escrita. El censo de #44 se amplió con un **segundo** censo, y el criterio tuvo que ser otro:
+> para una herramienta la pregunta es «¿nombra un framework?», pero para un spec nombrarlo es
+> normal —medido, **18 de 21** specs lo nombran en fixtures—, así que ese criterio habría dado
+> dieciocho excepciones, que es como se consigue que un censo deje de leerse. Lo que se vigila
+> es la **ruta cableada** (`platforms/<algo>` fuera de los comentarios), que es exactamente lo
+> que esta tabla midió: siete ficheros, declarados con su razón, en los dos sentidos.
+>
+> Mutación del ticket, con `platforms/react/` construible, una `.badge__muerta` sin emisor y un
+> `it.skip` sin motivo: el gate **anterior** sale **verde** sobre ese árbol y el nuevo sale
+> **rojo** nombrando `badge: .badge__muerta (badge.scss:2)` y los dos saltados. Y el censo se
+> mutó en los dos sentidos: una ruta cableada sin declarar, rojo; una declaración que sobra,
+> rojo.
+>
+> **Lo que sigue sin cubrirse, dicho en vez de insinuado:** una plataforma cuyo árbol interno no
+> se parezca al de Angular —`apps/elements/<tier>s/`, `libs/`— queda invisible para estos gates,
+> porque cada uno sigue sabiendo qué subcarpeta mirar. Eso es #62.
+
+Cinco de seis son reglas **neutrales** apuntando a una ruta **cableada**. El censo
+está bien escrito y tiene un hueco justo donde vive el recorrido del disco.
+
+**(c) ✅ Dos fuentes para el mismo elemento se PISABAN en silencio — CERRADO en #59.** Medido ejecutando
+`descubrirFuentes` con un disco de mentira que tiene `badge` en las dos
+plataformas:
+
+```
+fuentes: [ ['badge', { framework: 'react', dir: 'platforms/react/apps/.../badge' }] ]
+revisarFrameworks: [ 'badge: declara framework "angular" y el disco dice "react" (fuente propia).' ]
+```
+
+`descubrirFuentes` guarda en un `Map` **por nombre de elemento**, así que la última
+plataforma del bucle gana y la de Angular **desaparece sin decirlo**. Y el error que
+sale después **culpa al registry**: quien lo lea corregirá la entrada a `react` y
+dejará de publicar el bundle de Angular sin haber decidido nada. La verdad —«hay dos
+fuentes para este elemento»— no la dice nadie.
+
+> **Cerrado (#59), sin contestar la pregunta de producto.** El recorrido se partió en dos:
+> `todasLasFuentes` devuelve TODAS sin colapsar —una sola regla en el repo de qué cuenta como
+> fuente— y sobre ella se construyen `descubrirFuentes` (el `Map` de siempre, ahora **primera
+> gana** para que el informe sea estable) y `revisarFuentesDuplicadas`, que **nombra las dos
+> rutas y no elige**. Corre en `element:audit`, o sea dentro de `contracts:validate`.
+>
+> **Y la pregunta —¿un mismo elemento puede existir en dos frameworks a la vez?— ya está
+> contestada**, con las dos mitades que decidieron el diseño: *«sí podría, pero para qué; no
+> deberíamos tener esas cosas así — dejémoslo habilitado para mostrar»*. O sea **(B), pero como
+> ESCAPARATE y declarado uno por uno**, no como forma normal de escribir un elemento.
+>
+> El censo es `SHOWCASE_MULTIPLATAFORMA`, con la razón de cada entrada y vigilado en los dos
+> sentidos: un duplicado sin declarar rompe el build, y una declaración sobre algo que ya no
+> está duplicado también. **Hoy está vacío y hay un test que lo exige** — sólo existe una
+> plataforma construible, así que una entrada ahí declararía un escaparate imposible; la primera
+> la escribe #64 junto con el elemento.
+>
+> `elegirPlataforma` devuelve **`plataformas` en plural**, una lista de uno en el caso normal y
+> las dos en un escaparate. El publicador **ya iteraba** —`for (const platform of
+> [eleccion.plataforma])`— así que el cambio ahí fue quitar los corchetes: el bucle estaba
+> escrito para esto desde antes de que hiciera falta. Por qué las tres formas de habilitarlo no
+> son equivalentes está en la regla 27 del `CLAUDE.md`.
+>
+> Verificado reproduciendo primero el defecto con el mismo disco de mentira (el `Map` daba
+> `[['badge', {framework:'react'}]]` y `revisarFrameworks` decía *«declara framework "angular" y
+> el disco dice "react"»*), y después contra el **disco real** con un
+> `platforms/react/apps/elements/primitives/badge/src/main.ts`: `element:audit` sale con **exit
+> 1** nombrando las dos rutas.
+
+**(d) Un barril que nadie exporta no lo compila nadie.** Ver §6: 16 ficheros de
+`libs/core/src/models/` están fuera de todo programa de compilación y tres de ellos
+no resuelven. Ningún gate cruza «carpeta de una lib» contra «alcanzable desde su
+`index.ts`».
+
+**(e) El descubrimiento exige `src/main.ts`, con esa extensión.** *(Anotado en el `todasLasFuentes` de `element-sources.mjs` con #59; lo decide #62, que es quien escribe el contrato de plataforma.)* `descubrirFuentes`
+comprueba `${completo}/src/main.ts`. Un `platforms/react/` que use `main.tsx` —lo
+normal— descubre **cero** elementos, y el gate dice «ninguna plataforma tiene su
+fuente» para cada entrada de React. Falla ruidosamente, que es lo correcto; pero
+falla por la razón equivocada y manda a alguien a mirar el registry.
+
+---
+
+## 6. `shells`, `rendering`, `shop`, `transaction-engine`, `integrations` — la clasificación
+
+La HU 5 de la épica pedía clasificar «47 ficheros y ~9.300 líneas». Medido, son
+**47 ficheros `.ts` (sin specs) y 9 322 líneas**, y **no son un grupo**:
+
+| lib | ficheros | líneas | con `@angular/` | apps que lo consumen | veredicto |
+|---|---|---|---|---|---|
+| `shells` | 17 | 5 984 | 15 | 10 | **shared de Angular.** Son plantillas de experiencia (wizard, buscador, confirmación). Se reescriben. |
+| `transaction-engine` | 9 | 1 290 | 5 | 8 | **partido.** 4 ficheros sin Angular; el motor de cobro/cumplimiento es lógica, las estrategias tocan DI. |
+| `shop` | 6 | 975 | 5 | 6 | **shared de Angular**, con sus tipos a `vitals` si hacen falta dos veces. |
+| `rendering` | 8 | 448 | 5 | 1 | **shared de Angular**, y con **un** consumidor — revisar si sigue haciendo falta antes de duplicarlo. |
+| `integrations` | 7 | 625 | **0** | **0** | **ninguna de las tres.** Es un generador de código (`csharp-parser`, `ts-emitter`, `type-mapper` para `cms-sync`): herramienta de build viviendo en `platforms/angular/libs/`. No renderiza, no tiene estado reactivo y **no modela lo que emite el CMS en runtime**, así que tampoco es `vitals`. Su sitio es `tools/`. |
+| `core` (Angular) | 52 | 2 455 | 31 | 58 | **shared de Angular**: 29 servicios con DI. Aparte, `src/models/` (16 ficheros) es una **capa de compatibilidad MUERTA** — ver abajo. |
+
+### 🔴 Y de camino: `libs/core/src/models/` está muerta, y tres de sus ficheros no compilan
+
+Los 16 ficheros de `platforms/angular/libs/core/src/models/` **no declaran nada**:
+son `export type { X } from '../../../../../../vitals/core/src/models/…'`, una capa
+de compatibilidad hacia `vitals` escrita con **ruta relativa** en vez del alias.
+
+Tres de esos re-exports apuntan a ficheros **que no existen**:
+
+```
+libs/core/src/models/column-inputs.model.ts(1,35):      error TS2307: Cannot find module
+  '../../../../../../vitals/core/src/models/column-inputs.model'
+libs/core/src/models/hello-world-inputs.model.ts(1,39): error TS2307  (hello-world-inputs.model)
+libs/core/src/models/section-inputs.model.ts(1,36):     error TS2307  (section-inputs.model)
+```
+
+**Y el build está verde.** `npm run build:angular` compila los 127 elementos en
+20,8 s y la suite pasa 1 580 tests. La razón es que `libs/core/src/index.ts`
+exporta `core.providers`, `core.environment`, `core.tokens`, `interceptors` y
+`services` — **y no `./models`**. Nadie importa el barril, así que la carpeta entera
+queda fuera del `NgtscProgram` y sus errores no los ve ningún compilador. Medido
+forzándolo: `npx tsc --noEmit libs/core/src/models/index.ts` da los tres TS2307.
+
+**Por qué esto importa para #37 y no es sólo limpieza:** quien escriba la segunda
+plataforma va a mirar la primera para saber qué carpetas lleva una. Copiar
+`libs/core/src/models/` es copiar la frontera **muerta** — exactamente lo que
+`FRONTERA_VITALS.md` §3 advierte sobre los tres modelos de host deprecados, y por la
+misma razón: *«el disparador para hacerlo es que alguien vaya a escribir el segundo
+shared; antes de eso es limpieza, en ese momento es la diferencia entre copiar la
+frontera buena o copiar la muerta»*.
+
+**No se borra acá** (lo que hoy no se usa puede usarse mañana, y esto es un cambio
+de contrato que necesita su ticket). Se propone: o el barril se exporta desde
+`index.ts` —y entonces los tres TS2307 hay que arreglarlos— o la carpeta se retira.
+Lo que no puede quedarse es el estado de hoy, que afirma una capa de compatibilidad
+que no compila y que nadie ejercita.
+
+> **`integrations` es el hallazgo de esta sección**: 625 líneas, cero imports de
+> framework y **cero consumidores**, alojadas en la carpeta de una plataforma. No
+> se borra —lo que hoy no se usa puede usarse mañana— pero **no debería mudarse a
+> la segunda plataforma ni quedarse donde está**: lo consume `tools/cms-sync.mjs`,
+> que es de la raíz.
+
+---
+
+## 7. El despiece — en orden de dependencia
+
+| orden | HU | talla | depende de |
+|---|---|---|---|
+| 1 | **#58** — El specifier del runtime lleva el framework dentro | **S** | — |
+| 2 | **#59** — Dos fuentes para un elemento se nombran, no se pisan | **S** | — |
+| 3 | **#60** — El censo de #44 llega a los `.spec.mjs` | **S** | — |
+| 4 | **#61** — El runtime de CUALQUIER plataforma llega antes que sus elementos | **S** | #58 |
+| 5 | **#62** — El contrato de una plataforma, derivado del disco | **M** | #58, #59 |
+| 6 | **#63** — El grupo A de `libs/shared` baja a `vitals` | **M** | — |
+| 7 | **#64** — El segundo elemento REAL, publicado y montado | **L** | #58, #61, #62, #63 |
+| 8 | **#65** — Las cinco libs clasificadas | **M** | #64 |
+
+Y dos **hallazgos** que salieron midiendo y que no son parte de la épica, pero que
+la tocan:
+
+| | | |
+|---|---|---|
+| **#66** | `libs/core/src/models/` está fuera de todo programa y tres ficheros no resuelven | bloquea copiar el layout de la plataforma |
+| **#67** | `ElementProtocol` sin consumidores + la última copia de la unión de frameworks | la copia está **arreglada**; la decisión sobre la interfaz es de #62 |
+
+**Por qué 1 va primero y no el contrato**: es lo único de la lista que, hecho
+tarde, rompe lo que hoy funciona. Las demás, hechas tarde, sólo dejan algo sin
+vigilar.
+
+**Por qué 6 va antes que 7**: sin ella, el segundo elemento copia el normalizador
+de 142 líneas que usan 123 de los 127 elementos, y a partir de ahí hay dos.
+
+**Por qué 8 va después de 7 y no antes**: clasificar cinco librerías sin un segundo
+consumidor es decidir con una corazonada. `Synergos.Shared` del repo hermano esperó
+a seis consumidores; acá alcanza con uno real.
+
+---
+
+## 8. Lo que esta medición NO contesta
+
+- **Qué framework.** React, Preact, Svelte y `vanilla` son los cuatro que
+  `ELEMENT_FRAMEWORKS` admite. La medición del §4 da el criterio (el piso de peso)
+  y no la respuesta.
+- **Si un mismo elemento puede existir en dos frameworks a la vez.** El registry
+  publicado **sí** lo expresa (`implementations` es un mapa y `upsertCdnRegistryEntry`
+  conserva las otras), pero el registry **fuente** lleva `framework` como escalar y
+  `elegirPlataforma` **rechaza** un bundle construido en otra plataforma («uno de
+  los dos miente»). O sea: hoy el modelo es *un elemento, un framework*. Decidirlo
+  es parte de la HU 2, y no es una pregunta de herramientas: es de producto.
+- **Cómo elige el CMS cuando hay dos.** `ElegirFramework` prefiere el
+  `DefaultFramework` (`"angular"`) y si no está toma
+  `Implementations.Keys.FirstOrDefault()` — o sea **el orden del diccionario**.
+  Mientras haya uno da igual; con dos, un elemento publicado sólo en react+svelte se
+  serviría según el orden de publicación. Es del otro árbol y se anota acá para que
+  quien abra la HU 2 lo sepa.
+
+---
+
+## 9. Lo que pasó al construirla — #64, y las cuatro que esta medición no vio
+
+Lo de arriba se midió el 2026-09-15 sin escribir una línea de la segunda
+plataforma. Esto se escribe el 2026-09-16, con ella publicada. **Lo que la
+medición acertó no se repite acá**; lo que sigue es lo que costó y no estaba.
+
+### Lo que la medición acertó
+
+El coste por elemento (**4 + 67 + 32 = 103 líneas** contra 188), el SCSS
+reusado **byte a byte** —`diff` vacío—, y que el hallazgo de §3 era el que
+bloqueaba todo: sin #58, publicar este runtime habría apagado el sitio entero.
+
+### Y el framework fue **Preact**, no React
+
+La medición dejó la decisión abierta. La decidió el peso —47 KB gz de React
+contra 6,4 de Preact, frente a los ≈133 de Angular: la primera cifra es un
+encogimiento de hombros y la segunda es una medición— y dos cosas más: Preact
+tiene su propio VDOM y sus propios hooks, así que **ejercita el contrato de
+verdad**, y su build es **un esbuild de 30 líneas** contra un `NgtscProgram`.
+Eso último contesta media pregunta de la épica: **el contrato de plataforma no
+exige un compilador.**
+
+### 1. `require.resolve()` devuelve el CommonJS, y la suite no lo vio
+
+El runtime se construía desde `createRequire(...).resolve('preact')`, que
+resuelve por la condición `require`: el CJS. Empaquetado como ESM sale con **un
+solo export**, y el navegador contesta *«does not provide an export named
+`render`»*. **Nada hidrata.**
+
+Los 8 specs del elemento estaban **verdes**, porque el `vitest.config.ts` de la
+plataforma resolvía `preact` al paquete de node —que sí tiene exports
+nombrados—. O sea que lo que estaba bajo prueba no era el artefacto publicado:
+la regla 16 con el sujeto movido. **Lo destapó Chromium**, igual que
+`humo-portada.mjs` destapó el `@using` que faltaba del lado del CMS.
+
+Hoy el alias apunta al **runtime construido** y la mutación lo confirma: con
+`require.resolve` puesto, 6 de 8 specs en rojo.
+
+### 2. Un `alias` de esbuild PISA a `external`
+
+El specifier deja de ser bare y la lista de externals ya no lo ve. El badge
+salía a **17.525 B** con el adaptador y el design system dentro — compilando,
+publicando y entrando en el techo de su tier. Lo único que se rompía era la idea
+fundacional del repo, en silencio.
+
+### 3. `@synergos/contracts` no se puede podar
+
+Hace `Object.freeze(Object.fromEntries(registry…))` en ámbito de módulo sobre
+las 132 entradas del registry, así que **cualquiera que toque el barril de
+`@synergos/core` se lleva el registry entero**: 16.114 B contra 998. En Angular
+no se nota porque se paga UNA vez en `sg-core.js`; en una plataforma que
+empaqueta `vitals`, se paga **por elemento**. Se importa por
+`@synergos/core/inputs`.
+
+### 4. Una tabla de alias se lee de arriba abajo — tres veces
+
+El alias casa por **prefijo y en orden**, no por clave exacta. Con el raíz
+delante, `@synergos/vitals-core/inputs` acaba en `…/index.js/inputs` y
+`preact/jsx-runtime` en `…/preact.js/jsx-runtime`. Pasó en el
+`vitest.config.ts` de Angular (236 ficheros de spec en rojo), en su `build.mjs`
+y en el `vitest.config.ts` de Preact. **Las tres veces en la misma épica.**
+
+### Lo que quedó ABIERTO, nombrado en vez de dado por hecho
+
+**Cuál de las dos implementaciones sirve el CMS lo decide un interruptor
+GLOBAL.** `ElegirFramework` prefiere `BundleRegistry:DefaultFramework` y cae al
+primero que haya. Verificado con el cliente real contra el CDN construido:
+
+| `DefaultFramework` | `synergos-badge` | los otros 129 |
+|---|---|---|
+| `angular` | `/badge/angular/0.1.0/main.js` | angular |
+| `preact` | `/badge/preact/0.1.0/main.js` | **angular** |
+
+O sea que el escaparate se enciende con una línea de configuración y **no
+arrastra a nadie**, porque un elemento sin implementación en el framework
+pedido cae al que tiene. Eso alcanza para lo que la épica quería enseñar. Lo
+que NO existe es pedir *este badge de Preact y aquél de Angular en la misma
+página*, y no hace falta hoy: sería producto, y un `badge` de Preact que fuera
+producto sería otro elemento con su nombre y su DocType (#59).
+
+**Y falta la página del CMS con el elemento colocado.** Lo verificado en
+Chromium es el HTML que el CMS produciría —su import map compuesto (23
+entradas, los dos runtimes, sin conflicto) y la URL que su propio cliente
+resolvió—, con los dos badges hidratando idénticos: mismo texto, mismas clases
+`syn-badge--brand` / `syn-badge--neutral`. Lo que falta es que un editor
+coloque el bloque en una página, y eso es contenido: **el agente no lo autora**
+(ADR 0129 del CMS).
+

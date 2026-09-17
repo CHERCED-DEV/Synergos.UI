@@ -9,14 +9,20 @@
  *   node tools/catalog.mjs --out dist/catalog.html
  *
  * Data sources:
- *   vitals/contracts/src/element-registry.json  — 56-element master registry
+ *   vitals/contracts/src/element-registry.json  — el registry maestro (hoy 132
+ *                                                 entradas; la cifra la imprime
+ *                                                 este script al terminar, no se
+ *                                                 escribe acá — épica #40)
  *   vitals/contracts/src/element-inputs.json    — input descriptors per element
  *   $CDN_ROOT/registry.json                     — (optional) published versions
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { frameworksConstruibles } from './lib/frameworks.mjs';
+import { raizCdnLocal } from './lib/rutas-hermanas.mjs';
 
 const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
@@ -28,7 +34,12 @@ const OUT = outFlag !== -1 ? resolve(args[outFlag + 1]) : join(ROOT, 'catalog.ht
 // ─── Data loading ─────────────────────────────────────────────────────────────
 const REGISTRY_PATH = join(ROOT, 'vitals/contracts/src/element-registry.json');
 const INPUTS_PATH   = join(ROOT, 'vitals/contracts/src/element-inputs.json');
-const CDN_ROOT      = process.env.CDN_ROOT ?? 'C:\\LOCAL_CDN\\synergos';
+// El default era `C:\LOCAL_CDN\synergos` — una ruta que sólo existe en la
+// máquina donde se escribió, y el patrón que este repo ya pagó caro. Hoy cae a
+// `public/synergos`, la salida de `npm run build:cdn`, que existe en cualquier
+// clon que haya construido; `CDN_ROOT` sigue mandando cuando se pasa, que es lo
+// que hace `build-cdn.mjs` con el árbol recién publicado (#57).
+const CDN_ROOT      = raizCdnLocal({ raizUi: ROOT });
 
 const registry   = JSON.parse(readFileSync(REGISTRY_PATH, 'utf-8'));
 const inputsData = JSON.parse(readFileSync(INPUTS_PATH, 'utf-8'));
@@ -40,7 +51,19 @@ if (existsSync(cdnRegistryPath)) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const FRAMEWORKS  = ['angular'];   // la purga dejó UNA plataforma
+//
+// Los frameworks se DERIVAN del disco (issue #44). Escritos a mano, el catálogo
+// enseñaría una sola columna el día que haya dos plataformas y nadie se
+// enteraría: una tabla a la que le falta una columna se lee como completa.
+// La lista es la de lo CONSTRUIBLE y no la de lo publicado, a propósito: el
+// catálogo existe para enseñar qué está publicado y qué NO, así que un
+// framework que este repo construye y todavía no publicó tiene que salir —
+// vacío, que es la información.
+const listarDirs = (dir) =>
+  existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+    : [];
+const FRAMEWORKS  = frameworksConstruibles({ raiz: ROOT, listarDirs, existe: existsSync, unir: join });
 const TIER_ORDER  = { module: 0, composition: 1, primitive: 2 };
 const TIER_COLORS = { module: '#6366f1', composition: '#0ea5e9', primitive: '#10b981' };
 

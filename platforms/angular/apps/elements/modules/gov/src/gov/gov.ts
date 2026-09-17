@@ -15,6 +15,11 @@ import {
 } from '@angular/core';
 import {
   AccountShellComponent,
+  ConfirmationShellComponent,
+  type ConfirmationAction,
+  type ConfirmationFact,
+  type ConfirmationShellConfig,
+  type ConfirmationStep,
   ConsoleShellComponent,
   DiscoveryShellComponent,
   DynamicFormShellComponent,
@@ -23,6 +28,7 @@ import {
   type AccountShellConfig,
   type DiscoveryCriteria,
   type ConsoleColumn,
+  type ConsoleSort,
   type ConsoleKpi,
   type ConsoleRowAction,
   type ConsoleRowActionEvent,
@@ -49,8 +55,9 @@ import {
   type ApplicationDetail,
   type ApplicationStatus,
   type ApplicationSummary,
-  type DecisionOutcome,
+  type GovActNotification,
   type GovCase,
+  type DecisionOutcome,
   type GovForm,
   type GovRole,
   type GovService,
@@ -129,6 +136,16 @@ const CATEGORIES: readonly { key: string; label: string }[] = [
   { key: 'empresa', label: 'Empresa' },
 ];
 
+/**
+ * Los filtros de la cola.
+ *
+ * Los seis primeros son por ESTADO y son los de siempre. Los dos últimos son por
+ * PLAZO, y son los que faltaban (#21): el dato legal llegaba a la pantalla como
+ * columna y no había forma de filtrar por él — un funcionario con doscientos
+ * expedientes tenía que recorrer la lista con el ojo.
+ *
+ * Se evalúan sobre `slaDaysLeft`, que es negativo cuando el término ya venció.
+ */
 const QUEUE_FILTERS: readonly { key: string; label: string }[] = [
   { key: '', label: 'Todos' },
   { key: 'submitted', label: 'Radicadas' },
@@ -136,7 +153,12 @@ const QUEUE_FILTERS: readonly { key: string; label: string }[] = [
   { key: 'info-requested', label: 'Requieren info' },
   { key: 'approved', label: 'Aprobadas' },
   { key: 'rejected', label: 'Rechazadas' },
+  { key: 'overdue', label: 'Vencidas' },
+  { key: 'due-soon', label: 'Vencen esta semana' },
 ];
+
+/** Las claves que filtran por PLAZO y no por estado: el backend no las conoce. */
+const SLA_FILTERS: ReadonlySet<string> = new Set(['overdue', 'due-soon']);
 
 /** Views that belong to the officer face (used to align role on deep-link). */
 const OFFICER_VIEWS: readonly GovView[] = ['queue', 'case'];
@@ -164,6 +186,7 @@ let govInstanceId = 0;
   standalone: true,
   imports: [
     AccountShellComponent,
+    ConfirmationShellComponent,
     ConsoleShellComponent,
     DiscoveryShellComponent,
     DynamicFormShellComponent,
@@ -325,6 +348,236 @@ export class GovElementComponent {
   readonly submitting = signal(false);
   readonly confirmedApplication = signal<ApplicationSummary | null>(null);
 
+  // ─── Actos notificados (HU CMS#62 · #20) ────────────────────────────────────
+  readonly notifications = signal<readonly GovActNotification[]>([]);
+  readonly notificationsLoaded = signal(false);
+  readonly openingId = signal('');
+  /** El acto abierto en el panel de detalle. */
+  readonly openedAct = signal<GovActNotification | null>(null);
+  /**
+   * Falló ABRIR. Es su propio estado y no el `errorMessage` general a propósito:
+   * lo que se rompió no es la pantalla, es el acto de acusar recibo — y de eso
+   * depende un plazo legal, así que se dice donde la persona lo va a leer.
+   */
+  readonly openError = signal('');
+
+  /** Actos que todavía no ha abierto: es el número que importa en la bandeja. */
+  readonly unopenedCount = computed(
+    () => this.notifications().filter((act) => !act.opened).length,
+  );
+
+  readonly notificationsConfig = computed<AccountShellConfig>(() => ({
+    heading: 'Mis notificaciones',
+    navLabel: 'Secciones de notificaciones',
+    sections: [
+      {
+        id: 'actos',
+        label: 'Actos administrativos',
+        kind: 'inbox',
+        badge: this.unopenedCount() || undefined,
+      },
+    ],
+    inboxEmptyTitle: 'No tienes actos notificados',
+    inboxEmptyMessage:
+      'Cuando una entidad le ponga en conocimiento una decisión, aparecerá aquí.',
+    inboxLoadingMessage: 'Cargando tus notificaciones…',
+    detailPlaceholder: 'Elige un acto para abrirlo.',
+  }));
+
+  // ─── Comprobante de radicación (SH-11) ──────────────────────────────────────
+  // El rótulo es del dominio —acá el número se llama RADICADO, y llamarlo
+  // «referencia» delante de un ciudadano es perder la palabra con la que va a
+  // reclamar—. La estructura la pone la pieza.
+  readonly receiptConfig = computed<ConfirmationShellConfig>(() => ({
+    heading: 'Solicitud radicada',
+    summary: 'Guarde su número de radicado: es con lo que puede reclamar y consultar.',
+    referenceLabel: 'Número de radicado',
+    stepsLabel: '¿Qué sigue?',
+    copyLabel: 'Copiar radicado',
+    copiedLabel: 'Radicado copiado',
+  }));
+
+  readonly receiptFacts = computed<readonly ConfirmationFact[]>(() => {
+    const app = this.confirmedApplication();
+    if (!app) {
+      return [];
+    }
+    return [
+      { id: 'tramite', label: 'Trámite', value: app.serviceName },
+      { id: 'estado', label: 'Estado', value: this.statusLabel(app.status) },
+      { id: 'etapa', label: 'Etapa actual', value: app.currentStage },
+    ];
+  });
+
+  readonly receiptSteps = computed<readonly ConfirmationStep[]>(() => {
+    const app = this.confirmedApplication();
+    if (!app) {
+      return [];
+    }
+    return [
+      { id: 'radicada', label: 'Su solicitud quedó radicada', done: true },
+      {
+        id: 'revision',
+        label: 'La entidad la revisa',
+        detail: 'Le avisamos por correo cuando cambie el estado.',
+      },
+      {
+        id: 'seguimiento',
+        label: 'Puede seguirla cuando quiera',
+        detail: 'Desde «Mis solicitudes», con su número de radicado.',
+      },
+    ];
+  });
+
+  readonly receiptActions: readonly ConfirmationAction[] = [
+    { id: 'ver', label: 'Ver mi solicitud', kind: 'primary' },
+    { id: 'catalogo', label: 'Volver al catálogo' },
+  ];
+
+  // ─── Ventanilla: poner un acto en conocimiento ──────────────────────────────
+  readonly notifyTitle = signal('');
+  readonly notifyBody = signal('');
+  readonly notifying = signal(false);
+  readonly notifyDone = signal(false);
+  readonly notifyError = signal('');
+
+  readonly canNotify = computed(() => this.notifyTitle().trim().length >= 3);
+
+  /**
+   * Notificar NO se degrada, al revés que la bandeja del ciudadano.
+   *
+   * Decirle a un funcionario que el acto salió cuando no salió deja a la entidad
+   * creyendo que un término corre. Cuando no se puede probar quién notifica, es
+   * mejor que falle a la vista — es la misma razón por la que `Api.Messaging` no
+   * reintenta sin firmar mientras la bitácora sí.
+   */
+  async onNotifyAct(kase: GovCase): Promise<void> {
+    if (!this.canNotify() || this.notifying()) {
+      return;
+    }
+    this.notifyError.set('');
+    this.notifying.set(true);
+    try {
+      await this.#api.notifyAct(this.apiBase(), {
+        caseId: kase.application.id,
+        title: this.notifyTitle().trim(),
+        body: this.notifyBody(),
+      });
+      this.notifyDone.set(true);
+      this.notifyTitle.set('');
+      this.notifyBody.set('');
+    } catch (error) {
+      // El 409 del backend es el caso que hay que explicar, no esconder: un
+      // expediente sin Member detrás no se puede notificar electrónicamente,
+      // porque dejaría escrito un término que nadie puede empezar a contar.
+      this.notifyError.set(
+        'No se pudo notificar. Si el expediente no tiene un ciudadano con sesión, ' +
+          'no admite notificación electrónica y hay que hacerlo por el canal físico.',
+      );
+      void error;
+    } finally {
+      this.notifying.set(false);
+    }
+  }
+
+  // ─── Bandeja de actos ───────────────────────────────────────────────────────
+
+  async goToNotifications(): Promise<void> {
+    this.navigate('notifications');
+    await this.loadNotifications();
+  }
+
+  async loadNotifications(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const list = await this.#api.notifications(this.apiBase());
+      this.notifications.set(list);
+      this.notificationsLoaded.set(true);
+    } catch (error) {
+      if (
+        this.handleCitizenDenied(error, {
+          scope: 'folder',
+          anonAnnouncement: 'Inicie sesión para ver sus notificaciones.',
+        })
+      ) {
+        return;
+      }
+      this.errorMessage.set('No pudimos cargar tus notificaciones.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /**
+   * Abrir un acto. **Aquí empieza a correr el término.**
+   *
+   * Tres reglas que vienen de la HU y no se negocian:
+   *
+   * 1. Sólo por gesto explícito de la persona. Nada de abrir al renderizar ni al
+   *    pasar el ratón: un acceso que la persona no pidió le arranca un plazo que
+   *    no sabe que empezó.
+   * 2. **El primer acceso es el que cuenta.** Si ya está abierto no se vuelve a
+   *    pedir — dos fechas para un acto le dan un argumento a quien recurre tarde.
+   * 3. Si falla, **falla a la vista**. Pintar el cuerpo igual le diría que ya
+   *    acusó recibo cuando la entidad no registró nada.
+   */
+  async onOpenAct(act: GovActNotification): Promise<void> {
+    this.openError.set('');
+
+    if (act.opened) {
+      // Ya tiene su fecha: se muestra la que hay, no se pide otra.
+      this.openedAct.set(act);
+      return;
+    }
+    if (this.openingId()) {
+      return;
+    }
+
+    this.openingId.set(act.id);
+    try {
+      const opened = await this.#api.openNotification(this.apiBase(), act.id);
+      this.openedAct.set(opened);
+      this.notifications.update((list) =>
+        list.map((entry) => (entry.id === opened.id ? opened : entry)),
+      );
+    } catch (error) {
+      if (this.handleCitizenDenied(error, { scope: 'record' })) {
+        return;
+      }
+      this.openError.set(
+        'No pudimos registrar la apertura de este acto. No se abrió y el término no ha empezado: intenta de nuevo.',
+      );
+      void error;
+    } finally {
+      this.openingId.set('');
+    }
+  }
+
+  /** Selección en la bandeja: mostrar sin abrir. Abrir es un gesto aparte. */
+  onActSelect(act: GovActNotification): void {
+    this.openError.set('');
+    this.openedAct.set(act.opened ? act : null);
+    this.selectedAct.set(act);
+  }
+
+  readonly selectedAct = signal<GovActNotification | null>(null);
+
+  actDeadlineLabel(act: GovActNotification): string {
+    if (!act.acknowledgeBefore) {
+      return '';
+    }
+    return `Acuse antes de ${this.formatDate(act.acknowledgeBefore)}`;
+  }
+
+  onReceiptAction(id: string): void {
+    const app = this.confirmedApplication();
+    if (id === 'ver' && app) {
+      this.openApplication(app);
+      return;
+    }
+    this.backToCatalog();
+  }
+
   // ─── Mis solicitudes (SH-4) + detalle ───────────────────────────────────────
   readonly applications = signal<readonly ApplicationSummary[]>([]);
   readonly applicationsLoaded = signal(false);
@@ -439,14 +692,29 @@ export class GovElementComponent {
     ];
   });
 
+  // El tipo de orden lo declara el dominio; el shell no lo adivina por la clave
+  // (#21). `slaDaysLeft` es número y NEGATIVO cuando ya venció, así que orden
+  // ascendente pone lo vencido primero — que es exactamente lo que hay que ver.
   readonly consoleColumns: readonly ConsoleColumn[] = [
-    { key: 'reference', label: 'Radicado' },
-    { key: 'serviceName', label: 'Trámite' },
-    { key: 'citizenName', label: 'Solicitante' },
-    { key: 'status', label: 'Estado' },
+    { key: 'reference', label: 'Radicado', sortable: 'text' },
+    { key: 'serviceName', label: 'Trámite', sortable: 'text' },
+    { key: 'citizenName', label: 'Solicitante', sortable: 'text' },
+    { key: 'status', label: 'Estado', sortable: 'text' },
     { key: 'priority', label: 'Prioridad' },
-    { key: 'sla', label: 'SLA', align: 'end' },
+    { key: 'slaDaysLeft', label: 'SLA', align: 'end', sortable: 'number' },
+    // La tasa entra en la COLA y no sólo en el detalle: perseguir un cobro que no
+    // salió abriendo los expedientes de uno en uno no lo hace nadie (CMS#116).
+    { key: 'feeStatus', label: 'Tasa' },
   ];
+
+  /**
+   * La cola abre ordenada por plazo, ascendente. No es una preferencia: en PQRSD
+   * el plazo ES el producto, y abrir por orden de llegada deja lo vencido en
+   * cualquier parte de la lista. Lo que se vence primero, primero.
+   */
+  readonly consoleDefaultSort: ConsoleSort = { key: 'slaDaysLeft', direction: 'asc' };
+
+  readonly consolePageSize = 25;
 
   readonly consoleActions: readonly ConsoleRowAction[] = [
     { id: 'open', label: 'Revisar', kind: 'primary' },
@@ -633,6 +901,13 @@ export class GovElementComponent {
           void this.loadApplications();
         }
         return;
+      case 'notifications':
+        // Cargar la BANDEJA no abre nada: el listado no trae el cuerpo y abrir es
+        // un POST explícito. Por eso sí se puede disparar desde el router.
+        if (!this.notificationsLoaded()) {
+          void this.loadNotifications();
+        }
+        return;
       case 'application':
         if (param) {
           void this.loadApplication(param);
@@ -666,6 +941,8 @@ export class GovElementComponent {
         return `${base}/radicado`;
       case 'applications':
         return `${base}/mis-solicitudes`;
+      case 'notifications':
+        return `${base}/mis-notificaciones`;
       case 'application':
         return `${base}/solicitud/${encodeURIComponent(param)}`;
       case 'queue':
@@ -1121,9 +1398,40 @@ export class GovElementComponent {
 
   onConsoleFilterChange(filter: string): void {
     this.queueFilter.set(filter);
+
+    // Los filtros de PLAZO no existen en el backend: `?status=overdue` no es un
+    // estado y devolvería la cola vacía. Se resuelven acá, sobre las filas que
+    // ya llegaron —que llegan todas, porque esta cola no pagina— y por eso no
+    // se recarga: pedirle al servidor un estado que no conoce sería cambiar una
+    // pantalla útil por una vacía sin que nada fallara.
+    if (SLA_FILTERS.has(filter)) {
+      return;
+    }
+
     this.queueLoaded.set(false);
     void this.loadQueue();
   }
+
+  /**
+   * Las filas que ve la consola: las de la cola, recortadas por el filtro de
+   * plazo cuando hay uno activo.
+   *
+   * `slaDaysLeft` es negativo cuando el término YA venció, así que «vencidas» es
+   * `< 0` y no `<= 0`: un expediente que vence hoy todavía se puede atender, y
+   * meterlo en la misma bolsa que los incumplidos le quita a la lista la única
+   * cosa que la hace útil — saber cuáles ya son un problema.
+   */
+  readonly consoleRows = computed<readonly QueueCase[]>(() => {
+    const filtro = this.queueFilter();
+    const casos = this.queueCases();
+    if (filtro === 'overdue') {
+      return casos.filter((c) => c.slaDaysLeft < 0);
+    }
+    if (filtro === 'due-soon') {
+      return casos.filter((c) => c.slaDaysLeft >= 0 && c.slaDaysLeft <= 7);
+    }
+    return casos;
+  });
 
   private async loadQueue(): Promise<void> {
     this.loading.set(true);
@@ -1281,6 +1589,49 @@ export class GovElementComponent {
       return 'Vence hoy';
     }
     return daysLeft === 1 ? '1 día restante' : `${daysLeft} días restantes`;
+  }
+
+  /**
+   * Qué decir del cobro de la tasa, o `''` cuando no hay nada que decir.
+   *
+   * **Las tres respuestas son distintas y ninguna se parece a las otras** (CMS#116):
+   * un trámite exento no tiene cobro; uno con tasa y sin estado es «no consta», que
+   * NO es «pagada»; y un estado conocido se traduce. Lo que no se reconoce se enseña
+   * tal cual en vez de caer a un rótulo bonito: un estado nuevo del motor de pago
+   * tiene que verse raro, no verse cobrado.
+   */
+  feeStatusLabel(feeStatus: string | null, feeMinor: number): string {
+    if (!feeStatus) {
+      return feeMinor > 0 ? 'Tasa: sin dato del cobro' : '';
+    }
+    switch (feeStatus) {
+      case 'captured':
+        return 'Tasa pagada';
+      case 'authorized':
+        return 'Tasa autorizada, sin cobrar';
+      case 'pending':
+      case 'requires-action':
+        return 'Tasa pendiente de pago';
+      case 'failed':
+        return 'Cobro de la tasa rechazado';
+      case 'cancelled':
+        return 'Cobro de la tasa cancelado';
+      case 'refunded':
+        return 'Tasa devuelta';
+      case 'unavailable':
+        return 'No se pudo cobrar la tasa';
+      default:
+        return `Tasa: ${feeStatus}`;
+    }
+  }
+
+  /**
+   * Si esa tasa necesita que alguien la mire. Todo lo que no sea «cobrada» lo
+   * necesita — incluido «no consta», que es justo el estado que nadie perseguiría si
+   * se pintara igual que el resto.
+   */
+  feeNeedsAttention(feeStatus: string | null, feeMinor: number): boolean {
+    return this.feeStatusLabel(feeStatus, feeMinor) !== '' && feeStatus !== 'captured';
   }
 
   feeLabel(feeMinor: number, currency: string): string {

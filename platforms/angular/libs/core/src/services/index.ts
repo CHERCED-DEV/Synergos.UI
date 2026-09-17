@@ -45,6 +45,7 @@ export {
   type ScriptAttribute,
   type ScriptDefinition,
 } from './script.service';
+export { HostIdentityService } from './host-identity.service';
 export { StorageService, type StorageArea } from './storage.service';
 export { StorageStackService, type StorageStackOptions } from './storage-stack.service';
 export { ViewportService, type ViewportOrientation, type ViewportSnapshot } from './viewport.service';

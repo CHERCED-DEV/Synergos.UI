@@ -6,7 +6,7 @@ import {
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
-} from '../../../utils/config-input.util';
+} from '@synergos/vitals-core/inputs';
 import { VisuallyHiddenComponent } from '../visually-hidden/visually-hidden';
 
 type SpinnerSize = 'sm' | 'md' | 'lg';

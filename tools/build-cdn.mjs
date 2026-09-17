@@ -22,12 +22,14 @@
  *   node tools/build-cdn.mjs --salida public
  */
 import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
+import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mjs';
+import { PLATFORMS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -62,11 +64,33 @@ if (await existe(join(NG, 'node_modules'))) {
 log('compilando contratos…');
 correr('npm', ['run', 'build:vitals']);
 
-log('compilando elementos (un compilador, un esbuild)…');
-correr('npm', ['run', 'build:angular']);
+// ── Los builds, DERIVADOS de PLATFORMS ───────────────────────────────────────
+//
+// Esto era `build:angular` + `build:runtime`, escrito a mano. Su entrada en el
+// censo de #44 lo decía con todas las letras —«el día que haya dos, itera sobre
+// PLATFORMS»— y ese día llegó con #64: con la lista a mano, `npm run build:cdn`
+// habría armado un CDN con los elementos de Preact SIN construir y su runtime
+// SIN construir, y los pasos de más abajo lo habrían publicado sin quejarse de
+// nada que nombrara a Preact.
+//
+// Qué runtime construye cada plataforma se lee de SU package.json y no de una
+// tabla: Angular lo construye desde la raíz (el linker vive ahí), Preact desde
+// su propia carpeta. Preguntar por el script es preguntarle al disco.
+for (const { name } of PLATFORMS) {
+  log(`compilando elementos de ${name}…`);
+  correr('npm', ['run', `build:${name}`]);
+}
 
-log('compilando runtime (con el linker de Angular)…');
+log('compilando runtime de angular (con el linker)…');
 correr('npm', ['run', 'build:runtime']);
+
+for (const { name } of PLATFORMS) {
+  const pkg = join(ROOT, 'platforms', name, 'package.json');
+  if (!existsSync(pkg)) continue;
+  if (!JSON.parse(readFileSync(pkg, 'utf8')).scripts?.['build:runtime']) continue;
+  log(`compilando runtime de ${name}…`);
+  correr('npm', ['run', '--prefix', `platforms/${name}`, 'build:runtime']);
+}
 
 // ── 1. Empezar de cero ───────────────────────────────────────────────────────
 //
@@ -138,10 +162,25 @@ execFileSync('node', [join(ROOT, 'tools', 'publish.mjs'), '--cdn', SALIDA], {
 // ficheros que consume otro programa. Va como index para que la URL desnuda
 // muestre algo en vez de un 404 — que es lo que uno abre primero para
 // comprobar que el despliegue salió.
-if (await existe(join(ROOT, 'catalog.html'))) {
-  log('copiando el catálogo como index.html');
-  await copyFile(join(ROOT, 'catalog.html'), join(SALIDA, 'index.html'));
-}
+//
+// SE REGENERA, NO SE COPIA (#48). Esto copiaba el `catalog.html` versionado en
+// la raíz — una SALIDA commiteada como si fuera una entrada— y su última
+// escritura fue el 2026-08-04, en el commit de la purga: capturó el catálogo
+// ANTERIOR, con los elementos de las plataformas que ese mismo commit borraba.
+// Resultado, medido contra la URL pública: el índice anunciaba 141 nombres,
+// el registry servía 130, y `quiz-flow` y `rating-widget` contestaban 404.
+// Seis semanas siendo lo primero que ve quien abre el despliegue.
+//
+// Y se le pasa el árbol RECIÉN PUBLICADO como CDN_ROOT: así las insignias de
+// «publicado / no publicado» salen de lo que acaba de escribir `publish.mjs` y
+// no del `C:\LOCAL_CDN` por defecto, que fuera de la máquina del arquitecto no
+// existe y marcaba TODO como no publicado.
+log('generando el catálogo como index.html');
+execFileSync('node', [join(ROOT, 'tools', 'catalog.mjs'), '--out', join(SALIDA, 'index.html')], {
+  cwd: ROOT,
+  stdio: 'inherit',
+  env: { ...process.env, CDN_ROOT: join(SALIDA, 'synergos') },
+});
 
 // ── 5. Verificar que hay algo ────────────────────────────────────────────────
 //
@@ -162,11 +201,52 @@ if (!(await existe(registry))) {
 // Cierra además el agujero del paso 2: la publicación del runtime está detrás
 // de un `if (existe(publish-runtime.mjs))` que, de faltar el fichero, se salta
 // en silencio y produce un CDN completo y muerto.
-const runtime = revisarRuntime(join(SALIDA, 'synergos'), existsSync);
+const runtime = revisarRuntime({
+  cdnSynergos: join(SALIDA, 'synergos'),
+  existe: existsSync,
+  listarDirs: (d) =>
+    existsSync(d)
+      ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : [],
+  unir: join,
+});
 if (runtime.estado !== RUNTIME_OK) {
   console.error(`[build-cdn] ✗ el runtime compartido no quedó publicado.`);
   for (const linea of runtime.lineas) console.error(`[build-cdn]   ${linea}`);
   console.error('[build-cdn]   Los elementos cargarían y se romperían al arrancar.');
+  process.exit(1);
+}
+
+// ── 5.bis. Que los import maps publicados se puedan COMPONER ─────────────────
+//
+// El paso 5 comprueba que el runtime esté; esto comprueba que lo que publica se
+// pueda juntar con el de la plataforma de al lado. No es lo mismo, y el orden
+// importa: un CDN con los dos runtimes presentes y dos mapas que se contradicen
+// pasa el paso 5 entero.
+//
+// El CMS compone UN import map juntando el de cada framework (CMS #127) y su
+// regla es la correcta: el mismo specifier con URLs distintas NO se resuelve,
+// se PARA. Sin mapa el navegador no resuelve un solo bare import, así que no
+// hidrata NADA — 200, el SSR entero, y todo lo interactivo muerto (CMS #126).
+//
+// O sea que la regla vive en un árbol y la causa en el otro, y el gate del que
+// vigila no protege al que rompe. Esto es ese gate, de este lado. Ver #58.
+const mapas = recorrerMapasPublicados({
+  raizCdn: join(SALIDA, 'synergos'),
+  listarDirs: (d) =>
+    existsSync(d)
+      ? readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+      : [],
+  existe: existsSync,
+  leerJson: (r) => JSON.parse(readFileSync(r, 'utf8')),
+  unir: join,
+});
+
+const problemas = [...mapas.errores, ...revisarMapas(mapas.mapas)];
+if (problemas.length > 0) {
+  console.error('[build-cdn] ✗ los import maps publicados no se pueden componer:');
+  for (const linea of problemas) console.error(`[build-cdn]   ${linea}`);
+  console.error('[build-cdn]   El CMS no emitiría ningún <script type="importmap">.');
   process.exit(1);
 }
 

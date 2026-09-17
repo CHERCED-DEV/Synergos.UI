@@ -333,6 +333,70 @@
     }
   }
 
+  // SH-14 (#30). `position: relative` + `z-index` NO son decoración: el velo del
+  // stretched link de `__card-link` es un ::after posicionado, así que sin esto
+  // queda por encima y el clic abre el curso en vez de marcarlo para comparar.
+  &__progress-notice {
+    margin: syn.$space-xs 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+    color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    font-size: syn.$font-size-sm;
+  }
+
+  &__mod-notice {
+    margin: syn.$space-sm 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--ac-surface-muted, var(--ac-surface));
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-sm;
+
+    &.is-error {
+      background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+      color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    }
+  }
+
+  &__cmp {
+    position: relative;
+    z-index: 1;
+    align-self: flex-start;
+    margin-block-start: syn.$space-xs;
+    border: syn.px-to-rem(1) solid var(--ac-border);
+    border-radius: syn.$radius-full;
+    padding: syn.px-to-rem(4) syn.$space-xs;
+    background: var(--ac-surface);
+    color: var(--ac-text-secondary);
+    font: inherit;
+    font-size: syn.$font-size-xs;
+    cursor: pointer;
+
+    @include syn.focus-visible(var(--ac-focus-ring));
+
+    // Sólido y con su tinta (#25): `state-brand-surface` es un lavado.
+    &.is-on {
+      border-color: transparent;
+      background: var(--syn-color-action-primary, #{syn.$color-brand-500});
+      color: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+    }
+  }
+
+  &__compare {
+    display: block;
+    margin-block-start: syn.$space-lg;
+  }
+
+  &__compare-msg {
+    margin: syn.$space-xs 0 0;
+    border-radius: syn.$radius-md;
+    padding: syn.$space-xs syn.$space-sm;
+    background: var(--ac-surface-muted, var(--ac-surface));
+    color: var(--ac-text-secondary);
+    font-size: syn.$font-size-sm;
+  }
+
   &__card-instructor {
     margin: 0;
     font-size: syn.$font-size-sm;
@@ -764,16 +828,6 @@
     }
   }
 
-  // ─── Enrolled bridge ──────────────────────────────────────────────────────
-  &__enrolled {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: syn.$space-sm;
-    padding: syn.$space-2xl syn.$space-lg;
-    text-align: center;
-  }
-
   &__enrolled-badge {
     display: inline-flex;
     align-items: center;
@@ -784,17 +838,6 @@
     background: var(--ac-success-soft);
     color: var(--ac-success);
     font-weight: 700;
-  }
-
-  &__enrolled-title {
-    margin: 0;
-    font-size: syn.$font-size-2xl;
-    // Display: peso 510, no bold. Un titular grande a 700 se lee macizo y apelmazado;
-    // la escala tipográfica del sistema tiene `$font-weight-display` (rango 300-510)
-    // justo para esto — grande y LIGERO, que es como lo componen los productos que
-    // esto quiere parecerse. NO se aplicó a precios ni porcentajes: ahí el peso alto
-    // SÍ es correcto, y bajarlos habría sido el barrido a ciegas que este cambio evita.
-    font-weight: syn.$font-weight-display;
   }
 
   &__enrolled-ref {
@@ -1400,4 +1443,13 @@
       font-size: syn.$font-size-sm;
     }
   }
+}
+
+/* ── Opiniones del curso: SH-13 (#28) ─────────────────────────────────────────
+   La pieza trae su propia maquetación; acá sólo el aire que la separa de "lo que
+   aprenderás". */
+.academy__reviews {
+  margin-block-start: syn.$space-6;
+  padding-block-start: syn.$space-5;
+  border-block-start: syn.px-to-rem(1) solid var(--ac-border);
 }

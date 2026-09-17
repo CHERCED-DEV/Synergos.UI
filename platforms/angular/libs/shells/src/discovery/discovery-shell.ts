@@ -438,13 +438,21 @@ export class DiscoveryShellComponent<TItem> {
    * devolvía el catálogo ENTERO con los dos chips encendidos: el estricto se veía marcado y
    * no hacía nada.
    *
-   * `SingleSelect` es el otro kind de valor único del contrato, pero hoy ningún descriptor lo
-   * emite (Tienda declara `category` MultiSelect a propósito, porque marcar dos categorías y
-   * ver la unión es lo que el usuario espera). Cuando un vertical lo estrene, entra aquí —
-   * con su verificación.
+   * `SingleSelect` es el otro kind de valor único del contrato, y **ya lo estrenaron cuatro**
+   * (#18). No por gusto: Propiedades, Educación, Gobierno y Blogs mandaban al backend UN solo
+   * valor por faceta —`(active.facets[key] ?? [])[0]`— mientras el shell pintaba casillas.
+   * Marcar dos barrios filtraba por uno, sin fallar y sin avisar: la lista salía más corta y
+   * parecía que así era el mercado.
+   *
+   * Declararlo es lo honesto mientras el transporte no lleve el valor repetido: la persona ve
+   * radios, elige uno, y lo que elige es lo que obtiene. El día que el backend acepte
+   * `f.clave=a&f.clave=b`, esas facetas vuelven a MultiSelect y esto no cambia.
+   *
+   * Tienda sigue en MultiSelect a propósito —marcar dos categorías y ver la unión es lo que
+   * el usuario espera— y su cliente sí manda la selección entera.
    */
   isSingleValued(facet: DiscoveryFacet): boolean {
-    return facet.kind === 'Threshold';
+    return facet.kind === 'Threshold' || facet.kind === 'SingleSelect';
   }
 
   /**

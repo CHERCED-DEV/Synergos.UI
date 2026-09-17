@@ -1090,29 +1090,6 @@
   background: var(--bl-brand);
 }
 
-// ─── Search / explore ──────────────────────────────────────────────────────────────
-.blogs__searchbar {
-  display: flex;
-  gap: syn.$space-2;
-  margin-bottom: syn.$space-4;
-}
-
-.blogs__searchbar-input {
-  flex: 1;
-  padding: syn.$space-3 syn.$space-4;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-full;
-  background: var(--bl-surface-muted);
-  color: var(--bl-text);
-  font: inherit;
-
-  &:focus-visible {
-    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
-    outline-offset: 0;
-    border-color: var(--bl-brand);
-  }
-}
-
 .blogs__account {
   display: flex;
   align-items: center;
@@ -1221,15 +1198,6 @@
 }
 
 // ─── Long-form editor (`/write`) ─────────────────────────────────────────────────
-.blogs__editor {
-  display: flex;
-  flex-direction: column;
-  gap: syn.$space-2;
-  padding: syn.$space-4;
-  border: syn.px-to-rem(1) solid var(--bl-border);
-  border-radius: syn.$radius-lg;
-  background: var(--bl-surface);
-}
 
 .blogs__editor-title {
   padding: syn.$space-3;
@@ -1581,4 +1549,47 @@
     animation: none !important;
     background: var(--bl-skeleton-base);
   }
+}
+
+/* ── Editor de artículo sobre SH-6 (#26) ──────────────────────────────────────
+   El wizard trae su propio esqueleto (raíl de pasos, botones); acá sólo van los
+   campos de cada paso y el aviso de «no se guardó». */
+.blogs__article-step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bl-space-2, 0.5rem);
+}
+
+.blogs__article-unsaved {
+  margin: 0 0 var(--bl-space-3, 0.75rem);
+  padding: 0.85rem 1rem;
+  color: var(--bl-danger, #ef4444);
+  background: var(--bl-danger-soft, #fff1f2);
+  border-radius: 0.5rem;
+  line-height: 1.45;
+}
+
+.blogs__field-error {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--bl-danger, #ef4444);
+}
+
+.blogs__article-preview-cover {
+  max-width: 100%;
+  border-radius: 0.5rem;
+}
+
+.blogs__article-preview-title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.blogs__article-preview-body {
+  margin: 0;
+  /* Se ve tal como se escribió: los saltos de línea del cuerpo son del autor. */
+  white-space: pre-wrap;
+  line-height: 1.6;
 }

@@ -28,7 +28,18 @@ export type StorefrontView =
   | 'cart'
   | 'checkout' // SH-3 over the engine
   | 'confirmation'
-  | 'account'; // SH-4: mis compras + tracking + wishlist + mensajes + perfil
+  | 'account' // SH-4: mis compras + tracking + wishlist + mensajes + perfil
+  | 'seller'; // SH-5: la cara B del vendedor (#32)
+
+/** Quién está mirando: comprador (cara A) o vendedor (cara B). */
+export type ShopRole = 'buyer' | 'seller';
+
+/** Secciones de la consola del vendedor (#32). */
+export type SellerView =
+  | 'orders' // pedidos por atender
+  | 'returns' // devoluciones: la cola que el endpoint `advance` esperaba
+  | 'reviews' // la cola de moderación de #31, que se quedó sin sitio
+  | 'messages'; // hilos con compradores
 
 /** Account sections rendered inside SH-4. */
 export type AccountSectionId = 'compras' | 'favoritos' | 'mensajes' | 'perfil';
@@ -132,8 +143,75 @@ export interface ReviewSubmission {
  * puede ofrecer login.
  */
 export type ReviewSubmitResult =
-  | { readonly ok: true }
+  | {
+      readonly ok: true;
+      /**
+       * Quedó ENCOLADA para revisión, no publicada (#31).
+       *
+       * Sale de un `202 Accepted`, y por eso el campo existe: `response.ok` es
+       * cierto para todo 2xx, así que sin distinguirlos el acuse decía «ya está
+       * publicada» **y recargaba la ficha** — quien escribió veía la confirmación
+       * y una lista donde su reseña no estaba. El defecto #26 con la prueba de la
+       * mentira en la misma pantalla.
+       */
+      readonly pending: boolean;
+    }
   | { readonly ok: false; readonly reason: 'unauthenticated' | 'not-buyer' | 'invalid' | 'failed' };
+
+/**
+ * Resultado de reportar una reseña (#31).
+ *
+ * `already-reported` NO es un error de quien reporta: el servidor deduplica y la
+ * respuesta honesta es «ya lo habíamos recibido», no «falló».
+ */
+export type ReviewReportResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'already-reported' | 'not-found' | 'failed';
+    };
+
+// ─── Cupones y descuentos (#29) ──────────────────────────────────────────────
+
+/**
+ * Un cupón aceptado por el servidor.
+ *
+ * `amountMinor` es NEGATIVO: entra tal cual como `PriceLine` del `breakdown`, que
+ * el motor documenta como «can be negative for discounts» desde el primer día y
+ * que ningún dominio había usado nunca.
+ */
+export interface ShopPromo {
+  readonly code: string;
+  /** Negativo, en unidades menores. */
+  readonly amountMinor: number;
+  /** Cómo se llama el descuento en el resumen: «Cupón BIENVENIDA10». */
+  readonly label: string;
+  /** Contexto opcional: «Válido hasta el 30 de septiembre». */
+  readonly detail?: string;
+}
+
+/**
+ * Resultado de validar un cupón. **Tipado y sin degradar a mock**: un descuento
+ * fingido en el cliente es una promesa de plata que el checkout va a romper, y el
+ * peor momento para descubrirlo es al pagar (regla 4 de `CLAUDE.md`).
+ *
+ * `shortfallMinor` sólo viaja con `minimum-not-met`, porque CUÁNTO FALTA es lo
+ * único accionable de ese rechazo — decir «no llegas al mínimo» sin el número
+ * deja a quien compra adivinando.
+ */
+export type ShopPromoResult =
+  | { readonly ok: true; readonly promo: ShopPromo }
+  | {
+      readonly ok: false;
+      readonly reason:
+        | 'unknown'
+        | 'expired'
+        | 'minimum-not-met'
+        | 'not-applicable'
+        | 'already-used'
+        | 'failed';
+      readonly shortfallMinor?: number;
+    };
 
 // ─── Faceted search ──────────────────────────────────────────────────────────
 
@@ -247,6 +325,140 @@ export interface OrderLine {
   readonly title: string;
   readonly qty: number;
   readonly amount: number;
+  /**
+   * Identificador del producto de esta línea (#32).
+   *
+   * **Sin esto no se puede devolver.** El borde exige `lineId` y la UI no lo
+   * tenía en el modelo, así que mandaba el cuerpo incompleto y recibía 400 —
+   * pero el cliente degradaba a mock y el comprador veía «Reclamo abierto» con
+   * un número inventado. El backend emitía `productId` y `variantId` desde
+   * siempre; lo que faltaba era leerlos.
+   */
+  readonly productId: string;
+  readonly variantId?: string;
+  /**
+   * Si se puede pedir la devolución de ESTA línea (#34).
+   *
+   * **Lo decide el SERVIDOR con el mismo gate que aplica el POST**, igual que
+   * `ProductDetail.canReview`. La UI lo deducía de `order.status`, y esa copia se
+   * desvió hasta pedir estados que el dominio no emite —`shipped`, `delivered`—,
+   * con lo que el botón quedó inalcanzable contra un servidor real (#33). No se
+   * desvió por descuido: se desvió porque era una copia.
+   *
+   * Ausente = NO se puede. Ofrecer lo que el servidor no autorizó es prometer
+   * algo que va a rebotar.
+   */
+  readonly canReturn: boolean;
+  /**
+   * Por qué no, cuando no. `order-not-paid` · `line-not-in-order` ·
+   * `already-open` · `order-not-found`. Con un booleano a secas la UI tendría que
+   * adivinar el motivo, que es el mismo error con otra forma.
+   */
+  readonly returnBlock?: string;
+}
+
+/**
+ * Por qué se devuelve (#32).
+ *
+ * **Es un enum y no texto libre**, porque es lo que ORDENA la cola del vendedor:
+ * «llegó dañado» es garantía y «cambié de opinión» es retracto, y son dos
+ * negocios distintos con dos plazos distintos. Antes viajaba un literal fijo
+ * —`'solicitud-comprador'`— así que los veinte reclamos decían lo mismo y la
+ * cola era inatendible.
+ */
+export type ReturnReason = 'damaged' | 'defective' | 'not-as-described' | 'changed-mind';
+
+/** El estado del reclamo en el vocabulario que emite el borde. */
+export type ReturnStatus = 'abierto' | 'en-revision' | 'resuelto' | 'rechazado';
+
+/** Un reclamo de devolución, tal como lo devuelve el borde. */
+export interface ReturnCase {
+  readonly claimId: string;
+  readonly orderRef: string;
+  /** `productId` o `productId/variantId` — lo compone el servidor. */
+  readonly lineRef: string;
+  readonly productName: string;
+  readonly quantity: number;
+  /** Ya formateado por el servidor: la UI no calcula dinero. */
+  readonly refundAmountFormatted: string;
+  /** El motivo tal cual lo guardó el servidor. */
+  readonly reason: string;
+  readonly status: ReturnStatus;
+  readonly requestedAt: string;
+  readonly updatedAt: string;
+  readonly note?: string;
+}
+
+/**
+ * Resultado de pedir una devolución.
+ *
+ * **Tipado y sin degradar a mock**: el cliente inventaba un `claimId` cuando el
+ * POST fallaba, así que el comprador se iba con un número de reclamo que no
+ * existe en ninguna parte — y cuando reclame por él, nadie lo encontrará. Regla
+ * 4 de `CLAUDE.md` sobre una escritura con dinero detrás.
+ */
+export type ReturnRequestResult =
+  | { readonly ok: true; readonly claim: ReturnCase }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'not-found' | 'invalid' | 'failed';
+      /** Lo que dijo el servidor, cuando lo dijo. Se enseña tal cual. */
+      readonly detail?: string;
+    };
+
+/** A qué estado mueve el vendedor un reclamo. El vocabulario es el del borde. */
+export type ReturnAdvance = 'approved' | 'rejected' | 'received' | 'refunded';
+
+/** Resultado de avanzar un reclamo. Tampoco degrada: `refunded` mueve dinero. */
+export type ReturnAdvanceResult =
+  | { readonly ok: true; readonly claim: ReturnCase }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'not-found' | 'illegal' | 'failed';
+      readonly detail?: string;
+    };
+
+// ─── Consola del vendedor (#32) ──────────────────────────────────────────────
+
+/** Una opinión esperando decisión del vendedor. Gemela de la cola de #31. */
+export interface ShopModerationItem {
+  readonly id: string;
+  readonly author: string;
+  readonly productTitle: string;
+  readonly rating: number;
+  readonly body: string;
+  readonly createdAt: string;
+  /** `reported` ya está pública haciendo daño; `pending` no la ve nadie. */
+  readonly reason: 'pending' | 'reported';
+  readonly reportCount: number;
+}
+
+/** Resultado de decidir sobre una opinión. No degrada: ver #31. */
+export type ShopModerationResult =
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly reason: 'unauthenticated' | 'forbidden' | 'already-decided' | 'failed';
+    };
+
+/** Un pedido visto desde el lado de quien lo tiene que despachar. */
+export interface SellerOrder {
+  readonly orderRef: string;
+  readonly orderNumber: string;
+  readonly buyer: string;
+  readonly date: string;
+  readonly status: OrderStatus;
+  readonly totalFormatted: string;
+  readonly itemCount: number;
+}
+
+/** `GET /api/shop/seller/desk` — lo que el vendedor tiene por atender. */
+export interface SellerDeskResult {
+  readonly orders: readonly SellerOrder[];
+  readonly returns: readonly ReturnCase[];
+  readonly moderation: readonly ShopModerationItem[];
+  readonly salesFormatted: string;
+  readonly pendingShipments: number;
 }
 
 // ─── Post-venta / cuenta (contratos nuevos — backend en paralelo) ─────────────

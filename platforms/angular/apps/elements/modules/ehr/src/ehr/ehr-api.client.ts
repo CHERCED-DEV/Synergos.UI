@@ -4,6 +4,7 @@ import {
   type Appointment,
   type AppointmentStatus,
   type BillingStatement,
+  type CareStatus,
   type Doctor,
   type Encounter,
   type HealthSummary,
@@ -22,16 +23,36 @@ import {
   type SoapNote,
   type Vitals,
 } from './ehr.model';
-import {
-  mockBilling,
-  mockHealthSummary,
-  mockInbox,
-  mockMedications,
-  mockMessages,
-  mockPortalHome,
-  mockResults,
-  mockSchedule,
-} from './ehr.mock';
+
+/**
+ * A clinical read that could not be served. Carries the endpoint so the caller can
+ * log it; the caller turns it into an empty view plus a visible notice.
+ */
+export class EhrUnavailableError extends Error {
+  constructor(readonly endpoint: string, override readonly cause: unknown) {
+    super(`EHR read "${endpoint}" unavailable.`);
+    this.name = 'EhrUnavailableError';
+  }
+}
+
+/**
+ * Una ESCRITURA clínica que no llegó al servidor.
+ *
+ * Existe porque hasta CHERCED-DEV/Synergos.CMS#111 estas cinco devolvían el valor
+ * optimista del llamador: la pantalla confirmaba un encuentro, una receta o una
+ * renovación **que el servidor no tiene**. Es la regla 4 —degradar una LECTURA no
+ * miente; degradar una ESCRITURA sí— y la 9 —un `catch` que degrada tapa que la
+ * llamada NUNCA funcionó—, sobre una receta.
+ */
+export class EhrWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`EHR write "${endpoint}" did not reach the server.`);
+    this.name = 'EhrWriteFailedError';
+  }
+}
 
 /**
  * Thin HTTP client over the Healthcare EHR backend contract (provided by the backend
@@ -45,7 +66,7 @@ import {
  *  - `POST /api/ehr/encounter`   `{ patientId, soap }`            → `{ encounter }`
  *  - `POST /api/ehr/prescription``{ patientId, items }`           → `{ prescription }`
  *
- * **v2 (dual-portal, backend in parallel — degrade to mock on 404):**
+ * **v2 (dual-portal):**
  *  - `GET  /api/ehr/portal/home?patient=`   → `{ patient, cards, nextAppointment, … }`
  *  - `GET  /api/ehr/results?patient=`       → `{ results }`
  *  - `GET  /api/ehr/medications?patient=`   → `{ medications }`
@@ -57,34 +78,30 @@ import {
  *  - `GET  /api/ehr/billing?patient=`       → `{ statement }`
  *  - `GET  /api/ehr/schedule?date=`         → `{ slots }` (falls back to appointments)
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
- * the client falls back to visible **seeded demo data** and logs a `TODO`, so the
- * whole clinical workflow is complete end-to-end before the backend lands. Every mock
- * path flips the `degraded` flag so the shell can surface a "datos de ejemplo" notice.
+ * **A failed clinical read throws. It does NOT degrade** (CHERCED-DEV/Synergos.CMS#106).
+ *
+ * This client used to answer a 404 with seeded demo data, and `mockChart(id)` accepted
+ * ANY id and returned patient zero — María González's tensions, glycaemias, diagnoses
+ * and prescriptions, filed under the id that was asked for. `EhrController` is
+ * `[DevSeedOnly]`, so outside development all 18 endpoints 404 and that is exactly the
+ * branch that ran: open patient B's chart, read patient A's record with B's name on top.
+ *
+ * The seeded demo graph still exists — **on the server**, keyed by real patient ids
+ * (`Synergos:DevSeed:Enabled=true`). Keeping a second copy here was what let the two
+ * diverge, and what would have survived the day a real EHR adapter landed behind the
+ * same `catch`: an outage would keep filling in allergies. An allergy list is what
+ * someone decides a prescription against, so the only honest answer to «no lo pude
+ * leer» is nothing at all, said out loud.
+ *
+ * **Y una ESCRITURA que no llega LANZA también** (#111). Las cinco —cita, encuentro,
+ * receta, renovación y mensaje— devolvían el valor optimista del llamador, así que la
+ * pantalla confirmaba lo que el servidor no tenía. Ninguna lo hace ya.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
 @Injectable()
 export class EhrApiClient {
   readonly #logger = inject(LoggerService);
-
-  /** Set to `true` after any mock fallback so the UI can flag example data. */
-  #degraded = false;
-
-  get degraded(): boolean {
-    return this.#degraded;
-  }
-
-  /**
-   * Clear the degradation latch before a fresh load round. The flag is a permanent
-   * latch within a round so any single mock fallback surfaces the "datos de ejemplo"
-   * notice; the consumer resets it when it re-fetches for a NEW identity so a stale
-   * first-tick default (`P-1`) 404 does not keep the banner up once the real
-   * `config.patient` data lands successfully.
-   */
-  resetDegraded(): void {
-    this.#degraded = false;
-  }
 
   // ─── Patients ──────────────────────────────────────────────────────────────
 
@@ -99,8 +116,7 @@ export class EhrApiClient {
       }
       throw new Error('patients-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/patients', error);
-      return filterPatients(mockPatients(), q);
+      this.unavailable('GET /api/ehr/patients', error);
     }
   }
 
@@ -114,8 +130,9 @@ export class EhrApiClient {
       }
       throw new Error('chart-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/patient/{id}', error);
-      return mockChart(id);
+      // #106: `mockChart(id)` answered ANY id with patient zero's record filed under
+      // the id that was asked for. There is no safe fallback for a clinical chart.
+      this.unavailable('GET /api/ehr/patient/{id}', error);
     }
   }
 
@@ -131,8 +148,7 @@ export class EhrApiClient {
       }
       throw new Error('doctors-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/doctors', error);
-      return mockDoctors();
+      this.unavailable('GET /api/ehr/doctors', error);
     }
   }
 
@@ -148,16 +164,23 @@ export class EhrApiClient {
       }
       throw new Error('appointments-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/appointments', error);
-      return mockAppointments(date);
+      this.unavailable('GET /api/ehr/appointments', error);
     }
   }
 
-  /** `POST /api/ehr/appointment` — books a slot (optimistic on the caller side). */
+  /**
+   * `POST /api/ehr/appointment` — reserva el hueco. **La cita que devuelve es la del
+   * SERVIDOR**, con su id; si no llega, lanza.
+   *
+   * Y hasta #111 no la llamaba NADIE: el comprobante «CITA-…» lo acuñaba la
+   * estrategia de fulfillment en local y la cita se añadía a «mis citas» sin salir
+   * del navegador. El paciente anotaba un número que no existe en ninguna parte y se
+   * presentaba a una hora que el consultorio no tenía apartada. Un método sin
+   * llamador no se prueba llamándolo (regla 5).
+   */
   async bookAppointment(
     apiBase: string,
     body: { patientId: string; doctorId: string; slot: { date: string; time: string } },
-    fallback: Appointment,
   ): Promise<Appointment> {
     const url = `${apiBase}/appointment`;
     try {
@@ -168,16 +191,14 @@ export class EhrApiClient {
       }
       throw new Error('appointment-shape');
     } catch (error) {
-      this.markDegraded('POST /api/ehr/appointment', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/appointment', error);
     }
   }
 
-  /** `POST /api/ehr/encounter` — saves a SOAP note (optimistic on the caller side). */
+  /** `POST /api/ehr/encounter` — guarda la nota SOAP. Lanza si no llega. */
   async saveEncounter(
     apiBase: string,
     body: { patientId: string; soap: SoapNote },
-    fallback: Encounter,
   ): Promise<Encounter> {
     const url = `${apiBase}/encounter`;
     try {
@@ -188,16 +209,14 @@ export class EhrApiClient {
       }
       throw new Error('encounter-shape');
     } catch (error) {
-      this.markDegraded('POST /api/ehr/encounter', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/encounter', error);
     }
   }
 
-  /** `POST /api/ehr/prescription` — issues an Rx (optimistic on the caller side). */
+  /** `POST /api/ehr/prescription` — emite la receta. Lanza si no llega. */
   async savePrescription(
     apiBase: string,
     body: { patientId: string; items: readonly PrescriptionItem[] },
-    fallback: Prescription,
   ): Promise<Prescription> {
     const url = `${apiBase}/prescription`;
     try {
@@ -208,8 +227,7 @@ export class EhrApiClient {
       }
       throw new Error('prescription-shape');
     } catch (error) {
-      this.markDegraded('POST /api/ehr/prescription', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/prescription', error);
     }
   }
 
@@ -226,8 +244,8 @@ export class EhrApiClient {
       }
       throw new Error('portal-home-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/portal/home', error);
-      return mockPortalHome(patientId);
+      // #106: the seeded home carried patient zero's `allergies` under the requested id.
+      this.unavailable('GET /api/ehr/portal/home', error);
     }
   }
 
@@ -242,8 +260,7 @@ export class EhrApiClient {
       }
       throw new Error('results-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/results', error);
-      return mockResults(patientId);
+      this.unavailable('GET /api/ehr/results', error);
     }
   }
 
@@ -258,16 +275,14 @@ export class EhrApiClient {
       }
       throw new Error('medications-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/medications', error);
-      return mockMedications(patientId);
+      this.unavailable('GET /api/ehr/medications', error);
     }
   }
 
-  /** `POST /api/ehr/refill` — request a refill; returns the new status (optimistic). */
+  /** `POST /api/ehr/refill` — pide la renovación; devuelve el estado del servidor. */
   async requestRefill(
     apiBase: string,
     body: { medicationId: string; patientId: string },
-    fallback: RefillStatus,
   ): Promise<RefillStatus> {
     const url = `${apiBase}/refill`;
     try {
@@ -278,8 +293,7 @@ export class EhrApiClient {
       }
       throw new Error('refill-shape');
     } catch (error) {
-      this.markDegraded('POST /api/ehr/refill', error);
-      return fallback;
+      this.writeFailed('POST /api/ehr/refill', error);
     }
   }
 
@@ -294,8 +308,8 @@ export class EhrApiClient {
       }
       throw new Error('health-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/health', error);
-      return mockHealthSummary();
+      // #106: `mockHealthSummary()` did not even look at the patient.
+      this.unavailable('GET /api/ehr/health', error);
     }
   }
 
@@ -310,8 +324,7 @@ export class EhrApiClient {
       }
       throw new Error('billing-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/billing', error);
-      return mockBilling(patientId);
+      this.unavailable('GET /api/ehr/billing', error);
     }
   }
 
@@ -328,23 +341,20 @@ export class EhrApiClient {
       }
       throw new Error('messages-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/messages', error);
-      return mockMessages();
+      this.unavailable('GET /api/ehr/messages', error);
     }
   }
 
-  /** `POST /api/ehr/message` — send a message (fire-and-forget; optimistic caller). */
+  /** `POST /api/ehr/message` — manda el mensaje. Lanza si no llega. */
   async sendMessage(
     apiBase: string,
     body: { threadId: string; body: string; user: string },
-  ): Promise<boolean> {
+  ): Promise<void> {
     const url = `${apiBase}/message`;
     try {
       await this.postJson(url, body);
-      return true;
     } catch (error) {
-      this.markDegraded('POST /api/ehr/message', error);
-      return false;
+      this.writeFailed('POST /api/ehr/message', error);
     }
   }
 
@@ -359,23 +369,20 @@ export class EhrApiClient {
       }
       throw new Error('inbasket-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/inbasket', error);
-      return mockInbox();
+      this.unavailable('GET /api/ehr/inbasket', error);
     }
   }
 
-  /** `POST /api/ehr/order` — place an order / e-Rx (stub; ok flag). */
+  /** `POST /api/ehr/order` — cursa la orden / e-Rx. Lanza si no llega. */
   async placeOrder(
     apiBase: string,
     body: { patientId: string; kind: string; detail: string },
-  ): Promise<boolean> {
+  ): Promise<void> {
     const url = `${apiBase}/order`;
     try {
       await this.postJson(url, body);
-      return true;
     } catch (error) {
-      this.markDegraded('POST /api/ehr/order', error);
-      return false;
+      this.writeFailed('POST /api/ehr/order', error);
     }
   }
 
@@ -392,8 +399,7 @@ export class EhrApiClient {
       }
       throw new Error('schedule-shape');
     } catch (error) {
-      this.markDegraded('GET /api/ehr/schedule', error);
-      return mockSchedule(date);
+      this.unavailable('GET /api/ehr/schedule', error);
     }
   }
 
@@ -423,10 +429,31 @@ export class EhrApiClient {
     );
   }
 
-  private markDegraded(endpoint: string, error: unknown): void {
-    this.#degraded = true;
-    // TODO(backend): remove the mock fallback once the EHR API responds.
-    this.#logger.warn(`EHR API "${endpoint}" unavailable — using seeded demo data.`, error);
+  /**
+   * Log and rethrow as `EhrUnavailableError`. **Never returns a value** — the whole
+   * point of #106 is that there is no plausible-looking answer to fall back to.
+   */
+  private unavailable(endpoint: string, error: unknown): never {
+    this.#logger.warn(`EHR API "${endpoint}" unavailable — serving nothing.`, error);
+    throw new EhrUnavailableError(endpoint, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó al servidor. **Lanza; no devuelve nada optimista.**
+   *
+   * #106 dejó esto en pie a sabiendas —su piso eran las lecturas, y con las lecturas
+   * honestas ninguna de estas ramas es alcanzable en un apagón TOTAL, porque toda
+   * escritura está detrás de una lectura que funcionó—. Lo que las alcanza es un
+   * apagón PARCIAL, y eso las hacía menos urgentes, no menos falsas (#111).
+   *
+   * Quien llama decide qué hacer, y no es la misma respuesta que para una lectura:
+   * una lectura ilegible se pinta como hueco y ya; una escritura que no llegó deja a
+   * alguien con el texto escrito y sin saber si existe. El piso es **no confirmar lo
+   * que no se guardó**, y lo tecleado no se pierde.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`EHR API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new EhrWriteFailedError(endpoint, error);
   }
 }
 
@@ -459,6 +486,23 @@ function readNumber(value: unknown): number {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+/** `null` cuando la clave falta o llega `null`: **no consta**, y no el default. */
+function readOptionalBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const raw = value.trim().toLowerCase();
+    if (raw === 'true' || raw === '1') {
+      return true;
+    }
+    if (raw === 'false' || raw === '0') {
+      return false;
+    }
+  }
+  return null;
 }
 
 function readBoolean(value: unknown, fallback = false): boolean {
@@ -514,7 +558,9 @@ function normalizePatient(value: unknown): Patient | null {
     problems: readStringArray(value['problems']),
     allergies: readStringArray(value['allergies']),
     primaryDoctorId: readString(value['primaryDoctorId']).trim(),
-    active: readBoolean(value['active'], true),
+    // `null` y no `true`: el borde dejó de afirmarlo (#111) y reponerlo aquí es
+    // volver a afirmar lo que el servidor se cuidó de no decir.
+    active: readOptionalBoolean(value['active']),
   };
 }
 
@@ -546,7 +592,7 @@ function normalizeDoctor(value: unknown): Doctor | null {
     license: readString(value['license']).trim(),
     phone: readString(value['phone']).trim(),
     email: readString(value['email']).trim(),
-    acceptingPatients: readBoolean(value['acceptingPatients'], true),
+    acceptingPatients: readOptionalBoolean(value['acceptingPatients']),
     rating: readNumber(value['rating']),
   };
 }
@@ -748,7 +794,12 @@ function normalizePortalHome(value: unknown): PortalHome | null {
     nextAppointment: next,
     balanceMinor: Math.max(0, Math.trunc(readNumber(value['balanceMinor']))),
     currency: readString(value['currency']).trim() || 'COP',
-    unreadMessages: Math.max(0, Math.trunc(readNumber(value['unreadMessages']))),
+    // `null`/ausente ≠ 0 (CMS#116): reponer un cero aquí es afirmar «no tienes nada
+    // sin leer» con un servidor que no lo sabe. Igual que `unread` en cada hilo.
+    unreadMessages:
+      value['unreadMessages'] === undefined || value['unreadMessages'] === null
+        ? null
+        : Math.max(0, Math.trunc(readNumber(value['unreadMessages']))),
     pendingCheckins: Math.max(0, Math.trunc(readNumber(value['pendingCheckins']))),
   };
 }
@@ -807,7 +858,7 @@ function normalizeMedication(value: unknown): Medication | null {
     dose: readString(value['dose']).trim(),
     frequency: readString(value['frequency']).trim(),
     instructions: readString(value['instructions']).trim(),
-    pharmacy: readString(value['pharmacy']).trim(),
+    pharmacy: readString(value['pharmacy']).trim() || null,
     refillsLeft: Math.max(0, Math.trunc(readNumber(value['refillsLeft']))),
     refillStatus:
       status === 'requested' || status === 'approved' || status === 'denied' ? status : null,
@@ -826,26 +877,44 @@ function normalizeMedications(value: unknown): readonly Medication[] | null {
   return list.map(normalizeMedication).filter((entry): entry is Medication => entry !== null);
 }
 
+/** `complete` / `due` / `overdue`, or `null` when the payload does not say. */
+function readCareStatus(value: unknown): CareStatus | null {
+  const raw = readString(value).trim().toLowerCase();
+  return raw === 'complete' || raw === 'due' || raw === 'overdue' ? raw : null;
+}
+
 function normalizeHealthSummary(value: unknown): HealthSummary | null {
   if (!isRecord(value)) {
     return null;
   }
-  const rawImm = Array.isArray(value['immunizations']) ? value['immunizations'] : [];
+  // `immunizations` ABSENT and `immunizations: []` are different facts, and the
+  // difference is clinical: `[]` says «no vaccines recorded for this person», absent
+  // says «there is no vaccination registry». The backend stopped emitting the key
+  // (#106) because the statuses were fabricated from `GetHashCode()` — randomised per
+  // process, so «Influenza: al día» became «vencida» on every restart. Defaulting the
+  // missing key to `[]` here would re-assert, in the UI, the same fact nobody has.
+  const rawImm = value['immunizations'];
   const rawMaint = Array.isArray(value['maintenance']) ? value['maintenance'] : [];
   return {
     conditions: readStringArray(value['conditions']),
     allergies: readStringArray(value['allergies']),
-    immunizations: rawImm.filter(isRecord).map((item) => ({
-      id: readString(item['id']).trim() || readString(item['name']).trim(),
-      name: readString(item['name']).trim(),
-      date: readString(item['date']).trim(),
-      status: (readString(item['status']).trim() || 'due') as HealthSummary['immunizations'][number]['status'],
-    })),
+    immunizations: Array.isArray(rawImm)
+      ? rawImm
+          .filter(isRecord)
+          .map((item) => ({
+            id: readString(item['id']).trim() || readString(item['name']).trim(),
+            name: readString(item['name']).trim(),
+            date: readString(item['date']).trim(),
+            status: readCareStatus(item['status']) ?? 'due',
+          }))
+      : null,
     maintenance: rawMaint.filter(isRecord).map((item) => ({
       id: readString(item['id']).trim() || readString(item['name']).trim(),
       name: readString(item['name']).trim(),
       detail: readString(item['detail']).trim(),
-      status: (readString(item['status']).trim() || 'due') as HealthSummary['maintenance'][number]['status'],
+      // No default. A missing status used to land on `'due'`, which reads as a clinical
+      // claim; the recommendation derives from age + sex, whether it was DONE does not.
+      status: readCareStatus(item['status']),
       dueDate: readString(item['dueDate']).trim(),
     })),
   };
@@ -904,7 +973,12 @@ function normalizeThread(value: unknown): MessageThread | null {
     subject: readString(value['subject']).trim(),
     lastMessage: readString(value['lastMessage']).trim(),
     lastAtUtc: readString(value['lastAtUtc']).trim() || new Date().toISOString(),
-    unread: Math.max(0, Math.trunc(readNumber(value['unread']))),
+    // Sin clave o con `null`, «no lo sabemos» — que no es cero: la insignia se
+    // pinta con `> 0` y las dos cosas se veían igual.
+    unread:
+      value['unread'] === undefined || value['unread'] === null
+        ? null
+        : Math.max(0, Math.trunc(readNumber(value['unread']))),
     messages: rawMessages
       .map((message) => normalizeMessage(message, id))
       .filter((entry): entry is MessageThread['messages'][number] => entry !== null),
@@ -989,7 +1063,6 @@ function normalizeScheduleSlot(value: unknown): ScheduleSlot | null {
     reason: readString(value['reason']).trim(),
     type: readString(value['type']).toLowerCase() === 'video' ? 'video' : 'in-person',
     state: known.includes(state as ScheduleSlot['state']) ? (state as ScheduleSlot['state']) : 'scheduled',
-    checkedInAhead: readBoolean(value['checkedInAhead'], false),
   };
 }
 
@@ -1003,324 +1076,4 @@ function normalizeSchedule(value: unknown): readonly ScheduleSlot[] | null {
     return null;
   }
   return list.map(normalizeScheduleSlot).filter((entry): entry is ScheduleSlot => entry !== null);
-}
-
-// ─── Filtering helpers (shared by mock + live empty fallback) ───────────────────
-
-function filterPatients(patients: readonly Patient[], query: string): readonly Patient[] {
-  const term = query.trim().toLowerCase();
-  if (!term) {
-    return patients;
-  }
-  return patients.filter(
-    (patient) =>
-      patient.name.toLowerCase().includes(term) ||
-      patient.document.toLowerCase().includes(term) ||
-      patient.problems.some((problem) => problem.toLowerCase().includes(term)),
-  );
-}
-
-// ─── Mock data (visible degradation when the backend is not yet wired) ──────────
-
-const MOCK_DOCTORS: readonly Doctor[] = [
-  {
-    id: 'D-1',
-    name: 'Dra. Laura Méndez',
-    specialty: 'Medicina interna',
-    license: 'RM-48211',
-    phone: '+57 310 555 0101',
-    email: 'laura.mendez@clinica.co',
-    acceptingPatients: true,
-    rating: 4.9,
-  },
-  {
-    id: 'D-2',
-    name: 'Dr. Andrés Gómez',
-    specialty: 'Cardiología',
-    license: 'RM-50934',
-    phone: '+57 311 555 0102',
-    email: 'andres.gomez@clinica.co',
-    acceptingPatients: true,
-    rating: 4.7,
-  },
-  {
-    id: 'D-3',
-    name: 'Dra. Camila Rojas',
-    specialty: 'Pediatría',
-    license: 'RM-51777',
-    phone: '+57 312 555 0103',
-    email: 'camila.rojas@clinica.co',
-    acceptingPatients: false,
-    rating: 4.8,
-  },
-  {
-    id: 'D-4',
-    name: 'Dr. Felipe Suárez',
-    specialty: 'Endocrinología',
-    license: 'RM-52310',
-    phone: '+57 313 555 0104',
-    email: 'felipe.suarez@clinica.co',
-    acceptingPatients: true,
-    rating: 4.6,
-  },
-];
-
-function mockDoctors(): readonly Doctor[] {
-  return MOCK_DOCTORS;
-}
-
-const MOCK_PATIENTS: readonly Patient[] = [
-  {
-    id: 'P-1',
-    name: 'María González',
-    document: 'CC 1.018.445.221',
-    sex: 'F',
-    age: 54,
-    phone: '+57 300 111 2233',
-    email: 'maria.gonzalez@correo.co',
-    bloodType: 'O+',
-    problems: ['Hipertensión arterial', 'Diabetes tipo 2'],
-    allergies: ['Penicilina'],
-    primaryDoctorId: 'D-1',
-    active: true,
-  },
-  {
-    id: 'P-2',
-    name: 'Carlos Ramírez',
-    document: 'CC 79.554.110',
-    sex: 'M',
-    age: 41,
-    phone: '+57 301 222 3344',
-    email: 'carlos.ramirez@correo.co',
-    bloodType: 'A+',
-    problems: ['Dislipidemia'],
-    allergies: [],
-    primaryDoctorId: 'D-2',
-    active: true,
-  },
-  {
-    id: 'P-3',
-    name: 'Valentina Torres',
-    document: 'TI 1.099.882.014',
-    sex: 'F',
-    age: 9,
-    phone: '+57 302 333 4455',
-    email: 'familia.torres@correo.co',
-    bloodType: 'B+',
-    problems: ['Asma'],
-    allergies: ['Polen', 'Ácaros'],
-    primaryDoctorId: 'D-3',
-    active: true,
-  },
-  {
-    id: 'P-4',
-    name: 'Jorge Castaño',
-    document: 'CC 16.778.452',
-    sex: 'M',
-    age: 67,
-    phone: '+57 304 444 5566',
-    email: 'jorge.castano@correo.co',
-    bloodType: 'O-',
-    problems: ['Hipotiroidismo', 'Artrosis'],
-    allergies: ['Sulfas'],
-    primaryDoctorId: 'D-4',
-    active: false,
-  },
-  {
-    id: 'P-5',
-    name: 'Daniela Ospina',
-    document: 'CC 1.020.334.987',
-    sex: 'F',
-    age: 33,
-    phone: '+57 305 555 6677',
-    email: 'daniela.ospina@correo.co',
-    bloodType: 'AB+',
-    problems: [],
-    allergies: [],
-    primaryDoctorId: 'D-1',
-    active: true,
-  },
-];
-
-function mockPatients(): readonly Patient[] {
-  return MOCK_PATIENTS;
-}
-
-const TODAY = new Date().toISOString().slice(0, 10);
-
-function mockAppointments(date: string): readonly Appointment[] {
-  const day = date.trim() || TODAY;
-  const base: readonly Omit<Appointment, 'date'>[] = [
-    {
-      id: 'A-1',
-      patientId: 'P-1',
-      patientName: 'María González',
-      doctorId: 'D-1',
-      doctorName: 'Dra. Laura Méndez',
-      time: '08:00',
-      durationMin: 30,
-      reason: 'Control hipertensión',
-      status: 'checked-in',
-    },
-    {
-      id: 'A-2',
-      patientId: 'P-2',
-      patientName: 'Carlos Ramírez',
-      doctorId: 'D-2',
-      doctorName: 'Dr. Andrés Gómez',
-      time: '08:30',
-      durationMin: 30,
-      reason: 'Valoración cardiológica',
-      status: 'booked',
-    },
-    {
-      id: 'A-3',
-      patientId: 'P-3',
-      patientName: 'Valentina Torres',
-      doctorId: 'D-3',
-      doctorName: 'Dra. Camila Rojas',
-      time: '09:15',
-      durationMin: 20,
-      reason: 'Seguimiento asma',
-      status: 'booked',
-    },
-    {
-      id: 'A-4',
-      patientId: 'P-5',
-      patientName: 'Daniela Ospina',
-      doctorId: 'D-1',
-      doctorName: 'Dra. Laura Méndez',
-      time: '10:00',
-      durationMin: 30,
-      reason: 'Consulta general',
-      status: 'in-progress',
-    },
-    {
-      id: 'A-5',
-      patientId: 'P-4',
-      patientName: 'Jorge Castaño',
-      doctorId: 'D-4',
-      doctorName: 'Dr. Felipe Suárez',
-      time: '11:00',
-      durationMin: 40,
-      reason: 'Control tiroides',
-      status: 'no-show',
-    },
-  ];
-  return base.map((appointment) => ({ ...appointment, date: day }));
-}
-
-function mockChart(id: string): PatientChart {
-  const patient = mockPatients().find((entry) => entry.id === id) ?? mockPatients()[0];
-  const encounters: readonly Encounter[] = [
-    {
-      id: `${patient.id}-E-3`,
-      patientId: patient.id,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2026-06-18',
-      reason: 'Control de cifras tensionales',
-      soap: {
-        subjective: 'Paciente refiere buena adherencia al tratamiento, sin cefalea ni mareo.',
-        objective: {
-          systolic: 128,
-          diastolic: 82,
-          heartRate: 74,
-          temperature: 36.6,
-          weight: 72,
-          height: 162,
-          glucose: 104,
-        },
-        assessment: 'Hipertensión controlada. Diabetes tipo 2 estable.',
-        plan: 'Continuar losartán 50 mg. Reforzar dieta hiposódica. Control en 3 meses.',
-      },
-      signature: 'LM',
-    },
-    {
-      id: `${patient.id}-E-2`,
-      patientId: patient.id,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2026-03-12',
-      reason: 'Control trimestral',
-      soap: {
-        subjective: 'Refiere episodios ocasionales de cefalea matutina.',
-        objective: {
-          systolic: 138,
-          diastolic: 88,
-          heartRate: 78,
-          temperature: 36.7,
-          weight: 74,
-          height: 162,
-          glucose: 118,
-        },
-        assessment: 'Hipertensión en rango limítrofe alto.',
-        plan: 'Ajuste de dosis. Solicitar perfil lipídico. Control en 3 meses.',
-      },
-      signature: 'LM',
-    },
-    {
-      id: `${patient.id}-E-1`,
-      patientId: patient.id,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2025-12-05',
-      reason: 'Valoración inicial',
-      soap: {
-        subjective: 'Primera consulta. Antecedente familiar de HTA.',
-        objective: {
-          systolic: 145,
-          diastolic: 92,
-          heartRate: 82,
-          temperature: 36.8,
-          weight: 76,
-          height: 162,
-          glucose: 126,
-        },
-        assessment: 'Hipertensión arterial grado 1. Diabetes tipo 2 de novo.',
-        plan: 'Inicio de antihipertensivo y metformina. Educación en autocuidado.',
-      },
-      signature: 'LM',
-    },
-  ];
-  const prescriptions: readonly Prescription[] = [
-    {
-      id: `${patient.id}-RX-2`,
-      patientId: patient.id,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2026-06-18',
-      items: [
-        { drug: 'Losartán', dose: '50 mg', frequency: 'Cada 12 horas', durationDays: 90 },
-        { drug: 'Metformina', dose: '850 mg', frequency: 'Con cada comida', durationDays: 90 },
-      ],
-      interactions: [],
-    },
-    {
-      id: `${patient.id}-RX-1`,
-      patientId: patient.id,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2025-12-05',
-      items: [
-        { drug: 'Enalapril', dose: '10 mg', frequency: 'Cada 24 horas', durationDays: 30 },
-      ],
-      interactions: ['Enalapril + Losartán: evitar IECA y ARA-II concomitantes.'],
-    },
-  ];
-  const appointments: readonly Appointment[] = [
-    {
-      id: `${patient.id}-AP-1`,
-      patientId: patient.id,
-      patientName: patient.name,
-      doctorId: patient.primaryDoctorId,
-      doctorName: 'Dra. Laura Méndez',
-      date: '2026-09-18',
-      time: '08:00',
-      durationMin: 30,
-      reason: 'Control trimestral',
-      status: 'booked',
-    },
-  ];
-  return { patient, history: encounters, encounters, prescriptions, appointments };
 }

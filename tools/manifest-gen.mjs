@@ -25,9 +25,11 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
-import { ROOT, ALL_FRAMEWORKS, loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
+import {
+  ROOT, loadRegistry, loadInputs, readPackageVersion, contratoDelManifiesto,
+} from './lib/synergos-config.mjs';
 import { getArg, DRY_RUN, LOG_PREFIX } from './lib/cli-utils.mjs';
-import { buildManifest } from './lib/manifest-builder.mjs';
+import { buildManifest, validateManifest } from './lib/manifest-builder.mjs';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
@@ -41,19 +43,19 @@ const VALIDATE          = process.argv.includes('--validate');
 
 const registry   = loadRegistry();
 const inputsData = loadInputs();
+const CONTRATO   = contratoDelManifiesto();
 
 // ── Filter ───────────────────────────────────────────────────────────────────
 
 const elements   = ELEMENT_FILTER ? registry.filter(e => e.name === ELEMENT_FILTER) : registry;
-const frameworks = FRAMEWORK_FILTER ? [FRAMEWORK_FILTER] : ALL_FRAMEWORKS;
 
 if (ELEMENT_FILTER && elements.length === 0) {
   console.error(`\n❌ Element "${ELEMENT_FILTER}" not found in element-registry.json`);
   process.exit(1);
 }
 
-if (FRAMEWORK_FILTER && !ALL_FRAMEWORKS.includes(FRAMEWORK_FILTER)) {
-  console.error(`\n❌ Unknown framework "${FRAMEWORK_FILTER}". Valid: ${ALL_FRAMEWORKS.join(', ')}`);
+if (FRAMEWORK_FILTER && !CONTRATO.frameworks.includes(FRAMEWORK_FILTER)) {
+  console.error(`\n❌ Unknown framework "${FRAMEWORK_FILTER}". Valid: ${CONTRATO.frameworks.join(', ')}`);
   process.exit(1);
 }
 
@@ -69,6 +71,11 @@ if (ELEMENT_FILTER)   console.log(`${LOG_PREFIX}   Element:  ${ELEMENT_FILTER}`)
 if (FRAMEWORK_FILTER) console.log(`${LOG_PREFIX}   Framework: ${FRAMEWORK_FILTER}`);
 console.log('');
 
+// El framework ya no es un bucle sobre las plataformas: lo declara el elemento
+// (issue #42). Generar el manifiesto de `hero` para cuatro frameworks escribía
+// tres que nadie construyó nunca.
+const invalidos = [];
+
 for (const entry of elements) {
   const inputs = inputsData[entry.name] ?? [];
 
@@ -76,21 +83,38 @@ for (const entry of elements) {
     warnings.push(entry.name);
   }
 
-  for (const framework of frameworks) {
-    const manifest = buildManifest(entry, framework, VERSION, inputs);
+  if (FRAMEWORK_FILTER && entry.framework !== FRAMEWORK_FILTER) continue;
 
-    if (DRY_RUN) {
-      console.log(`${LOG_PREFIX}   ${entry.name} [${framework}]:`);
-      console.log(JSON.stringify(manifest, null, 2));
-      console.log('');
-    } else {
-      const outDir = join(OUT_DIR, entry.name, framework);
-      mkdirSync(outDir, { recursive: true });
-      writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-    }
+  const framework = entry.framework;
+  const manifest = buildManifest(entry, VERSION, inputs);
 
-    generated.push(`${entry.name}/${framework}`);
+  const errores = validateManifest(manifest, CONTRATO);
+  if (errores.length > 0) {
+    invalidos.push({ nombre: entry.name, errores });
+    continue;
   }
+
+  if (DRY_RUN) {
+    console.log(`${LOG_PREFIX}   ${entry.name} [${framework}]:`);
+    console.log(JSON.stringify(manifest, null, 2));
+    console.log('');
+  } else {
+    const outDir = join(OUT_DIR, entry.name, framework);
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+  }
+
+  generated.push(`${entry.name}/${framework}`);
+}
+
+// Un manifiesto que no cumple su propio contrato no es un aviso: es el
+// artefacto que el CMS va a leer. Se para, aunque no se haya pedido --validate.
+if (invalidos.length > 0) {
+  console.error(`\n❌ ${invalidos.length} manifiesto(s) no cumplen ElementManifest:`);
+  for (const { nombre, errores } of invalidos) {
+    for (const linea of errores) console.error(`   - ${nombre}: ${linea}`);
+  }
+  process.exit(1);
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

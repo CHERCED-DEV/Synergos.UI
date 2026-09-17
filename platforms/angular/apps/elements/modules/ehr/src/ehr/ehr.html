@@ -70,11 +70,6 @@
       @if (liveConflict()) {
         <p class="ehr__notice" role="status">Otra pestaña tomó esta sesión. Tu agenda se sincronizó.</p>
       }
-      @if (degraded()) {
-        <p class="ehr__notice ehr__notice--warn" role="status">
-          Mostrando datos de ejemplo: el backend clínico aún no responde.
-        </p>
-      }
       @if (errorMessage()) {
         <p class="ehr__notice ehr__notice--error" role="alert">{{ errorMessage() }}</p>
       }
@@ -119,21 +114,40 @@
           <!-- El aviso deja de VERSE (lo cuenta el molde) pero no desaparece: sigue con
                texto real, en la clase visually-hidden que ya usa esta app. -->
           <p class="ehr__sr-only" role="status">Cargando tu portal…</p>
+        } @else if (readFailed('home')) {
+          <div class="ehr__unreadable" role="alert">
+            <h1 class="ehr__unreadable-title">No pudimos leer tu portal</h1>
+            <p class="ehr__unreadable-text">
+              No mostramos un portal de ejemplo en su lugar: lo que ves vacío es una lectura que
+              falló, no un registro vacío.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         }
       }
 
       <!-- ─── MY VISITS — SH-4 account-shell ─── -->
       @if (view() === 'visits') {
-        <syn-account-shell
-          [config]="visitsConfig()"
-          [items]="myAppointments()"
-          [loading]="loading() && !appointmentsLoaded()"
-          [section]="visitsSection()"
-          [itemTemplate]="visitRowTpl"
-          [detailTemplate]="visitDetailTpl"
-          [sectionTemplate]="visitSectionTpl"
-          (sectionchange)="onVisitsSectionChange($event)"
-        ></syn-account-shell>
+        @if (readFailed('appointments')) {
+          <div class="ehr__unreadable" role="alert">
+            <h1 class="ehr__unreadable-title">No pudimos leer tus citas</h1>
+            <p class="ehr__unreadable-text">
+              Que esta lista esté vacía no quiere decir que no tengas citas agendadas.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
+        } @else {
+          <syn-account-shell
+            [config]="visitsConfig()"
+            [items]="myAppointments()"
+            [loading]="loading() && !appointmentsLoaded()"
+            [section]="visitsSection()"
+            [itemTemplate]="visitRowTpl"
+            [detailTemplate]="visitDetailTpl"
+            [sectionTemplate]="visitSectionTpl"
+            (sectionchange)="onVisitsSectionChange($event)"
+          ></syn-account-shell>
+        }
       }
 
       <!-- ─── SCHEDULE — SH-3 checkout-wizard over the engine ─── -->
@@ -231,17 +245,28 @@
 
       <!-- ─── MESSAGES — SH-7 message-center ─── -->
       @if (view() === 'messages') {
-        <syn-message-center
-          [config]="messageConfig()"
-          [threads]="threads()"
-          [activeThread]="activeThread()"
-          [loading]="loading() && !threadsLoaded()"
-          [sending]="sendingMessage()"
-          [threadTemplate]="threadRowTpl"
-          [detailTemplate]="threadDetailTpl"
-          (threadselect)="onThreadSelect($event)"
-          (send)="onSendMessage($event)"
-        ></syn-message-center>
+        @if (readFailed('threads')) {
+          <div class="ehr__unreadable" role="alert">
+            <h1 class="ehr__unreadable-title">No pudimos leer tus mensajes</h1>
+            <p class="ehr__unreadable-text">
+              La bandeja está vacía porque la lectura falló. Puede haber mensajes de tu equipo
+              de salud que no estamos mostrando.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
+        } @else {
+          <syn-message-center
+            [config]="messageConfig()"
+            [threads]="threads()"
+            [activeThread]="activeThread()"
+            [loading]="loading() && !threadsLoaded()"
+            [sending]="sendingMessage()"
+            [threadTemplate]="threadRowTpl"
+            [detailTemplate]="threadDetailTpl"
+            (threadselect)="onThreadSelect($event)"
+            (send)="onSendMessage($event)"
+          ></syn-message-center>
+        }
       }
 
       <!-- ─── RESULTS ─── -->
@@ -250,6 +275,14 @@
         <p class="ehr__view-sub">Tus resultados liberados con su rango de referencia y una nota de tu médico.</p>
         @if (loading() && !resultsLoaded()) {
           <syn-skeleton variant="list" [rows]="5" />
+        } @else if (readFailed('results')) {
+          <div class="ehr__unreadable" role="alert">
+            <h2 class="ehr__unreadable-title">No pudimos leer tus resultados</h2>
+            <p class="ehr__unreadable-text">
+              Esta lista está vacía porque la lectura falló, no porque no tengas resultados.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         } @else if (releasedResults().length === 0) {
           <syn-empty-state
             kind="first-use"
@@ -293,6 +326,15 @@
         <p class="ehr__view-sub">Tu lista activa. Puedes solicitar renovación; tu médico la aprueba.</p>
         @if (loading() && !medsLoaded()) {
           <syn-skeleton variant="list" [rows]="5" />
+        } @else if (readFailed('medications')) {
+          <div class="ehr__unreadable" role="alert">
+            <h2 class="ehr__unreadable-title">No pudimos leer tus medicamentos</h2>
+            <p class="ehr__unreadable-text">
+              Esta lista está vacía porque la lectura falló. No la uses para saber qué estás
+              tomando.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         } @else if (medications().length === 0) {
           <syn-empty-state
             kind="first-use"
@@ -307,7 +349,11 @@
                   <p class="ehr__med-name">{{ med.drug }} · {{ med.dose }}</p>
                   <p class="ehr__med-freq">{{ med.frequency }}</p>
                   <p class="ehr__med-inst">{{ med.instructions }}</p>
-                  <p class="ehr__med-meta">{{ med.pharmacy }} · {{ med.refillsLeft }} renovaciones restantes</p>
+                  <!-- Sin farmacia no se pinta el separador colgante: « · 2 renovaciones
+                       restantes» se lee como un fallo de la pantalla (#111). -->
+                  <p class="ehr__med-meta">
+                    @if (med.pharmacy) { {{ med.pharmacy }} · }{{ med.refillsLeft }} renovaciones restantes
+                  </p>
                 </div>
                 <div class="ehr__med-action">
                   @if (med.refillStatus) {
@@ -358,12 +404,29 @@
               </ul>
             }
             @case ('immunizations') {
-              <syn-tracking-timeline
-                heading="Historial de vacunas"
-                ariaLabel="Vacunas"
-                [stages]="immunizationStages()"
-                emptyMessage="Sin vacunas registradas."
-              ></syn-tracking-timeline>
+              <!-- `null` y `[]` son hechos DISTINTOS y no se pueden ver igual: `[]` dice
+                   «esta persona no tiene vacunas registradas», `null` dice «no hay registro
+                   de vacunación que leer». El backend dejó de emitir la clave (#106) porque
+                   los estados salían de `GetHashCode()`: «al día» pasaba a «vencida» en cada
+                   reinicio del servidor. Pintar la ausencia como una lista vacía sería la UI
+                   afirmando lo que nadie estableció. -->
+              @if (hs.immunizations) {
+                <syn-tracking-timeline
+                  heading="Historial de vacunas"
+                  ariaLabel="Vacunas"
+                  [stages]="immunizationStages()"
+                  emptyMessage="Sin vacunas registradas."
+                ></syn-tracking-timeline>
+              } @else {
+                <div class="ehr__unreadable" role="note">
+                  <h2 class="ehr__unreadable-title">Sin registro de vacunación</h2>
+                  <p class="ehr__unreadable-text">
+                    Esta historia clínica no tiene un registro de vacunación conectado, así que
+                    no podemos decir qué vacunas tienes ni cuáles te faltan. <strong>Esto no
+                    significa que estés al día.</strong> Consúltalo con tu equipo de salud.
+                  </p>
+                </div>
+              }
             }
             @case ('maintenance') {
               <ul class="ehr__maint">
@@ -372,11 +435,20 @@
                     <div>
                       <p class="ehr__maint-name">{{ m.name }}</p>
                       <p class="ehr__maint-detail">{{ m.detail }}</p>
+                      <!-- La recomendación se deriva de edad y sexo (datos reales); si ya te
+                           lo hiciste no lo sabe nadie (#106). «Sin registro» no es «al día». -->
+                      @if (m.status === null) {
+                        <p class="ehr__maint-detail">
+                          Recomendado por tu edad y sexo. No tenemos registro de si ya te lo
+                          realizaste.
+                        </p>
+                      }
                     </div>
-                    @if (m.status !== 'complete') {
-                      <button type="button" class="ehr__btn ehr__btn--sm" (click)="navigate('schedule')">Agendar</button>
+                    @if (m.status === 'complete') {
+                      <span class="ehr__med-status" data-status="approved">{{ maintenanceStatusLabel(m.status) }}</span>
                     } @else {
-                      <span class="ehr__med-status" data-status="approved">Al día</span>
+                      <span class="ehr__maint-status">{{ maintenanceStatusLabel(m.status) }}</span>
+                      <button type="button" class="ehr__btn ehr__btn--sm" (click)="navigate('schedule')">Agendar</button>
                     }
                   </li>
                 }
@@ -385,6 +457,18 @@
           }
         } @else if (loading() && !healthLoaded()) {
           <syn-skeleton variant="list" [rows]="5" />
+        } @else if (readFailed('health')) {
+          <!-- La razón por la que esta rama existe: la de abajo dice «Sin resumen aún», y
+               una lista de alergias que no se pudo leer NO es una persona sin alergias. Es
+               sobre esa lista que alguien decide qué recetar. -->
+          <div class="ehr__unreadable" role="alert">
+            <h2 class="ehr__unreadable-title">No pudimos leer tu resumen de salud</h2>
+            <p class="ehr__unreadable-text">
+              No sabemos qué condiciones ni qué <strong>alergias</strong> tienes registradas.
+              Esto <strong>no</strong> quiere decir que no tengas ninguna.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         } @else {
           <syn-empty-state
             kind="first-use"
@@ -427,6 +511,14 @@
           </table>
         } @else if (loading() && !billingLoaded()) {
           <syn-skeleton variant="list" [rows]="5" />
+        } @else if (readFailed('billing')) {
+          <div class="ehr__unreadable" role="alert">
+            <h2 class="ehr__unreadable-title">No pudimos leer tu facturación</h2>
+            <p class="ehr__unreadable-text">
+              No mostramos un saldo de ejemplo: esta pantalla está vacía porque la lectura falló.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         } @else {
           <syn-empty-state
             kind="first-use"
@@ -591,6 +683,19 @@
             </div>
           </div>
           <p class="ehr__sr-only" role="status">Abriendo la ficha…</p>
+        } @else if (readFailed('chart')) {
+          <!-- ESTE es el defecto de #106: acá se servía `mockChart(id)`, que aceptaba
+               CUALQUIER id y devolvía el paciente cero —tensiones, glicemias, diagnósticos
+               y recetas de María González— archivado bajo el id que se pidió. -->
+          <button type="button" class="ehr__back" (click)="backToBoard()">Volver a la agenda</button>
+          <div class="ehr__unreadable" role="alert">
+            <h1 class="ehr__unreadable-title">No pudimos abrir esta historia clínica</h1>
+            <p class="ehr__unreadable-text">
+              No mostramos la historia de otro paciente en su lugar. No hay datos clínicos de
+              esta persona en pantalla.
+            </p>
+            <button type="button" class="ehr__btn ehr__btn--brand" (click)="retryRead()">Reintentar</button>
+          </div>
         }
       }
 
@@ -710,7 +815,17 @@
   <span class="ehr__thread-row" [class.is-selected]="selected">
     <span class="ehr__thread-top">
       <span class="ehr__thread-name">{{ thread.participant }}</span>
-      @if (thread.unread > 0) { <span class="ehr__thread-unread">{{ thread.unread }}</span> }
+      <!-- «No lo sabemos» NO se puede ver como «no tienes nada sin leer»: es lo que
+           hace que alguien no abra el mensaje de su médico (#111, regla 15). -->
+      @if (thread.unread === null) {
+        <span
+          class="ehr__thread-unread ehr__thread-unread--unknown"
+          title="No pudimos saber si hay mensajes sin leer"
+          aria-label="Sin dato de mensajes sin leer"
+        >?</span>
+      } @else if (thread.unread > 0) {
+        <span class="ehr__thread-unread">{{ thread.unread }}</span>
+      }
     </span>
     <span class="ehr__thread-subject">{{ thread.subject }}</span>
     <span class="ehr__thread-last">{{ thread.lastMessage }}</span>
@@ -723,10 +838,19 @@
     <p class="ehr__thread-with">con {{ thread.participant }}</p>
     <ul class="ehr__thread-msgs">
       @for (message of thread.messages; track trackString($index, message.id)) {
-        <li class="ehr__msg" [class.is-out]="message.outgoing">
+        <li class="ehr__msg" [class.is-out]="message.outgoing" [class.is-failed]="message.failed">
           <span class="ehr__msg-author">{{ message.author }}</span>
           <span class="ehr__msg-body">{{ message.body }}</span>
-          <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
+          <!-- Un mensaje que no llegó NO lleva hora de envío: sería el acuse que no
+               existe. Lleva su marca y su reintento, y el texto no se pierde (#111). -->
+          @if (message.failed) {
+            <span class="ehr__msg-failed">
+              No enviado
+              <button type="button" class="ehr__msg-retry" (click)="retryMessage(thread, message)">Reintentar</button>
+            </span>
+          } @else {
+            <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
+          }
         </li>
       }
     </ul>
