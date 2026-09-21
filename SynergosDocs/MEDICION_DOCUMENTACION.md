@@ -230,16 +230,29 @@ sigue versionado es código y es decisión → HU.
   menú de framework se deriva del disco y no se pregunta si hay uno solo, y **vacío es un fallo
   que dice dónde buscó**. `interactive.mjs` tenía su propia copia del mismo glob muerto y
   estrenó `.spec.mjs`: no tenía ninguno, que es por qué llevaba seis semanas así.
-- **`tools/refresh-skill-catalog.mjs` escribe FUERA del repo**
-  (`resolve(ROOT_UI, '..', '.claude/skills/...')`) y rotula el fichero
-  `AUTO-GENERATED` con **«122 bundles» a mano**. El script npm `skill:refresh`
-  **sí existe** — la épica decía que no; medido en `package.json:29`.
-- **Las skills están duplicadas entre repos**: 21 nombres compartidos, **18
-  idénticos byte a byte, 3 divergidos** (`synergos-architect`,
-  `synergos-cms-author`, `synergos-guardrails`), y **3 sólo en el CMS** —
-  `synergos-bff-author`, `synergos-capability-author` y, la que importa,
-  **`synergos-ticket-first`**: quien entra por este repo no se entera de que el
-  proceso existe.
+- ~~**`tools/refresh-skill-catalog.mjs` escribe FUERA del repo**~~ **CERRADO en
+  CHERCED-DEV/Synergos.CMS#141 — el script se BORRÓ.** Escribía en
+  `resolve(ROOT_UI, '..', '.claude/skills/...')` y rotulaba el fichero `AUTO-GENERATED` con
+  **«122 bundles» a mano**, sobre un cuerpo de 130 entradas. El script npm `skill:refresh`
+  **sí existía** —la épica decía que no; medido en `package.json`— y el único enganche era
+  ése, manual: la cabecera afirmaba correr al final de `release:angular`, que **no existe**.
+  De ahí salía la deriva de 122 contra 132.
+  **Lo que lo reemplaza no es otro generador**: el catálogo congelado se marcó como la FOTO
+  fechada que era, y lo que lo mata es el MCP `synergos-catalogo`
+  ([CHERCED-DEV/Synergos.CMS#143](https://github.com/CHERCED-DEV/Synergos.CMS/issues/143)),
+  que deriva del disco en cada consulta en vez de guardar una copia. Un `AUTO-GENERATED` que
+  nadie regenera es peor que una tabla vieja: afirma estar al día, así que nadie la cruza.
+- ~~**Las skills están duplicadas entre repos**~~ **CERRADO en
+  CHERCED-DEV/Synergos.CMS#141 — hay UNA copia, en `Synergos.Fabrica`.** Eran 21 nombres
+  compartidos, **18 idénticos byte a byte, 4 divergidos** (`synergos-architect`,
+  `synergos-cms-author`, `synergos-guardrails` y `synergos-media-upload`), y **3 sólo en el
+  CMS** — `synergos-bff-author`, `synergos-capability-author` y, la que importa,
+  **`synergos-ticket-first`**: quien entraba por este repo no se enteraba de que el proceso
+  existe.
+  **Eran cuatro y no tres, y la cuarta la causó la medición anterior**: el arreglo de
+  `guardrails` y `media-upload` por el pin de Umbraco (#149) tocó la copia del CMS y no la de
+  acá. Es la regla 26 en su forma más incómoda — **el que miente no es el que se arregló** —, y
+  es la demostración de por qué la salida no era cruzar las copias sino borrarlas.
 - ~~**`cms-sync.mjs` no honra `SYNERGOS_CMS_PATH`**~~ **CERRADO en #57.** Aceptaba sólo
   `--cms-path` o el hermano, mientras `validate-cms-contracts.mjs` aceptaba las tres. Como
   `contracts:validate` encadena los dos, en un contenedor sin los repos como hermanos el gate

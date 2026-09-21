@@ -305,9 +305,6 @@ const ESPECIFICAS_DE_ANGULAR = {
     'del disco ya NO nombra al framework: lo delega en element-sources.mjs (#44).',
   'validate-cms-contracts.mjs':
     '(c) `angular-host` es un alias deprecado del CMS que sigue llegando en payloads viejos.',
-  'refresh-skill-catalog.mjs':
-    '(b/c) prosa del catálogo de skills: nombra `release:angular` y dice cuál es hoy la única ' +
-    'plataforma. Es documentación generada, no una ruta.',
   'lib/synergos-config.mjs':
     '(a) es DONDE vive la declaración de PLATFORMS. Que nombre a Angular es su trabajo; que lo ' +
     'nombre cualquier otro sitio es el defecto.',

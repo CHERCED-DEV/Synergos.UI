@@ -33,7 +33,6 @@
     "publish:runtime": "node tools/publish-runtime.mjs",
     "release:cdn": "node tools/release-cdn.mjs",
     "// ─── HERRAMIENTAS ──────────────────────────────────────────────────────": "",
-    "skill:refresh": "node tools/refresh-skill-catalog.mjs",
     "dev:cdn": "node tools/dev-cdn.mjs",
     "clean:dist": "node tools/clean-dist.mjs",
     "manifest:gen": "node tools/manifest-gen.mjs",
