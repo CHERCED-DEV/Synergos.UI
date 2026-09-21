@@ -47,15 +47,26 @@ jobs:
         with:
           node-version: '22'
 
-      # La raíz NO es un workspace de npm: platforms/angular tiene su propio
-      # package.json y su propio lock. Un `npm ci` en la raíz lo deja vacío —
-      # lo destapó el primer build en un entorno limpio, no un test.
+      # La raíz NO es un workspace de npm: cada plataforma tiene su propio
+      # package.json y su propio lock, así que un `npm ci` en la raíz las deja
+      # vacías — lo destapó el primer build en un entorno limpio, no un test.
+      #
+      # Y la LISTA se deriva del disco, no se escribe acá. Esto decía
+      # `npm ci` + `npm ci --prefix platforms/angular` a mano, y el día que #64
+      # creó `platforms/preact` nadie volvió: desde entonces el job muere en su
+      # `pretest`, que es el guarda que el #70 puso para exactamente esto. O sea
+      # que la comprobación funcionaba y lo que estaba mal era el paso de al lado.
+      #
+      # Es la regla 31 —una dimensión de lo que se recorre resuelta a constante—
+      # cometida en el fichero que #70 no tocó. `npm run setup` recorre
+      # `frameworksConstruibles`, así que la tercera plataforma entra sola.
       - name: Dependencias
-        run: |
-          npm ci --no-audit --no-fund
-          npm ci --no-audit --no-fund --prefix platforms/angular
+        run: npm run setup
 
-      # Corre los dos: los gates de tools/lib (política de caché, presupuesto de
-      # tamaño, cuarentena) y los 240 specs de la plataforma.
+      # Corre los CUATRO: los gates de tools/lib (política de caché, presupuesto
+      # de tamaño, cuarentena), los de vitals/, los specs de Angular y los de
+      # Preact. La cifra no se escribe acá —decía «los 240 specs» y son otros
+      # desde que #63 bajó cuatro ficheros a vitals/—: una cuenta que nadie cruza
+      # se desvía, y ésta ni siquiera se lee al correr.
       - name: npm test
         run: npm test
