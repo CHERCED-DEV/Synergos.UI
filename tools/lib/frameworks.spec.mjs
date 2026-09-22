@@ -9,6 +9,7 @@ import {
   frameworksDelRegistry,
 } from './frameworks.mjs';
 import { PLATFORMS, ALL_FRAMEWORKS, ROOT } from './synergos-config.mjs';
+import { sinComentarios } from './humo-tras-desplegar.mjs';
 
 /**
  * Que el pipeline deje de cablear `angular` (issue #44).
@@ -525,5 +526,81 @@ describe('el censo de RUTAS de plataforma en tools/lib (#60)', () => {
 
   it.each(Object.entries(RUTAS_DE_PLATAFORMA))('%s tiene razón escrita', (relativo, razon) => {
     expect(razon.length, `${relativo}: la razón tiene que decir algo`).toBeGreaterThan(60);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EL TERCER CENSO: `.github/workflows/`
+//
+// El #71 lo dejó nombrado y sin hacer, con todas las letras: «el censo de
+// `frameworks.spec.mjs` vigila `tools/`, no `.github/workflows/`. Un diente que
+// recorra los workflows buscando `platforms/<literal>` cerraría la familia, y
+// hoy nacería casi verde».
+//
+// Y mientras tanto el defecto siguió vivo en el mismo fichero que #71 arregló:
+// su paso de dependencias pasó a derivar las plataformas del disco, y su
+// `paths:` se quedó con `platforms/angular/**`. O sea que un cambio que tocara
+// SÓLO `platforms/preact/` no disparaba ni un test (#74).
+//
+// Nombrar un defecto y no cerrarlo lo BLINDA: la siguiente auditoría lo lee y
+// pasa de largo. Éste tardó tres tickets.
+//
+// Nace con UNA entrada, así que es trinquete absoluto y no línea base — el
+// criterio del repo: un umbral absoluto sólo vale cuando el árbol ya lo cumple.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const RUTAS_DE_PLATAFORMA_EN_WORKFLOWS = {
+  'design-gates-ui.yml':
+    'G-1 corre `platforms/angular/tools/sync-tokens.mjs`, que es el puente de tokens de ESA ' +
+    'plataforma y de ninguna otra: no hay un segundo catálogo de shells que sincronizar. ' +
+    'Caduca el día que lo haya, igual que `lib/shell-cta-tokens.mjs` en el censo de tools/.',
+};
+
+describe('el censo de `platforms/<literal>` en .github/workflows/', () => {
+  const DIR = resolve(ROOT, '.github', 'workflows');
+  const ficheros = readdirSync(DIR)
+    .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+    .sort();
+
+  // Se REUSA el barrido de comentarios de `humo-tras-desplegar.mjs` en vez de
+  // escribir otro: dos implementaciones del mismo criterio es cómo se acaba con
+  // una afinada y otra mintiendo.
+  const rutasCableadas = (nombre) => {
+    const src = sinComentarios(readFileSync(join(DIR, nombre), 'utf8'));
+    return [...new Set([...src.matchAll(/platforms\/([a-z][a-z0-9-]*)/g)].map((m) => m[1]))];
+  };
+
+  it('hay workflows que censar', () => {
+    // Red de seguridad: sin sujeto, todo lo de abajo pasa en verde sin mirar.
+    expect(ficheros.length).toBeGreaterThan(3);
+  });
+
+  it('`platforms/**` NO cuenta como cableado — es la forma buena', () => {
+    // El `paths:` de tests-ui dice `platforms/**`, que es justo lo que este
+    // censo quiere que la gente escriba. Un gate que rechaza la salida buena
+    // enseña a desactivarlo.
+    expect(rutasCableadas('tests-ui.yml')).toEqual([]);
+  });
+
+  it('nadie nombra una plataforma concreta sin estar declarado', () => {
+    const conRuta = ficheros.filter((f) => rutasCableadas(f).length > 0);
+    const sinDeclarar = conRuta.filter((f) => !(f in RUTAS_DE_PLATAFORMA_EN_WORKFLOWS));
+
+    expect(
+      sinDeclarar,
+      'nombra platforms/<framework> y no está en RUTAS_DE_PLATAFORMA_EN_WORKFLOWS. Si vale para ' +
+        'todas, escribí `platforms/**`; si de verdad es de una, declaralo con su razón.',
+    ).toEqual([]);
+  });
+
+  it('…y en los dos sentidos: una declaración que sobra rompe', () => {
+    const sobran = Object.keys(RUTAS_DE_PLATAFORMA_EN_WORKFLOWS).filter(
+      (f) => rutasCableadas(f).length === 0,
+    );
+    expect(sobran, 'ya no nombra ninguna plataforma: borrá la declaración').toEqual([]);
+  });
+
+  it.each(Object.entries(RUTAS_DE_PLATAFORMA_EN_WORKFLOWS))('%s tiene razón escrita', (f, razon) => {
+    expect(razon.length, `${f}: la razón tiene que decir algo`).toBeGreaterThan(60);
   });
 });

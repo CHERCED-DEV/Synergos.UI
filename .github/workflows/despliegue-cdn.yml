@@ -104,9 +104,31 @@ jobs:
           fi
 
       - if: steps.config.outputs.listo == 'si'
+        name: Checkout UI (este repo)
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.sha || github.sha }}
+          path: Synergos.UI
+
+      # `cms:validate` cruza el `element-registry.json` de acá contra los
+      # DocTypes de allá, y **falla si no encuentra su entrada** — con razón: un
+      # gate que no halla lo que compara no puede pasar en verde.
+      #
+      # Va en CARPETA HERMANA y no dentro del árbol de la UI. Meter un repo
+      # entero dentro del otro es lo que tumbó seis gates de segregación en el
+      # CMS (#90): las herramientas recorren directorios, y de pronto cada
+      # fichero aparece dos veces.
+      #
+      # SIN `token:` A PROPÓSITO, igual que `design-gates-ui.yml` (#14):
+      # `CHERCED-DEV/Synergos.CMS` es público y el `GITHUB_TOKEN` del job basta.
+      # Un `secrets.X` sin configurar le llega a `checkout` como cadena vacía y
+      # aborta con «Input required and not supplied: token».
+      - if: steps.config.outputs.listo == 'si'
+        name: Checkout CMS (hermano — la otra mitad del contrato)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Synergos.CMS
+          path: Synergos.CMS
 
       - if: steps.config.outputs.listo == 'si'
         name: Setup Node
@@ -118,15 +140,21 @@ jobs:
       # deriva del disco, no se escribe acá.
       - if: steps.config.outputs.listo == 'si'
         name: Dependencias
+        working-directory: Synergos.UI
         run: npm run setup
 
       # ── 1. Los gates, antes de publicar ──────────────────────────────────
       #
       # Publicar primero y comprobar después deja el CDN sirviendo lo que el
-      # gate iba a rechazar. `build:cdn` ya corre el presupuesto de tamaño por
-      # dentro; esto añade los contratos, que son los que cruzan con el CMS.
+      # gate iba a rechazar — y publicar NO se deshace solo. `build:cdn` ya
+      # corre el presupuesto de tamaño por dentro; esto añade los contratos,
+      # que son los que cruzan con el CMS: un registry que el CMS no puede
+      # resolver deja el sitio sin hidratar y la página se ve igual de bien.
       - if: steps.config.outputs.listo == 'si'
         name: Contratos
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: npm run contracts:validate
 
       # ── 2. Construir lo que se va a servir ───────────────────────────────
@@ -136,11 +164,13 @@ jobs:
       # `meta.json` de cada elemento lleva el commit — es lo que el humo espera.
       - if: steps.config.outputs.listo == 'si'
         name: Construir el CDN
+        working-directory: Synergos.UI
         run: npm run build:cdn
 
       # ── 3. Publicar ──────────────────────────────────────────────────────
       - if: steps.config.outputs.listo == 'si'
         name: wrangler deploy
+        working-directory: Synergos.UI
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -158,6 +188,7 @@ jobs:
       # esperarlo es esperar algo que va a llegar.
       - if: steps.config.outputs.listo == 'si'
         name: Humo contra la URL pública
+        working-directory: Synergos.UI
         env:
           URL: ${{ vars.SYNERGOS_CDN_URL || 'https://synergos-ui.synergos-labs.workers.dev' }}
         run: |

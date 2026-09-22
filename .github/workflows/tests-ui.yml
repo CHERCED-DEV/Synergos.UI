@@ -18,7 +18,12 @@ name: Tests UI (gates de tools/lib + specs de la plataforma)
 on:
   pull_request:
     paths:
-      - 'platforms/angular/**'
+      # TODAS las plataformas, no una lista con la de siempre. Faltaba
+      # `platforms/preact/**` desde que #64 la creó, así que un cambio que
+      # tocara SÓLO esa plataforma no disparaba ni un test — el #71 arregló el
+      # paso de dependencias de este mismo fichero y no su filtro, que es la
+      # otra mitad del mismo defecto (regla 25, #74).
+      - 'platforms/**'
       - 'vitals/**'
       - 'tools/**'
       - 'package.json'
@@ -28,7 +33,12 @@ on:
       - main
       - master
     paths:
-      - 'platforms/angular/**'
+      # TODAS las plataformas, no una lista con la de siempre. Faltaba
+      # `platforms/preact/**` desde que #64 la creó, así que un cambio que
+      # tocara SÓLO esa plataforma no disparaba ni un test — el #71 arregló el
+      # paso de dependencias de este mismo fichero y no su filtro, que es la
+      # otra mitad del mismo defecto (regla 25, #74).
+      - 'platforms/**'
       - 'vitals/**'
       - 'tools/**'
       - 'package.json'

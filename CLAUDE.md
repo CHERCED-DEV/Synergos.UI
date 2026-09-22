@@ -93,7 +93,8 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **423 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **423 en un clon limpio y 424 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; los 10 últimos de `tools`, el cruce humo↔despliegue de #74 — nueve suyos más la fila que se lleva en el censo de `frameworks`.)
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los dos gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **428 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **428 en un clon limpio y 429 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; los 15 últimos de `tools`, #74 — el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows.)
+  - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre.
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
@@ -127,7 +128,7 @@ está vigilando nada.
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
-| `frameworks` | dos censos, dos preguntas (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), o un gate neutral mira sólo `platforms/angular/` (#60) |
+| `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
 | `mapa-del-runtime` | que los import maps publicados se puedan COMPONER: mismo specifier con URLs distintas, un framework declarando el nombre agnóstico de otro, y el dueño retirando su alias o publicándolo sin gemelo | se publica el segundo runtime con los specifiers de hoy y el CMS se queda sin mapa (#58) |
 | `normalizador-unico` | que **una sola** declaración de cada normalizador del CMS exista, y que viva en `vitals/` — por NOMBRE de función exportada, derivado del disco | alguien copia `config-input.util.ts` al `shared` del segundo framework, aunque le ponga otro nombre de fichero y otra carpeta (#63) |
 | `indice-publicado` | que el `index.html` del CDN salga del registry de HOY, y que lo declarado sin construir lleve su marca | se vuelve a copiar un `catalog.html` congelado en vez de regenerarlo (#48) |
@@ -189,7 +190,7 @@ cuando se sospecha algo.
 > si sigue enganchada: dos publicadores sobre el mismo Worker dejan sin saber
 > cuál publicó lo que está arriba.
 
-**Treinta y tres reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -792,3 +793,38 @@ se desincroniza):
    está documentando**. Un gate que se pone rojo por su propia explicación enseña a
    ignorarlo, que es exactamente lo que vino a cerrar. Se conserva, y se dice cuál de las
    dos mitades sostiene el cruce.
+
+34. **Nombrar un defecto en un comentario no lo arregla: lo BLINDA. Lo identificado la
+   siguiente auditoría lo lee y pasa de largo.** Arreglando #74 aparecieron TRES defectos
+   vivos del contrato de plataforma, y **dos de ellos estaban escritos, con todas las
+   letras, por quien no los cerró**:
+   (a) el `<remarks>` de `EXTENSIONES_DE_CODIGO` en `element-sources.mjs` describe el caso
+   exacto —«"ninguna fuente implementa ElementProtocol", que es **falso**: la implementa y
+   el gate no sabía mirarla… la regla 25 con la constante escondida en un filtro de
+   extensiones»— y hasta escribió el helper (`esFuenteDeCodigo`) para cerrarlo. **Nadie lo
+   enchufó**: `element-contract-audit.mjs` siguió con su `/\.(ts|mjs|js)$/`, así que la
+   obligación 8 acusaba a Preact de no tener adaptador teniendo `preact-element.tsx`, que
+   además lleva escrito que es el único de su plataforma que registra;
+   (b) la entrada de #71 en este fichero dice que «el censo de `frameworks.spec.mjs` vigila
+   `tools/`, no `.github/workflows/`. Un diente que recorra los workflows… cerraría la
+   familia». No se escribió — y el defecto siguió vivo **en el mismo fichero que #71
+   arregló**: le cambió el paso de dependencias para derivar las plataformas del disco y le
+   dejó el `paths:` en `platforms/angular/**`, así que un cambio que tocara sólo
+   `platforms/preact/` **no disparaba ni un test**.
+   El tercero no estaba escrito y es el que más medía: el llamador de la obligación 3
+   fabricaba la plataforma a mano —`{ framework, apps }` **sin `entrada`**— así que
+   `todasLasFuentes` preguntaba por `<dir>/undefined` y descubría **0 fuentes contra 127**,
+   fallando para TODAS las plataformas.
+   **Los tres son la misma causa —una dimensión que #64 volvió variable y que quedó
+   constante en tres sitios— y los tres fallaban RUIDOSAMENTE.** Lo que los mantuvo vivos
+   no fue el silencio: fue que **`contracts:validate` no lo corría ningún workflow**. Un
+   gate que grita donde nadie lo lanza es el #68 otra vez, y por eso el arreglo no es sólo
+   el código: `element:audit` y `manifest:validate` entran a `npm test` (0,4 s, sin
+   hermano y sin red).
+   **La regla operativa, y es una sola línea:** si un comentario que estás escribiendo
+   nombra un defecto vivo, o lo arreglás en el mismo commit o abrís el ticket. No hay una
+   tercera opción que deje el comentario puesto — y menos si además escribiste el helper
+   que lo cierra.
+   Es `feedback_a_fabrication_can_be_a_derivation` del repo hermano, que ya lo tenía
+   medido: un `<remarks>` que nombra un gemelo vivo se queda ahí una HU entera, porque la
+   nota convierte el defecto en algo *identificado* y lo identificado no se vuelve a mirar.

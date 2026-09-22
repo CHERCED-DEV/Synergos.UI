@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   descubrirFuentes, revisarFuentesDuplicadas, todasLasFuentes, PLATAFORMAS,
+  esFuenteDeCodigo,
 } from './lib/element-sources.mjs';
 import { revisarContratoDePlataformas } from './lib/platform-contract.mjs';
 import { frameworksConstruibles } from './lib/frameworks.mjs';
@@ -176,6 +177,19 @@ function scanElementProjects() {
     leer: (r) => readFileSync(resolve(ROOT, r), 'utf8'),
     // La obligación 8 (#62) recorre el código de la plataforma: el adaptador
     // que implementa ElementProtocol, y que nadie registre por su cuenta.
+    //
+    // Qué cuenta como fuente lo dice `esFuenteDeCodigo`, UNA vez, y no un
+    // regex acá. Esto llevaba `/\.(ts|mjs|js)$/` — sin `.tsx`—, así que el
+    // recorrido no veía `preact-element.TSX`, que implementa `ElementProtocol`
+    // y lleva escrito que es el único de su plataforma que registra. La
+    // obligación 8 acusaba a Preact de no tener adaptador teniéndolo (#74).
+    //
+    // Y lo que lo hace peor: el `<remarks>` de `EXTENSIONES_DE_CODIGO`
+    // DESCRIBE este defecto con todas las letras —«ninguna fuente implementa
+    // ElementProtocol, que es falso: la implementa y el gate no sabía
+    // mirarla»— y el helper se escribió para cerrarlo. Nadie lo enchufó acá.
+    // Nombrar un defecto en un comentario no lo arregla: lo BLINDA, porque la
+    // siguiente auditoría lo lee y pasa de largo.
     fuentesDe: (dir) => {
       const abs = resolve(ROOT, dir);
       if (!existsSync(abs)) return [];
@@ -186,7 +200,7 @@ function scanElementProjects() {
           if (e.isDirectory()) {
             if (/^(node_modules|dist|\.cdn-out|\.test-out)$/.test(e.name)) continue;
             walk(full);
-          } else if (/\.(ts|mjs|js)$/.test(e.name) && !e.name.endsWith('.spec.ts')) {
+          } else if (esFuenteDeCodigo(e.name)) {
             salida.push(full);
           }
         }
@@ -194,11 +208,28 @@ function scanElementProjects() {
       walk(abs);
       return salida;
     },
+    // La plataforma se BUSCA en `PLATAFORMAS`, no se fabrica acá.
+    //
+    // Esto decía `plataformas: [{ framework, apps: … }]` — un objeto a mano SIN
+    // `entrada`, que desde #64 es lo que dice cuál es el fichero de entrada. Con
+    // `entrada` en `undefined`, `todasLasFuentes` pregunta por
+    // `<dir>/undefined` y descubre CERO, así que la obligación 3 fallaba para
+    // TODAS las plataformas. Medido: 0 contra 127 (#74).
+    //
+    // Y fallaba con un mensaje que suena correcto y apunta al sitio equivocado
+    // —«platforms/angular/apps existe y el descubrimiento no encuentra ni una
+    // fuente»—, que es exactamente contra lo que avisa el `<remarks>` de
+    // `element-sources.mjs`. Le pasó al gate que lo cita.
+    //
+    // Devolver una lista VACÍA cuando el framework no está declarado es lo
+    // correcto y no un efecto colateral: una plataforma en disco sin entrada en
+    // `PLATFORMS` incumple la obligación 2, y descubrir cero la hace incumplir
+    // también la 3. Las dos son verdad.
     fuentes: (framework) =>
       todasLasFuentes({
         listar: (dir) => listarDirs(dir),
         existe: (r) => existsSync(resolve(ROOT, r)),
-        plataformas: [{ framework, apps: `platforms/${framework}/apps` }],
+        plataformas: PLATAFORMAS.filter((p) => p.framework === framework),
       }).length,
     unir: join,
   });
