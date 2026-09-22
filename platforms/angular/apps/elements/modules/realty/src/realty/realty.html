@@ -498,20 +498,39 @@
         (itemselect)="onVisitTicketSelect($event)"
       />
 
-      <!-- inbox row: one visit -->
+      <!-- inbox row: one visit.
+           Lo que el REGISTRO no sabe se deja en blanco en vez de rellenarse (#73): sin hora
+           no se recalcula con la agenda de hoy —se deriva del reloj, así que meses después
+           daría una franja plausible y distinta de la que esa persona tiene apuntada— y sin
+           título no se compone «Inmueble L-4», que se leería como un nombre. -->
       <ng-template #visitRow let-visit>
         <div class="realty__visit-row">
-          <span class="realty__visit-row-title">{{ visit.listingTitle }}</span>
-          <span class="realty__visit-row-when">{{ formatDate(visit.slot.date) }} · {{ visit.slot.time }}</span>
+          <span class="realty__visit-row-title">{{ visitListingLabel(visit) }}</span>
+          @if (visit.slot; as slot) {
+            <span class="realty__visit-row-when">{{ formatDate(slot.date) }} · {{ slot.time }}</span>
+          } @else {
+            <span class="realty__visit-row-when realty__visit-row-when--unknown">Hora por confirmar</span>
+          }
         </div>
       </ng-template>
 
       <!-- inbox detail: visit + tracking timeline -->
       <ng-template #visitDetail let-visit>
         <div class="realty__visit-detail">
-          <h3 class="realty__visit-detail-title">{{ visit.listingTitle }}</h3>
+          <h3 class="realty__visit-detail-title">{{ visitListingLabel(visit) }}</h3>
           <p class="realty__visit-detail-meta">
-            {{ visitModeLabel(visit.mode) }} · {{ formatDate(visit.slot.date) }} a las {{ visit.slot.time }}
+            <!-- La MODALIDAD sólo se nombra si consta. «Visita presencial» por defecto manda a
+                 cruzar la ciudad a quien pidió videollamada — es la clave que el borde acaba de
+                 dejar de fabricar de su lado (CMS #160), y reponerla acá la devolvería sin que
+                 nada en ninguno de los dos árboles lo señalara. -->
+            @if (visitModeLabel(visit.mode); as modo) {
+              {{ modo }}
+            } @else {
+              Modalidad sin confirmar
+            }
+            @if (visit.slot; as slot) {
+              · {{ formatDate(slot.date) }} a las {{ slot.time }}
+            }
           </p>
           <syn-tracking-timeline [stages]="trackingStages(visit.id)" heading="Seguimiento de la visita" />
         </div>

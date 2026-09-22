@@ -7,6 +7,7 @@ import {
   type AgentDeskResult,
   type AgentLead,
   type Amenity,
+  type BookedVisit,
   type Facet,
   type GeoPoint,
   type LeadRequest,
@@ -30,6 +31,7 @@ import {
   type SearchCriteria,
   type SearchResult,
   type Visit,
+  type VisitMode,
   type VisitRequest,
   type VisitSlot,
   type VisitStatus,
@@ -42,6 +44,7 @@ import {
  *  - `GET  /api/realty/listings?…`  (incluye geo+facetas)   → `{ listings, facets, total }`
  *  - `GET  /api/realty/listing/{id}`                         → `{ listing, gallery, location, neighborhood }`
  *  - `POST /api/realty/visit`    `{ listingId, slot, contact, mode }` → `{ visit }`
+ *  - `GET  /api/realty/visits`                               → `{ visits }`    🔒 sesión
  *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRate }` → `{ monthly, … }`
  *  - `POST /api/realty/lead`     `{ listingId, contact, message }`  → `{ leadId }`
  *  - `GET  /api/realty/saved`                                → `{ searches }`    🔒 sesión
@@ -196,6 +199,39 @@ export class RealtyApiClient {
         contact: body.contact,
       };
     }
+  }
+
+  // ─── Mis visitas: el REGISTRO, no el acuse (CMS #158 · UI #73) ────────────────
+
+  /**
+   * Las visitas agendadas por quien tiene la sesión.
+   *
+   * **No degrada, y es la diferencia que importa.** Las rutas públicas de este cliente caen a
+   * datos de ejemplo a propósito —un portal donde hay que registrarse para ver un inmueble no
+   * sirve—, pero una visita no es contenido: es la constancia de que alguien va a estar a una
+   * hora en una dirección. Inventarla es la regla 14 (un certificado fabricado), y vaciarla
+   * cuando el borde no contesta es la 17 (decirle «no tienes ninguna» a quien sí tiene). Así
+   * que un fallo SALE, tipado, y la UI decide qué pintar.
+   *
+   * **Y hasta el #73 nadie llamaba aquí.** La sección «Mis visitas» existía con su bandeja, su
+   * detalle y su timeline, y lo único que la llenaba era lo que se acababa de agendar en ESTA
+   * pestaña: se recargaba la página y desaparecía, con el shell diciendo «Todavía no tienes
+   * visitas agendadas».
+   *
+   * @throws {RealtyUnauthorizedError} si no hay sesión.
+   */
+  async myVisits(apiBase: string): Promise<readonly BookedVisit[]> {
+    const url = `${apiBase}/visits`;
+    const data = await this.getJson(url);
+    const raw = pluck(data, 'visits');
+    if (!Array.isArray(raw)) {
+      // Una forma que no se reconoce es un fallo, no una bandeja vacía: `[]` diría «no tienes
+      // ninguna», que es justo la afirmación que este método existe para no hacer.
+      throw new Error('visits-shape');
+    }
+    return raw
+      .map((entry) => normalizeBookedVisit(entry))
+      .filter((visit): visit is BookedVisit => visit !== null);
   }
 
   // ─── Lead to the agent (degenerate confirm — intent, NO payment) ──────────────
@@ -857,6 +893,53 @@ function normalizeVisit(
     mode: readString(value['mode']).trim() === 'video' ? 'video' : request.mode,
     status: readVisitStatus(value['status']),
     contact: request.contact,
+  };
+}
+
+/**
+ * Una fila del registro de visitas (`GET /api/realty/visits`).
+ *
+ * **Lo que NO hace es lo que lo distingue de {@link normalizeVisit}:** allá hay una petición
+ * delante de la que salen el inmueble, la hora y la modalidad, así que los respaldos son la
+ * verdad; acá no hay ninguna, y lo que el servidor no manda se queda en `null`.
+ *
+ * Tres respaldos que no se escriben, uno por uno:
+ * - **el título NO se compone con el id** (`Inmueble L-4` se lee como un nombre);
+ * - **la hora NO se recalcula** con la agenda de hoy — se deriva del reloj, así que meses
+ *   después daría una franja plausible y distinta de la que esa persona tiene apuntada;
+ * - **la modalidad NO cae a `in-person`**, que es el defecto que el borde acaba de quitar de
+ *   su lado (CMS #160): un campo emitido con honestidad y leído con un default sigue
+ *   mintiendo, y ahí ya no queda nada en ninguno de los dos árboles que lo señale.
+ */
+function normalizeBookedVisit(value: unknown): BookedVisit | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = readString(value['id']).trim() || readString(value['visitId']).trim();
+  if (!id) {
+    return null;
+  }
+
+  const slotRaw = value['slot'];
+  let slot: VisitSlot | null = null;
+  if (isRecord(slotRaw)) {
+    const date = readString(slotRaw['date']).trim();
+    const time = readString(slotRaw['time']).trim();
+    // Media hora tampoco es una hora: sin las dos mitades no hay cuándo que pintar.
+    slot = date && time ? { date, time } : null;
+  }
+
+  const modeRaw = readString(value['mode']).trim();
+  const mode: VisitMode | null =
+    modeRaw === 'video' ? 'video' : modeRaw === 'in-person' ? 'in-person' : null;
+
+  return {
+    id,
+    listingId: readString(value['listingId']).trim(),
+    listingTitle: readString(value['listingTitle']).trim() || null,
+    slot,
+    mode,
+    status: readVisitStatus(value['status']),
   };
 }
 

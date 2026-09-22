@@ -70,6 +70,7 @@ import {
   type AgentDeskResult,
   type AgentLead,
   type Amenity,
+  type BookedVisit,
   type ContactInfo,
   type Facet,
   type Listing,
@@ -89,6 +90,7 @@ import {
   type VisitSelectionPayload,
   type VisitSlot,
   type VisitStep,
+  type VisitsState,
   type AgentView,
   type RealtyView,
 } from './realty.model';
@@ -491,7 +493,17 @@ export class RealtyElementComponent {
   // Confirmation + account
   readonly confirmedVisit = signal<Visit | null>(null);
   readonly confirmedLeadId = signal('');
-  readonly myVisits = signal<readonly Visit[]>([]);
+
+  /**
+   * La bandeja de «mis visitas». Hasta el #73 lo único que la llenaba era lo que se acababa
+   * de agendar en ESTA pestaña, así que recargar la página la vaciaba — con el shell diciendo
+   * «Todavía no tienes visitas agendadas» a quien sí tenía.
+   */
+  readonly myVisits = signal<readonly BookedVisit[]>([]);
+
+  /** `ok` · `anon` · `unreadable` — las tres de la regla 17, no dos. */
+  readonly visitsState = signal<VisitsState>('ok');
+  readonly visitsLoaded = signal(false);
   readonly trackingByRef = signal<Readonly<Record<string, readonly TrackingStage[]>>>({});
 
   // ─── AGENTE state ────────────────────────────────────────────────────────────
@@ -704,9 +716,26 @@ export class RealtyElementComponent {
   readonly accountConfig = computed<AccountShellConfig>(() => ({
     heading: 'Mi cuenta',
     navLabel: 'Secciones de la cuenta',
+    // «Todavía no tienes visitas agendadas» sólo es verdad cuando se pudo LEER la bandeja.
+    // Con un 401 o con el borde caído es una afirmación sobre una cuenta que no se miró, así
+    // que el shell pinta su estado de error en vez del vacío (regla 17).
     inboxEmptyMessage: 'Todavía no tienes visitas agendadas.',
     inboxLoadingMessage: 'Cargando tus visitas…',
     detailPlaceholder: 'Selecciona una visita para ver el detalle y su seguimiento.',
+    ...(this.visitsState() === 'unreadable'
+      ? {
+          errorTitle: 'No pudimos cargar tus visitas',
+          errorMessage:
+            'La lista no está disponible ahora mismo. Si tenías una agendada, sigue en pie: ' +
+            'vuelve a intentarlo en un momento.',
+        }
+      : {}),
+    ...(this.visitsState() === 'anon'
+      ? {
+          errorTitle: 'Inicia sesión para ver tus visitas',
+          errorMessage: 'Tus visitas quedan atadas a tu cuenta. Las verás aquí en cuanto entres.',
+        }
+      : {}),
     sections: [
       { id: 'favorites', label: 'Favoritos y comparar', badge: this.favoriteCount() || undefined },
       { id: 'saved', label: 'Búsquedas guardadas', badge: this.savedAlertCount() || undefined },
@@ -993,6 +1022,7 @@ export class RealtyElementComponent {
       case 'account':
         this.view.set('account');
         this.loadSaved();
+        this.loadVisits();
         return;
       case 'confirmation':
         if (!this.confirmedVisit() && !this.confirmedLeadId()) {
@@ -1452,6 +1482,58 @@ export class RealtyElementComponent {
       });
   }
 
+  // ─── Mis visitas: el REGISTRO del otro árbol (#73) ───────────────────────────
+
+  /**
+   * Trae la bandeja del servidor. **Lo local NO se pisa con lo que llegue**: lo que se acaba
+   * de agendar en esta pestaña es tan verdad como lo del registro, y una respuesta que
+   * todavía no lo incluya no puede borrarlo de la pantalla de quien lo acaba de hacer. Se
+   * fusiona por id, con el servidor mandando sobre la copia local de la misma visita.
+   *
+   * Los tres finales son los tres estados, y ninguno se parece a los otros:
+   * - **ok** — la bandeja del servidor, vacía o llena; vacía dice «todavía ninguna» y es
+   *   cierto, porque agendar es el camino que la llena;
+   * - **anon** — 401: la cuenta ofrece iniciar sesión, no una bandeja vacía;
+   * - **unreadable** — el borde no contestó: se dice, y **lo local se queda**. Vaciarla sería
+   *   decirle «no tienes ninguna» a quien sí tiene (regla 17), y rellenarla con ejemplos
+   *   sería fabricar una constancia (regla 14).
+   */
+  private loadVisits(): void {
+    if (this.visitsLoaded()) {
+      return;
+    }
+    void this.#api
+      .myVisits(this.apiBase())
+      .then((visitas) => {
+        this.myVisits.update((locales) => this.mergeVisits(visitas, locales));
+        this.visitsState.set('ok');
+        this.visitsLoaded.set(true);
+      })
+      .catch((error: unknown) => {
+        // `visitsLoaded` se marca en los dos caminos: sin eso, cada vuelta a la cuenta
+        // dispararía otra petición que sólo puede traer el mismo fallo.
+        this.visitsLoaded.set(true);
+        if (isRealtyUnauthorized(error) || isRealtyForbidden(error)) {
+          this.visitsState.set('anon');
+          this.handleUnauthorized(error);
+          return;
+        }
+        this.visitsState.set('unreadable');
+      });
+  }
+
+  /**
+   * El servidor manda sobre la copia local de la MISMA visita —tiene el título y el estado al
+   * día— y lo local que el servidor todavía no conoce se conserva delante.
+   */
+  private mergeVisits(
+    delServidor: readonly BookedVisit[],
+    locales: readonly BookedVisit[],
+  ): readonly BookedVisit[] {
+    const conocidas = new Set(delServidor.map((v) => v.id));
+    return [...locales.filter((v) => !conocidas.has(v.id)), ...delServidor];
+  }
+
   /**
    * Traduce un 401 de las rutas del usuario al estado que la cuenta sabe pintar: el panel
    * "Inicia sesión". Devuelve `true` si el error era ese, para que quien llama corte ahí.
@@ -1693,7 +1775,21 @@ export class RealtyElementComponent {
     };
     this.confirmedVisit.set(visit);
     this.confirmedLeadId.set('');
-    this.myVisits.update((visits) => [visit, ...visits]);
+    // A la bandeja entra como fila del REGISTRO y no como acuse: es el mismo tipo que traerá
+    // el servidor en la siguiente carga, así que la plantilla no tiene que saber de cuál de
+    // los dos sitios vino. Acá los tres campos SÍ se saben —los acaba de mandar esta pestaña—,
+    // que es justo lo que el tipo del registro no puede dar por hecho.
+    this.myVisits.update((visits) => [
+      {
+        id: visit.id,
+        listingId: visit.listingId,
+        listingTitle: visit.listingTitle || null,
+        slot: visit.slot,
+        mode: visit.mode,
+        status: visit.status,
+      },
+      ...visits,
+    ]);
     this.#store.reset();
     this.navigate('confirmation');
     const payload = { visitId: visit.id, listingId: visit.listingId };
@@ -1767,7 +1863,7 @@ export class RealtyElementComponent {
     }
   }
 
-  onVisitTicketSelect(visit: Visit): void {
+  onVisitTicketSelect(visit: BookedVisit): void {
     if (this.trackingByRef()[visit.id]) {
       return;
     }
@@ -2097,8 +2193,22 @@ export class RealtyElementComponent {
     }
   }
 
-  visitModeLabel(mode: VisitMode): string {
+  /**
+   * La etiqueta de la modalidad. **`null` devuelve cadena vacía y NO «Visita presencial»**:
+   * una visita del registro puede no tener modalidad —las anteriores a que el borde la
+   * guardara— y ponerle la presencial por defecto mandaría a cruzar la ciudad a quien pidió
+   * videollamada. La plantilla decide qué hacer con el hueco; acá no se rellena.
+   */
+  visitModeLabel(mode: VisitMode | null): string {
+    if (mode === null) {
+      return '';
+    }
     return mode === 'video' ? 'Video-tour' : 'Visita presencial';
+  }
+
+  /** Lo que se pinta en una fila cuando el inmueble ya no está publicado. */
+  visitListingLabel(visit: BookedVisit): string {
+    return visit.listingTitle ?? 'Inmueble retirado del portal';
   }
 
   amenityList(): readonly Amenity[] {

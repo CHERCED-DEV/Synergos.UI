@@ -941,3 +941,213 @@ describe('calculateMortgage', () => {
     expect(covered.principal).toBe(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// «Mis visitas»: el REGISTRO, no lo que se agendó en esta pestaña (#73)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Un borde de realty **con la forma del de verdad**, apagable por método y ruta.
+ *
+ * Hace falta por la regla 16: los specs de arriba stubean `fetch` para que rechace
+ * SIEMPRE, así que el sistema bajo prueba es el camino degradado. Para «mis visitas» eso
+ * no sirve ni de lejos — la bandeja **no degrada**, y el defecto que se cierra acá es
+ * justamente que nunca hubo una respuesta de verdad con la que comparar.
+ *
+ * Reglas del fixture, y cada una tapa una mutación (regla 7):
+ *
+ *  - **Dos filas que NO se parecen**: una completa —título, hora y `video`— y otra a la
+ *    que le falta todo lo que el registro puede no saber. Con dos completas, «pinta lo
+ *    que llegó» y «rellena lo que falta» dan el mismo verde.
+ *  - **`video` y no `in-person`** en la que sí tiene modalidad: es el valor que ningún
+ *    default produce. Con `in-person`, reponerla o leerla se ven igual.
+ *  - **El título de la completa NO se parece a su id**, para que un respaldo que
+ *    compusiera «Inmueble L-9» se distinga de haber leído el que mandó el servidor.
+ */
+function servidorDeRealty(
+  visitas: readonly unknown[],
+  opciones: { readonly estado?: number } = {},
+): (url: string, init?: RequestInit) => Promise<Response> {
+  const responder = (status: number, body: unknown): Response =>
+    ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
+
+  return (url: string, init?: RequestInit) => {
+    const ruta = String(url);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+
+    if (metodo === 'GET' && ruta.includes('/visits')) {
+      return Promise.resolve(
+        opciones.estado && opciones.estado !== 200
+          ? responder(opciones.estado, { error: 'no' })
+          : responder(200, { visits: visitas }),
+      );
+    }
+    // El resto del portal contesta lo mínimo para que la cuenta se monte sin ruido: lo
+    // que se prueba acá es la bandeja, no el catálogo.
+    if (ruta.includes('/saved')) {
+      return Promise.resolve(responder(200, { searches: [], favorites: [] }));
+    }
+    return Promise.resolve(responder(200, { listings: [], facets: [], total: 0 }));
+  };
+}
+
+/** La visita COMPLETA: el registro lo sabe todo. */
+const VISITA_COMPLETA = {
+  id: 'visit_a1',
+  visitId: 'visit_a1',
+  listingId: 'L-9',
+  listingTitle: 'Casa campestre en La Calera',
+  mode: 'video',
+  status: 'confirmed',
+  slot: { date: '2026-10-01', time: '15:00' },
+};
+
+/** La visita a la que le falta TODO lo que el registro puede no saber. */
+const VISITA_SIN_DATOS = {
+  id: 'visit_b2',
+  visitId: 'visit_b2',
+  listingId: 'L-4',
+  listingTitle: null,
+  mode: null,
+  status: 'confirmed',
+  slot: null,
+};
+
+describe('RealtyElementComponent · mis visitas (#73)', () => {
+  let fixture: ComponentFixture<RealtyElementComponent>;
+  let component: RealtyElementComponent;
+
+  async function montar(fetchDoble: unknown): Promise<void> {
+    vi.stubGlobal('fetch', vi.fn(fetchDoble as never));
+    await TestBed.configureTestingModule({
+      imports: [RealtyElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        RealtyApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: RealtyFulfillmentStrategy, multi: true },
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(RealtyElementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await flushMicrotasks();
+  }
+
+  afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  // ── happy: la bandeja SOBREVIVE a la recarga, que es el defecto entero ────────
+  it('trae del servidor las visitas de quien tiene la sesión (happy case)', async () => {
+    installMemoryStorage();
+    await montar(servidorDeRealty([VISITA_COMPLETA, VISITA_SIN_DATOS]));
+
+    // Nadie agendó nada en ESTA pestaña: es exactamente el caso que antes daba una
+    // bandeja vacía con el cartel «Todavía no tienes visitas agendadas».
+    expect(component.myVisits().length).toBe(0);
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    expect(component.visitsState()).toBe('ok');
+    expect(component.myVisits().map((v) => v.id)).toEqual(['visit_a1', 'visit_b2']);
+  });
+
+  // ── EL QUE MUERDE: lo que el registro no sabe NO se rellena ───────────────────
+  it('no inventa ni la modalidad ni el título ni la hora que no vinieron', async () => {
+    installMemoryStorage();
+    await montar(servidorDeRealty([VISITA_COMPLETA, VISITA_SIN_DATOS]));
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    const [completa, vacia] = component.myVisits();
+
+    // Lo que SÍ vino se lee tal cual — y `video` es el valor que ningún default produce.
+    expect(completa.mode).toBe('video');
+    expect(completa.listingTitle).toBe('Casa campestre en La Calera');
+    expect(completa.slot).toEqual({ date: '2026-10-01', time: '15:00' });
+
+    // Y lo que NO vino se queda en null. Un `in-person` acá le diría a quien pidió
+    // videollamada que se desplace; un título compuesto con el id se leería como un
+    // nombre; y una hora recalculada con la agenda de hoy sería plausible y falsa.
+    expect(vacia.mode).toBeNull();
+    expect(vacia.listingTitle).toBeNull();
+    expect(vacia.slot).toBeNull();
+    expect(component.visitModeLabel(vacia.mode)).toBe('');
+  });
+
+  // ── filter: un 401 NO es una bandeja vacía ───────────────────────────────────
+  it('con 401 ofrece iniciar sesión en vez de decir que no tienes visitas', async () => {
+    installMemoryStorage();
+    await montar(servidorDeRealty([], { estado: 401 }));
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    expect(component.visitsState()).toBe('anon');
+    expect(component.myVisits()).toEqual([]);
+    // El shell pinta su estado de error, no el vacío: «Todavía no tienes visitas
+    // agendadas» dicho a un anónimo afirma algo sobre una cuenta que no se miró.
+    expect(component.accountConfig().errorTitle).toContain('Inicia sesión');
+    expect(component.accountConfig().errorMessage).toContain('tu cuenta');
+  });
+
+  // ── filter: el borde caído tampoco dice «no tienes ninguna» ───────────────────
+  it('con el borde caído lo dice, y NO borra lo que se agendó en esta pestaña', async () => {
+    installMemoryStorage();
+    await montar(servidorDeRealty([], { estado: 500 }));
+
+    // Una visita agendada en esta sesión, antes de ir a la cuenta.
+    component.myVisits.set([
+      { id: 'visit_local', listingId: 'L-1', listingTitle: 'Apartamento en Chicó',
+        slot: { date: '2026-11-02', time: '09:00' }, mode: 'in-person', status: 'confirmed' },
+    ]);
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    expect(component.visitsState()).toBe('unreadable');
+    // Vaciarla sería decirle «no tienes ninguna» a quien la acaba de agendar.
+    expect(component.myVisits().map((v) => v.id)).toEqual(['visit_local']);
+    expect(component.accountConfig().errorTitle).toContain('No pudimos');
+    // Y el mensaje NO dice «no tienes ninguna»: dice que no se pudo leer, que es otra cosa.
+    expect(component.accountConfig().errorMessage).toContain('no está disponible');
+  });
+
+  // ── idempotent: lo local y lo del servidor son la MISMA visita, no dos ────────
+  it('fusiona por id: lo que ya está en el servidor no se duplica', async () => {
+    installMemoryStorage();
+    await montar(servidorDeRealty([VISITA_COMPLETA]));
+
+    component.myVisits.set([
+      { id: 'visit_a1', listingId: 'L-9', listingTitle: null,
+        slot: null, mode: null, status: 'confirmed' },
+    ]);
+
+    component.goToAccount();
+    await flushMicrotasks();
+
+    // Una sola fila, y con lo que sabe el SERVIDOR: es la misma visita vista mejor.
+    expect(component.myVisits().length).toBe(1);
+    expect(component.myVisits()[0].listingTitle).toBe('Casa campestre en La Calera');
+  });
+
+  // ── el cliente, suelto: una forma que no se reconoce es un FALLO, no `[]` ─────
+  it('una respuesta sin `visits` se rechaza en vez de contestar una bandeja vacía', async () => {
+    vi.stubGlobal('fetch', vi.fn(() =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ nope: 1 }) } as Response)));
+    TestBed.configureTestingModule({ providers: [RealtyApiClient] });
+    const client = TestBed.inject(RealtyApiClient);
+
+    // `[]` diría «no tienes ninguna», que es justo la afirmación que este método existe
+    // para no hacer: la forma rota tiene que llegar a la UI como estado `unreadable`.
+    await expect(client.myVisits('/api/realty')).rejects.toThrow('visits-shape');
+  });
+});

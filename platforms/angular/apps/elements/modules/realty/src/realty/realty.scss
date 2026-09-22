@@ -897,6 +897,12 @@
     font-size: syn.$font-size-sm;
   }
 
+  // «Hora por confirmar» tiene que LEERSE distinto de una hora, o el hueco se confunde con un
+  // dato. Cursiva y sin subir el contraste: es la ausencia de algo, no un aviso.
+  &__visit-row-when--unknown {
+    font-style: italic;
+  }
+
   &__visit-detail {
     display: flex;
     flex-direction: column;

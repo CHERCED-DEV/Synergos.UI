@@ -281,6 +281,42 @@ export interface Visit {
   readonly contact: ContactInfo;
 }
 
+/**
+ * Una visita del REGISTRO — lo que devuelve `GET /api/realty/visits`, la bandeja de
+ * «mis visitas».
+ *
+ * No es la misma cosa que {@link Visit} y por eso no es el mismo tipo. `Visit` es el acuse
+ * de un `POST` que acaba de ocurrir: ahí el inmueble, la hora y la modalidad los sabe quien
+ * llamó, porque los acaba de mandar. Esto es lo que quedó ESCRITO meses después, leído por
+ * alguien que no tiene la petición delante — y de eso el servidor no siempre lo sabe todo.
+ *
+ * **Las tres claves anulables lo son en el TIPO a propósito** (regla 15): si fueran `string`
+ * y `VisitMode` a secas, el normalizador tendría que poner algo, y lo que pondría —«Visita
+ * presencial», el id como nombre— es una AFIRMACIÓN sobre lo que no sabemos. El caso que lo
+ * paga es `mode`: decirle «presencial» a quien pidió videollamada lo manda a cruzar la ciudad.
+ *
+ * `contact` no viaja y no falta: el registro lo tiene, y emitirlo sería sacar un teléfono a
+ * una pantalla que ya sabe de quién es la bandeja — la identidad la puso la sesión.
+ */
+export interface BookedVisit {
+  readonly id: string;
+  readonly listingId: string;
+  /** `null` cuando el inmueble ya no está publicado. NO se compone con el id. */
+  readonly listingTitle: string | null;
+  /** `null` cuando el registro no supo la hora. NO se recalcula con la agenda de hoy. */
+  readonly slot: VisitSlot | null;
+  /** `null` es «no consta» — las visitas anteriores a que se registrara la modalidad. */
+  readonly mode: VisitMode | null;
+  readonly status: VisitStatus;
+}
+
+/**
+ * En qué estado está la bandeja de visitas. **Son TRES y no dos** (regla 17): un 401 no es
+ * una bandeja vacía, y «no pudimos leerla» tampoco. Pintar cualquiera de los dos como «no
+ * tienes visitas agendadas» le dice a quien agendó ayer que no agendó.
+ */
+export type VisitsState = 'ok' | 'anon' | 'unreadable';
+
 // ─── Lead (degenerate confirm — intent without slot) ────────────────────────────
 
 /** `POST /api/realty/lead` request body. */

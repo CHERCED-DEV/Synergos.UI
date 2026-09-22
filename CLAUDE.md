@@ -90,9 +90,9 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **415 + 50 + 1.535 + 8**.
+- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **414 + 50 + 1.541 + 8**. (Los 6 de Angular son los de «mis visitas», #73; el 415 → 414 de `tools` no lo movió ese commit — estaba desviado desde antes, y se corrige acá porque una cifra que nadie vuelve a contar se desvía otra vez.)
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
-  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535**, y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
   - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
@@ -174,7 +174,7 @@ En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL c
 de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
 del CMS sibling — que es público, así que **sin `token:`**, ver #14).
 
-**Treinta y una reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y dos reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -689,3 +689,49 @@ se desincroniza):
    podía hacer; acá fue dar por hecho que algo funcionaba sin haberlo hecho nunca desde
    cero. Lo único que lo destapa es clonar de verdad — igual que lo único que prueba que
    una página hidrata es pedirla (#70).
+
+32. **Una bandeja que sólo escribe la sesión local se ve EXACTAMENTE igual que una que lee
+   el servidor — y lo único que las distingue es recargar la página, que ningún spec hace.**
+   La sección «Mis visitas» de realty estaba entera: su `syn-account-shell` con `[items]`, su
+   fila, su detalle, su timeline de seguimiento y su badge. Lo único que la llenaba era
+   `this.myVisits.update(...)` después del asistente, así que la bandeja vivía en la pestaña:
+   se recargaba y desaparecía. El borde —`GET /api/realty/visits`, con su registro durable
+   detrás— llevaba una HU entero esperando a que alguien lo llamara, y **el cliente de 1399
+   líneas no tenía el método** (#73 · CHERCED-DEV/Synergos.CMS#158).
+   **Lo que lo hace un defecto y no «una pantalla a medias» es el cartel**: vacía, la bandeja
+   no deja un hueco, AFIRMA — `inboxEmptyMessage: 'Todavía no tienes visitas agendadas.'`. Es
+   la regla 17 con el signo cambiado: allá el alumno nuevo veía cursos que no compró, acá quien
+   agendó ayer ve el estado del que no agendó nunca.
+   **El tell, y se busca con un grep sobre el componente, no leyendo lógica:** un `signal([])`
+   que alimenta el `[items]` de un shell y cuyas ÚNICAS escrituras son handlers locales. Si no
+   hay un `load*()` al lado, la pantalla no tiene de dónde sacar lo de ayer. Es la regla 5 un
+   piso más arriba —allá el método existía y ningún botón lo llamaba, acá la pantalla entera
+   existía y ningún método la llenaba—.
+   **Y la mitad que ningún spec de este repo podía ver: no hay ninguno que recargue.** Un
+   componente se construye una vez por test, así que «lo local» y «lo del servidor» son
+   indistinguibles dentro de la suite. Lo que lo destapa es el servidor de mentira de la regla
+   16 **con datos** —montar sin agendar nada y exigir que la bandeja traiga dos filas—, que es
+   el mismo movimiento que allá: si el único camino hasta un estado es el `catch` (o el
+   handler local), ese estado no existe.
+   **Al cablearlo, tres respaldos que NO se escriben** y que son los tres el mismo error:
+   el título no se compone con el id (`Inmueble L-4` se lee como un nombre), la hora no se
+   recalcula con la agenda de hoy (se deriva del reloj: meses después daría una franja
+   plausible y distinta de la que esa persona tiene apuntada), y **la modalidad no cae a
+   `in-person`** — que es la que manda a cruzar la ciudad a quien pidió videollamada, y que el
+   borde acababa de dejar de fabricar por su lado. Reponerla acá la devolvería **sin que nada
+   en ninguno de los dos árboles lo señalara**: es el addendum #111 de
+   `feedback_gethashcode_is_not_a_seed` del repo hermano, que ya avisaba de que un campo
+   emitido con honestidad y leído con un default sigue mintiendo. Los tres viven en el TIPO
+   (`BookedVisit`, con `| null`), no en el `??` del normalizador.
+   **Y el fixture lleva DOS filas que no se parecen**: una con título, hora y `video`, y otra
+   con los tres ausentes. Con dos completas, «pinta lo que llegó» y «rellena lo que falta» dan
+   el mismo verde; y la que tiene modalidad la tiene en **`video`**, que es el valor que ningún
+   default produce.
+   **Medido de paso, y anotado en el ticket en vez de arreglado acá** (la regla del proceso:
+   lo que se encuentra haciendo otra cosa se anota y se sigue): de los **128** métodos públicos
+   de los diez `*-api.client.ts`, **dos** no los llama nadie —`blogs::search`, que quedó al
+   lado del `explore` que sí se usa, y `realty::mortgage`, que perdió su llamador cuando la
+   hipoteca pasó a calcularse en local—. Con dos sobre 128 el gate sería trinquete absoluto y
+   barato; lo que falta para escribirlo no es el cruce sino **decidir qué se hace con esos
+   dos**, porque censarlos con «no los llama nadie» sería un ticket sin abrir disfrazado de
+   excepción.
