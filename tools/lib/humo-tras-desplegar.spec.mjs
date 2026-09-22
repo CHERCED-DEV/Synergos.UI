@@ -89,6 +89,29 @@ describe('el humo y el despliegue se cruzan', () => {
     expect(motivos[0]).toContain('issue #9');
   });
 
+  // ── El límite, escrito como test para que nadie confíe de más ─────────
+  it('NO sigue la variable: derivar un SHA para otra cosa también se marca', () => {
+    // Este caso es un falso positivo y está aceptado. El gate mira si el
+    // workflow nombra las dos piezas, no si el SHA derivado acaba en `--sha`;
+    // seguirlo exigiría interpretar el shell de cada `run:`. El error barato
+    // —pedirle explicarse a quien junta las dos cosas— se prefiere al caro,
+    // que es dejar pasar el #74 otra vez. El arreglo, si aparece, es partir
+    // ese `run:` en dos pasos, no relajar el diente.
+    const inocente = {
+      nombre: 'humo-cdn.yml',
+      yaml: [
+        'jobs:',
+        '  humo:',
+        '    steps:',
+        '      - run: |',
+        '          echo "corriendo desde $(git rev-parse --short HEAD)"',
+        '          node tools/humo-cdn.mjs "$URL"',
+      ].join('\n'),
+    };
+
+    expect(revisarHumoTrasDesplegar([inocente])).toHaveLength(1);
+  });
+
   it('rechaza que nadie corra el humo', () => {
     const solo = { nombre: 'tests-ui.yml', yaml: 'jobs:\n  tests:\n    steps:\n      - run: npm test' };
     expect(revisarHumoTrasDesplegar([solo])[0]).toContain('sin que nadie lo comprobara');

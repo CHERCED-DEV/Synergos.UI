@@ -56,6 +56,20 @@
  * igual, porque las dos cabeceras de este arreglo nombran las formas prohibidas
  * y la siguiente las nombrará también. Queda dicho cuál de las dos mitades
  * sostiene el cruce para no mentir sobre su alcance.
+ *
+ * LO QUE ESTE GATE NO HACE, POR LA MISMA RAZÓN
+ *
+ * No SIGUE la variable. Mira si el workflow, en su código, nombra `git rev-parse`
+ * y `humo-cdn.mjs`; NO comprueba que el SHA derivado sea el que acaba en `--sha`.
+ * Hacerlo exigiría interpretar el shell de cada `run:`, y lo único que se ganaría
+ * es distinguir un caso que hoy no existe: un workflow que corra el humo y además
+ * derive un SHA para otra cosa saldría acusado siendo inocente.
+ *
+ * Se elige la versión burda a propósito, porque el error que puede cometer es el
+ * barato —le pide explicarse a quien junta las dos cosas— y no el caro, que sería
+ * dejar pasar el #74 otra vez. Si alguna vez marca a uno legítimo, el arreglo NO
+ * es relajar el diente: es partir ese `run:` en dos pasos, que además se lee
+ * mejor. Un gate que se cree más listo de lo que es es peor que no tenerlo.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
