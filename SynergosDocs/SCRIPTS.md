@@ -40,6 +40,20 @@
 
 > Nunca publish sin `contracts:validate` en verde.
 
+> ⚠️ **Nada de esto LLEGA a Cloudflare por sí solo, y esta sección no lo decía** (#74).
+> Todo lo de arriba escribe `public/`; quien lo sube es `npx wrangler deploy`. Ese salto
+> vivía FUERA del repo —una integración de Workers Builds que nadie de acá podía ver ni
+> gatear— y el resultado, medido el 2026-09-22, era que el CDN servía un build del **12**
+> con un commit **que no está en ninguna rama**: lo último publicado salió de un
+> `wrangler deploy` a mano. `wrangler.jsonc` afirma que el repo y lo publicado «no pueden
+> divergir», y lo hacían.
+>
+> Hoy el salto vive en `.github/workflows/despliegue-cdn.yml`, que hace todo el
+> encadenado y **corre el humo esperando ese commit**. Mientras falten
+> `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` se salta con su razón en el resumen,
+> así que **hoy el CDN se sigue publicando a mano** y lo que hay arriba puede no ser lo
+> que dice este repo.
+
 ---
 
 ## VALIDATE — el gate
@@ -59,12 +73,15 @@
 
 | Script | Qué hace |
 |---|---|
-| `npm test` | Los dos: gates de `tools/lib` + los specs de Angular |
+| `npm test` | Los **cinco**: contratos + gates de `tools/lib` + `vitals/` + Angular + Preact. Decía «los dos» desde antes de que fueran cuatro |
+| `npm run test:contratos` | `element:audit` + `manifest:validate` — los dos del encadenado de contratos que NO necesitan al hermano ni la red (~0,4 s). Entraron a `npm test` en #74 porque no los corría nadie, y por ese hueco vivieron dos defectos del contrato de plataforma |
 | `npm run test:tools` | Sólo los gates de `tools/lib` — sin SDK, sin red, < 1 s |
+| `npm run test:vitals` | Sólo la capa agnóstica (funciones puras, sin compilar) |
 | `npm run test:angular` | Sólo la plataforma (compila AOT primero, ~35 s) |
+| `npm run test:preact` | Sólo Preact, y contra el BUNDLE construido — es lo único que ve que falte `customElements.define` (#64) |
 | `npm run size:check` | El presupuesto de tamaño contra `public/` |
 | `npm run size:baseline` | Regenera el registro de tamaños — el diff va en el commit que lo causó |
-| `npm run humo:cdn -- <url> [--sha <commit>]` | Humo contra la **URL pública**, nunca contra sí mismo |
+| `npm run humo:cdn -- <url> [--sha <commit>]` | Humo contra la **URL pública**, nunca contra sí mismo. **Sin `--sha` comprueba el CDN tal como está**; con él espera a que sirva ESE commit, y eso sólo tiene sentido detrás de un despliegue (#74) |
 
 > **Los specs de Angular se COMPILAN antes de correr** (`platforms/angular/tools/build-specs.mjs`),
 > con el mismo ngtsc que publica los elementos. No es preferencia de estilo: los
