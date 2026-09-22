@@ -1,0 +1,229 @@
+<header class="sg-alquiler__head">
+  <div>
+    <h2 class="sg-alquiler__title">{{ heading() }}</h2>
+    <p class="sg-alquiler__lead">{{ subheading() }}</p>
+  </div>
+  <nav class="sg-alquiler__nav" aria-label="Secciones">
+    <button type="button" class="sg-alquiler__tab"
+            [class.sg-alquiler__tab--on]="vista() === 'catalogo'"
+            (click)="volver()">Equipos</button>
+    <button type="button" class="sg-alquiler__tab"
+            [class.sg-alquiler__tab--on]="vista() === 'mios'"
+            (click)="cargarMios()">Mis alquileres</button>
+  </nav>
+</header>
+
+@if (problema()) {
+  <syn-status-banner [message]="problema()" tone="degraded" [dismissable]="true"
+                     (dismiss)="problema.set('')" />
+}
+
+<!-- ── EJE 1 · el catálogo, que sale del contenido del CMS ─────────────── -->
+@if (vista() === 'catalogo') {
+  @switch (catalogo().estado) {
+    @case ('cargando') {
+      <syn-skeleton [rows]="3" variant="card" ariaLabel="Cargando equipos" />
+    }
+    @case ('error') {
+      <syn-error-state [message]="'No pudimos leer el catálogo de equipos.'"
+                       (retry)="cargarCatalogo()" />
+    }
+    @default {
+      @if (catalogo().estado === 'ok') {
+        @let equipos = $any(catalogo()).valor;
+        @if (equipos.length === 0) {
+          <syn-empty-state kind="first-use" title="Todavía no hay equipos publicados"
+                           message="Cuando el editor publique el primero, aparece acá." />
+        } @else {
+          <ul class="sg-alquiler__grid">
+            @for (e of equipos; track e.equipmentId) {
+              <li class="sg-alquiler__card">
+                @if (e.coverUrl) {
+                  <img class="sg-alquiler__cover" [src]="e.coverUrl" [alt]="e.name" loading="lazy" />
+                }
+                <h3 class="sg-alquiler__name">{{ e.name }}</h3>
+                <p class="sg-alquiler__meta">{{ e.category }} · {{ e.units }} unidad(es)</p>
+                <p class="sg-alquiler__summary">{{ e.summary }}</p>
+                <p class="sg-alquiler__price">
+                  {{ plata(e.dailyRate) }} <span class="sg-alquiler__per">por día</span>
+                </p>
+                <p class="sg-alquiler__deposit">Garantía retenida: {{ plata(e.deposit) }}</p>
+                <button type="button" class="sg-alquiler__cta" (click)="abrir(e.equipmentId)">
+                  Ver y reservar
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+}
+
+<!-- ── La ficha, y el EJE 2 · la transacción ───────────────────────────── -->
+@if (vista() === 'ficha' && ficha(); as estado) {
+  @switch (estado.estado) {
+    @case ('cargando') {
+      <syn-skeleton [rows]="4" ariaLabel="Cargando la ficha" />
+    }
+    @case ('error') {
+      <syn-error-state [message]="$any(estado).mensaje" [retryable]="false" />
+    }
+    @default {
+      @if (estado.estado === 'ok') {
+        @let eq = $any(estado).valor;
+        <article class="sg-alquiler__detail">
+          <button type="button" class="sg-alquiler__back" (click)="volver()">← Volver</button>
+          <h3 class="sg-alquiler__name">{{ eq.name }}</h3>
+          <p class="sg-alquiler__summary">{{ eq.description || eq.summary }}</p>
+
+          @if (eq.galleryUrls.length > 0) {
+            <ul class="sg-alquiler__gallery">
+              @for (url of eq.galleryUrls; track url) {
+                <li><img class="sg-alquiler__shot" [src]="url" [alt]="eq.name" loading="lazy" /></li>
+              }
+            </ul>
+          }
+
+          @if (eq.rates.length > 0) {
+            <table class="sg-alquiler__rates">
+              <caption>Tarifas por duración</caption>
+              <tbody>
+                @for (r of eq.rates; track r.code) {
+                  <tr>
+                    <th scope="row">{{ r.label || r.code }}</th>
+                    <td>desde {{ r.minDays }} día(s)</td>
+                    <td>{{ plata(r.perDay) }} / día</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+
+          @if (eq.includes.length > 0) {
+            <p class="sg-alquiler__meta">Incluye: {{ eq.includes.join(' · ') }}</p>
+          }
+          @if (eq.requirements.length > 0) {
+            <p class="sg-alquiler__meta">Hace falta: {{ eq.requirements.join(' · ') }}</p>
+          }
+
+          @if (eq.specs.length > 0) {
+            <dl class="sg-alquiler__specs">
+              @for (s of eq.specs; track s.label) {
+                <div><dt>{{ s.label }}</dt><dd>{{ s.value }}</dd></div>
+              }
+            </dl>
+          }
+
+          <form class="sg-alquiler__form" (submit)="$event.preventDefault(); cotizar()">
+            <label class="sg-alquiler__field">
+              <span>Desde</span>
+              <input type="date" [value]="desde()"
+                     (change)="desde.set($any($event.target).value); cotizacion.set(null)" />
+            </label>
+            <label class="sg-alquiler__field">
+              <span>Hasta</span>
+              <input type="date" [value]="hasta()"
+                     (change)="hasta.set($any($event.target).value); cotizacion.set(null)" />
+            </label>
+            <label class="sg-alquiler__field">
+              <span>Unidades</span>
+              <input type="number" min="1" [value]="unidades()"
+                     (change)="unidades.set(+$any($event.target).value || 1); cotizacion.set(null)" />
+            </label>
+            <p class="sg-alquiler__meta">
+              Entre {{ eq.minDays }} y {{ eq.maxDays }} día(s).
+              @if (dias() !== null) { <span>Pediste {{ dias() }}.</span> }
+            </p>
+            <button type="submit" class="sg-alquiler__cta"
+                    [disabled]="!puedeCotizar() || cotizando()">
+              {{ cotizando() ? 'Calculando…' : 'Calcular' }}
+            </button>
+          </form>
+
+          @if (cotizacion(); as q) {
+            <div class="sg-alquiler__quote">
+              <p>{{ q.days }} día(s) × {{ q.quantity }} unidad(es) a {{ plata(q.perDay) }}</p>
+              <p class="sg-alquiler__price">{{ plata(q.rentalTotal) }}</p>
+              <p class="sg-alquiler__deposit">
+                Además se RETIENEN {{ plata(q.deposit) }} de garantía. No es un cobro: se libera al
+                devolver el equipo.
+              </p>
+              <button type="button" class="sg-alquiler__cta" [disabled]="reservando()"
+                      (click)="reservar()">
+                {{ reservando() ? 'Reservando…' : 'Reservar' }}
+              </button>
+            </div>
+          }
+
+          @if (reserva(); as r) {
+            <div class="sg-alquiler__done">
+              <p class="sg-alquiler__name">Alquiler {{ r.rentalId }}</p>
+              <p>{{ r.quantity }} unidad(es), del {{ r.start }} al {{ r.end }}.</p>
+              @if (r.agreement; as a) {
+                <p class="sg-alquiler__seal sg-alquiler__seal--{{ sello(a) }}">
+                  @switch (sello(a)) {
+                    @case ('comprobado') { Comprobante sellado y comprobado. }
+                    @case ('no-cuadra') { El sello de este comprobante NO cuadra. }
+                    @default { Comprobante emitido, sello sin comprobar. }
+                  }
+                </p>
+              }
+            </div>
+          }
+        </article>
+      }
+    }
+  }
+}
+
+<!-- ── EJE 3 · los comprobantes, que se leen de este lado ──────────────── -->
+@if (vista() === 'mios' && mios(); as estado) {
+  @switch (estado.estado) {
+    @case ('cargando') {
+      <syn-skeleton [rows]="3" ariaLabel="Cargando tus alquileres" />
+    }
+    @case ('sin-sesion') {
+      <syn-empty-state kind="no-access" title="Iniciá sesión para ver tus alquileres"
+                       message="Tus contratos van atados a tu cuenta, no a este navegador." />
+    }
+    @case ('error') {
+      <syn-error-state [message]="'No pudimos leer tus alquileres.'" (retry)="cargarMios()" />
+    }
+    @default {
+      @if (estado.estado === 'ok') {
+        @let contratos = $any(estado).valor;
+        @if (contratos.length === 0) {
+          <syn-empty-state kind="first-use" title="Todavía no alquilaste nada"
+                           message="Cuando reserves un equipo, su contrato aparece acá." />
+        } @else {
+          <ul class="sg-alquiler__list">
+            @for (a of contratos; track a.rentalId) {
+              <li class="sg-alquiler__agreement">
+                <h3 class="sg-alquiler__name">{{ a.equipmentName }}</h3>
+                <p class="sg-alquiler__meta">
+                  {{ a.quantity }} unidad(es) · del {{ a.start }} al {{ a.end }}
+                </p>
+                <p class="sg-alquiler__price">{{ plata(a.rentalTotal) }}</p>
+                <p class="sg-alquiler__deposit">Garantía retenida: {{ plata(a.depositHeld) }}</p>
+                <p class="sg-alquiler__seal sg-alquiler__seal--{{ sello(a) }}">
+                  @switch (sello(a)) {
+                    @case ('comprobado') { Sello comprobado · {{ a.seal }} }
+                    @case ('no-cuadra') { El sello NO cuadra con lo que dice este contrato. }
+                    @default { Sello sin comprobar. }
+                  }
+                </p>
+                <div class="sg-alquiler__actions">
+                  <button type="button" class="sg-alquiler__cta"
+                          (click)="devolver(a.rentalId, 0)">Devolví el equipo</button>
+                  <button type="button" class="sg-alquiler__ghost"
+                          (click)="cancelar(a.rentalId, 0)">Cancelar</button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  }
+}

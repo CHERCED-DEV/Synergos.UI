@@ -320,6 +320,13 @@
     "framework": "angular"
   },
   {
+    "name": "alquiler",
+    "alias": "elementSynAlquiler",
+    "tag": "synergos-alquiler",
+    "tier": "module",
+    "framework": "angular"
+  },
+  {
     "name": "app-launcher",
     "alias": "elementSynAppLauncher",
     "tag": "synergos-app-launcher",
