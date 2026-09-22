@@ -371,6 +371,16 @@ const CMS_INTERNAL_ALIASES = new Set([
   // afirmando verde sobre un gate en rojo, que es peor que el rojo.
   'elementCourseLesson',
   'elementCourseModule',
+
+  // Y los tramos de tarifa y la ficha técnica de un equipo (#147). La MISMA tercera
+  // categoría: el editor los llena dentro de `equipmentPage` y quien los pinta es el
+  // bundle de Alquiler leyéndolos ya proyectados por `UmbracoEquipmentCatalogSource`.
+  //
+  // Éstos SÍ vinieron en el mismo commit que los creó, que es lo que el aviso de arriba
+  // pedía: el paso 7b se cumple en ESTE repo, así que el vertical no está hecho hasta
+  // que alguien cruza. Lo delató correr el gate, no leerlo.
+  'elementEquipmentRate',
+  'elementEquipmentSpec',
 ]);
 
 // NOTA (issue #16). Acá vivían tres listas más —`UI_ONLY_ALIASES`,

@@ -1,0 +1,293 @@
+@use 'scss' as syn;
+
+// Los tokens del design system con su respaldo Sass. El respaldo NO es decorativo: en desarrollo
+// el CSS del CMS no está, así que sin él la pantalla saldría sin color y alguien aprobaría un
+// diseño contra un fondo que no existe.
+:host {
+  --al-surface: var(--syn-color-surface-primary, #{syn.$color-neutral-0});
+  --al-surface-muted: var(--syn-color-surface-secondary, #{syn.$color-neutral-50});
+  --al-border: var(--syn-color-border-default, #{syn.$color-neutral-200});
+  --al-text: var(--syn-color-text-primary, #{syn.$color-neutral-900});
+  --al-text-secondary: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+  --al-muted: var(--syn-color-text-muted, #{syn.$color-neutral-500});
+
+  // SÓLIDO y no un lavado: `state-brand-surface` lleva alpha del 8-18 % según el tema, así que
+  // un CTA pintado con él y tinta `text-on-brand` da 1,07:1 — texto invisible, no bajo contraste.
+  --al-brand: var(--syn-color-action-primary, #{syn.$color-brand-500});
+  --al-brand-text: var(--syn-color-action-primary-text, #{syn.$color-neutral-0});
+
+  --al-ok: var(--syn-color-state-success-text, #{syn.$color-success-500});
+  --al-ok-soft: var(--syn-color-state-success-soft, #{syn.$color-success-100});
+  --al-warn: var(--syn-color-state-warning-text, #{syn.$color-warning-500});
+  --al-warn-soft: var(--syn-color-state-warning-soft, #{syn.$color-warning-100});
+  --al-danger: var(--syn-color-state-danger-text, #{syn.$color-danger-500});
+  --al-danger-soft: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+
+  display: block;
+  max-width: 100%;
+  color: var(--al-text);
+}
+
+.sg-alquiler__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.sg-alquiler__title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.sg-alquiler__lead {
+  margin: 0.25rem 0 0;
+  color: var(--al-text-secondary);
+}
+
+.sg-alquiler__nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sg-alquiler__tab {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--al-border);
+  border-radius: 999px;
+  background: var(--al-surface);
+  color: var(--al-text);
+  cursor: pointer;
+}
+
+.sg-alquiler__tab--on {
+  background: var(--al-brand);
+  border-color: var(--al-brand);
+  color: var(--al-brand-text);
+}
+
+.sg-alquiler__grid,
+.sg-alquiler__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sg-alquiler__card,
+.sg-alquiler__agreement {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--al-border);
+  border-radius: 0.75rem;
+  background: var(--al-surface);
+}
+
+.sg-alquiler__cover,
+.sg-alquiler__shot {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.sg-alquiler__name {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sg-alquiler__meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--al-muted);
+}
+
+.sg-alquiler__summary {
+  margin: 0;
+  color: var(--al-text-secondary);
+}
+
+.sg-alquiler__price {
+  margin: 0.25rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.sg-alquiler__per {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--al-muted);
+}
+
+// La garantía se distingue del precio a propósito: es lo que se RETIENE y no lo que se cobra, y
+// una pantalla que las pinte igual hace que alguien crea que le cobraron el doble.
+.sg-alquiler__deposit {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  background: var(--al-warn-soft);
+  color: var(--al-warn);
+  font-size: 0.85rem;
+}
+
+.sg-alquiler__cta {
+  margin-top: auto;
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: var(--al-brand);
+  color: var(--al-brand-text);
+  font-weight: 600;
+  cursor: pointer;
+
+  &[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.sg-alquiler__ghost {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--al-border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--al-text);
+  cursor: pointer;
+}
+
+.sg-alquiler__back {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--al-text-secondary);
+  cursor: pointer;
+}
+
+.sg-alquiler__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid var(--al-border);
+  border-radius: 0.75rem;
+  background: var(--al-surface);
+}
+
+.sg-alquiler__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sg-alquiler__rates {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+
+  caption {
+    padding-bottom: 0.35rem;
+    color: var(--al-muted);
+    font-size: 0.85rem;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--al-border);
+    font-weight: 400;
+  }
+}
+
+.sg-alquiler__specs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.35rem;
+  margin: 0;
+
+  dt {
+    color: var(--al-muted);
+    font-size: 0.8rem;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.sg-alquiler__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: var(--al-surface-muted);
+}
+
+.sg-alquiler__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+
+  input {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--al-border);
+    border-radius: 0.4rem;
+    background: var(--al-surface);
+    color: var(--al-text);
+  }
+}
+
+.sg-alquiler__quote,
+.sg-alquiler__done {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 1px solid var(--al-border);
+  border-radius: 0.5rem;
+}
+
+.sg-alquiler__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+// Las TRES respuestas del sello se ven distintas: «comprobado», «no cuadra» y «sin comprobar» no
+// son dos estados con un default. Pintar el tercero como el primero es exactamente lo que el
+// sello existe para impedir.
+.sg-alquiler__seal {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.sg-alquiler__seal--comprobado {
+  background: var(--al-ok-soft);
+  color: var(--al-ok);
+}
+
+.sg-alquiler__seal--no-cuadra {
+  background: var(--al-danger-soft);
+  color: var(--al-danger);
+}
+
+.sg-alquiler__seal--sin-comprobar {
+  background: var(--al-surface-muted);
+  color: var(--al-muted);
+}

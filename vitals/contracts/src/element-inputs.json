@@ -5215,6 +5215,44 @@
       "description": "Viewer role; drives which actions and sections are offered."
     }
   ],
+  "alquiler": [
+    {
+      "name": "config",
+      "type": "json",
+      "required": false,
+      "description": "Runtime configuration object; merged over the individual attributes for alquiler."
+    },
+    {
+      "name": "apiBase",
+      "type": "string",
+      "required": false,
+      "description": "Base URL of the backing API. Defaults to the module route when unset."
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "required": false,
+      "description": "Equipment family to narrow the catalogue to; empty lists every family."
+    },
+    {
+      "name": "heading",
+      "type": "string",
+      "required": false,
+      "description": "Headline shown above the catalogue."
+    },
+    {
+      "name": "subheading",
+      "type": "string",
+      "required": false,
+      "description": "Supporting line under the headline."
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "required": false,
+      "description": "ISO currency the rental total and the held deposit are formatted in."
+    }
+  ],
   "app-launcher": [
     {
       "name": "config",

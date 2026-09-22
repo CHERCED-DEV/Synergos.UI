@@ -1,5 +1,5 @@
 {
-  "medido": "2026-09-16",
+  "medido": "2026-09-22",
   "nota": "Registro, NO gate. El gate son los techos por tier de tools/lib/cdn-size-budget.mjs.",
   "elementos": {
     "academy/angular": {
@@ -19,6 +19,12 @@
       "framework": "angular",
       "bytes": 12809,
       "gzip": 2843
+    },
+    "alquiler/angular": {
+      "tier": "module",
+      "framework": "angular",
+      "bytes": 44350,
+      "gzip": 9304
     },
     "app-launcher/angular": {
       "tier": "module",
