@@ -101,7 +101,13 @@ export interface RentalQuote {
 }
 
 /** Los tres estados que el borde emite. */
-export type RentalState = 'reserved' | 'returned' | 'cancelled';
+/**
+ * `failed` es un intento que NO llegó a ser alquiler: la saga del orquestador compensó y no
+ * quedó ni ventana apartada ni plata retenida. Existe porque el borde decía `reserved` de eso —
+ * medido con los procesos vivos en CHERCED-DEV/Synergos.CMS#147— y porque dejarlo sin nombre acá
+ * lo convertiría en un `null` que borra el alquiler de la bandeja sin decir por qué.
+ */
+export type RentalState = 'reserved' | 'returned' | 'cancelled' | 'failed';
 
 /** El comprobante de un alquiler. */
 export interface RentalAgreement {
@@ -111,7 +117,8 @@ export interface RentalAgreement {
   readonly start: string;
   readonly end: string;
   readonly rentalTotal: number;
-  readonly depositHeld: number;
+  /** Ver `Rental.depositHeld`: `null` es «no consta», nunca cero. */
+  readonly depositHeld: number | null;
   readonly issuedUtc: string;
   readonly seal: string;
   /**
@@ -131,7 +138,13 @@ export interface Rental {
   readonly end: string;
   readonly state: RentalState;
   readonly quote: RentalQuote | null;
-  readonly depositHeld: number;
+  /**
+   * Cuánto sigue retenido de la garantía. `null` es «no consta» y **no** se rellena con `0`: el
+   * borde lo emite nulo cuando su compensación quedó colgada, o sea cuando nadie sabe si la
+   * retención sigue viva. Cero ahí diría «no le retienen nada» a quien puede tener cuatrocientos
+   * mil inmovilizados (`an_omitted_key_can_be_an_assertion`).
+   */
+  readonly depositHeld: number | null;
   readonly damageCharged: number;
   readonly agreement: RentalAgreement | null;
 }
@@ -146,7 +159,9 @@ export interface Rental {
  */
 export function readRentalState(value: unknown): RentalState | null {
   const raw = readString(value).trim().toLowerCase();
-  return raw === 'reserved' || raw === 'returned' || raw === 'cancelled' ? raw : null;
+  return raw === 'reserved' || raw === 'returned' || raw === 'cancelled' || raw === 'failed'
+    ? raw
+    : null;
 }
 
 /** Normaliza una tarjeta; `null` si le falta lo que la hace utilizable. */
@@ -246,7 +261,7 @@ export function normalizeAgreement(value: unknown): RentalAgreement | null {
     start: readString(value['start']),
     end: readString(value['end']),
     rentalTotal: readNumber(value['rentalTotal']) ?? 0,
-    depositHeld: readNumber(value['depositHeld']) ?? 0,
+    depositHeld: readNumber(value['depositHeld']),
     issuedUtc: readString(value['issuedUtc']),
     seal: readString(value['seal']),
     verified: readBooleanOrNull(value['verified']),
@@ -267,7 +282,7 @@ export function normalizeRental(value: unknown): Rental | null {
     end: readString(value['end']),
     state,
     quote: normalizeQuote(value['quote']),
-    depositHeld: readNumber(value['depositHeld']) ?? 0,
+    depositHeld: readNumber(value['depositHeld']),
     damageCharged: readNumber(value['damageCharged']) ?? 0,
     agreement: normalizeAgreement(value['agreement']),
   };
