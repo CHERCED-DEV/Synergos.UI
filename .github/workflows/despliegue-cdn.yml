@@ -1,0 +1,166 @@
+name: Despliegue del CDN
+
+# Issue #74 — el humo esperaba un despliegue que nadie hacía.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# LO QUE SE MIDIÓ, Y POR QUÉ ESTE FICHERO EXISTE
+#
+# `humo-cdn.yml` corría en cada push a master y esperaba —30 intentos, cinco
+# minutos— a que el CDN sirviera EL COMMIT de ese push, comparándolo contra el
+# `meta.json` que escribe `publish.mjs`. Su cabecera afirmaba «Cloudflare
+# despliega en cada push a master».
+#
+# El disco decía otra cosa: NINGÚN workflow de este repo publicaba. Medido el
+# 2026-09-22 —master con siete push desde el 12— el CDN seguía sirviendo un
+# build del 2026-09-12 con el commit `b951c77`, que no está en master, ni en el
+# respaldo anterior a la refirma, ni en ninguna rama. O sea: lo último que se
+# publicó salió de un `wrangler deploy` a mano, desde un árbol de trabajo que
+# nunca llegó a GitHub.
+#
+# Así que ese `--sha` NO PODÍA CASAR NUNCA. Cuatro corridas rojas seguidas, que
+# es exactamente el umbral que este repo ya tiene escrito —un gate siempre rojo
+# deja de leerse— y el rojo permanente era lo único que decía que el CDN llevaba
+# diez días congelado. La señal existía y estaba apagada por gritar siempre.
+#
+# Medido también: el CDN en sí está SANO. `humo-cdn.mjs` sin `--sha` pasa sus
+# siete comprobaciones —política de caché, CORS, 404, runtime—. Lo que fallaba
+# no era el CDN: era el gate afirmando un mecanismo de despliegue inexistente.
+#
+# POR QUÉ EL DESPLIEGUE ENTRA AL REPO Y NO SE ARREGLA SÓLO EL DISPARADOR
+#
+# `wrangler.jsonc` afirma que `public/` «se genera en cada despliegue a partir
+# de las fuentes, que es lo que hace que el contenido publicado y el repo no
+# puedan divergir». Eso es falso hoy, y lo es porque el mecanismo que lo
+# sostenía vive FUERA del repo: nadie de acá puede verlo, gatearlo ni
+# diagnosticarlo. Mover el humo a `workflow_dispatch` y ya habría cambiado un
+# rojo permanente por un gate que no corre nunca —el issue #68 tal cual— y
+# habría callado la única señal de la divergencia.
+#
+# EL DÍA QUE APAREZCAN LAS CREDENCIALES, HAY QUE DESCONECTAR WORKERS BUILDS.
+# Si la integración de Cloudflare sigue enganchada, tener dos publicadores sobre
+# el mismo Worker es dos builds del mismo commit pisándose: no rompe nada, y
+# deja sin saber cuál de los dos publicó lo que está arriba. Este workflow es el
+# que lleva la puerta y el humo; el otro no lleva ninguno de los dos.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+  # Para volver a publicar sin empujar nada — típicamente, republicar un commit
+  # bueno después de un despliegue malo.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA a publicar (vacío = el commit de este ref)'
+        required: false
+
+# NUNCA dos a la vez: dos `wrangler deploy` sobre el mismo Worker se pisan, y el
+# que termine último gana sin que nada lo diga. Se encolan, no se cancelan — un
+# despliegue a medias es peor que uno que espera.
+concurrency:
+  group: despliegue-cdn
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    name: Publicar y comprobar que quedó servido
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # ── 0. ¿Hay a dónde publicar? ────────────────────────────────────────
+      #
+      # Mientras falten las credenciales esto NO se pone rojo en cada push: es
+      # el defecto que este workflow viene a cerrar, y repetirlo acá sería
+      # gracioso una vez. Se salta con un mensaje que dice qué falta, y se
+      # enciende solo el día que existan. Es el mismo patrón que `deploy.yml`
+      # del CMS, que espera a que alguien compre un VPS.
+      - id: config
+        name: ¿Está configurado el destino?
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CUENTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CUENTA" ]; then
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Sin credenciales de Cloudflare todavía"
+              echo
+              echo "Falta \`CLOUDFLARE_API_TOKEN\` o \`CLOUDFLARE_ACCOUNT_ID\` (secrets)."
+              echo
+              echo "Esto NO es un fallo: el despliegue se enciende solo cuando existan."
+              echo "Mientras tanto el CDN se publica a mano con \`npm run release\`, y"
+              echo "lo que hay arriba puede no ser lo que dice este repo."
+              echo
+              echo "Al añadirlas hay que **desconectar Workers Builds** si sigue enganchada:"
+              echo "dos publicadores sobre el mismo Worker dejan sin saber cuál publicó."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.config.outputs.listo == 'si'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.sha || github.sha }}
+
+      - if: steps.config.outputs.listo == 'si'
+        name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # La raíz NO es un workspace de npm (#70): la lista de plataformas se
+      # deriva del disco, no se escribe acá.
+      - if: steps.config.outputs.listo == 'si'
+        name: Dependencias
+        run: npm run setup
+
+      # ── 1. Los gates, antes de publicar ──────────────────────────────────
+      #
+      # Publicar primero y comprobar después deja el CDN sirviendo lo que el
+      # gate iba a rechazar. `build:cdn` ya corre el presupuesto de tamaño por
+      # dentro; esto añade los contratos, que son los que cruzan con el CMS.
+      - if: steps.config.outputs.listo == 'si'
+        name: Contratos
+        run: npm run contracts:validate
+
+      # ── 2. Construir lo que se va a servir ───────────────────────────────
+      #
+      # `public/` NO está versionado: sale de las fuentes en cada despliegue, y
+      # eso es lo único que impide que el repo y lo publicado divergan. El
+      # `meta.json` de cada elemento lleva el commit — es lo que el humo espera.
+      - if: steps.config.outputs.listo == 'si'
+        name: Construir el CDN
+        run: npm run build:cdn
+
+      # ── 3. Publicar ──────────────────────────────────────────────────────
+      - if: steps.config.outputs.listo == 'si'
+        name: wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      # ── 4. El humo, contra la URL PÚBLICA ────────────────────────────────
+      #
+      # Desplegar sin comprobar es el issue #9: «verde» significa que se
+      # subieron los ficheros, no que el CDN funcione. Y se espera al commit,
+      # porque el borde de Cloudflare tarda en propagar y un humo inmediato le
+      # pega a la versión anterior y la da por buena.
+      #
+      # Acá el `--sha` SÍ tiene sentido, y ésa es la diferencia con lo que hacía
+      # `humo-cdn.yml`: este workflow acaba de publicar ese commit, así que
+      # esperarlo es esperar algo que va a llegar.
+      - if: steps.config.outputs.listo == 'si'
+        name: Humo contra la URL pública
+        env:
+          URL: ${{ vars.SYNERGOS_CDN_URL || 'https://synergos-ui.synergos-labs.workers.dev' }}
+        run: |
+          SHA="$(git rev-parse --short HEAD)"
+          echo "Esperando a que el CDN sirva $SHA…"
+          node tools/humo-cdn.mjs "$URL" --sha "$SHA" --intentos 30

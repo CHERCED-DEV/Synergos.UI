@@ -68,7 +68,10 @@ vitals/              → paquetes agnósticos (consumidos via tsconfig paths)
   core-assets/       → tokens SCSS, mixins, tipografía — EL SHARED DE ESTILOS
 tools/               → build-runtime, build-cdn, publish, catalog, validadores de contrato
 public/              → salida de `npm run build:cdn` — lo que sirve Cloudflare Workers
-worker/              → el Worker que sirve public/ (con wrangler.jsonc)
+worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
+                       `wrangler.jsonc` vive en la RAÍZ, no acá: esta línea
+                       decía «(con wrangler.jsonc)» y manda a buscarlo donde no
+                       está (#74)
 ```
 
 ## Quick reference
@@ -90,7 +93,7 @@ worker/              → el Worker que sirve public/ (con wrangler.jsonc)
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **413 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **413 en un clon limpio y 414 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73.)
+- Tests: `npm test` en la raíz corre **cuatro** — `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **423 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **423 en un clon limpio y 424 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; los 10 últimos de `tools`, el cruce humo↔despliegue de #74 — nueve suyos más la fila que se lleva en el censo de `frameworks`.)
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
@@ -121,6 +124,7 @@ está vigilando nada.
 | `cdn-runtime-check` | que el runtime de CADA framework que publicó elementos esté antes que ellos | se publica el runtime después de los elementos (#7), o se publican los de una plataforma sin el suyo (#61) |
 | `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida, **y que lo que se mudó al runtime lo importe quien lo tiene ahora** | un external se empaqueta dentro de un elemento (#8), o `sg-core.js` deja de importar lo que #62 le pasó (#64) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
+| `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | dos censos, dos preguntas (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), o un gate neutral mira sólo `platforms/angular/` (#60) |
@@ -170,11 +174,22 @@ npm run size:baseline         # regenera el registro de tamaños — el diff va 
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
 ```
 
-En CI: `tests-ui.yml` (npm test), `humo-cdn.yml` (espera a que el CDN sirva EL commit
-de ese push antes de comprobarlo) y `design-gates-ui.yml` (G-1/G-2/G-5, con checkout
-del CMS sibling — que es público, así que **sin `token:`**, ver #14).
+En CI: `tests-ui.yml` (npm test), `despliegue-cdn.yml` (construye, publica con
+`wrangler deploy` y **corre el humo esperando ese commit**) y `design-gates-ui.yml`
+(G-1/G-2/G-5, con checkout del CMS sibling — que es público, así que **sin `token:`**,
+ver #14). `humo-cdn.yml` queda a pedido (`workflow_dispatch`), para mirar el CDN
+cuando se sospecha algo.
 
-**Treinta y dos reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+> ⚠️ **El despliegue SE SALTA SOLO mientras falten `CLOUDFLARE_API_TOKEN` y
+> `CLOUDFLARE_ACCOUNT_ID`**, y lo dice en el resumen — es el patrón de `deploy.yml`
+> del CMS esperando un VPS. Así que **hoy el CDN sigue publicándose a mano**
+> (`npm run release`) y lo que hay arriba puede no ser lo que dice este repo:
+> medido el 2026-09-22, servía un build del 12 con un commit que no está en
+> ninguna rama. Al añadir las credenciales hay que **desconectar Workers Builds**
+> si sigue enganchada: dos publicadores sobre el mismo Worker dejan sin saber
+> cuál publicó lo que está arriba.
+
+**Treinta y tres reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -735,3 +750,45 @@ se desincroniza):
    barato; lo que falta para escribirlo no es el cruce sino **decidir qué se hace con esos
    dos**, porque censarlos con «no los llama nadie» sería un ticket sin abrir disfrazado de
    excepción.
+
+33. **Un gate que espera algo que nadie produce no se lee como roto: se lee como que lo
+   vigilado está roto — y su rojo permanente es lo que esconde el problema de verdad.**
+   `humo-cdn.yml` corría en cada push a master, derivaba `git rev-parse --short HEAD` y
+   exigía que el CDN sirviera ESE commit, con su cabecera afirmando «Cloudflare despliega
+   en cada push a master». Medido el 2026-09-22: **ningún workflow de este repo
+   publicaba**, y el CDN servía un build del **2026-09-12** con el commit `b951c77` — que
+   no está en master, ni en el respaldo anterior a la refirma, ni en ninguna rama, o sea
+   un `wrangler deploy` desde un árbol que nunca llegó a GitHub. El `--sha` no podía casar
+   nunca: treinta intentos, cinco minutos, rojo, en cada push (#74).
+   **Y el daño no fue el rojo.** El CDN estaba SANO —`humo-cdn.mjs` sin `--sha` pasa sus
+   siete comprobaciones, caché, CORS, 404 y runtime incluidos— así que ese rojo era la
+   ÚNICA señal de que llevaba diez días congelado, y estaba apagada por gritar siempre.
+   Este repo ya tenía escrito dos veces que un gate siempre rojo deja de leerse (#68 y el
+   `design-gates.yml` del CMS); lo que faltaba era la consecuencia: **lo que se pierde no
+   es el gate, es lo que el gate era el único en poder decir.**
+   **El tell, y se busca sin leer lógica:** un workflow que ESPERA un artefacto cuya
+   producción no está en el repo. La pregunta es *¿quién produce esto que estoy esperando,
+   y está acá?* — la misma de `feedback_a_key_the_app_reads_needs_a_path_from_whoever_sets_it`
+   del repo hermano, con un artefacto en vez de una clave.
+   **Las tres salidas malas, porque las tres son más baratas que la buena:** bajar
+   `--intentos` hace que falle más rápido; borrarlo pierde el único gate que mira la URL
+   pública con las cabeceras de verdad; y moverlo a `workflow_dispatch` y ya cambia un rojo
+   permanente por **un gate que no corre nunca**, que es el issue #68 tal cual y encima
+   calla la divergencia. La buena es **meter el despliegue al repo** y colgar el humo de
+   él: ahí esperar un commit significa algo, porque acaba de publicarlo.
+   **Y mientras falte la credencial, se SALTA con su razón escrita** —el patrón de
+   `deploy.yml` del CMS esperando un VPS—: no se puede cerrar un defecto de «rojo
+   permanente» con otro rojo permanente.
+   Dos cosas que costaron su mutación:
+   (a) **lo que se prohíbe no es `--sha`, es de dónde SALE.** Esperar un commit es
+   legítimo —el borde de Cloudflare propaga con retraso y un humo inmediato da por buena la
+   versión anterior—; lo que no lo es es que el workflow lo DERIVE solo, porque eso es
+   afirmar por su cuenta qué debería haber arriba. De `inputs.sha` lo afirmó una persona;
+   de `git rev-parse`, nadie.
+   (b) **quitar los comentarios protege de un FALSO POSITIVO, no de un punto ciego**, y
+   escribí lo contrario antes de medirlo. Hoy ningún token aparece sólo en prosa, así que
+   apagar el barrido no cambia el cruce; lo que sí hace es que la cabecera que explica este
+   defecto —y que este arreglo obliga a escribir— haga que el gate **acuse al fichero que lo
+   está documentando**. Un gate que se pone rojo por su propia explicación enseña a
+   ignorarlo, que es exactamente lo que vino a cerrar. Se conserva, y se dice cuál de las
+   dos mitades sostiene el cruce.

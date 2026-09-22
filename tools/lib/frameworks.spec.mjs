@@ -240,6 +240,10 @@ const CIEGAS_AL_FRAMEWORK = [
   'lib/cdn-runtime-check.mjs',
   'check-size-budget.mjs',
   'humo-cdn.mjs',
+  // Cruza los `.github/workflows/*.yml` entre sí (#74): quién espera un commit
+  // contra quién lo publica. No resuelve ninguna ruta de CDN, así que no tiene
+  // dónde cablear un framework.
+  'lib/humo-tras-desplegar.mjs',
   'catalog.mjs',
   'clean-dist.mjs',
   'publish.mjs',
