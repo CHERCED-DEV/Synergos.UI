@@ -53,6 +53,11 @@
 > `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID` se salta con su razón en el resumen,
 > así que **hoy el CDN se sigue publicando a mano** y lo que hay arriba puede no ser lo
 > que dice este repo.
+>
+> **Cómo se ponen esas dos credenciales está en [`DESPLIEGUE_CDN.md`](./DESPLIEGUE_CDN.md)** —
+> qué permisos necesita el token, dónde se crea, dónde está el account id y cómo se comprueba
+> que quedó. Los dos nombres aparecían cuatro veces en el repo y ninguna decía de dónde salen
+> (#75).
 
 ---
 

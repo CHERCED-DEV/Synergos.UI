@@ -189,6 +189,11 @@ cuando se sospecha algo.
 > ninguna rama. Al añadir las credenciales hay que **desconectar Workers Builds**
 > si sigue enganchada: dos publicadores sobre el mismo Worker dejan sin saber
 > cuál publicó lo que está arriba.
+>
+> **El paso a paso está en `SynergosDocs/DESPLIEGUE_CDN.md`** (#75), que es lo que
+> faltaba: los dos nombres se mencionaban cuatro veces y ninguna decía qué permisos
+> pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
+> obligatoria sin camino para obtenerla.
 
 **Treinta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
