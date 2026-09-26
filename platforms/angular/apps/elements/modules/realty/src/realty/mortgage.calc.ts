@@ -12,6 +12,23 @@ import type { AmortizationRow, MortgageRequest, MortgageResult } from './realty.
  * never produces NaN/Infinity while the user is still typing.
  *
  * No Angular, no I/O — trivially unit-tested and reusable.
+ *
+ * **Y desde el defecto #76 no está sola: la misma cuenta existe en C#** detrás de
+ * `POST /api/realty/mortgage`, y durante toda la vida de ese endpoint las dos
+ * discreparon 100× en la tasa sin que nada las cruzara — acá porcentaje, allá
+ * fracción. Hoy lo vigilan los vectores de oro compartidos
+ * (`docs/contracts/mortgage-vectors.json` del CMS), que las dos EJECUTAN: ver
+ * `mortgage-vectores.spec.ts`. Las expectativas de ese fichero no salen de ninguna de
+ * las dos implementaciones —se derivaron de la fórmula cerrada con aritmética decimal
+ * de 50 dígitos— porque un fixture sacado de una implementación es una foto: detecta
+ * que se separan, no que las dos están mal a la vez.
+ *
+ * **Lo que ese cruce NO compara, y es deliberado:** `totalInterest` / `totalPaid`. Las
+ * dos totalizan con métodos distintos y los dos son correctos — el C# suma el cuadro
+ * completo redondeado a centavos con la última cuota absorbiendo el redondeo, y esta
+ * multiplica la cuota SIN redondear por el plazo, porque construye sólo las primeras
+ * filas y no tiene qué sumar. Medido: cinco centavos sobre 634 millones. Está escrito
+ * para que nadie lo lea como deriva.
  */
 export function calculateMortgage(
   request: MortgageRequest,
@@ -23,8 +40,8 @@ export function calculateMortgage(
   const downPayment = Math.min(rawDown, price);
   const principal = Math.max(0, price - downPayment);
   const termMonths = Math.max(1, Math.trunc(clampNonNegative(request.termMonths)));
-  const annualRate = clampNonNegative(request.annualRate);
-  const monthlyRate = annualRate / 12 / 100;
+  const annualRatePercent = clampNonNegative(request.annualRatePercent);
+  const monthlyRate = annualRatePercent / 12 / 100;
 
   if (principal === 0) {
     return { monthly: 0, totalInterest: 0, principal: 0, totalPaid: 0, schedule: [] };

@@ -245,6 +245,19 @@ const CIEGAS_AL_FRAMEWORK = [
   // contra quién lo publica. No resuelve ninguna ruta de CDN, así que no tiene
   // dónde cablear un framework.
   'lib/humo-tras-desplegar.mjs',
+  // RECORRE las apps de cada plataforma buscando `mortgage.calc.ts` en vez de escribir
+  // su ruta (#76). Escribirla habría sido una excepción «legítimamente de Angular»
+  // —hoy sólo Angular implementa Propiedades— o sea la misma que la regla 26 vio
+  // caducar en #61 el día que hubo dos plataformas. Recorriendo, la segunda entra sin
+  // tocar el fichero.
+  'vectores-hipoteca.mjs',
+  // Comparación pura: recibe los vectores y una calculadora. No sabe qué es un disco.
+  'lib/vectores-hipoteca.mjs',
+  // Toma la carpeta de apps de `PLATAFORMAS` (#76), así que un cliente HTTP de otra
+  // plataforma se cruza igual.
+  'clientes-sin-llamador.mjs',
+  // El cruce y el censo, sin I/O.
+  'lib/clientes-sin-llamador.mjs',
   'catalog.mjs',
   'clean-dist.mjs',
   'publish.mjs',

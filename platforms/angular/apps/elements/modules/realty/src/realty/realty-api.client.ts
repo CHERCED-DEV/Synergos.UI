@@ -45,7 +45,7 @@ import {
  *  - `GET  /api/realty/listing/{id}`                         → `{ listing, gallery, location, neighborhood }`
  *  - `POST /api/realty/visit`    `{ listingId, slot, contact, mode }` → `{ visit }`
  *  - `GET  /api/realty/visits`                               → `{ visits }`    🔒 sesión
- *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRate }` → `{ monthly, … }`
+ *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRatePercent }` → `{ monthly, … }`
  *  - `POST /api/realty/lead`     `{ listingId, contact, message }`  → `{ leadId }`
  *  - `GET  /api/realty/saved`                                → `{ searches }`    🔒 sesión
  *  - `POST /api/realty/saved-search` `{ label, criteria, alert }` → `{ id }`     🔒 sesión
@@ -272,6 +272,29 @@ export class RealtyApiClient {
 
   // ─── Mortgage (server seam optional; client calc is the recommended source) ───
 
+  /**
+   * `POST /api/realty/mortgage` — el seam de la calculadora.
+   *
+   * **No lo llama nadie, a propósito, y eso está censado en `tools/lib/clientes-sin-llamador.mjs`
+   * con esta razón** (#76). El spec del vertical (§4) decide que el cálculo base es del CLIENTE:
+   * es una función pura y determinista, así que meterle una ida a la red no añade información y
+   * cuesta un viaje por pulsación — el retroceso de
+   * `feedback_a_vertical_is_three_axes_and_only_one_crosses` del repo hermano, donde cablear a la
+   * red algo que ya tiene dueño de este lado es el error caro de la épica.
+   *
+   * Lo que sí está **entero** es el sitio de aterrizaje: `mortgageServerResult` lo lee con
+   * precedencia servidor-gana y los cuatro setters de input lo invalidan, así que el día que haya
+   * tasas de banco de verdad —el disparador, escrito en el spec §8— cablear el disparo es una
+   * línea. La razón del censo contesta «por qué esto NO se cablea» y no «por qué no se cableó
+   * todavía», que es lo que separa una excepción legítima de un ticket sin abrir
+   * (`feedback_a_census_entry_is_how_a_defect_survives_its_own_gate`).
+   *
+   * **Y que nadie lo llamara fue lo que escondió el defecto #167 durante toda la vida del
+   * endpoint**: la unidad de la tasa estaba a 100× entre los dos árboles y el borde público
+   * contestaba una cuota igual al capital entero, todos los meses. Por eso este método no se
+   * borró al medir que no tiene llamador — era lo único que en los dos árboles apuntaba ahí.
+   * Hoy lo cruzan los vectores de oro compartidos, que no necesitan que nadie llame.
+   */
   async mortgage(apiBase: string, body: MortgageRequest): Promise<MortgageResult> {
     const url = `${apiBase}/mortgage`;
     // Always have a deterministic client result ready as the canonical fallback.
@@ -981,11 +1004,28 @@ function normalizeMortgage(value: unknown, fallback: MortgageResult): MortgageRe
       };
     })
     .filter((row): row is NonNullable<typeof row> => row !== null);
+  // Lo RECIBIDO gana y la derivación es el suelo — por PRESENCIA de la clave y no por
+  // truthiness. El borde no emitía `principal` (lo arregló CMS#167) así que este respaldo era
+  // el único camino y el resultado salía híbrido: la cuota del servidor con el capital de casa,
+  // o sea una tabla que no cuadra consigo misma. Ahora lo emite, y el suelo queda para un
+  // despliegue anterior. Con `||` un `0` legítimo del servidor se habría reemplazado en
+  // silencio, que es el modo de fallo que este repo ya pagó en el CMS
+  // (`feedback_a_derived_fallback_must_never_overwrite_what_arrived`).
+  //
+  // ⚠ Y el acceso va con la clave LITERAL —`value['principal']`— a propósito, aunque un helper
+  // `recibido('principal', suelo)` leyera mejor. G-6 detecta «qué claves LEE la app» buscando
+  // ese literal en la fuente, así que con la clave pasada como argumento el gate deja de verla:
+  // escribí el helper primero y G-6 reportó que `totalPaid` «dejó de cruzar». No había dejado de
+  // leerse — el gate ya no podía SABERLO, que es peor, porque la salida cómoda es regenerar la
+  // línea base y perder la vigilancia de las dos claves para siempre. Ver la regla 37.
+  const capital = value['principal'];
+  const pagado = value['totalPaid'];
+
   return {
     monthly,
     totalInterest: readNumber(value['totalInterest']),
-    principal: readNumber(value['principal']) || fallback.principal,
-    totalPaid: readNumber(value['totalPaid']) || fallback.totalPaid,
+    principal: capital === undefined || capital === null ? fallback.principal : readNumber(capital),
+    totalPaid: pagado === undefined || pagado === null ? fallback.totalPaid : readNumber(pagado),
     schedule: schedule.length > 0 ? schedule : fallback.schedule,
   };
 }

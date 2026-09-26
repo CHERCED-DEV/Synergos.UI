@@ -620,7 +620,7 @@ export class RealtyElementComponent {
         price: this.mortgagePrice(),
         downPayment: this.mortgageDown(),
         termMonths: this.mortgageTermMonths(),
-        annualRate: this.mortgageRate(),
+        annualRatePercent: this.mortgageRate(),
       },
       MAX_SCHEDULE_ROWS,
     );

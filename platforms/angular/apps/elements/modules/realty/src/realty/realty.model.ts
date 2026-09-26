@@ -335,7 +335,21 @@ export interface LeadResult {
 
 // ─── Mortgage (pure client-side, deterministic) ─────────────────────────────────
 
-/** `POST /api/realty/mortgage` request body — also the pure-client input. */
+/**
+ * `POST /api/realty/mortgage` request body — also the pure-client input.
+ *
+ * **`annualRatePercent` nombra su unidad, y eso es el arreglo del defecto #76.** Se llamaba
+ * `annualRate`, que no dice nada: acá era un PORCENTAJE (el campo de la PDP se documenta como
+ * «E.A. %», default 12) y el borde lo leía como FRACCIÓN (`IMortgageCalculator`: «0.12 = 12%»).
+ * Medido ejecutando las dos implementaciones reales sobre 300.000.000 / 60.000.000 / 240 meses:
+ * el borde contestaba **240.000.000** al mes donde esta app pinta **2.642.606,72** — factor 90,82.
+ * Y la diagonal (borde-con-fracción y app-con-porcentaje dando el mismo número) es lo que prueba
+ * que la fórmula era idéntica y que lo único roto era la unidad.
+ *
+ * La mitad barata era peor: mandar `0.12` sin tocar `mortgage.calc.ts` da **1.012.098** — 2,6×
+ * bajo y *plausible*, con el respaldo de la página contradiciendo a su propio servidor. Regla 15.
+ * Hoy lo cruzan los vectores de oro compartidos (`docs/contracts/mortgage-vectors.json` del CMS).
+ */
 export interface MortgageRequest {
   /** Property price in major units. */
   readonly price: number;
@@ -343,8 +357,14 @@ export interface MortgageRequest {
   readonly downPayment: number;
   /** Term in months (plazo). */
   readonly termMonths: number;
-  /** Annual nominal rate as a percentage (tasa E.A. aprox), e.g. 12.5. */
-  readonly annualRate: number;
+  /**
+   * Annual nominal rate as a **percentage** (tasa E.A. aprox), e.g. `12.5` for 12,5 %.
+   *
+   * El borde la exige y la convierte a fracción en un solo sitio; ausente la **rechaza**, porque
+   * `0` es «sin interés» y es una respuesta legítima que no se puede confundir con «no me lo
+   * dijiste» (`feedback_an_omitted_key_can_be_an_assertion`).
+   */
+  readonly annualRatePercent: number;
 }
 
 /** One row of the amortization schedule. */

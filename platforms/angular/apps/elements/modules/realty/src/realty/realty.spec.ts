@@ -922,7 +922,7 @@ describe('RealtyApiClient', () => {
 describe('calculateMortgage', () => {
   it('computes a fixed-rate monthly payment (French amortization)', () => {
     const result = calculateMortgage(
-      { price: 500_000_000, downPayment: 150_000_000, termMonths: 240, annualRate: 12 },
+      { price: 500_000_000, downPayment: 150_000_000, termMonths: 240, annualRatePercent: 12 },
       6,
     );
     expect(result.principal).toBe(350_000_000);
@@ -932,11 +932,11 @@ describe('calculateMortgage', () => {
   });
 
   it('degrades a 0% rate to straight-line and a fully-covered price to zero', () => {
-    const zeroRate = calculateMortgage({ price: 120_000_000, downPayment: 0, termMonths: 12, annualRate: 0 });
+    const zeroRate = calculateMortgage({ price: 120_000_000, downPayment: 0, termMonths: 12, annualRatePercent: 0 });
     expect(zeroRate.monthly).toBe(10_000_000);
     expect(zeroRate.totalInterest).toBe(0);
 
-    const covered = calculateMortgage({ price: 100_000_000, downPayment: 100_000_000, termMonths: 60, annualRate: 10 });
+    const covered = calculateMortgage({ price: 100_000_000, downPayment: 100_000_000, termMonths: 60, annualRatePercent: 10 });
     expect(covered.monthly).toBe(0);
     expect(covered.principal).toBe(0);
   });

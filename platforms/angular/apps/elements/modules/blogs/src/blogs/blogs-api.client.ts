@@ -277,27 +277,14 @@ export class BlogsApiClient {
   }
 
   // ─── Search / explore (unified — degrades to mock) ──────────────────────────
-
-  async search(apiBase: string, query: string): Promise<SearchResult> {
-    const params = new URLSearchParams();
-    if (query.trim()) {
-      params.set('q', query.trim());
-    }
-    const qs = params.toString();
-    const url = `${apiBase}/search${qs ? `?${qs}` : ''}`;
-    try {
-      const data = await this.getJson(url);
-      const result = normalizeSearch(data);
-      if (result) {
-        return result;
-      }
-      throw new Error('search-shape');
-    } catch (error) {
-      // TODO(backend): no `/search` endpoint in the OLA 3 contract yet.
-      this.markDegraded('GET /api/blogs/search', error);
-      return buildMockSearch(query);
-    }
-  }
+  //
+  // Acá vivía `search()`, que pedía `GET /api/blogs/search`. Se quitó en #76 y no es limpieza
+  // cosmética: **ese endpoint no existe ni existió** —`BlogsController` declara `explore` y nada
+  // más, y el propio TODO del método lo decía («no /search endpoint in the OLA 3 contract yet»)—
+  // así que el método sólo sabía degradar al mock, el 100 % de las veces. `explore()`, abajo, lo
+  // reemplazó con el MISMO `normalizeSearch` y el MISMO `buildMockSearch`, y es el que llama
+  // `blogs.ts`. Su único llamador era un spec que probaba el filtro del mock, re-apuntado a
+  // `explore` para no perder esa cobertura.
 
   async trending(apiBase: string): Promise<readonly TrendingTag[]> {
     const url = `${apiBase}/trending`;

@@ -1425,11 +1425,15 @@ describe('BlogsApiClient', () => {
     expect(client.degraded).toBe(true);
   });
 
-  it('filters the mock search by hashtag when degraded (filter case)', async () => {
+  // Este caso probaba `search()`, que se quitó en #76: pedía `GET /api/blogs/search`, un endpoint
+  // que no existe ni existió, así que sólo sabía degradar. Va por `explore()`, que es el que
+  // `blogs.ts` llama y que comparte el mismo normalizador y el mismo mock — la cobertura del
+  // filtro por hashtag se conserva, que es lo que hacía valioso este test.
+  it('filters the mock explore results by hashtag when degraded (filter case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const result = await client.search('/api/blogs', '#design');
+    const result = await client.explore('/api/blogs', '', 'design');
     expect(client.degraded).toBe(true);
     expect(result.posts.length).toBeGreaterThan(0);
     expect(

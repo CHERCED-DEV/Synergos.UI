@@ -93,8 +93,8 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los dos gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **429 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **429 en un clon limpio y 430 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; los 16 últimos de `tools`, #74 — el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows.)
-  - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre.
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los TRES gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **456 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **456 en un clon limpio y 457 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76**: los vectores de oro de la hipoteca y el cruce de los clientes sin llamador.)
+  - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
@@ -126,6 +126,7 @@ está vigilando nada.
 | `cdn-size-budget` | techo por tier + trinquete 2× contra la última medida, **y que lo que se mudó al runtime lo importe quien lo tiene ahora** | un external se empaqueta dentro de un elemento (#8), o `sg-core.js` deja de importar lo que #62 le pasó (#64) |
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
+| `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -139,6 +140,7 @@ está vigilando nada.
 | `setup-completo` | que el camino de ENTRADA instale cada plataforma, derivada del disco, y que `pretest`/`prebuild` lo comprueben | se crea `platforms/<algo>` y `npm run setup` sigue nombrando las de antes, o alguien quita el gancho y vuelve el `MODULE_NOT_FOUND` (#70) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
+| `vectores-hipoteca` | que las DOS implementaciones de la cuota —la de acá y la del C# detrás de `POST /api/realty/mortgage`— den el mismo número al centavo, contra los vectores de oro del CMS | alguien vuelve a confundir la unidad de la tasa (porcentaje ↔ fracción), que valía 90,8× (#76 · CMS#167) |
 | `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |
 
 > ⚠️ **`npm run test:tools` contaba de más, y la cifra llegó a dos cierres de ticket.** Su comando
@@ -169,7 +171,9 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:hipoteca · cms:validate · cms:sync:check
+npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
+npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
@@ -177,7 +181,7 @@ npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca con
 
 En CI: `tests-ui.yml` (npm test), `despliegue-cdn.yml` (construye, publica con
 `wrangler deploy` y **corre el humo esperando ese commit**) y `design-gates-ui.yml`
-(G-1/G-2/G-5, con checkout del CMS sibling — que es público, así que **sin `token:`**,
+(G-1/G-2/G-5 **y G-9**, con checkout del CMS sibling — que es público, así que **sin `token:`**,
 ver #14). `humo-cdn.yml` queda a pedido (`workflow_dispatch`), para mirar el CDN
 cuando se sospecha algo.
 
@@ -195,7 +199,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Treinta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y siete reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -749,13 +753,20 @@ se desincroniza):
    el mismo verde; y la que tiene modalidad la tiene en **`video`**, que es el valor que ningún
    default produce.
    **Medido de paso, y anotado en el ticket en vez de arreglado acá** (la regla del proceso:
-   lo que se encuentra haciendo otra cosa se anota y se sigue): de los **128** métodos públicos
-   de los diez `*-api.client.ts`, **dos** no los llama nadie —`blogs::search`, que quedó al
-   lado del `explore` que sí se usa, y `realty::mortgage`, que perdió su llamador cuando la
-   hipoteca pasó a calcularse en local—. Con dos sobre 128 el gate sería trinquete absoluto y
-   barato; lo que falta para escribirlo no es el cruce sino **decidir qué se hace con esos
-   dos**, porque censarlos con «no los llama nadie» sería un ticket sin abrir disfrazado de
-   excepción.
+   lo que se encuentra haciendo otra cosa se anota y se sigue): de los métodos públicos de los
+   diez `*-api.client.ts`, **dos** no los llamaba nadie —`blogs::search`, que quedó al lado del
+   `explore` que sí se usa, y `realty::mortgage`, que perdió su llamador cuando la hipoteca pasó
+   a calcularse en local—. El gate sería trinquete absoluto y barato; lo que faltaba para
+   escribirlo no era el cruce sino **decidir qué se hace con esos dos**, porque censarlos con «no
+   los llama nadie» sería un ticket sin abrir disfrazado de excepción.
+   > **Resuelto en #76, y la razón para no censarlos resultó más fuerte que la escrita: la
+   > ausencia de llamador estaba ESCONDIENDO un defecto.** `realty::mortgage` apunta a un
+   > endpoint público y vivo que contestaba una cuota **90,8×** alta, y borrarlo —la salida obvia
+   > para «código muerto»— habría quitado lo único que en los dos árboles apunta ahí. Ver la
+   > regla 36. `blogs::search` sí se quitó, con su spec re-apuntado a `explore`. Hoy el cruce lo
+   > hace `clientes-sin-llamador`, con **uno** censado y su razón, y la cifra la deriva el gate
+   > con su criterio escrito —**122** métodos públicos, sin `get`/`set` ni `private`— en vez del
+   > 128 contado a mano de esta línea, cuyo criterio no estaba en ninguna parte.
 
 33. **Un gate que espera algo que nadie produce no se lee como roto: se lee como que lo
    vigilado está roto — y su rojo permanente es lo que esconde el problema de verdad.**
@@ -833,3 +844,91 @@ se desincroniza):
    Es `feedback_a_fabrication_can_be_a_derivation` del repo hermano, que ya lo tenía
    medido: un `<remarks>` que nombra un gemelo vivo se queda ahí una HU entera, porque la
    nota convierte el defecto en algo *identificado* y lo identificado no se vuelve a mirar.
+
+35. **Un número que se calcula DOS veces, en dos lenguajes, no está vigilado por la frase que
+   dice que las dos coinciden — y cuanto más autorizado el sitio donde está la frase, más
+   aguanta siendo falsa.** `IMortgageCalculator` del CMS afirmaba en su `<remarks>`, en la
+   interfaz dueña del cálculo, que «el cálculo base es el mismo en cliente y servidor». Era
+   **falso desde que existe el endpoint**: `mortgage.calc.ts` y su gemelo en C# son la misma
+   fórmula con la tasa a **100×** de distancia —acá porcentaje (`12`), allá fracción (`0.12`)—
+   así que `POST /api/realty/mortgage` contestaba **240.000.000** al mes donde esta app pinta
+   **2.642.606,72**. Factor 90,82: una cuota igual al capital entero, todos los meses, durante
+   veinte años.
+   Es la **regla 34 un escalón más arriba**: allá la nota nombraba un defecto y lo blindaba;
+   acá afirma una PROPIEDAD, que camufla mejor todavía, porque se lee como una decisión de
+   diseño que alguien comprobó. Y es la **regla 26** otra vez —la regla en un árbol y la causa
+   en el otro— con los dos lados mal a la vez en vez de uno.
+   **La mitad barata es peor que el defecto**, y por eso no se cierra moviendo la coma: mandar
+   `0.12` sin tocar la calculadora local da **1.012.098** — 2,6× BAJO y *plausible*, con el
+   respaldo de la página contradiciendo a su propio servidor en la misma pantalla (regla 15).
+   **La unidad va en el NOMBRE del campo** (`annualRatePercent`) o no va: los dos gates de
+   contrato del CMS cruzan por nombre de clave y por controller, así que `annualRate` ligaba y
+   la unidad no la miraba nadie — G-7 además imprime `realty:mortgage` como «cuerpo construido
+   por un helper, FUERA del cruce».
+   **Lo que lo cierra es un VECTOR compartido que las dos EJECUTAN**, no una frase mejor
+   escrita: `docs/contracts/mortgage-vectors.json` del CMS, cruzado acá por `gate:hipoteca` y
+   allá por `HipotecaVectoresTests`. Cuatro cortes que costaron su mutación:
+   (a) **las expectativas no salen de ninguna de las dos implementaciones** — se derivaron de
+   la fórmula cerrada con decimales de 50 dígitos, porque un fixture sacado de una
+   implementación es una FOTO: detecta que se separan, no que las dos están mal a la vez;
+   (b) **el vector de tasa cero NO cubre la unidad**, porque ahí porcentaje y fracción dan el
+   mismo número — medido, la mutación pone rojos 5 de 6, y el que no es ése;
+   (c) **lo que NO se compara se dice** — los totales, porque las dos totalizan con métodos
+   distintos y los dos son correctos (5 centavos sobre 634 millones); sin escribirlo, la
+   primera corrida roja por esa diferencia legítima enseña a aflojar el gate;
+   (d) **el gate COMPILA la fuente de verdad** (esbuild sobre el `.ts`) en vez de
+   reimplementar la fórmula, que sería la tercera copia — y `esbuild` pasó a estar DECLARADO en
+   el `package.json` de la raíz, porque estaba sólo hoisteado y un gate que depende de un
+   binario que nadie declaró se cae el día que cambia otro paquete (#76 · CMS#167).
+
+36. **Un método sin llamador no es código muerto que se borra: puede ser lo ÚNICO que apunta a
+   un defecto vivo, y su destino lo decide lo que hay DETRÁS, no si alguien lo llama.** La
+   regla 32 midió dos métodos públicos sin llamador y aplazó la decisión entre quitarlos y
+   cablearlos. **Las dos salidas se equivocan para uno de los dos**: `realty::mortgage` apunta
+   a un endpoint público y vivo que contestaba 90,8× alto (regla 35), y borrarlo habría quitado
+   lo único que en los dos árboles apunta ahí. La ausencia de llamador no era el problema —
+   **era el escondite**.
+   **La pregunta que lo decide se contesta en dos minutos: ¿el endpoint EXISTE, y qué
+   contesta?** Y hay que hacerla por método, porque los dos salieron distintos:
+   `blogs::search` pedía `GET /api/blogs/search`, que **no existe ni existió** —su propio TODO
+   lo decía y `explore` lo había reemplazado con el mismo normalizador y el mismo mock—, así que
+   se quitó y su spec se re-apuntó; `realty::mortgage` pide una ruta que sí existe, y ahí lo que
+   había que arreglar era el borde.
+   **El que se queda necesita una razón que conteste «por qué NO se cablea»**, no «por qué no se
+   cableó todavía» — lo segundo es un ticket sin abrir disfrazado de excepción. Acá la razón es
+   de diseño: el spec §4 pone el cálculo base en el cliente, es una función pura, y meterle una
+   ida a la red es el retroceso de `feedback_a_vertical_is_three_axes_and_only_one_crosses` del
+   repo hermano. El sitio de aterrizaje está **entero** —`mortgageServerResult` con precedencia
+   servidor-gana y los cuatro setters de input invalidándolo— así que lo único ausente es el
+   disparador, y el disparador está escrito (spec §8: tasas de banco reales).
+   **El tell, y se busca con un cruce y no leyendo:** un método público de un cliente cuyo único
+   llamador es un `*.spec.*`. **Un spec NO cuenta como llamador** — el de `blogs::search`
+   probaba el filtro de su mock con la red caída, o sea el mock y no el producto; contarlos
+   habría dado 122 de 122 y cero hallazgos. Es la **regla 5** un piso más arriba: allá un test
+   que llama al método no ve que falte el llamador, acá el gate no se deja convencer por ese
+   test. Lo vigila `clientes-sin-llamador`, trinquete absoluto con **uno** censado (#76).
+
+37. **Un helper que recibe el NOMBRE de la clave como argumento la esconde del gate que cruza
+   las claves del contrato — y la salida cómoda es regenerar la línea base y perder la
+   vigilancia para siempre.** Arreglando #76 cambié
+   `readNumber(value['totalPaid']) || fallback.totalPaid` por
+   `recibido('totalPaid', fallback.totalPaid)` —mejor semántica: presencia en vez de
+   truthiness, para que un `0` legítimo del servidor no se reemplace— y G-6 reportó
+   `[realty] el borde dejó de emitir 1 clave(s) que la app LEE: totalPaid`. **La app no había
+   dejado de leerla: el gate ya no podía SABERLO**, porque detecta «qué lee la app» buscando el
+   literal `value['<clave>']` en la fuente.
+   Es `feedback_counting_mentions_of_a_type_measures_the_opposite_of_using_it` del repo hermano
+   con el signo cambiado: allá la métrica contaba de más porque el sujeto nombraba el tipo sin
+   usarlo, acá cuenta de menos porque el sujeto lo usa sin nombrarlo. **Los dos son el mismo
+   tell: una métrica sobre código calculada buscando un nombre.**
+   **Lo que NO se hace es regenerar la línea base**, que era un comando y salía verde: eso
+   dejaría `principal` y `totalPaid` fuera de la vigilancia de G-6 para siempre, y la pérdida no
+   se vería nunca porque el gate seguiría diciendo «ninguna se perdió». Se escribe el acceso con
+   la clave literal y se deja dicho por qué, aunque el helper lea mejor — el gate es el
+   consumidor de esa forma tanto como el compilador.
+   **Y un dato medido de paso, sobre el límite que el CMS ya declara:** al emitir `principal` en
+   `MortgageResponse`, la línea base de G-6 salió **byte-idéntica**. La clave ya «cruzaba» — por
+   las filas de `MortgageScheduleDto` del MISMO controller, mientras faltaba en la raíz de la
+   respuesta. Es el punto ciego que `CLAUDE.md` §7 del CMS describe («cruza por CONTROLLER
+   ENTERO, no por endpoint»), ahora con un caso: **la clave que faltaba nunca dejó de cruzar, así
+   que G-6 no podía cazar este defecto** (#76).

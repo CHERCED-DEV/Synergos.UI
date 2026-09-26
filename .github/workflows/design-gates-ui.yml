@@ -25,6 +25,16 @@ name: Design gates UI (token bridge parity + contraste por tema)
 # filtros de path tienen que ser igual de anchos. Con la lista vieja —acotada a
 # `libs/shared/src/styles/**`— un cambio en `vitals/.../tokens/_brand.scss` NO
 # disparaba el workflow: el derivado rancio podía entrar sin que nada corriera.
+#
+# G-9 (#76) entra acá porque necesita el CMS chequeado —los vectores de oro de la
+# hipoteca viven en su `docs/contracts/`— y `tests-ui.yml` no lo chequea. Y por eso
+# los filtros suman lo que G-9 LEE: la calculadora y el propio gate. Un gate que no se
+# dispara en el cambio que lo necesita no falla, se SALTA, y en la lista de checks un
+# «skipped» se lee igual que un «no aplica» (es el defecto #128 del repo hermano).
+#
+# `**/mortgage.calc.ts` va con comodín a propósito: hoy sólo Angular implementa
+# Propiedades, y el día que otra plataforma traiga la suya el gate la cruza —recorre en
+# vez de nombrar la ruta— así que el filtro no puede ser el que caduque.
 on:
   pull_request:
     paths:
@@ -32,6 +42,9 @@ on:
       - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
       - 'tools/audit-themes.mjs'
+      - '**/mortgage.calc.ts'
+      - 'tools/vectores-hipoteca.mjs'
+      - 'tools/lib/vectores-hipoteca.mjs'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
@@ -42,11 +55,14 @@ on:
       - '**/*.css'
       - 'platforms/angular/tools/sync-tokens.mjs'
       - 'tools/audit-themes.mjs'
+      - '**/mortgage.calc.ts'
+      - 'tools/vectores-hipoteca.mjs'
+      - 'tools/lib/vectores-hipoteca.mjs'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 vectores de hipoteca
     runs-on: ubuntu-latest
 
     steps:
@@ -108,3 +124,30 @@ jobs:
       - name: Contraste por tema (G-5)
         run: |
           SYNERGOS_CMS_PATH="$GITHUB_WORKSPACE/Synergos.CMS"             node Synergos.UI/tools/audit-themes.mjs
+
+      # ── G-9 — la calculadora de hipoteca contra los vectores del CMS ──────
+      #
+      # POR QUÉ EXISTE (#76 · CMS#167). `IMortgageCalculator` del CMS afirmaba en su
+      # `<remarks>` que «el cálculo base es el mismo en cliente y servidor». Era FALSO
+      # desde que existe el endpoint: las dos implementaciones son la misma fórmula con
+      # la tasa a 100× de distancia —acá porcentaje, allá fracción— y nada las cruzaba.
+      # Medido ejecutando las dos reales sobre 300.000.000 / 60.000.000 / 240 meses:
+      # `POST /api/realty/mortgage` contestaba 240.000.000 al mes donde esta app pinta
+      # 2.642.606,72. Factor 90,82.
+      #
+      # Una frase en prosa no lo iba a cambiar: la frase YA estaba escrita, en el sitio
+      # más autorizado posible. Lo que hacía falta es que las dos lo EJECUTEN.
+      #
+      # Necesita `node_modules` para esbuild —compila la fuente de verdad en vez de
+      # reimplementar la fórmula, que sería la tercera copia— y ésa es la única razón
+      # por la que este job instala. Sin el CMS, el gate sale en ROJO y no se salta:
+      # en la lista de checks un «no pude comprobar» se lee igual que un «no aplica».
+      - name: Instalar (esbuild para G-9)
+        working-directory: Synergos.UI
+        run: npm ci --ignore-scripts
+
+      - name: Vectores de oro de la hipoteca (G-9)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/vectores-hipoteca.mjs
