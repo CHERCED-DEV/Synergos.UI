@@ -47,6 +47,16 @@
     </p>
   }
 
+  <!--
+    Lo que una ESCRITURA no consiguió (#77). Va aparte del cartel de arriba a propósito:
+    aquél habla de LECTURAS degradadas —«datos de ejemplo»— y esto de una acción que el
+    vendedor acaba de pedir y NO ocurrió. Es `alert` y no `status` porque interrumpe: quien
+    pulsó «publicar» tiene que enterarse antes de irse de la pantalla.
+  -->
+  @if (actionError(); as fallo) {
+    <p class="seller__notice seller__notice--error" role="alert">{{ fallo }}</p>
+  }
+
   <!-- ═══ PANEL: SH-5 console (KPIs + Ventas/Publicaciones/Devoluciones/Reputación) ═══ -->
   @if (view() === 'panel') {
     <syn-console-shell

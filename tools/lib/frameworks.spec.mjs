@@ -258,6 +258,11 @@ const CIEGAS_AL_FRAMEWORK = [
   'clientes-sin-llamador.mjs',
   // El cruce y el censo, sin I/O.
   'lib/clientes-sin-llamador.mjs',
+  // Cruza las rutas que piden los clientes contra los `[Route]`/`[HttpX]` del CMS (#77).
+  // Toma la carpeta de apps de `PLATAFORMAS`, así que un cliente de otra plataforma entra
+  // solo; y lo que lee del otro lado es C#, que no tiene framework de este.
+  'rutas-del-borde.mjs',
+  'lib/rutas-del-borde.mjs',
   'catalog.mjs',
   'clean-dist.mjs',
   'publish.mjs',

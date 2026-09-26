@@ -132,6 +132,16 @@
     &--warn {
       background: var(--sl-warn-soft);
     }
+
+    // Lo que una ESCRITURA no consiguió (#77). El fondo sale del token de estado y la tinta
+    // del `--sl-danger` que este fichero ya declara, así que no hay color escrito a mano;
+    // y es SÓLIDO en el texto y suave en el fondo, no un lavado sobre el que la tinta se
+    // pierda — la regla 3 lo midió en 1,07:1 la vez que se hizo al revés.
+    &--error {
+      background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
+      color: var(--sl-danger);
+      font-weight: 600;
+    }
   }
 
   // ─── Console cells ──────────────────────────────────────────────────────

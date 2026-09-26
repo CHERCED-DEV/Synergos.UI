@@ -32,6 +32,48 @@ async function flushMicrotasks(times = 8): Promise<void> {
   }
 }
 
+/**
+ * Un borde de mentira CON LA FORMA del de verdad, apagable por MÉTODO y RUTA (#77).
+ *
+ * Hace falta porque los specs de acá tiraban `fetch` entero con `Promise.reject`, y entonces
+ * **el sistema bajo prueba es el `catch`** — la regla 16. Tres de ellos afirmaban con todas
+ * las letras lo que ese `catch` fabricaba: un RMA «aprobado», un pedido en «preparing» y un
+ * recibo `PUB-…`, las tres cosas sin que el servidor existiera. Con la red apagada del todo no
+ * hay forma de distinguir «lo publicó» de «se lo inventó».
+ *
+ * Las rutas que responden son las que el CMS DECLARA (`ShopCatalogController`, `api/shop`); las
+ * que no están en esta tabla contestan **404**, que es lo que el CMS hace hoy con
+ * `seller/product` y con `order/{ref}/tracking/advance`.
+ */
+function installFakeServer(respuestas: Record<string, unknown>): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : String(input);
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = url.split('?')[0];
+    // Se busca por «MÉTODO ruta» y, si no, por la ruta sola: así un test puede apagar el POST
+    // de una ruta cuyo GET sí contesta, que es el caso que de verdad alcanza a una escritura.
+    const clave = Object.keys(respuestas).find(
+      (k) => k === `${metodo} ${ruta}` || k === ruta || ruta.endsWith(k.replace(/^[A-Z]+ /, '')),
+    );
+    if (clave === undefined) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: 'not found' }), {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    }
+    return Promise.resolve(
+      new Response(JSON.stringify(respuestas[clave]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
 // Smoke suite (directiva: mínimos, no exhaustivo) — render + secciones + degradación.
 describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   let fixture: ComponentFixture<SellerElementComponent>;
@@ -112,15 +154,50 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     component.onRowAction({ actionId: 'approve', row: open!, sectionId: 'devoluciones' });
     await flushMicrotasks();
 
+    // Con la red caída el RMA NO se mueve (#77). Este test afirmaba `'aprobado'`, que es lo
+    // que el `catch` fabricaba haciendo eco de la intención de quien pulsó: el vendedor veía
+    // la devolución resuelta y el servidor no se había enterado.
     const resolved = component.returns().find((rma) => rma.rmaId === open!.rma!.rmaId);
-    expect(resolved?.status).toBe('aprobado');
-    // The action buttons disappear once resolved.
-    const resolvedRow = component.consoleRows().find((row) => row.rma?.rmaId === open!.rma!.rmaId);
-    expect(component.rowActionsFor(resolvedRow!)).toHaveLength(0);
+    expect(resolved?.status).toBe('abierto');
+    expect(component.actionError()).toContain(open!.rma!.rmaId);
+    // Y sigue accionable, que es la mitad que importa: una fila que se queda sin botones
+    // después de un fallo deja al vendedor sin forma de reintentar.
+    const sameRow = component.consoleRows().find((row) => row.rma?.rmaId === open!.rma!.rmaId);
+    expect(component.rowActionsFor(sameRow!).map((a) => a.id)).toEqual(['approve', 'reject']);
   });
 
-  // ── ventas: avanzar envío degrada a la escalera local coherente ─────────────
-  it('advances a shipment one status forward when the endpoint is missing', async () => {
+  // ── devoluciones: con el borde VIVO, el estado sale del servidor ─────────────
+  it('takes the resolved RMA status from the server, not from the action pressed', async () => {
+    installMemoryStorage();
+    // Se pulsa `approve` y el servidor contesta `en-revision`, que el eco **no puede
+    // producir** —fabricaba `aprobado` para approve y `rechazado` para reject— y que sí está
+    // en el vocabulario (`SellerReturnStatus`). Es la regla 7: el fixture tiene que EXIGIR la
+    // regla. Con `aprobado` no se distinguiría leer la respuesta de repetir la intención, y
+    // con un valor de fuera del tipo —probé `devuelto`— lo que se mide es el normalizador.
+    installFakeServer({
+      'POST /api/shop/return/RMA-1/advance': { status: 'en-revision' },
+      '/api/shop/returns': {
+        returns: [
+          { rmaId: 'RMA-1', orderRef: 'ORD-9', product: 'Teclado', reason: 'Falla', openedAt: '2026-01-05', status: 'abierto' },
+        ],
+      },
+    });
+    await createComponent();
+    component.onSectionChange('devoluciones');
+    await flushMicrotasks();
+
+    const open = component.consoleRows().find((row) => row.rma?.rmaId === 'RMA-1');
+    expect(open).toBeDefined();
+
+    component.onRowAction({ actionId: 'approve', row: open!, sectionId: 'devoluciones' });
+    await flushMicrotasks();
+
+    expect(component.returns().find((r) => r.rmaId === 'RMA-1')?.status).toBe('en-revision');
+    expect(component.actionError()).toBeNull();
+  });
+
+  // ── ventas: el envío NO avanza solo cuando el endpoint no está ───────────────
+  it('leaves the order untouched and says so when the advance endpoint is missing', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -132,13 +209,18 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     component.onRowAction({ actionId: 'advance', row: row!, sectionId: 'ventas' });
     await flushMicrotasks();
 
+    // Este test se llamaba «advances a shipment one status forward when the endpoint is
+    // missing» y afirmaba `'preparing'` — el título decía el defecto. `POST
+    // order/{ref}/tracking/advance` NO EXISTE en el CMS, así que eso pasaba el 100 % de las
+    // veces y el pedido se pintaba en camino sin haber salido.
     const advanced = component.orders().find((order) => order.orderNumber === paid!.orderNumber);
-    expect(advanced?.status).toBe('preparing');
+    expect(advanced?.status).toBe('paid');
+    expect(component.actionError()).toContain(paid!.orderNumber);
     expect(component.degraded()).toBe(true);
   });
 
-  // ── publicar (SH-6): draft válido → publish degradado → recibo ───────────────
-  it('publishes a product through the wizard with a degraded receipt', async () => {
+  // ── publicar (SH-6): sin borde no hay recibo, y el borrador SOBREVIVE ────────
+  it('does not fabricate a publish receipt, and keeps the draft, when the endpoint is missing', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
@@ -162,14 +244,53 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(component.wizardValidity()['datos']).toBe(true);
     expect(component.wizardValidity()['precio']).toBe(true);
 
+    const emitidos: unknown[] = [];
+    component.productpublished.subscribe((r) => emitidos.push(r));
+
+    await component.onPublish(draft);
+    fixture.detectChanges();
+
+    // Las CUATRO cosas que hacía el defecto, una por una (#77).
+    expect(component.publishReceipt()).toBeNull();          // no hay «Publicación creada»
+    expect(emitidos).toHaveLength(0);                       // ni evento al host con un id fantasma
+    expect(component.listings().some((l) => l.title === draft.title)).toBe(false);
+    expect(component.draft()['title']).toBe(draft.title);   // …y el borrador NO se borró
+    expect(component.actionError()).toContain('borrador');
+    expect(component.publishing()).toBe(false);
+    expect(component.degraded()).toBe(true);
+  });
+
+  // ── publicar: con el borde VIVO, la referencia es la del servidor ────────────
+  it('uses the receipt the server returned, with an id it could not have made up', async () => {
+    installMemoryStorage();
+    // `SKU-778899` no se parece a `PUB-<timestamp36>`: con un id de la misma forma, leer la
+    // respuesta y fabricarla darían el mismo verde.
+    installFakeServer({
+      'POST /api/shop/seller/product': { productId: 'SKU-778899', status: 'en revisión' },
+    });
+    await createComponent();
+
+    component.goTo('publicar');
+    fixture.detectChanges();
+    const draft = {
+      title: 'Teclado mecánico compacto 65%',
+      brand: 'Synergos',
+      category: 'Computación',
+      description: 'Switches rojos, RGB, USB-C.',
+      condition: 'new',
+      images: ['https://cdn.example/keyboard.jpg'],
+      amount: 259000,
+      stock: 8,
+    };
+    component.onDraftChange(draft);
     await component.onPublish(draft);
     fixture.detectChanges();
 
     const receipt = component.publishReceipt();
-    expect(receipt).not.toBeNull();
-    expect(receipt!.productId).toMatch(/^PUB-/);
-    expect(component.publishing()).toBe(false);
-    expect(component.degraded()).toBe(true);
+    expect(receipt?.productId).toBe('SKU-778899');
+    expect(receipt?.status).toBe('en revisión');
+    expect(receipt!.productId).not.toMatch(/^PUB-/);
+    expect(component.actionError()).toBeNull();
   });
 
   // ── mensajes (SH-7): hilos degradados + responder agrega el mensaje ─────────

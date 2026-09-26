@@ -93,7 +93,7 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los TRES gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **456 + 50 + 1.541 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **456 en un clon limpio y 457 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76**: los vectores de oro de la hipoteca y el cruce de los clientes sin llamador.)
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los TRES gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **474 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **474 en un clon limpio y 475 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
@@ -137,6 +137,7 @@ está vigilando nada.
 | `banco-de-pruebas` | que el banco emita las TRES cosas —mapa resuelto, módulo y tag— o ninguna, y que su ruta viva fuera de `/synergos/` | se sirve el import map de `dist/` sin sustituir `__BASE_URL__` (#49) |
 | `spec-quarantine` | que los `it.skip` sean **0** y cada uno lleve motivo | aparece un skip sin justificar (#1) |
 | `rutas-hermanas` | que el CMS se busque igual desde las dos herramientas que lo necesitan, y que ninguna lectura caiga por defecto a una ruta de una sola máquina | `cms-sync` vuelve a ignorar `SYNERGOS_CMS_PATH`, o alguien escribe otro default `C:\LOCAL_CDN` de lectura (#57) |
+| `rutas-del-borde` | que toda ruta que un `*-api.client.ts` pide EXISTA en un `[Route]`/`[HttpX]` del CMS — con censo y su razón, en los dos sentidos | se escribe una escritura contra una ruta que no existe, que es lo que hacía decir «publicado» sin publicar (#77) |
 | `setup-completo` | que el camino de ENTRADA instale cada plataforma, derivada del disco, y que `pretest`/`prebuild` lo comprueben | se crea `platforms/<algo>` y `npm run setup` sigue nombrando las de antes, o alguien quita el gancho y vuelve el `MODULE_NOT_FOUND` (#70) |
 | `shell-cta-tokens` | que el acento de un shell sea SÓLIDO, no un lavado | vuelve `state-brand-surface` a un CTA (#25) |
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
@@ -171,9 +172,10 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:hipoteca · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
+npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
@@ -181,7 +183,7 @@ npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca con
 
 En CI: `tests-ui.yml` (npm test), `despliegue-cdn.yml` (construye, publica con
 `wrangler deploy` y **corre el humo esperando ese commit**) y `design-gates-ui.yml`
-(G-1/G-2/G-5 **y G-9**, con checkout del CMS sibling — que es público, así que **sin `token:`**,
+(G-1/G-2/G-5 **y G-9/G-10**, con checkout del CMS sibling — que es público, así que **sin `token:`**,
 ver #14). `humo-cdn.yml` queda a pedido (`workflow_dispatch`), para mirar el CDN
 cuando se sospecha algo.
 
@@ -199,7 +201,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Treinta y siete reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y ocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -932,3 +934,54 @@ se desincroniza):
    respuesta. Es el punto ciego que `CLAUDE.md` §7 del CMS describe («cruza por CONTROLLER
    ENTERO, no por endpoint»), ahora con un caso: **la clave que faltaba nunca dejó de cruzar, así
    que G-6 no podía cazar este defecto** (#76).
+
+38. **Un `catch` que fabrica el acuse de una escritura cuya ruta NO EXISTE miente el 100 % de
+   las veces, y los dos gates de contrato no pueden verlo porque los dos dan por hecho que la
+   ruta existe.** G-6 cruza las CLAVES de la respuesta y G-7 los CUERPOS de la petición; una
+   ruta que no está no tiene claves ni cuerpo que cruzar, así que cae **justo en el hueco entre
+   los dos** — el mismo reparto que la regla 26 y que CMS #126: las dos mitades en verde y el
+   defecto en medio.
+   Medido cruzando las rutas que piden los diez clientes contra los `[Route]`/`[HttpX]` del
+   CMS: **16 de 115** no existen. Catorce son legítimas (lecturas que degradan con su cartel,
+   regla 4, o escrituras que fallan honestamente con `{ ok: false, reason }`). **Dos eran
+   escrituras que fabricaban:**
+   (a) `POST {apiBase}/seller/product` devolvía
+   `{ productId: 'PUB-<timestamp36>', status: 'publicado' }`, así que el vendedor llenaba el
+   formulario, pulsaba publicar, y leía **«Publicación creada»** con una referencia que no
+   existe en ninguna parte — y el componente además emitía `productpublished` hacia el host con
+   ese id fantasma, metía la publicación fantasma en su propia lista y **le borraba el
+   borrador**. Cuatro daños, uno encima del otro;
+   (b) `POST {apiBase}/order/{ref}/tracking/advance` devolvía `nextOrderStatus(current)`, o sea
+   la escalera calculada en local: el pedido se pintaba «Enviado» sin haber salido.
+   **Y la regla que caza (b) ya estaba escrita en este fichero.** La regla 19 dice, palabra por
+   palabra, que *un método de escritura que pide como PARÁMETRO lo mismo que promete DEVOLVER*
+   deja la decisión en el llamador, y que *se busca con un grep, no leyendo lógica*. La firma
+   era `advanceShipment(apiBase, orderRef, current)` devolviendo algo derivado de `current`.
+   Nadie corrió el grep. Es la **regla 34 un nivel arriba**: no un defecto identificado en un
+   comentario, sino una **regla escrita y no aplicada** — y por eso el arreglo quita el
+   parámetro, porque sin `current` el respaldo no se puede escribir.
+   **El docstring de (b) describía el defecto como una decisión de diseño**: «degrades to a
+   local, coherent next-status when the endpoint is missing». La palabra «coherent» es el tell —
+   un respaldo coherente con lo que el llamador ya sabe es exactamente uno que no consultó a
+   nadie.
+   **Cuatro cosas del arreglo que costaron su mutación:**
+   (a) **la ausencia vive en el TIPO** (`Promise<X | null>`) y **cada llamador decide qué
+   decir**, porque no es lo mismo en los tres: el pedido que no avanzó se queda quieto y lo
+   dice; el RMA igual **y conserva sus botones** (una fila que se queda sin acciones tras un
+   fallo deja al vendedor sin forma de reintentar); y el borrador **sobrevive**, que es la regla
+   18;
+   (b) **el cartel es OTRO**, no el de `degraded()`: aquél dice «estás viendo datos de ejemplo»
+   sobre lecturas y es legítimo, y meter ahí «lo que acabás de pedir no ocurrió» hace que la
+   segunda se lea como la primera;
+   (c) **los tres specs que lo tapaban afirmaban la fabricación** —uno se llamaba «advances a
+   shipment one status forward when the endpoint is missing», con el defecto en el título— y
+   los tres apagaban `fetch` entero, que es la regla 16: si todos los specs tiran la red, el
+   sistema bajo prueba es el `catch`. Hizo falta un borde de mentira **por método y ruta**, y
+   el fixture del camino bueno tiene que devolver un valor que el respaldo **no pueda
+   producir** — `SKU-778899` contra `PUB-<ts>`, y `en-revision` contra el eco
+   `aprobado`/`rechazado`—; probé con `devuelto` y lo que medía era el normalizador, porque ese
+   valor no está en el vocabulario;
+   (d) **el parser del gate nuevo se midió dos veces mal antes de creerle**: **31** por no
+   cruzar los `${…}` anidados y **115 de 115** por un separador de más. Los dos casos están en
+   su spec como tests con su nombre, porque un número plausible salido de un parser sin mutar
+   es lo que este repo tiene escrito que no se publica (#77).

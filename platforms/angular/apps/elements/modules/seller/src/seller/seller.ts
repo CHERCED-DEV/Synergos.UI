@@ -255,6 +255,16 @@ export class SellerElementComponent {
   readonly threadsLoaded = signal(false);
   readonly threadsLoading = signal(false);
 
+  /**
+   * Lo que una ESCRITURA no consiguió, dicho donde el vendedor lo ve (#77).
+   *
+   * Es distinto del cartel de `degraded()`, y por eso no se reusa: aquél dice «estás viendo
+   * datos de ejemplo» sobre LECTURAS, que es legítimo (regla 4); esto dice «lo que acabás de
+   * pedir no ocurrió». Meter las dos cosas en el mismo cartel haría que la segunda se leyera
+   * como la primera, que es de lo que quien publica un producto no se entera.
+   */
+  readonly actionError = signal<string | null>(null);
+
   readonly degraded = computed(() => {
     // Recompute on each data load; the flag is set by the API client.
     void this.kpiMetrics();
@@ -470,11 +480,16 @@ export class SellerElementComponent {
   }
 
   private async advanceOrder(order: SellerOrder): Promise<void> {
-    const status = await this.#api.advanceShipment(
-      this.apiBase(),
-      order.orderNumber,
-      order.status,
-    );
+    const status = await this.#api.advanceShipment(this.apiBase(), order.orderNumber);
+    if (!status) {
+      // El servidor no lo movió, así que la fila NO se mueve (#77). Pintarle el estado
+      // siguiente al vendedor le decía que el pedido iba en camino cuando no había salido.
+      this.actionError.set(
+        `No pudimos avanzar el pedido ${order.orderNumber}. Sigue en «${order.status}»; volvé a intentarlo.`,
+      );
+      return;
+    }
+    this.actionError.set(null);
     this.orders.update((list) =>
       list.map((entry) =>
         entry.orderNumber === order.orderNumber ? { ...entry, status } : entry,
@@ -484,6 +499,13 @@ export class SellerElementComponent {
 
   private async resolveReturn(rma: SellerReturn, action: SellerReturnAction): Promise<void> {
     const status = await this.#api.advanceReturn(this.apiBase(), rma.rmaId, action);
+    if (!status) {
+      this.actionError.set(
+        `No pudimos ${action === 'approve' ? 'aprobar' : 'rechazar'} la devolución ${rma.rmaId}. Sigue en «${rma.status}».`,
+      );
+      return;
+    }
+    this.actionError.set(null);
     this.returns.update((list) =>
       list.map((entry) => (entry.rmaId === rma.rmaId ? { ...entry, status } : entry)),
     );
@@ -625,6 +647,18 @@ export class SellerElementComponent {
         stock: Math.max(0, Math.trunc(this.draftNumber(draft, 'stock'))),
       };
       const receipt = await this.#api.publishProduct(this.apiBase(), request);
+      if (!receipt) {
+        // No quedó publicado (#77). Las CUATRO cosas de abajo se saltan, y cada una era
+        // daño por su cuenta: la pantalla de «Publicación creada» con una referencia
+        // inventada, el evento `productpublished` hacia el host con ese id fantasma, la
+        // publicación fantasma en la lista del propio vendedor —que desaparece al
+        // recargar— y, la peor, el borrador BORRADO: lo tecleado no se pierde (regla 18).
+        this.actionError.set(
+          'No pudimos publicar el producto. Tu borrador sigue acá; volvé a intentarlo.',
+        );
+        return;
+      }
+      this.actionError.set(null);
       this.publishReceipt.set(receipt);
       this.productpublished.emit(receipt);
       // Surface the new listing in Publicaciones without waiting for the API.

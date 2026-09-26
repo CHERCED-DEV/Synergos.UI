@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
-  ORDER_STATUS_LADDER,
   type SellerKpiMetric,
   type SellerKpiUnit,
   type SellerListing,
@@ -86,16 +85,23 @@ export class SellerApiClient {
   }
 
   /**
-   * Move one order forward on the fulfilment ladder. The real contract only
-   * ships `GET /order/{ref}/tracking` today, so the write is attempted against
-   * `POST /order/{ref}/tracking/advance` and degrades to a local, coherent
-   * next-status when the endpoint is missing.
+   * Hace avanzar un pedido en la escalera de despacho.
+   *
+   * **`null` es «no se pudo», y no hay respaldo (#77).** Esto devolvía
+   * `nextOrderStatus(current)` cuando el `POST` no llegaba, y su propio docstring lo
+   * describía como una degradación deliberada —«degrades to a local, coherent next-status
+   * when the endpoint is missing»—. El endpoint **no existe**: `ShopCatalogController`
+   * declara `order/{orderRef}/tracking` como GET y nada con `/advance`, así que fallaba el
+   * **100 %** de las veces y el vendedor veía su pedido pasar a «Enviado» sin que nada se
+   * hubiera movido.
+   *
+   * Y la regla que lo caza ya estaba escrita en `CLAUDE.md` (regla 19): **un método de
+   * escritura que pide como PARÁMETRO lo mismo que promete DEVOLVER deja la decisión en el
+   * llamador y el servidor es decoración.** La firma era
+   * `advanceShipment(apiBase, orderRef, current)` devolviendo algo derivado de `current`.
+   * Por eso `current` ya no se recibe: sin él, el respaldo no se puede escribir.
    */
-  async advanceShipment(
-    apiBase: string,
-    orderRef: string,
-    current: SellerOrderStatus,
-  ): Promise<SellerOrderStatus> {
+  async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking/advance`;
     try {
       const data = await this.postJson(url, { orderRef });
@@ -106,7 +112,7 @@ export class SellerApiClient {
       throw new Error('advance-shape');
     } catch (error) {
       this.markDegraded('POST /api/shop/order/{ref}/tracking/advance', error);
-      return nextOrderStatus(current);
+      return null;
     }
   }
 
@@ -144,11 +150,21 @@ export class SellerApiClient {
     }
   }
 
+  /**
+   * Resuelve un RMA.
+   *
+   * **`null` es «no se pudo» (#77).** Devolvía
+   * `action === 'approve' ? 'aprobado' : 'rechazado'`, o sea el ECO de la intención de
+   * quien llamó presentado como la respuesta del servidor — la regla 19 otra vez, con el
+   * parámetro haciendo de resultado. A diferencia de `advanceShipment`, este endpoint **sí
+   * existe** (`HttpPost("return/{rmaId}/advance")`), así que sólo mentía cuando el servidor
+   * estaba de verdad caído; el corte es el mismo y el grado, distinto.
+   */
   async advanceReturn(
     apiBase: string,
     rmaId: string,
     action: SellerReturnAction,
-  ): Promise<SellerReturnStatus> {
+  ): Promise<SellerReturnStatus | null> {
     const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
     try {
       const data = await this.postJson(url, { action });
@@ -159,16 +175,32 @@ export class SellerApiClient {
       throw new Error('return-advance-shape');
     } catch (error) {
       this.markDegraded('POST /api/shop/return/{rmaId}/advance', error);
-      return action === 'approve' ? 'aprobado' : 'rechazado';
+      return null;
     }
   }
 
   // ─── Publicar producto ───────────────────────────────────────────────────────
 
+  /**
+   * Publica un producto.
+   *
+   * **`null` es «no quedó publicado», y es el arreglo del peor de los tres (#77).** Esto
+   * devolvía `{ productId: 'PUB-<timestamp36>', status: 'publicado' }` cuando el `POST` no
+   * llegaba. Y no llegaba nunca: `ShopCatalogController` **no declara `seller/product`**, así
+   * que el vendedor llenaba el formulario, pulsaba publicar, y la pantalla le decía
+   * «Publicación creada» con una referencia que no existe en ninguna parte — mientras el
+   * componente emitía el evento `productpublished` hacia el host, metía la publicación
+   * fantasma en su propia lista y **le borraba el borrador**.
+   *
+   * Es el quinto de la familia que `CLAUDE.md` ya tiene documentada cuatro veces: el
+   * `claimId` de la devolución (regla 9), el `CERT-<random>` (14), el `CITA-<timestamp>` (18)
+   * y el `MOCK-<ts>`/`ENR-` (21). Un identificador cuyo valor entero es ser cierto no se
+   * rellena: sin dato, se dice que no hay dato.
+   */
   async publishProduct(
     apiBase: string,
     request: SellerPublishRequest,
-  ): Promise<SellerPublishReceipt> {
+  ): Promise<SellerPublishReceipt | null> {
     const url = `${apiBase}/seller/product`;
     try {
       const data = await this.postJson(url, request);
@@ -179,10 +211,7 @@ export class SellerApiClient {
       throw new Error('publish-shape');
     } catch (error) {
       this.markDegraded('POST /api/shop/seller/product', error);
-      return {
-        productId: `PUB-${Date.now().toString(36).toUpperCase()}`,
-        status: 'publicado',
-      };
+      return null;
     }
   }
 
@@ -365,14 +394,6 @@ function normalizeOrderStatus(value: unknown): SellerOrderStatus | null {
 }
 
 /** Local forward step used only while the advance endpoint is missing. */
-function nextOrderStatus(current: SellerOrderStatus): SellerOrderStatus {
-  const index = ORDER_STATUS_LADDER.indexOf(current);
-  if (index === -1) {
-    return current;
-  }
-  return ORDER_STATUS_LADDER[Math.min(index + 1, ORDER_STATUS_LADDER.length - 1)];
-}
-
 function normalizeOrders(value: unknown, currency: string): readonly SellerOrder[] | null {
   const list = readList(value, 'orders');
   if (!list) {

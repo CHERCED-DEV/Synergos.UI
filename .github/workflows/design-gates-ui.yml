@@ -32,9 +32,16 @@ name: Design gates UI (token bridge parity + contraste por tema)
 # dispara en el cambio que lo necesita no falla, se SALTA, y en la lista de checks un
 # «skipped» se lee igual que un «no aplica» (es el defecto #128 del repo hermano).
 #
-# `**/mortgage.calc.ts` va con comodín a propósito: hoy sólo Angular implementa
-# Propiedades, y el día que otra plataforma traiga la suya el gate la cruza —recorre en
-# vez de nombrar la ruta— así que el filtro no puede ser el que caduque.
+# `**/mortgage.calc.ts` y `**/*-api.client.ts` van con comodín a propósito: hoy sólo
+# Angular implementa los verticales, y el día que otra plataforma traiga los suyos los
+# gates los cruzan —recorren en vez de nombrar la ruta— así que el filtro no puede ser
+# el que caduque.
+#
+# Y lo que NINGÚN filtro de acá puede cubrir es el otro lado: G-9 y G-10 leen el CMS
+# —sus vectores y sus `[Route]`/`[HttpX]`— y un push a ESE repo no dispara esto. Queda
+# dicho en vez de insinuar que el cruce se vigila en las dos direcciones: del lado del
+# CMS lo cubren `HipotecaVectoresTests` (los mismos vectores) y, para las rutas, nada
+# todavía — quitar un endpoint allá no pone rojo nada hasta que este workflow corra.
 on:
   pull_request:
     paths:
@@ -45,6 +52,9 @@ on:
       - '**/mortgage.calc.ts'
       - 'tools/vectores-hipoteca.mjs'
       - 'tools/lib/vectores-hipoteca.mjs'
+      - '**/*-api.client.ts'
+      - 'tools/rutas-del-borde.mjs'
+      - 'tools/lib/rutas-del-borde.mjs'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
@@ -58,11 +68,14 @@ on:
       - '**/mortgage.calc.ts'
       - 'tools/vectores-hipoteca.mjs'
       - 'tools/lib/vectores-hipoteca.mjs'
+      - '**/*-api.client.ts'
+      - 'tools/rutas-del-borde.mjs'
+      - 'tools/lib/rutas-del-borde.mjs'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 vectores de hipoteca
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde
     runs-on: ubuntu-latest
 
     steps:
@@ -151,3 +164,22 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/vectores-hipoteca.mjs
+
+      # ── G-10 — las rutas que los clientes piden existen en el borde ────────
+      #
+      # POR QUÉ EXISTE (#77). G-6 cruza las CLAVES de la respuesta y G-7 los CUERPOS de
+      # la petición, y los dos dan por hecho que la ruta EXISTE. Una que no existe no
+      # tiene claves ni cuerpo que cruzar, así que cae justo en el hueco entre los dos —
+      # y por ahí vivían dos escrituras que fabricaban el acuse: la consola del vendedor
+      # decía «Publicación creada» con un `PUB-…` inventado contra `seller/product`, que
+      # el CMS no declara, y pintaba un pedido en «Enviado» contra un `/advance` que
+      # tampoco. Las dos fallaban el 100 % de las veces.
+      #
+      # Una ruta ausente NO es automáticamente un defecto —una lectura que degrada con su
+      # cartel es legítima— así que el gate es un censo con su razón, vigilado en los dos
+      # sentidos. Lo que el censo no admite es una escritura ausente que invente el acuse.
+      - name: Rutas del borde (G-10)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/rutas-del-borde.mjs
