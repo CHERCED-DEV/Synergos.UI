@@ -1,0 +1,192 @@
+#!/usr/bin/env node
+/**
+ * Gate: la deuda de piezas del design system que no alcanza ningún elemento no CRECE (#78).
+ *
+ * El razonamiento, el cierre transitivo y el cruce viven en
+ * `tools/lib/consumidores-del-design-system.mjs`, que es lo que `npm test` ejercita sin disco ni
+ * red. Acá sólo está el recorrido.
+ *
+ * **Línea base y no trinquete absoluto**, con el criterio del #140 del hermano: un umbral
+ * absoluto sólo vale cuando el árbol YA lo cumple, y éste no —22 de 55—. Un gate siempre rojo
+ * deja de leerse (#68, #74).
+ *
+ *   node tools/consumidores-del-design-system.mjs               # el gate
+ *   node tools/consumidores-del-design-system.mjs --actualizar  # baja la línea base
+ *
+ * El diff de la línea base va en el commit que lo causó, como el de `size:baseline`.
+ */
+
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { PLATAFORMAS } from './lib/element-sources.mjs';
+import {
+  RAIZ_DEL_DESIGN_SYSTEM,
+  componentesDeclarados,
+  cruzarConLaLineaBase,
+  inalcanzablesDesdeProducto,
+  revisarCobertura,
+} from './lib/consumidores-del-design-system.mjs';
+
+const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const LINEA_BASE = join(RAIZ, 'tools', 'consumidores-del-design-system.baseline.json');
+const ACTUALIZAR = process.argv.includes('--actualizar');
+
+/** Todo fichero bajo `dir`, recursivo. */
+function ficheros(dir) {
+  /** @type {string[]} */
+  const salida = [];
+  let entradas;
+  try {
+    entradas = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return salida;
+  }
+  for (const e of entradas) {
+    const ruta = join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+      salida.push(...ficheros(ruta));
+    } else if (e.isFile()) {
+      salida.push(ruta);
+    }
+  }
+  return salida;
+}
+
+/**
+ * Dónde vive el design system.
+ *
+ * Se deriva de `PLATAFORMAS`. Escribir `platforms/angular` a mano acá resolvería a un literal
+ * una dimensión de lo que se recorre —la regla 25— y además lo prohíbe el censo de
+ * `frameworks.spec.mjs`. **Sólo tienen design system las plataformas que lo tengan**: hoy
+ * Angular; `platforms/preact` no declara `libs/shared/src/components`, y saltárselo en silencio
+ * es correcto porque no hay nada que medir ahí. Lo que NO sería correcto es que no hubiera
+ * ninguna, y de eso se ocupa la red de seguridad de la lib.
+ */
+function plataformasConDesignSystem() {
+  const salida = [];
+  for (const plataforma of PLATAFORMAS) {
+    // `plataforma.apps` es `platforms/<x>/apps`; la raíz de la plataforma es su padre.
+    const base = resolve(RAIZ, plataforma.apps, '..');
+    const ds = join(base, RAIZ_DEL_DESIGN_SYSTEM);
+    try {
+      if (!statSync(ds).isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    salida.push({ framework: plataforma.framework, base });
+  }
+  return salida;
+}
+
+const leer = (base, ruta) => ({
+  ruta: relative(base, ruta).replace(/\\/g, '/'),
+  fuente: readFileSync(ruta, 'utf8'),
+});
+
+let medidos = 0;
+let alcanzables = 0;
+/** @type {string[]} */
+const inalcanzables = [];
+/** @type {string[]} */
+const sinConsumidorDirecto = [];
+/** @type {Array<{framework: string, fuentes: number, componentes: number}>} */
+const cobertura = [];
+
+for (const { framework, base } of plataformasConDesignSystem()) {
+  const ds = join(base, RAIZ_DEL_DESIGN_SYSTEM);
+
+  // Todo lo que PODRÍA declarar un componente, sea cual sea la forma de la plataforma. Es lo
+  // que permite distinguir «acá no hay nada» de «acá hay algo que no sé leer» (regla 25).
+  const fuentesDelDs = ficheros(ds).filter((f) => /\.(ts|tsx|js|jsx)$/.test(f) && !/\.spec\.tsx?$/.test(f));
+
+  const declaraciones = ficheros(ds)
+    .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
+    .map((f) => leer(base, f));
+
+  const componentes = componentesDeclarados(declaraciones);
+  cobertura.push({ framework, fuentes: fuentesDelDs.length, componentes: componentes.length });
+
+  // El universo de posibles consumidores: los elementos publicables Y las demás libs. Sin
+  // `libs/`, un componente usado sólo por `libs/shells` saldría muerto — falso positivo, que es
+  // el lado del que este gate NO se puede equivocar.
+  const fuentes = [join(base, 'apps'), join(base, 'libs')]
+    .flatMap((d) => ficheros(d))
+    .filter((f) => /\.(ts|tsx|html)$/.test(f))
+    .map((f) => leer(base, f));
+
+  const r = inalcanzablesDesdeProducto(componentes, fuentes);
+  medidos += r.medidos;
+  alcanzables += r.alcanzables;
+  inalcanzables.push(...r.inalcanzables);
+  sinConsumidorDirecto.push(...r.sinConsumidorDirecto);
+
+  console.log(
+    `[design-system] ${framework}: ${r.medidos} componente(s) · ${r.alcanzables} alcanzable(s) · ` +
+      `${r.inalcanzables.length} inalcanzable(s) (${r.sinConsumidorDirecto.length} sin un solo consumidor)`,
+  );
+}
+
+inalcanzables.sort((a, b) => a.localeCompare(b));
+
+// La cobertura se revisa ANTES de la rama de `--actualizar`: con el recorrido roto, regenerar
+// hornearía una lista equivocada en la línea base y el gate quedaría verde sobre ella para
+// siempre. `--actualizar` es lo que uno teclea cuando el gate se queja, así que es justo el
+// camino por el que entra el error — la lección de la guarda de `contract-keys` del hermano.
+const roturas = revisarCobertura(cobertura).fallos;
+if (roturas.length > 0) {
+  console.error(`\n[design-system] ✗ ${roturas.length} hallazgo(s) de cobertura:`);
+  for (const f of roturas) console.error(`    ${f}`);
+  process.exit(1);
+}
+
+if (ACTUALIZAR) {
+  const previa = JSON.parse(readFileSync(LINEA_BASE, 'utf8')).inalcanzables ?? [];
+  const crecio = inalcanzables.filter((c) => !previa.includes(c));
+  if (crecio.length > 0) {
+    // No se bloquea —puede ser legítimo: retirar un consumidor deja muerto a lo que usaba— pero
+    // se dice, porque el que teclea `--actualizar` está mirando esta salida y el que revisa el
+    // PR sólo ve el diff. Una línea base que crece sin que nadie lo note es una papelera.
+    console.warn(
+      `\n[design-system] ⚠ la línea base CRECE en ${crecio.length}: ${crecio.join(', ')}.\n` +
+        '    Eso es deuda nueva, no un registro. Si de verdad corresponde, la razón va en el ' +
+        'commit; si no, decidí qué es antes de subirla.',
+    );
+  }
+
+  const contenido = {
+    medido: new Date().toISOString().slice(0, 10),
+    nota:
+      'LÍNEA BASE, no objetivo. La deuda de #78: piezas del design system que no alcanza ningún ' +
+      'elemento. Se vigila en los dos sentidos — una nueva rompe, y una que dejó de estarlo ' +
+      'también, para que el commit que la retira o la cablea baje la línea aquí mismo.',
+    inalcanzables,
+  };
+  writeFileSync(LINEA_BASE, `${JSON.stringify(contenido, null, 2)}\n`, 'utf8');
+  console.log(`\n[design-system] línea base reescrita: ${inalcanzables.length} pieza(s).`);
+  process.exit(0);
+}
+
+const base = JSON.parse(readFileSync(LINEA_BASE, 'utf8'));
+const { fallos } = cruzarConLaLineaBase(inalcanzables, base.inalcanzables, medidos);
+fallos.push(...revisarCobertura(cobertura).fallos);
+
+if (fallos.length > 0) {
+  console.error(`\n[design-system] ✗ ${fallos.length} hallazgo(s):`);
+  for (const f of fallos) console.error(`    ${f}`);
+  console.error(
+    '\n    Qué decidir por cada una, y la razón se escribe: RETIRAR (nadie la usa y no hay ' +
+      'disparador) · CABLEAR (hay una pantalla que debería usarla, y eso es un defecto con su ' +
+      'ticket) · DECLARAR con su disparador. Y el filtro de la tercera: la razón tiene que ' +
+      'contestar «por qué esto NO se usa», no «por qué todavía no se usó» — lo segundo es un ' +
+      'ticket sin abrir disfrazado de excepción.',
+  );
+  process.exit(1);
+}
+
+console.log(
+  `\n[design-system] ✓ ${alcanzables} de ${medidos} alcanzables; ${inalcanzables.length} en la ` +
+    `línea base de ${base.medido}, sin crecer.`,
+);

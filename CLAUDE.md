@@ -93,7 +93,7 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los TRES gates de contrato que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **474 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **474 en un clon limpio y 475 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde.)
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **496 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **496 en un clon limpio y 497 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer—.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
@@ -127,6 +127,7 @@ está vigilando nada.
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
+| `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -172,9 +173,11 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
+npm run gate:design-system    # piezas del design system que no alcanza ningún elemento (sin hermano ni red)
+npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
@@ -201,7 +204,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Treinta y ocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Treinta y nueve reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -985,3 +988,47 @@ se desincroniza):
    cruzar los `${…}` anidados y **115 de 115** por un separador de más. Los dos casos están en
    su spec como tests con su nombre, porque un número plausible salido de un parser sin mutar
    es lo que este repo tiene escrito que no se publica (#77).
+
+39. **Una pieza compartida puede estar VIVA por un muerto, y un conteo de consumidores la da por
+   buena: hace falta el cierre TRANSITIVO.** Midiendo si el design system es de verdad
+   reutilizable —§0.B.17 del hermano: *la reutilización se PRUEBA con el segundo consumidor*, una
+   regla que este repo aplicaba a las capacidades y nunca a sus propios componentes— salieron
+   **18** de **55** con cero consumidores. Y **22** inalcanzables, que es el número que importa:
+   `syn-list`, `syn-radio`, `syn-section` y `syn-textarea` tienen **exactamente un** consumidor y
+   ese consumidor es a su vez inalcanzable (`pricing-card`, `configurable-form`, `option-group`).
+   **`syn-textarea` se lee como usado.** Lo usa una pieza que no usa nadie. Es la **regla 5** un
+   piso más arriba —*un test que llama al MÉTODO no ve que falte el llamador*— y el mismo
+   movimiento que la **regla 36**, donde el cruce tuvo que decidir que un spec no cuenta como
+   llamador: acá **un componente muerto no cuenta como consumidor**.
+   Los 22 viajan dentro del runtime compartido —comprobado buscando su selector compilado en el
+   bundle publicado, 809.386 B que descarga toda página de su plataforma— y **9 de los 12
+   `patterns/`** están entre ellos, contra 6 de 23 `primitives/`: cuanto más arriba en la
+   pirámide, menos se reusa, que es lo que cabía esperar y lo que nadie había medido.
+   **Cuatro cosas del gate que costaron su mutación, y dos de ellas porque MI mutación estaba mal
+   apuntada:**
+   (a) **apagar la propagación NO reproduce el conteo directo — hace lo contrario.** El bucle sólo
+   AÑADE vivas, así que quitarlo mata más, no menos, y la mutación pasa en verde. La que sí
+   reproduce el defecto es **ensanchar la semilla**: marcar viva a toda pieza con ≥1 consumidor.
+   Con ésa, 3 tests en rojo;
+   (b) **el barril no sostiene lo que yo escribí que sostenía.** Afirmé que sin excluir los
+   `index.ts` «el defecto entero pasa en verde», y la mutación lo desmintió: los 22 salen igual,
+   porque un barril del design system está DENTRO del design system y no entra en la semilla. Lo
+   que sostiene es el **18 contra 22** que el runner imprime. Es la dirección del addendum de
+   `feedback_a_gate_that_parses_source_needs_its_own_mutations`: **se mide, no se supone**, y se
+   dice cuál de las dos cifras;
+   (c) **el fixture del barril tenía que re-exportar por NOMBRE.** La primera versión escribía
+   `export * from './…'`, que no nombra ni una clase: con ese barril, contarlo como consumidor no
+   cambiaba nada y la mutación pasaba en verde. Regla 7 tal cual — la culpa era del fixture, y el
+   barril real re-exporta nombrando;
+   (d) **la clave es la CLASE y no el selector**, porque `syn-empty-state` y `syn-skeleton` están
+   declarados **dos veces cada uno** (en `patterns`/`states` y en `primitives`/`states`). Con
+   clave por selector, mi primera medición dio «31 alcanzables + 22 inalcanzables» sobre 55: un
+   `Set` colapsando dos piezas distintas, y una cifra que no suma es la única pista de que la
+   clave está mal.
+   **Y es LÍNEA BASE, no trinquete absoluto** —el árbol no lo cumple, 22 de 55— con el criterio
+   del #140 del hermano: un umbral absoluto sólo vale cuando el árbol YA lo cumple; si no, deja
+   `master` rojo hasta cerrar 22 decisiones de producto, y un gate siempre rojo deja de leerse
+   (reglas del #68 y #74). **La línea base es una LISTA y no una cifra**: con un número, retirar
+   una y escribir otra pasa en verde. Y el censo de `frameworks` cazó, al primer intento, que el
+   mensaje de error del gate decía «descarga toda página Angular» — prosa para una persona que
+   cablea de quién es el runtime compartido, y falsa el día que haya dos (#78).

@@ -226,6 +226,14 @@ const CIEGAS_AL_FRAMEWORK = [
   // pregunta por la ruta de ninguna plataforma, así que una copia puesta en
   // `platforms/react/libs/shared/` la caza igual que una en Angular.
   'lib/normalizador-unico.mjs',
+  // Las dos del #78. La raíz de cada design system la construyen con `RAIZ_DEL_DESIGN_SYSTEM`
+  // sobre lo que da `PLATAFORMAS`, así que miden la plataforma que haya. Y la que no sabe
+  // leer —Preact declara sus componentes como funciones, no con `@Component`— NO se salta:
+  // está en `DESIGN_SYSTEM_NO_MEDIBLE` con su razón y su disparador, que es lo que impide el
+  // `0 inalcanzables` sobre una plataforma que nadie miró. Esa entrada nombra a `preact` por
+  // su clave, no por una ruta ni por un `angular` cableado.
+  'lib/consumidores-del-design-system.mjs',
+  'consumidores-del-design-system.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía
