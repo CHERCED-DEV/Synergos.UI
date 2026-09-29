@@ -2,6 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AlquilerApiClient } from './alquiler-api.client';
 import { AlquilerElementComponent } from './alquiler';
+import { normalizeRental, readRentalState } from './alquiler.model';
 
 /**
  * El vertical de alquiler visto desde el navegador (#147).
@@ -384,6 +385,33 @@ describe('AlquilerElementComponent', () => {
 
     expect(component.reserva()?.state).toBe('returned');
     expect(component.reserva()?.depositHeld).toBe(0);
+  });
+
+  it('un intento que el orquestador deshizo NO se lee como reservado', async () => {
+    // El borde emite `failed` desde CHERCED-DEV/Synergos.CMS#147: una saga compensada no dejó
+    // ni ventana apartada ni plata retenida, y decía `reserved` de eso. Acá se comprueba la
+    // otra mitad — que este lado lo RECONOZCA— porque un valor que el parser no conoce
+    // devuelve `null` y borra el alquiler de la bandeja sin decir por qué, que es cambiar una
+    // mentira por un hueco.
+    expect(readRentalState('failed')).toBe('failed');
+    expect(readRentalState('reserved')).toBe('reserved');
+    expect(readRentalState('lo-que-sea')).toBeNull();
+
+    const deshecho = normalizeRental({ ...ALQUILER, state: 'failed', depositHeld: 0 });
+    expect(deshecho?.state).toBe('failed');
+    expect(deshecho?.depositHeld).toBe(0);
+  });
+
+  it('con la garantía en «no consta» NO se dice que no retienen nada', async () => {
+    // El `?? 0` que había acá convertía «nadie sabe si sigue retenida» en «no te retienen
+    // nada», afirmado por el consumidor sobre un campo que el servidor dejó nulo a propósito
+    // (`an_omitted_key_can_be_an_assertion`). El fixture tiene que llevar el nulo Y el cero:
+    // con sólo el nulo no se distingue «lo leí» de «lo rellené».
+    const sinSaber = normalizeRental({ ...ALQUILER, state: 'failed', depositHeld: null });
+    expect(sinSaber?.depositHeld).toBeNull();
+
+    const suelta = normalizeRental({ ...ALQUILER, state: 'cancelled', depositHeld: 0 });
+    expect(suelta?.depositHeld).toBe(0);
   });
 
   it('si devolver no llega, el alquiler NO se da por cerrado', async () => {

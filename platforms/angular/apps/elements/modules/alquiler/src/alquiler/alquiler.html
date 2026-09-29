@@ -205,7 +205,13 @@
                   {{ a.quantity }} unidad(es) · del {{ a.start }} al {{ a.end }}
                 </p>
                 <p class="sg-alquiler__price">{{ plata(a.rentalTotal) }}</p>
-                <p class="sg-alquiler__deposit">Garantía retenida: {{ plata(a.depositHeld) }}</p>
+                <p class="sg-alquiler__deposit">
+                  @if (a.depositHeld === null) {
+                    No sabemos si la garantía sigue retenida — escribinos.
+                  } @else {
+                    Garantía retenida: {{ plata(a.depositHeld) }}
+                  }
+                </p>
                 <p class="sg-alquiler__seal sg-alquiler__seal--{{ sello(a) }}">
                   @switch (sello(a)) {
                     @case ('comprobado') { Sello comprobado · {{ a.seal }} }
