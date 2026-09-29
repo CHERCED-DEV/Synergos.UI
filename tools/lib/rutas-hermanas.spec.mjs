@@ -9,13 +9,16 @@ const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 
 describe('dónde está el CMS (#57)', () => {
   const raizUi = '/repos/ui';
+  // Lo esperado pasa por `resolve` porque el resolutor devuelve rutas ABSOLUTAS del sistema
+  // donde corre: en Windows `/otro/cms` es `C:\otro\cms`. Escrito como literal POSIX, este
+  // spec daba 3 rojos en Windows sin que el código estuviera mal (#79).
 
   it('la bandera gana sobre todo', () => {
     // Lo explícito de la línea de comandos manda: una corrida puntual no tiene
     // por qué obligar a exportar nada.
     expect(resolverRaizCms({
       raizUi, argv: ['--cms-path=/otro/cms'], env: { SYNERGOS_CMS_PATH: '/del/entorno' },
-    })).toEqual({ ruta: '/otro/cms', origen: 'bandera' });
+    })).toEqual({ ruta: resolve('/otro/cms'), origen: 'bandera' });
   });
 
   it('EL CASO: sin bandera, la VARIABLE DE ENTORNO — que es la que faltaba', () => {
@@ -23,7 +26,7 @@ describe('dónde está el CMS (#57)', () => {
     // contenedor exportarla hacía pasar `cms:validate` y dejaba caer
     // `cms:sync:check`, la ÚLTIMA etapa de `contracts:validate`.
     expect(resolverRaizCms({ raizUi, argv: [], env: { SYNERGOS_CMS_PATH: '/del/entorno' } }))
-      .toEqual({ ruta: '/del/entorno', origen: 'entorno' });
+      .toEqual({ ruta: resolve('/del/entorno'), origen: 'entorno' });
   });
 
   it('y sin ninguna de las dos, el hermano', () => {
@@ -82,7 +85,7 @@ describe('dónde está el CDN local (#57)', () => {
     // `build-cdn.mjs` le pasa el árbol RECIÉN publicado, para que las insignias
     // de «publicado / no publicado» salgan de lo que acaba de escribir.
     expect(raizCdnLocal({ raizUi: '/repos/ui', env: { CDN_ROOT: '/salida/synergos' } }))
-      .toBe('/salida/synergos');
+      .toBe(resolve('/salida/synergos'));
   });
 
   it('nadie en tools/ vuelve a escribir LOCAL_CDN como default de lectura', () => {

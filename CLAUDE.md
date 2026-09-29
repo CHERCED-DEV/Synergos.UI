@@ -1165,4 +1165,9 @@ se desincroniza):
    (c) **lo mismo con `node_modules/.bin/<x>`**: en Windows ese fichero es un shim POSIX y el
    ejecutable es `<x>.cmd`, así que `gate:hipoteca` moría con `ENOENT` antes de cruzar un
    vector. Si la herramienta tiene API de Node se usa la API —`await import('esbuild')` y
-   `build()`—, que resuelve el binario nativo de cada sistema por su cuenta.
+   `build()`—, que resuelve el binario nativo de cada sistema por su cuenta;
+   (d) **un spec que escribe como ESPERADO el literal POSIX de algo que devuelve rutas del
+   sistema** da rojo en Windows con el código bien: `'/otro/cms'` contra un `resolve(…)` (3 en
+   `rutas-hermanas`) y `startsWith('vitals/core/')` contra un `path.relative` (1 en
+   `vitals-purity`). Lo esperado se construye con la MISMA función o se normaliza el separador,
+   y se comprueba que el spec sigue cazando mutando el CÓDIGO, no el spec.
