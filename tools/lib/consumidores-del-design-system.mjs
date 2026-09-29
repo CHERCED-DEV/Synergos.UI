@@ -89,10 +89,19 @@
  * Se midió la FUENTE —170.630 B de 394.809, el 43 %— y eso es un proxy, no el coste en el
  * bundle, que exige construir la variante. Lo binario sí está comprobado: están dentro.
  *
- * Tampoco dice que el design system esté mal diseñado. Las 31 alcanzables incluyen piezas con
- * 47, 36 y 22 consumidores, que es reutilización probada. Lo que dice es que la mitad de arriba
- * de la pirámide no tiene un solo caso que la respalde —**9 de los 12 `patterns/`** están entre
- * los 22, contra 6 de 23 `primitives/`— y que eso hoy no lo mide nada.
+ * Tampoco dice que el design system esté mal diseñado. Las 33 alcanzables incluyen piezas con
+ * 47, 36 y 22 consumidores, que es reutilización probada. Lo que dice es cuánto de cada tier no
+ * tiene un solo caso que lo respalde, y **eso lo imprime el runner, derivado** (`repartoPorTier`):
+ * el 2026-09-29, de los 22, `primitives` 8 de 23 · `compositions` 8 de 16 · `patterns` 6 de 12 ·
+ * `states` 0 de 4. Cuanto más arriba en la pirámide, algo menos se reusa —35 %, 50 %, 50 %—, y
+ * los estados se usan todos.
+ *
+ * **Esta frase decía «9 de los 12 `patterns/` […] contra 6 de 23 `primitives/`», y era falsa**
+ * (#172): la conclusión apuntaba bien y las dos cifras no — escritas a mano en la prosa, sin que
+ * nada las derivara. Es la lección que este repo ya tiene escrita para las cifras de su
+ * `CLAUDE.md`: una cifra que ninguna herramienta imprime se desvía sin que nadie lo note, así que
+ * la guía cita al gate y el gate la imprime. (Y «31 alcanzables» tampoco: son 33, lo que el
+ * runner dice en cada corrida.)
  */
 
 /** Dónde vive el design system, relativo a la raíz de la plataforma. */
@@ -299,6 +308,43 @@ export function inalcanzablesDesdeProducto(componentes, fuentes) {
     .sort((a, b) => a.localeCompare(b));
 
   return { inalcanzables, sinConsumidorDirecto, alcanzables: vivas.size, medidos: componentes.length };
+}
+
+/**
+ * Cuántas piezas tiene cada tier y cuántas de ellas no alcanza nadie (#172).
+ *
+ * **Existe porque la cifra por tier estaba escrita a mano y era falsa** —«9 de los 12
+ * `patterns/`» cuando son 6—. Se deriva de lo que el descubrimiento YA calculó: los tiers salen
+ * de las carpetas de los componentes, no de una lista, así que un tier nuevo aparece solo y uno
+ * vacío de inalcanzables sale con su **0** en vez de desaparecer (un tier que no se imprime se lee
+ * como uno que no existe).
+ *
+ * Orden: de más piezas a menos, y a igualdad por nombre. Es un orden derivado —no una pirámide
+ * escrita a mano— y hoy coincide con la base de la pirámide primero.
+ *
+ * @param {ReadonlyArray<{clase: string, tier: string}>} componentes
+ * @param {ReadonlyArray<string>} inalcanzables clases, como las devuelve `inalcanzablesDesdeProducto`
+ * @returns {Array<{tier: string, total: number, inalcanzables: number}>}
+ */
+export function repartoPorTier(componentes, inalcanzables) {
+  const muertas = new Set(inalcanzables);
+  /** @type {Map<string, {tier: string, total: number, inalcanzables: number}>} */
+  const porTier = new Map();
+  for (const p of componentes) {
+    const tier = p.tier || '(sin tier)';
+    const fila = porTier.get(tier) ?? { tier, total: 0, inalcanzables: 0 };
+    fila.total += 1;
+    if (muertas.has(p.clase)) fila.inalcanzables += 1;
+    porTier.set(tier, fila);
+  }
+  return [...porTier.values()].sort((a, b) => b.total - a.total || a.tier.localeCompare(b.tier));
+}
+
+/** El reparto en una línea: `tier inalcanzables/total (porcentaje)`. */
+export function formatearReparto(reparto) {
+  return reparto
+    .map((t) => `${t.tier} ${t.inalcanzables}/${t.total} (${Math.round((100 * t.inalcanzables) / t.total)} %)`)
+    .join(' · ');
 }
 
 /**

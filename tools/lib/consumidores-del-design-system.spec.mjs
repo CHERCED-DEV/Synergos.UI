@@ -5,7 +5,9 @@ import {
   RAIZ_DEL_DESIGN_SYSTEM,
   componentesDeclarados,
   cruzarConLaLineaBase,
+  formatearReparto,
   inalcanzablesDesdeProducto,
+  repartoPorTier,
   revisarCobertura,
   sinComentarios,
 } from './consumidores-del-design-system.mjs';
@@ -221,6 +223,66 @@ describe('inalcanzablesDesdeProducto', () => {
     ];
     const piezas = componentesDeclarados(COMPONENTES);
     expect(inalcanzablesDesdeProducto(piezas, conPlantillaPropia).inalcanzables).toContain('TooltipComponent');
+  });
+});
+
+describe('repartoPorTier (#172)', () => {
+  // La cifra por tier estaba escrita A MANO en la regla 39 y en el docstring de la lib —«9 de los
+  // 12 patterns»— y eran 6. Estos tests existen para que la que se lea sea la que el runner
+  // IMPRIME, derivada de lo que el descubrimiento ya calculó.
+
+  it('cuenta por tier lo que el descubrimiento ya calculó, y lo imprime en una línea', () => {
+    const piezas = componentesDeclarados(COMPONENTES);
+    const r = inalcanzablesDesdeProducto(piezas, fuentesBase());
+    const reparto = repartoPorTier(piezas, r.inalcanzables);
+
+    expect(reparto).toEqual([
+      { tier: 'compositions', total: 2, inalcanzables: 2 },
+      { tier: 'primitives', total: 2, inalcanzables: 1 },
+    ]);
+    expect(formatearReparto(reparto)).toBe('compositions 2/2 (100 %) · primitives 1/2 (50 %)');
+  });
+
+  it('las partes suman el todo — si no, dos piezas se colapsaron en una clave', () => {
+    // La forma del error de la primera medición del #78 (31 + 22 sobre 55, por clave de selector).
+    const piezas = componentesDeclarados(COMPONENTES);
+    const r = inalcanzablesDesdeProducto(piezas, fuentesBase());
+    const reparto = repartoPorTier(piezas, r.inalcanzables);
+
+    expect(reparto.reduce((s, t) => s + t.total, 0)).toBe(r.medidos);
+    expect(reparto.reduce((s, t) => s + t.inalcanzables, 0)).toBe(r.inalcanzables.length);
+  });
+
+  it('un tier sin inalcanzables sale con su 0 — no desaparece', () => {
+    // `states` es hoy 0 de 4. Un reparto que sólo recorriera las inalcanzables lo borraría, y un
+    // tier que no se imprime se lee como uno que no existe.
+    const conEstado = [...COMPONENTES, componente('states', 'empty', 'EmptyStateComponent', 'syn-empty-state')];
+    const usaElEstado = { ruta: 'apps/elements/states/lista/src/lista.ts', fuente: '<syn-empty-state></syn-empty-state>' };
+    const piezas = componentesDeclarados(conEstado);
+    const r = inalcanzablesDesdeProducto(piezas, [...fuentesBase(), conEstado.at(-1), usaElEstado]);
+    const reparto = repartoPorTier(piezas, r.inalcanzables);
+
+    expect(reparto.find((t) => t.tier === 'states')).toEqual({ tier: 'states', total: 1, inalcanzables: 0 });
+    expect(formatearReparto(reparto)).toContain('states 0/1 (0 %)');
+  });
+
+  it('el tier y el reparto salen iguales con rutas de Windows', () => {
+    // El tier se saca partiendo la ruta por `/`. En Windows `path.relative` devuelve `\`, y sin
+    // normalizar la carpeta sería la ruta entera y el tier, basura — el reparto impreso mentiría
+    // en la máquina del arquitecto y no en CI (CMS#170, UI#79).
+    const aWindows = (f) => ({ ...f, ruta: f.ruta.replace(/\//g, '\\') });
+    const piezas = componentesDeclarados(COMPONENTES.map(aWindows));
+
+    expect(piezas.find((p) => p.clase === 'ListComponent')).toMatchObject({
+      tier: 'primitives',
+      carpeta: `${DS}/primitives/list`,
+    });
+
+    const r = inalcanzablesDesdeProducto(piezas, fuentesBase().map(aWindows));
+    expect(r.inalcanzables).toEqual(['ListComponent', 'PricingCardComponent', 'TooltipComponent']);
+    expect(formatearReparto(repartoPorTier(piezas, r.inalcanzables))).toBe(
+      'compositions 2/2 (100 %) · primitives 1/2 (50 %)',
+    );
   });
 });
 

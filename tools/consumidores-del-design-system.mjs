@@ -25,7 +25,9 @@ import {
   RAIZ_DEL_DESIGN_SYSTEM,
   componentesDeclarados,
   cruzarConLaLineaBase,
+  formatearReparto,
   inalcanzablesDesdeProducto,
+  repartoPorTier,
   revisarCobertura,
 } from './lib/consumidores-del-design-system.mjs';
 
@@ -127,6 +129,14 @@ for (const { framework, base } of plataformasConDesignSystem()) {
     `[design-system] ${framework}: ${r.medidos} componente(s) · ${r.alcanzables} alcanzable(s) · ` +
       `${r.inalcanzables.length} inalcanzable(s) (${r.sinConsumidorDirecto.length} sin un solo consumidor)`,
   );
+  // El reparto por tier se IMPRIME y no se escribe (#172): la guía decía «9 de los 12 patterns»
+  // a mano y eran 6. Sin componentes no hay reparto que imprimir — la cobertura lo juzga abajo.
+  if (r.medidos > 0) {
+    console.log(
+      `[design-system] ${framework} por tier, inalcanzables/total: ` +
+        formatearReparto(repartoPorTier(componentes, r.inalcanzables)),
+    );
+  }
 }
 
 inalcanzables.sort((a, b) => a.localeCompare(b));
