@@ -39,7 +39,6 @@
  *   SYNERGOS_CMS_PATH=/ruta/al/cms node tools/vectores-hipoteca.mjs
  */
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -123,12 +122,16 @@ if (fuentes.length === 0) {
 // paquete lo arrastrara. Un gate que depende de un binario que nadie declaró se cae el día que
 // ese otro paquete cambia, y el fallo no habla de este fichero. Declararlo no añade nada al
 // árbol: nombra lo que la lock ya resolvía (0.25.12).
-const esbuild = [
-  join(RAIZ_UI, 'node_modules', '.bin', 'esbuild'),
-  ...PLATAFORMAS.map((p) => join(RAIZ_UI, 'platforms', p.framework, 'node_modules', '.bin', 'esbuild')),
-].find(existsSync);
-if (!esbuild) {
-  morir('No se encontró esbuild. Corré `npm run setup` (una instalación por plataforma).');
+//
+// Y se usa por su API de Node, NO ejecutando `node_modules/.bin/esbuild` (#79). En Windows ese
+// fichero es un shim POSIX —el ejecutable es `esbuild.cmd`— y el gate moría con `ENOENT` antes
+// de cruzar un solo vector. La API es la misma en todo sistema y resuelve el binario nativo de
+// la plataforma por su cuenta, que es lo que el shim hacía en Linux.
+let esbuild;
+try {
+  esbuild = await import('esbuild');
+} catch (error) {
+  morir(`No se pudo cargar esbuild (${error?.code ?? error}). Corré \`npm run setup\`.`);
 }
 
 const declarado = JSON.parse(readFileSync(ficheroVectores, 'utf8'));
@@ -146,12 +149,17 @@ for (const fuente of fuentes) {
   const compilada = join(temporal, 'mortgage.calc.mjs');
 
   try {
-    execFileSync(esbuild, [fuente, '--bundle', '--format=esm', '--platform=node', `--outfile=${compilada}`], {
-      stdio: ['ignore', 'ignore', 'pipe'],
+    await esbuild.build({
+      entryPoints: [fuente],
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      outfile: compilada,
+      logLevel: 'silent',
     });
   } catch (error) {
     rmSync(temporal, { recursive: true, force: true });
-    morir(`esbuild no pudo compilar ${relativa}:\n${error?.stderr?.toString() ?? error}`);
+    morir(`esbuild no pudo compilar ${relativa}:\n${error?.message ?? error}`);
   }
 
   const { calculateMortgage } = await import(pathToFileURL(compilada).href);

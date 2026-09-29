@@ -1161,3 +1161,7 @@ se desincroniza):
    (b) **la prueba que cuenta es la que LANZA npm de verdad** (`ejecutarNpm(['--version'])`). En
    Linux pasa con el `shell` y sin él; sólo en Windows se pone roja si alguien se lo quita. Una
    comprobación que no puede fallar en el sistema donde corre no vigila ese sistema (#79).
+   (c) **lo mismo con `node_modules/.bin/<x>`**: en Windows ese fichero es un shim POSIX y el
+   ejecutable es `<x>.cmd`, así que `gate:hipoteca` moría con `ENOENT` antes de cruzar un
+   vector. Si la herramienta tiene API de Node se usa la API —`await import('esbuild')` y
+   `build()`—, que resuelve el binario nativo de cada sistema por su cuenta.
