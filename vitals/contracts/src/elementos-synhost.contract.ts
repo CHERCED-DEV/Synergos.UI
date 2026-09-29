@@ -26,11 +26,28 @@ export interface ElementoSynHost<T> {
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
+export interface CarouselSlide {
+  readonly src: string;
+  readonly alt?: string;
+  readonly label?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: DropdownOption). */
 export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** <synergos-carousel> · pieza */
+export interface CarouselProps {
+  /** contenido */
+  readonly slides?: readonly CarouselSlide[];
+  /** decision */
+  readonly autoplay?: boolean;
+  /** decision */
+  readonly interval?: number;
 }
 
 /** <synergos-dropdown> · pieza */
@@ -76,6 +93,31 @@ export interface TagProps {
   /** decision */
   readonly color?: string;
 }
+
+export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
+  nombre: "carousel",
+  tipo: "pieza",
+  record: "CarouselProps",
+  diccionario: [],
+  campos: ["slides","autoplay","interval"],
+  ejemplo: {
+    "culture": "es-CO",
+    "slides": [
+      {
+        "src": "/media/sala.jpg",
+        "alt": "Sala con ventanal",
+        "label": "La sala"
+      },
+      {
+        "src": "/media/cocina.jpg",
+        "alt": "Cocina integral",
+        "label": "La cocina"
+      }
+    ],
+    "autoplay": true,
+    "interval": 4000
+  },
+};
 
 export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
@@ -147,6 +189,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,

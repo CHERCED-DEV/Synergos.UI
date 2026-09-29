@@ -8,6 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { CarouselProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   CarouselComponent,
@@ -16,41 +17,23 @@ import {
   HeadingComponent,
   coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
-  coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynCarousel</c>.
+ * <synergos-carousel>: an immersive media gallery (image + optional video) suited to a real
+ * estate property ficha. Delegates rendering to the shared `syn-carousel` pattern; this
+ * wrapper owns CMS config parsing + autoplay.
  *
- * An immersive media gallery (image + optional video) suited to a real
- * estate property ficha. Delegates rendering to the shared
- * `syn-carousel` pattern; this wrapper owns CMS config parsing + autoplay.
- *
- * The shared `@synergos/contracts` package does not declare a standalone
- * `CarouselElementConfig`; the canonical shape lives here until that
- * contract lands in the registry ola.
+ * El `config` que manda el CMS tiene la forma de `CarouselProps`, GENERADO del record C#
+ * (ADR 0135): `slides` es una LISTA ya parseada (`src`/`alt`/`label`), y `autoplay` +
+ * `interval`. La vista mandaba el TEXTO `slidesJson` y `autoplayInterval`, y sin diapositivas
+ * este elemento se oculta: el carrusel colocado no se veía (D1). `title`, `loop`, `compact` y
+ * los campos ricos de una diapositiva (`type`, `poster`, `thumbnailSrc`) no los autora el
+ * editor: llegan por atributo (`slides` como JSON), que gana sobre el `config`.
  */
-export interface CarouselRuntimeConfig {
-  readonly title?: string;
-  readonly slides?: readonly CarouselSlideConfig[];
-  readonly autoplay?: boolean;
-  readonly interval?: number;
-  readonly loop?: boolean;
-  readonly compact?: boolean;
-}
-
-export interface CarouselSlideConfig {
-  readonly id?: string;
-  readonly src?: string;
-  readonly type?: string;
-  readonly alt?: string;
-  readonly label?: string;
-  readonly thumbnailSrc?: string;
-  readonly poster?: string;
-}
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -98,14 +81,12 @@ export function normalizeSlides(value: unknown): readonly CarouselItem[] | undef
   return slides.length > 0 ? slides : undefined;
 }
 
-function sanitizeCarouselConfig(value: Partial<CarouselRuntimeConfig>): CarouselRuntimeConfig {
-  return omitUndefinedProperties<CarouselRuntimeConfig>({
-    title: coerceTrimmedStringInput(value.title),
-    slides: normalizeSlides(value.slides) as CarouselRuntimeConfig['slides'],
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeCarouselConfig(value: Partial<CarouselProps>): Partial<CarouselProps> {
+  return omitUndefinedProperties<CarouselProps>({
+    slides: normalizeSlides(value.slides),
     autoplay: coerceOptionalBooleanInput(value.autoplay),
     interval: coerceOptionalNumberInput(value.interval),
-    loop: coerceOptionalBooleanInput(value.loop),
-    compact: coerceOptionalBooleanInput(value.compact),
   });
 }
 
@@ -122,8 +103,8 @@ export class CarouselElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<CarouselRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<CarouselRuntimeConfig>(sanitizeCarouselConfig),
+  readonly config = input<Partial<CarouselProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<CarouselProps>(sanitizeCarouselConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly slidesInput = input<string | undefined>(undefined, { alias: 'slides' });
@@ -144,11 +125,9 @@ export class CarouselElementComponent {
     transform: coerceOptionalBooleanInput,
   });
 
-  readonly title = computed(() => resolveConfigValue(this.titleInput(), this.config()?.title, ''));
-  readonly loop = computed(() => resolveConfigValue(this.loopInput(), this.config()?.loop, true));
-  readonly compact = computed(() =>
-    resolveConfigValue(this.compactInput(), this.config()?.compact, false),
-  );
+  readonly title = computed(() => this.titleInput() ?? '');
+  readonly loop = computed(() => this.loopInput() ?? true);
+  readonly compact = computed(() => this.compactInput() ?? false);
   readonly autoplay = computed(() =>
     resolveConfigValue(this.autoplayInput(), this.config()?.autoplay, false),
   );

@@ -2,6 +2,7 @@ import { CLAVES_DE_ENVOLTURA_SYNHOST, ELEMENTOS_SYNHOST } from '@synergos/contra
 import { createConfigInputTransform } from '@synergos/shared';
 import { sanitizeKpiCardConfig } from './modules/kpi-card/src/kpi-card/kpi-card';
 import { sanitizeDropdownConfig } from './compositions/dropdown/src/dropdown/dropdown';
+import { sanitizeCarouselConfig } from './modules/carousel/src/carousel/carousel';
 import { sanitizeRatingStarsConfig } from './compositions/rating-stars/src/rating-stars/rating-stars';
 import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 
@@ -21,6 +22,7 @@ import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
  * con contrato y sin sanitizador acá se pone rojo, que es la red de seguridad por el vacío.
  */
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
+  carousel: createConfigInputTransform(sanitizeCarouselConfig),
   dropdown: createConfigInputTransform(sanitizeDropdownConfig),
   'kpi-card': createConfigInputTransform(sanitizeKpiCardConfig),
   'rating-stars': createConfigInputTransform(sanitizeRatingStarsConfig),
