@@ -1,6 +1,7 @@
 import { CLAVES_DE_ENVOLTURA_SYNHOST, ELEMENTOS_SYNHOST } from '@synergos/contracts';
 import { createConfigInputTransform } from '@synergos/shared';
 import { sanitizeKpiCardConfig } from './modules/kpi-card/src/kpi-card/kpi-card';
+import { sanitizeRatingStarsConfig } from './compositions/rating-stars/src/rating-stars/rating-stars';
 import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 
 /**
@@ -20,6 +21,7 @@ import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
  */
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'kpi-card': createConfigInputTransform(sanitizeKpiCardConfig),
+  'rating-stars': createConfigInputTransform(sanitizeRatingStarsConfig),
   tag: createConfigInputTransform(sanitizeTagConfig),
 };
 

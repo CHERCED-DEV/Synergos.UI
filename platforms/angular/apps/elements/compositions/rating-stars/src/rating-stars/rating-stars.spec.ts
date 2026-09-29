@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RATING_STARS_SYNHOST } from '@synergos/contracts';
 import {
   RatingStarsElementComponent,
   buildStars,
@@ -32,13 +33,12 @@ describe('RatingStarsElementComponent', () => {
     expect(component.stars().every((star) => star.fill === 0)).toBe(true);
   });
 
+  // `value` y `max` llegan por `config` (los autora el editor); `readonly` y `allowHalf` no los
+  // autora nadie en el CMS, así que son atributos del elemento (ADR 0135).
   it('should render a readonly half-star rating from config (render/config case)', async () => {
-    fixture.componentRef.setInput('config', {
-      value: 3.5,
-      max: 5,
-      readonly: true,
-      allowHalf: true,
-    });
+    fixture.componentRef.setInput('config', { value: 3.5, max: 5 });
+    fixture.componentRef.setInput('readonly', true);
+    fixture.componentRef.setInput('allowHalf', true);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -63,8 +63,23 @@ describe('RatingStarsElementComponent', () => {
     expect(component.stars().filter((star) => star.fill >= 1).length).toBe(4);
   });
 
+  // D1: con `valueNow`/`maxStars`/`ariaLabel` —lo que mandaba la vista— el editor ponía un 4 y
+  // se leía «0 de 5 estrellas». Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta lo que el editor escribió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = RATING_STARS_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.configuredValue()).toBe(ejemplo.value);
+    expect(component.max()).toBe(ejemplo.max);
+    expect(component.ariaLabel()).toBe(`${ejemplo.label}: ${ejemplo.value} de ${ejemplo.max} estrellas`);
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain(`${ejemplo.value} de ${ejemplo.max} estrellas`);
+  });
+
   it('should let direct inputs override config and stay idempotent (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', { value: 2, max: 5, readonly: true });
+    fixture.componentRef.setInput('config', { value: 2, max: 5 });
     fixture.componentRef.setInput('value', '5');
     fixture.componentRef.setInput('readonly', 'true');
     fixture.detectChanges();

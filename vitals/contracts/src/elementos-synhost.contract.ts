@@ -40,6 +40,16 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
+/** <synergos-rating-stars> · pieza */
+export interface RatingStarsProps {
+  /** contenido */
+  readonly value?: number;
+  /** decision */
+  readonly max?: number;
+  /** contenido */
+  readonly label?: string;
+}
+
 /** <synergos-tag> · pieza */
 export interface TagProps {
   /** contenido */
@@ -64,6 +74,20 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
+  nombre: "rating-stars",
+  tipo: "pieza",
+  record: "RatingStarsProps",
+  diccionario: [],
+  campos: ["value","max","label"],
+  ejemplo: {
+    "culture": "es-CO",
+    "value": 4,
+    "max": 5,
+    "label": "Valoración de los huéspedes"
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -80,5 +104,6 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   KPI_CARD_SYNHOST,
+  RATING_STARS_SYNHOST,
   TAG_SYNHOST,
 ] as const;

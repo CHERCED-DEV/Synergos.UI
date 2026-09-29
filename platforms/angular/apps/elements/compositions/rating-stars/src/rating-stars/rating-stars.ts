@@ -6,6 +6,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { RatingStarsProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -15,9 +16,7 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynRatingStars</c>.
- *
- * A star-rating control with two modes:
+ * <synergos-rating-stars>: a star-rating control with two modes:
  *  - readonly: presents an average score as a row of stars (with optional
  *    half-star precision) plus an accessible label — used in product/listing
  *    cards and testimonials.
@@ -25,18 +24,13 @@ import {
  *    keyboard (radiogroup semantics, arrow keys, Home/End). Selecting a value
  *    emits a `ratingchange` CustomEvent carrying the chosen value.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `RatingStarsProps`, GENERADO del record C#
+ * (ADR 0135): `value` y `max` como números y `label`. Esta cabecera decía «every CMS property
+ * is a TypeScript input with the same alias», y era falso: la vista mandaba `valueNow`,
+ * `maxStars` y `ariaLabel`, y el editor ponía un 4 y se leía «0 de 5 estrellas» (D1).
+ * `readonly`, `allowHalf` y `showValue` no los autora el editor: son atributos del elemento,
+ * que ganan sobre el `config`, que gana sobre los defaults (`resolveConfigValue`).
  */
-export interface RatingStarsRuntimeConfig {
-  readonly value?: number;
-  readonly max?: number;
-  readonly readonly?: boolean;
-  readonly allowHalf?: boolean;
-  readonly label?: string;
-  readonly showValue?: boolean;
-}
 
 interface RatingStar {
   /** 1-based position of this star in the row. */
@@ -93,16 +87,12 @@ export function buildStars(value: number, max: number, allowHalf: boolean): read
   });
 }
 
-function sanitizeRatingStarsConfig(
-  value: Partial<RatingStarsRuntimeConfig>,
-): RatingStarsRuntimeConfig {
-  return omitUndefinedProperties<RatingStarsRuntimeConfig>({
-    value: typeof value.value === 'number' ? value.value : readNumber(value.value) ?? undefined,
-    max: typeof value.max === 'number' ? value.max : readNumber(value.max) ?? undefined,
-    readonly: coerceOptionalBooleanInput(value.readonly),
-    allowHalf: coerceOptionalBooleanInput(value.allowHalf),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeRatingStarsConfig(value: Partial<RatingStarsProps>): Partial<RatingStarsProps> {
+  return omitUndefinedProperties<RatingStarsProps>({
+    value: readNumber(value.value) ?? undefined,
+    max: readNumber(value.max) ?? undefined,
     label: coerceTrimmedStringInput(value.label),
-    showValue: coerceOptionalBooleanInput(value.showValue),
   });
 }
 
@@ -115,8 +105,8 @@ function sanitizeRatingStarsConfig(
   host: { class: 'sg-rating-stars' },
 })
 export class RatingStarsElementComponent {
-  readonly config = input<RatingStarsRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<RatingStarsRuntimeConfig>(sanitizeRatingStarsConfig),
+  readonly config = input<Partial<RatingStarsProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<RatingStarsProps>(sanitizeRatingStarsConfig),
   });
   readonly valueInput = input<string | number | undefined>(undefined, { alias: 'value' });
   readonly maxInput = input<string | number | undefined>(undefined, { alias: 'max' });
@@ -147,17 +137,11 @@ export class RatingStarsElementComponent {
     return clampNumber(Math.round(resolved), 1, MAX_STARS_CAP);
   });
 
-  readonly readonly = computed(() =>
-    resolveConfigValue(this.readonlyInput(), this.config()?.readonly, false),
-  );
+  readonly readonly = computed(() => this.readonlyInput() ?? false);
 
-  readonly allowHalf = computed(() =>
-    resolveConfigValue(this.allowHalfInput(), this.config()?.allowHalf, false),
-  );
+  readonly allowHalf = computed(() => this.allowHalfInput() ?? false);
 
-  readonly showValue = computed(() =>
-    resolveConfigValue(this.showValueInput(), this.config()?.showValue, false),
-  );
+  readonly showValue = computed(() => this.showValueInput() ?? false);
 
   /** Value supplied via config/attributes (the readonly source of truth). */
   readonly configuredValue = computed(() =>
