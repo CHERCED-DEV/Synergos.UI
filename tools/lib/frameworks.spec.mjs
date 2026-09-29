@@ -222,6 +222,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // `preact` el día que #64 lo creó: la regla 25 en el camino de entrada.
   'lib/setup-completo.mjs',
   'setup.mjs',
+  // El lanzador de `npm` (#79): decide el `shell` por SISTEMA operativo, no por plataforma
+  // del árbol. Recibe los argumentos; quien nombra la carpeta es quien lo llama.
+  'lib/npm.mjs',
   // Cruza por NOMBRE DE FUNCIÓN y recorre todo `.ts` del repo (#63): no
   // pregunta por la ruta de ninguna plataforma, así que una copia puesta en
   // `platforms/react/libs/shared/` la caza igual que una en Angular.

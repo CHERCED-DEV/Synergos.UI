@@ -31,7 +31,7 @@
  * ni señal de parada que dejar en el disco.
  */
 import { createServer } from 'node:http';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, watch } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +41,7 @@ import { PLATFORMS, loadRegistry, loadInputs, readPackageVersion } from './lib/s
 import { buildContracts } from './lib/manifest-builder.mjs';
 import { LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 import { paginaDelBanco } from './lib/banco-de-pruebas.mjs';
+import { ejecutarNpm, lanzarNpm } from './lib/npm.mjs';
 import {
   resolverRuta, cabecerasDev, tipoDe, registryDeDesarrollo,
 } from './lib/dev-cdn-routes.mjs';
@@ -103,7 +104,7 @@ function runtimeDir() {
 // antes de servir nada.
 if (!runtimeDir()) {
   log('el runtime no está compilado — construyéndolo (una vez)…');
-  const r = spawnSync('npm', ['run', 'build:runtime'], { cwd: ROOT, stdio: 'inherit' });
+  const r = ejecutarNpm(['run', 'build:runtime'], { cwd: ROOT });
   if (r.status !== 0 || !runtimeDir()) {
     console.error('[dev-cdn] ✗ no se pudo compilar el runtime. Los elementos no arrancarían.');
     process.exit(1);
@@ -276,7 +277,15 @@ function rehacerRuntime(cuandoTermine) {
   rehaciendoRuntime = true;
   log('cambió una lib compartida — rehaciendo el runtime…');
 
-  const p = spawn('npm', ['run', 'build:runtime'], { cwd: ROOT, stdio: 'inherit' });
+  // Por el lanzador (#79): `spawn('npm', …)` en Windows emitía `error` ENOENT y, sin
+  // oyente, ese evento TUMBABA el servidor — `dev:cdn` moría a los ~11 s, en cuanto el
+  // primer build tocaba `libs/`. El oyente de `error` es la otra mitad: si npm no puede
+  // ni arrancar, se avisa y se sigue sirviendo, igual que cuando el build falla.
+  const p = lanzarNpm(['run', 'build:runtime'], { cwd: ROOT });
+  p.on('error', (error) => {
+    rehaciendoRuntime = false;
+    console.error(`[dev-cdn] ✗ no se pudo lanzar npm para rehacer el runtime: ${error.message}`);
+  });
   p.on('exit', (code) => {
     rehaciendoRuntime = false;
     if (code !== 0) {
