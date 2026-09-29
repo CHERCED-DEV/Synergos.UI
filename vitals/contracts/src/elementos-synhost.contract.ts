@@ -26,6 +26,25 @@ export interface ElementoSynHost<T> {
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: DropdownOption). */
+export interface DropdownOption {
+  readonly value: string;
+  readonly label: string;
+  readonly href?: string;
+}
+
+/** <synergos-dropdown> · pieza */
+export interface DropdownProps {
+  /** contenido */
+  readonly triggerLabel?: string;
+  /** contenido */
+  readonly options?: readonly DropdownOption[];
+  /** decision */
+  readonly selectedValue?: string;
+  /** decision */
+  readonly searchable?: boolean;
+}
+
 /** <synergos-kpi-card> · pieza · diccionario: Synhost.Kpi */
 export interface KpiCardProps {
   /** contenido */
@@ -57,6 +76,31 @@ export interface TagProps {
   /** decision */
   readonly color?: string;
 }
+
+export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
+  nombre: "dropdown",
+  tipo: "pieza",
+  record: "DropdownProps",
+  diccionario: [],
+  campos: ["triggerLabel","options","selectedValue","searchable"],
+  ejemplo: {
+    "culture": "es-CO",
+    "triggerLabel": "País",
+    "options": [
+      {
+        "value": "co",
+        "label": "Colombia"
+      },
+      {
+        "value": "mx",
+        "label": "México",
+        "href": "/mx"
+      }
+    ],
+    "selectedValue": "co",
+    "searchable": true
+  },
+};
 
 export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   nombre: "kpi-card",
@@ -103,6 +147,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,

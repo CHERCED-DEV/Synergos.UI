@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DROPDOWN_SYNHOST } from '@synergos/contracts';
 import {
   DropdownElementComponent,
   type DropdownSelectDetail,
@@ -82,6 +83,23 @@ describe('DropdownElementComponent', () => {
     const archive = component.items().find((item) => item.value === 'archive');
     component.selectItem(archive!);
     expect(component.selectedValue()).toBe('del');
+  });
+
+  // D1: el CMS mandaba el TEXTO `optionsJson` dentro de `config` y esto lee la LISTA `options`:
+  // botón gris, sin opciones. Los specs de arriba pasan `optionsJson` como atributo suelto, que el
+  // CMS nunca manda, y por eso D1 pasaba en verde. Éste alimenta el `config` EXACTO de la vista.
+  it('muestra las opciones que el editor escribió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = DROPDOWN_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.items().map((i) => i.label)).toEqual(ejemplo.options?.map((o) => o.label));
+    expect(component.searchable()).toBe(ejemplo.searchable);
+    const trigger = (fixture.nativeElement as HTMLElement).querySelector('button') as HTMLButtonElement;
+    expect(trigger.disabled).toBe(false);
+    const elegida = ejemplo.options?.find((o) => o.value === ejemplo.selectedValue)?.label;
+    expect(trigger.textContent).toContain(elegida);
   });
 
   it('should let direct inputs override config (idempotent precedence)', async () => {
