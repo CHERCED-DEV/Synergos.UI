@@ -1001,9 +1001,18 @@ se desincroniza):
    movimiento que la **regla 36**, donde el cruce tuvo que decidir que un spec no cuenta como
    llamador: acá **un componente muerto no cuenta como consumidor**.
    Los 22 viajan dentro del runtime compartido —comprobado buscando su selector compilado en el
-   bundle publicado, 809.386 B que descarga toda página de su plataforma— y **9 de los 12
-   `patterns/`** están entre ellos, contra 6 de 23 `primitives/`: cuanto más arriba en la
-   pirámide, menos se reusa, que es lo que cabía esperar y lo que nadie había medido.
+   bundle publicado, 809.386 B que descarga toda página de su plataforma—. **Por tier, de los
+   22: 6 `patterns` · 8 `compositions` · 8 `primitives` · 0 `states`**, o sea el 50 %, 50 %, 35 %
+   y 0 % de cada uno: cuanto más arriba en la pirámide, algo menos se reusa, y los estados se
+   usan todos.
+   **Esta línea decía «9 de los 12 `patterns/` […] contra 6 de 23 `primitives/`», y era falsa**
+   (#78, CMS#172): la conclusión apuntaba bien y las dos cifras no, escritas a mano en la prosa —y
+   copiadas al docstring de la lib— sin que nada las derivara. Es exactamente lo que este fichero
+   corrige de sí mismo cada vez que una cifra se escribe en vez de medirse. **Hoy las imprime el
+   runner** (`[design-system] <plataforma> por tier, inalcanzables/total: …`), derivadas de las
+   carpetas que el descubrimiento ya lee, y lo comprobó una segunda derivación —la carpeta de cada
+   clase de la línea base, por grep— con el mismo 6 · 8 · 8 · 0. **La cifra que vale es la de la
+   última corrida, no la de esta línea.**
    **Cuatro cosas del gate que costaron su mutación, y dos de ellas porque MI mutación estaba mal
    apuntada:**
    (a) **apagar la propagación NO reproduce el conteo directo — hace lo contrario.** El bucle sólo
