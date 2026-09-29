@@ -187,7 +187,7 @@ npm run size:baseline         # regenera el registro de tamaños — el diff va 
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
 ```
 
-En CI: `tests-ui.yml` (npm test), `despliegue-cdn.yml` (construye, publica con
+En CI: `tests-ui.yml` (npm test en Linux, y desde #79 un job `windows-latest`: que el checkout salga en LF, `npm run setup` desde cero y `npm test -- --solo=test:contratos,test:tools,test:vitals`), `despliegue-cdn.yml` (construye, publica con
 `wrangler deploy` y **corre el humo esperando ese commit**) y `design-gates-ui.yml`
 (G-1/G-2/G-5 **y G-9/G-10**, con checkout del CMS sibling — que es público, así que **sin `token:`**,
 ver #14). `humo-cdn.yml` queda a pedido (`workflow_dispatch`), para mirar el CDN
@@ -1159,9 +1159,12 @@ se desincroniza):
    cualquier posición, **8**: cinco pasaban por `correr('npm', …)` de `build-cdn.mjs`, cuyo
    cuerpo no nombra a npm. Es la regla 37 con llamadas en vez de claves —el sujeto se USA sin
    nombrarlo donde el barrido mira—, y por eso el censo de `npm.spec.mjs` busca el literal;
-   (b) **la prueba que cuenta es la que LANZA npm de verdad** (`ejecutarNpm(['--version'])`). En
-   Linux pasa con el `shell` y sin él; sólo en Windows se pone roja si alguien se lo quita. Una
-   comprobación que no puede fallar en el sistema donde corre no vigila ese sistema (#79).
+   (b) **la prueba que cuenta es la que LANZA npm de verdad** (`ejecutarNpm(['--version'])`). La
+   decisión pura (`invocacionDeNpm(…, 'win32')`) se prueba en cualquier sistema, pero que la opción
+   LLEGUE al proceso no: un envoltorio que no aplica su `shell` deja verde todo Linux y da ENOENT
+   en Windows —medido: 2 rojos en `ejecutarNpm`/`correrNpm`, 1 en `lanzarNpm`, con la decisión
+   pura en verde—. Por eso `tests-ui.yml` tiene un job `windows-latest`: una comprobación que no
+   puede fallar en el sistema donde corre no vigila ese sistema (#79).
    (c) **lo mismo con `node_modules/.bin/<x>`**: en Windows ese fichero es un shim POSIX y el
    ejecutable es `<x>.cmd`, así que `gate:hipoteca` moría con `ENOENT` antes de cruzar un
    vector. Si la herramienta tiene API de Node se usa la API —`await import('esbuild')` y

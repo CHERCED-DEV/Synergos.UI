@@ -27,6 +27,8 @@ on:
       - 'vitals/**'
       - 'tools/**'
       - 'package.json'
+      # El fin de línea lo decide este fichero, y el job de Windows lo comprueba (#79).
+      - '.gitattributes'
       - '.github/workflows/tests-ui.yml'
   push:
     branches:
@@ -42,6 +44,7 @@ on:
       - 'vitals/**'
       - 'tools/**'
       - 'package.json'
+      - '.gitattributes'
       - '.github/workflows/tests-ui.yml'
 
 jobs:
@@ -80,3 +83,57 @@ jobs:
       # se desvía, y ésta ni siquiera se lee al correr.
       - name: npm test
         run: npm test
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Windows (#79). Hasta este job los cinco workflows corrían en `ubuntu-latest`,
+  # y en Windows el camino de entrada no se podía recorrer: `npm run setup` daba
+  # `spawnSync npm ENOENT` (npm es `npm.cmd`, y desde Node 20.12 un `.cmd` sólo
+  # se lanza con `shell: true`), `gate:hipoteca` ejecutaba el shim POSIX de
+  # `.bin/esbuild`, 4 specs esperaban rutas con `/`, y el checkout en CRLF hacía
+  # mentir a `cms:sync:check` y al G-7 del CMS. Nada de eso lo ve un Linux: el
+  # lanzador sin `shell` pasa ahí en verde.
+  #
+  # Corre lo que es barato y cubre el defecto: el fin de línea del checkout, el
+  # `setup` desde cero (la prueba viva del lanzador) y los tramos que no
+  # compilan Angular —contratos, `tools/lib` (donde `npm.spec.mjs` LANZA npm de
+  # verdad) y `vitals`—. `test:angular` compila AOT 236 specs y ya corre en el
+  # job de Linux; repetirlo acá costaría minutos sin cubrir nada del #79.
+  #
+  # La mutación que SÓLO se ve acá: que la decisión de `tools/lib/npm.mjs` sea
+  # correcta y no llegue al proceso (un envoltorio que no aplica su `shell`). La
+  # decisión pura la prueba cualquier sistema; la llamada, sólo éste: el paso de
+  # dependencias y los tests de `npm.spec.mjs` que lanzan npm dan ENOENT.
+  # ───────────────────────────────────────────────────────────────────────────
+  windows:
+    name: Windows — setup + contratos + tools + vitals
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # El runner de Windows trae `core.autocrlf=true`: sin `.gitattributes` el
+      # checkout sale en CRLF y nada se pone rojo por eso, sólo miente.
+      - name: El checkout sale en LF (.gitattributes)
+        shell: bash
+        run: |
+          crlf=$(git ls-files --eol | grep -c 'w/crlf' || true)
+          if [ "$crlf" != "0" ]; then
+            echo "::error::$crlf fichero(s) en CRLF en el disco: .gitattributes no aplica eol=lf (#79)"
+            git ls-files --eol | grep 'w/crlf' | head -20
+            exit 1
+          fi
+          echo "0 ficheros en CRLF"
+
+      - name: Dependencias
+        run: npm run setup
+
+      # Por bash y con comillas: en PowerShell una coma en un argumento arma un
+      # array, y `--solo` llegaría partido.
+      - name: npm test (los tramos que no compilan Angular)
+        shell: bash
+        run: npm test -- "--solo=test:contratos,test:tools,test:vitals"
