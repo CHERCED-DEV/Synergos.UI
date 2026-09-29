@@ -1,6 +1,7 @@
 import { CLAVES_DE_ENVOLTURA_SYNHOST, ELEMENTOS_SYNHOST } from '@synergos/contracts';
 import { createConfigInputTransform } from '@synergos/shared';
 import { sanitizeKpiCardConfig } from './modules/kpi-card/src/kpi-card/kpi-card';
+import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -19,6 +20,7 @@ import { sanitizeKpiCardConfig } from './modules/kpi-card/src/kpi-card/kpi-card'
  */
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'kpi-card': createConfigInputTransform(sanitizeKpiCardConfig),
+  tag: createConfigInputTransform(sanitizeTagConfig),
 };
 
 type Config = Record<string, unknown>;

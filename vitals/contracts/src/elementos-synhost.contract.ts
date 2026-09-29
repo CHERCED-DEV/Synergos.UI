@@ -40,6 +40,14 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
+/** <synergos-tag> · pieza */
+export interface TagProps {
+  /** contenido */
+  readonly label?: string;
+  /** decision */
+  readonly color?: string;
+}
+
 export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   nombre: "kpi-card",
   tipo: "pieza",
@@ -56,7 +64,21 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
+  nombre: "tag",
+  tipo: "pieza",
+  record: "TagProps",
+  diccionario: [],
+  campos: ["label","color"],
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Oferta",
+    "color": "success"
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   KPI_CARD_SYNHOST,
+  TAG_SYNHOST,
 ] as const;

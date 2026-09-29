@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import type { TagProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -9,26 +10,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynTag</c>.
- *
- * A chip / etiqueta primitive: a compact, pill-shaped label with a color
- * variant, an optional leading icon glyph, and an optional remove affordance.
+ * <synergos-tag>: a chip / etiqueta primitive — a compact, pill-shaped label with a
+ * color variant, an optional leading icon glyph, and an optional remove affordance.
  * Tones map to the design-system semantic palette (brand / success / warning /
  * danger / info / neutral) and resolve to CMS `--syn-*` runtime variables so a
  * site theme can override them without a rebuild.
  *
- * The shared `@synergos/contracts` package does not declare a `TagElementConfig`
- * yet; the canonical shape lives here next to the component until that contract
- * lands in the registry ola.
+ * El `config` que manda el CMS tiene la forma de `TagProps`, GENERADO del record C# (ADR
+ * 0135): `label` y `color`. La vista mandaba `tagLabel`/`tagColor` y el chip DESAPARECÍA al
+ * hidratar (D1). `icon`, `removable`, `ariaLabel` y `removeLabel` no los autora el editor:
+ * siguen siendo atributos del elemento.
  */
-export interface TagRuntimeConfig {
-  readonly label?: string;
-  readonly color?: TagColor;
-  readonly icon?: string;
-  readonly removable?: boolean;
-  readonly ariaLabel?: string;
-  readonly removeLabel?: string;
-}
 
 export type TagColor = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info';
 
@@ -41,14 +33,11 @@ const TAG_COLORS: readonly TagColor[] = [
   'info',
 ];
 
-function sanitizeTagConfig(value: Partial<TagRuntimeConfig>): Partial<TagRuntimeConfig> {
-  return omitUndefinedProperties<TagRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeTagConfig(value: Partial<TagProps>): Partial<TagProps> {
+  return omitUndefinedProperties<TagProps>({
     label: coerceTrimmedStringInput(value.label),
     color: coerceStringEnumInput(value.color, TAG_COLORS),
-    icon: coerceTrimmedStringInput(value.icon),
-    removable: coerceOptionalBooleanInput(value.removable),
-    ariaLabel: coerceTrimmedStringInput(value.ariaLabel),
-    removeLabel: coerceTrimmedStringInput(value.removeLabel),
   });
 }
 
@@ -61,8 +50,8 @@ function sanitizeTagConfig(value: Partial<TagRuntimeConfig>): Partial<TagRuntime
   host: { class: 'sg-tag' },
 })
 export class TagElementComponent {
-  readonly config = input<TagRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TagRuntimeConfig>(sanitizeTagConfig),
+  readonly config = input<Partial<TagProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TagProps>(sanitizeTagConfig),
   });
 
   // CMS-aliased property bridges. The legacy `tagLabel` / `tagColor` aliases are
@@ -103,27 +92,19 @@ export class TagElementComponent {
   readonly color = computed<TagColor>(() =>
     resolveConfigValue(
       this.colorInput() ?? this.tagColorInput(),
-      this.config()?.color,
+      coerceStringEnumInput(this.config()?.color, TAG_COLORS),
       'neutral',
     ),
   );
 
-  readonly icon = computed(() =>
-    resolveConfigValue(this.iconInput(), this.config()?.icon, ''),
-  );
+  readonly icon = computed(() => this.iconInput() ?? '');
 
-  readonly removable = computed(() =>
-    resolveConfigValue(this.removableInput(), this.config()?.removable, false),
-  );
+  readonly removable = computed(() => this.removableInput() ?? false);
 
-  readonly removeLabel = computed(() =>
-    resolveConfigValue(this.removeLabelInput(), this.config()?.removeLabel, 'Quitar'),
-  );
+  readonly removeLabel = computed(() => this.removeLabelInput() ?? 'Quitar');
 
   /** Accessible name for the chip; falls back to the visible label. */
-  readonly ariaLabel = computed(() =>
-    resolveConfigValue(this.ariaLabelInput(), this.config()?.ariaLabel, '') || this.label(),
-  );
+  readonly ariaLabel = computed(() => this.ariaLabelInput() || this.label());
 
   readonly hasIcon = computed(() => this.icon().length > 0);
   readonly hasLabel = computed(() => this.label().length > 0);

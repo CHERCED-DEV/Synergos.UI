@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TAG_SYNHOST } from '@synergos/contracts';
 import { TagElementComponent } from './tag';
 
 describe('TagElementComponent', () => {
@@ -26,11 +27,12 @@ describe('TagElementComponent', () => {
     expect(fixture.nativeElement.querySelector('.tag')).toBeNull();
   });
 
-  it('should render label, tone and icon from config (render + config case)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"label":"Frontend","color":"success","icon":"★","removable":true}',
-    );
+  // Lo que el editor autora (label, color) llega por `config`; el ícono y el quitar no los
+  // autora nadie en el CMS, así que son atributos del elemento (ADR 0135).
+  it('should render label and tone from config, and icon from its attribute (render + config case)', async () => {
+    fixture.componentRef.setInput('config', '{"label":"Frontend","color":"success"}');
+    fixture.componentRef.setInput('icon', '★');
+    fixture.componentRef.setInput('removable', true);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -65,8 +67,23 @@ describe('TagElementComponent', () => {
     expect(fixture.nativeElement.querySelector('.tag')).toBeNull();
   });
 
+  // D1: con `tagLabel`/`tagColor` —lo que mandaba la vista— el chip desaparecía al hidratar.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS (el `ejemplo` del contrato).
+  it('pinta lo que el editor escribió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = TAG_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const chip = fixture.nativeElement.querySelector('.tag') as HTMLElement | null;
+    expect(chip).not.toBeNull();
+    expect(chip?.querySelector('.tag__label')?.textContent?.trim()).toBe(ejemplo.label);
+    expect(chip?.classList.contains(`tag--${ejemplo.color}`)).toBe(true);
+  });
+
   it('should let direct inputs override config and reset idempotently (idempotent case)', async () => {
-    fixture.componentRef.setInput('config', '{"label":"Config","color":"brand","removable":true}');
+    fixture.componentRef.setInput('config', '{"label":"Config","color":"brand"}');
+    fixture.componentRef.setInput('removable', true);
     fixture.componentRef.setInput('label', 'Input');
     fixture.componentRef.setInput('color', 'danger');
     fixture.detectChanges();
