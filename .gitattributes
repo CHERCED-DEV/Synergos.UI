@@ -1,0 +1,18 @@
+# Fin de línea: LF, en el índice Y en el disco, en cualquier sistema (#79).
+#
+# Sin esto, un checkout en Windows con `core.autocrlf=true` —el default del instalador de
+# Git— escribe CRLF, y dos herramientas mentían sin fallar:
+#   - `npm run cms:sync:check` salía 2 («contracts file: WOULD UPDATE») porque compara BYTE
+#     A BYTE el contrato que genera con `vitals/contracts/src/elements-syn.contract.ts`.
+#   - G-7 del CMS, leyendo los `*-api.client.ts` de este árbol, daba «2 claves de petición
+#     ligan en 1 rutas» contra 57 en 22 con el mismo commit en LF: VERDE FALSO (CMS#170).
+#
+# `text=auto` deja que git decida por el CONTENIDO qué es texto; `eol=lf` fija LF al hacer
+# checkout aunque el sistema o `core.autocrlf` digan otra cosa.
+#
+# Binarios, medido el 2026-09-29: el árbol no trae NINGUNO (0 por extensión, 0 con NUL en el
+# blob), así que no hay excepciones que declarar. Un binario que entre lo detecta
+# `text=auto` por contenido y no se convierte. Los tres `.md` de
+# `docs/architecture/synergos-ui-styling-refinement/` que git ya ve como no-texto (CR sueltos
+# y retrocesos dentro) quedan byte a byte como están.
+* text=auto eol=lf

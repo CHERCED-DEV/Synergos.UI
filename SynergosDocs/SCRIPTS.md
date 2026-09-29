@@ -78,7 +78,7 @@
 
 | Script | Qué hace |
 |---|---|
-| `npm test` | Los **cinco**: contratos + gates de `tools/lib` + `vitals/` + Angular + Preact. Decía «los dos» desde antes de que fueran cuatro |
+| `npm test` | **Todos** los `test:*` del `package.json` —hoy cinco: contratos + gates de `tools/lib` + `vitals/` + Angular + Preact—, **cada uno aunque el anterior falle**, con un resumen por tramo y salida 1 si alguno falló (`tools/test-todo.mjs`, #79). Era un encadenado con `&&` y el primer rojo escondía a los siguientes. `--solo=test:a,test:b` corre un subconjunto |
 | `npm run test:contratos` | `element:audit` + `manifest:validate` — los dos del encadenado de contratos que NO necesitan al hermano ni la red (~0,4 s). Entraron a `npm test` en #74 porque no los corría nadie, y por ese hueco vivieron dos defectos del contrato de plataforma |
 | `npm run test:tools` | Sólo los gates de `tools/lib` — sin SDK, sin red, < 1 s |
 | `npm run test:vitals` | Sólo la capa agnóstica (funciones puras, sin compilar) |

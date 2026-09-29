@@ -17,12 +17,12 @@
  *                                     # `pretest` y `prebuild`)
  */
 
-import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ROOT } from './lib/synergos-config.mjs';
 import { CARPETA_PLATAFORMAS, frameworksConstruibles } from './lib/frameworks.mjs';
+import { correrNpm } from './lib/npm.mjs';
 import { sitiosAInstalar, sitiosSinInstalar } from './lib/setup-completo.mjs';
 
 const io = {
@@ -53,6 +53,7 @@ console.log(`[setup] ${sitios.length} sitios: ${sitios.map((s) => s.etiqueta).jo
 for (const { etiqueta, prefijo } of sitios) {
   const cwd = prefijo === null ? ROOT : join(ROOT, prefijo);
   console.log(`[setup] npm ci en ${etiqueta}…`);
-  execFileSync('npm', ['ci'], { cwd, stdio: 'inherit' });
+  // Por el lanzador y no con `execFileSync('npm', …)`: en Windows eso es ENOENT (#79).
+  correrNpm(['ci'], { cwd });
 }
 console.log('[setup] listo — npm test y npm run build ya pueden correr.');

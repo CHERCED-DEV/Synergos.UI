@@ -198,8 +198,10 @@ describe('el árbol', () => {
 
   it('el barrido llega a los tres vitales, no sólo a core', () => {
     // Un gate que mire una carpeta y no las tres pasa en verde con el defecto
-    // puesto en las otras dos.
-    const ficheros = ficherosDeVitals(REPO).map((f) => path.relative(REPO, f));
+    // puesto en las otras dos. La ruta relativa se normaliza a `/`: en Windows
+    // `path.relative` devuelve `vitals\core\…` y el `startsWith` fallaba con el
+    // barrido bien (#79). El descubrimiento del gate usa `path.join` y no cambia.
+    const ficheros = ficherosDeVitals(REPO).map((f) => path.relative(REPO, f).split(path.sep).join('/'));
     for (const vital of ['vitals/contracts/', 'vitals/core/', 'vitals/core-assets/']) {
       expect(ficheros.some((f) => f.startsWith(vital))).toBe(true);
     }

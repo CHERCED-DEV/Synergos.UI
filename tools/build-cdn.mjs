@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mjs';
+import { correrNpm } from './lib/npm.mjs';
 import { PLATFORMS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -42,7 +43,11 @@ async function existe(p) {
   try { await access(p); return true; } catch { return false; }
 }
 
-const correr = (cmd, args, cwd = ROOT) => execFileSync(cmd, args, { cwd, stdio: 'inherit' });
+// Todo `npm` pasa por el lanzador de `lib/npm.mjs`. Este helper decía
+// `execFileSync(cmd, …)` y sus cinco llamadas le pasaban `'npm'`: en Windows,
+// `spawnSync npm ENOENT` en el primer paso (#79). Y un barrido por la forma
+// `execFileSync('npm'` no lo veía, porque el literal vivía en quien lo llamaba.
+const correr = (args, cwd = ROOT) => correrNpm(args, { cwd });
 
 // ── 0. Dependencias + compilación ────────────────────────────────────────────
 //
@@ -58,11 +63,11 @@ if (await existe(join(NG, 'node_modules'))) {
   log('platforms/angular: dependencias ya instaladas');
 } else {
   log('platforms/angular: instalando dependencias…');
-  correr('npm', ['ci', '--no-audit', '--no-fund'], NG);
+  correr(['ci', '--no-audit', '--no-fund'], NG);
 }
 
 log('compilando contratos…');
-correr('npm', ['run', 'build:vitals']);
+correr(['run', 'build:vitals']);
 
 // ── Los builds, DERIVADOS de PLATFORMS ───────────────────────────────────────
 //
@@ -78,18 +83,18 @@ correr('npm', ['run', 'build:vitals']);
 // su propia carpeta. Preguntar por el script es preguntarle al disco.
 for (const { name } of PLATFORMS) {
   log(`compilando elementos de ${name}…`);
-  correr('npm', ['run', `build:${name}`]);
+  correr(['run', `build:${name}`]);
 }
 
 log('compilando runtime de angular (con el linker)…');
-correr('npm', ['run', 'build:runtime']);
+correr(['run', 'build:runtime']);
 
 for (const { name } of PLATFORMS) {
   const pkg = join(ROOT, 'platforms', name, 'package.json');
   if (!existsSync(pkg)) continue;
   if (!JSON.parse(readFileSync(pkg, 'utf8')).scripts?.['build:runtime']) continue;
   log(`compilando runtime de ${name}…`);
-  correr('npm', ['run', '--prefix', `platforms/${name}`, 'build:runtime']);
+  correr(['run', '--prefix', `platforms/${name}`, 'build:runtime']);
 }
 
 // ── 1. Empezar de cero ───────────────────────────────────────────────────────

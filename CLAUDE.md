@@ -83,6 +83,8 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - **Cuál de las dos sirve el CMS lo decide `BundleRegistry:DefaultFramework`**, que es global: con `preact`, el badge sale de Preact y los otros 129 siguen saliendo de Angular, porque un elemento sin implementación en el framework pedido cae al que tiene. Verificado con el cliente real contra el CDN construido.
   - El resto de esta línea sigue en pie: **el contrato del CDN conserva el segmento de framework** en las rutas y `FrameworkKind` sigue existiendo. El contrato del CDN conserva el segmento de framework en las rutas y `FrameworkKind` sigue existiendo — reintroducir otra plataforma es posible, pero hoy no existe ninguna. **Y desde #44 el pipeline ya no lo da por hecho**: la lista se deriva del disco (`tools/lib/frameworks.mjs`), los dos gates —presupuesto de tamaño y humo— recorren lo publicado en vez de pedir `/angular/`, y no queda ningún default silencioso. Lo que sigue nombrando a Angular a propósito está censado, con su razón, en `tools/lib/frameworks.spec.mjs`.
 - **Lo PRIMERO en un clon limpio: `npm run setup`** (#70). `npm ci` en la raíz **no instala las plataformas** —no hay `workspaces`, y `platforms/angular` y `platforms/preact` tienen cada uno su `package.json` y su `package-lock.json`—, así que hacen falta **tres** instalaciones. Medido el 2026-09-16 clonando en limpio: `npm ci` + `npm test` moría con `Cannot find module 'sass'` y una traza de `ngtsc.mjs` que no sugiere en ningún momento que falte instalar. El `setup` que existía decía `npm install --prefix platforms/angular` **a mano** y olvidó `preact` el día que #64 lo creó — la regla 25 en el camino de entrada. Hoy la lista se deriva del disco y `pretest`/`prebuild` la comprueban antes de arrancar, así que el mensaje dice qué teclear. Hay gate.
+  - **Y en Windows también, desde #79.** Hasta entonces `npm run setup` moría con `spawnSync npm ENOENT` en la primera instalación: en Windows `npm` es `npm.cmd`, y desde Node 20.12 un `.cmd` sólo se lanza con `shell: true`. Hoy todo `npm` de `tools/` pasa por **un** lanzador, `tools/lib/npm.mjs` —`setup`, `build:cdn` y `dev:cdn`, ocho llamadas que antes iban sueltas—, y `npm.spec.mjs` exige que nadie más lo lance por su cuenta. Medido el 2026-09-29 en Windows 11 con Node 20.19, desde un worktree sin `node_modules`: **3 sitios, 1 min 55 s, sale 0**.
+  - **Y el árbol es LF en todo sistema** (`.gitattributes`, #79). En Windows con `core.autocrlf=true` el checkout salía en CRLF y dos herramientas mentían sin fallar: `cms:sync:check` salía 2 («contracts file: WOULD UPDATE») porque compara byte a byte, y G-7 del CMS, leyendo los clientes de este árbol, ligaba 2 claves en 1 ruta donde hay 57 en 22 — verde falso (CMS#170). ⚠️ **Traer el commit NO reescribe lo ya extraído**: medido en un clon con `core.autocrlf=true`, 2.163 ficheros en CRLF antes y 2.152 después —sólo se reescriben los que el merge toca—. **Y ni `git checkout-index -f -a` ni `git add --renormalize .` lo arreglan** (2.152 después de cada uno: el primero salta lo que no cambió en el índice, el segundo sólo mira el índice). Lo que lo reescribe es `git rm --cached -r -q . && git reset --hard` (medido: 0), **con el árbol limpio**, porque el `reset --hard` borra lo que no esté commiteado. `git ls-files --eol | grep w/crlf` tiene que salir vacío.
 - Build: `npm run build:angular` (19 s) · `npm run build:preact` (0,2 s) · `npm run build` los hace los dos más los runtimes. Desde `platforms/angular/`: `npm run dev` (watch incremental) o `node tools/build.mjs --solo=badge,hero`.
 - **Verlo en el navegador**: `npm run dev:cdn` y abrir **`/probar`** — el banco (#49). `/probar/<elemento>` monta ESE elemento con su import map, su bundle y valores de muestra, y recarga al compilar. Es lo único del repo que hace que un elemento se vea: `GET /` es el catálogo, tarjetas informativas con **cero** `<script type="module">`. Medido: se podía compilar, publicar y servir un elemento sin tener nunca cómo mirarlo.
   - **No es una vista previa del producto** y la página lo dice: no hay tema del CMS ni contenido real. Un banco que se confunde con la realidad hace que alguien apruebe un diseño contra un fondo que no existe.
@@ -93,7 +95,7 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **500 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **500 en un clon limpio y 501 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas.)
+- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **545 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **545 en un clon limpio y 546 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.543, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
@@ -132,6 +134,7 @@ está vigilando nada.
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
 | `mapa-del-runtime` | que los import maps publicados se puedan COMPONER: mismo specifier con URLs distintas, un framework declarando el nombre agnóstico de otro, y el dueño retirando su alias o publicándolo sin gemelo | se publica el segundo runtime con los specifiers de hoy y el CMS se queda sin mapa (#58) |
+| `npm` | que **un solo** sitio de `tools/` lance `npm` —el lanzador, que en Windows pone `shell: true`—, que `setup`, `build-cdn` y `dev-cdn` estén enchufados a él, y que npm **corra de verdad** en el sistema donde se prueba. El censo busca el LITERAL `'npm'`/`'npx'`, no la forma de la llamada: por la forma salían 3 de las 8 | alguien vuelve a escribir `spawn('npm', …)` o un helper que recibe `'npm'` de quien lo llama, y en Windows vuelve el `ENOENT` (#79) |
 | `normalizador-unico` | que **una sola** declaración de cada normalizador del CMS exista, y que viva en `vitals/` — por NOMBRE de función exportada, derivado del disco | alguien copia `config-input.util.ts` al `shared` del segundo framework, aunque le ponga otro nombre de fichero y otra carpeta (#63) |
 | `indice-publicado` | que el `index.html` del CDN salga del registry de HOY, y que lo declarado sin construir lleve su marca | se vuelve a copiar un `catalog.html` congelado en vez de regenerarlo (#48) |
 | `interactive` | que el CLI descubra lo que el build compila, y que **vacío sea un fallo** y no un menú en blanco | alguien vuelve a descubrir por `project.json` —o por cualquier cosa que pueda dar cero sin quejarse— (#52) |
@@ -184,7 +187,7 @@ npm run size:baseline         # regenera el registro de tamaños — el diff va 
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
 ```
 
-En CI: `tests-ui.yml` (npm test), `despliegue-cdn.yml` (construye, publica con
+En CI: `tests-ui.yml` (npm test en Linux, y desde #79 un job `windows-latest`: que el checkout salga en LF, `npm run setup` desde cero y `npm test -- --solo=test:contratos,test:tools,test:vitals`), `despliegue-cdn.yml` (construye, publica con
 `wrangler deploy` y **corre el humo esperando ese commit**) y `design-gates-ui.yml`
 (G-1/G-2/G-5 **y G-9/G-10**, con checkout del CMS sibling — que es público, así que **sin `token:`**,
 ver #14). `humo-cdn.yml` queda a pedido (`workflow_dispatch`), para mirar el CDN
@@ -204,7 +207,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Cuarenta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cuarenta y seis reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1140,3 +1143,46 @@ se desincroniza):
    de esos 11 prefijos fijos del CMS—: una clave fuera de ellos sale siempre por el respaldo y
    parece traducida. **Lo que NO se copia de NewShore**: pasar el diccionario de mano en mano
    (`[translations]=` 174 veces allá) ni mostrar la clave cruda cuando falta.
+
+45. **Un gate que comprueba que el comando NOMBRA cada sitio no comprueba que CORRA en el sistema
+   de quien lo teclea — y un barrido por la FORMA de la llamada no ve la que pasa por un helper.**
+   `setup-completo` (#70) vigila que `npm run setup` derive cada plataforma del disco, y el
+   `setup` era correcto… en Linux. En Windows, desde Node 20.12 (CVE-2024-27980),
+   `execFileSync('npm', …)` da `ENOENT`: `npm` es `npm.cmd` y un `.cmd` sólo se lanza con
+   `shell: true`. «Lo PRIMERO en un clon limpio» no se podía teclear, `build:cdn` moría en su
+   primer paso y `dev:cdn` a los ~11 s —un `spawn` que no arranca emite `error`, y sin oyente ese
+   evento tumba al padre—. Ningún test lo vio porque los cinco workflows corrían en
+   `ubuntu-latest`: es la regla 31 un piso más arriba, se medía la LISTA y no la LLAMADA.
+   Dos cosas que no se deducen del arreglo:
+   (a) **el barrido que decidió el alcance tuvo que hacerse dos veces.** Por la forma
+   (`execFileSync('npm'`, `spawn('npm'`) salían **3** llamadas; por el literal `'npm'` en
+   cualquier posición, **8**: cinco pasaban por `correr('npm', …)` de `build-cdn.mjs`, cuyo
+   cuerpo no nombra a npm. Es la regla 37 con llamadas en vez de claves —el sujeto se USA sin
+   nombrarlo donde el barrido mira—, y por eso el censo de `npm.spec.mjs` busca el literal;
+   (b) **la prueba que cuenta es la que LANZA npm de verdad** (`ejecutarNpm(['--version'])`). La
+   decisión pura (`invocacionDeNpm(…, 'win32')`) se prueba en cualquier sistema, pero que la opción
+   LLEGUE al proceso no: un envoltorio que no aplica su `shell` deja verde todo Linux y da ENOENT
+   en Windows —medido: 2 rojos en `ejecutarNpm`/`correrNpm`, 1 en `lanzarNpm`, con la decisión
+   pura en verde—. Por eso `tests-ui.yml` tiene un job `windows-latest`: una comprobación que no
+   puede fallar en el sistema donde corre no vigila ese sistema (#79).
+   (c) **lo mismo con `node_modules/.bin/<x>`**: en Windows ese fichero es un shim POSIX y el
+   ejecutable es `<x>.cmd`, así que `gate:hipoteca` moría con `ENOENT` antes de cruzar un
+   vector. Si la herramienta tiene API de Node se usa la API —`await import('esbuild')` y
+   `build()`—, que resuelve el binario nativo de cada sistema por su cuenta;
+   (d) **un spec que escribe como ESPERADO el literal POSIX de algo que devuelve rutas del
+   sistema** da rojo en Windows con el código bien: `'/otro/cms'` contra un `resolve(…)` (3 en
+   `rutas-hermanas`) y `startsWith('vitals/core/')` contra un `path.relative` (1 en
+   `vitals-purity`). Lo esperado se construye con la MISMA función o se normaliza el separador,
+   y se comprueba que el spec sigue cazando mutando el CÓDIGO, no el spec.
+
+46. **Un encadenado con `&&` convierte el primer rojo en el ÚNICO rojo — y un «falló» que no dice
+   cuánto falló no es un resultado.** `npm test` era `test:contratos && test:tools && test:vitals &&
+   test:angular && test:preact`. En Windows, `test:tools` daba 4 rojos que eran de los SPECS (el
+   separador de rutas), y eso dejaba sin correr `test:vitals`, `test:angular` y `test:preact`:
+   **1.601 tests** de los que nadie sabía si pasaban. Quien lo teclea ve un rojo, lo arregla y
+   descubre el siguiente en la vuelta de después — o peor, lo da por el único.
+   Por eso `npm test` es un runner (`tools/test-todo.mjs`) que corre CADA tramo, imprime el
+   resultado de todos y sale 1 si alguno falló; y los tramos se DERIVAN de los `test:*` del
+   `package.json` (la regla 25: una lista escrita a mano olvida al que llega después). El spec
+   se ve fallar con la mutación que importa —un `break` en el primer rojo— y sobre el
+   `package.json` de verdad exige que `test` no vuelva a encadenar (#79).
