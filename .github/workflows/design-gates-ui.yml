@@ -55,6 +55,9 @@ on:
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
+      - 'tools/contrato-synhost.mjs'
+      - 'tools/lib/contrato-synhost.mjs'
+      - 'vitals/contracts/src/elementos-synhost.contract.ts'
       - '.github/workflows/design-gates-ui.yml'
   push:
     branches:
@@ -71,11 +74,14 @@ on:
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
+      - 'tools/contrato-synhost.mjs'
+      - 'tools/lib/contrato-synhost.mjs'
+      - 'vitals/contracts/src/elementos-synhost.contract.ts'
       - '.github/workflows/design-gates-ui.yml'
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost
     runs-on: ubuntu-latest
 
     steps:
@@ -183,3 +189,22 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/rutas-del-borde.mjs
+
+      # ── G-11 — el tipo TS de lo que viaja a cada elemento sale del record del CMS ──
+      #
+      # POR QUÉ EXISTE (ADR 0135 · CMS#173). Cada vista SynHost armaba a mano un diccionario
+      # libre de claves y nada obligaba a que fueran las que lee el elemento: 43 colocables
+      # tiraban al hidratar lo que el editor escribió (D1). Ahora un record C# declara lo que
+      # viaja, el CMS lo proyecta a `docs/contracts/elementos-synhost.json` (con gate de su
+      # lado) y de ahí sale `vitals/contracts/src/elementos-synhost.contract.ts`, contra el que
+      # se tipan los sanitizadores. Esto comprueba que el .ts versionado es el que da el JSON
+      # de HOY: si no, los sanitizadores compilarían contra un cable que ya no existe.
+      #
+      # Lo que NINGÚN filtro de acá cubre es el otro lado: un record que cambia en el CMS no
+      # dispara este workflow. Allá lo cubre `ContratoSynHostTests` (el JSON al día), y acá
+      # se pone rojo en el siguiente cambio que toque el contrato. Dicho, no insinuado.
+      - name: Contrato SynHost (G-11)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/contrato-synhost.mjs --check

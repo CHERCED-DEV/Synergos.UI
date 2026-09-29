@@ -5,6 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
+import type { KpiCardProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -15,25 +16,20 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynKpiCard</c>.
+ * <synergos-kpi-card>: a single KPI tile — a large value, an optional delta with
+ * directional colour (positive / negative / neutral), a descriptive label, an
+ * optional period caption and an optional sparkline rendered from a numeric series.
  *
- * A single KPI tile: a large value, an optional delta with directional
- * colour (positive / negative / neutral), a descriptive label, an optional
- * period caption and an optional sparkline rendered from a numeric series.
+ * El `config` que manda el CMS tiene la forma de `KpiCardProps`, GENERADO del record C#
+ * del mismo nombre (ADR 0135): el sanitizador se tipa con él, así que leer una clave que el
+ * CMS no manda no compila. Antes esta cabecera decía «every CMS property is a TypeScript
+ * input with the same alias», y era falso: la vista mandaba `kpiLabel`… y este elemento
+ * leía `label`…, así que el bundle borraba al hidratar lo que el SSR había pintado (D1).
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * `delta` (número) y `sparkline` NO viajan en el `config`: el editor no los autora. Siguen
+ * siendo atributos del elemento para quien lo monte a mano; los atributos ganan sobre el
+ * `config`, que gana sobre los defaults (`resolveConfigValue`).
  */
-export interface KpiCardRuntimeConfig {
-  readonly label?: string;
-  readonly value?: string;
-  readonly delta?: number;
-  readonly deltaLabel?: string;
-  readonly trend?: string;
-  readonly period?: string;
-  readonly sparkline?: readonly number[];
-}
 
 /** Resolved trend direction driving the delta colour + arrow glyph. */
 export type KpiTrend = 'up' | 'down' | 'flat';
@@ -128,15 +124,14 @@ export function buildSparkline(series: readonly number[]): Sparkline | null {
   return { points: line, area, last, width: SPARK_WIDTH, height: SPARK_HEIGHT };
 }
 
-function sanitizeKpiCardConfig(value: Partial<KpiCardRuntimeConfig>): KpiCardRuntimeConfig {
-  return omitUndefinedProperties<KpiCardRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeKpiCardConfig(value: Partial<KpiCardProps>): Partial<KpiCardProps> {
+  return omitUndefinedProperties<KpiCardProps>({
     label: coerceTrimmedStringInput(value.label),
     value: coerceTrimmedStringInput(value.value),
-    delta: coerceOptionalNumberInput(value.delta),
     deltaLabel: coerceTrimmedStringInput(value.deltaLabel),
     trend: coerceTrimmedStringInput(value.trend),
     period: coerceTrimmedStringInput(value.period),
-    sparkline: value.sparkline,
   });
 }
 
@@ -151,8 +146,8 @@ function sanitizeKpiCardConfig(value: Partial<KpiCardRuntimeConfig>): KpiCardRun
 export class KpiCardElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<KpiCardRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<KpiCardRuntimeConfig>(sanitizeKpiCardConfig),
+  readonly config = input<Partial<KpiCardProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<KpiCardProps>(sanitizeKpiCardConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly valueInput = input<string | undefined>(undefined, { alias: 'value' });
@@ -173,7 +168,7 @@ export class KpiCardElementComponent {
   );
 
   readonly delta = computed<number | undefined>(() => {
-    const resolved = resolveConfigValue(this.deltaInput(), this.config()?.delta, undefined);
+    const resolved = this.deltaInput();
     return typeof resolved === 'number' && Number.isFinite(resolved) ? resolved : undefined;
   });
 
@@ -202,9 +197,10 @@ export class KpiCardElementComponent {
   readonly hasValue = computed(() => this.value().trim().length > 0);
   readonly hasPeriod = computed(() => this.period().trim().length > 0);
 
-  readonly series = computed<readonly number[]>(() =>
-    normalizeSeries(this.resolveSource(this.sparklineInput(), this.config()?.sparkline)),
-  );
+  readonly series = computed<readonly number[]>(() => {
+    const raw = this.sparklineInput();
+    return normalizeSeries(raw === undefined ? undefined : this.#initialData.parseValue<unknown>(raw));
+  });
 
   readonly sparkline = computed<Sparkline | null>(() => buildSparkline(this.series()));
   readonly hasSparkline = computed(() => this.sparkline() !== null);
@@ -219,11 +215,4 @@ export class KpiCardElementComponent {
     const period = this.hasPeriod() ? ` ${this.period()}` : '';
     return `Variación ${this.deltaLabel()} ${direction}${period}`.trim();
   });
-
-  private resolveSource(rawInput: string | undefined, configValue: unknown): unknown {
-    if (rawInput !== undefined) {
-      return this.#initialData.parseValue<unknown>(rawInput);
-    }
-    return configValue;
-  }
 }

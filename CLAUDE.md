@@ -93,10 +93,10 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **500 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **500 en un clon limpio y 501 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas.)
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **513 + 50 + 1.548 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **513 en un clon limpio y 514 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **13 del CMS#173** —11 de la lógica del generador del contrato SynHost y 2 del censo de `frameworks` que ese generador hizo crecer—. De Angular, **5 del CMS#173**: el gate que ejecuta los sanitizadores y el spec de `kpi-card` con el `config` exacto de su vista.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
-  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.543, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.548, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
   - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
@@ -144,6 +144,7 @@ está vigilando nada.
 | `template-bindings` | `[algo]="… \|\| null"` en plantillas | vuelve el `id="null"` (#11) |
 | `vectores-hipoteca` | que las DOS implementaciones de la cuota —la de acá y la del C# detrás de `POST /api/realty/mortgage`— den el mismo número al centavo, contra los vectores de oro del CMS | alguien vuelve a confundir la unidad de la tasa (porcentaje ↔ fracción), que valía 90,8× (#76 · CMS#167) |
 | `vitals-purity` | que `vitals/` no importe nada fuera de la capa agnóstica | se mete un import de framework —o una fuga relativa a `platforms/`— en `vitals/` (#36) |
+| `contrato-synhost` | que el tipo TS de lo que viaja a cada elemento con resolver tipado (`vitals/contracts/src/elementos-synhost.contract.ts`) sea el que da el contrato del CMS (`docs/contracts/elementos-synhost.json`, que el CMS deriva de sus records), y que su lógica esté probada en `test:tools`. **El cruce necesita el CMS**: corre en `contracts:validate` y en `design-gates-ui.yml` (G-11), y sin el CMS rechaza. Su otra mitad sí corre en `npm test`: `apps/elements/contrato-synhost.spec.ts` **ejecuta** el sanitizador de cada elemento con el `config` exacto que emite su vista | cambia un record del CMS y nadie regenera el tipo; un sanitizador tira una clave que viaja; un elemento con contrato se queda sin su sanitizador en la tabla del spec (CMS#173) |
 
 > ⚠️ **`npm run test:tools` contaba de más, y la cifra llegó a dos cierres de ticket.** Su comando
 > —`npx vitest run tools/lib`— pasa un **filtro de substring**, no un directorio, así que también
@@ -173,12 +174,14 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · contratos:synhost:check · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
 npm run gate:design-system    # piezas del design system que no alcanza ningún elemento, y su reparto por tier (sin hermano ni red)
 npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
+npm run contratos:synhost     # regenera el tipo TS de lo que viaja a cada elemento, del contrato del CMS (ADR 0135)
+npm run contratos:synhost:check   # …o comprueba que el versionado es el de hoy (necesita el CMS; acepta --cms-path)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
 npm run humo:cdn -- <url> [--sha <commit>]   # contra la URL PÚBLICA, nunca contra sí mismo
@@ -204,7 +207,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Cuarenta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cuarenta y cinco reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1122,6 +1125,11 @@ se desincroniza):
    cuáles conserva mi sanitizador?** Lo que lo cierra es el contrato tipado —un `record` C# por
    elemento del que se genera el tipo TS— (ADR 0135 del CMS, **Propuesta**); hasta entonces, un
    spec que alimente el `config` **exacto** que emite la vista, no el que el elemento espera.
+   **Desde el piloto (CMS#173) queda cerrado POR CONSTRUCCIÓN en los elementos con resolver
+   tipado** —los que lista `ELEMENTOS_SYNHOST`, hoy `kpi-card`—: el record C# declara lo que viaja,
+   el tipo sale de él (`vitals/contracts/src/elementos-synhost.contract.ts`, regla 45), el
+   sanitizador se tipa con ese tipo y un spec lo ejecuta con lo que la vista emite. Para los demás,
+   la pregunta de arriba sigue siendo la única red.
 
 44. **Las hojas reciben STRINGS; la funcionalidad traduce con `t()` — y hoy `t()` tiene CERO
    llamadores** (medido acá). El CMS publica el diccionario en `window.synergos.i18n` una vez por
@@ -1140,3 +1148,25 @@ se desincroniza):
    de esos 11 prefijos fijos del CMS—: una clave fuera de ellos sale siempre por el respaldo y
    parece traducida. **Lo que NO se copia de NewShore**: pasar el diccionario de mano en mano
    (`[translations]=` 174 veces allá) ni mostrar la clave cruda cuando falta.
+
+45. **Tipar el sanitizador con lo que VIAJA caza la clave que se lee de más, no la que se tira: por
+   eso además se EJECUTA con lo que emite la vista — y ese `config` no se escribe, se emite.** El
+   `config` de un elemento con resolver tipado tiene la forma de su record C#
+   (`Synergos.CMS.Interfaces/SynHost/*Props.cs`), del que el CMS deriva
+   `docs/contracts/elementos-synhost.json` y de ahí `npm run contratos:synhost` genera
+   `elementos-synhost.contract.ts`. Con el sanitizador tipado así, leer `value.delta` en `kpi-card`
+   —que el CMS no manda— es `TS2339` al compilar (mutado). Pero **quitar una lectura compila
+   igual**: con `period` fuera del sanitizador, `tsc` calla y el texto del editor se vuelve a tirar
+   al hidratar, que es D1 entero. Lo caza `apps/elements/contrato-synhost.spec.ts`, que corre el
+   sanitizador con el `ejemplo` del contrato y exige que **cada clave mueva la salida** (mutado).
+   **El ejemplo no lo escribe nadie a mano**: el CMS lo saca de una muestra autorada pasada por su
+   resolver y su emitter REALES (`ContratoSynHostTests`), y trae la `culture` que el emitter añade.
+   Un ejemplo escrito acá sería otra copia de las claves —la tercera—, que es la forma exacta en que
+   nació D1: dos sitios que dicen lo mismo y nadie los cruza.
+   Tres cosas que no se deducen: (a) el tipo de uSync (`elements-syn.contract.ts`) describe lo que
+   el editor EDITA, no lo que viaja —mete las pestañas como propiedades y en 23 vistas otro juego de
+   claves—, así que **no** es contra qué tipar; (b) un campo que el elemento acepta por atributo y el
+   CMS no autora (`delta`, `sparkline` en `kpi-card`) sale del `config` y se queda como atributo —el
+   `config` es el cable, el atributo es la API pública del elemento—; (c) el cruce JSON↔TS necesita
+   al CMS, así que vive en `contracts:validate` y en G-11, no en `npm test`; lo que sí corre en
+   `npm test` es la compilación contra el tipo versionado y la ejecución de los sanitizadores.

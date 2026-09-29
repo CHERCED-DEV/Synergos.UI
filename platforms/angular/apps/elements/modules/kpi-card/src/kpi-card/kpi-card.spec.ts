@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { KPI_CARD_SYNHOST } from '@synergos/contracts';
 import { KpiCardElementComponent } from './kpi-card';
 
 const SPARKLINE = JSON.stringify([10, 12, 9, 15, 14, 18, 22]);
@@ -59,6 +60,25 @@ describe('KpiCardElementComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.hasSparkline()).toBe(false);
+  });
+
+  // D1 (ADR 0135): el SSR pintaba lo del editor y la hidratación lo borraba, porque la vista
+  // mandaba `kpiLabel`… y esto leía `label`…. Ningún spec lo veía: todos hacían `setInput` de
+  // las claves del elemento. Éste alimenta el `config` EXACTO que emite la vista del CMS —el
+  // `ejemplo` del contrato, que el CMS emite con su resolver y su emitter reales—.
+  it('pinta lo que el editor escribió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = KPI_CARD_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain(ejemplo.label);
+    expect(texto).toContain(ejemplo.value);
+    expect(texto).toContain(ejemplo.deltaLabel);
+    expect(texto).toContain(ejemplo.period);
+    expect(texto).not.toContain('Sin dato');
+    expect(component.trend()).toBe(ejemplo.trend);
   });
 
   it('should let direct inputs override config (idempotent precedence)', async () => {
