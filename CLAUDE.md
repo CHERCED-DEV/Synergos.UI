@@ -1063,7 +1063,8 @@ se desincroniza):
    **El daño de un catálogo que no se consulta no son las piezas sin uso: son las DUPLICADAS.**
    `syn-segmented` —vivo, `libs/shells/src/map/results-map.ts:145`— y `syn-segmented-control`
    —en la línea base— son el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el que
-   había. Y el doc 22 pidió «crear» un resumen con enlace *Cambiar* que ya existía como
+   había. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
+   «crear» un resumen con enlace *Cambiar* que ya existía como
    `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
    **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea
    base incluidas—, y si hay dos del mismo concepto se fusionan. Por eso el mensaje del gate ya no
