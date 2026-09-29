@@ -93,10 +93,10 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **496 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **496 en un clon limpio y 497 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer—.)
+- Tests: `npm test` en la raíz corre **cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact`, **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **500 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **500 en un clon limpio y 501 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
-  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.541), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.543, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
   - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
@@ -127,7 +127,7 @@ está vigilando nada.
 | `cdn-smoke` | que el humo apunte **hacia afuera** | alguien le pone `localhost` por defecto (#9) |
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
-| `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
+| `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos. **Imprime el reparto por tier** (derivado, no escrito: #172) y no propone retirar por defecto (regla 40) | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -176,7 +176,7 @@ Comandos que no cuelgan de `npm test`:
 npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
-npm run gate:design-system    # piezas del design system que no alcanza ningún elemento (sin hermano ni red)
+npm run gate:design-system    # piezas del design system que no alcanza ningún elemento, y su reparto por tier (sin hermano ni red)
 npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
@@ -204,7 +204,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Treinta y nueve reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cuarenta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1001,9 +1001,18 @@ se desincroniza):
    movimiento que la **regla 36**, donde el cruce tuvo que decidir que un spec no cuenta como
    llamador: acá **un componente muerto no cuenta como consumidor**.
    Los 22 viajan dentro del runtime compartido —comprobado buscando su selector compilado en el
-   bundle publicado, 809.386 B que descarga toda página de su plataforma— y **9 de los 12
-   `patterns/`** están entre ellos, contra 6 de 23 `primitives/`: cuanto más arriba en la
-   pirámide, menos se reusa, que es lo que cabía esperar y lo que nadie había medido.
+   bundle publicado, 809.386 B que descarga toda página de su plataforma—. **Por tier, de los
+   22: 6 `patterns` · 8 `compositions` · 8 `primitives` · 0 `states`**, o sea el 50 %, 50 %, 35 %
+   y 0 % de cada uno: cuanto más arriba en la pirámide, algo menos se reusa, y los estados se
+   usan todos.
+   **Esta línea decía «9 de los 12 `patterns/` […] contra 6 de 23 `primitives/`», y era falsa**
+   (#78, CMS#172): la conclusión apuntaba bien y las dos cifras no, escritas a mano en la prosa —y
+   copiadas al docstring de la lib— sin que nada las derivara. Es exactamente lo que este fichero
+   corrige de sí mismo cada vez que una cifra se escribe en vez de medirse. **Hoy las imprime el
+   runner** (`[design-system] <plataforma> por tier, inalcanzables/total: …`), derivadas de las
+   carpetas que el descubrimiento ya lee, y lo comprobó una segunda derivación —la carpeta de cada
+   clase de la línea base, por grep— con el mismo 6 · 8 · 8 · 0. **La cifra que vale es la de la
+   última corrida, no la de esta línea.**
    **Cuatro cosas del gate que costaron su mutación, y dos de ellas porque MI mutación estaba mal
    apuntada:**
    (a) **apagar la propagación NO reproduce el conteo directo — hace lo contrario.** El bucle sólo
@@ -1032,3 +1041,102 @@ se desincroniza):
    una y escribir otra pasa en verde. Y el censo de `frameworks` cazó, al primer intento, que el
    mensaje de error del gate decía «descarga toda página Angular» — prosa para una persona que
    cablea de quién es el runtime compartido, y falsa el día que haya dos (#78).
+
+> **Las cinco que siguen salen de la auditoría de reutilización «que todo sea Lego»** (CMS#172,
+> #78), que midió los dos árboles contra NewShore —el proyecto del que el arquitecto tomó el
+> funcionamiento interno; vive en su máquina, en `C:\mcpl`, y no se clona—. El modelo que las
+> ordena está en el CMS: ADR 0134 (**Aceptada**) y su `CLAUDE.md` §0.C. **Tres catálogos**
+> —piezas Razor del CMS, las piezas chicas de `libs/shared`, las funcionalidades— y **dos tipos
+> de cosas que el editor coloca**: una **funcionalidad**, grande por dentro y un tag hacia el CMS,
+> que recibe sólo cableado; y una **pieza** suelta, que recibe su contenido y monta su gemela del
+> design system. Las cifras que no dice «medido acá» las midió un agente de la auditoría y no se
+> re-derivaron: se citan como suyas.
+
+40. **El catálogo es VOCABULARIO, no deuda: una pieza sin consumidor no se retira por defecto.**
+   Se usa, se mejora, **se fusiona si duplica un concepto**, o se declara con su disparador; se
+   retira sólo con evidencia de que el concepto sobra. El gate de la regla 39 mide ALCANCE, y lo
+   primero que se hizo con su lista fue proponer retirar doce. Medidas una por una: **ninguna
+   tuvo nunca un consumidor** —cero commits con su selector en `apps/`, `libs/shells` y
+   `libs/shop`— y **la necesidad está en el disco en 80 sitios**, resuelta a mano cada vez.
+   Veredicto: fusionar 3, mejorar y usar 5, usar 2, declarar 2, **retirar 0** — y así lo decidió
+   el arquitecto.
+   **El daño de un catálogo que no se consulta no son las piezas sin uso: son las DUPLICADAS.**
+   `syn-segmented` —vivo, `libs/shells/src/map/results-map.ts:145`— y `syn-segmented-control`
+   —en la línea base— son el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el que
+   había. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
+   «crear» un resumen con enlace *Cambiar* que ya existía como
+   `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
+   **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea
+   base incluidas—, y si hay dos del mismo concepto se fusionan. Por eso el mensaje del gate ya no
+   ofrece RETIRAR como primera salida: la línea base es la lista de lo que falta **decidir**, no
+   la de lo que sobra.
+
+41. **Un elemento publicado con gemela en el design system la MONTA, nunca la reimplementa — y
+   hoy 19 de 33 no lo hacen.** Es la **regla de los dos pisos** (ADR 0134 del CMS). Medido por
+   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no**. Por
+   nombre, de 13 pares montan la suya **cuatro** —`carousel`, `data-table`, `badge` y `heading`
+   (alias de `text-block`)—. **`card` no la monta** (medido acá): importa `Badge`, `Button` y
+   `Heading` y rehace la tarjeta, y como su clase se llama `CardComponent` —igual que la pieza—
+   un grep la dio por buena contándose a sí misma.
+   **Por qué importa**: dos implementaciones del mismo concepto divergen, y el arreglo de una no
+   llega a la otra — es la **regla 26** dentro del mismo repo. Un elemento que monta su pieza
+   hereda su accesibilidad, sus tokens y sus correcciones; uno que la rehace, no.
+   **Y la pregunta es por CONCEPTO, no por nombre**, en los dos sentidos: `stepper` son DOS
+   conceptos —el elemento es un indicador de pasos, `syn-stepper` un +/- numérico— y `data-grid`
+   no es `DataTableComponent`. **Lo que falta es el gate**: el prototipo de la auditoría deja los
+   19 como línea base vigilada en los dos sentidos, y no está en el repo.
+
+42. **Una región viva no NACE con su mensaje: tiene que existir ANTES de que el texto cambie, o
+   el lector de pantalla calla.** Medido con el AST del compilador de Angular sobre las 323
+   plantillas: **200** nodos vivos en 79 plantillas, y **119 nacen con su mensaje** —la región
+   entra al DOM en el mismo render que el texto, dentro de un `@if`—; 73 de ésos son
+   `status`/`polite`, justo el caso que no se anuncia de forma fiable.
+   **Y lo contrario también es un defecto: tres regiones hablan CADA SEGUNDO** (medido acá):
+   `countdown-clock.html:25` y `countdown-digital` (polite, reconstruyen su frase en cada tic) y el
+   aviso del apartado de `cart-shell`, que en los últimos 300 s pasa a `role="alert"` y anuncia
+   «quedan m:ss» a gritos, en los carritos de eventos, storefront y travel.
+   **El camino ya existe y tiene dos consumidores**: `LiveAnnouncerService`
+   (`libs/shared/src/services/live-announcer.service.ts`), una región a nivel de documento que
+   vacía, espera y pone —`gov` y `blogs` lo usan—. `syn-live-region` no resuelve el caso: es el
+   mismo `<span role=status>` que el inline, y dentro de un `@if` nace igual de mudo. **Un mensaje
+   de EVENTO** —agregado al carrito, página cargada, copiado— **se le pide al servicio**; una
+   región propia, sólo si existe desde el primer render y su texto cambia después; y un reloj se
+   describe en su `aria-label`, no se anuncia.
+   **La cifra que circulaba era «210 anuncios en 70 sitios»**, y contaba atributos, no regiones:
+   son 223 atributos en 200 nodos, cuadrados por dos derivaciones (AST y grep sin comentarios,
+   fichero a fichero). Es la regla 39 otra vez: una cifra en prosa sin quien la derive.
+
+43. **La hidratación puede BORRAR lo que el SSR pintó bien, y ni los tests del SSR ni los del
+   elemento lo ven.** Es el defecto D1: **43** colocables tiran al hidratar lo que el editor
+   escribió —medido ejecutando el sanitizador de cada uno con lo que emite su vista SynHost, y
+   tres en vivo con control—. El caso comprobado acá: `SynHost/KpiCard.cshtml` del CMS arma el
+   `config` con `kpiLabel`, `kpiValue`, `kpiTrend`…, y `kpi-card.ts:133` lee `value.label`. El
+   respaldo SSR sale con el texto del editor, el bundle arranca, no encuentra ninguna de sus
+   claves y **se pinta vacío encima**. En `dropdown`, `optionsJson` contra `options`: un botón
+   gris sin opciones — y tipando su sanitizador con el `SynDropdownSchema` generado de uSync sale
+   `TS2339`, o sea que **el compilador lo habría visto** si alguien se lo hubiera preguntado.
+   **Por qué no lo ve nadie**: los specs del elemento hacen `setInput` de SUS claves —prueban el
+   elemento contra sí mismo, la regla 5 del lado del contrato— y el SSR se prueba contra su HTML.
+   El cable entre los dos, las claves que la vista mete en `config`, no lo prueba nadie.
+   **La pregunta que lo caza antes de tocar un elemento colocable: ¿qué claves emite su vista, y
+   cuáles conserva mi sanitizador?** Lo que lo cierra es el contrato tipado —un `record` C# por
+   elemento del que se genera el tipo TS— (ADR 0135 del CMS, **Propuesta**); hasta entonces, un
+   spec que alimente el `config` **exacto** que emite la vista, no el que el elemento espera.
+
+44. **Las hojas reciben STRINGS; la funcionalidad traduce con `t()` — y hoy `t()` tiene CERO
+   llamadores** (medido acá). El CMS publica el diccionario en `window.synergos.i18n` una vez por
+   página —176 claves, por 11 prefijos fijos, y 3 de ellos (`Comments.`, `Cart.`, `Account.`) no
+   casan ni una— y el helper existe (`vitals/core/src/bridge/synergos-bridge.ts:32`), pero ningún
+   componente lo llama: hay unos 3.235 textos escritos a mano, el 75 % en las verticales, y 15
+   componentes aceptan un `config.translations` que nadie les manda.
+   **La regla** (ADR 0136 del CMS, **Propuesta**): una **funcionalidad** —una app de vertical, un
+   flujo— declara sus secciones de diccionario y traduce con `t(clave, respaldo)`; una **hoja** —una
+   pieza del design system, un componente de presentación— recibe el texto **ya traducido** por
+   input y no sabe que existe un diccionario. Así el texto se decide en un sitio por funcionalidad y
+   la pieza se reusa en cualquier idioma sin tocarla.
+   **Dos trampas medidas.** En Angular `t` se importa de `@synergos/vitals-core`: el comentario del
+   helper manda a `@synergos/core/bridge/…`, y ahí `@synergos/core` es `libs/core` (la tabla de
+   alias de arriba). Y la clave tiene que vivir en una sección que el puente **publica** —hoy, uno
+   de esos 11 prefijos fijos del CMS—: una clave fuera de ellos sale siempre por el respaldo y
+   parece traducida. **Lo que NO se copia de NewShore**: pasar el diccionario de mano en mano
+   (`[translations]=` 174 veces allá) ni mostrar la clave cruda cuando falta.

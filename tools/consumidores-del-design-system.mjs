@@ -25,7 +25,9 @@ import {
   RAIZ_DEL_DESIGN_SYSTEM,
   componentesDeclarados,
   cruzarConLaLineaBase,
+  formatearReparto,
   inalcanzablesDesdeProducto,
+  repartoPorTier,
   revisarCobertura,
 } from './lib/consumidores-del-design-system.mjs';
 
@@ -127,6 +129,14 @@ for (const { framework, base } of plataformasConDesignSystem()) {
     `[design-system] ${framework}: ${r.medidos} componente(s) · ${r.alcanzables} alcanzable(s) · ` +
       `${r.inalcanzables.length} inalcanzable(s) (${r.sinConsumidorDirecto.length} sin un solo consumidor)`,
   );
+  // El reparto por tier se IMPRIME y no se escribe (#172): la guía decía «9 de los 12 patterns»
+  // a mano y eran 6. Sin componentes no hay reparto que imprimir — la cobertura lo juzga abajo.
+  if (r.medidos > 0) {
+    console.log(
+      `[design-system] ${framework} por tier, inalcanzables/total: ` +
+        formatearReparto(repartoPorTier(componentes, r.inalcanzables)),
+    );
+  }
 }
 
 inalcanzables.sort((a, b) => a.localeCompare(b));
@@ -177,11 +187,13 @@ if (fallos.length > 0) {
   console.error(`\n[design-system] ✗ ${fallos.length} hallazgo(s):`);
   for (const f of fallos) console.error(`    ${f}`);
   console.error(
-    '\n    Qué decidir por cada una, y la razón se escribe: RETIRAR (nadie la usa y no hay ' +
-      'disparador) · CABLEAR (hay una pantalla que debería usarla, y eso es un defecto con su ' +
-      'ticket) · DECLARAR con su disparador. Y el filtro de la tercera: la razón tiene que ' +
-      'contestar «por qué esto NO se usa», no «por qué todavía no se usó» — lo segundo es un ' +
-      'ticket sin abrir disfrazado de excepción.',
+    '\n    Qué decidir por cada una, y la razón se escribe. NO se retira por defecto: una pieza ' +
+      'sin consumidor es vocabulario del catálogo (regla 40; ADR 0134 del CMS). Las salidas: ' +
+      'USAR o MEJORAR (hay una pantalla que debería usarla, y eso es un defecto con su ticket) · ' +
+      'FUSIONAR (duplica un concepto que ya existe — búscalo por lo que HACE, no por el nombre) · ' +
+      'DECLARAR con su disparador · y RETIRAR sólo con evidencia de que el concepto sobra. El ' +
+      'filtro de DECLARAR: la razón tiene que contestar «por qué esto NO se usa», no «por qué ' +
+      'todavía no se usó» — lo segundo es un ticket sin abrir disfrazado de excepción.',
   );
   process.exit(1);
 }
