@@ -377,8 +377,9 @@ export function cruzarConLaLineaBase(inalcanzables, lineaBase, medidos) {
       `${nuevos.length} pieza(s) del design system que nadie alcanza y que no estaban en la ` +
         `línea base: ${nuevos.join(', ')}. Un componente que no usa ningún elemento viaja igual ` +
         'en el runtime compartido de su plataforma, que descarga toda página que lleve uno de ' +
-        'sus elementos. Decidí qué es —retirar, cablear, o declarar con su disparador (#78)— y ' +
-        'no lo sumes a la línea base: la línea base es la deuda medida, no una papelera.',
+        'sus elementos. Decidí qué es —usarla, fusionarla si duplica un concepto, declararla con ' +
+        'su disparador o, sólo con evidencia, retirarla (#78, regla 40)— y no la sumes a la línea ' +
+        'base: la línea base es la deuda medida, no una papelera.',
     );
   }
 

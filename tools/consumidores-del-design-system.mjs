@@ -187,11 +187,13 @@ if (fallos.length > 0) {
   console.error(`\n[design-system] ✗ ${fallos.length} hallazgo(s):`);
   for (const f of fallos) console.error(`    ${f}`);
   console.error(
-    '\n    Qué decidir por cada una, y la razón se escribe: RETIRAR (nadie la usa y no hay ' +
-      'disparador) · CABLEAR (hay una pantalla que debería usarla, y eso es un defecto con su ' +
-      'ticket) · DECLARAR con su disparador. Y el filtro de la tercera: la razón tiene que ' +
-      'contestar «por qué esto NO se usa», no «por qué todavía no se usó» — lo segundo es un ' +
-      'ticket sin abrir disfrazado de excepción.',
+    '\n    Qué decidir por cada una, y la razón se escribe. NO se retira por defecto: una pieza ' +
+      'sin consumidor es vocabulario del catálogo (regla 40; ADR 0134 del CMS). Las salidas: ' +
+      'USAR o MEJORAR (hay una pantalla que debería usarla, y eso es un defecto con su ticket) · ' +
+      'FUSIONAR (duplica un concepto que ya existe — búscalo por lo que HACE, no por el nombre) · ' +
+      'DECLARAR con su disparador · y RETIRAR sólo con evidencia de que el concepto sobra. El ' +
+      'filtro de DECLARAR: la razón tiene que contestar «por qué esto NO se usa», no «por qué ' +
+      'todavía no se usó» — lo segundo es un ticket sin abrir disfrazado de excepción.',
   );
   process.exit(1);
 }
