@@ -204,7 +204,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Treinta y nueve reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cuarenta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1041,3 +1041,101 @@ se desincroniza):
    una y escribir otra pasa en verde. Y el censo de `frameworks` cazó, al primer intento, que el
    mensaje de error del gate decía «descarga toda página Angular» — prosa para una persona que
    cablea de quién es el runtime compartido, y falsa el día que haya dos (#78).
+
+> **Las cinco que siguen salen de la auditoría de reutilización «que todo sea Lego»** (CMS#172,
+> #78), que midió los dos árboles contra NewShore —el proyecto del que el arquitecto tomó el
+> funcionamiento interno; vive en su máquina, en `C:\mcpl`, y no se clona—. El modelo que las
+> ordena está en el CMS: ADR 0134 (**Aceptada**) y su `CLAUDE.md` §0.C. **Tres catálogos**
+> —piezas Razor del CMS, las piezas chicas de `libs/shared`, las funcionalidades— y **dos tipos
+> de cosas que el editor coloca**: una **funcionalidad**, grande por dentro y un tag hacia el CMS,
+> que recibe sólo cableado; y una **pieza** suelta, que recibe su contenido y monta su gemela del
+> design system. Las cifras que no dice «medido acá» las midió un agente de la auditoría y no se
+> re-derivaron: se citan como suyas.
+
+40. **El catálogo es VOCABULARIO, no deuda: una pieza sin consumidor no se retira por defecto.**
+   Se usa, se mejora, **se fusiona si duplica un concepto**, o se declara con su disparador; se
+   retira sólo con evidencia de que el concepto sobra. El gate de la regla 39 mide ALCANCE, y lo
+   primero que se hizo con su lista fue proponer retirar doce. Medidas una por una: **ninguna
+   tuvo nunca un consumidor** —cero commits con su selector en `apps/`, `libs/shells` y
+   `libs/shop`— y **la necesidad está en el disco en 80 sitios**, resuelta a mano cada vez.
+   Veredicto: fusionar 3, mejorar y usar 5, usar 2, declarar 2, **retirar 0** — y así lo decidió
+   el arquitecto.
+   **El daño de un catálogo que no se consulta no son las piezas sin uso: son las DUPLICADAS.**
+   `syn-segmented` —vivo, `libs/shells/src/map/results-map.ts:145`— y `syn-segmented-control`
+   —en la línea base— son el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el que
+   había. Y el doc 22 pidió «crear» un resumen con enlace *Cambiar* que ya existía como
+   `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
+   **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea
+   base incluidas—, y si hay dos del mismo concepto se fusionan. Por eso el mensaje del gate ya no
+   ofrece RETIRAR como primera salida: la línea base es la lista de lo que falta **decidir**, no
+   la de lo que sobra.
+
+41. **Un elemento publicado con gemela en el design system la MONTA, nunca la reimplementa — y
+   hoy 19 de 33 no lo hacen.** Es la **regla de los dos pisos** (ADR 0134 del CMS). Medido por
+   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no**. Por
+   nombre, de 13 pares montan la suya **cuatro** —`carousel`, `data-table`, `badge` y `heading`
+   (alias de `text-block`)—. **`card` no la monta** (medido acá): importa `Badge`, `Button` y
+   `Heading` y rehace la tarjeta, y como su clase se llama `CardComponent` —igual que la pieza—
+   un grep la dio por buena contándose a sí misma.
+   **Por qué importa**: dos implementaciones del mismo concepto divergen, y el arreglo de una no
+   llega a la otra — es la **regla 26** dentro del mismo repo. Un elemento que monta su pieza
+   hereda su accesibilidad, sus tokens y sus correcciones; uno que la rehace, no.
+   **Y la pregunta es por CONCEPTO, no por nombre**, en los dos sentidos: `stepper` son DOS
+   conceptos —el elemento es un indicador de pasos, `syn-stepper` un +/- numérico— y `data-grid`
+   no es `DataTableComponent`. **Lo que falta es el gate**: el prototipo de la auditoría deja los
+   19 como línea base vigilada en los dos sentidos, y no está en el repo.
+
+42. **Una región viva no NACE con su mensaje: tiene que existir ANTES de que el texto cambie, o
+   el lector de pantalla calla.** Medido con el AST del compilador de Angular sobre las 323
+   plantillas: **200** nodos vivos en 79 plantillas, y **119 nacen con su mensaje** —la región
+   entra al DOM en el mismo render que el texto, dentro de un `@if`—; 73 de ésos son
+   `status`/`polite`, justo el caso que no se anuncia de forma fiable.
+   **Y lo contrario también es un defecto: tres regiones hablan CADA SEGUNDO** (medido acá):
+   `countdown-clock.html:25` y `countdown-digital` (polite, reconstruyen su frase en cada tic) y el
+   aviso del apartado de `cart-shell`, que en los últimos 300 s pasa a `role="alert"` y anuncia
+   «quedan m:ss» a gritos, en los carritos de eventos, storefront y travel.
+   **El camino ya existe y tiene dos consumidores**: `LiveAnnouncerService`
+   (`libs/shared/src/services/live-announcer.service.ts`), una región a nivel de documento que
+   vacía, espera y pone —`gov` y `blogs` lo usan—. `syn-live-region` no resuelve el caso: es el
+   mismo `<span role=status>` que el inline, y dentro de un `@if` nace igual de mudo. **Un mensaje
+   de EVENTO** —agregado al carrito, página cargada, copiado— **se le pide al servicio**; una
+   región propia, sólo si existe desde el primer render y su texto cambia después; y un reloj se
+   describe en su `aria-label`, no se anuncia.
+   **La cifra que circulaba era «210 anuncios en 70 sitios»**, y contaba atributos, no regiones:
+   son 223 atributos en 200 nodos, cuadrados por dos derivaciones (AST y grep sin comentarios,
+   fichero a fichero). Es la regla 39 otra vez: una cifra en prosa sin quien la derive.
+
+43. **La hidratación puede BORRAR lo que el SSR pintó bien, y ni los tests del SSR ni los del
+   elemento lo ven.** Es el defecto D1: **43** colocables tiran al hidratar lo que el editor
+   escribió —medido ejecutando el sanitizador de cada uno con lo que emite su vista SynHost, y
+   tres en vivo con control—. El caso comprobado acá: `SynHost/KpiCard.cshtml` del CMS arma el
+   `config` con `kpiLabel`, `kpiValue`, `kpiTrend`…, y `kpi-card.ts:133` lee `value.label`. El
+   respaldo SSR sale con el texto del editor, el bundle arranca, no encuentra ninguna de sus
+   claves y **se pinta vacío encima**. En `dropdown`, `optionsJson` contra `options`: un botón
+   gris sin opciones — y tipando su sanitizador con el `SynDropdownSchema` generado de uSync sale
+   `TS2339`, o sea que **el compilador lo habría visto** si alguien se lo hubiera preguntado.
+   **Por qué no lo ve nadie**: los specs del elemento hacen `setInput` de SUS claves —prueban el
+   elemento contra sí mismo, la regla 5 del lado del contrato— y el SSR se prueba contra su HTML.
+   El cable entre los dos, las claves que la vista mete en `config`, no lo prueba nadie.
+   **La pregunta que lo caza antes de tocar un elemento colocable: ¿qué claves emite su vista, y
+   cuáles conserva mi sanitizador?** Lo que lo cierra es el contrato tipado —un `record` C# por
+   elemento del que se genera el tipo TS— (ADR 0135 del CMS, **Propuesta**); hasta entonces, un
+   spec que alimente el `config` **exacto** que emite la vista, no el que el elemento espera.
+
+44. **Las hojas reciben STRINGS; la funcionalidad traduce con `t()` — y hoy `t()` tiene CERO
+   llamadores** (medido acá). El CMS publica el diccionario en `window.synergos.i18n` una vez por
+   página —176 claves, por 11 prefijos fijos, y 3 de ellos (`Comments.`, `Cart.`, `Account.`) no
+   casan ni una— y el helper existe (`vitals/core/src/bridge/synergos-bridge.ts:32`), pero ningún
+   componente lo llama: hay unos 3.235 textos escritos a mano, el 75 % en las verticales, y 15
+   componentes aceptan un `config.translations` que nadie les manda.
+   **La regla** (ADR 0136 del CMS, **Propuesta**): una **funcionalidad** —una app de vertical, un
+   flujo— declara sus secciones de diccionario y traduce con `t(clave, respaldo)`; una **hoja** —una
+   pieza del design system, un componente de presentación— recibe el texto **ya traducido** por
+   input y no sabe que existe un diccionario. Así el texto se decide en un sitio por funcionalidad y
+   la pieza se reusa en cualquier idioma sin tocarla.
+   **Dos trampas medidas.** En Angular `t` se importa de `@synergos/vitals-core`: el comentario del
+   helper manda a `@synergos/core/bridge/…`, y ahí `@synergos/core` es `libs/core` (la tabla de
+   alias de arriba). Y la clave tiene que vivir en una sección que el puente **publica** —hoy, uno
+   de esos 11 prefijos fijos del CMS—: una clave fuera de ellos sale siempre por el respaldo y
+   parece traducida. **Lo que NO se copia de NewShore**: pasar el diccionario de mano en mano
+   (`[translations]=` 174 veces allá) ni mostrar la clave cruda cuando falta.
