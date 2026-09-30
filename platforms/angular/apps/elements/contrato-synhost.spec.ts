@@ -8,6 +8,7 @@ import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 import { sanitizeScrollTopConfig } from './primitives/scroll-top/src/scroll-top/scroll-top';
 import { sanitizeRangeSliderConfig } from './compositions/range-slider/src/range-slider/range-slider';
 import { sanitizeSelectMultiConfig } from './compositions/select-multi/src/select-multi/select-multi';
+import { sanitizeStepperConfig } from './compositions/stepper/src/stepper/stepper';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -33,6 +34,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'scroll-top': createConfigInputTransform(sanitizeScrollTopConfig),
   'range-slider': createConfigInputTransform(sanitizeRangeSliderConfig),
   'select-multi': createConfigInputTransform(sanitizeSelectMultiConfig),
+  stepper: createConfigInputTransform(sanitizeStepperConfig),
 };
 
 type Config = Record<string, unknown>;

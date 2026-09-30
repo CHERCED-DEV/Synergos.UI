@@ -48,6 +48,11 @@ export interface SelectMultiItem {
   readonly label: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: StepperItem). */
+export interface StepperItem {
+  readonly title: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -126,6 +131,14 @@ export interface SelectMultiProps {
   readonly options?: readonly SelectMultiItem[];
   /** decision */
   readonly maxSelections?: number;
+}
+
+/** <synergos-stepper> · pieza */
+export interface StepperProps {
+  /** contenido */
+  readonly steps?: readonly StepperItem[];
+  /** decision */
+  readonly currentStep?: number;
 }
 
 /** <synergos-tag> · pieza */
@@ -280,6 +293,30 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   },
 };
 
+export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
+  nombre: "stepper",
+  tipo: "pieza",
+  record: "StepperProps",
+  diccionario: [],
+  campos: ["steps","currentStep"],
+  listas: {"steps":["title"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "steps": [
+      {
+        "title": "Datos"
+      },
+      {
+        "title": "Pago"
+      },
+      {
+        "title": "Confirmación"
+      }
+    ],
+    "currentStep": 1
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -303,5 +340,6 @@ export const ELEMENTOS_SYNHOST = [
   RATING_STARS_SYNHOST,
   SCROLL_TOP_SYNHOST,
   SELECT_MULTI_SYNHOST,
+  STEPPER_SYNHOST,
   TAG_SYNHOST,
 ] as const;
