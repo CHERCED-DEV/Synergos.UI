@@ -1205,7 +1205,7 @@ se desincroniza):
    El cable entre los dos, las claves que la vista mete en `config`, no lo prueba nadie.
    **La pregunta que lo caza antes de tocar un elemento colocable: ¿qué claves emite su vista, y
    cuáles conserva mi sanitizador?** Lo que lo cierra es el contrato tipado —un `record` C# por
-   elemento del que se genera el tipo TS— (ADR 0135 del CMS, **Propuesta**); hasta entonces, un
+   elemento del que se genera el tipo TS— (ADR 0135 del CMS, **Aceptada** el 2026-09-30); hasta entonces, un
    spec que alimente el `config` **exacto** que emite la vista, no el que el elemento espera.
    **Desde el piloto (CMS#173) queda cerrado POR CONSTRUCCIÓN en los elementos con resolver
    tipado** —los que lista `ELEMENTOS_SYNHOST`, los cinco del piloto: `kpi-card`, `tag`, `rating-stars`, `dropdown` y `carousel`—: el record C# declara lo que viaja,
