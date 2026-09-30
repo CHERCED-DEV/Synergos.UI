@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AVATAR_GROUP_SYNHOST } from '@synergos/contracts';
 import {
   AvatarGroupElementComponent,
   type AvatarSelectDetail,
@@ -78,15 +79,33 @@ describe('AvatarGroupElementComponent', () => {
   });
 
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"size":"sm","maxVisible":2,"label":"Comité"}');
+    // `size` no lo autora el CMS (ADR 0135): es atributo, no viaja en `config`.
+    fixture.componentRef.setInput('config', '{"maxVisible":2,"label":"Comité"}');
+    fixture.componentRef.setInput('maxVisible', 3);
     fixture.componentRef.setInput('size', 'lg');
     fixture.detectChanges();
     await fixture.whenStable();
 
     // Explicit attribute wins over config; unset attribute falls back to config.
     expect(component.size()).toBe('lg');
-    expect(component.maxVisible()).toBe(2);
+    expect(component.maxVisible()).toBe(3);
     expect(component.label()).toBe('Comité');
+  });
+
+  // D1: con el TEXTO `avatarsJson` —lo que mandaba la vista— el grupo decía «No hay integrantes».
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta los integrantes y el tope del editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = AVATAR_GROUP_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isEmpty()).toBe(false);
+    expect(component.avatars().map((a) => a.name)).toEqual(ejemplo.avatars?.map((a) => a.name));
+    expect(component.avatars().map((a) => a.src)).toEqual(ejemplo.avatars?.map((a) => a.src ?? ''));
+    expect(component.maxVisible()).toBe(ejemplo.maxVisible);
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.hasOverflow()).toBe(true);
   });
 });
 

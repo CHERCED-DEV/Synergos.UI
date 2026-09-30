@@ -28,6 +28,12 @@ export interface ElementoSynHost<T> {
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: AvatarGroupMember). */
+export interface AvatarGroupMember {
+  readonly name?: string;
+  readonly src?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
@@ -40,6 +46,14 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: LightboxGalleryImage). */
+export interface LightboxGalleryImage {
+  readonly src: string;
+  readonly thumb?: string;
+  readonly alt?: string;
+  readonly caption?: string;
 }
 
 /** <synergos-audio-player> · pieza */
@@ -58,6 +72,16 @@ export interface AvatarProps {
   readonly src?: string;
   /** contenido */
   readonly alt?: string;
+}
+
+/** <synergos-avatar-group> · pieza */
+export interface AvatarGroupProps {
+  /** contenido */
+  readonly avatars?: readonly AvatarGroupMember[];
+  /** decision */
+  readonly maxVisible?: number;
+  /** contenido */
+  readonly label?: string;
 }
 
 /** <synergos-carousel> · pieza */
@@ -158,6 +182,14 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
+/** <synergos-lightbox-gallery> · pieza */
+export interface LightboxGalleryProps {
+  /** contenido */
+  readonly images?: readonly LightboxGalleryImage[];
+  /** decision */
+  readonly columns?: number;
+}
+
 /** <synergos-rating-stars> · pieza */
 export interface RatingStarsProps {
   /** contenido */
@@ -230,6 +262,33 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
     "culture": "es-CO",
     "src": "/media/equipo/ana-gomez.jpg",
     "alt": "Ana Gómez, directora de producto"
+  },
+};
+
+export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
+  nombre: "avatar-group",
+  tipo: "pieza",
+  record: "AvatarGroupProps",
+  diccionario: [],
+  campos: ["avatars","maxVisible","label"],
+  listas: {"avatars":["name","src"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "avatars": [
+      {
+        "name": "Ana Gómez",
+        "src": "/media/equipo/ana-gomez.jpg"
+      },
+      {
+        "name": "Luis Pardo",
+        "src": "/media/equipo/luis-pardo.jpg"
+      },
+      {
+        "name": "Marta Ruiz"
+      }
+    ],
+    "maxVisible": 2,
+    "label": "Equipo directivo"
   },
 };
 
@@ -383,6 +442,33 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
+  nombre: "lightbox-gallery",
+  tipo: "pieza",
+  record: "LightboxGalleryProps",
+  diccionario: [],
+  campos: ["images","columns"],
+  listas: {"images":["src","thumb","alt","caption"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "images": [
+      {
+        "src": "/media/casa/sala.jpg",
+        "thumb": "/media/casa/sala-t.jpg",
+        "alt": "Sala con ventanal",
+        "caption": "La sala"
+      },
+      {
+        "src": "/media/casa/cocina.jpg",
+        "thumb": "/media/casa/cocina-t.jpg",
+        "alt": "Cocina integral",
+        "caption": "La cocina"
+      }
+    ],
+    "columns": 2
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -464,6 +550,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
 export const ELEMENTOS_SYNHOST = [
   AUDIO_PLAYER_SYNHOST,
   AVATAR_SYNHOST,
+  AVATAR_GROUP_SYNHOST,
   CAROUSEL_SYNHOST,
   COOKIE_CONSENT_SYNHOST,
   COUNTDOWN_CLOCK_SYNHOST,
@@ -472,6 +559,7 @@ export const ELEMENTOS_SYNHOST = [
   FAB_SYNHOST,
   HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
+  LIGHTBOX_GALLERY_SYNHOST,
   RATING_STARS_SYNHOST,
   RICH_TOOLTIP_SYNHOST,
   SHARE_BAR_SYNHOST,

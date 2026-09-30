@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { LIGHTBOX_GALLERY_SYNHOST } from '@synergos/contracts';
 import { LightboxGalleryElementComponent, normalizeImages } from './lightbox-gallery';
 
 const IMAGES = JSON.stringify([
@@ -43,6 +44,21 @@ describe('LightboxGalleryElementComponent', () => {
     expect(images[0].thumb).toBe('/media/casa-1.jpg');
     // explicit thumb is preserved.
     expect(images[1].thumb).toBe('/media/casa-2-thumb.jpg');
+  });
+
+  // D1: con el TEXTO `imagesJson` —lo que mandaba la vista— la galería decía «No hay imágenes».
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta las imágenes y las columnas del editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = LIGHTBOX_GALLERY_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasImages()).toBe(true);
+    expect(component.images().map((i) => i.src)).toEqual(ejemplo.images?.map((i) => i.src));
+    expect(component.images().map((i) => i.thumb)).toEqual(ejemplo.images?.map((i) => i.thumb));
+    expect(component.images().map((i) => i.caption)).toEqual(ejemplo.images?.map((i) => i.caption));
+    expect(component.columns()).toBe(ejemplo.columns);
   });
 
   it('should open, navigate and close the lightbox (interaction case)', async () => {

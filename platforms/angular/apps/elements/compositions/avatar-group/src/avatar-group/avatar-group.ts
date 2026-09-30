@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { AvatarGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -17,26 +18,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynAvatarGroup</c>.
+ * <synergos-avatar-group>: a horizontally-overlapping row of avatars (faces or initials) with a
+ * trailing "+N" overflow chip when the roster exceeds `maxVisible`. Built for team / contributor /
+ * attendee strips across the verticals. Activating an avatar (click / Enter / Space) emits an
+ * `avatarselect` CustomEvent carrying the avatar and its index.
  *
- * Renders a horizontally-overlapping row of avatars (faces or initials)
- * with a trailing "+N" overflow chip when the roster exceeds `maxVisible`.
- * Built for team / contributor / attendee strips across the verticals.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
- * Activating an avatar (click / Enter / Space) emits an `avatarselect`
- * CustomEvent carrying the avatar and its index.
+ * El `config` que manda el CMS tiene la forma de `AvatarGroupProps`, GENERADO del record C#
+ * (ADR 0135): `avatars` es una LISTA ya parseada (`name`/`src`: el CMS traduce la `url` del editor,
+ * que es la foto, a `src`), `maxVisible` un número y `label` el nombre del grupo. La vista mandaba
+ * el TEXTO `avatarsJson` y el grupo salía vacío (D1). `size` y `overflowHref` no los autora el
+ * editor: llegan por atributo, igual que `avatars` como JSON.
  */
-export interface AvatarGroupRuntimeConfig {
-  readonly avatars?: readonly AvatarItemConfig[];
-  readonly maxVisible?: number;
-  readonly size?: string;
-  readonly label?: string;
-  readonly overflowHref?: string;
-}
-
 export interface AvatarItemConfig {
   readonly name?: string;
   readonly src?: string;
@@ -134,15 +126,12 @@ export function normalizeAvatars(value: unknown): readonly AvatarItem[] {
     .filter((avatar): avatar is AvatarItem => avatar !== null);
 }
 
-function sanitizeAvatarGroupConfig(
-  value: Partial<AvatarGroupRuntimeConfig>,
-): AvatarGroupRuntimeConfig {
-  return omitUndefinedProperties<AvatarGroupRuntimeConfig>({
-    avatars: value.avatars,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeAvatarGroupConfig(value: Partial<AvatarGroupProps>): Partial<AvatarGroupProps> {
+  return omitUndefinedProperties<AvatarGroupProps>({
+    avatars: Array.isArray(value.avatars) ? value.avatars : undefined,
     maxVisible: typeof value.maxVisible === 'number' ? value.maxVisible : undefined,
-    size: coerceTrimmedStringInput(value.size),
     label: coerceTrimmedStringInput(value.label),
-    overflowHref: coerceTrimmedStringInput(value.overflowHref),
   });
 }
 
@@ -157,8 +146,8 @@ function sanitizeAvatarGroupConfig(
 export class AvatarGroupElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<AvatarGroupRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<AvatarGroupRuntimeConfig>(sanitizeAvatarGroupConfig),
+  readonly config = input<Partial<AvatarGroupProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<AvatarGroupProps>(sanitizeAvatarGroupConfig),
   });
   readonly avatarsInput = input<string | undefined>(undefined, { alias: 'avatars' });
   readonly maxVisibleInput = input<number | undefined, unknown>(undefined, {
@@ -174,16 +163,14 @@ export class AvatarGroupElementComponent {
   readonly avatarselect = output<AvatarSelectDetail>();
 
   readonly size = computed<AvatarGroupSize>(() =>
-    normalizeSize(resolveConfigValue(this.sizeInput(), this.config()?.size, DEFAULT_SIZE)),
+    normalizeSize(this.sizeInput() ?? DEFAULT_SIZE),
   );
 
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, 'Equipo'),
   );
 
-  readonly overflowHref = computed(() =>
-    resolveConfigValue(this.overflowHrefInput(), this.config()?.overflowHref, ''),
-  );
+  readonly overflowHref = computed(() => this.overflowHrefInput() ?? '');
 
   /** Full roster after normalization. */
   readonly avatars = computed<readonly AvatarItem[]>(() =>

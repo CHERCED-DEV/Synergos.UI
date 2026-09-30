@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { LightboxGalleryProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -19,24 +20,16 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynLightboxGallery</c>.
+ * <synergos-lightbox-gallery>: a responsive thumbnail grid that opens a fullscreen lightbox on
+ * click — large image + caption + prev/next + close (Esc / button / click-outside), with a focus
+ * trap and lazy-loaded thumbnails. Built for the PROPIEDADES vertical (property photo galleries).
  *
- * A responsive thumbnail grid that opens a fullscreen lightbox on click:
- * large image + caption + prev/next + close (Esc / button / click-outside),
- * with a focus trap and lazy-loaded thumbnails. Built for the PROPIEDADES
- * vertical (property photo galleries).
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `LightboxGalleryProps`, GENERADO del record C#
+ * (ADR 0135): `images` es una LISTA ya parseada (`src`/`thumb`/`alt`/`caption`: el CMS traduce
+ * `fullUrl`/`thumbUrl` del editor) y `columns` un número. La vista mandaba el TEXTO `imagesJson` y
+ * la galería salía vacía (D1). `closeLabel` y `emptyLabel` no los autora el editor: llegan por
+ * atributo, igual que `images`/`imagesJson` como JSON.
  */
-export interface LightboxGalleryRuntimeConfig {
-  readonly images?: readonly LightboxImageConfig[];
-  readonly columns?: number;
-  readonly closeLabel?: string;
-  readonly emptyLabel?: string;
-}
-
 export interface LightboxImageConfig {
   readonly src?: string;
   readonly thumb?: string;
@@ -108,14 +101,11 @@ function clampColumns(value: number | undefined): number | undefined {
   return Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, rounded));
 }
 
-function sanitizeLightboxGalleryConfig(
-  value: Partial<LightboxGalleryRuntimeConfig>,
-): LightboxGalleryRuntimeConfig {
-  return omitUndefinedProperties<LightboxGalleryRuntimeConfig>({
-    images: value.images,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeLightboxGalleryConfig(value: Partial<LightboxGalleryProps>): Partial<LightboxGalleryProps> {
+  return omitUndefinedProperties<LightboxGalleryProps>({
+    images: Array.isArray(value.images) ? value.images : undefined,
     columns: clampColumns(coerceOptionalNumberInput(value.columns)),
-    closeLabel: coerceTrimmedStringInput(value.closeLabel),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
   });
 }
 
@@ -132,8 +122,8 @@ export class LightboxGalleryElementComponent {
   readonly #elementRef = inject(ElementRef<HTMLElement>);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<LightboxGalleryRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<LightboxGalleryRuntimeConfig>(sanitizeLightboxGalleryConfig),
+  readonly config = input<Partial<LightboxGalleryProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<LightboxGalleryProps>(sanitizeLightboxGalleryConfig),
   });
   /** Canonical alias is `images`; `imagesJson` is kept for the original scaffold/CMS property. */
   readonly imagesInput = input<string | undefined>(undefined, { alias: 'images' });
@@ -155,13 +145,9 @@ export class LightboxGalleryElementComponent {
     return resolveConfigValue(fromInput, clampColumns(this.config()?.columns), DEFAULT_COLUMNS);
   });
 
-  readonly closeLabel = computed(() =>
-    resolveConfigValue(this.closeLabelInput(), this.config()?.closeLabel, 'Cerrar galería'),
-  );
+  readonly closeLabel = computed(() => this.closeLabelInput() ?? 'Cerrar galería');
 
-  readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No hay imágenes para mostrar.'),
-  );
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay imágenes para mostrar.');
 
   readonly hasImages = computed(() => this.images().length > 0);
 

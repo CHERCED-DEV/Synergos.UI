@@ -15,6 +15,8 @@ import { sanitizeShareBarConfig } from './compositions/share-bar/src/share-bar/s
 import { sanitizeRichTooltipConfig } from './compositions/rich-tooltip/src/rich-tooltip/rich-tooltip';
 import { sanitizeCountdownClockConfig } from './modules/countdown-clock/src/countdown-clock/countdown-clock';
 import { sanitizeCountdownDigitalConfig } from './modules/countdown-digital/src/countdown-digital/countdown-digital';
+import { sanitizeAvatarGroupConfig } from './compositions/avatar-group/src/avatar-group/avatar-group';
+import { sanitizeLightboxGalleryConfig } from './modules/lightbox-gallery/src/lightbox-gallery/lightbox-gallery';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -47,6 +49,8 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'rich-tooltip': createConfigInputTransform(sanitizeRichTooltipConfig),
   'countdown-clock': createConfigInputTransform(sanitizeCountdownClockConfig),
   'countdown-digital': createConfigInputTransform(sanitizeCountdownDigitalConfig),
+  'avatar-group': createConfigInputTransform(sanitizeAvatarGroupConfig),
+  'lightbox-gallery': createConfigInputTransform(sanitizeLightboxGalleryConfig),
 };
 
 type Config = Record<string, unknown>;
