@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { PROGRESS_BAR_SYNHOST } from '@synergos/contracts';
 import {
   ProgressBarElementComponent,
   clampNumber,
@@ -71,8 +72,25 @@ describe('ProgressBarElementComponent', () => {
     expect(track.getAttribute('aria-busy')).toBe('true');
   });
 
+  // D1: con `valueNow`/`valueMax`/`ariaLabel` —lo que mandaba la vista— este elemento pintaba
+  // «Progreso» al 0 %. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta el avance que el editor autoró con el config exacto que emite la vista del CMS', () => {
+    const { ejemplo } = PROGRESS_BAR_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    expect(component.value()).toBe(ejemplo.value);
+    expect(component.max()).toBe(ejemplo.max);
+    expect(component.accessibleLabel()).toBe(ejemplo.label);
+    expect(component.percent()).toBe(Math.round(((ejemplo.value ?? 0) / (ejemplo.max ?? 100)) * 100));
+    const track: HTMLElement = fixture.nativeElement.querySelector('[role="progressbar"]');
+    expect(track.getAttribute('aria-valuenow')).toBe(String(ejemplo.value));
+    expect(track.getAttribute('aria-label')).toBe(ejemplo.label);
+  });
+
+  // `tone` no lo autora el editor en el CMS (ADR 0135): es atributo.
   it('should let direct inputs override config deterministically (idempotent precedence)', () => {
-    fixture.componentRef.setInput('config', '{"value":10,"max":100,"tone":"brand"}');
+    fixture.componentRef.setInput('config', '{"value":10,"max":100}');
     fixture.componentRef.setInput('value', '90');
     fixture.componentRef.setInput('tone', 'success');
     fixture.detectChanges();

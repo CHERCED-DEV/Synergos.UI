@@ -11,6 +11,7 @@ import { sanitizeBreadcrumbConfig } from './primitives/breadcrumb/src/breadcrumb
 import { sanitizeColorSwatchesConfig } from './compositions/color-swatches/src/color-swatches/color-swatches';
 import { sanitizeIconLabelConfig } from './primitives/icon-label/src/icon-label/icon-label';
 import { sanitizeNotificationToastConfig } from './modules/notification-toast/src/notification-toast/notification-toast';
+import { sanitizeProgressBarConfig } from './primitives/progress-bar/src/progress-bar/progress-bar';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -39,6 +40,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'color-swatches': createConfigInputTransform(sanitizeColorSwatchesConfig),
   'icon-label': createConfigInputTransform(sanitizeIconLabelConfig),
   'notification-toast': createConfigInputTransform(sanitizeNotificationToastConfig),
+  'progress-bar': createConfigInputTransform(sanitizeProgressBarConfig),
 };
 
 type Config = Record<string, unknown>;

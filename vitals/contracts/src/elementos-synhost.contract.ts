@@ -156,6 +156,16 @@ export interface NotificationToastProps {
   readonly durationMs?: number;
 }
 
+/** <synergos-progress-bar> · pieza */
+export interface ProgressBarProps {
+  /** contenido */
+  readonly value?: number;
+  /** decision */
+  readonly max?: number;
+  /** contenido */
+  readonly label?: string;
+}
+
 /** <synergos-rating-stars> · pieza */
 export interface RatingStarsProps {
   /** contenido */
@@ -371,6 +381,21 @@ export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps>
   },
 };
 
+export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
+  nombre: "progress-bar",
+  tipo: "pieza",
+  record: "ProgressBarProps",
+  diccionario: [],
+  campos: ["value","max","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "value": 3,
+    "max": 5,
+    "label": "Pasos completados del registro"
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -411,6 +436,7 @@ export const ELEMENTOS_SYNHOST = [
   ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
   NOTIFICATION_TOAST_SYNHOST,
+  PROGRESS_BAR_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,
 ] as const;
