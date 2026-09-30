@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SHARE_BAR_SYNHOST } from '@synergos/contracts';
 import {
   ShareBarElementComponent,
   type CopyLinkDetail,
@@ -109,7 +110,7 @@ describe('ShareBarElementComponent', () => {
   it('should let direct inputs override config (idempotent precedence)', () => {
     fixture.componentRef.setInput(
       'config',
-      '{"platforms":"facebook","shareTitle":"Desde config"}',
+      '{"platforms":["facebook"],"shareTitle":"Desde config"}',
     );
     fixture.componentRef.setInput('shareTitle', 'Desde atributo');
     fixture.detectChanges();
@@ -123,6 +124,18 @@ describe('ShareBarElementComponent', () => {
     fixture.detectChanges();
     expect(component.shareTitle()).toBe('Desde atributo');
     expect(component.platforms().map((p) => p.id)).toEqual(['facebook']);
+  });
+
+  // D1: con `platformsCsv`/`shareUrl` —lo que mandaba la vista— la barra pintaba las redes de
+  // fábrica y compartía la página actual. Éste alimenta el `config` EXACTO que emite hoy la vista.
+  it('pinta las redes y comparte el destino que el editor eligió con el config exacto que emite la vista del CMS', () => {
+    const { ejemplo } = SHARE_BAR_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    expect(component.platforms().map((p) => p.id)).toEqual(ejemplo.platforms);
+    expect(component.shareUrl()).toBe(ejemplo.shareLink);
+    expect(component.shareTitle()).toBe(ejemplo.shareTitle);
   });
 });
 

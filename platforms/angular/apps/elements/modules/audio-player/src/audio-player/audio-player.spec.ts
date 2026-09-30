@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AUDIO_PLAYER_SYNHOST } from '@synergos/contracts';
 import {
   AudioPlayerElementComponent,
   type AudioPlaybackChangeDetail,
@@ -70,9 +71,11 @@ describe('AudioPlayerElementComponent', () => {
     expect(emitted.map((event) => event.state)).toEqual(['playing', 'paused', 'ended']);
   });
 
-  it('should let direct inputs override config defaults idempotently (precedence case)', async () => {
-    fixture.componentRef.setInput('config', '{"preload":"none","loop":true}');
-    fixture.componentRef.setInput('preload', 'metadata');
+  // `loop` y `preload` no los autora el CMS (ADR 0135): son atributos, no viajan en `config`.
+  it('should let direct inputs override config idempotently (precedence case)', async () => {
+    fixture.componentRef.setInput('config', '{"trackTitle":"Del config"}');
+    fixture.componentRef.setInput('preload', 'none');
+    fixture.componentRef.setInput('loop', true);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -80,14 +83,30 @@ describe('AudioPlayerElementComponent', () => {
     const firstLoop = component.loop();
 
     // Re-applying the same inputs yields the same resolved values.
-    fixture.componentRef.setInput('preload', 'metadata');
+    fixture.componentRef.setInput('preload', 'none');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.preload()).toBe('metadata');
+    expect(component.trackTitle()).toBe('Del config');
+    expect(component.preload()).toBe('none');
     expect(component.preload()).toBe(firstPreload);
     expect(component.loop()).toBe(true);
     expect(component.loop()).toBe(firstLoop);
+  });
+
+  // D1: con `audioUrl` —lo que mandaba la vista— este elemento salía sin fuente. Éste alimenta
+  // el `config` EXACTO que emite hoy la vista del CMS.
+  it('reproduce el medio que el editor eligió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = AUDIO_PLAYER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasSource()).toBe(true);
+    expect(component.audioFile()).toBe(ejemplo.audioFile);
+    expect(component.trackTitle()).toBe(ejemplo.trackTitle);
+    expect(component.artistName()).toBe(ejemplo.artistName);
+    expect(fixture.nativeElement.querySelector('.audio-player__empty')).toBeNull();
   });
 });
 

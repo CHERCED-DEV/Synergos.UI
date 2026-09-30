@@ -5,6 +5,7 @@ import {
   input,
   output,
 } from '@angular/core';
+import type { HeroBannerProps } from '@synergos/contracts';
 import {
   LinkComponent,
   coerceStringEnumInput,
@@ -15,17 +16,15 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynHeroBanner</c>.
+ * <synergos-hero-banner>: a full-bleed hero — a background image (or solid surface fallback)
+ * under a legibility scrim, with an optional eyebrow, a headline, supporting copy and a single
+ * call-to-action. Activating the CTA emits a `ctaactivate` CustomEvent carrying the resolved
+ * href + label.
  *
- * A full-bleed hero: a background image (or solid surface fallback) under a
- * legibility scrim, with an optional eyebrow, a headline, supporting copy and
- * a single call-to-action. This is the CDN variant of the hero — the content
- * (image, copy, link) is composed in the CMS and rendered here. Activating the
- * CTA emits a `ctaactivate` CustomEvent carrying the resolved href + label.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `HeroBannerProps`, GENERADO del record C#
+ * (ADR 0135): `media` es la URL del medio y `ctaLink` el destino del enlace. La vista mandaba
+ * `mediaUrl`/`ctaUrl` y al hidratar el hero perdía la foto y el botón que el SSR pintaba (D1).
+ * `eyebrow`, `align`, `tone` y `height` no los autora el editor: llegan por atributo.
  */
 export type HeroBannerAlign = 'start' | 'center';
 export type HeroBannerTone = 'auto' | 'light' | 'dark';
@@ -35,39 +34,21 @@ const ALIGN_VALUES: readonly HeroBannerAlign[] = ['start', 'center'];
 const TONE_VALUES: readonly HeroBannerTone[] = ['auto', 'light', 'dark'];
 const HEIGHT_VALUES: readonly HeroBannerHeight[] = ['sm', 'md', 'lg'];
 
-export interface HeroBannerRuntimeConfig {
-  readonly eyebrow?: string;
-  readonly title?: string;
-  readonly subtitle?: string;
-  readonly media?: string;
-  readonly mediaAlt?: string;
-  readonly ctaLabel?: string;
-  readonly ctaLink?: string;
-  readonly align?: HeroBannerAlign;
-  readonly tone?: HeroBannerTone;
-  readonly height?: HeroBannerHeight;
-}
-
 /** Emitted on the `ctaactivate` CustomEvent and the typed Angular output. */
 export interface HeroBannerCtaDetail {
   readonly href: string;
   readonly label: string;
 }
 
-function sanitizeHeroBannerConfig(
-  value: Partial<HeroBannerRuntimeConfig>,
-): Partial<HeroBannerRuntimeConfig> {
-  return omitUndefinedProperties<HeroBannerRuntimeConfig>({
-    eyebrow: coerceTrimmedStringInput(value.eyebrow),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeHeroBannerConfig(value: Partial<HeroBannerProps>): Partial<HeroBannerProps> {
+  return omitUndefinedProperties<HeroBannerProps>({
     title: coerceTrimmedStringInput(value.title),
     subtitle: coerceTrimmedStringInput(value.subtitle),
     media: coerceTrimmedStringInput(value.media),
     mediaAlt: coerceTrimmedStringInput(value.mediaAlt),
     ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
     ctaLink: coerceTrimmedStringInput(value.ctaLink),
-    align: coerceStringEnumInput(value.align, ALIGN_VALUES),
-    tone: coerceStringEnumInput(value.tone, TONE_VALUES),
-    height: coerceStringEnumInput(value.height, HEIGHT_VALUES),
   });
 }
 
@@ -87,8 +68,8 @@ function sanitizeHeroBannerConfig(
   },
 })
 export class HeroBannerElementComponent {
-  readonly config = input<HeroBannerRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<HeroBannerRuntimeConfig>(sanitizeHeroBannerConfig),
+  readonly config = input<Partial<HeroBannerProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<HeroBannerProps>(sanitizeHeroBannerConfig),
   });
   readonly eyebrowInput = input<string | undefined>(undefined, { alias: 'eyebrow' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -105,9 +86,7 @@ export class HeroBannerElementComponent {
   /** Typed Angular output mirroring the native `ctaactivate` CustomEvent. */
   readonly ctaactivate = output<HeroBannerCtaDetail>();
 
-  readonly eyebrow = computed(() =>
-    resolveConfigValue(this.eyebrowInput(), this.config()?.eyebrow, ''),
-  );
+  readonly eyebrow = computed(() => this.eyebrowInput() ?? '');
   readonly title = computed(() =>
     resolveConfigValue(this.titleInput(), this.config()?.title, ''),
   );
@@ -126,14 +105,14 @@ export class HeroBannerElementComponent {
   readonly ctaLink = computed(() =>
     resolveConfigValue(this.ctaLinkInput(), this.config()?.ctaLink, ''),
   );
-  readonly align = computed<HeroBannerAlign>(() =>
-    resolveConfigValue(this.alignInput(), this.config()?.align, 'start'),
+  readonly align = computed<HeroBannerAlign>(
+    () => coerceStringEnumInput(this.alignInput(), ALIGN_VALUES) ?? 'start',
   );
-  readonly tone = computed<HeroBannerTone>(() =>
-    resolveConfigValue(this.toneInput(), this.config()?.tone, 'auto'),
+  readonly tone = computed<HeroBannerTone>(
+    () => coerceStringEnumInput(this.toneInput(), TONE_VALUES) ?? 'auto',
   );
-  readonly height = computed<HeroBannerHeight>(() =>
-    resolveConfigValue(this.heightInput(), this.config()?.height, 'md'),
+  readonly height = computed<HeroBannerHeight>(
+    () => coerceStringEnumInput(this.heightInput(), HEIGHT_VALUES) ?? 'md',
   );
 
   readonly hasMedia = computed(() => this.media().length > 0);

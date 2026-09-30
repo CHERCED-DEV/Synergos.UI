@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HERO_BANNER_SYNHOST } from '@synergos/contracts';
 import { HeroBannerElementComponent, type HeroBannerCtaDetail } from './hero-banner';
 
 describe('HeroBannerElementComponent', () => {
@@ -80,19 +81,38 @@ describe('HeroBannerElementComponent', () => {
     expect(emittedCount).toBe(0);
   });
 
+  // `tone` y `align` no los autora el CMS (ADR 0135): son atributos, no viajan en `config`.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"title":"Config title","tone":"light","align":"center"}',
-    );
+    fixture.componentRef.setInput('config', '{"title":"Config title","subtitle":"Config subtitle"}');
     fixture.componentRef.setInput('title', 'Input title');
+    fixture.componentRef.setInput('tone', 'light');
+    fixture.componentRef.setInput('align', 'center');
     fixture.detectChanges();
     await fixture.whenStable();
 
     // Direct input wins; untouched config fields still apply.
     expect(component.title()).toBe('Input title');
+    expect(component.subtitle()).toBe('Config subtitle');
     expect(component.tone()).toBe('light');
     expect(component.align()).toBe('center');
     expect(component.resolvedTone()).toBe('light');
+  });
+
+  // D1: con `mediaUrl`/`ctaUrl` —lo que mandaba la vista— el hero perdía al hidratar la foto y
+  // el botón que el SSR pintaba. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta la foto y el botón que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = HERO_BANNER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasMedia()).toBe(true);
+    expect(component.media()).toBe(ejemplo.media);
+    expect(component.imageAlt()).toBe(ejemplo.mediaAlt);
+    expect(component.hasCta()).toBe(true);
+    expect(component.ctaLink()).toBe(ejemplo.ctaLink);
+    expect(component.ctaLabel()).toBe(ejemplo.ctaLabel);
+    const img = (fixture.nativeElement as HTMLElement).querySelector('img.hero__media');
+    expect(img?.getAttribute('src')).toBe(ejemplo.media);
   });
 });

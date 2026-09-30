@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { COUNTDOWN_CLOCK_SYNHOST } from '@synergos/contracts';
 import { LiveAnnouncerService } from '@synergos/shared';
 import { CountdownClockElementComponent } from './countdown-clock';
 
@@ -90,6 +91,20 @@ describe('countdown-clock — anuncios', () => {
     expect(fixture.nativeElement.querySelector('.countdown-clock__started')?.textContent).toContain(
       'Arrancó el concierto',
     );
+  });
+
+  // D1: con `endDateTime` en el `config` —lo que mandaba la vista— el reloj decía «Fecha del evento
+  // no disponible». Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('cuenta hacia la fecha que escribió el editor con el config exacto que emite la vista del CMS', () => {
+    const { ejemplo } = COUNTDOWN_CLOCK_SYNHOST;
+    const fixture = TestBed.createComponent(CountdownClockElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    const componente = fixture.componentInstance;
+    expect(componente.hasTarget()).toBe(true);
+    expect(componente.targetMs()).toBe(Date.parse(ejemplo.targetDate ?? ''));
+    expect(fixture.nativeElement.querySelector('.countdown-clock__invalid')).toBeNull();
   });
 
   it('una fecha que no se entiende no anuncia nada y no es una región viva', () => {

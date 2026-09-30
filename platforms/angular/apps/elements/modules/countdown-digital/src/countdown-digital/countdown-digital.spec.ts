@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { COUNTDOWN_DIGITAL_SYNHOST } from '@synergos/contracts';
 import { LiveAnnouncerService } from '@synergos/shared';
 import { CountdownDigitalElementComponent } from './countdown-digital';
 
@@ -86,6 +87,23 @@ describe('countdown-digital — anuncios', () => {
     expect(fixture.nativeElement.querySelector('.countdown-digital__started')?.textContent).toContain(
       'Arrancó el concierto',
     );
+  });
+
+  // D1: con `endDateTime` en el `config` —lo que mandaba la vista— el reloj decía «Fecha del evento
+  // no disponible», y el estilo «digits» del editor caía al flip. Éste alimenta el `config` EXACTO
+  // que emite hoy la vista del CMS.
+  it('cuenta hacia la fecha del editor, con su estilo y sus rótulos, con el config exacto de la vista del CMS', () => {
+    const { ejemplo } = COUNTDOWN_DIGITAL_SYNHOST;
+    const fixture = TestBed.createComponent(CountdownDigitalElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    const componente = fixture.componentInstance;
+    expect(componente.hasTarget()).toBe(true);
+    expect(componente.targetMs()).toBe(Date.parse(ejemplo.targetDate ?? ''));
+    expect(componente.showLabels()).toBe(ejemplo.showLabels);
+    expect(componente.style()).toBe(ejemplo.style);
+    expect(componente.isFlip()).toBe(false);
   });
 
   it('una fecha que no se entiende no anuncia nada y no es una región viva', () => {

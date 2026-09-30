@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { COLOR_PICKER_SYNHOST } from '@synergos/contracts';
 import {
   ColorPickerElementComponent,
   type ColorPickerChangeDetail,
@@ -97,6 +98,19 @@ describe('ColorPickerElementComponent', () => {
     expect(input?.value).toBe('#4f6ef7');
     expect(host.querySelector('.color-picker__hash')).toBeNull();
     expect(host.textContent).not.toContain('# #');
+  });
+
+  // D1: con el TEXTO `paletteJson` —lo que mandaba la vista— el selector pintaba la paleta de
+  // fábrica. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta la paleta y el color del editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = COLOR_PICKER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.initialColor()).toBe(ejemplo.initialColor);
+    expect(component.palette().map((s) => s.hex)).toEqual(ejemplo.palette);
   });
 
   it('should let direct inputs override config (precedence)', async () => {

@@ -34,6 +34,12 @@ export interface AccordionSection {
   readonly body?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: AvatarGroupMember). */
+export interface AvatarGroupMember {
+  readonly name?: string;
+  readonly src?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: BadgeGroupItem). */
 export interface BadgeGroupItem {
   readonly label: string;
@@ -53,6 +59,12 @@ export interface CarouselSlide {
   readonly label?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: ChartBarEntry). */
+export interface ChartBarEntry {
+  readonly label: string;
+  readonly value: number;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: ColorSwatchesItem). */
 export interface ColorSwatchesItem {
   readonly color: string;
@@ -64,6 +76,22 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: LightboxGalleryImage). */
+export interface LightboxGalleryImage {
+  readonly src: string;
+  readonly thumb?: string;
+  readonly alt?: string;
+  readonly caption?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: MapPinItem). */
+export interface MapPinItem {
+  readonly lat: number;
+  readonly lng: number;
+  readonly label?: string;
+  readonly description?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: NotificationToastSeed). */
@@ -118,6 +146,34 @@ export interface AccordionProps {
   readonly allowMultiple?: boolean;
 }
 
+/** <synergos-audio-player> · pieza */
+export interface AudioPlayerProps {
+  /** contenido */
+  readonly audioFile?: string;
+  /** contenido */
+  readonly trackTitle?: string;
+  /** contenido */
+  readonly artistName?: string;
+}
+
+/** <synergos-avatar> · pieza */
+export interface AvatarProps {
+  /** contenido */
+  readonly src?: string;
+  /** contenido */
+  readonly alt?: string;
+}
+
+/** <synergos-avatar-group> · pieza */
+export interface AvatarGroupProps {
+  /** contenido */
+  readonly avatars?: readonly AvatarGroupMember[];
+  /** decision */
+  readonly maxVisible?: number;
+  /** contenido */
+  readonly label?: string;
+}
+
 /** <synergos-badge-group> · pieza */
 export interface BadgeGroupProps {
   /** contenido */
@@ -144,12 +200,64 @@ export interface CarouselProps {
   readonly interval?: number;
 }
 
+/** <synergos-chart-bar> · pieza */
+export interface ChartBarProps {
+  /** contenido */
+  readonly title?: string;
+  /** decision */
+  readonly orientation?: string;
+  /** contenido */
+  readonly data?: readonly ChartBarEntry[];
+}
+
+/** <synergos-color-picker> · pieza */
+export interface ColorPickerProps {
+  /** contenido */
+  readonly label?: string;
+  /** decision */
+  readonly initialColor?: string;
+  /** contenido */
+  readonly palette?: readonly string[];
+}
+
 /** <synergos-color-swatches> · pieza */
 export interface ColorSwatchesProps {
   /** contenido */
   readonly swatches?: readonly ColorSwatchesItem[];
   /** decision */
   readonly shape?: string;
+}
+
+/** <synergos-cookie-consent> · pieza */
+export interface CookieConsentProps {
+  /** contenido */
+  readonly bannerText?: string;
+  /** contenido */
+  readonly acceptLabel?: string;
+  /** contenido */
+  readonly rejectLabel?: string;
+  /** contenido */
+  readonly settingsLabel?: string;
+  /** contenido */
+  readonly policyLink?: string;
+  /** contenido */
+  readonly policyLabel?: string;
+}
+
+/** <synergos-countdown-clock> · pieza */
+export interface CountdownClockProps {
+  /** contenido */
+  readonly targetDate?: string;
+}
+
+/** <synergos-countdown-digital> · pieza */
+export interface CountdownDigitalProps {
+  /** contenido */
+  readonly targetDate?: string;
+  /** decision */
+  readonly showLabels?: boolean;
+  /** decision */
+  readonly style?: string;
 }
 
 /** <synergos-dropdown> · pieza */
@@ -162,6 +270,36 @@ export interface DropdownProps {
   readonly selectedValue?: string;
   /** decision */
   readonly searchable?: boolean;
+}
+
+/** <synergos-fab> · pieza */
+export interface FabProps {
+  /** decision */
+  readonly iconKey?: string;
+  /** contenido */
+  readonly actionLink?: string;
+  /** decision */
+  readonly target?: string;
+  /** decision */
+  readonly position?: string;
+  /** contenido */
+  readonly label?: string;
+}
+
+/** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
+export interface HeroBannerProps {
+  /** contenido */
+  readonly title?: string;
+  /** contenido */
+  readonly subtitle?: string;
+  /** contenido */
+  readonly media?: string;
+  /** contenido */
+  readonly mediaAlt?: string;
+  /** contenido */
+  readonly ctaLabel?: string;
+  /** contenido */
+  readonly ctaLink?: string;
 }
 
 /** <synergos-icon-label> · pieza */
@@ -184,6 +322,26 @@ export interface KpiCardProps {
   readonly deltaLabel?: string;
   /** contenido */
   readonly period?: string;
+}
+
+/** <synergos-lightbox-gallery> · pieza */
+export interface LightboxGalleryProps {
+  /** contenido */
+  readonly images?: readonly LightboxGalleryImage[];
+  /** decision */
+  readonly columns?: number;
+}
+
+/** <synergos-map-pin> · pieza */
+export interface MapPinProps {
+  /** decision */
+  readonly centerLat?: number;
+  /** decision */
+  readonly centerLng?: number;
+  /** decision */
+  readonly zoomLevel?: number;
+  /** contenido */
+  readonly pins?: readonly MapPinItem[];
 }
 
 /** <synergos-notification-toast> · pieza */
@@ -228,6 +386,16 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-rich-tooltip> · pieza */
+export interface RichTooltipProps {
+  /** contenido */
+  readonly triggerText?: string;
+  /** contenido */
+  readonly body?: string;
+  /** decision */
+  readonly placement?: string;
+}
+
 /** <synergos-scroll-top> · pieza */
 export interface ScrollTopProps {
   /** decision */
@@ -246,6 +414,16 @@ export interface SelectMultiProps {
   readonly options?: readonly SelectMultiItem[];
   /** decision */
   readonly maxSelections?: number;
+}
+
+/** <synergos-share-bar> · pieza */
+export interface ShareBarProps {
+  /** decision */
+  readonly platforms?: readonly string[];
+  /** contenido */
+  readonly shareLink?: string;
+  /** contenido */
+  readonly shareTitle?: string;
 }
 
 /** <synergos-stepper> · pieza */
@@ -296,6 +474,14 @@ export interface TreeViewProps {
   readonly label?: string;
 }
 
+/** <synergos-video-player> · pieza */
+export interface VideoPlayerProps {
+  /** contenido */
+  readonly videoFile?: string;
+  /** contenido */
+  readonly posterImage?: string;
+}
+
 export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
   nombre: "accordion",
   tipo: "pieza",
@@ -316,6 +502,62 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
       }
     ],
     "allowMultiple": true
+  },
+};
+
+export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
+  nombre: "audio-player",
+  tipo: "pieza",
+  record: "AudioPlayerProps",
+  diccionario: [],
+  campos: ["audioFile","trackTitle","artistName"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "audioFile": "/media/podcast/episodio-12.mp3",
+    "trackTitle": "Episodio 12: la ciudad que camina",
+    "artistName": "Radio Synergos"
+  },
+};
+
+export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
+  nombre: "avatar",
+  tipo: "pieza",
+  record: "AvatarProps",
+  diccionario: [],
+  campos: ["src","alt"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "src": "/media/equipo/ana-gomez.jpg",
+    "alt": "Ana Gómez, directora de producto"
+  },
+};
+
+export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
+  nombre: "avatar-group",
+  tipo: "pieza",
+  record: "AvatarGroupProps",
+  diccionario: [],
+  campos: ["avatars","maxVisible","label"],
+  listas: {"avatars":["name","src"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "avatars": [
+      {
+        "name": "Ana Gómez",
+        "src": "/media/equipo/ana-gomez.jpg"
+      },
+      {
+        "name": "Luis Pardo",
+        "src": "/media/equipo/luis-pardo.jpg"
+      },
+      {
+        "name": "Marta Ruiz"
+      }
+    ],
+    "maxVisible": 2,
+    "label": "Equipo directivo"
   },
 };
 
@@ -394,6 +636,54 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   },
 };
 
+export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
+  nombre: "chart-bar",
+  tipo: "pieza",
+  record: "ChartBarProps",
+  diccionario: [],
+  campos: ["title","orientation","data"],
+  listas: {"data":["label","value"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "title": "Afiliados nuevos por trimestre",
+    "orientation": "horizontal",
+    "data": [
+      {
+        "label": "T1",
+        "value": 1200
+      },
+      {
+        "label": "T2",
+        "value": 1845300
+      },
+      {
+        "label": "T3",
+        "value": 950.5
+      }
+    ]
+  },
+};
+
+export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
+  nombre: "color-picker",
+  tipo: "pieza",
+  record: "ColorPickerProps",
+  diccionario: [],
+  campos: ["label","initialColor","palette"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Color de acento de tu tienda",
+    "initialColor": "#0f766e",
+    "palette": [
+      "#0f766e",
+      "#b45309",
+      "#7c3aed",
+      "#be123c"
+    ]
+  },
+};
+
 export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
   nombre: "color-swatches",
   tipo: "pieza",
@@ -414,6 +704,52 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
       }
     ],
     "shape": "circle"
+  },
+};
+
+export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
+  nombre: "cookie-consent",
+  tipo: "pieza",
+  record: "CookieConsentProps",
+  diccionario: [],
+  campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "bannerText": "Usamos cookies propias y de terceros para medir el uso del sitio.",
+    "acceptLabel": "Acepto todas",
+    "rejectLabel": "Sólo las necesarias",
+    "settingsLabel": "Elegir cuáles",
+    "policyLink": "/privacidad",
+    "policyLabel": "Política de privacidad"
+  },
+};
+
+export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
+  nombre: "countdown-clock",
+  tipo: "pieza",
+  record: "CountdownClockProps",
+  diccionario: [],
+  campos: ["targetDate"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "targetDate": "2030-12-31T23:59:59-05:00"
+  },
+};
+
+export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> = {
+  nombre: "countdown-digital",
+  tipo: "pieza",
+  record: "CountdownDigitalProps",
+  diccionario: [],
+  campos: ["targetDate","showLabels","style"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "targetDate": "2030-12-31T23:59:59-05:00",
+    "showLabels": true,
+    "style": "plain"
   },
 };
 
@@ -440,6 +776,41 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
     ],
     "selectedValue": "co",
     "searchable": true
+  },
+};
+
+export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
+  nombre: "fab",
+  tipo: "pieza",
+  record: "FabProps",
+  diccionario: [],
+  campos: ["iconKey","actionLink","target","position","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "iconKey": "whatsapp",
+    "actionLink": "https://wa.me/573001234567",
+    "target": "_blank",
+    "position": "bottom-left",
+    "label": "Escribinos por WhatsApp"
+  },
+};
+
+export const HERO_BANNER_SYNHOST: ElementoSynHost<HeroBannerProps> = {
+  nombre: "hero-banner",
+  tipo: "pieza",
+  record: "HeroBannerProps",
+  diccionario: ["Synhost.Hero"],
+  campos: ["title","subtitle","media","mediaAlt","ctaLabel","ctaLink"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "title": "Viví el Caribe colombiano",
+    "subtitle": "Temporada 2026: vuelos y hoteles con el 20 % de descuento",
+    "media": "/media/hero/playa-palomino.jpg",
+    "mediaAlt": "Playa de Palomino al atardecer",
+    "ctaLabel": "Reservar ahora",
+    "ctaLink": "/reservas"
   },
 };
 
@@ -471,6 +842,62 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
     "trend": "up",
     "deltaLabel": "+12 %",
     "period": "vs. agosto"
+  },
+};
+
+export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
+  nombre: "lightbox-gallery",
+  tipo: "pieza",
+  record: "LightboxGalleryProps",
+  diccionario: [],
+  campos: ["images","columns"],
+  listas: {"images":["src","thumb","alt","caption"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "images": [
+      {
+        "src": "/media/casa/sala.jpg",
+        "thumb": "/media/casa/sala-t.jpg",
+        "alt": "Sala con ventanal",
+        "caption": "La sala"
+      },
+      {
+        "src": "/media/casa/cocina.jpg",
+        "thumb": "/media/casa/cocina-t.jpg",
+        "alt": "Cocina integral",
+        "caption": "La cocina"
+      }
+    ],
+    "columns": 2
+  },
+};
+
+export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
+  nombre: "map-pin",
+  tipo: "pieza",
+  record: "MapPinProps",
+  diccionario: [],
+  campos: ["centerLat","centerLng","zoomLevel","pins"],
+  listas: {"pins":["lat","lng","label","description"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "centerLat": 4.711,
+    "centerLng": -74.0721,
+    "zoomLevel": 12,
+    "pins": [
+      {
+        "lat": 4.6097,
+        "lng": -74.0817,
+        "label": "Oficina Bogotá",
+        "description": "Carrera 7 # 71-21, piso 12"
+      },
+      {
+        "lat": 6.2518,
+        "lng": -75.5636,
+        "label": "Oficina Medellín",
+        "description": "El Poblado"
+      }
+    ]
   },
 };
 
@@ -540,6 +967,21 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   },
 };
 
+export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
+  nombre: "rich-tooltip",
+  tipo: "pieza",
+  record: "RichTooltipProps",
+  diccionario: [],
+  campos: ["triggerText","body","placement"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "triggerText": "Cuota de manejo",
+    "body": "Cobro mensual por administrar la tarjeta. Se exonera con compras desde $ 300.000.",
+    "placement": "bottom"
+  },
+};
+
 export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   nombre: "scroll-top",
   tipo: "pieza",
@@ -580,6 +1022,25 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
       }
     ],
     "maxSelections": 2
+  },
+};
+
+export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
+  nombre: "share-bar",
+  tipo: "pieza",
+  record: "ShareBarProps",
+  diccionario: [],
+  campos: ["platforms","shareLink","shareTitle"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "platforms": [
+      "whatsapp",
+      "x",
+      "linkedin"
+    ],
+    "shareLink": "https://synergos.local/eventos/feria-del-libro-2026",
+    "shareTitle": "Feria del libro 2026: programa completo"
   },
 };
 
@@ -730,26 +1191,55 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   },
 };
 
+export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
+  nombre: "video-player",
+  tipo: "pieza",
+  record: "VideoPlayerProps",
+  diccionario: [],
+  campos: ["videoFile","posterImage"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "videoFile": "/media/propiedades/recorrido-casa-lago.mp4",
+    "posterImage": "/media/propiedades/casa-lago-fachada.jpg"
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   ACCORDION_SYNHOST,
+  AUDIO_PLAYER_SYNHOST,
+  AVATAR_SYNHOST,
+  AVATAR_GROUP_SYNHOST,
   BADGE_GROUP_SYNHOST,
   BREADCRUMB_SYNHOST,
   CAROUSEL_SYNHOST,
+  CHART_BAR_SYNHOST,
+  COLOR_PICKER_SYNHOST,
   COLOR_SWATCHES_SYNHOST,
+  COOKIE_CONSENT_SYNHOST,
+  COUNTDOWN_CLOCK_SYNHOST,
+  COUNTDOWN_DIGITAL_SYNHOST,
   DROPDOWN_SYNHOST,
+  FAB_SYNHOST,
+  HERO_BANNER_SYNHOST,
   ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
+  LIGHTBOX_GALLERY_SYNHOST,
+  MAP_PIN_SYNHOST,
   NOTIFICATION_TOAST_SYNHOST,
   PROGRESS_BAR_SYNHOST,
   RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
+  RICH_TOOLTIP_SYNHOST,
   SCROLL_TOP_SYNHOST,
   SELECT_MULTI_SYNHOST,
+  SHARE_BAR_SYNHOST,
   STEPPER_SYNHOST,
   TABS_SYNHOST,
   TAG_SYNHOST,
   TIMELINE_SYNHOST,
   TOUR_GUIDE_SYNHOST,
   TREE_VIEW_SYNHOST,
+  VIDEO_PLAYER_SYNHOST,
 ] as const;

@@ -11,6 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import type { AudioPlayerProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -20,29 +21,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynAudioPlayer</c>.
+ * <synergos-audio-player>: a self-contained audio player — play/pause, scrub (seek), volume,
+ * mute and elapsed/total time read-outs. Wraps a native <c>HTMLAudioElement</c> so streaming,
+ * range requests and codec support are delegated to the browser, while the chrome is fully
+ * tokenized and accessible. Playback transitions surface a `playbackchange` CustomEvent (and
+ * the typed Angular output) so the host page can react to play/pause/ended.
  *
- * A self-contained audio player: play/pause, scrub (seek), volume, mute and
- * elapsed/total time read-outs. Wraps a native <c>HTMLAudioElement</c> so
- * streaming, range requests and codec support are delegated to the browser,
- * while the chrome is fully tokenized and accessible.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
- *
- * Playback transitions surface a `playbackchange` CustomEvent (and the typed
- * Angular output) so the host page can react to play/pause/ended.
+ * El `config` que manda el CMS tiene la forma de `AudioPlayerProps`, GENERADO del record C#
+ * (ADR 0135): `audioFile` es la URL absoluta del medio que eligió el editor. La vista la
+ * mandaba como `audioUrl` y este elemento salía sin fuente (D1). `autoplay`, `loop` y
+ * `preload` no los autora el editor: llegan por atributo.
  */
-export interface AudioPlayerRuntimeConfig {
-  readonly audioFile?: string;
-  readonly trackTitle?: string;
-  readonly artistName?: string;
-  readonly autoplay?: boolean;
-  readonly loop?: boolean;
-  readonly preload?: string;
-}
-
 export type AudioPlaybackState = 'playing' | 'paused' | 'ended';
 export type AudioPreload = 'none' | 'metadata' | 'auto';
 
@@ -92,16 +81,12 @@ export function formatTime(totalSeconds: number): string {
   return `${minutes}:${ss}`;
 }
 
-function sanitizeAudioPlayerConfig(
-  value: Partial<AudioPlayerRuntimeConfig>,
-): AudioPlayerRuntimeConfig {
-  return omitUndefinedProperties<AudioPlayerRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeAudioPlayerConfig(value: Partial<AudioPlayerProps>): Partial<AudioPlayerProps> {
+  return omitUndefinedProperties<AudioPlayerProps>({
     audioFile: coerceTrimmedStringInput(value.audioFile),
     trackTitle: coerceTrimmedStringInput(value.trackTitle),
     artistName: coerceTrimmedStringInput(value.artistName),
-    autoplay: coerceOptionalBooleanInput(value.autoplay),
-    loop: coerceOptionalBooleanInput(value.loop),
-    preload: coerceTrimmedStringInput(value.preload),
   });
 }
 
@@ -117,8 +102,8 @@ function sanitizeAudioPlayerConfig(
 export class AudioPlayerElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<AudioPlayerRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<AudioPlayerRuntimeConfig>(sanitizeAudioPlayerConfig),
+  readonly config = input<Partial<AudioPlayerProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<AudioPlayerProps>(sanitizeAudioPlayerConfig),
   });
   readonly audioFileInput = input<string | undefined>(undefined, { alias: 'audioFile' });
   readonly trackTitleInput = input<string | undefined>(undefined, { alias: 'trackTitle' });
@@ -161,13 +146,9 @@ export class AudioPlayerElementComponent {
       '',
     ),
   );
-  readonly autoplay = computed(() =>
-    resolveConfigValue(this.autoplayInput(), this.config()?.autoplay, false),
-  );
-  readonly loop = computed(() => resolveConfigValue(this.loopInput(), this.config()?.loop, false));
-  readonly preload = computed<AudioPreload>(() =>
-    normalizePreload(resolveConfigValue(this.preloadInput(), this.config()?.preload, undefined)),
-  );
+  readonly autoplay = computed(() => this.autoplayInput() ?? false);
+  readonly loop = computed(() => this.loopInput() ?? false);
+  readonly preload = computed<AudioPreload>(() => normalizePreload(this.preloadInput()));
 
   readonly hasSource = computed(() => this.audioFile().length > 0);
   readonly hasTitle = computed(() => this.trackTitle().length > 0);

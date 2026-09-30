@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RICH_TOOLTIP_SYNHOST } from '@synergos/contracts';
 import {
   RichTooltipElementComponent,
   type RichTooltipToggleDetail,
@@ -68,10 +69,13 @@ describe('RichTooltipElementComponent', () => {
   });
 
   it('should let direct inputs override config and be idempotent (precedence/idempotent case)', () => {
-    fixture.componentRef.setInput('config', '{"title":"Config title","placement":"left"}');
+    // `title` no lo autora el CMS (ADR 0135): es atributo, no viaja en `config`.
+    fixture.componentRef.setInput('config', '{"body":"Del config","placement":"left"}');
+    fixture.componentRef.setInput('body', 'Direct body');
     fixture.componentRef.setInput('title', 'Direct title');
     fixture.detectChanges();
 
+    expect(component.body()).toBe('Direct body');
     expect(component.title()).toBe('Direct title');
     expect(component.placement()).toBe('left');
 
@@ -82,6 +86,21 @@ describe('RichTooltipElementComponent', () => {
     component.show();
     expect(component.open()).toBe(true);
     expect(emitted.length).toBe(1);
+  });
+
+  // D1: con `tooltipContent` —el HTML que mandaba la vista— este elemento no tenía contenido y no
+  // abría panel. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('abre el panel con el texto que el editor escribió con el config exacto que emite la vista del CMS', () => {
+    const { ejemplo } = RICH_TOOLTIP_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    expect(component.triggerText()).toBe(ejemplo.triggerText);
+    expect(component.hasContent()).toBe(true);
+    expect(component.body()).toBe(ejemplo.body);
+    expect(component.placement()).toBe(ejemplo.placement);
+    const cuerpo = (fixture.nativeElement as HTMLElement).querySelector('.rich-tooltip__body');
+    expect(cuerpo?.textContent).toBe(ejemplo.body);
   });
 });
 

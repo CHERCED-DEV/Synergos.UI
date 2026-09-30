@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { RichTooltipProps } from '@synergos/contracts';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -16,28 +17,18 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynRichTooltip</c>.
+ * <synergos-rich-tooltip>: a trigger (text or icon) that, on hover/focus, reveals a floating
+ * panel carrying a title, a body paragraph and an optional call-to-action link. Built for inline
+ * help, glossary terms and contextual guidance across the verticals. Interaction is
+ * keyboard-accessible (focus opens, Escape closes) and the panel uses `role="tooltip"` wired to
+ * the trigger via `aria-describedby`.
  *
- * A rich tooltip: a trigger (text or wrapped content) that, on hover/focus,
- * reveals a floating panel carrying a title, a body paragraph and an optional
- * call-to-action link. Built for inline help, glossary terms and contextual
- * guidance across the verticals. Interaction is keyboard-accessible (focus
- * opens, Escape closes) and the panel uses `role="tooltip"` wired to the
- * trigger via `aria-describedby`.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `RichTooltipProps`, GENERADO del record C#
+ * (ADR 0135): `body` es el RTE del editor bajado a TEXTO PLANO (este elemento lo pinta como
+ * texto) y `placement` el lado. La vista mandaba el HTML como `tooltipContent` y el tooltip no
+ * tenía contenido (D1). `title`, `actionLabel` y `actionHref` no los autora el editor: llegan por
+ * atributo.
  */
-export interface RichTooltipRuntimeConfig {
-  readonly triggerText?: string;
-  readonly title?: string;
-  readonly body?: string;
-  readonly actionLabel?: string;
-  readonly actionHref?: string;
-  readonly placement?: string;
-}
-
 /** Emitted on the `tooltiptoggle` CustomEvent and the typed Angular output. */
 export interface RichTooltipToggleDetail {
   readonly open: boolean;
@@ -55,15 +46,11 @@ export function normalizePlacement(value: unknown): RichTooltipPlacement {
   return candidate && PLACEMENTS.includes(candidate) ? candidate : DEFAULT_PLACEMENT;
 }
 
-function sanitizeRichTooltipConfig(
-  value: Partial<RichTooltipRuntimeConfig>,
-): RichTooltipRuntimeConfig {
-  return omitUndefinedProperties<RichTooltipRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeRichTooltipConfig(value: Partial<RichTooltipProps>): Partial<RichTooltipProps> {
+  return omitUndefinedProperties<RichTooltipProps>({
     triggerText: coerceTrimmedStringInput(value.triggerText),
-    title: coerceTrimmedStringInput(value.title),
     body: coerceTrimmedStringInput(value.body),
-    actionLabel: coerceTrimmedStringInput(value.actionLabel),
-    actionHref: coerceTrimmedStringInput(value.actionHref),
     placement: coerceTrimmedStringInput(value.placement),
   });
 }
@@ -79,8 +66,8 @@ function sanitizeRichTooltipConfig(
 export class RichTooltipElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<RichTooltipRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<RichTooltipRuntimeConfig>(sanitizeRichTooltipConfig),
+  readonly config = input<Partial<RichTooltipProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<RichTooltipProps>(sanitizeRichTooltipConfig),
   });
   readonly triggerTextInput = input<string | undefined>(undefined, { alias: 'triggerText' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -99,18 +86,12 @@ export class RichTooltipElementComponent {
   readonly triggerText = computed(() =>
     resolveConfigValue(this.triggerTextInput(), this.config()?.triggerText, ''),
   );
-  readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
-  );
+  readonly title = computed(() => this.titleInput() ?? '');
   readonly body = computed(() =>
     resolveConfigValue(this.bodyInput(), this.config()?.body, ''),
   );
-  readonly actionLabel = computed(() =>
-    resolveConfigValue(this.actionLabelInput(), this.config()?.actionLabel, ''),
-  );
-  readonly actionHref = computed(() =>
-    resolveConfigValue(this.actionHrefInput(), this.config()?.actionHref, ''),
-  );
+  readonly actionLabel = computed(() => this.actionLabelInput() ?? '');
+  readonly actionHref = computed(() => this.actionHrefInput() ?? '');
   readonly placement = computed<RichTooltipPlacement>(() =>
     normalizePlacement(resolveConfigValue(this.placementInput(), this.config()?.placement, '')),
   );

@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { ShareBarProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceTrimmedStringInput,
@@ -17,24 +18,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynShareBar</c>.
+ * <synergos-share-bar>: a share bar — a row of social-network share buttons plus a copy-link
+ * action. Each visible network opens its canonical share intent in a new tab pre-filled with the
+ * page URL and title; the copy button writes the URL to the clipboard and confirms inline.
+ * Selecting a network emits a `share` CustomEvent and copying emits a `copylink` CustomEvent.
  *
- * A share bar: a row of social-network share buttons plus a copy-link
- * action. Each visible network opens its canonical share intent in a new
- * tab pre-filled with the page URL and title; the copy button writes the
- * URL to the clipboard and confirms inline. Selecting a network emits a
- * `share` CustomEvent and copying emits a `copylink` CustomEvent.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `ShareBarProps`, GENERADO del record C#
+ * (ADR 0135): `platforms` es una LISTA de redes (con los nombres de este elemento: el CMS traduce
+ * `twitter` a `x`) y `shareLink` el destino del enlace del editor. La vista mandaba el texto
+ * `platformsCsv` y `shareUrl`, y la barra ignoraba las dos cosas (D1). El atributo `platforms`
+ * sigue aceptando CSV o JSON.
  */
-export interface ShareBarRuntimeConfig {
-  readonly platforms?: string;
-  readonly shareLink?: string;
-  readonly shareTitle?: string;
-}
-
 export type SharePlatformId =
   | 'facebook'
   | 'x'
@@ -157,11 +151,19 @@ export function buildShareUrl(
   }
 }
 
-function sanitizeShareBarConfig(
-  value: Partial<ShareBarRuntimeConfig>,
-): ShareBarRuntimeConfig {
-  return omitUndefinedProperties<ShareBarRuntimeConfig>({
-    platforms: coerceTrimmedStringInput(value.platforms),
+/** Una lista de cadenas no vacías, o `undefined` si no es una lista o queda vacía. */
+function coerceStringList(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const items = value.map((item) => coerceTrimmedStringInput(item)).filter((item): item is string => item !== undefined);
+  return items.length > 0 ? items : undefined;
+}
+
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeShareBarConfig(value: Partial<ShareBarProps>): Partial<ShareBarProps> {
+  return omitUndefinedProperties<ShareBarProps>({
+    platforms: coerceStringList(value.platforms),
     shareLink: coerceTrimmedStringInput(value.shareLink),
     shareTitle: coerceTrimmedStringInput(value.shareTitle),
   });
@@ -179,8 +181,8 @@ export class ShareBarElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<ShareBarRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<ShareBarRuntimeConfig>(sanitizeShareBarConfig),
+  readonly config = input<Partial<ShareBarProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<ShareBarProps>(sanitizeShareBarConfig),
   });
   readonly platformsInput = input<string | undefined>(undefined, { alias: 'platforms' });
   readonly shareLinkInput = input<string | undefined>(undefined, { alias: 'shareLink' });
