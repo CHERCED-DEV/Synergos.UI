@@ -5,6 +5,7 @@ export * from './embed.contract';
 export * from './page-config.contract';
 export * from './elements.contract';
 export * from './elements-syn.contract';
+export * from './elementos-synhost.contract';
 export * from './rendering.contract';
 export * from './element-manifest.schema';
 export * from './component-resolution.contract';

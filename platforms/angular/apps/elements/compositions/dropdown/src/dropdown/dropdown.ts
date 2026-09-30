@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { DropdownProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -19,31 +20,19 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynDropdown</c>.
- *
- * A trigger button that opens an accessible menu of items. Items can be
+ * <synergos-dropdown>: a trigger button that opens an accessible menu of items. Items can be
  * plain actions (emit an `itemselect` CustomEvent) or links (navigate via href).
  * Supports full keyboard control (Arrow/Home/End/typeahead/Escape), a
  * roving-focus `aria-activedescendant`-free roving tabindex menu, optional
  * inline search filtering, and outside-click / Escape dismissal.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `DropdownProps`, GENERADO del record C#
+ * (ADR 0135): `options` es una LISTA que el CMS ya parseó. Esta cabecera decía «every CMS
+ * property is a TypeScript input with the same alias», y era falso: la vista mandaba el TEXTO
+ * `optionsJson`, este elemento leía la lista `options`, y todo dropdown colocado salía como un
+ * botón gris sin opciones (D1). El atributo `optionsJson` sigue existiendo para quien monte el
+ * elemento a mano; los atributos ganan sobre el `config`, que gana sobre los defaults.
  */
-export interface DropdownRuntimeConfig {
-  readonly triggerLabel?: string;
-  readonly options?: readonly DropdownItemConfig[];
-  readonly selectedValue?: string;
-  readonly searchable?: boolean;
-}
-
-export interface DropdownItemConfig {
-  readonly value?: string;
-  readonly label?: string;
-  readonly href?: string;
-  readonly disabled?: boolean;
-}
 
 export interface DropdownItem {
   readonly value: string;
@@ -113,10 +102,11 @@ export function normalizeItems(value: unknown): readonly DropdownItem[] {
     .filter((item): item is DropdownItem => item !== null);
 }
 
-function sanitizeDropdownConfig(value: Partial<DropdownRuntimeConfig>): DropdownRuntimeConfig {
-  return omitUndefinedProperties<DropdownRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeDropdownConfig(value: Partial<DropdownProps>): Partial<DropdownProps> {
+  return omitUndefinedProperties<DropdownProps>({
     triggerLabel: coerceTrimmedStringInput(value.triggerLabel),
-    options: value.options,
+    options: Array.isArray(value.options) ? value.options : undefined,
     selectedValue: coerceTrimmedStringInput(value.selectedValue),
     searchable: coerceOptionalBooleanInput(value.searchable),
   });
@@ -138,8 +128,8 @@ export class DropdownElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<DropdownRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<DropdownRuntimeConfig>(sanitizeDropdownConfig),
+  readonly config = input<Partial<DropdownProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<DropdownProps>(sanitizeDropdownConfig),
   });
   readonly triggerLabelInput = input<string | undefined>(undefined, { alias: 'triggerLabel' });
   readonly optionsJsonInput = input<string | undefined>(undefined, { alias: 'optionsJson' });

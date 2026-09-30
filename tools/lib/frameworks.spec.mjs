@@ -210,6 +210,12 @@ describe('frameworksDelRegistry', () => {
  */
 const CIEGAS_AL_FRAMEWORK = [
   'lib/rutas-hermanas.mjs',
+  // Genera el tipo TS de lo que viaja a cada elemento desde el contrato del CMS (ADR 0135 ·
+  // CMS#173). Escribe en `vitals/contracts`, que es agnóstico: el sanitizador que se tipa con
+  // él puede vivir en cualquier plataforma. El spec que lo EJECUTA sí es de Angular, y vive en
+  // `platforms/angular`, no acá.
+  'contrato-synhost.mjs',
+  'lib/contrato-synhost.mjs',
   // Estaba en ESPECIFICAS_DE_ANGULAR —«publica al slot runtime/angular/<version>/»—
   // y era cierto mientras hubiera una plataforma. Con dos, publicaba el runtime de
   // Angular y nada más, informando «Done», y los elementos de la otra quedaban sin

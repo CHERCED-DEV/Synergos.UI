@@ -73,7 +73,11 @@ describe('un argumento que el intérprete reinterpretaría se RECHAZA, en todos 
   });
 });
 
-describe('npm CORRE en este sistema — la llamada, no la lista', () => {
+// Estos tres arrancan un npm DE VERDAD, así que no pueden tener el tope de 5 s de un test en
+// memoria: arrancar npm en Windows con la máquina cargada pasó de 5 s en la corrida integrada
+// (`correrNpm` en rojo por tiempo, 26/26 en verde corrido solo). El tope largo no afloja lo que
+// prueban: un ENOENT o un estado distinto de 0 fallan igual, y enseguida.
+describe('npm CORRE en este sistema — la llamada, no la lista', { timeout: 60_000 }, () => {
   // Estos tres son los que el job `windows-latest` pone en rojo si el lanzador pierde el
   // `shell`: en Linux pasan con o sin él, en Windows dan ENOENT sin él.
 
