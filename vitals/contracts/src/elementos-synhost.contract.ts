@@ -42,6 +42,16 @@ export interface DropdownOption {
   readonly href?: string;
 }
 
+/** <synergos-audio-player> · pieza */
+export interface AudioPlayerProps {
+  /** contenido */
+  readonly audioFile?: string;
+  /** contenido */
+  readonly trackTitle?: string;
+  /** contenido */
+  readonly artistName?: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -95,6 +105,21 @@ export interface TagProps {
   /** decision */
   readonly color?: string;
 }
+
+export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
+  nombre: "audio-player",
+  tipo: "pieza",
+  record: "AudioPlayerProps",
+  diccionario: [],
+  campos: ["audioFile","trackTitle","artistName"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "audioFile": "/media/podcast/episodio-12.mp3",
+    "trackTitle": "Episodio 12: la ciudad que camina",
+    "artistName": "Radio Synergos"
+  },
+};
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   nombre: "carousel",
@@ -196,6 +221,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  AUDIO_PLAYER_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
