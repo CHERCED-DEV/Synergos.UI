@@ -119,6 +119,89 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(window.location.hash).toContain('/confirmacion');
   });
 
+  // ── #83: los dos selectores exclusivos los pinta `syn-segmented` ─────────────
+  //
+  // La modalidad eran dos <button> con sólo la clase `is-active`: el lector de pantalla
+  // no sabía cuál estaba elegida. Se busca por ROL y NOMBRE —lo que recibe el lector—,
+  // y lo que se mira al final es el ARGUMENTO del POST, no el estado de la pantalla.
+  function radiosDe(nombre: string): HTMLButtonElement[] {
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      `syn-segmented [role="radiogroup"][aria-label="${nombre}"]`,
+    );
+    expect(group).not.toBeNull();
+    return Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+  }
+  const marcado = (radios: HTMLButtonElement[]): (string | null)[] =>
+    radios.map((radio) => radio.getAttribute('aria-checked'));
+
+  it('la modalidad de la visita se elige con el teclado y viaja en el POST (#83)', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    installMemoryStorage();
+    const fetchMock = vi.fn((_url: unknown, _init?: RequestInit) =>
+      Promise.reject(new Error('offline')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await createComponent();
+
+    component.openListing(component.listings()[0]);
+    await flushMicrotasks();
+    component.startVisit();
+    fixture.detectChanges();
+
+    const radios = radiosDe('Modalidad de la visita');
+    expect(radios.map((radio) => radio.textContent?.trim())).toEqual(['Visita presencial', 'Video-tour']);
+    expect(marcado(radios)).toEqual(['true', 'false']);
+
+    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    expect(marcado(radios)).toEqual(['false', 'true']);
+
+    component.selectSlot(component.availableSlots()[0]);
+    component.visitName.set('Ada Lovelace');
+    component.visitEmail.set('ada@example.com');
+    component.visitPhone.set('3005551234');
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    while (!wizard.isLastStep()) {
+      wizard.next();
+      fixture.detectChanges();
+      await flushMicrotasks();
+    }
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    const post = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).endsWith('/visit') && init?.method === 'POST',
+    );
+    expect(post).toBeDefined();
+    expect(JSON.parse(String(post?.[1]?.body)).mode).toBe('video');
+    expect(component.confirmedVisit()?.mode).toBe('video');
+  });
+
+  it('la operación es un radiogroup con estado, y cambiarla vuelve a buscar (#83)', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    const radios = radiosDe('Operación');
+    expect(radios.map((radio) => radio.textContent?.trim())).toEqual(['Comprar', 'Arrendar']);
+    expect(marcado(radios)).toEqual(['true', 'false']);
+
+    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    expect(component.operation()).toBe('rent');
+    expect(marcado(radios)).toEqual(['false', 'true']);
+    expect(component.listings().every((listing) => listing.operation === 'rent')).toBe(true);
+
+    // Una operación que no está en la lista se ignora: ni cambia ni dispara otra búsqueda.
+    component.setOperation('permuta');
+    expect(component.operation()).toBe('rent');
+  });
+
   // ── filter: SH-1 criteria filters the catalogue by property type ──────────────
   it('filters the catalogue by type through the discovery criteria (filter case)', async () => {
     installMemoryStorage();

@@ -216,27 +216,13 @@
     color: var(--rt-text-secondary);
   }
 
+  // La operación la pinta `syn-segmented` (#83); acá sólo su fila con «Guardar búsqueda».
   &__ops {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: syn.$space-xs;
     margin-top: syn.$space-xs;
-  }
-
-  &__op {
-    padding: syn.$space-xxs syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--rt-border);
-    border-radius: syn.$radius-full;
-    background: var(--rt-surface);
-    color: var(--rt-text);
-    font-weight: 600;
-    cursor: pointer;
-
-    &.is-active {
-      background: var(--rt-brand);
-      border-color: var(--rt-brand);
-      color: var(--rt-brand-text);
-    }
   }
 
   &__save-search {
@@ -778,32 +764,13 @@
     font-weight: 700;
   }
 
-  &__visit-modes,
+  // La modalidad de la visita la pinta `syn-segmented` (#83).
   &__visit-contact {
     display: flex;
+    flex-direction: column;
     flex-wrap: wrap;
     gap: syn.$space-sm;
-  }
-
-  &__visit-contact {
-    flex-direction: column;
     max-width: syn.px-to-rem(440);
-  }
-
-  &__mode {
-    padding: syn.$space-sm syn.$space-lg;
-    border: syn.px-to-rem(1) solid var(--rt-border);
-    border-radius: syn.$radius-md;
-    background: var(--rt-surface);
-    color: var(--rt-text);
-    font-weight: 600;
-    cursor: pointer;
-
-    &.is-active {
-      border-color: var(--rt-brand);
-      background: var(--rt-brand-soft);
-      color: var(--rt-brand);
-    }
   }
 
   &__slots {

@@ -58,18 +58,16 @@
       <div class="realty__hero">
         <h1 class="realty__hero-title">{{ heading() }}</h1>
         <p class="realty__hero-sub">{{ subheading() }}</p>
-        <div class="realty__ops" role="group" aria-label="Operación">
-          @for (op of operations; track op.key) {
-            <button
-              type="button"
-              class="realty__op"
-              [class.is-active]="operation() === op.key"
-              [attr.aria-pressed]="operation() === op.key"
-              (click)="setOperation(op.key)"
-            >
-              {{ op.label }}
-            </button>
-          }
+        <!-- Sin role=group: el nombre «Operación» lo lleva el radiogroup, y «Guardar
+             búsqueda» no es una operación. -->
+        <div class="realty__ops">
+          <syn-segmented
+            size="sm"
+            ariaLabel="Operación"
+            [options]="operations"
+            [value]="operation()"
+            (valueChange)="setOperation($event)"
+          />
           <button type="button" class="realty__save-search" (click)="saveCurrentSearch()">
             Guardar búsqueda
           </button>
@@ -387,14 +385,12 @@
           <ng-template #visitStep let-step>
             @switch (step.id) {
               @case ('mode') {
-                <div class="realty__visit-modes" role="group" aria-label="Modalidad de la visita">
-                  <button type="button" class="realty__mode" [class.is-active]="visitMode() === 'in-person'" (click)="setVisitMode('in-person')">
-                    Visita presencial
-                  </button>
-                  <button type="button" class="realty__mode" [class.is-active]="visitMode() === 'video'" (click)="setVisitMode('video')">
-                    Video-tour
-                  </button>
-                </div>
+                <syn-segmented
+                  ariaLabel="Modalidad de la visita"
+                  [options]="visitModes"
+                  [value]="visitMode()"
+                  (valueChange)="setVisitMode($event)"
+                />
               }
               @case ('slot') {
                 <div class="realty__slots">
