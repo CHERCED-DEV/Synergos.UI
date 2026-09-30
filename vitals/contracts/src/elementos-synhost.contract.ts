@@ -78,6 +78,20 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
+/** <synergos-range-slider> · pieza */
+export interface RangeSliderProps {
+  /** contenido */
+  readonly label?: string;
+  /** decision */
+  readonly min?: number;
+  /** decision */
+  readonly max?: number;
+  /** decision */
+  readonly step?: number;
+  /** decision */
+  readonly high?: number;
+}
+
 /** <synergos-rating-stars> · pieza */
 export interface RatingStarsProps {
   /** contenido */
@@ -175,6 +189,23 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
+  nombre: "range-slider",
+  tipo: "pieza",
+  record: "RangeSliderProps",
+  diccionario: [],
+  campos: ["label","min","max","step","high"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Precio por noche",
+    "min": 50000,
+    "max": 500000,
+    "step": 10000,
+    "high": 250000
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -224,6 +255,7 @@ export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
+  RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
   SCROLL_TOP_SYNHOST,
   TAG_SYNHOST,
