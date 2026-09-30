@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { InitialDataService } from '@synergos/core';
 import {
+  LiveAnnouncerService,
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -107,6 +108,7 @@ function sanitizeCodeBlockConfig(value: Partial<CodeBlockRuntimeConfig>): CodeBl
 })
 export class CodeBlockElementComponent {
   readonly #initialData = inject(InitialDataService);
+  readonly #announcer = inject(LiveAnnouncerService);
 
   readonly config = input<CodeBlockRuntimeConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<CodeBlockRuntimeConfig>(sanitizeCodeBlockConfig),
@@ -186,7 +188,13 @@ export class CodeBlockElementComponent {
     }
   }
 
+  /**
+   * «Copiado» se ANUNCIA (#82). Antes el botón llevaba `aria-live` y lo que cambiaba era su
+   * `aria-label`: una región viva anuncia cambios de CONTENIDO, no de atributos, así que copiar
+   * no decía nada. Por el servicio, además, copiar dos veces lo dice dos veces.
+   */
   private flagCopied(): void {
+    this.#announcer.announce(this.copiedLabel());
     this.#copied.set(true);
     if (this.#copiedTimer !== null) {
       clearTimeout(this.#copiedTimer);
