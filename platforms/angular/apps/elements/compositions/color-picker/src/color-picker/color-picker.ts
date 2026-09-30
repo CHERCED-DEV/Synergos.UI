@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { ColorPickerProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceTrimmedStringInput,
@@ -17,24 +18,15 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynColorPicker</c>.
+ * <synergos-color-picker>: a compact color selector — a preview swatch, an editable hex field,
+ * and a grid of preset swatches (the palette). Picking a swatch or committing a valid hex emits a
+ * `colorchange` CustomEvent carrying the normalized `#rrggbb` value.
  *
- * A compact color selector: a preview swatch, an editable hex field, and a
- * grid of preset swatches (the palette). Picking a swatch or committing a
- * valid hex emits a `colorchange` CustomEvent carrying the normalized
- * `#rrggbb` value. Built for theming/branding surfaces where a visitor (or
- * editor) chooses an accent color from a curated palette.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `ColorPickerProps`, GENERADO del record C#
+ * (ADR 0135): `label`, `initialColor` y `palette`, una LISTA de colores hex ya validados por el
+ * CMS. La vista mandaba el TEXTO `paletteJson` y el selector pintaba la paleta de fábrica (D1).
+ * El atributo `paletteJson` sigue aceptando la paleta como JSON.
  */
-export interface ColorPickerRuntimeConfig {
-  readonly label?: string;
-  readonly initialColor?: string;
-  readonly palette?: readonly string[];
-}
-
 /** Emitted on the `colorchange` CustomEvent and the typed Angular output. */
 export interface ColorPickerChangeDetail {
   readonly color: string;
@@ -134,13 +126,12 @@ export function isLightColor(hex: string): boolean {
   return luminance > 0.5;
 }
 
-function sanitizeColorPickerConfig(
-  value: Partial<ColorPickerRuntimeConfig>,
-): ColorPickerRuntimeConfig {
-  return omitUndefinedProperties<ColorPickerRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeColorPickerConfig(value: Partial<ColorPickerProps>): Partial<ColorPickerProps> {
+  return omitUndefinedProperties<ColorPickerProps>({
     label: coerceTrimmedStringInput(value.label),
     initialColor: coerceTrimmedStringInput(value.initialColor),
-    palette: value.palette,
+    palette: Array.isArray(value.palette) ? value.palette : undefined,
   });
 }
 
@@ -155,8 +146,8 @@ function sanitizeColorPickerConfig(
 export class ColorPickerElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<ColorPickerRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<ColorPickerRuntimeConfig>(sanitizeColorPickerConfig),
+  readonly config = input<Partial<ColorPickerProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<ColorPickerProps>(sanitizeColorPickerConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly initialColorInput = input<string | undefined>(undefined, { alias: 'initialColor' });

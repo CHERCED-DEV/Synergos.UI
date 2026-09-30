@@ -19,6 +19,7 @@ import { sanitizeAvatarGroupConfig } from './compositions/avatar-group/src/avata
 import { sanitizeLightboxGalleryConfig } from './modules/lightbox-gallery/src/lightbox-gallery/lightbox-gallery';
 import { sanitizeChartBarConfig } from './modules/chart-bar/src/chart-bar/chart-bar';
 import { sanitizeMapPinConfig } from './modules/map-pin/src/map-pin/map-pin';
+import { sanitizeColorPickerConfig } from './compositions/color-picker/src/color-picker/color-picker';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -55,6 +56,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'lightbox-gallery': createConfigInputTransform(sanitizeLightboxGalleryConfig),
   'chart-bar': createConfigInputTransform(sanitizeChartBarConfig),
   'map-pin': createConfigInputTransform(sanitizeMapPinConfig),
+  'color-picker': createConfigInputTransform(sanitizeColorPickerConfig),
 };
 
 type Config = Record<string, unknown>;

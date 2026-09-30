@@ -118,6 +118,16 @@ export interface ChartBarProps {
   readonly data?: readonly ChartBarEntry[];
 }
 
+/** <synergos-color-picker> · pieza */
+export interface ColorPickerProps {
+  /** contenido */
+  readonly label?: string;
+  /** decision */
+  readonly initialColor?: string;
+  /** contenido */
+  readonly palette?: readonly string[];
+}
+
 /** <synergos-cookie-consent> · pieza */
 export interface CookieConsentProps {
   /** contenido */
@@ -378,6 +388,26 @@ export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
         "label": "T3",
         "value": 950.5
       }
+    ]
+  },
+};
+
+export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
+  nombre: "color-picker",
+  tipo: "pieza",
+  record: "ColorPickerProps",
+  diccionario: [],
+  campos: ["label","initialColor","palette"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Color de acento de tu tienda",
+    "initialColor": "#0f766e",
+    "palette": [
+      "#0f766e",
+      "#b45309",
+      "#7c3aed",
+      "#be123c"
     ]
   },
 };
@@ -646,6 +676,7 @@ export const ELEMENTOS_SYNHOST = [
   AVATAR_GROUP_SYNHOST,
   CAROUSEL_SYNHOST,
   CHART_BAR_SYNHOST,
+  COLOR_PICKER_SYNHOST,
   COOKIE_CONSENT_SYNHOST,
   COUNTDOWN_CLOCK_SYNHOST,
   COUNTDOWN_DIGITAL_SYNHOST,
