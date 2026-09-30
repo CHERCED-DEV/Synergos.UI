@@ -9,19 +9,17 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { TourGuideProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
-  coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynTourGuide</c>.
- *
- * A guided product tour: an ordered list of steps, each one spotlighting a
+ * <synergos-tour-guide>: a guided product tour: an ordered list of steps, each one spotlighting a
  * target element on the page (matched by CSS selector) with a dimmed overlay
  * and an anchored popover carrying a title + body and next / previous / skip
  * controls. Built to onboard visitors through a vertical (Eventos, Booking,
@@ -32,25 +30,13 @@ import {
  * Progress and lifecycle are broadcast as `tourstep`, `tourcomplete` and
  * `tourskip` CustomEvents plus mirrored typed Angular outputs.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `TourGuideProps`, GENERADO del record C#
+ * (ADR 0135): `steps` es una LISTA ya parseada (`target`, `title`, `body`) y `autoStart`.
+ * Esta cabecera decía «every CMS property is a TypeScript input with the same alias», y era
+ * falso: la vista mandaba el TEXTO `stepsJson` y el recorrido colocado no tenía pasos (D1). Los
+ * rótulos de los botones no los autora el editor: son atributos, igual que `steps`/`stepsJson`
+ * como JSON (con `placement` por paso), que ganan sobre el `config`.
  */
-export interface TourGuideRuntimeConfig {
-  readonly steps?: readonly TourStepConfig[];
-  readonly autoStart?: boolean;
-  readonly nextLabel?: string;
-  readonly previousLabel?: string;
-  readonly skipLabel?: string;
-  readonly doneLabel?: string;
-}
-
-export interface TourStepConfig {
-  readonly target?: string;
-  readonly title?: string;
-  readonly body?: string;
-  readonly placement?: string;
-}
 
 export type TourPlacement = 'top' | 'bottom' | 'left' | 'right' | 'auto';
 
@@ -131,14 +117,11 @@ export function normalizeSteps(value: unknown): readonly TourStep[] {
     .filter((step): step is TourStep => step !== null);
 }
 
-function sanitizeTourGuideConfig(value: Partial<TourGuideRuntimeConfig>): TourGuideRuntimeConfig {
-  return omitUndefinedProperties<TourGuideRuntimeConfig>({
-    steps: value.steps,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeTourGuideConfig(value: Partial<TourGuideProps>): Partial<TourGuideProps> {
+  return omitUndefinedProperties<TourGuideProps>({
+    steps: Array.isArray(value.steps) ? value.steps : undefined,
     autoStart: coerceOptionalBooleanInput(value.autoStart),
-    nextLabel: coerceTrimmedStringInput(value.nextLabel),
-    previousLabel: coerceTrimmedStringInput(value.previousLabel),
-    skipLabel: coerceTrimmedStringInput(value.skipLabel),
-    doneLabel: coerceTrimmedStringInput(value.doneLabel),
   });
 }
 
@@ -161,8 +144,8 @@ export class TourGuideElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<TourGuideRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TourGuideRuntimeConfig>(sanitizeTourGuideConfig),
+  readonly config = input<Partial<TourGuideProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TourGuideProps>(sanitizeTourGuideConfig),
   });
   readonly stepsInput = input<string | undefined>(undefined, { alias: 'steps' });
   // The scaffold exposed `stepsJson`; keep it as a backwards-compatible alias.
@@ -192,18 +175,10 @@ export class TourGuideElementComponent {
     resolveConfigValue(this.autoStartInput(), this.config()?.autoStart, false),
   );
 
-  readonly nextLabel = computed(() =>
-    resolveConfigValue(this.nextLabelInput(), this.config()?.nextLabel, DEFAULT_NEXT_LABEL),
-  );
-  readonly previousLabel = computed(() =>
-    resolveConfigValue(this.previousLabelInput(), this.config()?.previousLabel, DEFAULT_PREVIOUS_LABEL),
-  );
-  readonly skipLabel = computed(() =>
-    resolveConfigValue(this.skipLabelInput(), this.config()?.skipLabel, DEFAULT_SKIP_LABEL),
-  );
-  readonly doneLabel = computed(() =>
-    resolveConfigValue(this.doneLabelInput(), this.config()?.doneLabel, DEFAULT_DONE_LABEL),
-  );
+  readonly nextLabel = computed(() => this.nextLabelInput() ?? DEFAULT_NEXT_LABEL);
+  readonly previousLabel = computed(() => this.previousLabelInput() ?? DEFAULT_PREVIOUS_LABEL);
+  readonly skipLabel = computed(() => this.skipLabelInput() ?? DEFAULT_SKIP_LABEL);
+  readonly doneLabel = computed(() => this.doneLabelInput() ?? DEFAULT_DONE_LABEL);
 
   readonly hasSteps = computed(() => this.steps().length > 0);
   readonly total = computed(() => this.steps().length);

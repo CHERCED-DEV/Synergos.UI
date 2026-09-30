@@ -11,6 +11,7 @@ import { sanitizeSelectMultiConfig } from './compositions/select-multi/src/selec
 import { sanitizeStepperConfig } from './compositions/stepper/src/stepper/stepper';
 import { sanitizeTabsConfig } from './compositions/tabs/src/tabs/tabs';
 import { sanitizeTimelineConfig } from './modules/timeline/src/timeline/timeline';
+import { sanitizeTourGuideConfig } from './modules/tour-guide/src/tour-guide/tour-guide';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -39,6 +40,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   stepper: createConfigInputTransform(sanitizeStepperConfig),
   tabs: createConfigInputTransform(sanitizeTabsConfig),
   timeline: createConfigInputTransform(sanitizeTimelineConfig),
+  'tour-guide': createConfigInputTransform(sanitizeTourGuideConfig),
 };
 
 type Config = Record<string, unknown>;

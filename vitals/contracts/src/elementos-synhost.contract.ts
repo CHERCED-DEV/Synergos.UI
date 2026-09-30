@@ -67,6 +67,13 @@ export interface TimelineEntry {
   readonly body?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: TourGuideStep). */
+export interface TourGuideStep {
+  readonly target?: string;
+  readonly title?: string;
+  readonly body?: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -175,6 +182,14 @@ export interface TagProps {
 export interface TimelineProps {
   /** contenido */
   readonly events?: readonly TimelineEntry[];
+}
+
+/** <synergos-tour-guide> · pieza */
+export interface TourGuideProps {
+  /** contenido */
+  readonly steps?: readonly TourGuideStep[];
+  /** decision */
+  readonly autoStart?: boolean;
 }
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
@@ -408,6 +423,31 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   },
 };
 
+export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
+  nombre: "tour-guide",
+  tipo: "pieza",
+  record: "TourGuideProps",
+  diccionario: [],
+  campos: ["steps","autoStart"],
+  listas: {"steps":["target","title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "steps": [
+      {
+        "target": ".site-header",
+        "title": "Bienvenido",
+        "body": "Este es el menú principal."
+      },
+      {
+        "target": "#buscar",
+        "title": "Buscá",
+        "body": "Encontrá cualquier cosa desde acá."
+      }
+    ],
+    "autoStart": true
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
@@ -421,4 +461,5 @@ export const ELEMENTOS_SYNHOST = [
   TABS_SYNHOST,
   TAG_SYNHOST,
   TIMELINE_SYNHOST,
+  TOUR_GUIDE_SYNHOST,
 ] as const;
