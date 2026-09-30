@@ -48,8 +48,15 @@ describe('contrato SynHost: cada sanitizador, ejecutado con el config que emite 
       // Se ejecuta con el atributo como llega: una cadena JSON.
       const salida = (config: Config) => JSON.stringify(SANITIZADORES[elemento.nombre]?.(JSON.stringify(config)) ?? null);
 
-      it('la muestra del CMS ejercita todos los campos del record', () => {
+      it('la muestra del CMS ejercita todos los campos del record, los de sus listas incluidos', () => {
         expect(elemento.campos.filter((campo) => !(campo in ejemplo))).toEqual([]);
+
+        const listas = elemento.listas as Readonly<Record<string, readonly string[]>>;
+        const sinViajar = Object.entries(listas).flatMap(([campo, internos]) => {
+          const items = Array.isArray(ejemplo[campo]) ? (ejemplo[campo] as unknown[]).filter(esObjeto) : [];
+          return internos.filter((i) => !items.some((item) => i in item)).map((i) => `${campo}[].${i}`);
+        });
+        expect(sinViajar).toEqual([]);
       });
 
       it('cada clave que viaja mueve la salida del sanitizador', () => {

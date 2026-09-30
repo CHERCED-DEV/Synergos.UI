@@ -1158,7 +1158,7 @@ se desincroniza):
    —que el CMS no manda— es `TS2339` al compilar (mutado). Pero **quitar una lectura compila
    igual**: con `period` fuera del sanitizador, `tsc` calla y el texto del editor se vuelve a tirar
    al hidratar, que es D1 entero. Lo caza `apps/elements/contrato-synhost.spec.ts`, que corre el
-   sanitizador con el `ejemplo` del contrato y exige que **cada clave mueva la salida** (mutado).
+   sanitizador con el `ejemplo` del contrato y exige que **cada clave mueva la salida** (mutado) —también cada campo de los ítems de una lista, y que la muestra haga viajar todos: una clave que la muestra no lleva no la mira nadie—.
    **El ejemplo no lo escribe nadie a mano**: el CMS lo saca de una muestra autorada pasada por su
    resolver y su emitter REALES (`ContratoSynHostTests`), y trae la `culture` que el emitter añade.
    Un ejemplo escrito acá sería otra copia de las claves —la tercera—, que es la forma exacta en que

@@ -91,6 +91,7 @@ describe('generarTs', () => {
     const ts = generarTs(contrato());
     expect(ts).toContain('export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {');
     expect(ts).toContain('"src": "/a.jpg"');
+    expect(ts).toContain('  listas: {"slides":["src","alt"]},');
     expect(ts).toMatch(/export const ELEMENTOS_SYNHOST = \[\n {2}CAROUSEL_SYNHOST,\n\] as const;/);
   });
 

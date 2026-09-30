@@ -23,6 +23,8 @@ export interface ElementoSynHost<T> {
   readonly record: string;
   readonly diccionario: readonly string[];
   readonly campos: readonly (keyof T & string)[];
+  /** Por cada campo que es una lista de records, los campos de sus ítems. */
+  readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
@@ -100,6 +102,7 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   record: "CarouselProps",
   diccionario: [],
   campos: ["slides","autoplay","interval"],
+  listas: {"slides":["src","alt","label"]},
   ejemplo: {
     "culture": "es-CO",
     "slides": [
@@ -125,6 +128,7 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   record: "DropdownProps",
   diccionario: [],
   campos: ["triggerLabel","options","selectedValue","searchable"],
+  listas: {"options":["value","label","href"]},
   ejemplo: {
     "culture": "es-CO",
     "triggerLabel": "País",
@@ -150,6 +154,7 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   record: "KpiCardProps",
   diccionario: ["Synhost.Kpi"],
   campos: ["label","value","trend","deltaLabel","period"],
+  listas: {},
   ejemplo: {
     "culture": "es-CO",
     "label": "Ventas del mes",
@@ -166,6 +171,7 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   record: "RatingStarsProps",
   diccionario: [],
   campos: ["value","max","label"],
+  listas: {},
   ejemplo: {
     "culture": "es-CO",
     "value": 4,
@@ -180,6 +186,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   record: "TagProps",
   diccionario: [],
   campos: ["label","color"],
+  listas: {},
   ejemplo: {
     "culture": "es-CO",
     "label": "Oferta",

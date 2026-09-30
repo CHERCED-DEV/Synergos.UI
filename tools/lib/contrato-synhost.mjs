@@ -204,6 +204,8 @@ export function generarTs(contrato) {
       '  readonly record: string;',
       '  readonly diccionario: readonly string[];',
       '  readonly campos: readonly (keyof T & string)[];',
+      '  /** Por cada campo que es una lista de records, los campos de sus ítems. */',
+      '  readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;',
       '  readonly ejemplo: T & EnvolturaSynHost;',
       '}',
     ].join('\n'),
@@ -218,6 +220,14 @@ export function generarTs(contrato) {
     bloques.push(interfaz(e.record, e.campos, `<synergos-${e.nombre}> · ${e.tipo}${dicc}`));
   }
 
+  const camposDe = new Map(contrato.tipos.map((t) => [t.record, t.campos.map((c) => c.nombre)]));
+  const listasDe = (e) =>
+    Object.fromEntries(
+      e.campos
+        .filter((c) => c.tipo.endsWith('[]') && camposDe.has(c.tipo.slice(0, -2)))
+        .map((c) => [c.nombre, camposDe.get(c.tipo.slice(0, -2))]),
+    );
+
   for (const e of contrato.elementos) {
     bloques.push(
       [
@@ -227,6 +237,7 @@ export function generarTs(contrato) {
         `  record: ${JSON.stringify(e.record)},`,
         `  diccionario: ${JSON.stringify(e.diccionario)},`,
         `  campos: ${JSON.stringify(e.campos.map((c) => c.nombre))},`,
+        `  listas: ${JSON.stringify(listasDe(e))},`,
         `  ejemplo: ${literal(e.ejemplo, '  ')},`,
         '};',
       ].join('\n'),
