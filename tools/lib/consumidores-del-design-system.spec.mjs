@@ -5,6 +5,7 @@ import {
   RAIZ_DEL_DESIGN_SYSTEM,
   componentesDeclarados,
   cruzarConLaLineaBase,
+  declaracionesDeComponente,
   formatearReparto,
   inalcanzablesDesdeProducto,
   repartoPorTier,
@@ -102,6 +103,56 @@ const a = 1; // <syn-tooltip>
 
   it('no parte una URL por su doble barra', () => {
     expect(sinComentarios("const u = 'https://ejemplo/x'; const b = 2;")).toContain('const b = 2');
+  });
+
+  it("un '/*' dentro de una CADENA no abre un comentario — H5, el que se comía el @Component", () => {
+    // `dropzone.ts:160` tiene `'/*'`, y el regex de antes abría ahí un comentario que cerraba en
+    // el primer `*/` de verdad: el `@Component` de `dropzone` y el de `file-uploader`
+    // desaparecían (195 componentes vistos contra 197). El gate de #81 los necesita en el grafo.
+    const fuente = `
+const acepta = accept === '*/*' || accept.endsWith('/*');
+/** docs */
+@Component({ selector: 'sg-dropzone' })
+export class DropzoneElementComponent {}
+`;
+    expect(declaracionesDeComponente(fuente).map((d) => d.clase)).toEqual(['DropzoneElementComponent']);
+  });
+
+  it('una regex con `\\/\\/` no abre un comentario de línea (fab.ts)', () => {
+    const limpia = sinComentarios("const esExterno = /^https?:\\/\\//i.test(h) || h.startsWith('//'); const sigue = 1;");
+    expect(limpia).toContain('const sigue = 1');
+  });
+
+  it('una plantilla con `${…}` anidado no confunde al escáner', () => {
+    const limpia = sinComentarios('const t = `a ${ { b: `c ${d} // no` }.b } e`; // sí\nconst f = 1;');
+    expect(limpia).toContain('// no');
+    expect(limpia).not.toContain('sí');
+    expect(limpia).toContain('const f = 1');
+  });
+
+  it('conserva las líneas: un comentario de bloque se vuelve blanco, no desaparece', () => {
+    const fuente = 'a\n/* uno\ndos */\nb';
+    expect(sinComentarios(fuente).split('\n')).toHaveLength(fuente.split('\n').length);
+  });
+
+  it('a una plantilla sólo se le quitan los <!-- -->: el apóstrofo no es una cadena', () => {
+    const limpia = sinComentarios("<p>Don't</p>\n<!-- <syn-tooltip> -->\n<a href=//x>y</a> <syn-button></syn-button>", 'x.html');
+    expect(limpia).not.toContain('syn-tooltip');
+    expect(limpia).toContain('<syn-button>');
+  });
+});
+
+describe('declaracionesDeComponente', () => {
+  it('devuelve la clase, el selector (o null) y el bloque de metadatos', () => {
+    const [con, sin] = declaracionesDeComponente(`
+@Component({ selector: "syn-x", templateUrl: './x.html' })
+export class XComponent {}
+@Component({ template: \`<b></b>\` })
+export class RaizSinSelector {}
+`);
+    expect(con).toMatchObject({ clase: 'XComponent', selector: 'syn-x' });
+    expect(con.metadatos).toContain("templateUrl: './x.html'");
+    expect(sin).toMatchObject({ clase: 'RaizSinSelector', selector: null });
   });
 });
 
