@@ -28,6 +28,12 @@ export interface ElementoSynHost<T> {
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: AccordionSection). */
+export interface AccordionSection {
+  readonly title: string;
+  readonly body?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
@@ -40,6 +46,14 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** <synergos-accordion> · pieza */
+export interface AccordionProps {
+  /** contenido */
+  readonly items?: readonly AccordionSection[];
+  /** decision */
+  readonly allowMultiple?: boolean;
 }
 
 /** <synergos-carousel> · pieza */
@@ -95,6 +109,29 @@ export interface TagProps {
   /** decision */
   readonly color?: string;
 }
+
+export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
+  nombre: "accordion",
+  tipo: "pieza",
+  record: "AccordionProps",
+  diccionario: [],
+  campos: ["items","allowMultiple"],
+  listas: {"items":["title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "items": [
+      {
+        "title": "¿Cuánto tarda el envío?",
+        "body": "Entre 2 y 5 días hábiles en ciudades principales."
+      },
+      {
+        "title": "¿Puedo devolver un producto?",
+        "body": "Sí, dentro de los 30 días siguientes a la entrega."
+      }
+    ],
+    "allowMultiple": true
+  },
+};
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   nombre: "carousel",
@@ -196,6 +233,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  ACCORDION_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
