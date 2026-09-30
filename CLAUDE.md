@@ -95,7 +95,7 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **558 + 50 + 1.564 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **558 en un clon limpio y 559 con el CDN construido** (el piloto de la ADR 0135, CMS#173, sumó 12 a `tools` y 21 a Angular). Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
+- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **610 + 50 + 1.564 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **610 en un clon limpio y 611 con el CDN construido** (el piloto de la ADR 0135, CMS#173, sumó 12 a `tools` y 21 a Angular; el gate de los dos pisos, #81, otros 52 a `tools`). Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
   - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.564, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
@@ -130,6 +130,7 @@ está vigilando nada.
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
 | `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos. **Imprime el reparto por tier** (derivado, no escrito: #172) y no propone retirar por defecto (regla 40) | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
+| `gemelas-del-design-system` | la **regla de los dos pisos** (regla 41, ADR 0134 del CMS): que un elemento publicado con gemela en el design system la MONTE —tag en la plantilla **y** clase importada del fichero que la declara, por cierre transitivo desde la clase que registra su `main`—. Los pares salen del nombre (exacto o raíz, y cada candidato tiene que estar clasificado) y de una tabla por concepto; los incumplimientos de hoy son una LISTA vigilada en los dos sentidos. **Imprime la cifra** de la regla 41 | un elemento deja de montar su pieza o nace uno que la rehace; se publica un elemento que se llama como una pieza sin decidir si es ella; o uno de la línea base ya la monta y no se bajó (#81) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -177,11 +178,12 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · contratos:synhost:check · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:gemelas · gate:hipoteca · gate:rutas · contratos:synhost:check · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
 npm run gate:design-system    # piezas del design system que no alcanza ningún elemento, y su reparto por tier (sin hermano ni red)
 npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
+npm run gate:gemelas          # elemento publicado ↔ su gemela del design system: ¿la monta? (sin hermano ni red; la tabla y la línea base, a mano en tools/gemelas-del-design-system.json)
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run contratos:synhost     # regenera el tipo TS de lo que viaja a cada elemento, del contrato del CMS (ADR 0135)
 npm run contratos:synhost:check   # …o comprueba que el versionado es el de hoy (necesita el CMS; acepta --cms-path)
@@ -1079,7 +1081,9 @@ se desincroniza):
 
 41. **Un elemento publicado con gemela en el design system la MONTA, nunca la reimplementa — y
    hoy 19 de 33 no lo hacen.** Es la **regla de los dos pisos** (ADR 0134 del CMS). Medido por
-   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no**. Por
+   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no** —la
+   cifra la imprime `npm run gate:gemelas` en cada corrida (`… = 33 par(es): 14 montan su pieza ·
+   19 no`) y la que vale es la de la última, no la de esta línea—. Por
    nombre, de 13 pares montan la suya **cuatro** —`carousel`, `data-table`, `badge` y `heading`
    (alias de `text-block`)—. **`card` no la monta** (medido acá): importa `Badge`, `Button` y
    `Heading` y rehace la tarjeta, y como su clase se llama `CardComponent` —igual que la pieza—
@@ -1089,8 +1093,34 @@ se desincroniza):
    hereda su accesibilidad, sus tokens y sus correcciones; uno que la rehace, no.
    **Y la pregunta es por CONCEPTO, no por nombre**, en los dos sentidos: `stepper` son DOS
    conceptos —el elemento es un indicador de pasos, `syn-stepper` un +/- numérico— y `data-grid`
-   no es `DataTableComponent`. **Lo que falta es el gate**: el prototipo de la auditoría deja los
-   19 como línea base vigilada en los dos sentidos, y no está en el repo.
+   no es `DataTableComponent`.
+   **El gate es `gemelas-del-design-system` (#81)**, y lo que costó cada decisión, mutado sobre el
+   árbol real:
+   (a) **montar son DOS señales en el mismo componente**: el tag (`<syn-x` seguido de espacio,
+   `>` o `/`) y la clase importada **de donde la resuelve el import**, con los `paths` que la
+   plataforma declara en su `tsconfig`. Contando menciones, un `id="syn-tooltip-1"` daba a
+   `tooltip` por montado; aceptando la clase por NOMBRE, `card` se contaba a sí mismo —las dos
+   mutaciones salen «RESUELTO» en falso—; y el tag sin la clase no basta porque un esquema de
+   elementos desconocidos compila un `<syn-x>` que no monta nada;
+   (b) **los pares se DERIVAN del nombre y se DECLARAN por concepto**: 34 candidatos por nombre o
+   raíz (`progress-bar` ← `progress`) y cada uno tiene que estar clasificado —par, o dos conceptos
+   con su razón y su disparador— o el gate falla; los 10 que no comparten nombre (`pagination` ↔
+   `PaginatorComponent`, `drawer` ↔ `ModalComponent`…) viven en la tabla, que es su única memoria;
+   (c) **dos derivaciones cuadran**: la del gate (fuente sin comentarios + `paths` a mano) y otra
+   con el programa de TypeScript —el type checker resuelve el `imports: [...]` del decorador hasta
+   su declaración— y el parser de plantillas del compilador. Las dos: 33 pares, 14 y 19, la misma
+   lista; y las dos ven 197 componentes, que es lo que obligó al arreglo de (d);
+   (d) **el regex de comentarios de la lib de #78 se comía código**: el `'/*'` de `dropzone.ts`
+   abría un comentario falso y el `@Component` de `dropzone` y de `file-uploader` desaparecía
+   (195 contra 197). No cambiaba la cifra de #78 —no montan piezas— y a este gate lo dejaba
+   **verde**, porque tampoco son pares: por eso hoy toda raíz que no se lee es un fallo, sea par o
+   no (mutado: con el regex de antes, rojo por `dropzone` y `file-uploader`). Y los dos gates
+   quitan comentarios con el escáner de TypeScript.
+   El barrido «que respeta cadenas» de `contract-schema.mjs` no servía de reemplazo: medido contra
+   el escáner sobre los 606 `.ts` del árbol diverge en 3 (una regex con `\/\/` la lee como
+   comentario de línea); el regex de antes, en 4.
+   El cierre transitivo **hoy no decide nada** —los 14 que cumplen montan su pieza desde la raíz—
+   y se conserva sabiendo que empuja hacia «cumple».
 
 42. **Una región viva no NACE con su mensaje: tiene que existir ANTES de que el texto cambie, o
    el lector de pantalla calla.** Medido con el AST del compilador de Angular sobre las 323

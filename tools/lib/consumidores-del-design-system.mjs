@@ -104,8 +104,76 @@
  * runner dice en cada corrida.)
  */
 
+import { relative, resolve } from 'node:path';
+
+import ts from 'typescript';
+
+import { PLATAFORMAS } from './element-sources.mjs';
+
 /** Dónde vive el design system, relativo a la raíz de la plataforma. */
 export const RAIZ_DEL_DESIGN_SYSTEM = 'libs/shared/src/components';
+
+/**
+ * Las plataformas que tienen design system, y dónde está la raíz de cada una.
+ *
+ * Se deriva de `PLATAFORMAS`. Escribir la carpeta de una plataforma a mano resolvería a un
+ * literal una dimensión de lo que se recorre —la regla 25— y además lo prohíbe el censo de
+ * `frameworks.spec.mjs`. **Sólo tienen design system las plataformas que lo tengan**: una que
+ * no declara `RAIZ_DEL_DESIGN_SYSTEM` se salta en silencio y es correcto, porque no hay nada que
+ * medir ahí. Lo que NO sería correcto es que no hubiera ninguna, y de eso se ocupa la red de
+ * seguridad de cada gate.
+ *
+ * Vivía en el runner de este gate; la usan los dos gates del design system (#81), y con dos
+ * copias la del segundo es la que se desvía.
+ *
+ * @template {{framework: string, apps: string}} P
+ * @param {{ raiz: string, esDirectorio: (ruta: string) => boolean, plataformas?: ReadonlyArray<P> }} io
+ * @returns {Array<P & {base: string}>} la plataforma tal cual, más `base`: su raíz, absoluta.
+ */
+export function plataformasConDesignSystem({ raiz, esDirectorio, plataformas = PLATAFORMAS }) {
+  return plataformas
+    // `apps` es `platforms/<x>/apps`; la raíz de la plataforma es su padre.
+    .map((p) => ({ ...p, base: resolve(raiz, p.apps, '..') }))
+    .filter((p) => esDirectorio(resolve(p.base, RAIZ_DEL_DESIGN_SYSTEM)));
+}
+
+/**
+ * Lo que los dos gates del design system leen de UNA plataforma (#78, #81): cuántas fuentes
+ * tiene su design system, qué piezas declaran, y todo el código y las plantillas de `apps/` y
+ * `libs/`, con la ruta relativa a la plataforma.
+ *
+ * Vive acá, con el disco inyectado, para que el segundo gate no escriba una segunda lectura: qué
+ * extensiones cuentan como fuente del design system y cuál es el universo de consumidores son
+ * decisiones de UN sitio.
+ *
+ * @param {{ base: string, listar: (dir: string) => string[], leer: (ruta: string) => string }} io
+ *   `base`, la raíz de la plataforma; `listar`, los ficheros bajo una carpeta (recursivo, rutas
+ *   absolutas, vacío si no existe); `leer`, el texto de uno.
+ */
+export function leerDesignSystem({ base, listar, leer }) {
+  const relativa = (ruta) => relative(base, ruta).replace(/\\/g, '/');
+  const delDs = listar(resolve(base, RAIZ_DEL_DESIGN_SYSTEM));
+
+  // Todo lo que PODRÍA declarar un componente, sea cual sea la forma de la plataforma. Es lo
+  // que permite distinguir «acá no hay nada» de «acá hay algo que no sé leer» (regla 25).
+  const fuentesDelDs = delDs.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f) && !/\.spec\.tsx?$/.test(f)).length;
+
+  const piezas = componentesDeclarados(
+    delDs
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
+      .map((f) => ({ ruta: relativa(f), fuente: leer(f) })),
+  );
+
+  // El universo de posibles consumidores: los elementos publicables Y las demás libs. Sin
+  // `libs/`, un componente usado sólo por `libs/shells` saldría muerto — falso positivo, que es
+  // el lado del que el gate de #78 NO se puede equivocar.
+  const fuentes = ['apps', 'libs']
+    .flatMap((carpeta) => listar(resolve(base, carpeta)))
+    .filter((f) => /\.(ts|tsx|html)$/.test(f))
+    .map((f) => ({ ruta: relativa(f), fuente: leer(f) }));
+
+  return { fuentesDelDs, piezas, fuentes };
+}
 
 /**
  * Las plataformas cuyo design system este gate NO sabe leer, con su razón y su disparador.
@@ -187,24 +255,127 @@ export const esBarril = (ruta) => /(^|[\\/])(index|public-api|public_api)\.ts$/.
 /** Un spec prueba que la pieza funciona, no que alguien la use (#76). */
 export const esSpec = (ruta) => /\.spec\.tsx?$/.test(ruta);
 
+const K = ts.SyntaxKind;
+
 /**
- * La fuente sin comentarios de código ni de plantilla.
+ * Después de estos tokens una `/` ABRE una expresión regular; después de cualquier otro, divide.
+ *
+ * El escáner de TypeScript no sabe cuál de las dos es sin el parser —es la ambigüedad clásica de
+ * la gramática— y la resuelve quien lo llama con `reScanSlashToken`. Importa por una razón
+ * concreta del árbol: `fab.ts` tiene `/^https?:\/\//i`, y leída como división la `//` del final
+ * abriría un comentario de línea.
+ */
+const ANTES_DE_UNA_REGEX = new Set([
+  K.Unknown, K.OpenParenToken, K.OpenBracketToken, K.OpenBraceToken, K.CloseBraceToken,
+  K.CommaToken, K.SemicolonToken, K.ColonToken, K.QuestionToken, K.QuestionQuestionToken,
+  K.EqualsToken, K.EqualsEqualsEqualsToken, K.ExclamationEqualsEqualsToken, K.ExclamationToken,
+  K.AmpersandAmpersandToken, K.BarBarToken, K.PlusToken, K.MinusToken, K.AsteriskToken,
+  K.EqualsGreaterThanToken, K.ReturnKeyword, K.TypeOfKeyword, K.CaseKeyword,
+]);
+
+/** El texto con todo menos los saltos de línea pasado a espacios: conserva líneas y columnas. */
+const enBlanco = (texto) => texto.replace(/[^\n]/g, ' ');
+
+/**
+ * El CÓDIGO sin sus comentarios, leído con el escáner de TypeScript (CHERCED-DEV/Synergos.UI#81).
+ *
+ * **Era un regex y se comía código.** `/\/\*[\s\S]*?\*\//` no sabe qué es una cadena: el `'/*'`
+ * de `dropzone.ts:160` abría un comentario falso que se cerraba en el primer `*\/` de verdad, y
+ * el `@Component` entero desaparecía —el de `dropzone` y el de `file-uploader`: 195 componentes
+ * vistos en `apps/` + `libs/` contra 197—. Lo encontró la auditoría de los dos pisos (hallazgo H5
+ * del informe 14) y no cambiaba la cifra de #78, porque esos dos elementos no montan piezas; sí
+ * dejaba sin raíz a dos elementos en el grafo de `gemelas-del-design-system`, que es el que lo
+ * necesita entero.
+ *
+ * **Y no se arregló reusando el barrido «que respeta cadenas» de `contract-schema.mjs`**: medido
+ * contra el escáner sobre los 606 `.ts` de `apps/` + `libs/`, diverge en 3 —una regex con `\/\/`
+ * la lee como comentario de línea— y el regex de antes, en 4. (El de `clientes-sin-llamador.mjs`
+ * no sirve para esto: quita también las cadenas, y de una cadena salen el selector y la
+ * plantilla en línea.) El escáner sabe de cadenas, de plantillas con `${…}` anidadas y, con la
+ * ayuda de arriba, de expresiones regulares. Ya estaba en el repo (lo usa
+ * `medir-frontera-shared.mjs`).
+ */
+export function sinComentariosDeCodigo(fuente) {
+  const escaner = ts.createScanner(ts.ScriptTarget.Latest, false, ts.LanguageVariant.Standard, fuente);
+  let salida = '';
+  let anterior = K.Unknown;
+  // Una entrada por plantilla `…${` abierta: cuántas llaves se abrieron dentro de su expresión.
+  const plantillas = [];
+
+  for (let token = escaner.scan(); token !== K.EndOfFileToken; token = escaner.scan()) {
+    if ((token === K.SlashToken || token === K.SlashEqualsToken) && ANTES_DE_UNA_REGEX.has(anterior)) {
+      token = escaner.reScanSlashToken();
+    }
+    if (token === K.OpenBraceToken && plantillas.length > 0) plantillas[plantillas.length - 1] += 1;
+    if (token === K.CloseBraceToken && plantillas.length > 0) {
+      if (plantillas[plantillas.length - 1] === 0) {
+        token = escaner.reScanTemplateToken(false);
+        if (token === K.TemplateTail) plantillas.pop();
+      } else {
+        plantillas[plantillas.length - 1] -= 1;
+      }
+    }
+    if (token === K.TemplateHead) plantillas.push(0);
+
+    const texto = escaner.getTokenText();
+    if (token === K.SingleLineCommentTrivia || token === K.MultiLineCommentTrivia) {
+      salida += enBlanco(texto);
+      continue;
+    }
+    salida += texto;
+    if (token !== K.WhitespaceTrivia && token !== K.NewLineTrivia) anterior = token;
+  }
+
+  return salida;
+}
+
+/** Una plantilla sin sus `<!-- … -->`. Es el único comentario que tiene el HTML. */
+export const sinComentariosDePlantilla = (html) => html.replace(/<!--[\s\S]*?-->/g, enBlanco);
+
+/**
+ * Un fichero sin comentarios, según lo que sea: una plantilla o código.
+ *
+ * Al código también se le quitan los `<!-- … -->`, porque una plantilla EN LÍNEA
+ * (`template: \`…\``) vive dentro de una cadena y el escáner la deja entera.
  *
  * Se conservan los saltos de línea para que nada de lo de arriba dependa de los números de
  * línea, y porque un `join` sin ellos pegaría un identificador contra el siguiente.
+ *
+ * @param {string} fuente
+ * @param {string} [ruta] con `.html`, sólo se quitan los comentarios de plantilla. Pasarle el
+ *   escáner de código a un HTML convertiría el apóstrofo de «don't» en una cadena abierta.
  */
-export function sinComentarios(fuente) {
-  const sinBloques = fuente.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
-  return sinBloques
-    .split('\n')
-    .map((linea) => {
-      // Una `//` dentro de una URL (`https://…`) no abre comentario. Es el único caso del
-      // árbol y sale gratis distinguirlo; sin esto se recortaría media línea legítima.
-      const i = linea.search(/(^|[^:])\/\//);
-      if (i < 0) return linea;
-      return linea.slice(0, linea.indexOf('//', i));
-    })
-    .join('\n');
+export function sinComentarios(fuente, ruta = '') {
+  if (ruta.endsWith('.html')) return sinComentariosDePlantilla(fuente);
+  return sinComentariosDePlantilla(sinComentariosDeCodigo(fuente));
+}
+
+/**
+ * Cada `@Component({…}) export class X` de una fuente: la clase, su selector y el bloque de
+ * metadatos entero.
+ *
+ * Es LA lectura de «qué es un componente» de los dos gates del design system: éste la usa para
+ * las piezas, y `gemelas-del-design-system` (#81) para todo el árbol —elementos, shells, la
+ * tienda—, porque necesita además la plantilla que el bloque declara. Dos regex para la misma
+ * pregunta es cómo se acaba con una afinada y otra mintiendo.
+ *
+ * @param {string} fuente código, con o sin comentarios (se quitan acá).
+ * @returns {Array<{clase: string, selector: string|null, metadatos: string}>}
+ */
+export function declaracionesDeComponente(fuente) {
+  const limpia = sinComentarios(fuente);
+  const declaraciones = [];
+  // Puede haber varios `@Component` por fichero — `states/` los agrupa.
+  const re = /@Component\(\{[\s\S]*?\}\)\s*export\s+class\s+(\w+)/g;
+  let m;
+  while ((m = re.exec(limpia)) !== null) {
+    declaraciones.push({
+      clase: m[1],
+      selector: /selector:\s*['"`]([^'"`]+)['"`]/.exec(m[0])?.[1] ?? null,
+      metadatos: m[0],
+    });
+  }
+  return declaraciones;
 }
 
 /**
@@ -218,19 +389,13 @@ export function componentesDeclarados(ficheros) {
   const piezas = [];
 
   for (const { ruta, fuente } of ficheros) {
-    const limpia = sinComentarios(fuente);
-    // Puede haber varios `@Component` por fichero — `states/` los agrupa.
-    const re = /@Component\(\{[\s\S]*?\}\)\s*export\s+class\s+(\w+)/g;
-    let m;
-    while ((m = re.exec(limpia)) !== null) {
-      const bloque = m[0];
-      const selector = /selector:\s*'([^']+)'/.exec(bloque);
+    for (const { clase, selector } of declaracionesDeComponente(fuente)) {
       if (!selector) continue;
       const rel = ruta.replace(/\\/g, '/');
       const carpeta = rel.replace(/\/[^/]+$/, '');
       piezas.push({
-        clase: m[1],
-        selector: selector[1],
+        clase,
+        selector,
         carpeta,
         tier: carpeta.slice(RAIZ_DEL_DESIGN_SYSTEM.length + 1).split('/')[0] ?? '',
       });
@@ -259,7 +424,7 @@ export function inalcanzablesDesdeProducto(componentes, fuentes) {
   const util = fuentes
     .map((f) => ({ ruta: f.ruta.replace(/\\/g, '/'), fuente: f.fuente }))
     .filter((f) => !esBarril(f.ruta) && !esSpec(f.ruta))
-    .map((f) => ({ ruta: f.ruta, limpia: sinComentarios(f.fuente) }));
+    .map((f) => ({ ruta: f.ruta, limpia: sinComentarios(f.fuente, f.ruta) }));
 
   /** @type {Map<string, string[]>} */
   const consumidores = new Map();

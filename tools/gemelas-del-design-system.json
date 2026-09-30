@@ -1,0 +1,204 @@
+{
+  "nota": "La regla de los dos pisos (ADR 0134 del CMS, #81): un elemento publicado con gemela en el design system la MONTA. `gemelas` son los pares —por nombre o declarados por concepto— y `piezas` las clases que cuentan (cualquiera de ellas). `noGemelas` son los elementos que se llaman como una pieza y NO son ella, con la razón y el disparador que lo cambiaría. `incumplen` es LÍNEA BASE, no objetivo: los pares que hoy no montan su pieza, vigilados en los dos sentidos — uno nuevo rompe, y uno que empieza a montarla también, para que el commit que lo arregla lo saque de aquí.",
+  "gemelas": {
+    "accordion": {
+      "piezas": ["AccordionComponent"],
+      "razon": "Mismo concepto, distinto grano: la pieza es UN disclosure y el elemento el grupo. El elemento queda con su lista y un @for de la pieza; lo que tiene de mejor (nivel de encabezado, expandido controlable) se lleva a la pieza."
+    },
+    "card": {
+      "piezas": ["CardComponent"],
+      "razon": "Mismo concepto. El elemento rehace la tarjeta y encima se llama CardComponent: la pieza tiene que ganar ranura de media y de acciones para que la monte."
+    },
+    "carousel": {
+      "piezas": ["CarouselComponent"],
+      "razon": "Mismo concepto: un carrusel de diapositivas."
+    },
+    "dropdown": {
+      "piezas": ["DropdownComponent"],
+      "razon": "Mismo concepto. Decidido el 2026-09-29 (ADR 0134 §4): gana la pieza, que absorbe lo que el elemento tiene de correcto para un menú."
+    },
+    "tabs": {
+      "piezas": ["TabsComponent"],
+      "razon": "Mismo concepto y API casi 1:1; la pieza es mejor (ids por instancia, foco sin document.querySelector)."
+    },
+    "tooltip": {
+      "piezas": ["TooltipComponent"],
+      "razon": "Mismo concepto. El elemento es mejor (disparador <button>, retardo, burbuja siempre en el DOM): eso se lleva a la pieza. Su id syn-tooltip-… es un prefijo, no un montaje."
+    },
+    "data-table": {
+      "piezas": ["DataTableComponent"],
+      "razon": "Mismo concepto: una tabla de datos."
+    },
+    "avatar": {
+      "piezas": ["AvatarComponent"],
+      "razon": "Mismo concepto. El elemento es mejor (tamaños, forma, presencia, iniciales Unicode): la pieza lo absorbe junto con los tokens."
+    },
+    "badge": {
+      "piezas": ["BadgeComponent"],
+      "razon": "Mismo concepto: una insignia."
+    },
+    "heading": {
+      "piezas": ["HeadingComponent"],
+      "razon": "Mismo concepto: un encabezado. Lo sirve text-block, con el tag compartido."
+    },
+    "range-slider": {
+      "piezas": ["RangeSliderComponent"],
+      "razon": "Mismo concepto; el elemento añade doble pulgar. Salir del CMS está pendiente de decisión de producto (su evento no lo escucha nadie); mientras sea colocable, monta la pieza."
+    },
+    "skeleton": {
+      "piezas": ["SkeletonComponent", "SynSkeletonComponent"],
+      "razon": "Mismo concepto; el design system tiene dos (primitive y states) y cualquiera cuenta. Salir del CMS está pendiente de decisión de producto (aria-busy perpetuo)."
+    },
+    "progress-bar": {
+      "piezas": ["ProgressComponent"],
+      "razon": "Mismo concepto; el elemento es mejor (aria-valuetext, tokens) y la pieza lo absorbe."
+    },
+    "modal-trigger": {
+      "piezas": ["ModalComponent"],
+      "razon": "El diálogo que abre es la pieza; el elemento es mejor (trampa y restauración de foco) y la pieza lo absorbe."
+    },
+    "avatar-group": {
+      "piezas": ["AvatarComponent"],
+      "razon": "Cada avatar del grupo es la pieza; el grupo la repite en vez de rehacer imagen e iniciales."
+    },
+    "badge-group": {
+      "piezas": ["BadgeComponent"],
+      "razon": "Cada insignia del grupo es la pieza. Que en realidad sean chips seleccionables es una decisión aparte (el design system no tiene chip)."
+    },
+    "icon-block": {
+      "piezas": ["IconComponent"],
+      "razon": "El icono es la pieza; el bloque sólo lo enmarca."
+    },
+    "icon-label": {
+      "piezas": ["IconComponent"],
+      "razon": "El icono del rótulo es la pieza; el elemento sólo le pone texto al lado."
+    },
+    "link-block": {
+      "piezas": ["LinkComponent"],
+      "razon": "El enlace es la pieza; el bloque sólo lo enmarca."
+    },
+    "alert-bar": {
+      "piezas": ["AlertComponent"],
+      "razon": "Una barra de aviso es una alerta."
+    },
+    "button-container": {
+      "piezas": ["ButtonComponent"],
+      "razon": "Cada botón del contenedor es la pieza."
+    },
+    "button-group": {
+      "piezas": ["ButtonComponent"],
+      "razon": "Cada botón del grupo es la pieza."
+    },
+    "copy-button": {
+      "piezas": ["ButtonComponent"],
+      "razon": "Es un botón con icono y estado copiado/error: la pieza gana esos estados y el elemento la monta."
+    },
+    "tab-group": {
+      "piezas": ["TabsComponent"],
+      "razon": "Declarado por concepto: un grupo de pestañas son las pestañas."
+    },
+    "pagination": {
+      "piezas": ["PaginatorComponent"],
+      "razon": "Declarado por concepto: paginación y paginador son lo mismo. El elemento es mejor (modo href rastreable): la pieza lo absorbe. Salir del CMS está pendiente de decisión de producto."
+    },
+    "quantity-selector": {
+      "piezas": ["StepperComponent"],
+      "razon": "Declarado por concepto: un +/- numérico es StepperComponent. La propuesta es promover la de la tienda (2 consumidores) al design system y retirar la otra."
+    },
+    "pax-selector": {
+      "piezas": ["StepperComponent"],
+      "razon": "Declarado por concepto: cada fila de pasajeros es un +/- numérico."
+    },
+    "drawer": {
+      "piezas": ["ModalComponent"],
+      "razon": "Declarado por concepto: un cajón es el mismo diálogo, lateral; la pieza gana la posición."
+    },
+    "faq-item": {
+      "piezas": ["AccordionComponent"],
+      "razon": "Declarado por concepto: una pregunta frecuente es un disclosure."
+    },
+    "key-value": {
+      "piezas": ["DescriptionListComponent"],
+      "razon": "Declarado por concepto: pares clave-valor son una lista de descripción."
+    },
+    "banner-slider": {
+      "piezas": ["CarouselComponent"],
+      "razon": "Declarado por concepto: un banner deslizante es un carrusel."
+    },
+    "social-share": {
+      "piezas": ["SocialLinksComponent"],
+      "razon": "Declarado por concepto: los enlaces para compartir son la pieza de enlaces sociales."
+    },
+    "share-bar": {
+      "piezas": ["SocialLinksComponent"],
+      "razon": "Declarado por concepto: el mismo que social-share. Cuál de los dos se coloca es decisión aparte."
+    }
+  },
+  "noGemelas": {
+    "stepper": {
+      "razon": "Choque de nombre: el elemento es un indicador de pasos de asistente (nav/ol con aria-current=step); StepperComponent es un +/- numérico.",
+      "disparador": "Renombrar el que cuesta menos (la pieza, con 0 consumidores). Al renombrar, esta entrada sobra y el gate lo dice."
+    },
+    "form-stepper": {
+      "razon": "Choque de nombre, como stepper: es un asistente de formulario por pasos; StepperComponent es un +/- numérico.",
+      "disparador": "Renombrar StepperComponent."
+    },
+    "avatar-upload": {
+      "razon": "Es un cargador de ficheros con recorte; la foto es un detalle de la vista previa.",
+      "disparador": "Si su vista previa deja de ser un <img> propio y pasa a ser un avatar."
+    },
+    "select-multi": {
+      "razon": "Multiselección con chips y búsqueda; SelectComponent es un <select> nativo de una opción.",
+      "disparador": "Si el design system gana un listbox multiselección."
+    },
+    "rich-tooltip": {
+      "razon": "Lleva contenido interactivo (un enlace) dentro: es un toggletip/popover, y un tooltip no puede tenerlo (WAI-ARIA).",
+      "disparador": "Si el design system gana un popover, pasa a ser su gemela."
+    },
+    "faq-section": {
+      "razon": "Es una sección (encabezado + lista de preguntas); la coincidencia es con SectionComponent, que es el marco genérico, no este concepto.",
+      "disparador": "Si SectionComponent pasa a ser el marco de las secciones colocables."
+    },
+    "testimonial-section": {
+      "razon": "Coincidencia de raíz con SectionComponent: es una sección de testimonios, no el marco genérico.",
+      "disparador": "El mismo que faq-section."
+    },
+    "otp-input": {
+      "razon": "N casillas de un carácter con avance automático; InputComponent es un campo único.",
+      "disparador": "Si el design system gana un campo segmentado."
+    },
+    "kpi-card": {
+      "razon": "Métrica con tendencia, delta y minigráfico; CardComponent sólo aportaría la cáscara título + contenido.",
+      "disparador": "Si CardComponent gana ranuras de media y de acciones (lo mismo que pide card)."
+    },
+    "product-card": {
+      "razon": "Tarjeta de dominio de la tienda (precio, variante, carrito); CardComponent sólo aportaría la cáscara.",
+      "disparador": "El mismo que kpi-card."
+    },
+    "testimonial-carousel": {
+      "razon": "CarouselComponent sólo pinta media (src/type) y aquí las diapositivas son texto.",
+      "disparador": "Si CarouselComponent acepta diapositivas proyectadas, pasa a ser su gemela."
+    }
+  },
+  "incumplen": [
+    "accordion",
+    "avatar",
+    "avatar-group",
+    "badge-group",
+    "card",
+    "copy-button",
+    "drawer",
+    "dropdown",
+    "icon-block",
+    "modal-trigger",
+    "pagination",
+    "pax-selector",
+    "progress-bar",
+    "quantity-selector",
+    "range-slider",
+    "share-bar",
+    "skeleton",
+    "tabs",
+    "tooltip"
+  ]
+}

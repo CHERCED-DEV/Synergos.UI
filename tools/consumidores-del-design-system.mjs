@@ -17,16 +17,15 @@
  */
 
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PLATAFORMAS } from './lib/element-sources.mjs';
 import {
-  RAIZ_DEL_DESIGN_SYSTEM,
-  componentesDeclarados,
   cruzarConLaLineaBase,
   formatearReparto,
   inalcanzablesDesdeProducto,
+  leerDesignSystem,
+  plataformasConDesignSystem,
   repartoPorTier,
   revisarCobertura,
 } from './lib/consumidores-del-design-system.mjs';
@@ -57,36 +56,14 @@ function ficheros(dir) {
   return salida;
 }
 
-/**
- * Dónde vive el design system.
- *
- * Se deriva de `PLATAFORMAS`. Escribir `platforms/angular` a mano acá resolvería a un literal
- * una dimensión de lo que se recorre —la regla 25— y además lo prohíbe el censo de
- * `frameworks.spec.mjs`. **Sólo tienen design system las plataformas que lo tengan**: hoy
- * Angular; `platforms/preact` no declara `libs/shared/src/components`, y saltárselo en silencio
- * es correcto porque no hay nada que medir ahí. Lo que NO sería correcto es que no hubiera
- * ninguna, y de eso se ocupa la red de seguridad de la lib.
- */
-function plataformasConDesignSystem() {
-  const salida = [];
-  for (const plataforma of PLATAFORMAS) {
-    // `plataforma.apps` es `platforms/<x>/apps`; la raíz de la plataforma es su padre.
-    const base = resolve(RAIZ, plataforma.apps, '..');
-    const ds = join(base, RAIZ_DEL_DESIGN_SYSTEM);
-    try {
-      if (!statSync(ds).isDirectory()) continue;
-    } catch {
-      continue;
-    }
-    salida.push({ framework: plataforma.framework, base });
+/** ¿Existe y es una carpeta? Lo que `plataformasConDesignSystem` pregunta al disco. */
+function esDirectorio(ruta) {
+  try {
+    return statSync(ruta).isDirectory();
+  } catch {
+    return false;
   }
-  return salida;
 }
-
-const leer = (base, ruta) => ({
-  ruta: relative(base, ruta).replace(/\\/g, '/'),
-  fuente: readFileSync(ruta, 'utf8'),
-});
 
 let medidos = 0;
 let alcanzables = 0;
@@ -97,27 +74,13 @@ const sinConsumidorDirecto = [];
 /** @type {Array<{framework: string, fuentes: number, componentes: number}>} */
 const cobertura = [];
 
-for (const { framework, base } of plataformasConDesignSystem()) {
-  const ds = join(base, RAIZ_DEL_DESIGN_SYSTEM);
-
-  // Todo lo que PODRÍA declarar un componente, sea cual sea la forma de la plataforma. Es lo
-  // que permite distinguir «acá no hay nada» de «acá hay algo que no sé leer» (regla 25).
-  const fuentesDelDs = ficheros(ds).filter((f) => /\.(ts|tsx|js|jsx)$/.test(f) && !/\.spec\.tsx?$/.test(f));
-
-  const declaraciones = ficheros(ds)
-    .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
-    .map((f) => leer(base, f));
-
-  const componentes = componentesDeclarados(declaraciones);
-  cobertura.push({ framework, fuentes: fuentesDelDs.length, componentes: componentes.length });
-
-  // El universo de posibles consumidores: los elementos publicables Y las demás libs. Sin
-  // `libs/`, un componente usado sólo por `libs/shells` saldría muerto — falso positivo, que es
-  // el lado del que este gate NO se puede equivocar.
-  const fuentes = [join(base, 'apps'), join(base, 'libs')]
-    .flatMap((d) => ficheros(d))
-    .filter((f) => /\.(ts|tsx|html)$/.test(f))
-    .map((f) => leer(base, f));
+for (const { framework, base } of plataformasConDesignSystem({ raiz: RAIZ, esDirectorio })) {
+  const { fuentesDelDs, piezas: componentes, fuentes } = leerDesignSystem({
+    base,
+    listar: ficheros,
+    leer: (ruta) => readFileSync(ruta, 'utf8'),
+  });
+  cobertura.push({ framework, fuentes: fuentesDelDs, componentes: componentes.length });
 
   const r = inalcanzablesDesdeProducto(componentes, fuentes);
   medidos += r.medidos;

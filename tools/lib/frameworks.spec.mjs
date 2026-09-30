@@ -247,6 +247,12 @@ const CIEGAS_AL_FRAMEWORK = [
   // su clave, no por una ruta ni por un `angular` cableado.
   'lib/consumidores-del-design-system.mjs',
   'consumidores-del-design-system.mjs',
+  // La del #81 lee el design system con la misma función que las dos de arriba, y el `main` de
+  // cada elemento con la `entrada` que declara su plataforma. Reconoce la raíz por la forma del
+  // adaptador —`registrarElemento<Plataforma>(…)`— sin nombrar ninguna, y sus mensajes dicen
+  // «importá su clase y usá su tag», no el decorador de nadie.
+  'lib/gemelas-del-design-system.mjs',
+  'gemelas-del-design-system.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía

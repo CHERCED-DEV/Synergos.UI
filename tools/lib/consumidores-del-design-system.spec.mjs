@@ -1,3 +1,5 @@
+import { resolve, sep } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,8 +7,11 @@ import {
   RAIZ_DEL_DESIGN_SYSTEM,
   componentesDeclarados,
   cruzarConLaLineaBase,
+  declaracionesDeComponente,
   formatearReparto,
   inalcanzablesDesdeProducto,
+  leerDesignSystem,
+  plataformasConDesignSystem,
   repartoPorTier,
   revisarCobertura,
   sinComentarios,
@@ -102,6 +107,102 @@ const a = 1; // <syn-tooltip>
 
   it('no parte una URL por su doble barra', () => {
     expect(sinComentarios("const u = 'https://ejemplo/x'; const b = 2;")).toContain('const b = 2');
+  });
+
+  it("un '/*' dentro de una CADENA no abre un comentario — H5, el que se comía el @Component", () => {
+    // `dropzone.ts:160` tiene `'/*'`, y el regex de antes abría ahí un comentario que cerraba en
+    // el primer `*/` de verdad: el `@Component` de `dropzone` y el de `file-uploader`
+    // desaparecían (195 componentes vistos contra 197). El gate de #81 los necesita en el grafo.
+    const fuente = `
+const acepta = accept === '*/*' || accept.endsWith('/*');
+/** docs */
+@Component({ selector: 'sg-dropzone' })
+export class DropzoneElementComponent {}
+`;
+    expect(declaracionesDeComponente(fuente).map((d) => d.clase)).toEqual(['DropzoneElementComponent']);
+  });
+
+  it('una regex con `\\/\\/` no abre un comentario de línea (fab.ts)', () => {
+    const limpia = sinComentarios("const esExterno = /^https?:\\/\\//i.test(h) || h.startsWith('//'); const sigue = 1;");
+    expect(limpia).toContain('const sigue = 1');
+  });
+
+  it('una plantilla con `${…}` anidado no confunde al escáner', () => {
+    const limpia = sinComentarios('const t = `a ${ { b: `c ${d} // no` }.b } e`; // sí\nconst f = 1;');
+    expect(limpia).toContain('// no');
+    expect(limpia).not.toContain('sí');
+    expect(limpia).toContain('const f = 1');
+  });
+
+  it('conserva las líneas: un comentario de bloque se vuelve blanco, no desaparece', () => {
+    const fuente = 'a\n/* uno\ndos */\nb';
+    expect(sinComentarios(fuente).split('\n')).toHaveLength(fuente.split('\n').length);
+  });
+
+  it('a una plantilla sólo se le quitan los <!-- -->: el apóstrofo no es una cadena', () => {
+    const limpia = sinComentarios("<p>Don't</p>\n<!-- <syn-tooltip> -->\n<a href=//x>y</a> <syn-button></syn-button>", 'x.html');
+    expect(limpia).not.toContain('syn-tooltip');
+    expect(limpia).toContain('<syn-button>');
+  });
+});
+
+describe('declaracionesDeComponente', () => {
+  it('devuelve la clase, el selector (o null) y el bloque de metadatos', () => {
+    const [con, sin] = declaracionesDeComponente(`
+@Component({ selector: "syn-x", templateUrl: './x.html' })
+export class XComponent {}
+@Component({ template: \`<b></b>\` })
+export class RaizSinSelector {}
+`);
+    expect(con).toMatchObject({ clase: 'XComponent', selector: 'syn-x' });
+    expect(con.metadatos).toContain("templateUrl: './x.html'");
+    expect(sin).toMatchObject({ clase: 'RaizSinSelector', selector: null });
+  });
+});
+
+describe('la lectura que comparten los dos gates (#81)', () => {
+  it('plataformasConDesignSystem: sólo las que tienen la carpeta, con su declaración entera', () => {
+    const plataformas = [
+      { framework: 'uno', apps: 'p/uno/apps', entrada: 'src/main.ts' },
+      { framework: 'dos', apps: 'p/dos/apps', entrada: 'src/main.tsx' },
+    ];
+    const r = plataformasConDesignSystem({
+      raiz: '/r',
+      esDirectorio: (ruta) => ruta.replace(/\\/g, '/').includes('/p/uno/'),
+      plataformas,
+    });
+    expect(r.map((p) => p.framework)).toEqual(['uno']);
+    expect(r[0].entrada).toBe('src/main.ts');
+    expect(r[0].base.replace(/\\/g, '/')).toMatch(/\/r\/p\/uno$/);
+  });
+
+  it('leerDesignSystem: fuentes del DS, piezas y el universo de apps + libs, con ruta relativa', () => {
+    const base = resolve('/plataforma');
+    const abs = (rel) => resolve(base, rel);
+    const disco = {
+      [abs(`${DS}/primitives/button/button.ts`)]: "@Component({ selector: 'syn-button' })\nexport class ButtonComponent {}",
+      [abs(`${DS}/primitives/button/button.spec.ts`)]: '',
+      [abs(`${DS}/primitives/button/button.scss`)]: '',
+      [abs('apps/a/src/a.ts')]: "import { ButtonComponent } from '@s';",
+      [abs('apps/a/src/a.html')]: '<syn-button></syn-button>',
+      [abs('libs/shells/src/s.ts')]: '',
+      [abs('libs/shells/src/s.scss')]: '',
+    };
+    const listar = (dir) => Object.keys(disco).filter((f) => f.startsWith(`${dir}${sep}`));
+    const r = leerDesignSystem({ base, listar, leer: (f) => disco[f] });
+
+    expect(r.fuentesDelDs).toBe(1);
+    expect(r.piezas.map((p) => p.clase)).toEqual(['ButtonComponent']);
+    expect(r.piezas[0].carpeta).toBe(`${DS}/primitives/button`);
+    // El design system vive dentro de `libs/`, así que también es universo: el cierre de #78
+    // propaga por dentro de él. Los estilos no; los specs sí llegan (los descarta quien cruza).
+    expect(r.fuentes.map((f) => f.ruta).sort()).toEqual([
+      'apps/a/src/a.html',
+      'apps/a/src/a.ts',
+      `${DS}/primitives/button/button.spec.ts`,
+      `${DS}/primitives/button/button.ts`,
+      'libs/shells/src/s.ts',
+    ]);
   });
 });
 
