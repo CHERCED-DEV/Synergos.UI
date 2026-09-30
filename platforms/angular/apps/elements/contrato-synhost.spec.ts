@@ -47,6 +47,68 @@ type Config = Record<string, unknown>;
 
 const esObjeto = (v: unknown): v is Config => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** Un campo dentro del `config`: sus claves, con `[]` por «cada ítem de la lista». */
+type Ruta = readonly string[];
+
+const texto = (ruta: Ruta): string => ruta.join('.').replaceAll('.[]', '[]');
+
+/**
+ * Cada campo que vive DENTRO de otro —de un ítem de una lista, o de un objeto—, a cualquier
+ * profundidad: `slides[].label`, `items[].children[].label`. Las claves de primer nivel no
+ * entran: las mira «cada clave que viaja mueve la salida».
+ *
+ * Es recursivo a propósito (CMS#180): con un solo nivel, un sanitizador que tira los NIETOS de
+ * un árbol (`tree-view`) dejaba este gate en verde — medido por la tanda C.
+ */
+function rutasInternas(valor: unknown, ruta: Ruta): Ruta[] {
+  if (Array.isArray(valor)) {
+    const items = valor.filter(esObjeto);
+    const campos = [...new Set(items.flatMap((item) => Object.keys(item)))];
+    return campos.flatMap((campo) => {
+      const suya = [...ruta, '[]', campo];
+      return [suya, ...items.flatMap((item) => rutasInternas(item[campo], suya))];
+    });
+  }
+  if (esObjeto(valor)) {
+    return Object.keys(valor).flatMap((campo) => {
+      const suya = [...ruta, campo];
+      return [suya, ...rutasInternas(valor[campo], suya)];
+    });
+  }
+  return [];
+}
+
+/** Las rutas internas de un `config`, sin repetir. */
+function camposInternos(config: Config): Ruta[] {
+  const vistas = new Map<string, Ruta>();
+  for (const [clave, valor] of Object.entries(config)) {
+    for (const ruta of rutasInternas(valor, [clave])) vistas.set(texto(ruta), ruta);
+  }
+  return [...vistas.values()];
+}
+
+/** `valor` sin el campo de `ruta` (en cada ítem, si la ruta cruza una lista). */
+function sinCampo(valor: unknown, ruta: Ruta): unknown {
+  const [cabeza, ...resto] = ruta;
+  if (cabeza === undefined) return valor;
+  if (cabeza === '[]') return Array.isArray(valor) ? valor.map((item) => sinCampo(item, resto)) : valor;
+  if (!esObjeto(valor)) return valor;
+  if (resto.length === 0) {
+    const copia = { ...valor };
+    delete copia[cabeza];
+    return copia;
+  }
+  return { ...valor, [cabeza]: sinCampo(valor[cabeza], resto) };
+}
+
+/** Los campos internos cuya ausencia NO mueve la salida de `sanitizar`: los que se tiran. */
+function camposMuertos(config: Config, sanitizar: (config: Config) => string): string[] {
+  const completa = sanitizar(config);
+  return camposInternos(config)
+    .filter((ruta) => sanitizar(sinCampo(config, ruta) as Config) === completa)
+    .map(texto);
+}
+
 describe('contrato SynHost: cada sanitizador, ejecutado con el config que emite su vista', () => {
   it('cada elemento del contrato tiene su sanitizador en esta tabla, y al revés', () => {
     const nombres = ELEMENTOS_SYNHOST.map((e) => e.nombre);
@@ -86,29 +148,57 @@ describe('contrato SynHost: cada sanitizador, ejecutado con el config que emite 
         expect(muertas).toEqual([]);
       });
 
-      it('cada campo de un ítem de lista mueve la salida del sanitizador', () => {
-        const completa = salida(ejemplo);
-        const muertas: string[] = [];
+      it('cada campo de un ítem de lista mueve la salida del sanitizador, a cualquier profundidad', () => {
+        // Red de seguridad por el vacío: el recorrido tiene que encontrar, al menos, los campos
+        // de los ítems que el contrato declara. Un recorrido roto que no ve nada daría verde.
+        const vistos = camposInternos(ejemplo).map(texto);
+        const declarados = Object.entries(elemento.listas as Readonly<Record<string, readonly string[]>>)
+          .flatMap(([campo, internos]) => internos.map((i) => `${campo}[].${i}`));
+        expect(declarados.filter((d) => !vistos.includes(d))).toEqual([]);
 
-        for (const [clave, valor] of Object.entries(ejemplo)) {
-          if (!Array.isArray(valor)) continue;
-          const campos = new Set(valor.filter(esObjeto).flatMap((item) => Object.keys(item)));
-          for (const campo of campos) {
-            const sin = {
-              ...ejemplo,
-              [clave]: valor.map((item) => {
-                if (!esObjeto(item)) return item;
-                const copia = { ...item };
-                delete copia[campo];
-                return copia;
-              }),
-            };
-            if (salida(sin) === completa) muertas.push(`${clave}[].${campo}`);
-          }
-        }
-
-        expect(muertas).toEqual([]);
+        expect(camposMuertos(ejemplo, salida)).toEqual([]);
       });
     });
   }
+});
+
+/**
+ * El gate de arriba, contra un fixture propio de DOS niveles (CMS#180). Ningún elemento del
+ * contrato tiene todavía una lista dentro de otra, así que sin esto el recorrido recursivo no lo
+ * ejercita nadie: con el de un solo nivel, el sanitizador que tira los nietos pasaba en verde.
+ */
+describe('contrato SynHost: el gate de los campos internos, contra un árbol de dos niveles', () => {
+  const arbol: Config = {
+    culture: 'es-CO',
+    items: [
+      { label: 'Colombia', children: [{ label: 'Antioquia', href: '/co/ant' }, { label: 'Cundinamarca' }] },
+      { label: 'México' },
+    ],
+  };
+  const comoCable = (resultado: unknown) => JSON.stringify(resultado ?? null);
+  const fiel = (config: Config) => comoCable(config['items']);
+  const tiraLosNietos = (config: Config) =>
+    comoCable(
+      (config['items'] as Config[]).map((item) => ({
+        label: item['label'],
+        children: Array.isArray(item['children']) ? item['children'].map(() => ({})) : undefined,
+      })),
+    );
+
+  it('el recorrido encuentra los campos de los nietos', () => {
+    expect(camposInternos(arbol).map(texto)).toEqual([
+      'items[].label',
+      'items[].children',
+      'items[].children[].label',
+      'items[].children[].href',
+    ]);
+  });
+
+  it('un sanitizador que tira los nietos se pone rojo, campo por campo', () => {
+    expect(camposMuertos(arbol, tiraLosNietos)).toEqual(['items[].children[].label', 'items[].children[].href']);
+  });
+
+  it('uno que los conserva no', () => {
+    expect(camposMuertos(arbol, fiel)).toEqual([]);
+  });
 });
