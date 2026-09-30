@@ -82,6 +82,22 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
+/** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
+export interface HeroBannerProps {
+  /** contenido */
+  readonly title?: string;
+  /** contenido */
+  readonly subtitle?: string;
+  /** contenido */
+  readonly media?: string;
+  /** contenido */
+  readonly mediaAlt?: string;
+  /** contenido */
+  readonly ctaLabel?: string;
+  /** contenido */
+  readonly ctaLink?: string;
+}
+
 /** <synergos-kpi-card> · pieza · diccionario: Synhost.Kpi */
 export interface KpiCardProps {
   /** contenido */
@@ -203,6 +219,24 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   },
 };
 
+export const HERO_BANNER_SYNHOST: ElementoSynHost<HeroBannerProps> = {
+  nombre: "hero-banner",
+  tipo: "pieza",
+  record: "HeroBannerProps",
+  diccionario: ["Synhost.Hero"],
+  campos: ["title","subtitle","media","mediaAlt","ctaLabel","ctaLink"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "title": "Viví el Caribe colombiano",
+    "subtitle": "Temporada 2026: vuelos y hoteles con el 20 % de descuento",
+    "media": "/media/hero/playa-palomino.jpg",
+    "mediaAlt": "Playa de Palomino al atardecer",
+    "ctaLabel": "Reservar ahora",
+    "ctaLink": "/reservas"
+  },
+};
+
 export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   nombre: "kpi-card",
   tipo: "pieza",
@@ -269,6 +303,7 @@ export const ELEMENTOS_SYNHOST = [
   AVATAR_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
+  HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,

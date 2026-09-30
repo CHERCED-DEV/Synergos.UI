@@ -8,6 +8,7 @@ import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 import { sanitizeAudioPlayerConfig } from './modules/audio-player/src/audio-player/audio-player';
 import { sanitizeAvatarConfig } from './primitives/avatar/src/avatar/avatar';
 import { sanitizeVideoPlayerConfig } from './modules/video-player/src/video-player/video-player';
+import { sanitizeHeroBannerConfig } from './modules/hero-banner/src/hero-banner/hero-banner';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -33,6 +34,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'audio-player': createConfigInputTransform(sanitizeAudioPlayerConfig),
   avatar: createConfigInputTransform(sanitizeAvatarConfig),
   'video-player': createConfigInputTransform(sanitizeVideoPlayerConfig),
+  'hero-banner': createConfigInputTransform(sanitizeHeroBannerConfig),
 };
 
 type Config = Record<string, unknown>;
