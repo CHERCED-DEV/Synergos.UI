@@ -95,10 +95,10 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **545 + 50 + 1.543 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **545 en un clon limpio y 546 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
+- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CINCO gates que no necesitan al hermano ni la red; el quinto, `gate:regiones-vivas`, del #82), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **579 + 50 + 1.594 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **579 en un clon limpio y 580 con el CDN construido**. Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`, y **34 del #82**: 32 del gate de regiones vivas y 2 filas del censo de `frameworks`. En Angular, **51 del #82**: el anunciador y su fachada, los hitos de los relojes y del apartado, la grilla, copiar y agregar al carrito.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
-  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.543, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.594 en 241 ficheros, medido el 2026-09-29 tras #82), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
   - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
@@ -130,6 +130,7 @@ está vigilando nada.
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
 | `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos. **Imprime el reparto por tier** (derivado, no escrito: #172) y no propone retirar por defecto (regla 40) | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
+| `regiones-vivas` | que ninguna región viva (`aria-live`≠`off`, `role` `status\|alert\|log`) esté dentro de un bloque condicional o iterado de su plantilla —nace con su mensaje y el lector calla— salvo las del CENSO, que nacen con su vista y cada una dice por qué; la deuda es una LISTA vigilada en los dos sentidos, con pisos contra el vacío, y **sólo el anunciador** crea regiones por código. Imprime la cifra de la regla 42 | se escribe `@if (aviso()) { <p role="status">{{ aviso() }}</p> }`, vuelve el `aria-live` del reloj a su `@else`, o se arregla una y no se baja de la línea base (#82) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -176,11 +177,13 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:regiones-vivas · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
 npm run gate:design-system    # piezas del design system que no alcanza ningún elemento, y su reparto por tier (sin hermano ni red)
 npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
+npm run gate:regiones-vivas   # regiones vivas que nacen con su mensaje: deuda + censo (sin hermano ni red; también corre en test:contratos)
+npm run gate:regiones-vivas:baseline  # reescribe la DEUDA (el censo, con sus razones, no se toca)
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
@@ -1090,21 +1093,51 @@ se desincroniza):
    19 como línea base vigilada en los dos sentidos, y no está en el repo.
 
 42. **Una región viva no NACE con su mensaje: tiene que existir ANTES de que el texto cambie, o
-   el lector de pantalla calla.** Medido con el AST del compilador de Angular sobre las 323
-   plantillas: **200** nodos vivos en 79 plantillas, y **119 nacen con su mensaje** —la región
-   entra al DOM en el mismo render que el texto, dentro de un `@if`—; 73 de ésos son
-   `status`/`polite`, justo el caso que no se anuncia de forma fiable.
-   **Y lo contrario también es un defecto: tres regiones hablan CADA SEGUNDO** (medido acá):
-   `countdown-clock.html:25` y `countdown-digital` (polite, reconstruyen su frase en cada tic) y el
-   aviso del apartado de `cart-shell`, que en los últimos 300 s pasa a `role="alert"` y anuncia
-   «quedan m:ss» a gritos, en los carritos de eventos, storefront y travel.
-   **El camino ya existe y tiene dos consumidores**: `LiveAnnouncerService`
-   (`libs/shared/src/services/live-announcer.service.ts`), una región a nivel de documento que
-   vacía, espera y pone —`gov` y `blogs` lo usan—. `syn-live-region` no resuelve el caso: es el
-   mismo `<span role=status>` que el inline, y dentro de un `@if` nace igual de mudo. **Un mensaje
-   de EVENTO** —agregado al carrito, página cargada, copiado— **se le pide al servicio**; una
-   región propia, sólo si existe desde el primer render y su texto cambia después; y un reloj se
-   describe en su `aria-label`, no se anuncia.
+   el lector de pantalla calla — y un mensaje de EVENTO no necesita región propia: se le pide al
+   anunciador.** Medido con el AST del compilador de Angular sobre las 323 plantillas (informe 12):
+   **200** nodos vivos en 79 plantillas, y **119 nacían con su mensaje** —la región entra al DOM en
+   el mismo render que el texto, dentro de un `@if`—; 73 de ésos `status`/`polite`, justo el caso
+   que no se anuncia de forma fiable. **Y lo contrario también era un defecto: tres regiones
+   hablaban CADA SEGUNDO** —los dos relojes de evento y el aviso del apartado de `cart-shell`, que
+   en los últimos 300 s pasaba a `role="alert"` y gritaba «quedan m:ss» en los carritos de
+   eventos, storefront y travel—.
+   **Lo que dejó #82, y cómo se usa:**
+   (a) **`LiveAnnouncerService` es UNO por documento.** Cada custom element es su propia app
+   Angular, así que un servicio `providedIn: 'root'` es uno POR ELEMENTO; la región vive a nivel de
+   módulo en `@synergos/shared` —que es external: un solo módulo por página— y la comparten todas.
+   Se crea al INYECTAR el servicio (antes, en el primer `announce()`, o sea con el mensaje), cambia
+   la cortesía sin recrear el nodo, no lleva `role` (`status`+`assertive` era contradictorio), se
+   cuelga por `aria-owns` del `aria-modal` **visible** mientras dura el mensaje —uno oculto no:
+   el cajón de `cart-summary` vive en el DOM con `aria-modal` + `aria-hidden` y colgarle la región
+   la escondería— y la última app en irse se la lleva. Quien no tiene inyector (el `cartStore`) usa
+   `documentLiveAnnouncer(document)`: la MISMA región;
+   (b) **`syn-live-region` es su fachada declarativa**: anuncia cuando CAMBIA `message` y no pinta
+   región propia; el primer valor es contenido de la carga y no se anuncia, salvo con
+   `announceInitial` —que es lo que la hace servir DENTRO de un `@if`: el `@if` la crea con su
+   mensaje y ella habla por una región que ya existía—. Se **fusionó**, no se retiró (ADR 0134, regla
+   40): era el mismo concepto que el servicio escrito dos veces, y la versión inline no aportaba
+   nada. Anuncia cambios: para repetir el mismo texto se llama al servicio;
+   (c) **un reloj se DESCRIBE y se anuncian HITOS**: `role="timer"` (calla por definición) con su
+   `aria-label`, y en voz alta sólo los umbrales que cruza (`countdownMilestone`), una vez cada
+   uno. La pregunta que caza el defecto no es «¿tiene `aria-live`?» sino **¿cuántas veces habla en
+   diez segundos?** — los specs de los relojes y del apartado cuentan anuncios;
+   (d) **el gate `regiones-vivas`** (`npm run gate:regiones-vivas`, en `test:contratos`): toda región
+   viva —`aria-live`≠`off`, `role` `status|alert|log`— dentro de un bloque de su plantilla
+   (`@if/@else`, `@switch/@case`, `@for/@empty`, `@defer` y sus ramas, `*ngIf/*ngFor`,
+   `ng-template`) es deuda, salvo las del CENSO, que nacen con su VISTA y después viven (cada una
+   con su razón). **Hoy imprime `324 plantillas · 188 regiones vivas · 161 dentro de un bloque =
+   135 en la línea base (deuda) + 26 en el censo`.** La regla es más ancha que la G1–G4 del informe
+   (5 falsos, 3 que se le escapaban) a propósito: sus falsos positivos son exactamente las 26 del
+   censo —16 % de las marcas, **leídas a mano todas**—, y en una muestra de 1 de cada 7 del resto,
+   20 de 20 bien marcadas. De las 3 que se le escapaban a G1–G4, una se arregló (`product-grid`), la
+   ancha caza otra (`file-uploader`) y la tercera sigue fuera: **la COMPOSICIÓN** —un componente sin
+   bloque que su padre crea en un `@if` (`confirmation-shell`, y los hosts de `syn-status-banner` y
+   `syn-error-state`)— no la ve ningún gate de plantilla. Tampoco ve lo que habla cada segundo.
+   Y un trinquete absoluto, porque el árbol ya lo cumple: **sólo el anunciador crea regiones por
+   código**.
+   **La trampa que explica que ningún spec lo viera**: uno que busca `[aria-live]` después de
+   actuar la encuentra igual si la región existía antes que si nació con el texto. Se mide CUÁNDO
+   existe (identidad del nodo antes y después) y CUÁNTAS veces habla.
    **La cifra que circulaba era «210 anuncios en 70 sitios»**, y contaba atributos, no regiones:
    son 223 atributos en 200 nodos, cuadrados por dos derivaciones (AST y grep sin comentarios,
    fichero a fichero). Es la regla 39 otra vez: una cifra en prosa sin quien la derive.
