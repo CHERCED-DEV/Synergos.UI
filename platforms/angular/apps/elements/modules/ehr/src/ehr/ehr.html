@@ -906,12 +906,14 @@
       </select>
 
       <p class="ehr__field-label">Modalidad</p>
-      <div class="ehr__mode-toggle" role="group" aria-label="Modalidad de la cita">
-        <button type="button" class="ehr__mode-btn" [class.is-active]="scheduleMode() === 'in-person'"
-          (click)="setScheduleMode('in-person')">Presencial</button>
-        <button type="button" class="ehr__mode-btn" [class.is-active]="scheduleMode() === 'video'"
-          (click)="setScheduleMode('video')">Video</button>
-      </div>
+      <syn-segmented
+        class="ehr__mode-toggle"
+        size="sm"
+        ariaLabel="Modalidad de la cita"
+        [options]="scheduleModes"
+        [value]="scheduleMode()"
+        (valueChange)="setScheduleMode($event)"
+      />
 
       <label class="ehr__field-label" [attr.for]="fieldId + '-sch-reason'">Motivo de la consulta</label>
       <input class="ehr__input" type="text" [id]="fieldId + '-sch-reason'" placeholder="Ej. control de hipertensión"

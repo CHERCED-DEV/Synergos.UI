@@ -35,6 +35,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  SegmentedComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
   TabsComponent,
@@ -185,6 +186,14 @@ const EMPTY_VITALS: Vitals = {
 
 const E_CHECKIN_STEPS = ['demografia', 'seguro', 'medicamentos', 'cuestionario', 'consentimiento'] as const;
 
+type ScheduleMode = 'in-person' | 'video';
+
+/** Las modalidades de la cita, en el orden en que las pinta `syn-segmented` (#83). */
+const SCHEDULE_MODES: readonly { readonly value: ScheduleMode; readonly label: string }[] = [
+  { value: 'in-person', label: 'Presencial' },
+  { value: 'video', label: 'Video' },
+];
+
 function sanitizeConfig(value: Partial<EhrRuntimeConfig>): EhrRuntimeConfig {
   return omitUndefinedProperties<EhrRuntimeConfig>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
@@ -228,6 +237,7 @@ let ehrInstanceId = 0;
     CheckoutWizardComponent,
     TrackingTimelineComponent,
     TabsComponent,
+    SegmentedComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
   ],
@@ -395,7 +405,8 @@ export class EhrElementComponent {
   readonly scheduleDate = signal('');
   readonly scheduleTime = signal('');
   readonly scheduleReason = signal('');
-  readonly scheduleMode = signal<'in-person' | 'video'>('in-person');
+  readonly scheduleModes = SCHEDULE_MODES;
+  readonly scheduleMode = signal<ScheduleMode>('in-person');
   readonly confirmedAppointmentRef = signal('');
 
   // ─── Messaging (SH-7, shared graph) ──────────────────────────────────────────
@@ -1465,8 +1476,15 @@ export class EhrElementComponent {
     this.scheduleDoctorId.set(id);
   }
 
-  setScheduleMode(mode: 'in-person' | 'video'): void {
-    this.scheduleMode.set(mode);
+  /**
+   * Lo llama `syn-segmented`, que emite su `value` como string: sólo entra una
+   * modalidad de la lista, y cualquier otra cosa se ignora en vez de viajar a la cita.
+   */
+  setScheduleMode(value: string): void {
+    const mode = SCHEDULE_MODES.find((option) => option.value === value)?.value;
+    if (mode) {
+      this.scheduleMode.set(mode);
+    }
   }
 
   onScheduleStepChange(stepId: string): void {
