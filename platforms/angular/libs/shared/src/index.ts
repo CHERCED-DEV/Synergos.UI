@@ -1,5 +1,6 @@
 // Public API Surface of @synergos/shared
 export * from './utils/class-names.util';
+export * from './utils/countdown-milestone.util';
 // Los normalizadores de lo que emite el CMS bajaron a `vitals` al segundo
 // consumidor (#63): la segunda plataforma los necesita idénticos y dos copias
 // que se separan es cómo una clave deja de cruzar en silencio. Se re-exportan
@@ -25,7 +26,12 @@ export {
   type DialogConfig,
   type DialogInstance,
 } from './services/dialog.service';
-export { LiveAnnouncerService } from './services/live-announcer.service';
+export {
+  LiveAnnouncerService,
+  DocumentLiveAnnouncer,
+  documentLiveAnnouncer,
+  type LivePoliteness,
+} from './services/live-announcer.service';
 export { ReducedMotionService } from './services/reduced-motion.service';
 export { SkeletonService, type SkeletonState } from './services/skeleton.service';
 

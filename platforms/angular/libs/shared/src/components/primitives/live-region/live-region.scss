@@ -9,7 +9,3 @@
 .syn-live-region--brand {
   color: syn.$color-brand-600;
 }
-
-.syn-live-region--hidden {
-  @include syn.visually-hidden;
-}
