@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TABS_SYNHOST } from '@synergos/contracts';
 import {
   TabsElementComponent,
   type TabChangeDetail,
@@ -54,6 +55,24 @@ describe('TabsElementComponent', () => {
     expect(component.activeIndex()).toBe(1);
     // Roving tabindex tracks the active tab.
     expect(component.focusedId()).toBe('detalles');
+  });
+
+  // D1: con `tabsJson` —el TEXTO que mandaba la vista— este elemento no encontraba pestañas y no
+  // pintaba nada. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta las pestañas que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = TABS_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.tabs().map((t) => t.label)).toEqual(ejemplo.tabs?.map((t) => t.label));
+    expect(component.tabs().map((t) => t.id)).toEqual(ejemplo.tabs?.map((t) => t.id));
+    expect(component.activeId()).toBe(ejemplo.initialTab);
+    const botones = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]');
+    expect(botones.length).toBe(ejemplo.tabs?.length);
+    const activa = ejemplo.tabs?.find((t) => t.id === ejemplo.initialTab);
+    const panel = (fixture.nativeElement as HTMLElement).querySelector('[role="tabpanel"]:not([hidden])');
+    expect(panel?.textContent?.trim()).toBe(activa?.content);
   });
 
   it('should select a tab and emit tabchange; disabled tabs never activate (interaction case)', async () => {

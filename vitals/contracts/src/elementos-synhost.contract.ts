@@ -53,6 +53,13 @@ export interface StepperItem {
   readonly title: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: TabsItem). */
+export interface TabsItem {
+  readonly label: string;
+  readonly id?: string;
+  readonly content?: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -139,6 +146,14 @@ export interface StepperProps {
   readonly steps?: readonly StepperItem[];
   /** decision */
   readonly currentStep?: number;
+}
+
+/** <synergos-tabs> · pieza */
+export interface TabsProps {
+  /** contenido */
+  readonly tabs?: readonly TabsItem[];
+  /** decision */
+  readonly initialTab?: string;
 }
 
 /** <synergos-tag> · pieza */
@@ -317,6 +332,31 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   },
 };
 
+export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
+  nombre: "tabs",
+  tipo: "pieza",
+  record: "TabsProps",
+  diccionario: [],
+  campos: ["tabs","initialTab"],
+  listas: {"tabs":["label","id","content"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "tabs": [
+      {
+        "label": "Resumen",
+        "id": "resumen",
+        "content": "Lo esencial de la estadía."
+      },
+      {
+        "label": "Precios",
+        "id": "precios",
+        "content": "Desde $120.000 por noche."
+      }
+    ],
+    "initialTab": "precios"
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -341,5 +381,6 @@ export const ELEMENTOS_SYNHOST = [
   SCROLL_TOP_SYNHOST,
   SELECT_MULTI_SYNHOST,
   STEPPER_SYNHOST,
+  TABS_SYNHOST,
   TAG_SYNHOST,
 ] as const;

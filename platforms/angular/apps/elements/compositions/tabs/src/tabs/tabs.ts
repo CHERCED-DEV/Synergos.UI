@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { TabsProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceTrimmedStringInput,
@@ -17,31 +18,21 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynTabs</c>.
- *
- * A primitive, accessible tabs composition: a `tablist` of `tab` buttons
+ * <synergos-tabs>: a primitive, accessible tabs composition: a `tablist` of `tab` buttons
  * driving sibling `tabpanel` regions. Keyboard support follows the WAI-ARIA
  * Authoring Practices tabs pattern — roving tabindex, Arrow keys to move,
  * Home/End to jump to the first/last tab. Activation is automatic (focus
  * selects). Selecting a tab emits a `tabchange` CustomEvent carrying the
  * active tab id and index.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `TabsProps`, GENERADO del record C# (ADR 0135):
+ * `tabs` es una LISTA ya parseada (`label`, `id`, `content`) e `initialTab` el id elegido.
+ * Esta cabecera decía «every CMS property is a TypeScript input with the same alias», y era
+ * falso: la vista mandaba el TEXTO `tabsJson`, este elemento leía la lista `tabs`, y las
+ * pestañas colocadas desaparecían al hidratar (D1). El atributo `tabsJson` sigue existiendo para
+ * quien monte el elemento a mano (y admite `disabled` por pestaña); `orientation` no la autora
+ * el editor: es atributo. Los atributos ganan sobre el `config`.
  */
-export interface TabsRuntimeConfig {
-  readonly tabs?: readonly TabConfig[];
-  readonly initialTab?: string;
-  readonly orientation?: string;
-}
-
-export interface TabConfig {
-  readonly id?: string;
-  readonly label?: string;
-  readonly content?: string;
-  readonly disabled?: boolean;
-}
 
 export interface Tab {
   readonly id: string;
@@ -139,11 +130,11 @@ export function normalizeTabs(value: unknown): readonly Tab[] {
     .filter((tab): tab is Tab => tab !== null);
 }
 
-function sanitizeTabsConfig(value: Partial<TabsRuntimeConfig>): TabsRuntimeConfig {
-  return omitUndefinedProperties<TabsRuntimeConfig>({
-    tabs: value.tabs,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeTabsConfig(value: Partial<TabsProps>): Partial<TabsProps> {
+  return omitUndefinedProperties<TabsProps>({
+    tabs: Array.isArray(value.tabs) ? value.tabs : undefined,
     initialTab: coerceTrimmedStringInput(value.initialTab),
-    orientation: coerceTrimmedStringInput(value.orientation),
   });
 }
 
@@ -158,8 +149,8 @@ function sanitizeTabsConfig(value: Partial<TabsRuntimeConfig>): TabsRuntimeConfi
 export class TabsElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<TabsRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TabsRuntimeConfig>(sanitizeTabsConfig),
+  readonly config = input<Partial<TabsProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TabsProps>(sanitizeTabsConfig),
   });
   readonly tabsJson = input<string | undefined>(undefined, { alias: 'tabsJson' });
   readonly initialTabInput = input<string | undefined>(undefined, { alias: 'initialTab' });
@@ -170,9 +161,7 @@ export class TabsElementComponent {
   readonly tabchange = output<TabChangeDetail>();
 
   readonly orientation = computed<TabsOrientation>(() =>
-    normalizeOrientation(
-      resolveConfigValue(this.orientationInput(), this.config()?.orientation, DEFAULT_ORIENTATION),
-    ),
+    normalizeOrientation(this.orientationInput() ?? DEFAULT_ORIENTATION),
   );
 
   readonly tabs = computed<readonly Tab[]>(() =>
