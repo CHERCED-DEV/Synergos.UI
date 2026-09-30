@@ -12,6 +12,7 @@ import {
   untracked,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
+import { LiveRegionComponent, countdownMilestone } from '@synergos/shared';
 
 /**
  * SH-12 — `syn-cart-shell`.
@@ -128,7 +129,7 @@ export interface CartShellConfig {
   readonly holdLabel?: string;
   /** Qué decir al vencerse. Default «El apartado venció». */
   readonly holdExpiredLabel?: string;
-  /** Segundos bajo los cuales el aviso pasa a `role="alert"`. Default 300 (5 min). */
+  /** Segundos bajo los cuales el aviso se marca urgente y se ANUNCIA una vez. Default 300 (5 min). */
   readonly holdWarnSeconds?: number;
 }
 
@@ -150,7 +151,7 @@ const ICONO_CERRAR =
 @Component({
   selector: 'syn-cart-shell',
   standalone: true,
-  imports: [NgTemplateOutlet],
+  imports: [NgTemplateOutlet, LiveRegionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'syn-cart-shell',
@@ -183,13 +184,15 @@ const ICONO_CERRAR =
       </header>
 
       <!-- El reloj del apartado. Vive arriba porque es lo que decide si la
-           persona sigue navegando o paga ahora. -->
+           persona sigue navegando o paga ahora. Es un role=timer, que CALLA: el
+           «quedan m:ss» cambia cada segundo, y en voz alta sólo se dicen los
+           umbrales (holdMilestone, anunciado al pie de la pieza) — #82. -->
       @if (holdText(); as aviso) {
         <p
           class="syn-cart__hold"
+          role="timer"
           [class.is-urgent]="holdUrgent()"
           [class.is-expired]="holdExpired()"
-          [attr.role]="holdUrgent() || holdExpired() ? 'alert' : 'status'"
         >
           {{ aviso }}
         </p>
@@ -327,6 +330,9 @@ const ICONO_CERRAR =
           }
         </div>
       }
+
+      <!-- Fuera de todo bloque: el anuncio de los umbrales del apartado. -->
+      <syn-live-region [message]="holdMilestone()" politeness="assertive" />
     </section>
   `,
 })
@@ -485,6 +491,33 @@ export class CartShellComponent {
     return `${etiqueta} · quedan ${formatoReloj(s)}`;
   });
 
+  /**
+   * Lo que el apartado dice EN VOZ ALTA, y sólo cambia al cruzar un umbral (#82).
+   *
+   * El aviso visible se recalcula cada segundo, y hasta #82 era la región viva: `status` y, en los
+   * últimos 300 s, `alert` — o sea «quedan 4:59», «quedan 4:58»… anunciados a gritos cada segundo
+   * en los carritos de eventos, storefront y travel. Ironía medida: el efecto de `holdexpired`, más
+   * abajo, se escribió a propósito para NO avisar cada segundo, y la plantilla lo hacía igual.
+   * Ahora se dicen tres cosas, una vez cada una: que entró en la zona de aviso, que queda menos de
+   * un minuto y que venció.
+   */
+  readonly holdMilestone = computed(() => {
+    const s = this.holdSeconds();
+    if (s === null || !this.hasLines()) {
+      return '';
+    }
+    const aviso = this.config().holdWarnSeconds ?? 300;
+    const etiqueta = this.config().holdLabel || 'Tu selección está apartada';
+    return countdownMilestone(s, [
+      { atSeconds: aviso, message: `${etiqueta}: quedan menos de ${enPalabras(aviso)}.` },
+      ...(aviso > 60 ? [{ atSeconds: 60, message: `${etiqueta}: queda menos de un minuto.` }] : []),
+      {
+        atSeconds: 0,
+        message: this.config().holdExpiredLabel || 'El apartado venció. Vuelve a elegir para continuar.',
+      },
+    ]);
+  });
+
   // ─── Cantidad ───────────────────────────────────────────────────────────────
 
   atMax(line: CartLine): boolean {
@@ -522,6 +555,15 @@ export class CartShellComponent {
       this.remove.emit(line.id);
     }
   }
+}
+
+/** «5 minutos», «un minuto», «45 segundos»: el umbral dicho como se oye. */
+function enPalabras(segundos: number): string {
+  if (segundos < 60) {
+    return `${segundos} segundos`;
+  }
+  const minutos = Math.round(segundos / 60);
+  return minutos === 1 ? 'un minuto' : `${minutos} minutos`;
 }
 
 /** `mm:ss`, y `h:mm:ss` cuando pasa de la hora. */
