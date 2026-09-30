@@ -17,6 +17,8 @@ import { sanitizeCountdownClockConfig } from './modules/countdown-clock/src/coun
 import { sanitizeCountdownDigitalConfig } from './modules/countdown-digital/src/countdown-digital/countdown-digital';
 import { sanitizeAvatarGroupConfig } from './compositions/avatar-group/src/avatar-group/avatar-group';
 import { sanitizeLightboxGalleryConfig } from './modules/lightbox-gallery/src/lightbox-gallery/lightbox-gallery';
+import { sanitizeChartBarConfig } from './modules/chart-bar/src/chart-bar/chart-bar';
+import { sanitizeMapPinConfig } from './modules/map-pin/src/map-pin/map-pin';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -51,6 +53,8 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'countdown-digital': createConfigInputTransform(sanitizeCountdownDigitalConfig),
   'avatar-group': createConfigInputTransform(sanitizeAvatarGroupConfig),
   'lightbox-gallery': createConfigInputTransform(sanitizeLightboxGalleryConfig),
+  'chart-bar': createConfigInputTransform(sanitizeChartBarConfig),
+  'map-pin': createConfigInputTransform(sanitizeMapPinConfig),
 };
 
 type Config = Record<string, unknown>;

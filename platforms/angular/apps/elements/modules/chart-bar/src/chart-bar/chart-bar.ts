@@ -6,6 +6,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { ChartBarProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -16,31 +17,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynChartBar</c>.
+ * <synergos-chart-bar>: a responsive, accessible bar chart. Each datum renders as a labelled bar
+ * whose length is proportional to its value relative to the largest value (or an explicit
+ * `maxValue`). A visually-hidden data table mirrors the chart for screen readers, so the visual
+ * is purely decorative for AT.
  *
- * A responsive, accessible bar chart. Each datum renders as a labelled bar
- * whose length is proportional to its value relative to the largest value (or
- * an explicit `maxValue`). A visually-hidden data table mirrors the chart for
- * screen readers, so the visual is purely decorative for AT.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `ChartBarProps`, GENERADO del record C#
+ * (ADR 0135): `title`, `orientation` y `data`, una LISTA ya parseada cuyos `value` son NÚMEROS
+ * (el CMS lee lo que escribe el editor es-CO; «500.000» no viaja). La vista mandaba `chartTitle` y
+ * el TEXTO `dataJson`, y el gráfico salía vacío (D1). Los ejes, prefijo/sufijo, `maxValue`,
+ * `locale`, `showValues` y `emptyLabel` no los autora el editor: llegan por atributo.
  */
-export interface ChartBarRuntimeConfig {
-  readonly title?: string;
-  readonly orientation?: string;
-  readonly valueAxisLabel?: string;
-  readonly categoryAxisLabel?: string;
-  readonly maxValue?: number;
-  readonly valuePrefix?: string;
-  readonly valueSuffix?: string;
-  readonly locale?: string;
-  readonly showValues?: boolean;
-  readonly emptyLabel?: string;
-  readonly data?: readonly ChartBarDatumConfig[];
-}
-
 export interface ChartBarDatumConfig {
   readonly label?: string;
   readonly value?: number;
@@ -129,19 +116,12 @@ export function normalizeData(value: unknown): readonly ChartBarPoint[] {
     .filter((datum): datum is ChartBarPoint => datum !== null);
 }
 
-function sanitizeChartBarConfig(value: Partial<ChartBarRuntimeConfig>): ChartBarRuntimeConfig {
-  return omitUndefinedProperties<ChartBarRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeChartBarConfig(value: Partial<ChartBarProps>): Partial<ChartBarProps> {
+  return omitUndefinedProperties<ChartBarProps>({
     title: coerceTrimmedStringInput(value.title),
     orientation: coerceTrimmedStringInput(value.orientation),
-    valueAxisLabel: coerceTrimmedStringInput(value.valueAxisLabel),
-    categoryAxisLabel: coerceTrimmedStringInput(value.categoryAxisLabel),
-    maxValue: typeof value.maxValue === 'number' ? value.maxValue : undefined,
-    valuePrefix: coerceTrimmedStringInput(value.valuePrefix),
-    valueSuffix: coerceTrimmedStringInput(value.valueSuffix),
-    locale: coerceTrimmedStringInput(value.locale),
-    showValues: coerceOptionalBooleanInput(value.showValues),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
-    data: value.data,
+    data: Array.isArray(value.data) ? value.data : undefined,
   });
 }
 
@@ -156,8 +136,8 @@ function sanitizeChartBarConfig(value: Partial<ChartBarRuntimeConfig>): ChartBar
 export class ChartBarElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<ChartBarRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<ChartBarRuntimeConfig>(sanitizeChartBarConfig),
+  readonly config = input<Partial<ChartBarProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<ChartBarProps>(sanitizeChartBarConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'chartTitle' });
   readonly orientationInput = input<string | undefined>(undefined, { alias: 'orientation' });
@@ -191,25 +171,25 @@ export class ChartBarElementComponent {
     normalizeOrientation(resolveConfigValue(this.orientationInput(), this.config()?.orientation, 'vertical')),
   );
   readonly valueAxisLabel = computed(() =>
-    resolveConfigValue(this.valueAxisLabelInput(), this.config()?.valueAxisLabel, ''),
+    this.valueAxisLabelInput() ?? '',
   );
   readonly categoryAxisLabel = computed(() =>
-    resolveConfigValue(this.categoryAxisLabelInput(), this.config()?.categoryAxisLabel, ''),
+    this.categoryAxisLabelInput() ?? '',
   );
   readonly valuePrefix = computed(() =>
-    resolveConfigValue(this.valuePrefixInput(), this.config()?.valuePrefix, ''),
+    this.valuePrefixInput() ?? '',
   );
   readonly valueSuffix = computed(() =>
-    resolveConfigValue(this.valueSuffixInput(), this.config()?.valueSuffix, ''),
+    this.valueSuffixInput() ?? '',
   );
   readonly locale = computed(() =>
-    resolveConfigValue(this.localeInput(), this.config()?.locale, DEFAULT_LOCALE),
+    this.localeInput() ?? DEFAULT_LOCALE,
   );
   readonly showValues = computed(() =>
-    resolveConfigValue(this.showValuesInput(), this.config()?.showValues, true),
+    this.showValuesInput() ?? true,
   );
   readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, DEFAULT_EMPTY_LABEL),
+    this.emptyLabelInput() ?? DEFAULT_EMPTY_LABEL,
   );
 
   readonly #rawData = computed<readonly ChartBarPoint[]>(() =>
@@ -218,7 +198,7 @@ export class ChartBarElementComponent {
 
   /** Chart maximum: explicit `maxValue` if larger than data, else data peak. */
   readonly maxValue = computed<number>(() => {
-    const configured = resolveConfigValue(this.maxValueInput(), this.config()?.maxValue, 0);
+    const configured = this.maxValueInput() ?? 0;
     const peak = this.#rawData().reduce((max, datum) => Math.max(max, datum.value), 0);
     const candidate = Math.max(configured, peak);
     return candidate > 0 ? candidate : 1;

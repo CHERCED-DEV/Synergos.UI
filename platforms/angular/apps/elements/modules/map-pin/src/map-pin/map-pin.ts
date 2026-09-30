@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
+import type { MapPinProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -29,18 +30,12 @@ import {
  * Selecting a pin emits a `pinselect` CustomEvent carrying the pin plus
  * its index, and re-centers the embed on that pin.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes
- * win over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `MapPinProps`, GENERADO del record C# (ADR 0135):
+ * `centerLat`/`centerLng`/`zoomLevel` son NÚMEROS y `pins` una LISTA ya parseada (`lat`/`lng`
+ * numéricos, `label`: el CMS traduce el `title` del editor). La vista mandaba texto y el TEXTO
+ * `pinsJson`, y el mapa salía en el centro por defecto y sin pines (D1). `integration` no la
+ * autora el editor: llega por atributo.
  */
-export interface MapPinRuntimeConfig {
-  readonly centerLat?: number;
-  readonly centerLng?: number;
-  readonly zoomLevel?: number;
-  readonly pins?: readonly MapPinConfig[];
-  readonly integration?: string;
-}
-
 export interface MapPinConfig {
   readonly lat?: number | string;
   readonly lng?: number | string;
@@ -192,13 +187,13 @@ export function buildOsmViewUrl(lat: number, lng: number, zoom: number): string 
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=${zoom}/${lat}/${lng}`;
 }
 
-function sanitizeMapPinConfig(value: Partial<MapPinRuntimeConfig>): MapPinRuntimeConfig {
-  return omitUndefinedProperties<MapPinRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeMapPinConfig(value: Partial<MapPinProps>): Partial<MapPinProps> {
+  return omitUndefinedProperties<MapPinProps>({
     centerLat: typeof value.centerLat === 'number' ? value.centerLat : undefined,
     centerLng: typeof value.centerLng === 'number' ? value.centerLng : undefined,
     zoomLevel: typeof value.zoomLevel === 'number' ? value.zoomLevel : undefined,
-    pins: value.pins,
-    integration: coerceTrimmedStringInput(value.integration),
+    pins: Array.isArray(value.pins) ? value.pins : undefined,
   });
 }
 
@@ -214,8 +209,8 @@ export class MapPinElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #sanitizer = inject(DomSanitizer);
 
-  readonly config = input<MapPinRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<MapPinRuntimeConfig>(sanitizeMapPinConfig),
+  readonly config = input<Partial<MapPinProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<MapPinProps>(sanitizeMapPinConfig),
   });
   readonly centerLatInput = input<number | undefined, unknown>(undefined, {
     alias: 'centerLat',
@@ -240,7 +235,7 @@ export class MapPinElementComponent {
   readonly activeIndex = this.#activeIndex.asReadonly();
 
   readonly integration = computed<MapIntegration>(() => {
-    const raw = resolveConfigValue(this.integrationInput(), this.config()?.integration, 'osm');
+    const raw = this.integrationInput() ?? 'osm';
     const lowered = raw.toLowerCase();
     return INTEGRATIONS.includes(lowered as MapIntegration) ? (lowered as MapIntegration) : 'osm';
   });

@@ -41,6 +41,12 @@ export interface CarouselSlide {
   readonly label?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: ChartBarEntry). */
+export interface ChartBarEntry {
+  readonly label: string;
+  readonly value: number;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: DropdownOption). */
 export interface DropdownOption {
   readonly value: string;
@@ -54,6 +60,14 @@ export interface LightboxGalleryImage {
   readonly thumb?: string;
   readonly alt?: string;
   readonly caption?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: MapPinItem). */
+export interface MapPinItem {
+  readonly lat: number;
+  readonly lng: number;
+  readonly label?: string;
+  readonly description?: string;
 }
 
 /** <synergos-audio-player> · pieza */
@@ -92,6 +106,16 @@ export interface CarouselProps {
   readonly autoplay?: boolean;
   /** decision */
   readonly interval?: number;
+}
+
+/** <synergos-chart-bar> · pieza */
+export interface ChartBarProps {
+  /** contenido */
+  readonly title?: string;
+  /** decision */
+  readonly orientation?: string;
+  /** contenido */
+  readonly data?: readonly ChartBarEntry[];
 }
 
 /** <synergos-cookie-consent> · pieza */
@@ -188,6 +212,18 @@ export interface LightboxGalleryProps {
   readonly images?: readonly LightboxGalleryImage[];
   /** decision */
   readonly columns?: number;
+}
+
+/** <synergos-map-pin> · pieza */
+export interface MapPinProps {
+  /** decision */
+  readonly centerLat?: number;
+  /** decision */
+  readonly centerLng?: number;
+  /** decision */
+  readonly zoomLevel?: number;
+  /** contenido */
+  readonly pins?: readonly MapPinItem[];
 }
 
 /** <synergos-rating-stars> · pieza */
@@ -315,6 +351,34 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
     ],
     "autoplay": true,
     "interval": 4000
+  },
+};
+
+export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
+  nombre: "chart-bar",
+  tipo: "pieza",
+  record: "ChartBarProps",
+  diccionario: [],
+  campos: ["title","orientation","data"],
+  listas: {"data":["label","value"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "title": "Afiliados nuevos por trimestre",
+    "orientation": "horizontal",
+    "data": [
+      {
+        "label": "T1",
+        "value": 1200
+      },
+      {
+        "label": "T2",
+        "value": 1845300
+      },
+      {
+        "label": "T3",
+        "value": 950.5
+      }
+    ]
   },
 };
 
@@ -469,6 +533,35 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
   },
 };
 
+export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
+  nombre: "map-pin",
+  tipo: "pieza",
+  record: "MapPinProps",
+  diccionario: [],
+  campos: ["centerLat","centerLng","zoomLevel","pins"],
+  listas: {"pins":["lat","lng","label","description"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "centerLat": 4.711,
+    "centerLng": -74.0721,
+    "zoomLevel": 12,
+    "pins": [
+      {
+        "lat": 4.6097,
+        "lng": -74.0817,
+        "label": "Oficina Bogotá",
+        "description": "Carrera 7 # 71-21, piso 12"
+      },
+      {
+        "lat": 6.2518,
+        "lng": -75.5636,
+        "label": "Oficina Medellín",
+        "description": "El Poblado"
+      }
+    ]
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -552,6 +645,7 @@ export const ELEMENTOS_SYNHOST = [
   AVATAR_SYNHOST,
   AVATAR_GROUP_SYNHOST,
   CAROUSEL_SYNHOST,
+  CHART_BAR_SYNHOST,
   COOKIE_CONSENT_SYNHOST,
   COUNTDOWN_CLOCK_SYNHOST,
   COUNTDOWN_DIGITAL_SYNHOST,
@@ -560,6 +654,7 @@ export const ELEMENTOS_SYNHOST = [
   HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
   LIGHTBOX_GALLERY_SYNHOST,
+  MAP_PIN_SYNHOST,
   RATING_STARS_SYNHOST,
   RICH_TOOLTIP_SYNHOST,
   SHARE_BAR_SYNHOST,

@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MAP_PIN_SYNHOST } from '@synergos/contracts';
 import {
   MapPinElementComponent,
   type MapPinSelectDetail,
@@ -78,10 +79,9 @@ describe('MapPinElementComponent', () => {
   });
 
   it('should let direct inputs override config (idempotent precedence)', () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"zoomLevel":5,"integration":"static","centerLat":1.1,"centerLng":2.2}',
-    );
+    // `integration` no la autora el CMS (ADR 0135): es atributo, no viaja en `config`.
+    fixture.componentRef.setInput('config', '{"zoomLevel":5,"centerLat":1.1,"centerLng":2.2}');
+    fixture.componentRef.setInput('integration', 'static');
     fixture.componentRef.setInput('zoomLevel', '8');
     fixture.detectChanges();
 
@@ -95,6 +95,21 @@ describe('MapPinElementComponent', () => {
     fixture.componentRef.setInput('zoomLevel', '8');
     fixture.detectChanges();
     expect(component.embedUrl()).toBe(before);
+  });
+
+  // D1: con el centro como texto y el TEXTO `pinsJson` —lo que mandaba la vista— el mapa salía en
+  // el centro por defecto y sin pines. Éste alimenta el `config` EXACTO que emite hoy la vista.
+  it('centra el mapa y pinta los pines del editor con el config exacto que emite la vista del CMS', () => {
+    const { ejemplo } = MAP_PIN_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+
+    expect(component.centerLat()).toBe(ejemplo.centerLat);
+    expect(component.centerLng()).toBe(ejemplo.centerLng);
+    expect(component.zoomLevel()).toBe(ejemplo.zoomLevel);
+    expect(component.pins().map((p) => [p.lat, p.lng])).toEqual(ejemplo.pins?.map((p) => [p.lat, p.lng]));
+    expect(component.pins().map((p) => p.label)).toEqual(ejemplo.pins?.map((p) => p.label));
+    expect(component.pins().map((p) => p.description)).toEqual(ejemplo.pins?.map((p) => p.description));
   });
 });
 

@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CHART_BAR_SYNHOST } from '@synergos/contracts';
 import { ChartBarElementComponent } from './chart-bar';
 
 const DATA = JSON.stringify([
@@ -45,6 +46,20 @@ describe('ChartBarElementComponent', () => {
     expect(bars[2].percent).toBe(25);
     expect(bars[1].displayValue).toContain('$');
     expect(bars[1].displayValue).toContain('240');
+  });
+
+  // D1: con `chartTitle` y el TEXTO `dataJson` —lo que mandaba la vista— el gráfico decía «No hay
+  // datos para graficar». Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('grafica las barras del editor, con sus valores es-CO ya numéricos, con el config exacto de la vista del CMS', async () => {
+    const { ejemplo } = CHART_BAR_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.title()).toBe(ejemplo.title);
+    expect(component.orientation()).toBe(ejemplo.orientation);
+    expect(component.bars().map((b) => b.label)).toEqual(ejemplo.data?.map((d) => d.label));
+    expect(component.bars().map((b) => b.value)).toEqual(ejemplo.data?.map((d) => d.value));
   });
 
   it('should track the active bar on interaction (interaction case)', async () => {
