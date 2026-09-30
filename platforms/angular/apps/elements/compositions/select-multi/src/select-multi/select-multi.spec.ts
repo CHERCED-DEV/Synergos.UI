@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SELECT_MULTI_SYNHOST } from '@synergos/contracts';
 import { SelectMultiElementComponent, type SelectMultiChangeDetail } from './select-multi';
 
 const OPTIONS = JSON.stringify([
@@ -44,6 +45,22 @@ describe('SelectMultiElementComponent', () => {
     expect(options.length).toBe(4);
     expect(options[0]).toEqual({ value: 'co', label: 'Colombia', disabled: false });
     expect(options[3].disabled).toBe(true);
+  });
+
+  // D1: con `optionsJson` —el TEXTO que mandaba la vista— este elemento no encontraba opciones.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta las opciones que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = SELECT_MULTI_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.options().map((o) => o.value)).toEqual(ejemplo.options?.map((o) => o.value));
+    expect(component.options().map((o) => o.label)).toEqual(ejemplo.options?.map((o) => o.label));
+    expect(component.maxSelections()).toBe(ejemplo.maxSelections);
+    const filas = (fixture.nativeElement as HTMLElement).querySelectorAll('[role="option"]');
+    expect(filas.length).toBe(ejemplo.options?.length);
   });
 
   it('should toggle a selection, emit, filter by query, and honor max + disabled (interaction)', async () => {

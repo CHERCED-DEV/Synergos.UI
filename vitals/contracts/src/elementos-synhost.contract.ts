@@ -42,6 +42,12 @@ export interface DropdownOption {
   readonly href?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: SelectMultiItem). */
+export interface SelectMultiItem {
+  readonly value: string;
+  readonly label: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -110,6 +116,16 @@ export interface ScrollTopProps {
   readonly position?: string;
   /** contenido */
   readonly label?: string;
+}
+
+/** <synergos-select-multi> · pieza */
+export interface SelectMultiProps {
+  /** contenido */
+  readonly label?: string;
+  /** contenido */
+  readonly options?: readonly SelectMultiItem[];
+  /** decision */
+  readonly maxSelections?: number;
 }
 
 /** <synergos-tag> · pieza */
@@ -236,6 +252,34 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   },
 };
 
+export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
+  nombre: "select-multi",
+  tipo: "pieza",
+  record: "SelectMultiProps",
+  diccionario: [],
+  campos: ["label","options","maxSelections"],
+  listas: {"options":["value","label"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Amenidades",
+    "options": [
+      {
+        "value": "piscina",
+        "label": "Piscina"
+      },
+      {
+        "value": "gym",
+        "label": "Gimnasio"
+      },
+      {
+        "value": "bbq",
+        "label": "Zona BBQ"
+      }
+    ],
+    "maxSelections": 2
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -258,5 +302,6 @@ export const ELEMENTOS_SYNHOST = [
   RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
   SCROLL_TOP_SYNHOST,
+  SELECT_MULTI_SYNHOST,
   TAG_SYNHOST,
 ] as const;
