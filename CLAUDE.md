@@ -130,6 +130,7 @@ está vigilando nada.
 | `humo-tras-desplegar` | que un humo que ESPERA un commit cuelgue de quien lo publica, y que quien publica corra el humo — cruzando los `.github/workflows/*.yml` entre sí, con los comentarios quitados | vuelve un `git rev-parse` alimentando `--sha` en un workflow que no despliega (#74), o se publica sin comprobar (#9) |
 | `clientes-sin-llamador` | que todo método público de un `*-api.client.ts` tenga quien lo llame — y **un spec NO cuenta** | se deja un método cuyo único llamador es su propio spec, o el censo sigue declarando sin llamador a uno que ya lo tiene (#76) |
 | `consumidores-del-design-system` | que la deuda de piezas del design system que **no alcanza ningún elemento** no crezca — por cierre TRANSITIVO, contra una línea base vigilada en los dos sentidos. **Imprime el reparto por tier** (derivado, no escrito: #172) y no propone retirar por defecto (regla 40) | se escribe un componente que nadie usa, o el que lo usaba se retira y lo deja huérfano; o se baja una pieza de la línea base sin retirarla (#78) |
+| `gemelas-del-design-system` | la **regla de los dos pisos** (regla 41, ADR 0134 del CMS): que un elemento publicado con gemela en el design system la MONTE —tag en la plantilla **y** clase importada del fichero que la declara, por cierre transitivo desde la clase que registra su `main`—. Los pares salen del nombre (exacto o raíz, y cada candidato tiene que estar clasificado) y de una tabla por concepto; los incumplimientos de hoy son una LISTA vigilada en los dos sentidos. **Imprime la cifra** de la regla 41 | un elemento deja de montar su pieza o nace uno que la rehace; se publica un elemento que se llama como una pieza sin decidir si es ella; o uno de la línea base ya la monta y no se bajó (#81) |
 | `css-parity` | que toda regla CSS de una app tenga quien la emita | una app cambia markup propio por una pieza del catálogo y su CSS se queda (#23) |
 | `dev-cdn-routes` | que dev imite el layout del CDN publicado | el dev server se desvía del contrato (#2) |
 | `frameworks` | **tres** censos, tres preguntas (el tercero, `.github/workflows/`, lo dejó nombrado el #71 y lo escribió el #74 después de tropezar con su caso exacto) (y en #64 `publish-runtime.mjs` se movió de «específica de Angular» a «ciega», que es cómo se usa el censo): que ninguna herramienta de `tools/` resuelva el framework a un literal, que **nadie de `tools/lib` cablee `platforms/<algo>`** sin declararlo (los `.spec.mjs` incluidos, #60), y que `platforms/*` y `PLATFORMS` nombren a los mismos | alguien vuelve a escribir `join(CDN, el, 'angular', …)`, aparece `platforms/react/` que el pipeline no ve (#44), un gate neutral mira sólo `platforms/angular/` (#60), o un workflow filtra por `platforms/angular/**` y un cambio de la otra plataforma no dispara ni un test (#74) |
@@ -176,11 +177,12 @@ está vigilando nada.
 Comandos que no cuelgan de `npm test`:
 
 ```bash
-npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
+npm run contracts:validate    # sync:tokens · element:audit · manifest · gate:clientes · gate:design-system · gate:gemelas · gate:hipoteca · gate:rutas · cms:validate · cms:sync:check
 npm run gate:hipoteca         # los vectores de oro de la hipoteca (necesita el CMS; acepta --cms-path)
 npm run gate:clientes         # métodos públicos de los clientes HTTP ↔ sus llamadores (sin hermano ni red)
 npm run gate:design-system    # piezas del design system que no alcanza ningún elemento, y su reparto por tier (sin hermano ni red)
 npm run gate:design-system:baseline   # baja la línea base — el diff va en el commit que lo causó
+npm run gate:gemelas          # elemento publicado ↔ su gemela del design system: ¿la monta? (sin hermano ni red; la tabla y la línea base, a mano en tools/gemelas-del-design-system.json)
 npm run gate:rutas            # las rutas que los clientes piden ↔ las que el CMS declara (necesita el CMS)
 npm run size:check            # el presupuesto contra public/ (corre solo dentro de build:cdn)
 npm run size:baseline         # regenera el registro de tamaños — el diff va en el commit que lo causó
@@ -1076,7 +1078,9 @@ se desincroniza):
 
 41. **Un elemento publicado con gemela en el design system la MONTA, nunca la reimplementa — y
    hoy 19 de 33 no lo hacen.** Es la **regla de los dos pisos** (ADR 0134 del CMS). Medido por
-   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no**. Por
+   concepto: 33 conceptos existen como elemento y como pieza del DS, **14 cumplen y 19 no** —la
+   cifra la imprime `npm run gate:gemelas` en cada corrida (`… = 33 par(es): 14 montan su pieza ·
+   19 no`) y la que vale es la de la última, no la de esta línea—. Por
    nombre, de 13 pares montan la suya **cuatro** —`carousel`, `data-table`, `badge` y `heading`
    (alias de `text-block`)—. **`card` no la monta** (medido acá): importa `Badge`, `Button` y
    `Heading` y rehace la tarjeta, y como su clase se llama `CardComponent` —igual que la pieza—
@@ -1086,8 +1090,34 @@ se desincroniza):
    hereda su accesibilidad, sus tokens y sus correcciones; uno que la rehace, no.
    **Y la pregunta es por CONCEPTO, no por nombre**, en los dos sentidos: `stepper` son DOS
    conceptos —el elemento es un indicador de pasos, `syn-stepper` un +/- numérico— y `data-grid`
-   no es `DataTableComponent`. **Lo que falta es el gate**: el prototipo de la auditoría deja los
-   19 como línea base vigilada en los dos sentidos, y no está en el repo.
+   no es `DataTableComponent`.
+   **El gate es `gemelas-del-design-system` (#81)**, y lo que costó cada decisión, mutado sobre el
+   árbol real:
+   (a) **montar son DOS señales en el mismo componente**: el tag (`<syn-x` seguido de espacio,
+   `>` o `/`) y la clase importada **de donde la resuelve el import**, con los `paths` que la
+   plataforma declara en su `tsconfig`. Contando menciones, un `id="syn-tooltip-1"` daba a
+   `tooltip` por montado; aceptando la clase por NOMBRE, `card` se contaba a sí mismo —las dos
+   mutaciones salen «RESUELTO» en falso—; y el tag sin la clase no basta porque un esquema de
+   elementos desconocidos compila un `<syn-x>` que no monta nada;
+   (b) **los pares se DERIVAN del nombre y se DECLARAN por concepto**: 34 candidatos por nombre o
+   raíz (`progress-bar` ← `progress`) y cada uno tiene que estar clasificado —par, o dos conceptos
+   con su razón y su disparador— o el gate falla; los 10 que no comparten nombre (`pagination` ↔
+   `PaginatorComponent`, `drawer` ↔ `ModalComponent`…) viven en la tabla, que es su única memoria;
+   (c) **dos derivaciones cuadran**: la del gate (fuente sin comentarios + `paths` a mano) y otra
+   con el programa de TypeScript —el type checker resuelve el `imports: [...]` del decorador hasta
+   su declaración— y el parser de plantillas del compilador. Las dos: 33 pares, 14 y 19, la misma
+   lista; y las dos ven 197 componentes, que es lo que obligó al arreglo de (d);
+   (d) **el regex de comentarios de la lib de #78 se comía código**: el `'/*'` de `dropzone.ts`
+   abría un comentario falso y el `@Component` de `dropzone` y de `file-uploader` desaparecía
+   (195 contra 197). No cambiaba la cifra de #78 —no montan piezas— y a este gate lo dejaba
+   **verde**, porque tampoco son pares: por eso hoy toda raíz que no se lee es un fallo, sea par o
+   no (mutado: con el regex de antes, rojo por `dropzone` y `file-uploader`). Y los dos gates
+   quitan comentarios con el escáner de TypeScript.
+   El barrido «que respeta cadenas» de `contract-schema.mjs` no servía de reemplazo: medido contra
+   el escáner sobre los 606 `.ts` del árbol diverge en 3 (una regex con `\/\/` la lee como
+   comentario de línea); el regex de antes, en 4.
+   El cierre transitivo **hoy no decide nada** —los 14 que cumplen montan su pieza desde la raíz—
+   y se conserva sabiendo que empuja hacia «cumple».
 
 42. **Una región viva no NACE con su mensaje: tiene que existir ANTES de que el texto cambie, o
    el lector de pantalla calla.** Medido con el AST del compilador de Angular sobre las 323
