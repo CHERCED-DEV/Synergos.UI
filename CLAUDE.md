@@ -1195,3 +1195,24 @@ se desincroniza):
    `package.json` (la regla 25: una lista escrita a mano olvida al que llega después). El spec
    se ve fallar con la mutación que importa —un `break` en el primer rojo— y sobre el
    `package.json` de verdad exige que `test` no vuelva a encadenar (#79).
+
+47. **Una pieza del design system que su spec da por buena puede TRUNCAR en el navegador — y
+   el defecto viaja a cada pantalla que la monta.** `syn-segmented` repartía el ancho con
+   `flex: 1 1 0` dentro de un `inline-flex` dimensionado por su contenido: el grupo mide la
+   SUMA de los rótulos y la parte a partes iguales, así que **el rótulo más largo sale
+   truncado siempre**, aun con sitio de sobra. Estaba vivo en la vista por defecto de
+   `results-map` —«Divid…», 47 px de texto en 34, medido sirviendo el `sg-shared.js` de ANTES
+   del cambio para no atribuírselo— y el cableado del #83 lo iba a llevar a tres pantallas
+   más («Prese…» en EHR). Ningún spec podía verlo: jsdom no maqueta. Lo vio **montar la
+   pieza en el banco y medir** `scrollWidth` contra `clientWidth` del rótulo. El arreglo es
+   de la pieza, no de cada pantalla: rejilla con `grid-auto-columns: minmax(0, 1fr)` —en un
+   contenedor por contenido, un `fr` vale el max-content del más ancho— y, sin sitio, el
+   rótulo **parte línea** en vez de esconder justo lo que distingue a una opción de otra.
+   **Dos mediciones mías que salieron falsas antes de creerlas**, y por eso se escriben:
+   (a) el contraste del segmento marcado dio **1,02:1 en `dark`**, y era medir A MITAD de la
+   transición de `background-color` (el fondo era una mezcla de blanco y `#1e293b`); con las
+   transiciones asentadas, los 7 temas dan ≥ 5,24:1. **Tras cambiar `data-theme`, se espera
+   a que acaben las transiciones antes de leer un color computado**;
+   (b) el área táctil de 44 px del tamaño `sm` la calculé a mano —«caja de 28 px, sobresale
+   3 px»— y el navegador midió caja de 24 px y **~6 px** fuera del grupo. El comentario del
+   SCSS dice ahora la cifra medida y cuándo le pisa la franja a un vecino (#83).
