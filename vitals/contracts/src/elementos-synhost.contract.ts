@@ -152,6 +152,16 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-rich-tooltip> · pieza */
+export interface RichTooltipProps {
+  /** contenido */
+  readonly triggerText?: string;
+  /** contenido */
+  readonly body?: string;
+  /** decision */
+  readonly placement?: string;
+}
+
 /** <synergos-share-bar> · pieza */
 export interface ShareBarProps {
   /** decision */
@@ -344,6 +354,21 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   },
 };
 
+export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
+  nombre: "rich-tooltip",
+  tipo: "pieza",
+  record: "RichTooltipProps",
+  diccionario: [],
+  campos: ["triggerText","body","placement"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "triggerText": "Cuota de manejo",
+    "body": "Cobro mensual por administrar la tarjeta. Se exonera con compras desde $ 300.000.",
+    "placement": "bottom"
+  },
+};
+
 export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   nombre: "share-bar",
   tipo: "pieza",
@@ -402,6 +427,7 @@ export const ELEMENTOS_SYNHOST = [
   HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
+  RICH_TOOLTIP_SYNHOST,
   SHARE_BAR_SYNHOST,
   TAG_SYNHOST,
   VIDEO_PLAYER_SYNHOST,

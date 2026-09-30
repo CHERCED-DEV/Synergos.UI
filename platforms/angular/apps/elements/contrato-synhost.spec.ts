@@ -12,6 +12,7 @@ import { sanitizeHeroBannerConfig } from './modules/hero-banner/src/hero-banner/
 import { sanitizeFabConfig } from './primitives/fab/src/fab/fab';
 import { sanitizeCookieConsentConfig } from './modules/cookie-consent/src/cookie-consent/cookie-consent';
 import { sanitizeShareBarConfig } from './compositions/share-bar/src/share-bar/share-bar';
+import { sanitizeRichTooltipConfig } from './compositions/rich-tooltip/src/rich-tooltip/rich-tooltip';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -41,6 +42,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   fab: createConfigInputTransform(sanitizeFabConfig),
   'cookie-consent': createConfigInputTransform(sanitizeCookieConsentConfig),
   'share-bar': createConfigInputTransform(sanitizeShareBarConfig),
+  'rich-tooltip': createConfigInputTransform(sanitizeRichTooltipConfig),
 };
 
 type Config = Record<string, unknown>;
