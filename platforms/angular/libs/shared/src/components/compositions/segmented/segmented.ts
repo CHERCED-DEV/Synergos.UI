@@ -7,16 +7,20 @@ import {
   output,
   viewChildren,
 } from '@angular/core';
+import { BadgeComponent } from '../../primitives/badge/badge';
 import { IconComponent } from '../../primitives/icon/icon';
 
 /**
  * One selectable segment. `value` is the identity fed back through `valueChange`.
  * `icon` is an optional decorative glyph symbol (rendered via `syn-icon`).
+ * `badge` is an optional short text after the label —a count, typically— rendered
+ * via `syn-badge` INSIDE the radio, so it is part of the radio's accessible name.
  */
 export interface SegmentedOption {
   readonly value: string;
   readonly label: string;
   readonly icon?: string;
+  readonly badge?: string;
   readonly disabled?: boolean;
 }
 
@@ -42,7 +46,7 @@ function nextSegmentedInstanceId(): string {
 @Component({
   selector: 'syn-segmented',
   standalone: true,
-  imports: [IconComponent],
+  imports: [BadgeComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -68,6 +72,9 @@ function nextSegmentedInstanceId(): string {
             <syn-icon class="syn-segmented__icon" [symbol]="option.icon" />
           }
           <span class="syn-segmented__label">{{ option.label }}</span>
+          @if (option.badge) {
+            <syn-badge class="syn-segmented__badge" [text]="option.badge" />
+          }
         </button>
       }
     </div>

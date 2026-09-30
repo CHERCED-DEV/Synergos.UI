@@ -421,10 +421,12 @@
                   <span class="academy__label">Correo electrónico</span>
                   <input class="academy__input" type="email" [value]="studentEmail()" (input)="bind(studentEmail.set)($event)" />
                 </label>
-                <div class="academy__pay-methods" role="radiogroup" aria-label="Método de pago">
-                  <button type="button" class="academy__pay" [class.is-selected]="paymentMethod() === 'card'" (click)="setPaymentMethod('card')">Tarjeta</button>
-                  <button type="button" class="academy__pay" [class.is-selected]="paymentMethod() === 'pse'" (click)="setPaymentMethod('pse')">PSE</button>
-                </div>
+                <syn-segmented
+                  ariaLabel="Método de pago"
+                  [options]="paymentMethods"
+                  [value]="paymentMethod()"
+                  (valueChange)="setPaymentMethod($event)"
+                />
               </fieldset>
             }
             @case ('review') {

@@ -95,10 +95,10 @@ worker/              → SÓLO `index.js`, el Worker que pone las cabeceras. El
   - Sirve `no-store` a propósito: imitar la caché de producción en desarrollo es enseñar el bundle de hace media hora. Las cabeceras reales las vigila `tools/humo-cdn.mjs` contra la URL pública.
   - Tocar `libs/` **rehace el runtime** (~3,4 s): `@synergos/core` y `@synergos/shared` son externals, no están en el bundle del elemento. Sin ese eslabón, editar el design system no se ve y el build dice «✓ al día».
 - Runtime compartido: `tools/build-runtime.mjs` pasa el **linker de Angular** (via @babel/core) sobre los @angular/* de npm — el navegador ya no descarga ng-compiler.js (523 KB) y `ngDevMode` queda en false (el runtime publicado corría Angular en modo dev desde siempre). sg-shared: 1,45 MB → 774 KB.
-- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **610 + 50 + 1.564 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **610 en un clon limpio y 611 con el CDN construido** (el piloto de la ADR 0135, CMS#173, sumó 12 a `tools` y 21 a Angular; el gate de los dos pisos, #81, otros 52 a `tools`). Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
+- Tests: `npm test` en la raíz corre **todos los `test:*` del `package.json`, hoy cinco** — `test:contratos` (los CUATRO gates que no necesitan al hermano ni la red), `test:tools` (los gates de `tools/lib`, sin SDK ni red), `test:vitals` (la capa agnóstica), `test:angular` y `test:preact` —, **cada uno aunque el anterior falle**, y sale 1 si alguno falló (`tools/test-todo.mjs`, #79). Era `test:contratos && … && test:preact`, y con `&&` el primer rojo era el ÚNICO: en Windows los 4 rojos de separador de `test:tools` dejaban sin correr **1.601** tests de los que nadie sabía nada. `pretest` sigue verificando el setup; `node tools/test-todo.mjs --solo=test:a,test:b` corre un subconjunto (lo usa el job de Windows) y un nombre mal escrito es un error, no cero tramos en verde. Todo **con la cuarentena en cero**, y eso no es una foto: lo defiende `spec-quarantine`. Hoy: **610 + 50 + 1.571 + 8**, y el primero **no tiene una sola cifra verdadera**: `indice-publicado.spec.mjs` cierra su último test con `it.runIf(existsSync(public/index.html))`, y `public/` está en el `.gitignore` — o sea que son **610 en un clon limpio y 611 con el CDN construido** (el piloto de la ADR 0135, CMS#173, sumó 12 a `tools` y 21 a Angular; el gate de los dos pisos, #81, otros 52 a `tools`). Decía 415, que no es ninguna de las dos. Lo que va escrito acá es la de CI, porque `tests-ui.yml` no construye el CDN; el `+1` no es deuda, es un test que se salta cuando no hay artefacto que mirar. (Los 6 de Angular son los de «mis visitas», #73; de `tools`, 16 son del #74 —el cruce humo↔despliegue y el censo de `platforms/<literal>` en los workflows— y **27 del #76** —los vectores de oro de la hipoteca y el cruce de los clientes sin llamador— más **18 del #77**, el cruce de las rutas contra el borde, y **23 del #78** —21 del cruce de consumidores del design system y 2 del censo de `frameworks` que ese gate hizo crecer— y **4 del CMS#172**, el reparto por tier de esas mismas piezas, y **45 del #79**: 26 del lanzador de `npm`, 16 del runner de `npm test` y 3 filas del censo de `frameworks`.)
   - **`test:contratos` es nuevo y la razón es que no los corría NADIE** (#74). `contracts:validate` sólo se teclea a mano y ningún workflow lo lanzaba, así que por ese hueco vivieron dos defectos del contrato de plataforma: la obligación 3 fallando para **todas** —el llamador fabricaba la plataforma sin su `entrada`, medido 0 fuentes contra 127— y la 8 acusando a Preact de no tener adaptador teniéndolo, porque el recorrido filtraba `/\.(ts|mjs|js)$/` y el suyo es `.tsx`. Los otros tres del encadenado piden `SYNERGOS_CMS_PATH` y corren en el despliegue; **eso es una cobertura que hoy está detrás de las credenciales**, y va dicho en vez de insinuar que el encadenado entero corre. **El tercero lo añadió #76**: `gate:clientes`, que cruza los métodos públicos de los diez clientes HTTP contra sus llamadores y no necesita nada de afuera. Su hermano `gate:hipoteca` **no** está acá y no es olvido: necesita el repo del CMS —los vectores viven en su `docs/contracts/`— así que vive en `design-gates-ui.yml`, que sí lo chequea, y lo que corre en `npm test` es su LÓGICA (`tools/lib/vectores-hipoteca.spec.mjs`).
   - **El tercero nació con #63**, cuando los normalizadores del CMS bajaron a `vitals` **con sus specs**. Sin él, correr 50 tests de funciones puras exigiría arrancar el compilador AOT de Angular — justo el acople que la frontera existe para cortar, y lo primero con lo que tropezaría la segunda plataforma.
-  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.564, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
+  - **Las cifras, y la cuenta cuadra**: Angular pasó de 240 ficheros / 1.585 tests a **236 / 1.535** (hoy 1.571, medido el 2026-09-29), y los 50 que faltan son exactamente los **4 ficheros / 50 tests** que hoy corren en `test:vitals`. Una suite que adelgaza sin que la resta cuadre es una suite que perdió algo.
   - Los specs de Angular se **compilan AOT** antes de correr (`platforms/angular/tools/build-specs.mjs`, ~21 s) con el mismo ngtsc que publica los elementos. Los de `vitals` no: son funciones puras y vitest los transpila al vuelo sin riesgo, porque ahí no hay signal inputs que mentir.
   - `test:vitals` usa `--dir vitals` y **no** `vitest run vitals`: lo segundo es un filtro de substring, que es el defecto que ya contó de más dos veces (ver el aviso de `test:tools` más abajo).
   - **Los signal inputs de Angular NO funcionan en JIT.** `componentRef.setInput()` no llega nunca al `input()`: devuelve el valor por defecto, en silencio. Como `LLM.txt` prohíbe `@Input()`, cualquier transpilador al vuelo (incluido `@analogjs/vite-plugin-angular`) hace que los tests **corran y mientan**. Por eso hay un paso de compilación y no un plugin de Vite.
@@ -212,7 +212,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Cuarenta y siete reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cuarenta y ocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1070,8 +1070,24 @@ se desincroniza):
    el arquitecto.
    **El daño de un catálogo que no se consulta no son las piezas sin uso: son las DUPLICADAS.**
    `syn-segmented` —vivo, `libs/shells/src/map/results-map.ts:145`— y `syn-segmented-control`
-   —en la línea base— son el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el que
-   había. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
+   —en la línea base— eran el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el
+   que había. **Se fusionaron en el #83, medidas pieza contra pieza**: sobrevivió `syn-segmented`
+   —radiogroup APG, tabindex itinerante, flechas con vuelta, Home/End— y absorbió lo que la otra
+   tenía y ella no: el `badge` por opción (dentro del radio, así que entra en su nombre accesible)
+   y el área de puntero de 44 px de su tamaño compacto (`sm`). **No absorbió, y se escribe por
+   qué**: el desborde «Prev»/«Next» (con 2–5 segmentos no aplica, y sus rótulos eran fijos en
+   inglés), el `value: unknown` por opción con su salida `optionSelected` (la identidad ya es el
+   `value` string, y el dato lo tiene quien arma las opciones) ni el `tablist`/`tab` sin
+   `tabpanel` y sin flechas, que era la semántica equivocada. `syn-segmented-control` salió del DS
+   y de su barril y la línea base bajó de 22 a 21 **en el mismo commit**; volver a exportarla sin
+   consumidor pone el gate en rojo. **Y la fusión no termina en el DS**: las pantallas que
+   rehacían el selector a mano lo MONTAN (regla 41) — la modalidad de la cita en EHR y la de la
+   visita en realty (sin estado accesible), el método de pago de academy (un `radiogroup` sin
+   radios) y la operación de realty. El resto del barrido se decidió por concepto: el cambio de
+   rol es navegación por decisión escrita (doc 22 fila 5, `ehr.ts:350`), las pestañas de
+   producto de travel son `syn-tabs`, y los filtros de consola y de media-explorer tienen N
+   abierto —la pieza es de 2 a 5— y no se tocaron.
+   Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
    «crear» un resumen con enlace *Cambiar* que ya existía como
    `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
    **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea
@@ -1246,3 +1262,24 @@ se desincroniza):
    `config` es el cable, el atributo es la API pública del elemento—; (c) el cruce JSON↔TS necesita
    al CMS, así que vive en `contracts:validate` y en G-11, no en `npm test`; lo que sí corre en
    `npm test` es la compilación contra el tipo versionado y la ejecución de los sanitizadores.
+
+48. **Una pieza del design system que su spec da por buena puede TRUNCAR en el navegador — y
+   el defecto viaja a cada pantalla que la monta.** `syn-segmented` repartía el ancho con
+   `flex: 1 1 0` dentro de un `inline-flex` dimensionado por su contenido: el grupo mide la
+   SUMA de los rótulos y la parte a partes iguales, así que **el rótulo más largo sale
+   truncado siempre**, aun con sitio de sobra. Estaba vivo en la vista por defecto de
+   `results-map` —«Divid…», 47 px de texto en 34, medido sirviendo el `sg-shared.js` de ANTES
+   del cambio para no atribuírselo— y el cableado del #83 lo iba a llevar a tres pantallas
+   más («Prese…» en EHR). Ningún spec podía verlo: jsdom no maqueta. Lo vio **montar la
+   pieza en el banco y medir** `scrollWidth` contra `clientWidth` del rótulo. El arreglo es
+   de la pieza, no de cada pantalla: rejilla con `grid-auto-columns: minmax(0, 1fr)` —en un
+   contenedor por contenido, un `fr` vale el max-content del más ancho— y, sin sitio, el
+   rótulo **parte línea** en vez de esconder justo lo que distingue a una opción de otra.
+   **Dos mediciones mías que salieron falsas antes de creerlas**, y por eso se escriben:
+   (a) el contraste del segmento marcado dio **1,02:1 en `dark`**, y era medir A MITAD de la
+   transición de `background-color` (el fondo era una mezcla de blanco y `#1e293b`); con las
+   transiciones asentadas, los 7 temas dan ≥ 5,24:1. **Tras cambiar `data-theme`, se espera
+   a que acaben las transiciones antes de leer un color computado**;
+   (b) el área táctil de 44 px del tamaño `sm` la calculé a mano —«caja de 28 px, sobresale
+   3 px»— y el navegador midió caja de 24 px y **~6 px** fuera del grupo. El comentario del
+   SCSS dice ahora la cifra medida y cuándo le pisa la franja a un vecino (#83).

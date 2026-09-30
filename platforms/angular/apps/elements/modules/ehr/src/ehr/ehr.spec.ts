@@ -183,6 +183,47 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture.detectChanges();
   }
 
+  // ── #83: la modalidad la pinta `syn-segmented`, y el lector sabe cuál está elegida ──
+  //
+  // Antes eran dos <button> con sólo la clase `is-active`: la pantalla cambiaba de color
+  // y un lector de pantalla no tenía nada que leer. Se busca por ROL y NOMBRE, no por
+  // la clase, porque lo que se prueba es lo que recibe el lector.
+  it('la modalidad es un radiogroup con estado y se cambia con el teclado (#83)', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    await createComponent();
+    component.navigate('schedule');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'syn-segmented [role="radiogroup"][aria-label="Modalidad de la cita"]',
+    );
+    expect(group).not.toBeNull();
+    const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+    const estado = (): string[][] =>
+      radios.map((radio) => [radio.textContent?.trim() ?? '', radio.getAttribute('aria-checked') ?? '']);
+    expect(estado()).toEqual([
+      ['Presencial', 'true'],
+      ['Video', 'false'],
+    ]);
+
+    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.scheduleMode()).toBe('video');
+    expect(estado()).toEqual([
+      ['Presencial', 'false'],
+      ['Video', 'true'],
+    ]);
+  });
+
+  it('una modalidad que no está en la lista no llega a la cita (#83)', async () => {
+    await createComponent();
+    component.setScheduleMode('video');
+    component.setScheduleMode('telepatía');
+    expect(component.scheduleMode()).toBe('video');
+  });
+
   it('agenda la cita CONTRA EL SERVIDOR y enseña el comprobante suyo (engine case)', async () => {
     const fetchMock = vi.fn(servidorFalso());
     await createComponent();

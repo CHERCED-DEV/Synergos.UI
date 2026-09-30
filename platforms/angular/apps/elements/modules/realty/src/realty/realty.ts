@@ -57,6 +57,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  SegmentedComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -164,9 +165,15 @@ const ROLES: readonly { key: RealtyRole; label: string }[] = [
   { key: 'agent', label: 'Soy agente' },
 ];
 
-const OPERATIONS: readonly { key: Operation; label: string }[] = [
-  { key: 'sale', label: 'Comprar' },
-  { key: 'rent', label: 'Arrendar' },
+/** Los dos selectores exclusivos de la cara de demanda los pinta `syn-segmented` (#83). */
+const OPERATIONS: readonly { readonly value: Operation; readonly label: string }[] = [
+  { value: 'sale', label: 'Comprar' },
+  { value: 'rent', label: 'Arrendar' },
+];
+
+const VISIT_MODES: readonly { readonly value: VisitMode; readonly label: string }[] = [
+  { value: 'in-person', label: 'Visita presencial' },
+  { value: 'video', label: 'Video-tour' },
 ];
 
 const SORT_OPTIONS: readonly DiscoverySortOption[] = [
@@ -248,6 +255,7 @@ let realtyInstanceId = 0;
     ConsoleShellComponent,
     AuthoringWizardComponent,
     CompareTableComponent,
+    SegmentedComponent,
   ],
   templateUrl: './realty.html',
   styleUrl: './realty.scss',
@@ -322,6 +330,7 @@ export class RealtyElementComponent {
   readonly fieldId = `syn-realty-${this.instanceId}`;
   readonly roles = ROLES;
   readonly operations = OPERATIONS;
+  readonly visitModes = VISIT_MODES;
   readonly sortOptions = SORT_OPTIONS;
   readonly visitSteps = VISIT_STEPS;
 
@@ -1124,8 +1133,13 @@ export class RealtyElementComponent {
   }
 
   // ─── Search (SH-1 + SH-8 wiring) ─────────────────────────────────────────────
-  setOperation(operation: Operation): void {
-    if (this.operation() === operation) {
+  /**
+   * Lo llama `syn-segmented`, que emite su `value` como string: sólo entra una
+   * operación de la lista; cualquier otra cosa se ignora y no dispara una búsqueda.
+   */
+  setOperation(value: string): void {
+    const operation = OPERATIONS.find((option) => option.value === value)?.value;
+    if (!operation || this.operation() === operation) {
       return;
     }
     this.operation.set(operation);
@@ -1698,8 +1712,12 @@ export class RealtyElementComponent {
     }
   }
 
-  setVisitMode(mode: VisitMode): void {
-    this.visitMode.set(mode);
+  /** Igual que `setOperation`: sólo una modalidad de la lista llega a la visita. */
+  setVisitMode(value: string): void {
+    const mode = VISIT_MODES.find((option) => option.value === value)?.value;
+    if (mode) {
+      this.visitMode.set(mode);
+    }
   }
 
   selectSlot(slot: VisitSlot): void {

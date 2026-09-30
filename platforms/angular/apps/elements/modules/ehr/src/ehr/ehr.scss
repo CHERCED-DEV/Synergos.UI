@@ -1053,25 +1053,10 @@
   }
 
   /* ─── SH-3 schedule wizard steps ─────────────────────────────────────────── */
+  // El selector lo pinta `syn-segmented` (#83); acá sólo va su sitio en el paso.
   &__mode-toggle {
-    display: inline-flex;
-    gap: syn.px-to-rem(2);
-    padding: syn.px-to-rem(3);
+    display: block;
     margin-bottom: syn.$space-2;
-    background: var(--eh-surface-sunken);
-    border-radius: syn.$radius-md;
-  }
-
-  &__mode-btn {
-    padding: syn.$space-1 syn.$space-3;
-    border: none;
-    border-radius: syn.$radius-md;
-    background: transparent;
-    color: var(--eh-text-secondary);
-    font-size: syn.$font-size-sm;
-    cursor: pointer;
-
-    &.is-active { background: var(--eh-surface); color: var(--eh-brand); box-shadow: var(--eh-shadow); }
   }
 
   &__slots {

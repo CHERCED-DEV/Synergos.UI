@@ -19,7 +19,15 @@
   --syn-segmented-radius: #{syn.$radius-full};
   --syn-segmented-font-size: #{syn.$font-size-sm};
 
-  display: inline-flex;
+  // Segmentos de ancho IGUAL al del rótulo más ancho. Con `inline-flex` y `flex: 1 1 0`
+  // el grupo medía la SUMA de los rótulos y la repartía a partes iguales, así que el
+  // más largo salía truncado siempre, aun con sitio de sobra: «Divid…» en la vista por
+  // defecto de `results-map`, medido en vivo (#83). En una rejilla dimensionada por su
+  // contenido, un `fr` vale el max-content del segmento más ancho; `minmax(0, …)` deja
+  // que encojan —y trunquen— sólo cuando `max-width: 100%` de verdad no da.
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: var(--syn-segmented-gap);
   max-width: 100%;
   padding: var(--syn-segmented-padding);
@@ -43,7 +51,6 @@
 .syn-segmented__option {
   @include syn.focus-visible;
 
-  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -56,7 +63,7 @@
   color: var(--syn-segmented-color);
   font-size: var(--syn-segmented-font-size);
   font-weight: syn.$font-weight-medium;
-  white-space: nowrap;
+  text-align: center;
   cursor: pointer;
   transition:
     color syn.$duration-fast syn.$easing-smooth,
@@ -83,9 +90,29 @@
   }
 }
 
+// El tamaño compacto conserva su caja y sólo agranda el área de puntero a 44 px
+// (WCAG 2.5.5), que es lo que `syn-segmented-control` hacía en su `compact` antes de
+// fusionarse aquí (#83). Crece sólo en alto: un segmento ya mide más de 44 px de
+// ancho (16 px de relleno por lado más el texto), así que entre dos segmentos vecinos
+// no hay franja compartida. MEDIDO en Chromium, no calculado —la cuenta a mano daba
+// 28 px de caja y 3 px de vuelo, y las dos cifras eran falsas—: la caja mide 24 px,
+// el área sobresale 10 px de cada segmento y **~6 px fuera del grupo**, por arriba y
+// por abajo. Un consumidor que ponga algo PULSABLE a menos de 6 px del grupo, en
+// vertical, comparte esa franja con la opción: que deje el hueco, o que apague el
+// área en ese sitio con `--syn-touch-target-size: 100%`.
+.syn-segmented[data-size='sm'] .syn-segmented__option {
+  @include syn.touch-target;
+
+  isolation: isolate;
+}
+
+// Sin sitio, el rótulo PARTE LÍNEA; no se trunca. Un «Visita pres…» esconde justo lo
+// que distingue a una opción de la otra, y a 375 px el paso de modalidad de realty
+// deja 278 px para dos rótulos de 17 caracteres (medido, #83). Con sitio, el
+// max-content manda y el rótulo va en una línea.
 .syn-segmented__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {

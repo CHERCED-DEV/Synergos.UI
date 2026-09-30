@@ -782,26 +782,6 @@
     resize: vertical;
   }
 
-  &__pay-methods {
-    display: inline-flex;
-    gap: syn.$space-xs;
-  }
-
-  &__pay {
-    padding: syn.$space-xs syn.$space-md;
-    border: syn.px-to-rem(1) solid var(--ac-border);
-    border-radius: syn.$radius-md;
-    background: var(--ac-surface);
-    cursor: pointer;
-    font-weight: 600;
-
-    &.is-selected {
-      border-color: var(--ac-brand);
-      background: var(--ac-brand-soft);
-      color: var(--ac-brand);
-    }
-  }
-
   // ─── Summary / review ─────────────────────────────────────────────────────
   &__summary {
     display: flex;
