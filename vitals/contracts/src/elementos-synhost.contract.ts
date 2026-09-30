@@ -34,6 +34,12 @@ export interface AccordionSection {
   readonly body?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: BadgeGroupItem). */
+export interface BadgeGroupItem {
+  readonly label: string;
+  readonly tone?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
@@ -54,6 +60,14 @@ export interface AccordionProps {
   readonly items?: readonly AccordionSection[];
   /** decision */
   readonly allowMultiple?: boolean;
+}
+
+/** <synergos-badge-group> · pieza */
+export interface BadgeGroupProps {
+  /** contenido */
+  readonly badges?: readonly BadgeGroupItem[];
+  /** decision */
+  readonly layout?: string;
 }
 
 /** <synergos-carousel> · pieza */
@@ -130,6 +144,29 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
       }
     ],
     "allowMultiple": true
+  },
+};
+
+export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
+  nombre: "badge-group",
+  tipo: "pieza",
+  record: "BadgeGroupProps",
+  diccionario: [],
+  campos: ["badges","layout"],
+  listas: {"badges":["label","tone"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "badges": [
+      {
+        "label": "Envío gratis",
+        "tone": "success"
+      },
+      {
+        "label": "Nuevo",
+        "tone": "brand"
+      }
+    ],
+    "layout": "stack"
   },
 };
 
@@ -234,6 +271,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   ACCORDION_SYNHOST,
+  BADGE_GROUP_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,

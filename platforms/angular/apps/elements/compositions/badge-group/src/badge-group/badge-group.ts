@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { BadgeGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -17,37 +18,19 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynBadgeGroup</c>.
- *
- * A group of badges / counters — small labelled pills, each optionally
- * carrying a numeric count, a tone (semantic color) and a target href.
- * Used to surface tags, statuses, facets or KPI counters in a compact,
- * wrap-friendly cluster. Badges may be plain (static) or selectable
- * (toggle filters); selecting a badge emits a `badgeselect` CustomEvent
+ * <synergos-badge-group>: a group of badges / counters — small labelled pills, each optionally
+ * carrying a numeric count, a tone (semantic color) and a target href. Used to surface tags,
+ * statuses, facets or KPI counters in a compact, wrap-friendly cluster. Badges may be plain
+ * (static) or selectable (toggle filters); selecting a badge emits a `badgeselect` CustomEvent
  * carrying the active badge ids.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `BadgeGroupProps`, GENERADO del record C#
+ * (ADR 0135): `badges` es una LISTA ya parseada (`label`/`tone`) y `layout`. La vista
+ * mandaba el TEXTO `badgesJson` y este elemento hidrataba con «No hay elementos.» (D1).
+ * `label`, `size`, `selectable`, `multiple`, `emptyLabel` y, por insignia, `id`, `count`,
+ * `href` y `selected` no los autora el editor: llegan por atributo (`badges` como JSON), que
+ * gana sobre el `config`.
  */
-export interface BadgeGroupRuntimeConfig {
-  readonly label?: string;
-  readonly layout?: string;
-  readonly size?: string;
-  readonly selectable?: boolean;
-  readonly multiple?: boolean;
-  readonly emptyLabel?: string;
-  readonly badges?: readonly BadgeConfig[];
-}
-
-export interface BadgeConfig {
-  readonly id?: string;
-  readonly label?: string;
-  readonly count?: number;
-  readonly tone?: string;
-  readonly href?: string;
-  readonly selected?: boolean;
-}
 
 /** Visual layout of the badge cluster. */
 export type BadgeGroupLayout = 'wrap' | 'inline' | 'stack';
@@ -191,17 +174,12 @@ export function normalizeBadges(value: unknown): readonly Badge[] {
   return result;
 }
 
-function sanitizeBadgeGroupConfig(
-  value: Partial<BadgeGroupRuntimeConfig>,
-): BadgeGroupRuntimeConfig {
-  return omitUndefinedProperties<BadgeGroupRuntimeConfig>({
-    label: coerceTrimmedStringInput(value.label),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeBadgeGroupConfig(value: Partial<BadgeGroupProps>): Partial<BadgeGroupProps> {
+  const badges = normalizeBadges(value.badges);
+  return omitUndefinedProperties<BadgeGroupProps>({
+    badges: badges.length > 0 ? badges : undefined,
     layout: coerceTrimmedStringInput(value.layout),
-    size: coerceTrimmedStringInput(value.size),
-    selectable: coerceOptionalBooleanInput(value.selectable),
-    multiple: coerceOptionalBooleanInput(value.multiple),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
-    badges: value.badges,
   });
 }
 
@@ -216,8 +194,8 @@ function sanitizeBadgeGroupConfig(
 export class BadgeGroupElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<BadgeGroupRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<BadgeGroupRuntimeConfig>(sanitizeBadgeGroupConfig),
+  readonly config = input<Partial<BadgeGroupProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<BadgeGroupProps>(sanitizeBadgeGroupConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly layoutInput = input<string | undefined>(undefined, { alias: 'layout' });
@@ -237,24 +215,14 @@ export class BadgeGroupElementComponent {
   /** Typed Angular output mirroring the native `badgeselect` CustomEvent. */
   readonly badgeselect = output<BadgeSelectDetail>();
 
-  readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.config()?.label, ''),
-  );
+  readonly label = computed(() => this.labelInput() ?? '');
   readonly layout = computed<BadgeGroupLayout>(() =>
     normalizeLayout(resolveConfigValue(this.layoutInput(), this.config()?.layout, 'wrap')),
   );
-  readonly size = computed<BadgeGroupSize>(() =>
-    normalizeSize(resolveConfigValue(this.sizeInput(), this.config()?.size, 'md')),
-  );
-  readonly selectable = computed(() =>
-    resolveConfigValue(this.selectableInput(), this.config()?.selectable, false),
-  );
-  readonly multiple = computed(() =>
-    resolveConfigValue(this.multipleInput(), this.config()?.multiple, true),
-  );
-  readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No hay elementos.'),
-  );
+  readonly size = computed<BadgeGroupSize>(() => normalizeSize(this.sizeInput() ?? 'md'));
+  readonly selectable = computed(() => this.selectableInput() ?? false);
+  readonly multiple = computed(() => this.multipleInput() ?? true);
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay elementos.');
 
   readonly badges = computed<readonly Badge[]>(() =>
     normalizeBadges(this.resolveSource(this.badgesInput(), this.config()?.badges)),
