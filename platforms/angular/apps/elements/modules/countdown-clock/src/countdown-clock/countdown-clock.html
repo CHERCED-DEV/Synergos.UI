@@ -1,7 +1,7 @@
 @if (hasTarget()) {
   <div class="countdown-clock" role="timer" [attr.aria-label]="ariaSummary()">
     @if (hasStarted()) {
-      <p class="countdown-clock__started" aria-live="polite">{{ startedLabel() }}</p>
+      <p class="countdown-clock__started">{{ startedLabel() }}</p>
     } @else {
       <ul class="countdown-clock__rings" aria-hidden="true">
         @for (segment of segments(); track segment.key) {
@@ -22,9 +22,11 @@
           </li>
         }
       </ul>
-      <p class="countdown-clock__sr" aria-live="polite">{{ ariaSummary() }}</p>
+      <p class="countdown-clock__sr">{{ ariaSummary() }}</p>
     }
   </div>
 } @else {
-  <p class="countdown-clock__invalid" role="status">{{ invalidLabel() }}</p>
+  <p class="countdown-clock__invalid">{{ invalidLabel() }}</p>
 }
+<!-- El reloj se DESCRIBE (role=timer, que calla) y sólo se anuncia al cruzar un hito (#82). -->
+<syn-live-region [message]="milestone()" />

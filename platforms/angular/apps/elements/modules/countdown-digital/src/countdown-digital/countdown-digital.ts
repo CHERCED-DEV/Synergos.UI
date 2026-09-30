@@ -8,8 +8,11 @@ import {
   signal,
 } from '@angular/core';
 import {
+  type CountdownMilestone,
+  LiveRegionComponent,
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
+  countdownMilestone,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
@@ -113,6 +116,19 @@ function sanitizeCountdownDigitalConfig(
   });
 }
 
+/**
+ * Lo que el reloj dice EN VOZ ALTA (#82): los mismos umbrales que `countdown-clock`. Antes, un
+ * `aria-live="polite"` sobre la frase del tiempo restante la anunciaba en cada tic. El tiempo
+ * exacto lo describe el `role="timer"` —que calla por definición— y en voz alta sólo se dicen
+ * estos umbrales, una vez cada uno. El último, «empezó», lo pone `startedLabel`.
+ */
+const MILESTONES: readonly CountdownMilestone[] = [
+  { atSeconds: DAY / SECOND, message: 'Falta menos de un día.' },
+  { atSeconds: HOUR / SECOND, message: 'Falta menos de una hora.' },
+  { atSeconds: (10 * MINUTE) / SECOND, message: 'Faltan menos de 10 minutos.' },
+  { atSeconds: MINUTE / SECOND, message: 'Falta menos de un minuto.' },
+];
+
 function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
 }
@@ -120,6 +136,7 @@ function padTwo(value: number): string {
 @Component({
   selector: 'sg-countdown-digital',
   standalone: true,
+  imports: [LiveRegionComponent],
   templateUrl: './countdown-digital.html',
   styleUrl: './countdown-digital.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -222,7 +239,10 @@ export class CountdownDigitalElementComponent {
     ];
   });
 
-  /** Screen-reader sentence rebuilt each tick under aria-live=polite. */
+  /**
+   * La frase del tiempo restante, rehecha en cada tic. DESCRIBE el reloj (el `aria-label` del
+   * `role="timer"` y el texto que se lee al recorrer la página); NO se anuncia — ver `milestone`.
+   */
   readonly ariaSummary = computed(() => {
     if (!this.hasTarget()) {
       return '';
@@ -233,6 +253,22 @@ export class CountdownDigitalElementComponent {
     return this.units()
       .map((unit) => `${unit.value} ${unit.label}`)
       .join(', ');
+  });
+
+  /**
+   * El hito cruzado, o `''`. Vale lo mismo durante toda una franja, así que sólo CAMBIA al cruzar
+   * un umbral — y `syn-live-region` sólo anuncia cambios. El primer valor, el de la carga, no se
+   * anuncia.
+   */
+  readonly milestone = computed(() => {
+    const remaining = this.remainingMs();
+    if (remaining === null) {
+      return '';
+    }
+    return countdownMilestone(Math.ceil(remaining / SECOND), [
+      ...MILESTONES,
+      { atSeconds: 0, message: this.startedLabel() },
+    ]);
   });
 
   constructor() {
