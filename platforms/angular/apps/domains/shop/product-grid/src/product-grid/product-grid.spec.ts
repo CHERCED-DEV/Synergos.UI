@@ -51,7 +51,14 @@ describe('product-grid — resultados y paginación (#82)', () => {
   });
 
   afterEach(() => {
-    http.verify();
+    // Con el reset en un `finally`: si `verify()` lanza —una petición sin responder, que es lo
+    // que deja un test que falló a mitad—, el TestBed quedaba instanciado y TODOS los tests
+    // siguientes del fichero caían en rojo por eso, tapando cuál mutación rompió qué.
+    try {
+      http.verify();
+    } finally {
+      TestBed.resetTestingModule();
+    }
   });
 
   function montar() {
