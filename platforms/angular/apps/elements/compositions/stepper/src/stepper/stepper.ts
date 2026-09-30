@@ -8,19 +8,17 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { StepperProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
-  coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynStepper</c>.
- *
- * A numbered progress indicator: a sequence of steps, each carrying a
+ * <synergos-stepper>: a numbered progress indicator — a sequence of steps, each carrying a
  * <c>done</c> / <c>active</c> / <c>pending</c> state derived from the
  * current position. Steps render as a numbered (or check-marked) marker
  * plus title + optional description, joined by connector lines.
@@ -31,16 +29,13 @@ import {
  * index and step id. Keyboard navigation (arrows / Home / End / Enter)
  * follows the tablist roving-tabindex pattern.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `StepperProps`, GENERADO del record C#
+ * (ADR 0135): `steps` es una LISTA ya parseada (`title` por paso) y `currentStep` un número.
+ * Esta cabecera decía «every CMS property is a TypeScript input with the same alias», y era
+ * falso: la vista mandaba el TEXTO `stepsJson` y `currentStep` como texto, y el indicador
+ * colocado salía vacío (D1). `orientation` y `linear` no los autora el editor: llegan por
+ * atributo, igual que `steps` como JSON (con `id`/`description`), que gana sobre el `config`.
  */
-export interface StepperRuntimeConfig {
-  readonly steps?: readonly StepperStepConfig[];
-  readonly currentStep?: number;
-  readonly orientation?: string;
-  readonly linear?: boolean;
-}
 
 export interface StepperStepConfig {
   readonly id?: string;
@@ -131,12 +126,11 @@ export function normalizeSteps(value: unknown): readonly StepperStepConfig[] {
     .filter((step): step is StepperStepConfig => step !== null);
 }
 
-function sanitizeStepperConfig(value: Partial<StepperRuntimeConfig>): StepperRuntimeConfig {
-  return omitUndefinedProperties<StepperRuntimeConfig>({
-    steps: value.steps,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeStepperConfig(value: Partial<StepperProps>): Partial<StepperProps> {
+  return omitUndefinedProperties<StepperProps>({
+    steps: Array.isArray(value.steps) ? value.steps : undefined,
     currentStep: typeof value.currentStep === 'number' ? value.currentStep : undefined,
-    orientation: coerceTrimmedStringInput(value.orientation),
-    linear: coerceOptionalBooleanInput(value.linear),
   });
 }
 
@@ -154,8 +148,8 @@ function sanitizeStepperConfig(value: Partial<StepperRuntimeConfig>): StepperRun
 export class StepperElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<StepperRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<StepperRuntimeConfig>(sanitizeStepperConfig),
+  readonly config = input<Partial<StepperProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<StepperProps>(sanitizeStepperConfig),
   });
   readonly stepsInput = input<string | undefined>(undefined, { alias: 'steps' });
   readonly currentStepInput = input<string | undefined>(undefined, { alias: 'currentStep' });
@@ -170,15 +164,11 @@ export class StepperElementComponent {
   readonly stepchange = output<StepperChangeDetail>();
 
   readonly orientation = computed<StepperOrientation>(() =>
-    normalizeOrientation(
-      resolveConfigValue(this.orientationInput(), this.config()?.orientation, 'horizontal'),
-    ),
+    normalizeOrientation(this.orientationInput()),
   );
 
   /** Linear steppers forbid jumping past pending steps. Defaults to true. */
-  readonly linear = computed(() =>
-    resolveConfigValue(this.linearInput(), this.config()?.linear, true),
-  );
+  readonly linear = computed(() => this.linearInput() ?? true);
 
   readonly steps = computed<readonly StepperStepConfig[]>(() =>
     normalizeSteps(this.resolveSource(this.stepsInput(), this.config()?.steps)),

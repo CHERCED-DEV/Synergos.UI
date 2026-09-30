@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { STEPPER_SYNHOST } from '@synergos/contracts';
 import { StepperElementComponent, type StepperChangeDetail, normalizeSteps } from './stepper';
 
 const STEPS = JSON.stringify([
@@ -50,6 +51,20 @@ describe('StepperElementComponent', () => {
     expect(component.resolvedSteps()[3].last).toBe(true);
   });
 
+  // D1: con `stepsJson` —el TEXTO que mandaba la vista— y `currentStep` como texto, el
+  // indicador salía vacío. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta los pasos que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = STEPPER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.resolvedSteps().map((s) => s.title)).toEqual(ejemplo.steps?.map((s) => s.title));
+    expect(component.activeIndex()).toBe(ejemplo.currentStep);
+    expect(component.resolvedSteps()[ejemplo.currentStep ?? 0].status).toBe('active');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(ejemplo.steps?.[0].title);
+  });
+
   it('should advance to a reachable step and emit stepchange (interaction case)', async () => {
     fixture.componentRef.setInput('steps', STEPS);
     fixture.componentRef.setInput('currentStep', '2');
@@ -74,14 +89,18 @@ describe('StepperElementComponent', () => {
     expect(component.activeIndex()).toBe(0);
   });
 
+  // El `config` trae lo que el editor autora (ADR 0135); la orientación y `linear` no las autora
+  // nadie en el CMS, así que son atributos. El atributo `currentStep` gana sobre el del `config`.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"orientation":"horizontal","linear":true}');
+    fixture.componentRef.setInput('config', '{"currentStep":3}');
+    fixture.componentRef.setInput('currentStep', '1');
     fixture.componentRef.setInput('orientation', 'vertical');
     fixture.componentRef.setInput('linear', false);
     fixture.componentRef.setInput('steps', STEPS);
     fixture.detectChanges();
     await fixture.whenStable();
 
+    expect(component.activeIndex()).toBe(1);
     expect(component.orientation()).toBe('vertical');
     expect(component.linear()).toBe(false);
 

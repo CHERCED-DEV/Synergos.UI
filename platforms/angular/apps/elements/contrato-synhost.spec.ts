@@ -5,6 +5,14 @@ import { sanitizeDropdownConfig } from './compositions/dropdown/src/dropdown/dro
 import { sanitizeCarouselConfig } from './modules/carousel/src/carousel/carousel';
 import { sanitizeRatingStarsConfig } from './compositions/rating-stars/src/rating-stars/rating-stars';
 import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
+import { sanitizeScrollTopConfig } from './primitives/scroll-top/src/scroll-top/scroll-top';
+import { sanitizeRangeSliderConfig } from './compositions/range-slider/src/range-slider/range-slider';
+import { sanitizeSelectMultiConfig } from './compositions/select-multi/src/select-multi/select-multi';
+import { sanitizeStepperConfig } from './compositions/stepper/src/stepper/stepper';
+import { sanitizeTabsConfig } from './compositions/tabs/src/tabs/tabs';
+import { sanitizeTimelineConfig } from './modules/timeline/src/timeline/timeline';
+import { sanitizeTourGuideConfig } from './modules/tour-guide/src/tour-guide/tour-guide';
+import { sanitizeTreeViewConfig } from './modules/tree-view/src/tree-view/tree-view';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -27,6 +35,14 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'kpi-card': createConfigInputTransform(sanitizeKpiCardConfig),
   'rating-stars': createConfigInputTransform(sanitizeRatingStarsConfig),
   tag: createConfigInputTransform(sanitizeTagConfig),
+  'scroll-top': createConfigInputTransform(sanitizeScrollTopConfig),
+  'range-slider': createConfigInputTransform(sanitizeRangeSliderConfig),
+  'select-multi': createConfigInputTransform(sanitizeSelectMultiConfig),
+  stepper: createConfigInputTransform(sanitizeStepperConfig),
+  tabs: createConfigInputTransform(sanitizeTabsConfig),
+  timeline: createConfigInputTransform(sanitizeTimelineConfig),
+  'tour-guide': createConfigInputTransform(sanitizeTourGuideConfig),
+  'tree-view': createConfigInputTransform(sanitizeTreeViewConfig),
 };
 
 type Config = Record<string, unknown>;

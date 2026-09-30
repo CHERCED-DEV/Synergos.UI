@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TIMELINE_SYNHOST } from '@synergos/contracts';
 import { TimelineElementComponent } from './timeline';
 
 const EVENTS = JSON.stringify([
@@ -51,16 +52,36 @@ describe('TimelineElementComponent', () => {
     expect(headings.length).toBe(3);
   });
 
+  // El `config` trae lo que el editor autora (ADR 0135); el título de la sección y el texto de
+  // «sin hitos» no los autora nadie en el CMS, así que son atributos.
   it('should let direct inputs override config (interaction / precedence case)', async () => {
-    fixture.componentRef.setInput('config', '{"title":"Config título","emptyLabel":"Vacío config"}');
+    fixture.componentRef.setInput('config', JSON.stringify({ events: [{ title: 'Del config' }] }));
+    fixture.componentRef.setInput('eventsJson', EVENTS);
     fixture.componentRef.setInput('title', 'Título directo');
+    fixture.componentRef.setInput('emptyLabel', 'Vacío');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.title()).toBe('Título directo');
-    // Unset input falls back to config value.
-    expect(component.emptyLabel()).toBe('Vacío config');
+    expect(component.emptyLabel()).toBe('Vacío');
     expect(component.hasTitle()).toBe(true);
+    // The eventsJson attribute wins over the config list.
+    expect(component.items().length).toBe(3);
+  });
+
+  // D1: con `eventsJson` —el TEXTO que mandaba la vista— la línea de tiempo salía sin hitos. Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta los hitos que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = TIMELINE_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.items().map((i) => i.title)).toEqual(ejemplo.events?.map((e) => e.title));
+    expect(component.items().map((i) => i.body)).toEqual(ejemplo.events?.map((e) => e.body));
+    expect(component.items().map((i) => i.date)).toEqual(ejemplo.events?.map((e) => e.date));
+    const cuerpos = (fixture.nativeElement as HTMLElement).querySelectorAll('.timeline__body');
+    expect(cuerpos.length).toBe(ejemplo.events?.length);
   });
 
   it('should produce identical output for identical inputs (idempotent case)', async () => {

@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { RANGE_SLIDER_SYNHOST } from '@synergos/contracts';
 import {
   RangeSliderElementComponent,
   type RangeChangeDetail,
@@ -55,6 +56,24 @@ describe('RangeSliderElementComponent', () => {
     expect(component.highPercent()).toBeCloseTo(85, 5);
   });
 
+  // D1: con `minValue`/`maxValue`/`initialValue` —el texto que mandaba la vista— el rango del
+  // editor salía de 0 a 100. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta el rango que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = RANGE_SLIDER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.min()).toBe(ejemplo.min);
+    expect(component.max()).toBe(ejemplo.max);
+    expect(component.step()).toBe(ejemplo.step);
+    expect(component.low()).toBe(ejemplo.min);
+    expect(component.high()).toBe(ejemplo.high);
+    const alto = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('.range-slider__input--high');
+    expect(alto?.max).toBe(String(ejemplo.max));
+  });
+
   it('should move a thumb and emit rangechange, keeping low <= high (interaction case)', async () => {
     fixture.componentRef.setInput('minValue', '0');
     fixture.componentRef.setInput('maxValue', '100');
@@ -77,8 +96,11 @@ describe('RangeSliderElementComponent', () => {
     expect(emitted).toEqual({ low: 50, high: 50 });
   });
 
+  // El `config` trae lo que el editor autora (ADR 0135); el modo de un solo pulgar no lo autora
+  // nadie en el CMS, así que es atributo.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"max":200,"step":5,"range":false}');
+    fixture.componentRef.setInput('config', '{"max":200,"step":5}');
+    fixture.componentRef.setInput('range', 'false');
     fixture.componentRef.setInput('maxValue', '500');
     fixture.detectChanges();
     await fixture.whenStable();

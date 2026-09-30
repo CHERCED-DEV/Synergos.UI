@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TOUR_GUIDE_SYNHOST } from '@synergos/contracts';
 import {
   TourGuideElementComponent,
   type TourLifecycleDetail,
@@ -55,6 +56,20 @@ describe('TourGuideElementComponent', () => {
     expect(component.skipLabel()).toBe('Saltar');
   });
 
+  // D1: con `stepsJson` —el TEXTO que mandaba la vista— el recorrido no tenía pasos. Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('recorre los pasos que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = TOUR_GUIDE_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.autoStart()).toBe(ejemplo.autoStart);
+    expect(component.steps().map((p) => p.target)).toEqual(ejemplo.steps?.map((p) => p.target));
+    expect(component.steps().map((p) => p.title)).toEqual(ejemplo.steps?.map((p) => p.title));
+    expect(component.steps().map((p) => p.body)).toEqual(ejemplo.steps?.map((p) => p.body));
+  });
+
   it('should advance, emit tourstep, and complete on the last step (interaction case)', async () => {
     fixture.componentRef.setInput('steps', STEPS);
     fixture.detectChanges();
@@ -88,16 +103,16 @@ describe('TourGuideElementComponent', () => {
     expect(steps.some((detail) => detail.step.title === 'Bienvenido')).toBe(true);
   });
 
+  // El `config` trae lo que el editor autora (ADR 0135); los rótulos de los botones no los autora
+  // nadie en el CMS, así que son atributos.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"skipLabel":"Omitir","nextLabel":"Avanzar","steps":[{"title":"Hola","body":"X"}]}',
-    );
+    fixture.componentRef.setInput('config', '{"steps":[{"title":"Hola","body":"X"}]}');
     fixture.componentRef.setInput('skipLabel', 'Cerrar');
+    fixture.componentRef.setInput('nextLabel', 'Avanzar');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    // Attribute wins over config; config supplies the unset value.
+    // Labels come from attributes; the steps from the config.
     expect(component.skipLabel()).toBe('Cerrar');
     expect(component.nextLabel()).toBe('Avanzar');
     expect(component.total()).toBe(1);

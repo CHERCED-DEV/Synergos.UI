@@ -42,6 +42,44 @@ export interface DropdownOption {
   readonly href?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: SelectMultiItem). */
+export interface SelectMultiItem {
+  readonly value: string;
+  readonly label: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: StepperItem). */
+export interface StepperItem {
+  readonly title: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: TabsItem). */
+export interface TabsItem {
+  readonly label: string;
+  readonly id?: string;
+  readonly content?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: TimelineEntry). */
+export interface TimelineEntry {
+  readonly date?: string;
+  readonly title?: string;
+  readonly body?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: TourGuideStep). */
+export interface TourGuideStep {
+  readonly target?: string;
+  readonly title?: string;
+  readonly body?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: TreeViewNode). */
+export interface TreeViewNode {
+  readonly label: string;
+  readonly children?: readonly TreeViewNode[];
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -78,6 +116,20 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
+/** <synergos-range-slider> · pieza */
+export interface RangeSliderProps {
+  /** contenido */
+  readonly label?: string;
+  /** decision */
+  readonly min?: number;
+  /** decision */
+  readonly max?: number;
+  /** decision */
+  readonly step?: number;
+  /** decision */
+  readonly high?: number;
+}
+
 /** <synergos-rating-stars> · pieza */
 export interface RatingStarsProps {
   /** contenido */
@@ -88,12 +140,72 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-scroll-top> · pieza */
+export interface ScrollTopProps {
+  /** decision */
+  readonly scrollThreshold?: number;
+  /** decision */
+  readonly position?: string;
+  /** contenido */
+  readonly label?: string;
+}
+
+/** <synergos-select-multi> · pieza */
+export interface SelectMultiProps {
+  /** contenido */
+  readonly label?: string;
+  /** contenido */
+  readonly options?: readonly SelectMultiItem[];
+  /** decision */
+  readonly maxSelections?: number;
+}
+
+/** <synergos-stepper> · pieza */
+export interface StepperProps {
+  /** contenido */
+  readonly steps?: readonly StepperItem[];
+  /** decision */
+  readonly currentStep?: number;
+}
+
+/** <synergos-tabs> · pieza */
+export interface TabsProps {
+  /** contenido */
+  readonly tabs?: readonly TabsItem[];
+  /** decision */
+  readonly initialTab?: string;
+}
+
 /** <synergos-tag> · pieza */
 export interface TagProps {
   /** contenido */
   readonly label?: string;
   /** decision */
   readonly color?: string;
+}
+
+/** <synergos-timeline> · pieza */
+export interface TimelineProps {
+  /** contenido */
+  readonly events?: readonly TimelineEntry[];
+}
+
+/** <synergos-tour-guide> · pieza */
+export interface TourGuideProps {
+  /** contenido */
+  readonly steps?: readonly TourGuideStep[];
+  /** decision */
+  readonly autoStart?: boolean;
+}
+
+/** <synergos-tree-view> · pieza */
+export interface TreeViewProps {
+  /** contenido */
+  readonly tree?: readonly TreeViewNode[];
+  /** decision */
+  readonly expandAll?: boolean;
+  /** contenido */
+  readonly label?: string;
 }
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
@@ -165,6 +277,23 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
+  nombre: "range-slider",
+  tipo: "pieza",
+  record: "RangeSliderProps",
+  diccionario: [],
+  campos: ["label","min","max","step","high"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Precio por noche",
+    "min": 50000,
+    "max": 500000,
+    "step": 10000,
+    "high": 250000
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -177,6 +306,98 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
     "value": 4,
     "max": 5,
     "label": "Valoración de los huéspedes"
+  },
+};
+
+export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
+  nombre: "scroll-top",
+  tipo: "pieza",
+  record: "ScrollTopProps",
+  diccionario: [],
+  campos: ["scrollThreshold","position","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "scrollThreshold": 400,
+    "position": "bottom-left",
+    "label": "Subir al inicio"
+  },
+};
+
+export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
+  nombre: "select-multi",
+  tipo: "pieza",
+  record: "SelectMultiProps",
+  diccionario: [],
+  campos: ["label","options","maxSelections"],
+  listas: {"options":["value","label"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "label": "Amenidades",
+    "options": [
+      {
+        "value": "piscina",
+        "label": "Piscina"
+      },
+      {
+        "value": "gym",
+        "label": "Gimnasio"
+      },
+      {
+        "value": "bbq",
+        "label": "Zona BBQ"
+      }
+    ],
+    "maxSelections": 2
+  },
+};
+
+export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
+  nombre: "stepper",
+  tipo: "pieza",
+  record: "StepperProps",
+  diccionario: [],
+  campos: ["steps","currentStep"],
+  listas: {"steps":["title"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "steps": [
+      {
+        "title": "Datos"
+      },
+      {
+        "title": "Pago"
+      },
+      {
+        "title": "Confirmación"
+      }
+    ],
+    "currentStep": 1
+  },
+};
+
+export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
+  nombre: "tabs",
+  tipo: "pieza",
+  record: "TabsProps",
+  diccionario: [],
+  campos: ["tabs","initialTab"],
+  listas: {"tabs":["label","id","content"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "tabs": [
+      {
+        "label": "Resumen",
+        "id": "resumen",
+        "content": "Lo esencial de la estadía."
+      },
+      {
+        "label": "Precios",
+        "id": "precios",
+        "content": "Desde $120.000 por noche."
+      }
+    ],
+    "initialTab": "precios"
   },
 };
 
@@ -194,11 +415,103 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   },
 };
 
+export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
+  nombre: "timeline",
+  tipo: "pieza",
+  record: "TimelineProps",
+  diccionario: [],
+  campos: ["events"],
+  listas: {"events":["date","title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "events": [
+      {
+        "date": "2019-03-01",
+        "title": "Fundación",
+        "body": "Abrimos la primera sede en Medellín."
+      },
+      {
+        "date": "2024",
+        "title": "Segunda sede",
+        "body": "Llegamos a Bogotá."
+      }
+    ]
+  },
+};
+
+export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
+  nombre: "tour-guide",
+  tipo: "pieza",
+  record: "TourGuideProps",
+  diccionario: [],
+  campos: ["steps","autoStart"],
+  listas: {"steps":["target","title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "steps": [
+      {
+        "target": ".site-header",
+        "title": "Bienvenido",
+        "body": "Este es el menú principal."
+      },
+      {
+        "target": "#buscar",
+        "title": "Buscá",
+        "body": "Encontrá cualquier cosa desde acá."
+      }
+    ],
+    "autoStart": true
+  },
+};
+
+export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
+  nombre: "tree-view",
+  tipo: "pieza",
+  record: "TreeViewProps",
+  diccionario: [],
+  campos: ["tree","expandAll","label"],
+  listas: {"tree":["label","children"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "tree": [
+      {
+        "label": "Productos",
+        "children": [
+          {
+            "label": "Hogar",
+            "children": [
+              {
+                "label": "Cocina"
+              }
+            ]
+          },
+          {
+            "label": "Jardín"
+          }
+        ]
+      },
+      {
+        "label": "Servicios"
+      }
+    ],
+    "expandAll": true,
+    "label": "Catálogo de la tienda"
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
+  RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
+  SCROLL_TOP_SYNHOST,
+  SELECT_MULTI_SYNHOST,
+  STEPPER_SYNHOST,
+  TABS_SYNHOST,
   TAG_SYNHOST,
+  TIMELINE_SYNHOST,
+  TOUR_GUIDE_SYNHOST,
+  TREE_VIEW_SYNHOST,
 ] as const;

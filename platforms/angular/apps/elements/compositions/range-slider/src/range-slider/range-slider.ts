@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { RangeSliderProps } from '@synergos/contracts';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -16,31 +17,21 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynRangeSlider</c>.
+ * <synergos-range-slider>: a dual-thumb range slider that lets a visitor pick a low/high bound
+ * inside a numeric domain. Built for faceted filters (price/area/age) in the PROPIEDADES and
+ * TIENDA verticals. Single-thumb mode is available by setting `range` to false — then only the
+ * high thumb is used as the value.
  *
- * A dual-thumb range slider that lets a visitor pick a low/high bound inside
- * a numeric domain. Built for faceted filters (price/area/age) in the
- * PROPIEDADES and TIENDA verticals. Single-thumb mode is available by setting
- * `range` to false — then only the high thumb is used as the value.
+ * El `config` que manda el CMS tiene la forma de `RangeSliderProps`, GENERADO del record C#
+ * (ADR 0135): `label`, y `min`/`max`/`step`/`high` como NÚMEROS. Esta cabecera decía
+ * «every CMS property is a TypeScript input with the same alias», y era falso: la vista mandaba
+ * `minValue`/`maxValue`/`initialValue` como texto y el rango del editor salía de 0 a 100 (D1).
+ * `range`, `prefix` y `suffix` —y el par `low,high` de `initialValue`— no los autora el
+ * editor: llegan por atributo, que gana sobre el `config`.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
- *
- * Selecting a value emits a `rangechange` CustomEvent with the resolved
- * `{ low, high }` pair (clamped + snapped to `step`).
+ * Selecting a value emits a `rangechange` CustomEvent with the resolved `{ low, high }` pair
+ * (clamped + snapped to `step`).
  */
-export interface RangeSliderRuntimeConfig {
-  readonly label?: string;
-  readonly min?: number;
-  readonly max?: number;
-  readonly step?: number;
-  readonly low?: number;
-  readonly high?: number;
-  readonly range?: boolean;
-  readonly prefix?: string;
-  readonly suffix?: string;
-}
 
 /** Emitted on the `rangechange` CustomEvent and the typed Angular output. */
 export interface RangeChangeDetail {
@@ -78,24 +69,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function sanitizeRangeSliderConfig(
-  value: Partial<RangeSliderRuntimeConfig>,
-): RangeSliderRuntimeConfig {
-  return omitUndefinedProperties<RangeSliderRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeRangeSliderConfig(value: Partial<RangeSliderProps>): Partial<RangeSliderProps> {
+  return omitUndefinedProperties<RangeSliderProps>({
     label: coerceTrimmedStringInput(value.label),
     min: coerceOptionalNumberInput(value.min),
     max: coerceOptionalNumberInput(value.max),
     step: coerceOptionalNumberInput(value.step),
-    low: coerceOptionalNumberInput(value.low),
     high: coerceOptionalNumberInput(value.high),
-    range: typeof value.range === 'boolean' ? value.range : undefined,
-    prefix: coerceTrimmedStringInput(value.prefix),
-    suffix: coerceTrimmedStringInput(value.suffix),
   });
 }
 
-/** Parse a boolean-ish attribute ("false"/"0"/"no" → false). */
-function parseBoolean(raw: string | undefined, configValue: boolean | undefined): boolean {
+/** Parse a boolean-ish attribute ("false"/"0"/"no" → false); dual-thumb when absent. */
+function parseBoolean(raw: string | undefined): boolean {
   if (raw !== undefined) {
     const normalized = raw.trim().toLowerCase();
     if (normalized === '' || normalized === 'false' || normalized === '0' || normalized === 'no') {
@@ -103,7 +89,7 @@ function parseBoolean(raw: string | undefined, configValue: boolean | undefined)
     }
     return true;
   }
-  return configValue ?? true;
+  return true;
 }
 
 @Component({
@@ -115,8 +101,8 @@ function parseBoolean(raw: string | undefined, configValue: boolean | undefined)
   host: { class: 'sg-range-slider' },
 })
 export class RangeSliderElementComponent {
-  readonly config = input<RangeSliderRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<RangeSliderRuntimeConfig>(sanitizeRangeSliderConfig),
+  readonly config = input<Partial<RangeSliderProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<RangeSliderProps>(sanitizeRangeSliderConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly minInput = input<string | undefined>(undefined, { alias: 'minValue' });
@@ -135,16 +121,12 @@ export class RangeSliderElementComponent {
     resolveConfigValue(coerceTrimmedStringInput(this.labelInput()), this.config()?.label, ''),
   );
 
-  readonly prefix = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.prefixInput()), this.config()?.prefix, ''),
-  );
+  readonly prefix = computed(() => coerceTrimmedStringInput(this.prefixInput()) ?? '');
 
-  readonly suffix = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.suffixInput()), this.config()?.suffix, ''),
-  );
+  readonly suffix = computed(() => coerceTrimmedStringInput(this.suffixInput()) ?? '');
 
   /** Dual-thumb when true; single (high) thumb otherwise. */
-  readonly isRange = computed(() => parseBoolean(this.rangeInput(), this.config()?.range));
+  readonly isRange = computed(() => parseBoolean(this.rangeInput()));
 
   readonly min = computed(() =>
     toFiniteNumber(
@@ -184,7 +166,7 @@ export class RangeSliderElementComponent {
     const max = this.max();
     const step = this.step();
 
-    let lowRaw: number | undefined = this.config()?.low;
+    let lowRaw: number | undefined;
     let highRaw: number | undefined = this.config()?.high;
 
     const raw = coerceTrimmedStringInput(this.initialValueInput());

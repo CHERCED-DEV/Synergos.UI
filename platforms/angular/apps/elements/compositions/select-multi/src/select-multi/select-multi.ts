@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { SelectMultiProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -17,33 +18,19 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynSelectMulti</c>.
- *
- * An accessible multi-select: a searchable, keyboard-navigable
- * `role="listbox"` (multiselectable) whose chosen values render as
- * removable chips. Built for faceted forms and tag pickers across the
- * verticals. Options are supplied inline via `optionsJson` (or `options`
- * in the config object). Each commit emits a `valueschange`
+ * <synergos-select-multi>: an accessible multi-select — a searchable, keyboard-navigable
+ * `role="listbox"` (multiselectable) whose chosen values render as removable chips. Built for
+ * faceted forms and tag pickers across the verticals. Each commit emits a `valueschange`
  * CustomEvent carrying the selected values.
  *
- * Bridge contract: every CMS property is a TypeScript input with the
- * same alias. A `config` object (JSON) is also accepted; explicit
- * attributes win over `config`, which wins over defaults (see
- * `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `SelectMultiProps`, GENERADO del record C#
+ * (ADR 0135): `options` es una LISTA que el CMS ya parseó, y `maxSelections` un número. Esta
+ * cabecera decía «every CMS property is a TypeScript input with the same alias», y era falso: la
+ * vista mandaba el TEXTO `optionsJson`, este elemento leía la lista `options`, y el
+ * multiselector colocado salía sin opciones (D1). El atributo `optionsJson` sigue existiendo
+ * para quien monte el elemento a mano (y admite `disabled` por opción); `placeholder` y
+ * `emptyLabel` no los autora el editor: son atributos. Los atributos ganan sobre el `config`.
  */
-export interface SelectMultiRuntimeConfig {
-  readonly label?: string;
-  readonly placeholder?: string;
-  readonly emptyLabel?: string;
-  readonly maxSelections?: number;
-  readonly options?: readonly SelectMultiOptionConfig[];
-}
-
-export interface SelectMultiOptionConfig {
-  readonly value?: string;
-  readonly label?: string;
-  readonly disabled?: boolean;
-}
 
 export interface SelectMultiOption {
   readonly value: string;
@@ -122,15 +109,12 @@ export function normalizeOptions(value: unknown): readonly SelectMultiOption[] {
   return result;
 }
 
-function sanitizeSelectMultiConfig(
-  value: Partial<SelectMultiRuntimeConfig>,
-): SelectMultiRuntimeConfig {
-  return omitUndefinedProperties<SelectMultiRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeSelectMultiConfig(value: Partial<SelectMultiProps>): Partial<SelectMultiProps> {
+  return omitUndefinedProperties<SelectMultiProps>({
     label: coerceTrimmedStringInput(value.label),
-    placeholder: coerceTrimmedStringInput(value.placeholder),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
+    options: Array.isArray(value.options) ? value.options : undefined,
     maxSelections: coerceOptionalNumberInput(value.maxSelections),
-    options: value.options,
   });
 }
 
@@ -145,8 +129,8 @@ function sanitizeSelectMultiConfig(
 export class SelectMultiElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<SelectMultiRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<SelectMultiRuntimeConfig>(sanitizeSelectMultiConfig),
+  readonly config = input<Partial<SelectMultiProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<SelectMultiProps>(sanitizeSelectMultiConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly placeholderInput = input<string | undefined>(undefined, { alias: 'placeholder' });
@@ -170,12 +154,8 @@ export class SelectMultiElementComponent {
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
-  readonly placeholder = computed(() =>
-    resolveConfigValue(this.placeholderInput(), this.config()?.placeholder, 'Buscar opciones…'),
-  );
-  readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'Sin coincidencias.'),
-  );
+  readonly placeholder = computed(() => this.placeholderInput() ?? 'Buscar opciones…');
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'Sin coincidencias.');
 
   /** 0 (or negative) means unlimited selections. */
   readonly maxSelections = computed(() => {
