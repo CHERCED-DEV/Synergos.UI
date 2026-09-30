@@ -74,6 +74,12 @@ export interface TourGuideStep {
   readonly body?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: TreeViewNode). */
+export interface TreeViewNode {
+  readonly label: string;
+  readonly children?: readonly TreeViewNode[];
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -190,6 +196,16 @@ export interface TourGuideProps {
   readonly steps?: readonly TourGuideStep[];
   /** decision */
   readonly autoStart?: boolean;
+}
+
+/** <synergos-tree-view> · pieza */
+export interface TreeViewProps {
+  /** contenido */
+  readonly tree?: readonly TreeViewNode[];
+  /** decision */
+  readonly expandAll?: boolean;
+  /** contenido */
+  readonly label?: string;
 }
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
@@ -448,6 +464,41 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   },
 };
 
+export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
+  nombre: "tree-view",
+  tipo: "pieza",
+  record: "TreeViewProps",
+  diccionario: [],
+  campos: ["tree","expandAll","label"],
+  listas: {"tree":["label","children"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "tree": [
+      {
+        "label": "Productos",
+        "children": [
+          {
+            "label": "Hogar",
+            "children": [
+              {
+                "label": "Cocina"
+              }
+            ]
+          },
+          {
+            "label": "Jardín"
+          }
+        ]
+      },
+      {
+        "label": "Servicios"
+      }
+    ],
+    "expandAll": true,
+    "label": "Catálogo de la tienda"
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
@@ -462,4 +513,5 @@ export const ELEMENTOS_SYNHOST = [
   TAG_SYNHOST,
   TIMELINE_SYNHOST,
   TOUR_GUIDE_SYNHOST,
+  TREE_VIEW_SYNHOST,
 ] as const;

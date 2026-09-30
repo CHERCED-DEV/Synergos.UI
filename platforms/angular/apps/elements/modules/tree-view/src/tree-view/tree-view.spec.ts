@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TREE_VIEW_SYNHOST } from '@synergos/contracts';
 import {
   TreeViewElementComponent,
   type TreeNodeSelectDetail,
@@ -91,6 +92,23 @@ describe('TreeViewElementComponent', () => {
     component.toggle(branch);
     expect(component.isExpanded(branch)).toBe(false);
     expect(component.visibleNodes().map((node) => node.id)).not.toContain('docs-a');
+  });
+
+  // D1: con `treeJson` —el TEXTO que mandaba la vista— el árbol salía vacío. Éste alimenta el
+  // `config` EXACTO que emite hoy la vista del CMS: expandAll abre las ramas, a cualquier nivel.
+  it('pinta el árbol que autoró el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = TREE_VIEW_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const aplanar = (nodos: readonly { label: string; children?: readonly unknown[] }[]): string[] =>
+      nodos.flatMap((n) => [n.label, ...aplanar((n.children ?? []) as never)]);
+    expect(component.expandAll()).toBe(ejemplo.expandAll);
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.visibleNodes().map((n) => n.label)).toEqual(aplanar(ejemplo.tree ?? []));
+    const arbol = (fixture.nativeElement as HTMLElement).querySelector('[role="tree"]');
+    expect(arbol?.getAttribute('aria-label')).toBe(ejemplo.label);
   });
 
   it('should let direct inputs override config (idempotent precedence)', async () => {

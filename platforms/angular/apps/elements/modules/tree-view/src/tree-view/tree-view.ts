@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { TreeViewProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -17,36 +18,18 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynTreeView</c>.
- *
- * A hierarchical, accessible tree: nodes expand/collapse, a single node is
+ * <synergos-tree-view>: a hierarchical, accessible tree: nodes expand/collapse, a single node is
  * selectable, and the whole tree is operable from the keyboard following the
  * WAI-ARIA `tree` pattern (roving tabindex). Built for navigation trees,
  * category browsers and file/folder explorers across verticals.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
- *
- * The shared `@synergos/contracts` package does not (yet) declare a
- * `TreeViewElementConfig`; the canonical shape lives here next to the
- * component until that contract lands in the registry ola.
+ * El `config` que manda el CMS tiene la forma de `TreeViewProps`, GENERADO del record C#
+ * (ADR 0135): `tree` es un ÁRBOL ya parseado (`label`, `children`), `expandAll` y `label`, el
+ * nombre accesible. Esta cabecera decía «every CMS property is a TypeScript input with the same
+ * alias», y era falso: la vista mandaba el TEXTO `treeJson` y el árbol colocado salía vacío
+ * (D1). El atributo `treeJson` sigue existiendo para quien monte el elemento a mano (y admite
+ * `id`/`href`/`icon`/`expanded` por nodo); `emptyLabel` no lo autora el editor: es atributo.
  */
-export interface TreeViewRuntimeConfig {
-  readonly label?: string;
-  readonly emptyLabel?: string;
-  readonly expandAll?: boolean;
-  readonly tree?: readonly TreeNodeConfig[];
-}
-
-export interface TreeNodeConfig {
-  readonly id?: string;
-  readonly label?: string;
-  readonly href?: string;
-  readonly icon?: string;
-  readonly expanded?: boolean;
-  readonly children?: readonly TreeNodeConfig[];
-}
 
 /** Emitted on the `nodeselect` CustomEvent and the typed Angular output. */
 export interface TreeNodeSelectDetail {
@@ -139,12 +122,12 @@ export function normalizeTree(value: unknown, path = 'n'): readonly NormalizedNo
     .filter((node): node is NormalizedNode => node !== null);
 }
 
-function sanitizeTreeViewConfig(value: Partial<TreeViewRuntimeConfig>): TreeViewRuntimeConfig {
-  return omitUndefinedProperties<TreeViewRuntimeConfig>({
-    label: coerceTrimmedStringInput(value.label),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeTreeViewConfig(value: Partial<TreeViewProps>): Partial<TreeViewProps> {
+  return omitUndefinedProperties<TreeViewProps>({
+    tree: Array.isArray(value.tree) ? value.tree : undefined,
     expandAll: coerceOptionalBooleanInput(value.expandAll),
-    tree: value.tree,
+    label: coerceTrimmedStringInput(value.label),
   });
 }
 
@@ -159,8 +142,8 @@ function sanitizeTreeViewConfig(value: Partial<TreeViewRuntimeConfig>): TreeView
 export class TreeViewElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<TreeViewRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TreeViewRuntimeConfig>(sanitizeTreeViewConfig),
+  readonly config = input<Partial<TreeViewProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TreeViewProps>(sanitizeTreeViewConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
@@ -177,9 +160,7 @@ export class TreeViewElementComponent {
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, 'Árbol de navegación'),
   );
-  readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No hay elementos para mostrar.'),
-  );
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay elementos para mostrar.');
   readonly expandAll = computed(() =>
     resolveConfigValue(this.expandAllInput(), this.config()?.expandAll, false),
   );
