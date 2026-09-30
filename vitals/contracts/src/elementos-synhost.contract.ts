@@ -53,6 +53,12 @@ export interface CarouselSlide {
   readonly label?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: ColorSwatchesItem). */
+export interface ColorSwatchesItem {
+  readonly color: string;
+  readonly label?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: DropdownOption). */
 export interface DropdownOption {
   readonly value: string;
@@ -92,6 +98,14 @@ export interface CarouselProps {
   readonly autoplay?: boolean;
   /** decision */
   readonly interval?: number;
+}
+
+/** <synergos-color-swatches> · pieza */
+export interface ColorSwatchesProps {
+  /** contenido */
+  readonly swatches?: readonly ColorSwatchesItem[];
+  /** decision */
+  readonly shape?: string;
 }
 
 /** <synergos-dropdown> · pieza */
@@ -236,6 +250,29 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   },
 };
 
+export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
+  nombre: "color-swatches",
+  tipo: "pieza",
+  record: "ColorSwatchesProps",
+  diccionario: [],
+  campos: ["swatches","shape"],
+  listas: {"swatches":["color","label"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "swatches": [
+      {
+        "color": "#1e3a8a",
+        "label": "Azul noche"
+      },
+      {
+        "color": "#f97316",
+        "label": "Naranja"
+      }
+    ],
+    "shape": "circle"
+  },
+};
+
 export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
   tipo: "pieza",
@@ -314,6 +351,7 @@ export const ELEMENTOS_SYNHOST = [
   BADGE_GROUP_SYNHOST,
   BREADCRUMB_SYNHOST,
   CAROUSEL_SYNHOST,
+  COLOR_SWATCHES_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
