@@ -88,6 +88,16 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-scroll-top> · pieza */
+export interface ScrollTopProps {
+  /** decision */
+  readonly scrollThreshold?: number;
+  /** decision */
+  readonly position?: string;
+  /** contenido */
+  readonly label?: string;
+}
+
 /** <synergos-tag> · pieza */
 export interface TagProps {
   /** contenido */
@@ -180,6 +190,21 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   },
 };
 
+export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
+  nombre: "scroll-top",
+  tipo: "pieza",
+  record: "ScrollTopProps",
+  diccionario: [],
+  campos: ["scrollThreshold","position","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "scrollThreshold": 400,
+    "position": "bottom-left",
+    "label": "Subir al inicio"
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -200,5 +225,6 @@ export const ELEMENTOS_SYNHOST = [
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
+  SCROLL_TOP_SYNHOST,
   TAG_SYNHOST,
 ] as const;

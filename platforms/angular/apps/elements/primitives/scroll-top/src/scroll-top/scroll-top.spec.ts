@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SCROLL_TOP_SYNHOST } from '@synergos/contracts';
 import { ScrollTopElementComponent } from './scroll-top';
 
 describe('ScrollTopElementComponent', () => {
@@ -36,6 +37,21 @@ describe('ScrollTopElementComponent', () => {
     expect(component.threshold()).toBe(100);
     expect(component.position()).toBe('bottom-left');
     expect(component.label()).toBe('Input label');
+  });
+
+  // D1: con `ariaLabel` —lo que mandaba la vista— el botón decía siempre «Volver arriba». Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta el nombre accesible que escribió el editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = SCROLL_TOP_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.threshold()).toBe(ejemplo.scrollThreshold);
+    expect(component.position()).toBe(ejemplo.position);
+    const boton = (fixture.nativeElement as HTMLElement).querySelector('button');
+    expect(boton?.getAttribute('aria-label')).toBe(ejemplo.label);
   });
 
   it('should emit scrolltotop and scroll the window on activate (interaction case)', async () => {

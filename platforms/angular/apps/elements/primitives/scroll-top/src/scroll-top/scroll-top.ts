@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { ScrollTopProps } from '@synergos/contracts';
 import {
   coerceStringEnumInput,
   coerceTrimmedStringInput,
@@ -17,22 +18,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynScrollTop</c>.
+ * <synergos-scroll-top>: a floating "back to top" button. It stays hidden until the page is
+ * scrolled past `scrollThreshold` pixels, then fades in. Activating it (click, Enter or Space)
+ * scrolls the window smoothly to the top — honoring `prefers-reduced-motion`. A `scrolltotop`
+ * CustomEvent is emitted on activate.
  *
- * A floating "back to top" button. It stays hidden until the page is scrolled
- * past `scrollThreshold` pixels, then fades in. Activating it (click, Enter or
- * Space) scrolls the window smoothly to the top — honoring
- * `prefers-reduced-motion`. A `scrolltotop` CustomEvent is emitted on activate.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `ScrollTopProps`, GENERADO del record C#
+ * (ADR 0135). Esta cabecera decía «every CMS property is a TypeScript input with the same
+ * alias», y era falso: la vista mandaba `ariaLabel` y este elemento lee `label`, así que el
+ * nombre accesible que escribió el editor se tiraba al hidratar (D1). Los atributos ganan sobre
+ * el `config`, que gana sobre los defaults.
  */
-export interface ScrollTopRuntimeConfig {
-  readonly scrollThreshold?: number;
-  readonly position?: ScrollTopPosition;
-  readonly label?: string;
-}
 
 export type ScrollTopPosition = 'bottom-right' | 'bottom-left' | 'bottom-center';
 
@@ -66,8 +62,9 @@ export function normalizePosition(value: unknown): ScrollTopPosition | undefined
   return coerceStringEnumInput<ScrollTopPosition>(value, POSITIONS);
 }
 
-function sanitizeScrollTopConfig(value: Partial<ScrollTopRuntimeConfig>): ScrollTopRuntimeConfig {
-  return omitUndefinedProperties<ScrollTopRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeScrollTopConfig(value: Partial<ScrollTopProps>): Partial<ScrollTopProps> {
+  return omitUndefinedProperties<ScrollTopProps>({
     scrollThreshold: normalizeThreshold(value.scrollThreshold),
     position: normalizePosition(value.position),
     label: coerceTrimmedStringInput(value.label),
@@ -89,8 +86,8 @@ function sanitizeScrollTopConfig(value: Partial<ScrollTopRuntimeConfig>): Scroll
 export class ScrollTopElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<ScrollTopRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<ScrollTopRuntimeConfig>(sanitizeScrollTopConfig),
+  readonly config = input<Partial<ScrollTopProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<ScrollTopProps>(sanitizeScrollTopConfig),
   });
   readonly scrollThresholdInput = input<string | undefined>(undefined, { alias: 'scrollThreshold' });
   readonly positionInput = input<string | undefined>(undefined, { alias: 'position' });
@@ -111,7 +108,7 @@ export class ScrollTopElementComponent {
   readonly position = computed<ScrollTopPosition>(() =>
     resolveConfigValue(
       normalizePosition(this.positionInput()),
-      this.config()?.position,
+      normalizePosition(this.config()?.position),
       DEFAULT_POSITION,
     ),
   );
