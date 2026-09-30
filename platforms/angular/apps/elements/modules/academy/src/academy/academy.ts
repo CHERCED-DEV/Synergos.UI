@@ -63,6 +63,7 @@ import {
   type WalletCredential,
 } from '@synergos/shells';
 import {
+  SegmentedComponent,
   TabsComponent,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -167,6 +168,14 @@ const ROLES: readonly { key: AcademyRole; label: string }[] = [
   { key: 'instructor', label: 'Soy instructor' },
 ];
 
+type PaymentMethod = 'card' | 'pse';
+
+/** Los métodos de pago de la inscripción, en el orden en que los pinta `syn-segmented` (#83). */
+const PAYMENT_METHODS: readonly { readonly value: PaymentMethod; readonly label: string }[] = [
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'pse', label: 'PSE' },
+];
+
 const SORT_OPTIONS: readonly DiscoverySortOption[] = [
   { key: 'relevance', label: 'Más relevantes' },
   { key: 'rating', label: 'Mejor valorados' },
@@ -228,6 +237,7 @@ let academyInstanceId = 0;
     ConsoleShellComponent,
     AuthoringWizardComponent,
     TabsComponent,
+    SegmentedComponent,
     NgTemplateOutlet,
     SynSkeletonComponent,
     SynErrorStateComponent,
@@ -381,7 +391,8 @@ export class AcademyElementComponent {
   // Prellenados desde el host: con sesión, el CMS ya dijo quién es (#17).
   readonly studentName = signal(this.#identity.displayName());
   readonly studentEmail = signal(this.#identity.email());
-  readonly paymentMethod = signal<'card' | 'pse'>('card');
+  readonly paymentMethods = PAYMENT_METHODS;
+  readonly paymentMethod = signal<PaymentMethod>('card');
 
   // Enrolment result
   readonly enrollmentId = signal('');
@@ -1260,8 +1271,15 @@ export class AcademyElementComponent {
     void (stepId as EnrollStep);
   }
 
-  setPaymentMethod(method: 'card' | 'pse'): void {
-    this.paymentMethod.set(method);
+  /**
+   * Lo llama `syn-segmented`, que emite su `value` como string: sólo entra un método
+   * de la lista, y cualquier otra cosa se ignora en vez de viajar al cobro.
+   */
+  setPaymentMethod(value: string): void {
+    const method = PAYMENT_METHODS.find((option) => option.value === value)?.value;
+    if (method) {
+      this.paymentMethod.set(method);
+    }
   }
 
   onEnrollExit(): void {

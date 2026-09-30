@@ -247,6 +247,54 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── #83: el método de pago lo pinta `syn-segmented` ─────────────────────────────
+  //
+  // Era un `role="radiogroup"` cuyos hijos eran <button> SIN `role="radio"`: el lector
+  // anunciaba un grupo de opciones sin opciones, y ninguna marcada. Se busca por ROL y
+  // NOMBRE, y lo que se mira al final es el instrumento que recibe el `pay`.
+  it('el método de pago es un radiogroup CON radios y el elegido llega al instrumento (#83)', async () => {
+    Element.prototype.scrollIntoView = vi.fn();
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.openCourse(component.courses().find((c) => c.amount > 0)!);
+    await flushMicrotasks();
+    component.studentName.set('Ada Lovelace');
+    component.studentEmail.set('ada@example.com');
+    component.startEnrollment();
+    await flushMicrotasks();
+    const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+    wizard.next(); // plan → student, donde vive el método de pago
+    fixture.detectChanges();
+    await flushMicrotasks();
+
+    const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      'syn-segmented [role="radiogroup"][aria-label="Método de pago"]',
+    );
+    expect(group).not.toBeNull();
+    const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
+    const estado = (): string[][] =>
+      radios.map((radio) => [radio.textContent?.trim() ?? '', radio.getAttribute('aria-checked') ?? '']);
+    expect(estado()).toEqual([
+      ['Tarjeta', 'true'],
+      ['PSE', 'false'],
+    ]);
+
+    radios[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(estado()).toEqual([
+      ['Tarjeta', 'false'],
+      ['PSE', 'true'],
+    ]);
+    expect(component.enrollInstrument()['provider']).toBe('academy-pse');
+
+    component.setPaymentMethod('efectivo');
+    expect(component.paymentMethod()).toBe('pse');
+  });
+
   // ── happy: PDD → SH-3 wizard → confirm → classroom → complete → certificate ───
   it('runs the full enrolment lifecycle through the SH-3 wizard (happy case)', async () => {
     installMemoryStorage();

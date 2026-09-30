@@ -1075,7 +1075,14 @@ se desincroniza):
    `value` string, y el dato lo tiene quien arma las opciones) ni el `tablist`/`tab` sin
    `tabpanel` y sin flechas, que era la semántica equivocada. `syn-segmented-control` salió del DS
    y de su barril y la línea base bajó de 22 a 21 **en el mismo commit**; volver a exportarla sin
-   consumidor pone el gate en rojo. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
+   consumidor pone el gate en rojo. **Y la fusión no termina en el DS**: las pantallas que
+   rehacían el selector a mano lo MONTAN (regla 41) — la modalidad de la cita en EHR y la de la
+   visita en realty (sin estado accesible), el método de pago de academy (un `radiogroup` sin
+   radios) y la operación de realty. El resto del barrido se decidió por concepto: el cambio de
+   rol es navegación por decisión escrita (doc 22 fila 5, `ehr.ts:350`), las pestañas de
+   producto de travel son `syn-tabs`, y los filtros de consola y de media-explorer tienen N
+   abierto —la pieza es de 2 a 5— y no se tocaron.
+   Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
    «crear» un resumen con enlace *Cambiar* que ya existía como
    `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
    **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea
