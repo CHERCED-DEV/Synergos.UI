@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ICON_LABEL_SYNHOST } from '@synergos/contracts';
 import {
   IconLabelElementComponent,
   type IconLabelActivateDetail,
@@ -31,11 +32,12 @@ describe('IconLabelElementComponent', () => {
     expect(root.querySelector('.icon-label')).toBeNull();
   });
 
+  // `iconSymbol`, `tone` y `gap` no los autora el editor en el CMS (ADR 0135): son atributo.
   it('should render icon + label and resolve config + tone/gap (render/config case)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"iconSymbol":"★","labelText":"Destacado","tone":"brand","gap":"lg"}',
-    );
+    fixture.componentRef.setInput('config', '{"labelText":"Destacado"}');
+    fixture.componentRef.setInput('iconSymbol', '★');
+    fixture.componentRef.setInput('tone', 'brand');
+    fixture.componentRef.setInput('gap', 'lg');
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -53,6 +55,21 @@ describe('IconLabelElementComponent', () => {
     expect(root.querySelector('span.icon-label')).not.toBeNull();
     expect(root.querySelector('.icon-label__text')?.textContent?.trim()).toBe('Destacado');
     expect(root.querySelector('syn-icon')).not.toBeNull();
+  });
+
+  // D1: con `iconKey` —lo que mandaba la vista— este elemento pintaba el texto sin el icono.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta el icono y el texto que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = ICON_LABEL_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.iconName()).toBe(ejemplo.iconName);
+    expect(component.labelText()).toBe(ejemplo.labelText);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('syn-icon')).not.toBeNull();
+    expect(root.querySelector('.icon-label__text')?.textContent?.trim()).toBe(ejemplo.labelText);
   });
 
   it('should switch to action mode and emit iconlabelactivate on activate (interaction case)', async () => {
@@ -75,10 +92,8 @@ describe('IconLabelElementComponent', () => {
   });
 
   it('should let direct inputs override config and render a hardened link (idempotent precedence)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"labelText":"Desde config","href":"https://config.example","target":"_self"}',
-    );
+    // `href` y `target` no los autora el editor en el CMS (ADR 0135): son atributo.
+    fixture.componentRef.setInput('config', '{"labelText":"Desde config"}');
     fixture.componentRef.setInput('labelText', 'Desde input');
     fixture.componentRef.setInput('href', 'https://input.example');
     fixture.componentRef.setInput('target', '_blank');

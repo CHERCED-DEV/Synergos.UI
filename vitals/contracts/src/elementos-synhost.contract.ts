@@ -120,6 +120,14 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
+/** <synergos-icon-label> · pieza */
+export interface IconLabelProps {
+  /** decision */
+  readonly iconName?: string;
+  /** contenido */
+  readonly labelText?: string;
+}
+
 /** <synergos-kpi-card> · pieza · diccionario: Synhost.Kpi */
 export interface KpiCardProps {
   /** contenido */
@@ -299,6 +307,20 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   },
 };
 
+export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
+  nombre: "icon-label",
+  tipo: "pieza",
+  record: "IconLabelProps",
+  diccionario: [],
+  campos: ["iconName","labelText"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "iconName": "check",
+    "labelText": "Envío gratis a todo el país"
+  },
+};
+
 export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   nombre: "kpi-card",
   tipo: "pieza",
@@ -353,6 +375,7 @@ export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
   COLOR_SWATCHES_SYNHOST,
   DROPDOWN_SYNHOST,
+  ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,

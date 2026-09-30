@@ -9,6 +9,7 @@ import { sanitizeAccordionConfig } from './compositions/accordion/src/accordion/
 import { sanitizeBadgeGroupConfig } from './compositions/badge-group/src/badge-group/badge-group';
 import { sanitizeBreadcrumbConfig } from './primitives/breadcrumb/src/breadcrumb/breadcrumb';
 import { sanitizeColorSwatchesConfig } from './compositions/color-swatches/src/color-swatches/color-swatches';
+import { sanitizeIconLabelConfig } from './primitives/icon-label/src/icon-label/icon-label';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -35,6 +36,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'badge-group': createConfigInputTransform(sanitizeBadgeGroupConfig),
   breadcrumb: createConfigInputTransform(sanitizeBreadcrumbConfig),
   'color-swatches': createConfigInputTransform(sanitizeColorSwatchesConfig),
+  'icon-label': createConfigInputTransform(sanitizeIconLabelConfig),
 };
 
 type Config = Record<string, unknown>;
