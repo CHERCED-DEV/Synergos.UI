@@ -40,6 +40,12 @@ export interface BadgeGroupItem {
   readonly tone?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: BreadcrumbStep). */
+export interface BreadcrumbStep {
+  readonly label: string;
+  readonly href?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
@@ -68,6 +74,14 @@ export interface BadgeGroupProps {
   readonly badges?: readonly BadgeGroupItem[];
   /** decision */
   readonly layout?: string;
+}
+
+/** <synergos-breadcrumb> · pieza */
+export interface BreadcrumbProps {
+  /** contenido */
+  readonly items?: readonly BreadcrumbStep[];
+  /** decision */
+  readonly includeStructuredData?: boolean;
 }
 
 /** <synergos-carousel> · pieza */
@@ -167,6 +181,32 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
       }
     ],
     "layout": "stack"
+  },
+};
+
+export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
+  nombre: "breadcrumb",
+  tipo: "pieza",
+  record: "BreadcrumbProps",
+  diccionario: [],
+  campos: ["items","includeStructuredData"],
+  listas: {"items":["label","href"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "items": [
+      {
+        "label": "Inicio",
+        "href": "/"
+      },
+      {
+        "label": "Tienda",
+        "href": "/tienda"
+      },
+      {
+        "label": "Zapatos"
+      }
+    ],
+    "includeStructuredData": true
   },
 };
 
@@ -272,6 +312,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
 export const ELEMENTOS_SYNHOST = [
   ACCORDION_SYNHOST,
   BADGE_GROUP_SYNHOST,
+  BREADCRUMB_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,

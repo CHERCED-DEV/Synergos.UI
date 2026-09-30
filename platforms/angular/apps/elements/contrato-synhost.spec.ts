@@ -7,6 +7,7 @@ import { sanitizeRatingStarsConfig } from './compositions/rating-stars/src/ratin
 import { sanitizeTagConfig } from './primitives/tag/src/tag/tag';
 import { sanitizeAccordionConfig } from './compositions/accordion/src/accordion/accordion';
 import { sanitizeBadgeGroupConfig } from './compositions/badge-group/src/badge-group/badge-group';
+import { sanitizeBreadcrumbConfig } from './primitives/breadcrumb/src/breadcrumb/breadcrumb';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -31,6 +32,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   tag: createConfigInputTransform(sanitizeTagConfig),
   accordion: createConfigInputTransform(sanitizeAccordionConfig),
   'badge-group': createConfigInputTransform(sanitizeBadgeGroupConfig),
+  breadcrumb: createConfigInputTransform(sanitizeBreadcrumbConfig),
 };
 
 type Config = Record<string, unknown>;
