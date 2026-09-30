@@ -38,17 +38,17 @@
     </div>
   }
 
+  <!-- La región de RESULTADOS: existe desde el primer render, fuera de todo bloque, y su texto
+       cambia cuando llega la página nueva. Era un <output role=status> con sólo esqueletos
+       dentro del @if(loading()): nacía con la carga, sin texto que decir (#82). -->
+  <p class="product-grid__results-status" role="status">{{ resultsStatus() }}</p>
+
   @if (loading()) {
-    <output
-      class="product-grid__loading"
-      aria-live="polite"
-      role="status"
-      [attr.aria-label]="loadingProductsLabel()"
-    >
+    <div class="product-grid__loading" aria-hidden="true">
       @for (i of [1,2,3,4,5,6]; track i) {
         <syn-skeleton shape="block" size="lg" />
       }
-    </output>
+    </div>
   }
 
   @if (apiError()) {
@@ -164,28 +164,33 @@
           </li>
         }
       </ul>
-
-      @if (totalPages() > 1) {
-        <nav class="product-grid__pagination" [attr.aria-label]="paginationLabel()">
-          <syn-button
-            variant="outline"
-            size="sm"
-            [label]="previousPageLabel()"
-            [ariaLabel]="previousPageLabel()"
-            [disabled]="!canGoPrevious()"
-            (pressed)="previousPage()"
-          />
-          <p class="product-grid__pagination-status" aria-live="polite">{{ pageStatusLabel() }}</p>
-          <syn-button
-            variant="outline"
-            size="sm"
-            [label]="nextPageLabel()"
-            [ariaLabel]="nextPageLabel()"
-            [disabled]="!canGoNext()"
-            (pressed)="nextPage()"
-          />
-        </nav>
-      }
     }
+  }
+
+  <!-- La paginación vive FUERA del @if(!loading()): antes la destruía la misma carga que ella
+       pedía, y con ella el botón que tenía el foco (#82). El número de página se ve acá y se
+       anuncia en la región de resultados, una sola vez. -->
+  @if (totalPages() > 1) {
+    <nav class="product-grid__pagination" [attr.aria-label]="paginationLabel()">
+      <syn-button
+        class="product-grid__page-prev"
+        variant="outline"
+        size="sm"
+        [label]="previousPageLabel()"
+        [ariaLabel]="previousPageLabel()"
+        [disabled]="!canGoPrevious()"
+        (pressed)="previousPage()"
+      />
+      <p class="product-grid__pagination-status">{{ pageStatusLabel() }}</p>
+      <syn-button
+        class="product-grid__page-next"
+        variant="outline"
+        size="sm"
+        [label]="nextPageLabel()"
+        [ariaLabel]="nextPageLabel()"
+        [disabled]="!canGoNext()"
+        (pressed)="nextPage()"
+      />
+    </nav>
   }
 </section>

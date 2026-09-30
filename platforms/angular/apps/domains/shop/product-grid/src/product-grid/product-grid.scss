@@ -180,6 +180,10 @@
     }
   }
 
+  &__results-status {
+    @include syn.visually-hidden;
+  }
+
   &__loading {
     display: grid;
     grid-template-columns: repeat(var(--sg-pg-cols, 3), 1fr);
