@@ -86,6 +86,22 @@ export interface CookieConsentProps {
   readonly policyLabel?: string;
 }
 
+/** <synergos-countdown-clock> · pieza */
+export interface CountdownClockProps {
+  /** contenido */
+  readonly targetDate?: string;
+}
+
+/** <synergos-countdown-digital> · pieza */
+export interface CountdownDigitalProps {
+  /** contenido */
+  readonly targetDate?: string;
+  /** decision */
+  readonly showLabels?: boolean;
+  /** decision */
+  readonly style?: string;
+}
+
 /** <synergos-dropdown> · pieza */
 export interface DropdownProps {
   /** contenido */
@@ -261,6 +277,34 @@ export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
   },
 };
 
+export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
+  nombre: "countdown-clock",
+  tipo: "pieza",
+  record: "CountdownClockProps",
+  diccionario: [],
+  campos: ["targetDate"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "targetDate": "2030-12-31T23:59:59-05:00"
+  },
+};
+
+export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> = {
+  nombre: "countdown-digital",
+  tipo: "pieza",
+  record: "CountdownDigitalProps",
+  diccionario: [],
+  campos: ["targetDate","showLabels","style"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "targetDate": "2030-12-31T23:59:59-05:00",
+    "showLabels": true,
+    "style": "plain"
+  },
+};
+
 export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
   tipo: "pieza",
@@ -422,6 +466,8 @@ export const ELEMENTOS_SYNHOST = [
   AVATAR_SYNHOST,
   CAROUSEL_SYNHOST,
   COOKIE_CONSENT_SYNHOST,
+  COUNTDOWN_CLOCK_SYNHOST,
+  COUNTDOWN_DIGITAL_SYNHOST,
   DROPDOWN_SYNHOST,
   FAB_SYNHOST,
   HERO_BANNER_SYNHOST,

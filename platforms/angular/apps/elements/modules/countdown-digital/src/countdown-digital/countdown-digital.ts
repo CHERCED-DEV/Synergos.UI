@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { CountdownDigitalProps } from '@synergos/contracts';
 import {
   type CountdownMilestone,
   LiveRegionComponent,
@@ -26,9 +27,11 @@ import {
  * has passed it swaps to an "event started" message. `prefers-reduced-motion`
  * disables the flip.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config` which wins over defaults.
+ * El `config` que manda el CMS tiene la forma de `CountdownDigitalProps`, GENERADO del record C#
+ * (ADR 0135): `targetDate` es la fecha ISO que escribió el editor, `showLabels` su interruptor
+ * (viaja siempre: `false` es una decisión) y `style` con el nombre de este elemento (el CMS
+ * traduce `digits` a `plain`). La vista mandaba `endDateTime` y el reloj decía «Fecha del evento
+ * no disponible» (D1). `startedLabel`, `invalidLabel` y `labels` llegan por atributo.
  */
 
 const SECOND = 1_000;
@@ -57,15 +60,6 @@ interface CountdownUnit {
   readonly value: number;
   readonly label: string;
   readonly display: string;
-}
-
-export interface CountdownDigitalRuntimeConfig {
-  readonly targetDate?: string;
-  readonly startedLabel?: string;
-  readonly invalidLabel?: string;
-  readonly showLabels?: boolean;
-  readonly style?: CountdownStyle;
-  readonly labels?: Partial<CountdownLabels>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,16 +97,12 @@ export function parseTargetDate(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function sanitizeCountdownDigitalConfig(
-  value: Partial<CountdownDigitalRuntimeConfig> & { style?: unknown; labels?: unknown },
-): CountdownDigitalRuntimeConfig {
-  return omitUndefinedProperties<CountdownDigitalRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeCountdownDigitalConfig(value: Partial<CountdownDigitalProps>): Partial<CountdownDigitalProps> {
+  return omitUndefinedProperties<CountdownDigitalProps>({
     targetDate: coerceTrimmedStringInput(value.targetDate),
-    startedLabel: coerceTrimmedStringInput(value.startedLabel),
-    invalidLabel: coerceTrimmedStringInput(value.invalidLabel),
     showLabels: coerceOptionalBooleanInput(value.showLabels),
     style: normalizeStyle(value.style),
-    labels: normalizeLabels(value.labels),
   });
 }
 
@@ -149,8 +139,8 @@ function padTwo(value: number): string {
 export class CountdownDigitalElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<CountdownDigitalRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<CountdownDigitalRuntimeConfig>(sanitizeCountdownDigitalConfig),
+  readonly config = input<Partial<CountdownDigitalProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<CountdownDigitalProps>(sanitizeCountdownDigitalConfig),
   });
 
   /**
@@ -169,6 +159,14 @@ export class CountdownDigitalElementComponent {
   });
   readonly startedLabelInput = input<string | undefined>(undefined, { alias: 'startedLabel' });
   readonly invalidLabelInput = input<string | undefined>(undefined, { alias: 'invalidLabel' });
+  /**
+   * Los rótulos de cada unidad (`{"days":"Días",…}`, JSON). No los autora el CMS (ADR 0135): son
+   * atributo, no viajan en `config`.
+   */
+  readonly labelsInput = input<Partial<CountdownLabels> | undefined, unknown>(undefined, {
+    alias: 'labels',
+    transform: createConfigInputTransform<CountdownLabels>((value) => normalizeLabels(value)),
+  });
   readonly integration = input<string | undefined>(undefined);
 
   /** Reactive "now", refreshed by the per-second tick. */
@@ -188,12 +186,12 @@ export class CountdownDigitalElementComponent {
     resolveConfigValue(this.showLabelsInput(), this.config()?.showLabels, true),
   );
   readonly style = computed<CountdownStyle>(() =>
-    resolveConfigValue(this.styleInput(), this.config()?.style, 'flip'),
+    resolveConfigValue(this.styleInput(), normalizeStyle(this.config()?.style), 'flip'),
   );
   readonly isFlip = computed(() => this.style() === 'flip');
 
   readonly labels = computed<CountdownLabels>(() => {
-    const fromConfig = this.config()?.labels ?? {};
+    const fromConfig = this.labelsInput() ?? {};
     return {
       days: fromConfig.days ?? DEFAULT_LABELS.days,
       hours: fromConfig.hours ?? DEFAULT_LABELS.hours,
@@ -203,12 +201,12 @@ export class CountdownDigitalElementComponent {
   });
 
   readonly startedLabel = computed(() =>
-    resolveConfigValue(this.startedLabelInput(), this.config()?.startedLabel, 'El evento ha comenzado'),
+    this.startedLabelInput() ?? 'El evento ha comenzado',
   );
 
   /** Shown when no valid target date is configured. */
   readonly invalidLabel = computed(() =>
-    resolveConfigValue(this.invalidLabelInput(), this.config()?.invalidLabel, 'Fecha del evento no disponible'),
+    this.invalidLabelInput() ?? 'Fecha del evento no disponible',
   );
 
   readonly remainingMs = computed<number | null>(() => {

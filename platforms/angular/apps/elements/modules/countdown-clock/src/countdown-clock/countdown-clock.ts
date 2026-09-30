@@ -7,6 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { CountdownClockProps } from '@synergos/contracts';
 import {
   type CountdownMilestone,
   LiveRegionComponent,
@@ -25,9 +26,10 @@ import {
  * arc plus the numeric value. When the target has passed, the component swaps
  * to an "event started" state.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config` which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `CountdownClockProps`, GENERADO del record C#
+ * (ADR 0135): `targetDate` es la fecha ISO que escribió el editor, validada y sin reescribir. La
+ * vista la mandaba como `endDateTime` y el reloj decía «Fecha del evento no disponible» (D1).
+ * `startedLabel`, `invalidLabel` y `labels` no los autora el editor: llegan por atributo.
  */
 
 const SECOND = 1_000;
@@ -57,13 +59,6 @@ interface CountdownSegment {
   readonly fraction: number;
   /** Two-digit, locale-stable string for display. */
   readonly display: string;
-}
-
-export interface CountdownClockRuntimeConfig {
-  readonly targetDate?: string;
-  readonly startedLabel?: string;
-  readonly invalidLabel?: string;
-  readonly labels?: Partial<CountdownLabels>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -100,14 +95,10 @@ export function parseTargetDate(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function sanitizeCountdownClockConfig(
-  value: Partial<CountdownClockRuntimeConfig> & { labels?: unknown },
-): CountdownClockRuntimeConfig {
-  return omitUndefinedProperties<CountdownClockRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeCountdownClockConfig(value: Partial<CountdownClockProps>): Partial<CountdownClockProps> {
+  return omitUndefinedProperties<CountdownClockProps>({
     targetDate: coerceTrimmedStringInput(value.targetDate),
-    startedLabel: coerceTrimmedStringInput(value.startedLabel),
-    invalidLabel: coerceTrimmedStringInput(value.invalidLabel),
-    labels: normalizeLabels(value.labels),
   });
 }
 
@@ -144,8 +135,8 @@ function padTwo(value: number): string {
 export class CountdownClockElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<CountdownClockRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<CountdownClockRuntimeConfig>(sanitizeCountdownClockConfig),
+  readonly config = input<Partial<CountdownClockProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<CountdownClockProps>(sanitizeCountdownClockConfig),
   });
 
   /**
@@ -157,6 +148,14 @@ export class CountdownClockElementComponent {
   readonly labelFormatInput = input<string | undefined>(undefined, { alias: 'labelFormat' });
   readonly startedLabelInput = input<string | undefined>(undefined, { alias: 'startedLabel' });
   readonly invalidLabelInput = input<string | undefined>(undefined, { alias: 'invalidLabel' });
+  /**
+   * Los rótulos de cada unidad (`{"days":"Días",…}`, JSON). No los autora el CMS (ADR 0135): son
+   * atributo, no viajan en `config`.
+   */
+  readonly labelsInput = input<Partial<CountdownLabels> | undefined, unknown>(undefined, {
+    alias: 'labels',
+    transform: createConfigInputTransform<CountdownLabels>((value) => normalizeLabels(value)),
+  });
   readonly integration = input<string | undefined>(undefined);
 
   /** Reactive "now", refreshed by the per-second tick. */
@@ -173,7 +172,7 @@ export class CountdownClockElementComponent {
   );
 
   readonly labels = computed<CountdownLabels>(() => {
-    const fromConfig = this.config()?.labels ?? {};
+    const fromConfig = this.labelsInput() ?? {};
     return {
       days: fromConfig.days ?? DEFAULT_LABELS.days,
       hours: fromConfig.hours ?? DEFAULT_LABELS.hours,
@@ -183,16 +182,12 @@ export class CountdownClockElementComponent {
   });
 
   readonly startedLabel = computed(() =>
-    resolveConfigValue(
-      this.startedLabelInput() ?? coerceTrimmedStringInput(this.labelFormatInput()),
-      this.config()?.startedLabel,
-      'El evento ha comenzado',
-    ),
+    this.startedLabelInput() ?? coerceTrimmedStringInput(this.labelFormatInput()) ?? 'El evento ha comenzado',
   );
 
   /** Shown when no valid target date is configured. */
   readonly invalidLabel = computed(() =>
-    resolveConfigValue(this.invalidLabelInput(), this.config()?.invalidLabel, 'Fecha del evento no disponible'),
+    this.invalidLabelInput() ?? 'Fecha del evento no disponible',
   );
 
   /** Remaining ms, clamped to >= 0. null when there is no valid target. */

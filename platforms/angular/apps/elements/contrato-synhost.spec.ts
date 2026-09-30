@@ -13,6 +13,8 @@ import { sanitizeFabConfig } from './primitives/fab/src/fab/fab';
 import { sanitizeCookieConsentConfig } from './modules/cookie-consent/src/cookie-consent/cookie-consent';
 import { sanitizeShareBarConfig } from './compositions/share-bar/src/share-bar/share-bar';
 import { sanitizeRichTooltipConfig } from './compositions/rich-tooltip/src/rich-tooltip/rich-tooltip';
+import { sanitizeCountdownClockConfig } from './modules/countdown-clock/src/countdown-clock/countdown-clock';
+import { sanitizeCountdownDigitalConfig } from './modules/countdown-digital/src/countdown-digital/countdown-digital';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -43,6 +45,8 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'cookie-consent': createConfigInputTransform(sanitizeCookieConsentConfig),
   'share-bar': createConfigInputTransform(sanitizeShareBarConfig),
   'rich-tooltip': createConfigInputTransform(sanitizeRichTooltipConfig),
+  'countdown-clock': createConfigInputTransform(sanitizeCountdownClockConfig),
+  'countdown-digital': createConfigInputTransform(sanitizeCountdownDigitalConfig),
 };
 
 type Config = Record<string, unknown>;
