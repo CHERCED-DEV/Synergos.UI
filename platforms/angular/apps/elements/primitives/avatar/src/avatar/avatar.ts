@@ -6,6 +6,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import type { AvatarProps } from '@synergos/contracts';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -14,26 +15,16 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynAvatar</c>.
+ * <synergos-avatar>: a user avatar primitive. Renders a photo when `src` is provided and loads
+ * successfully, otherwise falls back to up-to-two initials derived from `name`. Sizes are a
+ * fixed scale (`xs`…`xl`). An optional presence dot (`status`) marks the user as
+ * online/away/busy/offline.
  *
- * A user avatar primitive: renders a photo when `src` is provided and loads
- * successfully, otherwise falls back to up-to-two initials derived from
- * `name`. Sizes are a fixed scale (`xs`…`xl`). An optional presence dot
- * (`status`) marks the user as online/away/busy/offline.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `AvatarProps`, GENERADO del record C#
+ * (ADR 0135): `src` es la URL del medio que eligió el editor y `alt` su nombre accesible. La
+ * vista mandaba `avatarSrc` y este elemento pintaba el icono genérico (D1). `name`, `size`,
+ * `shape` y `status` no los autora el editor: llegan por atributo.
  */
-export interface AvatarRuntimeConfig {
-  readonly src?: string;
-  readonly name?: string;
-  readonly alt?: string;
-  readonly size?: string;
-  readonly shape?: string;
-  readonly status?: string;
-}
-
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type AvatarShape = 'circle' | 'rounded' | 'square';
 export type AvatarStatus = 'none' | 'online' | 'away' | 'busy' | 'offline';
@@ -92,14 +83,11 @@ export function deriveInitials(name: string | undefined): string {
   return `${first}${last}`.toLocaleUpperCase();
 }
 
-function sanitizeAvatarConfig(value: Partial<AvatarRuntimeConfig>): AvatarRuntimeConfig {
-  return omitUndefinedProperties<AvatarRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeAvatarConfig(value: Partial<AvatarProps>): Partial<AvatarProps> {
+  return omitUndefinedProperties<AvatarProps>({
     src: coerceTrimmedStringInput(value.src),
-    name: coerceTrimmedStringInput(value.name),
     alt: coerceTrimmedStringInput(value.alt),
-    size: coerceTrimmedStringInput(value.size),
-    shape: coerceTrimmedStringInput(value.shape),
-    status: coerceTrimmedStringInput(value.status),
   });
 }
 
@@ -116,8 +104,8 @@ function sanitizeAvatarConfig(value: Partial<AvatarRuntimeConfig>): AvatarRuntim
   },
 })
 export class AvatarElementComponent {
-  readonly config = input<AvatarRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<AvatarRuntimeConfig>(sanitizeAvatarConfig),
+  readonly config = input<Partial<AvatarProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<AvatarProps>(sanitizeAvatarConfig),
   });
   readonly srcInput = input<string | undefined>(undefined, { alias: 'src' });
   readonly nameInput = input<string | undefined>(undefined, { alias: 'name' });
@@ -131,36 +119,18 @@ export class AvatarElementComponent {
     resolveConfigValue(coerceTrimmedStringInput(this.srcInput()), this.config()?.src, ''),
   );
 
-  readonly name = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.nameInput()),
-      this.config()?.name,
-      DEFAULT_NAME,
-    ),
-  );
+  readonly name = computed(() => coerceTrimmedStringInput(this.nameInput()) ?? DEFAULT_NAME);
 
   readonly size = computed<AvatarSize>(() =>
-    coerceAvatarEnum(
-      resolveConfigValue(this.sizeInput(), this.config()?.size, DEFAULT_SIZE),
-      AVATAR_SIZES,
-      DEFAULT_SIZE,
-    ),
+    coerceAvatarEnum(this.sizeInput(), AVATAR_SIZES, DEFAULT_SIZE),
   );
 
   readonly shape = computed<AvatarShape>(() =>
-    coerceAvatarEnum(
-      resolveConfigValue(this.shapeInput(), this.config()?.shape, DEFAULT_SHAPE),
-      AVATAR_SHAPES,
-      DEFAULT_SHAPE,
-    ),
+    coerceAvatarEnum(this.shapeInput(), AVATAR_SHAPES, DEFAULT_SHAPE),
   );
 
   readonly status = computed<AvatarStatus>(() =>
-    coerceAvatarEnum(
-      resolveConfigValue(this.statusInput(), this.config()?.status, DEFAULT_STATUS),
-      AVATAR_STATUSES,
-      DEFAULT_STATUS,
-    ),
+    coerceAvatarEnum(this.statusInput(), AVATAR_STATUSES, DEFAULT_STATUS),
   );
 
   readonly initials = computed(() => deriveInitials(this.name()));

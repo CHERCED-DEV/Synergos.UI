@@ -52,6 +52,14 @@ export interface AudioPlayerProps {
   readonly artistName?: string;
 }
 
+/** <synergos-avatar> · pieza */
+export interface AvatarProps {
+  /** contenido */
+  readonly src?: string;
+  /** contenido */
+  readonly alt?: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -106,6 +114,14 @@ export interface TagProps {
   readonly color?: string;
 }
 
+/** <synergos-video-player> · pieza */
+export interface VideoPlayerProps {
+  /** contenido */
+  readonly videoFile?: string;
+  /** contenido */
+  readonly posterImage?: string;
+}
+
 export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
   nombre: "audio-player",
   tipo: "pieza",
@@ -118,6 +134,20 @@ export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
     "audioFile": "/media/podcast/episodio-12.mp3",
     "trackTitle": "Episodio 12: la ciudad que camina",
     "artistName": "Radio Synergos"
+  },
+};
+
+export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
+  nombre: "avatar",
+  tipo: "pieza",
+  record: "AvatarProps",
+  diccionario: [],
+  campos: ["src","alt"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "src": "/media/equipo/ana-gomez.jpg",
+    "alt": "Ana Gómez, directora de producto"
   },
 };
 
@@ -219,12 +249,28 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   },
 };
 
+export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
+  nombre: "video-player",
+  tipo: "pieza",
+  record: "VideoPlayerProps",
+  diccionario: [],
+  campos: ["videoFile","posterImage"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "videoFile": "/media/propiedades/recorrido-casa-lago.mp4",
+    "posterImage": "/media/propiedades/casa-lago-fachada.jpg"
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   AUDIO_PLAYER_SYNHOST,
+  AVATAR_SYNHOST,
   CAROUSEL_SYNHOST,
   DROPDOWN_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,
+  VIDEO_PLAYER_SYNHOST,
 ] as const;

@@ -9,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import type { VideoPlayerProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -18,26 +19,18 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynVideoPlayer</c>.
+ * <synergos-video-player>: an accessible HTML5 video player with custom chrome — play/pause,
+ * seek, volume + mute, fullscreen, and an optional title. The poster image shows before
+ * playback. Built so a visitor can drive the whole player from the keyboard (Space/K play,
+ * ←/→ seek, ↑/↓ volume, M mute, F fullscreen).
  *
- * An accessible HTML5 video player with custom chrome: play/pause, seek,
- * volume + mute, fullscreen, and an optional title. The poster image shows
- * before playback. Built so a visitor can drive the whole player from the
- * keyboard (Space/K play, ←/→ seek, ↑/↓ volume, M mute, F fullscreen).
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `VideoPlayerProps`, GENERADO del record C#
+ * (ADR 0135): `videoFile` y `posterImage` son las URLs de los medios que eligió el editor. La
+ * vista mandaba `videoUrl`/`posterUrl` y este elemento no tenía fuente (D1). `title`,
+ * `autoplay`, `loop` y `muted` no los autora el editor: llegan por atributo. Capítulos y
+ * analítica no están implementados (los atributos `chaptersJson`/`enableAnalytics` son inertes),
+ * así que el CMS no los manda.
  */
-export interface VideoPlayerRuntimeConfig {
-  readonly videoFile?: string;
-  readonly posterImage?: string;
-  readonly title?: string;
-  readonly autoplay?: boolean;
-  readonly loop?: boolean;
-  readonly muted?: boolean;
-}
-
 /** Emitted on the `playstatechange` CustomEvent and the typed Angular output. */
 export interface VideoPlayStateDetail {
   readonly playing: boolean;
@@ -74,16 +67,11 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function sanitizeVideoPlayerConfig(
-  value: Partial<VideoPlayerRuntimeConfig>,
-): VideoPlayerRuntimeConfig {
-  return omitUndefinedProperties<VideoPlayerRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeVideoPlayerConfig(value: Partial<VideoPlayerProps>): Partial<VideoPlayerProps> {
+  return omitUndefinedProperties<VideoPlayerProps>({
     videoFile: coerceTrimmedStringInput(value.videoFile),
     posterImage: coerceTrimmedStringInput(value.posterImage),
-    title: coerceTrimmedStringInput(value.title),
-    autoplay: coerceOptionalBooleanInput(value.autoplay),
-    loop: coerceOptionalBooleanInput(value.loop),
-    muted: coerceOptionalBooleanInput(value.muted),
   });
 }
 
@@ -99,8 +87,8 @@ export class VideoPlayerElementComponent {
   readonly #host = inject(ElementRef<HTMLElement>);
   protected readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('video');
 
-  readonly config = input<VideoPlayerRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<VideoPlayerRuntimeConfig>(sanitizeVideoPlayerConfig),
+  readonly config = input<Partial<VideoPlayerProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<VideoPlayerProps>(sanitizeVideoPlayerConfig),
   });
   readonly videoFileInput = input<string | undefined>(undefined, { alias: 'videoFile' });
   readonly posterImageInput = input<string | undefined>(undefined, { alias: 'posterImage' });
@@ -132,18 +120,10 @@ export class VideoPlayerElementComponent {
   readonly poster = computed(() =>
     resolveConfigValue(this.posterImageInput(), this.config()?.posterImage, ''),
   );
-  readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
-  );
-  readonly autoplay = computed(() =>
-    resolveConfigValue(this.autoplayInput(), this.config()?.autoplay, false),
-  );
-  readonly loop = computed(() =>
-    resolveConfigValue(this.loopInput(), this.config()?.loop, false),
-  );
-  readonly initiallyMuted = computed(() =>
-    resolveConfigValue(this.mutedInput(), this.config()?.muted, false),
-  );
+  readonly title = computed(() => this.titleInput() ?? '');
+  readonly autoplay = computed(() => this.autoplayInput() ?? false);
+  readonly loop = computed(() => this.loopInput() ?? false);
+  readonly initiallyMuted = computed(() => this.mutedInput() ?? false);
 
   readonly hasSource = computed(() => this.src().trim().length > 0);
   readonly hasTitle = computed(() => this.title().trim().length > 0);

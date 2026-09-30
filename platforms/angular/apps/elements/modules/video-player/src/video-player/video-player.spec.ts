@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { VIDEO_PLAYER_SYNHOST } from '@synergos/contracts';
 import {
   VideoPlayerElementComponent,
   type VideoPlayStateDetail,
@@ -32,11 +33,11 @@ describe('VideoPlayerElementComponent', () => {
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 
-  it('should resolve src/poster/title from config + attributes (render/config case)', async () => {
+  // `title` no lo autora el CMS (ADR 0135): es atributo, no viaja en `config`.
+  it('should resolve src/poster from config and title from its attribute (render/config case)', async () => {
     fixture.componentRef.setInput('config', {
       videoFile: 'https://cdn.example.com/clip.mp4',
       posterImage: 'https://cdn.example.com/poster.jpg',
-      title: 'Config title',
     });
     fixture.componentRef.setInput('title', 'Override title');
     fixture.detectChanges();
@@ -45,9 +46,23 @@ describe('VideoPlayerElementComponent', () => {
     expect(component.hasSource()).toBe(true);
     expect(component.src()).toBe('https://cdn.example.com/clip.mp4');
     expect(component.poster()).toBe('https://cdn.example.com/poster.jpg');
-    // Explicit attribute wins over config.
     expect(component.title()).toBe('Override title');
     expect(fixture.nativeElement.querySelector('video')).not.toBeNull();
+  });
+
+  // D1: con `videoUrl`/`posterUrl` —lo que mandaba la vista— este elemento no tenía fuente. Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('reproduce el video que el editor eligió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = VIDEO_PLAYER_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.hasSource()).toBe(true);
+    expect(component.src()).toBe(ejemplo.videoFile);
+    expect(component.poster()).toBe(ejemplo.posterImage);
+    const video = (fixture.nativeElement as HTMLElement).querySelector('video');
+    expect(video?.getAttribute('poster')).toBe(ejemplo.posterImage);
   });
 
   it('should toggle play state and emit playstatechange (interaction case)', async () => {

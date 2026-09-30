@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AVATAR_SYNHOST } from '@synergos/contracts';
 import { AvatarElementComponent, deriveInitials } from './avatar';
 
 describe('AvatarElementComponent', () => {
@@ -61,18 +62,19 @@ describe('AvatarElementComponent', () => {
     expect(component.initials()).toBe('GH');
   });
 
+  // `size`, `shape`, `name` y `status` no los autora el CMS (ADR 0135): son atributos.
   it('should let direct inputs override config and stay idempotent (precedence case)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"size":"xs","shape":"square","name":"Config Name","status":"busy"}',
-    );
+    fixture.componentRef.setInput('config', '{"src":"/media/config.jpg","alt":"Alt del config"}');
+    fixture.componentRef.setInput('alt', 'Alt directo');
     fixture.componentRef.setInput('size', 'xl');
-    fixture.componentRef.setInput('name', 'Direct Name');
+    fixture.componentRef.setInput('shape', 'square');
+    fixture.componentRef.setInput('status', 'busy');
     fixture.detectChanges();
     await fixture.whenStable();
 
+    expect(component.src()).toBe('/media/config.jpg');
+    expect(component.baseLabel()).toBe('Alt directo');
     expect(component.size()).toBe('xl');
-    expect(component.name()).toBe('Direct Name');
     expect(component.shape()).toBe('square');
     expect(component.status()).toBe('busy');
 
@@ -80,7 +82,7 @@ describe('AvatarElementComponent', () => {
     const before = {
       size: component.size(),
       shape: component.shape(),
-      initials: component.initials(),
+      label: component.fullLabel(),
       status: component.status(),
     };
     fixture.componentRef.setInput('size', 'xl');
@@ -90,9 +92,24 @@ describe('AvatarElementComponent', () => {
     expect({
       size: component.size(),
       shape: component.shape(),
-      initials: component.initials(),
+      label: component.fullLabel(),
       status: component.status(),
     }).toEqual(before);
+  });
+
+  // D1: con `avatarSrc` —lo que mandaba la vista— este elemento pintaba el icono genérico. Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('muestra la foto que el editor eligió con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = AVATAR_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.showImage()).toBe(true);
+    expect(component.src()).toBe(ejemplo.src);
+    expect(component.baseLabel()).toBe(ejemplo.alt);
+    const img = (fixture.nativeElement as HTMLElement).querySelector('img');
+    expect(img?.getAttribute('src')).toBe(ejemplo.src);
   });
 
   it('should ignore unknown enum values and fall back to defaults', () => {
