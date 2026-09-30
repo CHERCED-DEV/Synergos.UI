@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { BREADCRUMB_SYNHOST } from '@synergos/contracts';
 import { BreadcrumbElementComponent, normalizeItems } from './breadcrumb';
 
 const ITEMS = JSON.stringify([
@@ -58,14 +59,34 @@ describe('BreadcrumbElementComponent', () => {
     expect(items.slice(0, -1).every((item) => !item.isCurrent)).toBe(true);
   });
 
-  it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"separator":">","label":"Config nav"}');
-    fixture.componentRef.setInput('separator', '/');
+  // D1: con `itemsJson` —el TEXTO que mandaba la vista— este elemento hidrataba sin migas ni
+  // JSON-LD. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta los pasos que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = BREADCRUMB_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.separator()).toBe('/');
-    expect(component.label()).toBe('Config nav');
+    const pasos = ejemplo.items ?? [];
+    expect(component.items().map((item) => item.label)).toEqual(pasos.map((paso) => paso.label));
+    expect(component.items().slice(0, -1).map((item) => item.href)).toEqual(pasos.slice(0, -1).map((paso) => paso.href));
+    expect(component.includeStructuredData()).toBe(ejemplo.includeStructuredData);
+    expect(JSON.parse(component.structuredData()).itemListElement.length).toBe(pasos.length);
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('.breadcrumb__item').length).toBe(pasos.length);
+  });
+
+  // `separator` y `label` no los autora el editor en el CMS (ADR 0135): son atributo.
+  it('should let direct inputs override config (idempotent precedence)', async () => {
+    fixture.componentRef.setInput('config', '{"includeStructuredData":false}');
+    fixture.componentRef.setInput('includeStructuredData', 'true');
+    fixture.componentRef.setInput('separator', '>');
+    fixture.componentRef.setInput('label', 'Ruta');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.includeStructuredData()).toBe(true);
+    expect(component.separator()).toBe('>');
+    expect(component.label()).toBe('Ruta');
   });
 
   it('should emit BreadcrumbList JSON-LD only when structured data is enabled', async () => {

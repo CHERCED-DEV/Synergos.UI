@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { ColorSwatchesProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -20,33 +21,16 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynColorSwatches</c>.
+ * <synergos-color-swatches>: a selectable palette of color swatches — a visitor (or editor
+ * preview) picks one chip and the component emits a `swatchselect` CustomEvent with the chosen
+ * value. Used by product variant pickers, theme selectors and the design-system palette previews.
  *
- * A selectable palette of color swatches — a visitor (or editor preview)
- * picks one chip and the component emits a `swatchselect` CustomEvent with
- * the chosen value. Used by product variant pickers, theme selectors and the
- * design-system palette previews. Swatches are supplied inline via
- * `swatches` (JSON array) or through the `config` object.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `ColorSwatchesProps`, GENERADO del record C#
+ * (ADR 0135): `swatches` es una LISTA ya parseada (`color`/`label`) y `shape`. La vista
+ * mandaba el TEXTO `swatchesJson` y este elemento hidrataba sin muestras (D1). `heading`,
+ * `columns`, `selected`, `allowDeselect` y, por muestra, `value` y `disabled` no los autora
+ * el editor: llegan por atributo (`swatches` como JSON), que gana sobre el `config`.
  */
-export interface ColorSwatchesRuntimeConfig {
-  readonly heading?: string;
-  readonly shape?: string;
-  readonly columns?: number;
-  readonly selected?: string;
-  readonly allowDeselect?: boolean;
-  readonly swatches?: readonly ColorSwatchConfig[];
-}
-
-export interface ColorSwatchConfig {
-  readonly value?: string;
-  readonly label?: string;
-  readonly color?: string;
-  readonly disabled?: boolean;
-}
 
 export interface ColorSwatch {
   readonly value: string;
@@ -147,16 +131,12 @@ export function normalizeSwatches(value: unknown): readonly ColorSwatch[] {
   return result;
 }
 
-function sanitizeColorSwatchesConfig(
-  value: Partial<ColorSwatchesRuntimeConfig>,
-): ColorSwatchesRuntimeConfig {
-  return omitUndefinedProperties<ColorSwatchesRuntimeConfig>({
-    heading: coerceTrimmedStringInput(value.heading),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeColorSwatchesConfig(value: Partial<ColorSwatchesProps>): Partial<ColorSwatchesProps> {
+  const swatches = normalizeSwatches(value.swatches);
+  return omitUndefinedProperties<ColorSwatchesProps>({
+    swatches: swatches.length > 0 ? swatches : undefined,
     shape: coerceTrimmedStringInput(value.shape),
-    columns: coerceOptionalNumberInput(value.columns),
-    selected: coerceTrimmedStringInput(value.selected),
-    allowDeselect: coerceOptionalBooleanInput(value.allowDeselect),
-    swatches: value.swatches,
   });
 }
 
@@ -171,8 +151,8 @@ function sanitizeColorSwatchesConfig(
 export class ColorSwatchesElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<ColorSwatchesRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<ColorSwatchesRuntimeConfig>(sanitizeColorSwatchesConfig),
+  readonly config = input<Partial<ColorSwatchesProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<ColorSwatchesProps>(sanitizeColorSwatchesConfig),
   });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly shapeInput = input<string | undefined>(undefined, { alias: 'shape' });
@@ -191,22 +171,16 @@ export class ColorSwatchesElementComponent {
   /** Typed Angular output mirroring the native `swatchselect` CustomEvent. */
   readonly swatchselect = output<ColorSwatchSelectDetail>();
 
-  readonly heading = computed(() =>
-    resolveConfigValue(this.headingInput(), this.config()?.heading, ''),
-  );
+  readonly heading = computed(() => this.headingInput() ?? '');
   readonly hasHeading = computed(() => this.heading().trim().length > 0);
 
   readonly shape = computed<ColorSwatchShape>(() =>
     normalizeShape(resolveConfigValue(this.shapeInput(), this.config()?.shape, DEFAULT_SHAPE)),
   );
 
-  readonly columns = computed(() =>
-    clampColumns(resolveConfigValue(this.columnsInput(), this.config()?.columns, DEFAULT_COLUMNS)),
-  );
+  readonly columns = computed(() => clampColumns(this.columnsInput() ?? DEFAULT_COLUMNS));
 
-  readonly allowDeselect = computed(() =>
-    resolveConfigValue(this.allowDeselectInput(), this.config()?.allowDeselect, false),
-  );
+  readonly allowDeselect = computed(() => this.allowDeselectInput() ?? false);
 
   readonly swatches = computed<readonly ColorSwatch[]>(() =>
     normalizeSwatches(this.resolveSource(this.swatchesInput(), this.config()?.swatches)),
@@ -250,7 +224,7 @@ export class ColorSwatchesElementComponent {
   constructor() {
     // Adopt the configured initial selection whenever it changes (and is valid).
     effect(() => {
-      const requested = resolveConfigValue(this.selectedInput(), this.config()?.selected, '');
+      const requested = this.selectedInput() ?? '';
       const swatches = this.swatches();
       if (requested && swatches.some((swatch) => swatch.value === requested && !swatch.disabled)) {
         this.selectedValue.set(requested);

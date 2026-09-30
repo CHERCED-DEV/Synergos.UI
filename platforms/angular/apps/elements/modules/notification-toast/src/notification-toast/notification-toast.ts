@@ -9,6 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { NotificationToastProps, NotificationToastSeed } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalNumberInput,
@@ -16,13 +17,10 @@ import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
-  resolveConfigValue,
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynNotificationToast</c>.
- *
- * A stack of transient toasts anchored to a viewport corner. Each toast
+ * <synergos-notification-toast>: a stack of transient toasts anchored to a viewport corner. Each toast
  * carries a `variant` (info/success/warning/error), auto-dismisses after a
  * duration (paused while the pointer hovers the stack), and can be
  * dismissed manually. Errors announce assertively (`aria-live="assertive"`,
@@ -31,9 +29,12 @@ import {
  * `toasts` / `message`+`type` inputs. Each dismissal emits a `toastdismiss`
  * CustomEvent.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `NotificationToastProps`, GENERADO del record C#
+ * (ADR 0135): `toasts` es la LISTA de avisos (`message`/`variant`) —el editor autora uno, el
+ * resolver lo manda como lista de uno— y `durationMs` es un número. La vista mandaba
+ * `message`/`type` sueltos en el `config`, que este elemento sólo lee como atributo, y no
+ * sembraba ningún aviso (D1). `position` y el `title` de cada aviso no los autora el editor:
+ * llegan por atributo (`toasts` como JSON), que gana sobre el `config`.
  */
 export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 export type ToastPosition =
@@ -49,12 +50,6 @@ export interface ToastSeedConfig {
   readonly title?: string;
   readonly variant?: string;
   readonly durationMs?: number;
-}
-
-export interface NotificationToastRuntimeConfig {
-  readonly position?: string;
-  readonly durationMs?: number;
-  readonly toasts?: readonly ToastSeedConfig[];
 }
 
 export interface ToastItem {
@@ -133,13 +128,17 @@ export function normalizeSeeds(value: unknown): readonly ToastSeedConfig[] {
     .filter((seed): seed is ToastSeedConfig => seed !== null);
 }
 
-function sanitizeToastConfig(
-  value: Partial<NotificationToastRuntimeConfig>,
-): NotificationToastRuntimeConfig {
-  return omitUndefinedProperties<NotificationToastRuntimeConfig>({
-    position: coerceTrimmedStringInput(value.position),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeNotificationToastConfig(
+  value: Partial<NotificationToastProps>,
+): Partial<NotificationToastProps> {
+  // normalizeSeeds sólo deja avisos con mensaje; el guard lo dice al tipo.
+  const toasts = normalizeSeeds(value.toasts).filter(
+    (seed): seed is ToastSeedConfig & NotificationToastSeed => typeof seed.message === 'string',
+  );
+  return omitUndefinedProperties<NotificationToastProps>({
+    toasts: toasts.length > 0 ? toasts : undefined,
     durationMs: coerceOptionalNumberInput(value.durationMs),
-    toasts: value.toasts,
   });
 }
 
@@ -155,8 +154,8 @@ export class NotificationToastElementComponent {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<NotificationToastRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<NotificationToastRuntimeConfig>(sanitizeToastConfig),
+  readonly config = input<Partial<NotificationToastProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<NotificationToastProps>(sanitizeNotificationToastConfig),
   });
   readonly positionInput = input<string | undefined>(undefined, { alias: 'position' });
   readonly durationMsInput = input<string | undefined>(undefined, { alias: 'durationMs' });
@@ -170,7 +169,7 @@ export class NotificationToastElementComponent {
   readonly toastdismiss = output<ToastDismissDetail>();
 
   readonly position = computed<ToastPosition>(() =>
-    normalizePosition(resolveConfigValue(this.positionInput(), this.config()?.position, 'top-end')),
+    normalizePosition(this.positionInput() ?? 'top-end'),
   );
 
   readonly defaultDuration = computed(() => {

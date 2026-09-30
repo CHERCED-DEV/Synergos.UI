@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ACCORDION_SYNHOST } from '@synergos/contracts';
 import {
   AccordionElementComponent,
   type AccordionToggleDetail,
@@ -35,8 +36,10 @@ describe('AccordionElementComponent', () => {
     expect(component.expandedIds().length).toBe(0);
   });
 
-  it('should normalize items from config and seed defaults from open flags (render/config case)', async () => {
-    fixture.componentRef.setInput('config', { items: JSON.parse(ITEMS), headingLevel: 4 });
+  // `open` y `headingLevel` no los autora el editor en el CMS (ADR 0135): son atributo.
+  it('should normalize items and seed defaults from open flags (render/attribute case)', async () => {
+    fixture.componentRef.setInput('items', ITEMS);
+    fixture.componentRef.setInput('headingLevel', 4);
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -51,6 +54,21 @@ describe('AccordionElementComponent', () => {
     // Body falls back to `content` when `body` is absent.
     const devoluciones = component.items().find((item) => item.id === 'devoluciones');
     expect(devoluciones?.body).toBe('Hasta 30 días.');
+  });
+
+  // D1: con `itemsJson` —el TEXTO que mandaba la vista— este elemento hidrataba sin secciones.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta las secciones que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = ACCORDION_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.items().map((item) => item.title)).toEqual(ejemplo.items?.map((item) => item.title));
+    expect(component.items().map((item) => item.body)).toEqual(ejemplo.items?.map((item) => item.body));
+    expect(component.allowMultiple()).toBe(ejemplo.allowMultiple);
+    const triggers = (fixture.nativeElement as HTMLElement).querySelectorAll('.accordion__trigger');
+    expect(triggers.length).toBe(ejemplo.items?.length);
   });
 
   it('should toggle a panel and emit itemtoggle, closing others in single-expand (interaction case)', async () => {

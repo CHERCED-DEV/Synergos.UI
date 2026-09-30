@@ -5,6 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core';
+import type { BreadcrumbProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -15,30 +16,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynBreadcrumb</c>.
+ * <synergos-breadcrumb>: navigation breadcrumbs — an ordered trail of items, each optionally
+ * linked, separated by a glyph, with the final item flagged as the current page
+ * (`aria-current="page"`). Items can be authored as a JSON array (objects with `label`/`href`,
+ * or bare strings). When `includeStructuredData` is on the component also emits a schema.org
+ * `BreadcrumbList` JSON-LD block for SEO.
  *
- * Navigation breadcrumbs: an ordered trail of items, each optionally
- * linked, separated by a glyph, with the final item flagged as the
- * current page (`aria-current="page"`). Items can be authored as a JSON
- * array (objects with `label`/`href`, or bare strings). When
- * `includeStructuredData` is on the component also emits a
- * schema.org `BreadcrumbList` JSON-LD block for SEO.
- *
- * The shared `@synergos/contracts` package does not yet declare a
- * `BreadcrumbElementConfig`; the canonical shape lives here next to the
- * component until that contract lands in the registry ola.
+ * El `config` que manda el CMS tiene la forma de `BreadcrumbProps`, GENERADO del record C#
+ * (ADR 0135): `items` es una LISTA ya parseada (`label`/`href`) e `includeStructuredData`.
+ * La vista mandaba el TEXTO `itemsJson` y este elemento hidrataba sin migas (D1). `label` (el
+ * nombre accesible de la navegación) y `separator` no los autora el editor: llegan por atributo.
  */
-export interface BreadcrumbRuntimeConfig {
-  readonly label?: string;
-  readonly separator?: string;
-  readonly includeStructuredData?: boolean;
-  readonly items?: readonly BreadcrumbItemConfig[];
-}
-
-export interface BreadcrumbItemConfig {
-  readonly label?: string;
-  readonly href?: string;
-}
 
 /** Fully-resolved trail item ready to render. */
 export interface BreadcrumbItem {
@@ -107,14 +95,12 @@ export function normalizeItems(value: unknown): readonly BreadcrumbItem[] {
   });
 }
 
-function sanitizeBreadcrumbConfig(
-  value: Partial<BreadcrumbRuntimeConfig>,
-): BreadcrumbRuntimeConfig {
-  return omitUndefinedProperties<BreadcrumbRuntimeConfig>({
-    label: coerceTrimmedStringInput(value.label),
-    separator: coerceTrimmedStringInput(value.separator),
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeBreadcrumbConfig(value: Partial<BreadcrumbProps>): Partial<BreadcrumbProps> {
+  const items = normalizeItems(value.items);
+  return omitUndefinedProperties<BreadcrumbProps>({
+    items: items.length > 0 ? items : undefined,
     includeStructuredData: coerceOptionalBooleanInput(value.includeStructuredData),
-    items: value.items,
   });
 }
 
@@ -129,8 +115,8 @@ function sanitizeBreadcrumbConfig(
 export class BreadcrumbElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<BreadcrumbRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<BreadcrumbRuntimeConfig>(sanitizeBreadcrumbConfig),
+  readonly config = input<Partial<BreadcrumbProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<BreadcrumbProps>(sanitizeBreadcrumbConfig),
   });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly separatorInput = input<string | undefined>(undefined, { alias: 'separator' });
@@ -140,12 +126,8 @@ export class BreadcrumbElementComponent {
     transform: coerceOptionalBooleanInput,
   });
 
-  readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.config()?.label, 'Migas de pan'),
-  );
-  readonly separator = computed(() =>
-    resolveConfigValue(this.separatorInput(), this.config()?.separator, '/'),
-  );
+  readonly label = computed(() => this.labelInput() ?? 'Migas de pan');
+  readonly separator = computed(() => this.separatorInput() ?? '/');
   readonly includeStructuredData = computed(() =>
     resolveConfigValue(
       this.includeStructuredDataInput(),

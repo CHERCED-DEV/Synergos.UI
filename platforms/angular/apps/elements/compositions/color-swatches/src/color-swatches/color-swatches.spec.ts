@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { COLOR_SWATCHES_SYNHOST } from '@synergos/contracts';
 import {
   ColorSwatchesElementComponent,
   type ColorSwatchSelectDetail,
@@ -86,9 +87,25 @@ describe('ColorSwatchesElementComponent', () => {
     expect(component.selectedValue()).toBe('azul');
   });
 
+  // D1: con `swatchesJson` —el TEXTO que mandaba la vista— este elemento hidrataba sin muestras.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('pinta las muestras que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = COLOR_SWATCHES_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.swatches().map((swatch) => swatch.color)).toEqual(ejemplo.swatches?.map((swatch) => swatch.color));
+    expect(component.swatches().map((swatch) => swatch.label)).toEqual(ejemplo.swatches?.map((swatch) => swatch.label));
+    expect(component.shape()).toBe(ejemplo.shape);
+    expect(component.hasSwatches()).toBe(true);
+  });
+
+  // `columns` no lo autora el editor en el CMS (ADR 0135): es atributo. `shape` sí viaja.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"shape":"square","columns":3}');
+    fixture.componentRef.setInput('config', '{"shape":"square"}');
     fixture.componentRef.setInput('shape', 'pill');
+    fixture.componentRef.setInput('columns', '3');
     fixture.detectChanges();
     await fixture.whenStable();
 

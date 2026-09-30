@@ -28,10 +28,34 @@ export interface ElementoSynHost<T> {
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: AccordionSection). */
+export interface AccordionSection {
+  readonly title: string;
+  readonly body?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: BadgeGroupItem). */
+export interface BadgeGroupItem {
+  readonly label: string;
+  readonly tone?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: BreadcrumbStep). */
+export interface BreadcrumbStep {
+  readonly label: string;
+  readonly href?: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
   readonly alt?: string;
+  readonly label?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: ColorSwatchesItem). */
+export interface ColorSwatchesItem {
+  readonly color: string;
   readonly label?: string;
 }
 
@@ -40,6 +64,12 @@ export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: NotificationToastSeed). */
+export interface NotificationToastSeed {
+  readonly message: string;
+  readonly variant?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: SelectMultiItem). */
@@ -80,6 +110,30 @@ export interface TreeViewNode {
   readonly children?: readonly TreeViewNode[];
 }
 
+/** <synergos-accordion> · pieza */
+export interface AccordionProps {
+  /** contenido */
+  readonly items?: readonly AccordionSection[];
+  /** decision */
+  readonly allowMultiple?: boolean;
+}
+
+/** <synergos-badge-group> · pieza */
+export interface BadgeGroupProps {
+  /** contenido */
+  readonly badges?: readonly BadgeGroupItem[];
+  /** decision */
+  readonly layout?: string;
+}
+
+/** <synergos-breadcrumb> · pieza */
+export interface BreadcrumbProps {
+  /** contenido */
+  readonly items?: readonly BreadcrumbStep[];
+  /** decision */
+  readonly includeStructuredData?: boolean;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -88,6 +142,14 @@ export interface CarouselProps {
   readonly autoplay?: boolean;
   /** decision */
   readonly interval?: number;
+}
+
+/** <synergos-color-swatches> · pieza */
+export interface ColorSwatchesProps {
+  /** contenido */
+  readonly swatches?: readonly ColorSwatchesItem[];
+  /** decision */
+  readonly shape?: string;
 }
 
 /** <synergos-dropdown> · pieza */
@@ -102,6 +164,14 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
+/** <synergos-icon-label> · pieza */
+export interface IconLabelProps {
+  /** decision */
+  readonly iconName?: string;
+  /** contenido */
+  readonly labelText?: string;
+}
+
 /** <synergos-kpi-card> · pieza · diccionario: Synhost.Kpi */
 export interface KpiCardProps {
   /** contenido */
@@ -114,6 +184,24 @@ export interface KpiCardProps {
   readonly deltaLabel?: string;
   /** contenido */
   readonly period?: string;
+}
+
+/** <synergos-notification-toast> · pieza */
+export interface NotificationToastProps {
+  /** contenido */
+  readonly toasts?: readonly NotificationToastSeed[];
+  /** decision */
+  readonly durationMs?: number;
+}
+
+/** <synergos-progress-bar> · pieza */
+export interface ProgressBarProps {
+  /** contenido */
+  readonly value?: number;
+  /** decision */
+  readonly max?: number;
+  /** contenido */
+  readonly label?: string;
 }
 
 /** <synergos-range-slider> · pieza */
@@ -208,6 +296,78 @@ export interface TreeViewProps {
   readonly label?: string;
 }
 
+export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
+  nombre: "accordion",
+  tipo: "pieza",
+  record: "AccordionProps",
+  diccionario: [],
+  campos: ["items","allowMultiple"],
+  listas: {"items":["title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "items": [
+      {
+        "title": "¿Cuánto tarda el envío?",
+        "body": "Entre 2 y 5 días hábiles en ciudades principales."
+      },
+      {
+        "title": "¿Puedo devolver un producto?",
+        "body": "Sí, dentro de los 30 días siguientes a la entrega."
+      }
+    ],
+    "allowMultiple": true
+  },
+};
+
+export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
+  nombre: "badge-group",
+  tipo: "pieza",
+  record: "BadgeGroupProps",
+  diccionario: [],
+  campos: ["badges","layout"],
+  listas: {"badges":["label","tone"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "badges": [
+      {
+        "label": "Envío gratis",
+        "tone": "success"
+      },
+      {
+        "label": "Nuevo",
+        "tone": "brand"
+      }
+    ],
+    "layout": "stack"
+  },
+};
+
+export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
+  nombre: "breadcrumb",
+  tipo: "pieza",
+  record: "BreadcrumbProps",
+  diccionario: [],
+  campos: ["items","includeStructuredData"],
+  listas: {"items":["label","href"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "items": [
+      {
+        "label": "Inicio",
+        "href": "/"
+      },
+      {
+        "label": "Tienda",
+        "href": "/tienda"
+      },
+      {
+        "label": "Zapatos"
+      }
+    ],
+    "includeStructuredData": true
+  },
+};
+
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   nombre: "carousel",
   tipo: "pieza",
@@ -231,6 +391,29 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
     ],
     "autoplay": true,
     "interval": 4000
+  },
+};
+
+export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
+  nombre: "color-swatches",
+  tipo: "pieza",
+  record: "ColorSwatchesProps",
+  diccionario: [],
+  campos: ["swatches","shape"],
+  listas: {"swatches":["color","label"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "swatches": [
+      {
+        "color": "#1e3a8a",
+        "label": "Azul noche"
+      },
+      {
+        "color": "#f97316",
+        "label": "Naranja"
+      }
+    ],
+    "shape": "circle"
   },
 };
 
@@ -260,6 +443,20 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   },
 };
 
+export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
+  nombre: "icon-label",
+  tipo: "pieza",
+  record: "IconLabelProps",
+  diccionario: [],
+  campos: ["iconName","labelText"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "iconName": "check",
+    "labelText": "Envío gratis a todo el país"
+  },
+};
+
 export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   nombre: "kpi-card",
   tipo: "pieza",
@@ -274,6 +471,40 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
     "trend": "up",
     "deltaLabel": "+12 %",
     "period": "vs. agosto"
+  },
+};
+
+export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps> = {
+  nombre: "notification-toast",
+  tipo: "pieza",
+  record: "NotificationToastProps",
+  diccionario: [],
+  campos: ["toasts","durationMs"],
+  listas: {"toasts":["message","variant"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "toasts": [
+      {
+        "message": "Tu pedido quedó confirmado.",
+        "variant": "success"
+      }
+    ],
+    "durationMs": 8000
+  },
+};
+
+export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
+  nombre: "progress-bar",
+  tipo: "pieza",
+  record: "ProgressBarProps",
+  diccionario: [],
+  campos: ["value","max","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "value": 3,
+    "max": 5,
+    "label": "Pasos completados del registro"
   },
 };
 
@@ -501,9 +732,16 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  ACCORDION_SYNHOST,
+  BADGE_GROUP_SYNHOST,
+  BREADCRUMB_SYNHOST,
   CAROUSEL_SYNHOST,
+  COLOR_SWATCHES_SYNHOST,
   DROPDOWN_SYNHOST,
+  ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
+  NOTIFICATION_TOAST_SYNHOST,
+  PROGRESS_BAR_SYNHOST,
   RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
   SCROLL_TOP_SYNHOST,

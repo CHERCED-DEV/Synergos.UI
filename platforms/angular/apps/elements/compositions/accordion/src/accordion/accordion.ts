@@ -7,6 +7,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { AccordionProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -17,32 +18,18 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynAccordion</c>.
+ * <synergos-accordion>: a collapsible accordion — a vertical stack of header/panel pairs. Each
+ * item can be expanded or collapsed. In single-expand mode (default) opening one item closes the
+ * rest; in multi-expand mode several panels stay open at once. Headers form a roving-tabindex
+ * toolbar with full keyboard support (Arrow/Home/End/Enter/Space) and the WAI-ARIA Accordion
+ * pattern (button[aria-expanded] controlling region[aria-labelledby]).
  *
- * A collapsible accordion: a vertical stack of header/panel pairs. Each item
- * can be expanded or collapsed. In single-expand mode (default) opening one
- * item closes the rest; in multi-expand mode several panels stay open at once.
- * Headers form a roving-tabindex toolbar with full keyboard support
- * (Arrow/Home/End/Enter/Space) and the WAI-ARIA Accordion pattern
- * (button[aria-expanded] controlling region[aria-labelledby]).
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `AccordionProps`, GENERADO del record C#
+ * (ADR 0135): `items` es una LISTA ya parseada (`title`/`body`) y `allowMultiple`. La vista
+ * mandaba el TEXTO `itemsJson` y este elemento hidrataba sin secciones (D1). `headingLevel` y,
+ * por sección, `id` y `open` no los autora el editor: llegan por atributo (`items` como JSON),
+ * que gana sobre el `config`.
  */
-export interface AccordionRuntimeConfig {
-  readonly items?: readonly AccordionItemConfig[];
-  readonly allowMultiple?: boolean;
-  readonly headingLevel?: number;
-}
-
-export interface AccordionItemConfig {
-  readonly id?: string;
-  readonly title?: string;
-  readonly body?: string;
-  readonly open?: boolean;
-}
-
 export interface AccordionItem {
   readonly id: string;
   readonly title: string;
@@ -140,11 +127,12 @@ export function normalizeItems(value: unknown): readonly AccordionItem[] {
   return items;
 }
 
-function sanitizeAccordionConfig(value: Partial<AccordionRuntimeConfig>): AccordionRuntimeConfig {
-  return omitUndefinedProperties<AccordionRuntimeConfig>({
-    items: value.items,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeAccordionConfig(value: Partial<AccordionProps>): Partial<AccordionProps> {
+  const items = normalizeItems(value.items);
+  return omitUndefinedProperties<AccordionProps>({
+    items: items.length > 0 ? items : undefined,
     allowMultiple: coerceOptionalBooleanInput(value.allowMultiple),
-    headingLevel: typeof value.headingLevel === 'number' ? value.headingLevel : undefined,
   });
 }
 
@@ -159,8 +147,8 @@ function sanitizeAccordionConfig(value: Partial<AccordionRuntimeConfig>): Accord
 export class AccordionElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<AccordionRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<AccordionRuntimeConfig>(sanitizeAccordionConfig),
+  readonly config = input<Partial<AccordionProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<AccordionProps>(sanitizeAccordionConfig),
   });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
   readonly itemsJsonInput = input<string | undefined>(undefined, { alias: 'itemsJson' });
@@ -181,11 +169,7 @@ export class AccordionElementComponent {
   );
 
   readonly headingLevel = computed(() => {
-    const raw = resolveConfigValue<number | string | undefined>(
-      this.headingLevelInput(),
-      this.config()?.headingLevel,
-      DEFAULT_HEADING_LEVEL,
-    );
+    const raw = this.headingLevelInput() ?? DEFAULT_HEADING_LEVEL;
     const numeric = typeof raw === 'string' ? Number(raw) : raw;
     return clampHeadingLevel(numeric);
   });
