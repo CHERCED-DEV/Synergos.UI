@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { CookieConsentProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -17,31 +18,17 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynCookieConsent</c>.
+ * <synergos-cookie-consent>: a privacy consent banner. The visitor can accept all, reject
+ * non-essential, or open a preferences panel to toggle each non-essential category. The
+ * decision is persisted to <c>localStorage</c> so the banner stays dismissed across visits, and
+ * broadcast through the <c>cookieconsent</c> CustomEvent so integrations (analytics, marketing)
+ * can react without polling.
  *
- * A privacy consent banner: the visitor can accept all, reject non-essential,
- * or open a preferences panel to toggle each non-essential category. The
- * decision is persisted to <c>localStorage</c> so the banner stays dismissed
- * across visits, and broadcast through the <c>cookieconsent</c> CustomEvent so
- * integrations (analytics, marketing) can react without polling.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `CookieConsentProps`, GENERADO del record C#
+ * (ADR 0135): los textos del aviso y el enlace a la política (`policyLink` + `policyLabel`). La
+ * vista mandaba `policyUrl` y el aviso salía sin enlace a la política (D1). `title`,
+ * `saveLabel`, `storageKey` y `categories` no los autora el editor: llegan por atributo.
  */
-export interface CookieConsentRuntimeConfig {
-  readonly bannerText?: string;
-  readonly acceptLabel?: string;
-  readonly rejectLabel?: string;
-  readonly settingsLabel?: string;
-  readonly saveLabel?: string;
-  readonly title?: string;
-  readonly policyLink?: string;
-  readonly policyLabel?: string;
-  readonly storageKey?: string;
-  readonly categories?: readonly CookieCategoryConfig[];
-}
-
 export interface CookieCategoryConfig {
   readonly id?: string;
   readonly label?: string;
@@ -150,20 +137,15 @@ export function normalizeCategories(value: unknown): readonly CookieCategory[] {
     .filter((category): category is CookieCategory => category !== null);
 }
 
-function sanitizeCookieConsentConfig(
-  value: Partial<CookieConsentRuntimeConfig>,
-): CookieConsentRuntimeConfig {
-  return omitUndefinedProperties<CookieConsentRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeCookieConsentConfig(value: Partial<CookieConsentProps>): Partial<CookieConsentProps> {
+  return omitUndefinedProperties<CookieConsentProps>({
     bannerText: coerceTrimmedStringInput(value.bannerText),
     acceptLabel: coerceTrimmedStringInput(value.acceptLabel),
     rejectLabel: coerceTrimmedStringInput(value.rejectLabel),
     settingsLabel: coerceTrimmedStringInput(value.settingsLabel),
-    saveLabel: coerceTrimmedStringInput(value.saveLabel),
-    title: coerceTrimmedStringInput(value.title),
     policyLink: coerceTrimmedStringInput(value.policyLink),
     policyLabel: coerceTrimmedStringInput(value.policyLabel),
-    storageKey: coerceTrimmedStringInput(value.storageKey),
-    categories: value.categories,
   });
 }
 
@@ -178,8 +160,8 @@ function sanitizeCookieConsentConfig(
 export class CookieConsentElementComponent {
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<CookieConsentRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<CookieConsentRuntimeConfig>(sanitizeCookieConsentConfig),
+  readonly config = input<Partial<CookieConsentProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<CookieConsentProps>(sanitizeCookieConsentConfig),
   });
   readonly bannerTextInput = input<string | undefined>(undefined, { alias: 'bannerText' });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
@@ -199,9 +181,7 @@ export class CookieConsentElementComponent {
   readonly bannerText = computed(() =>
     resolveConfigValue(this.bannerTextInput(), this.config()?.bannerText, DEFAULT_BANNER_TEXT),
   );
-  readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.config()?.title, DEFAULT_TITLE),
-  );
+  readonly title = computed(() => this.titleInput() ?? DEFAULT_TITLE);
   readonly acceptLabel = computed(() =>
     resolveConfigValue(this.acceptLabelInput(), this.config()?.acceptLabel, DEFAULT_ACCEPT_LABEL),
   );
@@ -211,9 +191,7 @@ export class CookieConsentElementComponent {
   readonly settingsLabel = computed(() =>
     resolveConfigValue(this.settingsLabelInput(), this.config()?.settingsLabel, DEFAULT_SETTINGS_LABEL),
   );
-  readonly saveLabel = computed(() =>
-    resolveConfigValue(this.saveLabelInput(), this.config()?.saveLabel, DEFAULT_SAVE_LABEL),
-  );
+  readonly saveLabel = computed(() => this.saveLabelInput() ?? DEFAULT_SAVE_LABEL);
   readonly policyLink = computed(() =>
     resolveConfigValue(this.policyLinkInput(), this.config()?.policyLink, ''),
   );
@@ -222,11 +200,9 @@ export class CookieConsentElementComponent {
   );
   readonly hasPolicyLink = computed(() => this.policyLink().trim().length > 0);
 
-  readonly storageKey = computed(() =>
-    resolveConfigValue(this.storageKeyInput(), this.config()?.storageKey, DEFAULT_STORAGE_KEY),
-  );
+  readonly storageKey = computed(() => this.storageKeyInput() ?? DEFAULT_STORAGE_KEY);
 
-  /** Categories from inputs/config, falling back to the canonical defaults. */
+  /** Categories from the `categories` attribute, falling back to the canonical defaults. */
   readonly categories = computed<readonly CookieCategory[]>(() => {
     const normalized = normalizeCategories(this.resolveCategoriesSource());
     return normalized.length > 0 ? normalized : DEFAULT_CATEGORIES;
@@ -352,7 +328,7 @@ export class CookieConsentElementComponent {
         return undefined;
       }
     }
-    return this.config()?.categories;
+    return undefined;
   }
 
   private readStoredDecision(): CookieConsentDecision | null {

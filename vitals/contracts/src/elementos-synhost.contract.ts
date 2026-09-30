@@ -70,6 +70,22 @@ export interface CarouselProps {
   readonly interval?: number;
 }
 
+/** <synergos-cookie-consent> · pieza */
+export interface CookieConsentProps {
+  /** contenido */
+  readonly bannerText?: string;
+  /** contenido */
+  readonly acceptLabel?: string;
+  /** contenido */
+  readonly rejectLabel?: string;
+  /** contenido */
+  readonly settingsLabel?: string;
+  /** contenido */
+  readonly policyLink?: string;
+  /** contenido */
+  readonly policyLabel?: string;
+}
+
 /** <synergos-dropdown> · pieza */
 export interface DropdownProps {
   /** contenido */
@@ -80,6 +96,20 @@ export interface DropdownProps {
   readonly selectedValue?: string;
   /** decision */
   readonly searchable?: boolean;
+}
+
+/** <synergos-fab> · pieza */
+export interface FabProps {
+  /** decision */
+  readonly iconKey?: string;
+  /** contenido */
+  readonly actionLink?: string;
+  /** decision */
+  readonly target?: string;
+  /** decision */
+  readonly position?: string;
+  /** contenido */
+  readonly label?: string;
 }
 
 /** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
@@ -193,6 +223,24 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   },
 };
 
+export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
+  nombre: "cookie-consent",
+  tipo: "pieza",
+  record: "CookieConsentProps",
+  diccionario: [],
+  campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "bannerText": "Usamos cookies propias y de terceros para medir el uso del sitio.",
+    "acceptLabel": "Acepto todas",
+    "rejectLabel": "Sólo las necesarias",
+    "settingsLabel": "Elegir cuáles",
+    "policyLink": "/privacidad",
+    "policyLabel": "Política de privacidad"
+  },
+};
+
 export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
   tipo: "pieza",
@@ -216,6 +264,23 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
     ],
     "selectedValue": "co",
     "searchable": true
+  },
+};
+
+export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
+  nombre: "fab",
+  tipo: "pieza",
+  record: "FabProps",
+  diccionario: [],
+  campos: ["iconKey","actionLink","target","position","label"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "iconKey": "whatsapp",
+    "actionLink": "https://wa.me/573001234567",
+    "target": "_blank",
+    "position": "bottom-left",
+    "label": "Escribinos por WhatsApp"
   },
 };
 
@@ -302,7 +367,9 @@ export const ELEMENTOS_SYNHOST = [
   AUDIO_PLAYER_SYNHOST,
   AVATAR_SYNHOST,
   CAROUSEL_SYNHOST,
+  COOKIE_CONSENT_SYNHOST,
   DROPDOWN_SYNHOST,
+  FAB_SYNHOST,
   HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,

@@ -9,6 +9,8 @@ import { sanitizeAudioPlayerConfig } from './modules/audio-player/src/audio-play
 import { sanitizeAvatarConfig } from './primitives/avatar/src/avatar/avatar';
 import { sanitizeVideoPlayerConfig } from './modules/video-player/src/video-player/video-player';
 import { sanitizeHeroBannerConfig } from './modules/hero-banner/src/hero-banner/hero-banner';
+import { sanitizeFabConfig } from './primitives/fab/src/fab/fab';
+import { sanitizeCookieConsentConfig } from './modules/cookie-consent/src/cookie-consent/cookie-consent';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -35,6 +37,8 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   avatar: createConfigInputTransform(sanitizeAvatarConfig),
   'video-player': createConfigInputTransform(sanitizeVideoPlayerConfig),
   'hero-banner': createConfigInputTransform(sanitizeHeroBannerConfig),
+  fab: createConfigInputTransform(sanitizeFabConfig),
+  'cookie-consent': createConfigInputTransform(sanitizeCookieConsentConfig),
 };
 
 type Config = Record<string, unknown>;

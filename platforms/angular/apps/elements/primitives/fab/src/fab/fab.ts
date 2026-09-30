@@ -6,6 +6,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import type { FabProps } from '@synergos/contracts';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -14,26 +15,16 @@ import {
 } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynFab</c>.
+ * <synergos-fab>: a floating action button — a fixed, circular trigger anchored to a screen
+ * corner that carries a single icon and an optional tooltip label. When an `actionLink` is
+ * supplied it renders as an anchor; otherwise it renders as a button and emits a `fabactivate`
+ * CustomEvent so the host page can react.
  *
- * A floating action button: a fixed, circular trigger anchored to a screen
- * corner that carries a single icon and an optional tooltip label. When an
- * `actionLink` is supplied it renders as an anchor; otherwise it renders as a
- * button and emits a `fabactivate` CustomEvent so the host page can react.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. A `config` object (JSON) is also accepted; explicit attributes win
- * over `config`, which wins over defaults (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `FabProps`, GENERADO del record C# (ADR 0135):
+ * `actionLink` y `target` salen del enlace del editor y `label` es su nombre accesible. La vista
+ * mandaba `actionUrl`/`ariaLabel`: el botón no llevaba a ningún sitio y se anunciaba como
+ * «Acción» (D1). `tooltip` no lo autora el editor: llega por atributo.
  */
-export interface FabRuntimeConfig {
-  readonly iconKey?: string;
-  readonly actionLink?: string;
-  readonly position?: string;
-  readonly label?: string;
-  readonly tooltip?: string;
-  readonly target?: string;
-}
-
 /** Emitted on the `fabactivate` CustomEvent and the typed Angular output. */
 export interface FabActivateDetail {
   readonly actionLink: string;
@@ -70,14 +61,14 @@ function isExternalTarget(href: string): boolean {
   return /^https?:\/\//i.test(href) || href.startsWith('//');
 }
 
-function sanitizeFabConfig(value: Partial<FabRuntimeConfig>): FabRuntimeConfig {
-  return omitUndefinedProperties<FabRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeFabConfig(value: Partial<FabProps>): Partial<FabProps> {
+  return omitUndefinedProperties<FabProps>({
     iconKey: coerceTrimmedStringInput(value.iconKey),
     actionLink: coerceTrimmedStringInput(value.actionLink),
+    target: coerceTrimmedStringInput(value.target),
     position: coerceTrimmedStringInput(value.position),
     label: coerceTrimmedStringInput(value.label),
-    tooltip: coerceTrimmedStringInput(value.tooltip),
-    target: coerceTrimmedStringInput(value.target),
   });
 }
 
@@ -93,8 +84,8 @@ function sanitizeFabConfig(value: Partial<FabRuntimeConfig>): FabRuntimeConfig {
   },
 })
 export class FabElementComponent {
-  readonly config = input<FabRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<FabRuntimeConfig>(sanitizeFabConfig),
+  readonly config = input<Partial<FabProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<FabProps>(sanitizeFabConfig),
   });
   readonly iconKeyInput = input<string | undefined>(undefined, { alias: 'iconKey' });
   readonly actionLinkInput = input<string | undefined>(undefined, { alias: 'actionLink' });
@@ -134,9 +125,7 @@ export class FabElementComponent {
   });
 
   /** Visible tooltip text (optional). */
-  readonly tooltip = computed(() =>
-    resolveConfigValue(this.tooltipInput(), this.config()?.tooltip, ''),
-  );
+  readonly tooltip = computed(() => this.tooltipInput() ?? '');
 
   /** Accessible name for the trigger; falls back to the tooltip text. */
   readonly label = computed(() => {

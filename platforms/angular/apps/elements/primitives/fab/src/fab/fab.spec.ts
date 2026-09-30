@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FAB_SYNHOST } from '@synergos/contracts';
 import { FabActivateDetail, FabElementComponent } from './fab';
 
 describe('FabElementComponent', () => {
@@ -83,5 +84,23 @@ describe('FabElementComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.label()).toBe('Input label');
+  });
+
+  // D1: con `actionUrl`/`ariaLabel` —lo que mandaba la vista— el botón no llevaba a ningún sitio
+  // y se anunciaba como «Acción». Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('lleva al enlace del editor y se anuncia con su nombre con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = FAB_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.isLink()).toBe(true);
+    expect(component.actionLink()).toBe(ejemplo.actionLink);
+    expect(component.target()).toBe(ejemplo.target);
+    expect(component.label()).toBe(ejemplo.label);
+    expect(component.position()).toBe(ejemplo.position);
+    expect(component.iconKey()).toBe(ejemplo.iconKey);
+    const anchor = (fixture.nativeElement as HTMLElement).querySelector('a.fab__trigger');
+    expect(anchor?.getAttribute('aria-label')).toBe(ejemplo.label);
   });
 });

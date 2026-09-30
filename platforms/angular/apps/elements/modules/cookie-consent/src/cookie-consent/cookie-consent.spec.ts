@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { COOKIE_CONSENT_SYNHOST } from '@synergos/contracts';
 import {
   CookieConsentElementComponent,
   type CookieConsentDecision,
@@ -56,6 +57,23 @@ describe('CookieConsentElementComponent', () => {
     expect(component.hasPolicyLink()).toBe(true);
     // 4 valid categories: 3 with id+label + 1 with only a label; the no-label one drops.
     expect(component.categories().length).toBe(4);
+  });
+
+  // D1: con `policyUrl` —lo que mandaba la vista— el aviso salía sin enlace a la política. Éste
+  // alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('enlaza la política y pinta los textos del editor con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = COOKIE_CONSENT_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.bannerText()).toBe(ejemplo.bannerText);
+    expect(component.acceptLabel()).toBe(ejemplo.acceptLabel);
+    expect(component.rejectLabel()).toBe(ejemplo.rejectLabel);
+    expect(component.settingsLabel()).toBe(ejemplo.settingsLabel);
+    expect(component.hasPolicyLink()).toBe(true);
+    expect(component.policyLink()).toBe(ejemplo.policyLink);
+    expect(component.policyLabel()).toBe(ejemplo.policyLabel);
   });
 
   it('should accept all, persist, emit and dismiss (interaction case)', async () => {
