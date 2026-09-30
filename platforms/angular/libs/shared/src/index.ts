@@ -131,10 +131,6 @@ export {
   type SegmentedOption,
   type SegmentedSize,
 } from './components/compositions/segmented/segmented';
-export {
-  SegmentedControlComponent,
-  type SegmentedControlOption,
-} from './components/compositions/segmented-control/segmented-control';
 export { TabsComponent } from './components/compositions/tabs/tabs';
 export { TooltipComponent } from './components/compositions/tooltip/tooltip';
 

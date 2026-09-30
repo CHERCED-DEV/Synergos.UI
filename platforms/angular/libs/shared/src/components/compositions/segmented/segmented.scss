@@ -83,6 +83,18 @@
   }
 }
 
+// El tamaño compacto conserva su caja (~28 px de alto) y sólo agranda el área de
+// puntero a 44 px (WCAG 2.5.5), que es lo que `syn-segmented-control` hacía en su
+// `compact` antes de fusionarse aquí (#83). Crece sólo en alto: un segmento ya mide
+// más de 44 px de ancho (16 px de relleno por lado más el texto), así que entre dos
+// segmentos vecinos no hay franja compartida; y hacia fuera del grupo sobresale
+// 8 − 4 (el relleno del grupo) − 1 (su borde) = 3 px por arriba y por abajo.
+.syn-segmented[data-size='sm'] .syn-segmented__option {
+  @include syn.touch-target;
+
+  isolation: isolate;
+}
+
 .syn-segmented__label {
   overflow: hidden;
   text-overflow: ellipsis;

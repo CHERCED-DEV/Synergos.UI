@@ -1065,8 +1065,17 @@ se desincroniza):
    el arquitecto.
    **El daño de un catálogo que no se consulta no son las piezas sin uso: son las DUPLICADAS.**
    `syn-segmented` —vivo, `libs/shells/src/map/results-map.ts:145`— y `syn-segmented-control`
-   —en la línea base— son el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el que
-   había. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
+   —en la línea base— eran el mismo selector exclusivo: se creó uno nuevo en vez de arreglar el
+   que había. **Se fusionaron en el #83, medidas pieza contra pieza**: sobrevivió `syn-segmented`
+   —radiogroup APG, tabindex itinerante, flechas con vuelta, Home/End— y absorbió lo que la otra
+   tenía y ella no: el `badge` por opción (dentro del radio, así que entra en su nombre accesible)
+   y el área de puntero de 44 px de su tamaño compacto (`sm`). **No absorbió, y se escribe por
+   qué**: el desborde «Prev»/«Next» (con 2–5 segmentos no aplica, y sus rótulos eran fijos en
+   inglés), el `value: unknown` por opción con su salida `optionSelected` (la identidad ya es el
+   `value` string, y el dato lo tiene quien arma las opciones) ni el `tablist`/`tab` sin
+   `tabpanel` y sin flechas, que era la semántica equivocada. `syn-segmented-control` salió del DS
+   y de su barril y la línea base bajó de 22 a 21 **en el mismo commit**; volver a exportarla sin
+   consumidor pone el gate en rojo. Y el doc 22 de la auditoría de UX (`refactor-docs/` del arquitecto, local) pidió
    «crear» un resumen con enlace *Cambiar* que ya existía como
    `syn-detail-summary`; se acabó escribiendo en línea dentro de `syn-dynamic-form`.
    **Antes de crear una pieza se busca QUÉ HACE, no cómo se llama**, entre todas —las de la línea

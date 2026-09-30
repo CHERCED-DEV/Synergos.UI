@@ -136,6 +136,112 @@ describe(SegmentedComponent.name, () => {
     fixture.nativeElement.remove();
   });
 
+  it('names the radiogroup and keeps EXACTLY one radio in the tab order: the checked one', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    fixture.componentRef.setInput('ariaLabel', 'Vista de resultados');
+    fixture.componentRef.setInput('value', 'split');
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('[role="radiogroup"]') as HTMLElement;
+    expect(group.getAttribute('aria-label')).toBe('Vista de resultados');
+
+    const radios = Array.from(
+      fixture.nativeElement.querySelectorAll('[role="radio"]'),
+    ) as HTMLButtonElement[];
+    expect(radios.map((radio) => radio.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
+    expect(radios.map((radio) => radio.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+  });
+
+  it('follows the parent-fed `value`, and never lands on a disabled or unknown one', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', [
+      { value: 'list', label: 'Lista', disabled: true },
+      { value: 'split', label: 'Dividido' },
+      { value: 'map', label: 'Mapa' },
+    ]);
+    fixture.componentRef.setInput('value', 'map');
+    fixture.detectChanges();
+
+    const checked = (): string | null =>
+      (fixture.nativeElement.querySelector('[aria-checked="true"]') as HTMLElement | null)?.textContent?.trim() ??
+      null;
+    expect(checked()).toBe('Mapa');
+
+    // A disabled value is not honoured: the first ENABLED option is checked instead.
+    fixture.componentRef.setInput('value', 'list');
+    fixture.detectChanges();
+    expect(checked()).toBe('Dividido');
+
+    fixture.componentRef.setInput('value', 'no-existe');
+    fixture.detectChanges();
+    expect(checked()).toBe('Dividido');
+  });
+
+  it('ArrowLeft on the first radio wraps to the last one', () => {
+    Element.prototype.scrollIntoView = vi.fn();
+
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    const changed = vi.fn();
+    fixture.componentInstance.valueChange.subscribe(changed);
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+
+    const radios = fixture.nativeElement.querySelectorAll('[role="radio"]');
+    const first = radios[0] as HTMLButtonElement;
+    const last = radios[2] as HTMLButtonElement;
+
+    first.focus();
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(last);
+    expect(last.getAttribute('aria-checked')).toBe('true');
+    expect(changed).toHaveBeenCalledWith('map');
+
+    fixture.destroy();
+    fixture.nativeElement.remove();
+  });
+
+  it('Space and Enter select the focused radio', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    const changed = vi.fn();
+    fixture.componentInstance.valueChange.subscribe(changed);
+    fixture.detectChanges();
+
+    const radios = fixture.nativeElement.querySelectorAll('[role="radio"]');
+    const second = radios[1] as HTMLButtonElement;
+    const third = radios[2] as HTMLButtonElement;
+
+    second.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    fixture.detectChanges();
+    expect(second.getAttribute('aria-checked')).toBe('true');
+
+    third.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(third.getAttribute('aria-checked')).toBe('true');
+    expect(changed.mock.calls).toEqual([['split'], ['map']]);
+  });
+
+  it('renders an option badge INSIDE its radio, so it is part of the accessible name', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', [
+      { value: 'all', label: 'Todos' },
+      { value: 'result', label: 'Resultados', badge: '3' },
+    ]);
+    fixture.detectChanges();
+
+    const radios = fixture.nativeElement.querySelectorAll('[role="radio"]');
+    expect((radios[0] as HTMLElement).querySelector('syn-badge')).toBeNull();
+
+    const badge = (radios[1] as HTMLElement).querySelector('syn-badge') as HTMLElement | null;
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent?.trim()).toBe('3');
+    expect((radios[1] as HTMLElement).textContent?.replace(/\s+/g, ' ').trim()).toBe('Resultados 3');
+  });
+
   it('does not re-emit when re-selecting the already active option (idempotent)', () => {
     const fixture = TestBed.createComponent(SegmentedComponent);
     fixture.componentRef.setInput('options', LAYOUTS);
