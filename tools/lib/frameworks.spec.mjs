@@ -253,6 +253,12 @@ const CIEGAS_AL_FRAMEWORK = [
   // «importá su clase y usá su tag», no el decorador de nadie.
   'lib/gemelas-del-design-system.mjs',
   'gemelas-del-design-system.mjs',
+  // Las dos del #82. La regla es de la sintaxis de plantillas (`@if`, `*ngIf`) y su parser es el
+  // compilador de plantillas, pero ninguna nombra la plataforma: el runner recorre `PLATAFORMAS` y
+  // se queda con las que DECLARAN ese compilador en su package.json, y la lib recibe el parser
+  // inyectado. Una segunda plataforma con plantillas de esa sintaxis entra sola.
+  'lib/regiones-vivas.mjs',
+  'regiones-vivas.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía

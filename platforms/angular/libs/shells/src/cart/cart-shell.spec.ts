@@ -1,5 +1,6 @@
 import { Component, provideZonelessChangeDetection, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { LiveAnnouncerService } from '@synergos/shared';
 import {
   CartShellComponent,
   type CartAction,
@@ -322,21 +323,102 @@ describe('SH-12 syn-cart-shell', () => {
       expect(text(fixture, '.syn-cart__hold')).toContain('14:00');
     });
 
-    it('bajo el umbral deja de ser información y pasa a ser aviso', () => {
+    it('bajo el umbral se marca urgente, y el reloj visible sigue siendo un timer que CALLA', () => {
       const { fixture, host } = mount();
       host.config.set({ ...CONFIG, holdWarnSeconds: 120 });
       host.holdExpiresAt.set('2026-09-12T10:15:00Z');
       fixture.detectChanges();
-      expect(fixture.nativeElement.querySelector('.syn-cart__hold')?.getAttribute('role')).toBe(
-        'status',
-      );
+      expect(fixture.nativeElement.querySelector('.syn-cart__hold')?.getAttribute('role')).toBe('timer');
 
       vi.advanceTimersByTime(13 * 60_000 + 1_000);
       fixture.detectChanges();
 
       const aviso = fixture.nativeElement.querySelector('.syn-cart__hold');
       expect(aviso?.classList.contains('is-urgent')).toBe(true);
-      expect(aviso?.getAttribute('role')).toBe('alert');
+      // Era `role="alert"`: «quedan 1:59», «quedan 1:58»… a gritos cada segundo (#82).
+      expect(aviso?.getAttribute('role')).toBe('timer');
+      expect(
+        fixture.nativeElement.querySelectorAll(
+          '[aria-live]:not([aria-live="off"]), [role="status"], [role="alert"], [role="log"]',
+        ).length,
+      ).toBe(0);
+    });
+
+    describe('lo que dice en voz alta (#82)', () => {
+      let anuncios: Array<[string, string | undefined]>;
+
+      beforeEach(() => {
+        anuncios = [];
+        vi.spyOn(TestBed.inject(LiveAnnouncerService), 'announce').mockImplementation((m, p) => {
+          anuncios.push([m, p]);
+        });
+      });
+
+      /**
+       * Monta la pieza con el apartado YA puesto, como la monta un dominio al abrir el carrito:
+       * el hito de ese primer render es contenido de la carga.
+       */
+      function montarConApartado(vence: string, config: CartShellConfig = CONFIG) {
+        const fixture = TestBed.createComponent(Host);
+        fixture.componentInstance.config.set(config);
+        fixture.componentInstance.holdExpiresAt.set(vence);
+        fixture.detectChanges();
+        return fixture;
+      }
+
+      /** Avanza segundo a segundo, como el reloj de verdad, con su detección de cambios. */
+      function pasar(fixture: ReturnType<typeof mount>['fixture'], segundos: number): void {
+        for (let i = 0; i < segundos; i += 1) {
+          vi.advanceTimersByTime(1000);
+          fixture.detectChanges();
+        }
+      }
+
+      it('quince minutos de apartado sin cruzar un umbral son CERO anuncios', () => {
+        const fixture = montarConApartado('2026-09-12T10:15:00Z');
+        pasar(fixture, 90);
+        expect(anuncios).toEqual([]);
+      });
+
+      it('entrar en la zona de aviso se dice UNA vez, asertivo, y los segundos de después no', () => {
+        const fixture = montarConApartado('2026-09-12T10:02:05Z', { ...CONFIG, holdWarnSeconds: 120 });
+        pasar(fixture, 4);
+        expect(anuncios).toEqual([]);
+
+        pasar(fixture, 1);
+        expect(anuncios).toEqual([['Tu selección está apartada: quedan menos de 2 minutos.', 'assertive']]);
+
+        // La mutación que esto caza: volver a anunciar el `holdText`, que cambia cada segundo.
+        pasar(fixture, 30);
+        expect(anuncios).toHaveLength(1);
+      });
+
+      it('el último minuto y el vencimiento, una vez cada uno', () => {
+        const fixture = montarConApartado('2026-09-12T10:01:02Z');
+
+        pasar(fixture, 2);
+        expect(anuncios.map(([m]) => m)).toEqual(['Tu selección está apartada: queda menos de un minuto.']);
+
+        pasar(fixture, 70);
+        expect(anuncios.map(([m]) => m)).toEqual([
+          'Tu selección está apartada: queda menos de un minuto.',
+          'El apartado venció. Vuelve a elegir para continuar.',
+        ]);
+      });
+
+      it('lo que ya estaba al abrir el carrito no se anuncia: es el contenido de la carga', () => {
+        // A 3 minutos, ya dentro de la zona de aviso de 5: abrir el cajón no grita.
+        const fixture = montarConApartado('2026-09-12T10:03:00Z');
+        pasar(fixture, 5);
+        expect(anuncios).toEqual([]);
+      });
+
+      it('un apartado que aparece con el carrito ya abierto, dentro de la zona, SÍ se dice', () => {
+        const { fixture, host } = mount();
+        host.holdExpiresAt.set('2026-09-12T10:03:00Z');
+        fixture.detectChanges();
+        expect(anuncios.map(([m]) => m)).toEqual(['Tu selección está apartada: quedan menos de 5 minutos.']);
+      });
     });
 
     it('al vencerse lo dice y avisa al dominio UNA sola vez', () => {

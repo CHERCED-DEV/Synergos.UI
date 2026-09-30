@@ -93,6 +93,70 @@ describe('CodeBlockElementComponent', () => {
   });
 });
 
+/**
+ * Copiar SE OYE (#82). El botón llevaba `aria-live` y lo que cambiaba al copiar era su
+ * `aria-label`: una región viva no anuncia atributos, así que el «Copiado» sólo se veía. Se pulsa
+ * el BOTÓN, no el método (regla 5): lo que se arregla es lo que pasa al hacer clic.
+ */
+describe('code-block — copiar se anuncia', () => {
+  let fixture: ComponentFixture<CodeBlockElementComponent>;
+  const region = (): HTMLElement | null => document.querySelector('[data-syn-live-announcer]');
+
+  beforeEach(async () => {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    });
+    await TestBed.configureTestingModule({ imports: [CodeBlockElementComponent] }).compileComponents();
+    fixture = TestBed.createComponent(CodeBlockElementComponent);
+    fixture.componentRef.setInput('code', SAMPLE);
+    fixture.componentRef.setInput('copiedLabel', 'Código copiado');
+    fixture.detectChanges();
+  });
+
+  async function pulsarCopiar(): Promise<void> {
+    (fixture.nativeElement.querySelector('.code-block__copy') as HTMLButtonElement).click();
+    // El portapapeles es asíncrono; después, el servicio espera 100 ms antes de escribir.
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+
+  /** Espera la CONDICIÓN, no un plazo: un plazo fijo es un rojo intermitente en una máquina lenta. */
+  async function esperarAnuncio(texto: string): Promise<void> {
+    await vi.waitFor(() => expect(region()?.textContent).toBe(texto), { timeout: 2000, interval: 20 });
+  }
+
+  it('el botón no es una región viva, y la plantilla no tiene ninguna', () => {
+    expect(
+      fixture.nativeElement.querySelectorAll(
+        '[aria-live]:not([aria-live="off"]), [role="status"], [role="alert"], [role="log"]',
+      ).length,
+    ).toBe(0);
+  });
+
+  it('copiar dice el rótulo de «copiado» por la región del documento', async () => {
+    await pulsarCopiar();
+    await esperarAnuncio('Código copiado');
+  });
+
+  it('copiar dos veces lo dice dos veces: la región pasa por vacío', async () => {
+    await pulsarCopiar();
+    await esperarAnuncio('Código copiado');
+    region()!.textContent = '((no se volvió a anunciar))';
+    await pulsarCopiar();
+    await esperarAnuncio('Código copiado');
+  });
+
+  it('si el portapapeles falla, no dice «copiado»', async () => {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denegado')) },
+      configurable: true,
+    });
+    await pulsarCopiar();
+    expect(region()?.textContent ?? '').not.toContain('copiado');
+  });
+});
+
 describe('code-block pure helpers', () => {
   it('splitCodeLines returns nothing for empty input', () => {
     expect(splitCodeLines('').length).toBe(0);

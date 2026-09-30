@@ -64,6 +64,7 @@ import {
   type TrackingStage,
 } from '@synergos/shells';
 import {
+  LiveAnnouncerService,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   monogram as monogramOf,
@@ -309,6 +310,7 @@ export class StorefrontElementComponent {
   readonly #bus = inject<TransactionEventBusService<StorefrontBus>>(TransactionEventBusService);
   readonly #api = inject(ShopApiClient);
   readonly #identity = inject(HostIdentityService);
+  readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<StorefrontRuntimeConfig | undefined, unknown>(undefined, {
@@ -1749,6 +1751,13 @@ export class StorefrontElementComponent {
         this.reprice();
         this.cartOpen.set(true);
         this.emitCartUpdate();
+        // Abrir el cajón se VE; sin esto, agregar al carrito no se oía (#82).
+        this.#announcer.announce(`${product.title} agregado al carrito.`);
+      })
+      .catch(() => {
+        // Antes el `.then` no tenía `catch`: el fallo era un rechazo sin manejar, mudo para
+        // todos. Ahora se oye; que también se VEA queda anotado en #82 (no es de anuncios).
+        this.#announcer.announce(`No se pudo agregar ${product.title} al carrito.`, 'assertive');
       });
   }
 

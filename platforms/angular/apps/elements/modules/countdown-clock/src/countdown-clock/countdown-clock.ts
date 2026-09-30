@@ -8,7 +8,10 @@ import {
   signal,
 } from '@angular/core';
 import {
+  type CountdownMilestone,
+  LiveRegionComponent,
   coerceTrimmedStringInput,
+  countdownMilestone,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
@@ -108,6 +111,20 @@ function sanitizeCountdownClockConfig(
   });
 }
 
+/**
+ * Lo que el reloj dice EN VOZ ALTA (#82). Antes, un `aria-live="polite"` sobre la frase del
+ * tiempo restante la anunciaba en cada tic: un lector de pantalla hablando cada segundo mientras
+ * la página esté abierta. El tiempo exacto lo describe el `role="timer"` —que calla por
+ * definición— y en voz alta sólo se dicen estos umbrales, una vez cada uno. El último, «empezó»,
+ * lo pone `startedLabel`.
+ */
+const MILESTONES: readonly CountdownMilestone[] = [
+  { atSeconds: DAY / SECOND, message: 'Falta menos de un día.' },
+  { atSeconds: HOUR / SECOND, message: 'Falta menos de una hora.' },
+  { atSeconds: (10 * MINUTE) / SECOND, message: 'Faltan menos de 10 minutos.' },
+  { atSeconds: MINUTE / SECOND, message: 'Falta menos de un minuto.' },
+];
+
 function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
 }
@@ -115,6 +132,7 @@ function padTwo(value: number): string {
 @Component({
   selector: 'sg-countdown-clock',
   standalone: true,
+  imports: [LiveRegionComponent],
   templateUrl: './countdown-clock.html',
   styleUrl: './countdown-clock.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -206,7 +224,10 @@ export class CountdownClockElementComponent {
     ];
   });
 
-  /** Screen-reader sentence rebuilt each tick under aria-live=polite. */
+  /**
+   * La frase del tiempo restante, rehecha en cada tic. DESCRIBE el reloj (el `aria-label` del
+   * `role="timer"` y el texto que se lee al recorrer la página); NO se anuncia — ver `milestone`.
+   */
   readonly ariaSummary = computed(() => {
     if (!this.hasTarget()) {
       return '';
@@ -217,6 +238,22 @@ export class CountdownClockElementComponent {
     return this.segments()
       .map((segment) => `${segment.value} ${segment.label}`)
       .join(', ');
+  });
+
+  /**
+   * El hito cruzado, o `''`. Vale lo mismo durante toda una franja, así que sólo CAMBIA al cruzar
+   * un umbral — y `syn-live-region` sólo anuncia cambios. El primer valor, el de la carga, no se
+   * anuncia: quien abre la página a 3 horas del evento no necesita oír «falta menos de un día».
+   */
+  readonly milestone = computed(() => {
+    const remaining = this.remainingMs();
+    if (remaining === null) {
+      return '';
+    }
+    return countdownMilestone(Math.ceil(remaining / SECOND), [
+      ...MILESTONES,
+      { atSeconds: 0, message: this.startedLabel() },
+    ]);
   });
 
   /** Circumference for an r=42 ring inside a 100x100 viewBox. */

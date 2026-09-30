@@ -1,0 +1,244 @@
+{
+  "medido": "2026-09-30",
+  "nota": "LÍNEA BASE, no objetivo (#82, regla 42). `deuda`: regiones vivas dentro de un bloque que NACEN con su mensaje (o sobran: estado vacío por configuración, esqueleto sin texto, contenedor) — se vigila en los dos sentidos: una nueva rompe, y una arreglada también, para que el commit que la arregla la baje aquí mismo. `censo`: las que están dentro de un bloque porque nacen con su VISTA y después viven; cada una dice por qué NO nace con su mensaje. `--actualizar` reescribe la deuda y no toca el censo.",
+  "deuda": [
+    "platforms/angular/apps/domains/shop/product-card/src/product-card/product-card.html · @if(loading()) · div[role=status live=polite]",
+    "platforms/angular/apps/domains/shop/product-detail/src/product-detail/product-detail.html · @if(apiError()) · p[role=alert]",
+    "platforms/angular/apps/domains/shop/product-detail/src/product-detail/product-detail.html · @if(loading()) · output[live=polite]",
+    "platforms/angular/apps/domains/shop/product-grid/src/product-grid/product-grid.html · @if(apiError()) · p[role=alert]",
+    "platforms/angular/apps/elements/compositions/autocomplete/src/autocomplete/autocomplete.html · @if(fetchFailed()) · li[role=status live=assertive]",
+    "platforms/angular/apps/elements/compositions/autocomplete/src/autocomplete/autocomplete.html · @if(loading()) · span[role=status]",
+    "platforms/angular/apps/elements/compositions/autocomplete/src/autocomplete/autocomplete.html · @if(showEmpty()) · li[role=status live=polite]",
+    "platforms/angular/apps/elements/compositions/badge-group/src/badge-group/badge-group.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/compositions/color-picker/src/color-picker/color-picker.html · @if(!isDraftValid()) · span[role=alert]",
+    "platforms/angular/apps/elements/compositions/color-swatches/src/color-swatches/color-swatches.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/compositions/form-stepper/src/form-stepper/form-stepper.html · @if(completed()) · div[role=status]",
+    "platforms/angular/apps/elements/compositions/form-stepper/src/form-stepper/form-stepper.html · @if(hasError(field.name)) · span[role=alert]",
+    "platforms/angular/apps/elements/compositions/select-multi/src/select-multi/select-multi.html · @if(capacityHint()) · span[live=polite]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(degraded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(learningState() === 'anon') · section[role=status]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(moderationNotice(); as aviso) · p[role=[moderationFailed() ? 'alert' : 'status']]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(progressNotice(); as aviso) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/academy/src/academy/academy.html · @if(role() === 'instructor' && instructorAccess() !== 'ok') · section[role=status]",
+    "platforms/angular/apps/elements/modules/app-launcher/src/app-launcher/app-launcher.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/audio-player/src/audio-player/audio-player.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(!articleCoverAlt().trim()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(articleNotSaved()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(articleTitle() && articleTitle().trim().length < 3) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(confirmedMembership()) · div[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(degraded() && sessionAccess() === 'ok') · p[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(loading() && !notificationsLoaded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(loading() && comments().length === 0) · p[role=status]",
+    "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @if(threadAccess() === 'forbidden') · p[role=alert]",
+    "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @if(dateError()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @if(guestEmail() && !guestEmailValid()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @if(guestName() && !guestNameValid()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/calendar/src/calendar/calendar.html · @if(fetchFailed()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/calendar/src/calendar/calendar.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/chart-bar/src/chart-bar/chart-bar.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/comments-widget/src/comments-widget/comments-widget.html · @if(fetchFailed()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/comments-widget/src/comments-widget/comments-widget.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/dropzone/src/dropzone/dropzone.html · @if(file.status === 'error' && file.error) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(checkinDone()) · div[role=status]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(closedAvs()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('appointments')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('billing')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('chart')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('health')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('home')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('medications')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('results')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(readFailed('threads')) · div[role=alert]",
+    "platforms/angular/apps/elements/modules/ehr/src/ehr/ehr.html · @if(rxInteractions().length > 0) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @if(degraded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/file-uploader/src/file-uploader/file-uploader.html · @if(hasFiles()) · span[role=status live=polite]",
+    "platforms/angular/apps/elements/modules/file-uploader/src/file-uploader/file-uploader.html · @if(rejection()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(accessNotice()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(acto.opened) · p[role=status]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(citizenAccess() !== 'ok') · div[role=status]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(degraded() && citizenAccess() === 'ok' && officerAccess() === 'ok') · p[role=status]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(notifyDone()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(notifyError()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(openError()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/lightbox-gallery/src/lightbox-gallery/lightbox-gallery.html · @if(!hasImages()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/livestream/src/livestream/livestream.html · @else · div[role=status]",
+    "platforms/angular/apps/elements/modules/livestream/src/livestream/livestream.html · @if(hasViewers()) · span[role=status live=polite]",
+    "platforms/angular/apps/elements/modules/notification-center/src/notification-center/notification-center.html · @if(!loading() && !fetchFailed()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/notification-center/src/notification-center/notification-center.html · @if(fetchFailed() && !hasItems()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/notification-center/src/notification-center/notification-center.html · @if(loading() && !hasItems()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/notification-center/src/notification-center/notification-center.html · @if(unreadCount() > 0) · span[live=polite]",
+    "platforms/angular/apps/elements/modules/notification-toast/src/notification-toast/notification-toast.html · @for(toast of toasts()) · div[role=[toastRole(toast)] live=[toast.variant === 'error' ? 'assertive' : 'polite']]",
+    "platforms/angular/apps/elements/modules/notification-toast/src/notification-toast/notification-toast.html · @if(hasToasts()) · div[role=region live=[liveAssertive() ? 'assertive' : 'polite']]",
+    "platforms/angular/apps/elements/modules/oembed/src/oembed/oembed.html · @if(!hasUrl()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/poll/src/poll/poll.html · @if(!hasOptions()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/poll/src/poll/poll.html · @if(submitFailed()) · span[role=status]",
+    "platforms/angular/apps/elements/modules/quote-animated/src/quote-animated/quote-animated.html · @for(active of [activeIndex()]) · p[live=polite]",
+    "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(degraded() && agentAccess() === 'ok') · p[role=status]",
+    "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(actionError(); as fallo) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(degraded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/seller/src/seller/seller.html · @if(publishReceipt(); as receipt) · div[role=status]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(claimForLine(order.orderNumber, line); as claim) · span[role=status]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(degraded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(deskNotice(); as aviso) · p[role=[deskFailed() ? 'alert' : 'status']]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · @if(returnError(); as error) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/tab-group/src/tab-group/tab-group.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/testimonial-carousel/src/testimonial-carousel/testimonial-carousel.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/timeline/src/timeline/timeline.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/toast-center/src/toast-center/toast-center.html · @for(toast of visibleToasts()) · li[role=[ariaLive(toast) === 'assertive' ? 'alert' : 'status'] live=[ariaLive(toast)]]",
+    "platforms/angular/apps/elements/modules/toast-center/src/toast-center/toast-center.html · @if(hasOverflow()) · p[role=status live=polite]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(cancelReceipt(trip.ref); as receipt) · p[role=status]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(compareMessage(); as aviso) · p[role=status]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(degraded()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(liveConflict()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/travel-shell/src/travel-shell/travel-shell.html · @if(loading()) · p[role=status]",
+    "platforms/angular/apps/elements/modules/tree-view/src/tree-view/tree-view.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/modules/video-player/src/video-player/video-player.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/primitives/qr-code/src/qr-code/qr-code.html · @else · p[role=status]",
+    "platforms/angular/apps/elements/primitives/qr-code/src/qr-code/qr-code.html · @if(hasError()) · p[role=alert]",
+    "platforms/angular/apps/elements/primitives/tag/src/tag/tag.html · @if(isVisible()) · span[role=[removable() ? 'group' : 'status']]",
+    "platforms/angular/apps/experiences/media-explorer/src/media-explorer/interface/media-explorer.html · @if(selectedItem(); as current) · section[live=polite]",
+    "platforms/angular/libs/shared/src/components/patterns/promo-code/promo-code.ts · @if(applied(); as promo) · p[role=status]",
+    "platforms/angular/libs/shared/src/components/patterns/promo-code/promo-code.ts · @if(message(); as texto) · p[role=alert]",
+    "platforms/angular/libs/shared/src/components/primitives/alert/alert.ts · @if(visible()) · section[role=alert live=polite]",
+    "platforms/angular/libs/shells/src/checkout/checkout-wizard.ts · @if(errorMessage()) · p[role=alert]",
+    "platforms/angular/libs/shells/src/compare/compare-table.ts · @if(!comparable()) · p[role=status]",
+    "platforms/angular/libs/shells/src/compare/compare-table.ts · @if(visibleRowCount() === 0) · p[role=status]",
+    "platforms/angular/libs/shells/src/confirmation/confirmation-shell.ts · @else · p[role=alert]",
+    "platforms/angular/libs/shells/src/confirmation/confirmation-shell.ts · @if(config().warning) · p[role=status]",
+    "platforms/angular/libs/shells/src/forms/dynamic-form-shell.ts · @if(errorFor(field.id); as message) · span[role=alert]",
+    "platforms/angular/libs/shells/src/forms/dynamic-form-shell.ts · @if(visibleErrors().length > 0) · div[role=alert]",
+    "platforms/angular/libs/shells/src/map/results-map.ts · @if(loading()) · p[role=status]",
+    "platforms/angular/libs/shells/src/reviews/review-panel.ts · @if(blockedMessage(); as mensaje) · p[role=status]",
+    "platforms/angular/libs/shells/src/reviews/review-panel.ts · @if(entry.pending) · p[role=status]",
+    "platforms/angular/libs/shells/src/reviews/review-panel.ts · @if(notice()) · p[role=[noticeIsError() ? 'alert' : 'status']]",
+    "platforms/angular/libs/shop/src/lib/variant-picker/variant-picker.html · @if(selectedVariant()) · p[live=polite]"
+  ],
+  "censo": [
+    {
+      "clave": "platforms/angular/apps/domains/shop/cart-summary/src/cart-summary/cart-summary.html · @if(!isEmpty()) · div[role=status live=polite]",
+      "razon": "Los totales viven mientras el carrito tenga líneas y cambian con cada cantidad. El 0→1 (nace con la primera línea) lo cubre el anuncio de «agregado» del cartStore (#82)."
+    },
+    {
+      "clave": "platforms/angular/apps/domains/shop/product-detail/src/product-detail/product-detail.html · @if(!loading() && !apiError() && product()) · p[live=polite]",
+      "razon": "El stock vive con la ficha y cambia al elegir variante; `loading` sólo se enciende al cambiar de SKU (product-detail.ts:152), no al elegir."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/color-swatches/src/color-swatches/color-swatches.html · @if(hasSwatches()) · p[role=status live=polite]",
+      "razon": "La paleta viene de la configuración y no cambia: la selección vive con ella y su texto cambia al elegir un color."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/pagination/src/pagination/pagination.html · @if(hasPages()) · p[role=status live=polite]",
+      "razon": "`hasPages` depende de la configuración (total de páginas), no de la navegación: «Página N de M» vive y cambia al paginar."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/pax-selector/src/pax-selector/pax-selector.html · @for(room of rooms()) · output[live=polite]",
+      "veces": 2,
+      "razon": "Contador de adultos por habitación: el @for tiene `track` y la habitación persiste al sumar/restar, así que el contador vive y cambia."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/range-slider/src/range-slider/range-slider.html · @if(label()) · output[live=polite]",
+      "razon": "`label` es configuración estable: el valor del deslizador vive con la cabecera y cambia al moverlo."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/rating-stars/src/rating-stars/rating-stars.html · @else · output[live=polite]",
+      "razon": "La rama es el modo editable (el @else de `readonly`, que es configuración): el valor elegido vive con ella y cambia al puntuar."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/compositions/stepper/src/stepper/stepper.html · @if(hasSteps()) · p[role=status live=polite]",
+      "razon": "Los pasos vienen de la configuración: «Paso N de M» vive con el indicador y cambia al avanzar."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · ng-template · span[live=polite]",
+      "razon": "Contador de caracteres del compositor: vive mientras se escribe. OJO, otro defecto anotado en #82: habla en CADA tecla."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @case('contenido') · p[live=polite]",
+      "razon": "Pista del editor en el paso «contenido»: vive con el paso y cambia al escribir. OJO: también habla en cada tecla (anotado en #82)."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @case('fechas') · p[live=polite]",
+      "razon": "Resumen del paso «fechas»: nace con el paso y cambia al elegir fechas y ocupación dentro de él."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @case('habitacion') · p[live=polite]",
+      "razon": "Resumen del paso «habitación»: nace con el paso y cambia al elegir dentro de él."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(!loading()) · p[live=polite]",
+      "razon": "`loading` es un INPUT del host (data-grid.ts:349) y el filtrado es local: el contador vive y cambia al filtrar. Latente: si un host lo pone en loading para recargar, pasa a nacer con su mensaje."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(!hasTitle() && !loading()) · p[live=polite]",
+      "razon": "El mismo contador sin título: `hasTitle` es configuración y `loading` un input del host; vive mientras se filtra. Mismo riesgo latente que el de arriba."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @else · span[live=polite]",
+      "razon": "Cantidad de entradas: vive mientras hay tarifa elegida y cambia con − y +."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/gov/src/gov/gov.html · @if(view() === 'application' && activeApplication(); as app) · p[role=status]",
+      "razon": "Estado del trámite: nace con la vista de seguimiento y cambia cuando el caso avanza con la vista abierta."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/lightbox-gallery/src/lightbox-gallery/lightbox-gallery.html · @if(activeImage(); as active) · span[live=polite]",
+      "razon": "Contador «N de M» del visor: nace al abrirlo y cambia al pasar de imagen con el visor abierto."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/poll/src/poll/poll.html · @if(hasOptions()) · span[role=status live=polite]",
+      "razon": "Las opciones vienen de la configuración: el total de votos vive y cambia al votar."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/realty/src/realty/realty.html · @case('ubicacion') · p[live=polite]",
+      "razon": "Coordenadas del pin en el paso «ubicación»: el @if va DENTRO de la región (lo dice su comentario) y cambian al mover el pin."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/storefront/src/storefront/storefront.html · ng-template · span[live=polite]",
+      "razon": "Cantidad de la ficha de producto: vive con la ficha y cambia con − y +."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/testimonial-carousel/src/testimonial-carousel/testimonial-carousel.html · @if(hasTestimonials()) · div[live=[isAutoplaying() ? 'off' : 'polite']]",
+      "razon": "Patrón APG de carrusel: los testimonios son configuración y el visor vive; calla en autoplay y habla al pasar a mano."
+    },
+    {
+      "clave": "platforms/angular/apps/elements/modules/tour-guide/src/tour-guide/tour-guide.html · @if(isActive() && currentStep(); as step) · span[live=polite]",
+      "razon": "Progreso del tour: nace al empezarlo y cambia al avanzar de paso con el tour abierto."
+    },
+    {
+      "clave": "platforms/angular/libs/shells/src/console/console-shell.ts · @if(hasPaging()) · span[role=status]",
+      "razon": "Paginación LOCAL (#ownPage, console-shell.ts:475): «Página N de M» vive con la tabla y cambia al paginar sin recargar."
+    },
+    {
+      "clave": "platforms/angular/libs/shells/src/discovery/discovery-shell.ts · @if(pageCount() > 1) · span[live=polite]",
+      "razon": "`pageCount` es estable mientras se pagina y la página cambia dentro del bloque: «N / M» vive y cambia."
+    },
+    {
+      "clave": "platforms/angular/libs/shop/src/lib/cart-item/cart-item.html · @if(cartItem) · p[live=polite]",
+      "razon": "Subtotal de la línea: vive con el ítem y cambia con la cantidad."
+    }
+  ]
+}

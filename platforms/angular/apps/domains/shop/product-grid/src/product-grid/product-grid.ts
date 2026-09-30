@@ -2,6 +2,9 @@ import type { ProductGridElementConfig, Product, ProductListResponse } from '@sy
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -65,6 +68,8 @@ function sanitizeProductGridConfig(
 })
 export class ProductGridComponent {
   private readonly http = inject(HttpClient);
+  readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #injector = inject(Injector);
   readonly headingId = `sg-product-grid-heading-${Math.random().toString(36).slice(2, 10)}`;
 
   private normalizeSort(value: string | undefined): string {
@@ -151,9 +156,6 @@ export class ProductGridComponent {
   readonly productsRegionLabel = computed(
     () => this.t()['Shop.Filter.ResultsRegion'] ?? 'Product results',
   );
-  readonly loadingProductsLabel = computed(
-    () => this.t()['Shop.Filter.Loading'] ?? 'Loading products',
-  );
   readonly loadingErrorLabel = computed(
     () => this.t()['Shop.Filter.Error'] ?? 'Error loading products. Please try again.',
   );
@@ -181,6 +183,26 @@ export class ProductGridComponent {
       .replace('{current}', String(this.currentPage()))
       .replace('{total}', String(this.totalPages())),
   );
+  /**
+   * Lo que dice la región de resultados (#82). Vacío hasta que la persona CAMBIA algo —buscar,
+   * ordenar, paginar—: los resultados de la carga son el contenido de la página, no un evento. Y
+   * vacío mientras carga, así que cada respuesta pasa por vacío y se anuncia aunque diga lo mismo
+   * que la anterior (dos búsquedas con 12 resultados). El error lo dice su `role="alert"`.
+   */
+  readonly resultsStatus = computed(() => {
+    if (!this.#resultsChangedByUser() || this.loading() || this.apiError()) {
+      return '';
+    }
+    if (this.total() === 0) {
+      return this.noResultsLabel();
+    }
+    const count = (this.t()['Shop.Filter.ResultsCount'] ?? '{total} products').replace(
+      '{total}',
+      String(this.total()),
+    );
+    return this.totalPages() > 1 ? `${count} · ${this.pageStatusLabel()}` : count;
+  });
+  readonly #resultsChangedByUser = signal(false);
   readonly canGoPrevious       = computed(() => this.currentPage() > 1);
   readonly canGoNext           = computed(() => this.currentPage() < this.totalPages());
 
@@ -223,17 +245,20 @@ export class ProductGridComponent {
 
   // ── Interactions ──────────────────────────────────────────────────────────
   onSortChange(value: string): void {
+    this.#resultsChangedByUser.set(true);
     this.activeSort.set(value);
     this.currentPage.set(1);
   }
 
   onSearch(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
+    this.#resultsChangedByUser.set(true);
     this.searchQuery.set(value);
     this.currentPage.set(1);
   }
 
   clearFilters(): void {
+    this.#resultsChangedByUser.set(true);
     this.searchQuery.set('');
     this.activeSort.set('relevance');
     this.currentPage.set(1);
@@ -244,7 +269,9 @@ export class ProductGridComponent {
       return;
     }
 
+    this.#resultsChangedByUser.set(true);
     this.currentPage.update((page) => Math.max(1, page - 1));
+    this.keepPaginationFocus('prev');
   }
 
   nextPage(): void {
@@ -252,7 +279,35 @@ export class ProductGridComponent {
       return;
     }
 
+    this.#resultsChangedByUser.set(true);
     this.currentPage.update((page) => Math.min(this.totalPages(), page + 1));
+    this.keepPaginationFocus('next');
+  }
+
+  /**
+   * El foco no se pierde al paginar (#82). La paginación ya no se destruye con la carga, así que
+   * el botón pulsado sigue ahí; lo que queda es el borde: llegar a la última página DESHABILITA
+   * «Siguiente», y un botón deshabilitado suelta el foco al `<body>` (lo documenta `syn-button`).
+   * Entonces, y sólo si el foco estaba en él, pasa al otro botón.
+   */
+  private keepPaginationFocus(pressed: 'prev' | 'next'): void {
+    afterNextRender(
+      () => {
+        const host = this.#host.nativeElement;
+        const button = (which: 'prev' | 'next'): HTMLButtonElement | null =>
+          host.querySelector<HTMLButtonElement>(`.product-grid__page-${which} button`);
+        const pulsado = button(pressed);
+        if (!pulsado?.disabled) {
+          return;
+        }
+        const activo = host.ownerDocument.activeElement;
+        if (activo !== pulsado && activo !== host.ownerDocument.body && activo !== null) {
+          return;
+        }
+        button(pressed === 'next' ? 'prev' : 'next')?.focus();
+      },
+      { injector: this.#injector },
+    );
   }
 
   addToCart(product: Product): void {
