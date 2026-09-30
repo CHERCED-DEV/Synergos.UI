@@ -104,10 +104,76 @@
  * runner dice en cada corrida.)
  */
 
+import { relative, resolve } from 'node:path';
+
 import ts from 'typescript';
+
+import { PLATAFORMAS } from './element-sources.mjs';
 
 /** Dónde vive el design system, relativo a la raíz de la plataforma. */
 export const RAIZ_DEL_DESIGN_SYSTEM = 'libs/shared/src/components';
+
+/**
+ * Las plataformas que tienen design system, y dónde está la raíz de cada una.
+ *
+ * Se deriva de `PLATAFORMAS`. Escribir la carpeta de una plataforma a mano resolvería a un
+ * literal una dimensión de lo que se recorre —la regla 25— y además lo prohíbe el censo de
+ * `frameworks.spec.mjs`. **Sólo tienen design system las plataformas que lo tengan**: una que
+ * no declara `RAIZ_DEL_DESIGN_SYSTEM` se salta en silencio y es correcto, porque no hay nada que
+ * medir ahí. Lo que NO sería correcto es que no hubiera ninguna, y de eso se ocupa la red de
+ * seguridad de cada gate.
+ *
+ * Vivía en el runner de este gate; la usan los dos gates del design system (#81), y con dos
+ * copias la del segundo es la que se desvía.
+ *
+ * @template {{framework: string, apps: string}} P
+ * @param {{ raiz: string, esDirectorio: (ruta: string) => boolean, plataformas?: ReadonlyArray<P> }} io
+ * @returns {Array<P & {base: string}>} la plataforma tal cual, más `base`: su raíz, absoluta.
+ */
+export function plataformasConDesignSystem({ raiz, esDirectorio, plataformas = PLATAFORMAS }) {
+  return plataformas
+    // `apps` es `platforms/<x>/apps`; la raíz de la plataforma es su padre.
+    .map((p) => ({ ...p, base: resolve(raiz, p.apps, '..') }))
+    .filter((p) => esDirectorio(resolve(p.base, RAIZ_DEL_DESIGN_SYSTEM)));
+}
+
+/**
+ * Lo que los dos gates del design system leen de UNA plataforma (#78, #81): cuántas fuentes
+ * tiene su design system, qué piezas declaran, y todo el código y las plantillas de `apps/` y
+ * `libs/`, con la ruta relativa a la plataforma.
+ *
+ * Vive acá, con el disco inyectado, para que el segundo gate no escriba una segunda lectura: qué
+ * extensiones cuentan como fuente del design system y cuál es el universo de consumidores son
+ * decisiones de UN sitio.
+ *
+ * @param {{ base: string, listar: (dir: string) => string[], leer: (ruta: string) => string }} io
+ *   `base`, la raíz de la plataforma; `listar`, los ficheros bajo una carpeta (recursivo, rutas
+ *   absolutas, vacío si no existe); `leer`, el texto de uno.
+ */
+export function leerDesignSystem({ base, listar, leer }) {
+  const relativa = (ruta) => relative(base, ruta).replace(/\\/g, '/');
+  const delDs = listar(resolve(base, RAIZ_DEL_DESIGN_SYSTEM));
+
+  // Todo lo que PODRÍA declarar un componente, sea cual sea la forma de la plataforma. Es lo
+  // que permite distinguir «acá no hay nada» de «acá hay algo que no sé leer» (regla 25).
+  const fuentesDelDs = delDs.filter((f) => /\.(ts|tsx|js|jsx)$/.test(f) && !/\.spec\.tsx?$/.test(f)).length;
+
+  const piezas = componentesDeclarados(
+    delDs
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.spec.ts'))
+      .map((f) => ({ ruta: relativa(f), fuente: leer(f) })),
+  );
+
+  // El universo de posibles consumidores: los elementos publicables Y las demás libs. Sin
+  // `libs/`, un componente usado sólo por `libs/shells` saldría muerto — falso positivo, que es
+  // el lado del que el gate de #78 NO se puede equivocar.
+  const fuentes = ['apps', 'libs']
+    .flatMap((carpeta) => listar(resolve(base, carpeta)))
+    .filter((f) => /\.(ts|tsx|html)$/.test(f))
+    .map((f) => ({ ruta: relativa(f), fuente: leer(f) }));
+
+  return { fuentesDelDs, piezas, fuentes };
+}
 
 /**
  * Las plataformas cuyo design system este gate NO sabe leer, con su razón y su disparador.

@@ -360,6 +360,26 @@ export function implementacionesDe(nombre, io) {
 }
 
 /**
+ * Qué carpeta del disco construye una entrada del registry: la suya, o la del tag que comparte.
+ *
+ * Es la mitad de `resolverFramework` que no depende de declaraciones, separada para que quien
+ * necesita la CARPETA —`gemelas-del-design-system` (#81) lee su `main`— no escriba una segunda
+ * copia de la precedencia.
+ *
+ * @returns {{ framework: string, dir: string, tier: string|null, origen: string } | null}
+ */
+export function fuenteDeLaEntrada(entrada, fuentes) {
+  const propia = fuentes.get(entrada.name);
+  if (propia) return { ...propia, origen: 'fuente propia' };
+
+  const slug = slugDeTag(entrada.tag);
+  const compartida = slug === entrada.name ? undefined : fuentes.get(slug);
+  if (compartida) return { ...compartida, origen: `implementación compartida: ${slug}` };
+
+  return null;
+}
+
+/**
  * De qué framework es una entrada del registry, y de dónde sale esa respuesta.
  *
  * El orden importa: fuente propia > implementación compartida > declaración con
@@ -371,14 +391,8 @@ export function implementacionesDe(nombre, io) {
  * @returns {{ framework: string, origen: string, razon?: string } | null}
  */
 export function resolverFramework(entrada, fuentes) {
-  const propia = fuentes.get(entrada.name);
-  if (propia) return { framework: propia.framework, origen: 'fuente propia' };
-
-  const slug = slugDeTag(entrada.tag);
-  const compartida = slug === entrada.name ? undefined : fuentes.get(slug);
-  if (compartida) {
-    return { framework: compartida.framework, origen: `implementación compartida: ${slug}` };
-  }
+  const fuente = fuenteDeLaEntrada(entrada, fuentes);
+  if (fuente) return { framework: fuente.framework, origen: fuente.origen };
 
   const declarada = SIN_FUENTE_PROPIA[entrada.name];
   if (declarada) {

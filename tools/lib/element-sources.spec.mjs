@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   descubrirFuentes, todasLasFuentes, revisarFuentesDuplicadas,
   implementacionesDe, SHOWCASE_MULTIPLATAFORMA,
-  resolverFramework, revisarFrameworks, tierDelDisco,
+  resolverFramework, fuenteDeLaEntrada, revisarFrameworks, tierDelDisco,
   elegirPlataforma, resolverTier, SIN_FUENTE_PROPIA, PLATAFORMAS,
 } from './element-sources.mjs';
 import { loadRegistry, contratoDelManifiesto } from './synergos-config.mjs';
@@ -247,6 +247,35 @@ describe('resolverFramework', () => {
   it('sin fuente y sin excepción declarada, no se adivina', () => {
     const fuentes = descubrirFuentes(discoFalso([]));
     expect(resolverFramework(entrada('fantasma'), fuentes)).toBeNull();
+  });
+});
+
+describe('fuenteDeLaEntrada (#81)', () => {
+  const entrada = (name, tag = `synergos-${name}`) => ({ name, tag, alias: 'elementX', tier: 'module' });
+
+  it('da la CARPETA con la misma precedencia que el framework: propia, después compartida', () => {
+    // La usa `gemelas-del-design-system` para leer el `main` de un elemento. Sin esto tendría
+    // que escribir `fuentes.get(nombre) ?? fuentes.get(slug)` —la segunda copia de la regla—.
+    const fuentes = descubrirFuentes(
+      discoFalso([
+        `${APPS}/elements/primitives/text-block/src/main.ts`,
+        `${APPS}/elements/modules/hero/src/main.ts`,
+      ]),
+    );
+    expect(fuenteDeLaEntrada(entrada('hero'), fuentes)).toMatchObject({
+      dir: `${APPS}/elements/modules/hero`,
+      origen: 'fuente propia',
+    });
+    expect(fuenteDeLaEntrada(entrada('heading', 'synergos-text-block'), fuentes)).toMatchObject({
+      dir: `${APPS}/elements/primitives/text-block`,
+      origen: 'implementación compartida: text-block',
+    });
+  });
+
+  it('una entrada declarada sin fuente no tiene carpeta: null, aunque tenga framework', () => {
+    const fuentes = descubrirFuentes(discoFalso([]));
+    expect(fuenteDeLaEntrada(entrada('stat-counter'), fuentes)).toBeNull();
+    expect(resolverFramework(entrada('stat-counter'), fuentes)).toMatchObject({ origen: 'declarado sin fuente' });
   });
 });
 

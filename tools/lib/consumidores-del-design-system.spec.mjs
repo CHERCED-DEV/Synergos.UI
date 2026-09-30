@@ -1,3 +1,5 @@
+import { resolve, sep } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,6 +10,8 @@ import {
   declaracionesDeComponente,
   formatearReparto,
   inalcanzablesDesdeProducto,
+  leerDesignSystem,
+  plataformasConDesignSystem,
   repartoPorTier,
   revisarCobertura,
   sinComentarios,
@@ -153,6 +157,52 @@ export class RaizSinSelector {}
     expect(con).toMatchObject({ clase: 'XComponent', selector: 'syn-x' });
     expect(con.metadatos).toContain("templateUrl: './x.html'");
     expect(sin).toMatchObject({ clase: 'RaizSinSelector', selector: null });
+  });
+});
+
+describe('la lectura que comparten los dos gates (#81)', () => {
+  it('plataformasConDesignSystem: sólo las que tienen la carpeta, con su declaración entera', () => {
+    const plataformas = [
+      { framework: 'uno', apps: 'p/uno/apps', entrada: 'src/main.ts' },
+      { framework: 'dos', apps: 'p/dos/apps', entrada: 'src/main.tsx' },
+    ];
+    const r = plataformasConDesignSystem({
+      raiz: '/r',
+      esDirectorio: (ruta) => ruta.replace(/\\/g, '/').includes('/p/uno/'),
+      plataformas,
+    });
+    expect(r.map((p) => p.framework)).toEqual(['uno']);
+    expect(r[0].entrada).toBe('src/main.ts');
+    expect(r[0].base.replace(/\\/g, '/')).toMatch(/\/r\/p\/uno$/);
+  });
+
+  it('leerDesignSystem: fuentes del DS, piezas y el universo de apps + libs, con ruta relativa', () => {
+    const base = resolve('/plataforma');
+    const abs = (rel) => resolve(base, rel);
+    const disco = {
+      [abs(`${DS}/primitives/button/button.ts`)]: "@Component({ selector: 'syn-button' })\nexport class ButtonComponent {}",
+      [abs(`${DS}/primitives/button/button.spec.ts`)]: '',
+      [abs(`${DS}/primitives/button/button.scss`)]: '',
+      [abs('apps/a/src/a.ts')]: "import { ButtonComponent } from '@s';",
+      [abs('apps/a/src/a.html')]: '<syn-button></syn-button>',
+      [abs('libs/shells/src/s.ts')]: '',
+      [abs('libs/shells/src/s.scss')]: '',
+    };
+    const listar = (dir) => Object.keys(disco).filter((f) => f.startsWith(`${dir}${sep}`));
+    const r = leerDesignSystem({ base, listar, leer: (f) => disco[f] });
+
+    expect(r.fuentesDelDs).toBe(1);
+    expect(r.piezas.map((p) => p.clase)).toEqual(['ButtonComponent']);
+    expect(r.piezas[0].carpeta).toBe(`${DS}/primitives/button`);
+    // El design system vive dentro de `libs/`, así que también es universo: el cierre de #78
+    // propaga por dentro de él. Los estilos no; los specs sí llegan (los descarta quien cruza).
+    expect(r.fuentes.map((f) => f.ruta).sort()).toEqual([
+      'apps/a/src/a.html',
+      'apps/a/src/a.ts',
+      `${DS}/primitives/button/button.spec.ts`,
+      `${DS}/primitives/button/button.ts`,
+      'libs/shells/src/s.ts',
+    ]);
   });
 });
 
