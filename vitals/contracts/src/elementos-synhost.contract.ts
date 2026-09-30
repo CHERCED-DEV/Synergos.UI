@@ -152,6 +152,16 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-share-bar> · pieza */
+export interface ShareBarProps {
+  /** decision */
+  readonly platforms?: readonly string[];
+  /** contenido */
+  readonly shareLink?: string;
+  /** contenido */
+  readonly shareTitle?: string;
+}
+
 /** <synergos-tag> · pieza */
 export interface TagProps {
   /** contenido */
@@ -334,6 +344,25 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   },
 };
 
+export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
+  nombre: "share-bar",
+  tipo: "pieza",
+  record: "ShareBarProps",
+  diccionario: [],
+  campos: ["platforms","shareLink","shareTitle"],
+  listas: {},
+  ejemplo: {
+    "culture": "es-CO",
+    "platforms": [
+      "whatsapp",
+      "x",
+      "linkedin"
+    ],
+    "shareLink": "https://synergos.local/eventos/feria-del-libro-2026",
+    "shareTitle": "Feria del libro 2026: programa completo"
+  },
+};
+
 export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
@@ -373,6 +402,7 @@ export const ELEMENTOS_SYNHOST = [
   HERO_BANNER_SYNHOST,
   KPI_CARD_SYNHOST,
   RATING_STARS_SYNHOST,
+  SHARE_BAR_SYNHOST,
   TAG_SYNHOST,
   VIDEO_PLAYER_SYNHOST,
 ] as const;
