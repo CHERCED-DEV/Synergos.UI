@@ -5,38 +5,22 @@ import {
   inject,
   input,
 } from '@angular/core';
+import type { TimelineProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
-import {
-  coerceTrimmedStringInput,
-  createConfigInputTransform,
-  omitUndefinedProperties,
-  resolveConfigValue,
-} from '@synergos/shared';
+import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/shared';
 
 /**
- * Runtime config for the CMS element <c>elementSynTimeline</c>.
+ * <synergos-timeline>: a vertical timeline — an ordered list of milestones, each with a date,
+ * title and body, joined by a continuous connector. Built for editorial "trayectoria / historia /
+ * roadmap" sections.
  *
- * A vertical timeline: an ordered list of milestones, each with a date,
- * title and body, joined by a continuous connector. Built for editorial
- * "trayectoria / historia / roadmap" sections. Items can be supplied
- * inline via `events` (JSON array) or via a `config` object.
- *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias. Explicit attributes win over `config`, which wins over defaults
- * (see `resolveConfigValue`).
+ * El `config` que manda el CMS tiene la forma de `TimelineProps`, GENERADO del record C#
+ * (ADR 0135): `events` es una LISTA ya parseada (`date`, `title`, `body`). Esta cabecera decía
+ * «every CMS property is a TypeScript input with the same alias», y era falso: la vista mandaba
+ * el TEXTO `eventsJson` y la línea de tiempo colocada salía sin hitos (D1). `title`,
+ * `emptyLabel` y `locale` no los autora el editor: son atributos, igual que `eventsJson`, que
+ * gana sobre el `config`. `orientation` se acepta como atributo y no se pinta: siempre vertical.
  */
-export interface TimelineRuntimeConfig {
-  readonly title?: string;
-  readonly emptyLabel?: string;
-  readonly locale?: string;
-  readonly events?: readonly TimelineEventConfig[];
-}
-
-export interface TimelineEventConfig {
-  readonly date?: string;
-  readonly title?: string;
-  readonly body?: string;
-}
 
 /** Normalized, render-ready timeline item. */
 export interface TimelineItem {
@@ -127,14 +111,10 @@ export function normalizeTimelineEvents(
     .filter((item): item is TimelineItem => item !== null);
 }
 
-function sanitizeTimelineConfig(
-  value: Partial<TimelineRuntimeConfig>,
-): TimelineRuntimeConfig {
-  return omitUndefinedProperties<TimelineRuntimeConfig>({
-    title: coerceTrimmedStringInput(value.title),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
-    locale: coerceTrimmedStringInput(value.locale),
-    events: value.events,
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeTimelineConfig(value: Partial<TimelineProps>): Partial<TimelineProps> {
+  return omitUndefinedProperties<TimelineProps>({
+    events: Array.isArray(value.events) ? value.events : undefined,
   });
 }
 
@@ -149,8 +129,8 @@ function sanitizeTimelineConfig(
 export class TimelineElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<TimelineRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TimelineRuntimeConfig>(sanitizeTimelineConfig),
+  readonly config = input<Partial<TimelineProps> | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TimelineProps>(sanitizeTimelineConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
@@ -159,19 +139,9 @@ export class TimelineElementComponent {
   readonly orientation = input<string | undefined>(undefined, { alias: 'orientation' });
   readonly integration = input<string | undefined>(undefined, { alias: 'integration' });
 
-  readonly title = computed(() =>
-    resolveConfigValue(this.titleInput(), this.config()?.title, ''),
-  );
-  readonly emptyLabel = computed(() =>
-    resolveConfigValue(
-      this.emptyLabelInput(),
-      this.config()?.emptyLabel,
-      'No hay hitos para mostrar.',
-    ),
-  );
-  readonly locale = computed(() =>
-    resolveConfigValue(this.localeInput(), this.config()?.locale, DEFAULT_LOCALE),
-  );
+  readonly title = computed(() => this.titleInput() ?? '');
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay hitos para mostrar.');
+  readonly locale = computed(() => this.localeInput() ?? DEFAULT_LOCALE);
 
   readonly hasTitle = computed(() => this.title().trim().length > 0);
 

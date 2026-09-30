@@ -60,6 +60,13 @@ export interface TabsItem {
   readonly content?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: TimelineEntry). */
+export interface TimelineEntry {
+  readonly date?: string;
+  readonly title?: string;
+  readonly body?: string;
+}
+
 /** <synergos-carousel> · pieza */
 export interface CarouselProps {
   /** contenido */
@@ -162,6 +169,12 @@ export interface TagProps {
   readonly label?: string;
   /** decision */
   readonly color?: string;
+}
+
+/** <synergos-timeline> · pieza */
+export interface TimelineProps {
+  /** contenido */
+  readonly events?: readonly TimelineEntry[];
 }
 
 export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
@@ -371,6 +384,30 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   },
 };
 
+export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
+  nombre: "timeline",
+  tipo: "pieza",
+  record: "TimelineProps",
+  diccionario: [],
+  campos: ["events"],
+  listas: {"events":["date","title","body"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "events": [
+      {
+        "date": "2019-03-01",
+        "title": "Fundación",
+        "body": "Abrimos la primera sede en Medellín."
+      },
+      {
+        "date": "2024",
+        "title": "Segunda sede",
+        "body": "Llegamos a Bogotá."
+      }
+    ]
+  },
+};
+
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   CAROUSEL_SYNHOST,
@@ -383,4 +420,5 @@ export const ELEMENTOS_SYNHOST = [
   STEPPER_SYNHOST,
   TABS_SYNHOST,
   TAG_SYNHOST,
+  TIMELINE_SYNHOST,
 ] as const;
