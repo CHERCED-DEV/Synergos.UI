@@ -299,6 +299,43 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     );
   });
 
+  // ── #82: agregar al carrito SE OYE ─────────────────────────────────────────────
+  // Abrir el cajón se veía y no se oía. Y el `.then` no tenía `catch`: un fallo del motor era un
+  // rechazo sin manejar, mudo para todos.
+  it('agregar al carrito se anuncia por la región del documento', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+
+    component.quickAdd(PRODUCT_A);
+    await vi.waitFor(
+      () =>
+        expect(document.querySelector('[data-syn-live-announcer]')?.textContent).toBe(
+          'Audífonos Pro agregado al carrito.',
+        ),
+      { timeout: 2000, interval: 20 },
+    );
+    expect(component.cartOpen()).toBe(true);
+  });
+
+  it('si el motor no puede agregar, no abre el cajón y lo dice asertivo', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    vi.spyOn(ShopFulfillmentStrategy.prototype, 'select').mockRejectedValue(new Error('sin cupo'));
+
+    component.quickAdd(PRODUCT_A);
+    await vi.waitFor(
+      () =>
+        expect(document.querySelector('[data-syn-live-announcer]')?.textContent).toBe(
+          'No se pudo agregar Audífonos Pro al carrito.',
+        ),
+      { timeout: 2000, interval: 20 },
+    );
+    expect(component.cartOpen()).toBe(false);
+    expect(document.querySelector('[data-syn-live-announcer]')?.getAttribute('aria-live')).toBe('assertive');
+  });
+
   // ── happy: add → cart agrupado → SH-3 wizard → pay → confirm ─────────────────
   it('runs the full lifecycle through the SH-3 wizard to a confirmation (happy case)', async () => {
     installMemoryStorage();

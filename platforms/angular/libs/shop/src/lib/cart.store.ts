@@ -34,6 +34,7 @@
 
 import { computed, signal } from '@angular/core';
 import type { CartItem, Cart } from '@synergos/contracts';
+import { documentLiveAnnouncer } from '@synergos/shared';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -337,7 +338,21 @@ if (typeof window !== 'undefined') {
       // El drawer se abre SOLO si el servidor confirmó. Abrirlo siempre era
       // exactamente el fallo: anunciar al comprador que el producto está en su
       // carrito cuando el carrito real no lo tiene.
-      if (ok) openDrawer();
+      //
+      // Y lo que se VE se OYE (#82): hasta acá, agregar no le decía nada a un lector
+      // de pantalla — ni el éxito ni el fallo, que revertía el carrito en silencio.
+      // Se anuncia AQUÍ porque es el único sitio que sabe las dos cosas: si el
+      // servidor confirmó y qué producto era. El store no tiene inyector (ver la
+      // cabecera), así que usa el anunciador del documento, que es la misma región
+      // que la de `LiveAnnouncerService`. Con el cajón abierto (`aria-modal`), el
+      // anunciador se cuelga de él para que el mensaje no quede fuera del modal.
+      const anunciador = documentLiveAnnouncer(document);
+      if (ok) {
+        openDrawer();
+        anunciador.announce(`${d.name} agregado al carrito.`);
+      } else {
+        anunciador.announce(`No se pudo agregar ${d.name} al carrito.`, 'assertive');
+      }
     });
   });
 }
