@@ -137,7 +137,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   it('la modalidad de la visita se elige con el teclado y viaja en el POST (#83)', async () => {
     Element.prototype.scrollIntoView = vi.fn();
     installMemoryStorage();
-    const fetchMock = vi.fn((_url: unknown, _init?: RequestInit) =>
+    const fetchMock = vi.fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(() =>
       Promise.reject(new Error('offline')),
     );
     vi.stubGlobal('fetch', fetchMock);
