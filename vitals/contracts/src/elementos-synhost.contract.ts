@@ -66,6 +66,12 @@ export interface DropdownOption {
   readonly href?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: NotificationToastSeed). */
+export interface NotificationToastSeed {
+  readonly message: string;
+  readonly variant?: string;
+}
+
 /** <synergos-accordion> · pieza */
 export interface AccordionProps {
   /** contenido */
@@ -140,6 +146,14 @@ export interface KpiCardProps {
   readonly deltaLabel?: string;
   /** contenido */
   readonly period?: string;
+}
+
+/** <synergos-notification-toast> · pieza */
+export interface NotificationToastProps {
+  /** contenido */
+  readonly toasts?: readonly NotificationToastSeed[];
+  /** decision */
+  readonly durationMs?: number;
 }
 
 /** <synergos-rating-stars> · pieza */
@@ -338,6 +352,25 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   },
 };
 
+export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps> = {
+  nombre: "notification-toast",
+  tipo: "pieza",
+  record: "NotificationToastProps",
+  diccionario: [],
+  campos: ["toasts","durationMs"],
+  listas: {"toasts":["message","variant"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "toasts": [
+      {
+        "message": "Tu pedido quedó confirmado.",
+        "variant": "success"
+      }
+    ],
+    "durationMs": 8000
+  },
+};
+
 export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
@@ -377,6 +410,7 @@ export const ELEMENTOS_SYNHOST = [
   DROPDOWN_SYNHOST,
   ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
+  NOTIFICATION_TOAST_SYNHOST,
   RATING_STARS_SYNHOST,
   TAG_SYNHOST,
 ] as const;

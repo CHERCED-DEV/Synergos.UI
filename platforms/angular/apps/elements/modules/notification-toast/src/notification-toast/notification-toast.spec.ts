@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NOTIFICATION_TOAST_SYNHOST } from '@synergos/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   NotificationToastElementComponent,
@@ -39,11 +40,13 @@ describe('NotificationToastElementComponent', () => {
     expect(fixture.nativeElement.querySelector('.toast-stack')).toBeNull();
   });
 
+  // `position` y el `title` de cada aviso no los autora el editor en el CMS (ADR 0135): son atributo.
   it('should seed toasts from config and announce assertively for errors (render/config case)', async () => {
     fixture.componentRef.setInput(
       'config',
-      '{"position":"bottom-center","toasts":[{"message":"Guardado","variant":"success"},{"message":"Error de red","variant":"error","title":"Ups"}]}',
+      '{"toasts":[{"message":"Guardado","variant":"success"},{"message":"Error de red","variant":"error"}]}',
     );
+    fixture.componentRef.setInput('position', 'bottom-center');
     fixture.detectChanges();
     await fixture.whenStable();
 
@@ -59,6 +62,20 @@ describe('NotificationToastElementComponent', () => {
     expect(stack.getAttribute('aria-live')).toBe('assertive');
     expect(component.toastRole(component.toasts()[1])).toBe('alert');
     expect(component.toastRole(component.toasts()[0])).toBe('status');
+  });
+
+  // D1: con `message`/`type` sueltos en el `config` —lo que mandaba la vista— este elemento no
+  // sembraba ningún aviso. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  it('muestra el aviso que el editor autoró con el config exacto que emite la vista del CMS', async () => {
+    const { ejemplo } = NOTIFICATION_TOAST_SYNHOST;
+    fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.toasts().map((toast) => toast.message)).toEqual(ejemplo.toasts?.map((seed) => seed.message));
+    expect(component.toasts().map((toast) => toast.variant)).toEqual(ejemplo.toasts?.map((seed) => seed.variant));
+    expect(component.toasts()[0]?.durationMs).toBe(ejemplo.durationMs);
+    expect(fixture.nativeElement.querySelector('.toast-stack')).toBeTruthy();
   });
 
   it('should push, auto-dismiss after duration, and emit toastdismiss (interaction case)', () => {
