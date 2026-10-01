@@ -259,6 +259,14 @@ const CIEGAS_AL_FRAMEWORK = [
   // inyectado. Una segunda plataforma con plantillas de esa sintaxis entra sola.
   'lib/regiones-vivas.mjs',
   'regiones-vivas.mjs',
+  // Las cuatro del piloto de la ADR 0136 (CMS#186). Recorren las fuentes de cada elemento con
+  // `descubrirFuentes` sobre `PLATAFORMAS` y las librerías de cada plataforma desde su `apps`, así
+  // que una segunda plataforma entra sola; y lo que leen de un elemento es `t('Clave')` del helper
+  // agnóstico y sus textos de interfaz, que no tienen dueño de framework.
+  'lib/diccionario-de-elementos.mjs',
+  'diccionario-de-elementos.mjs',
+  'lib/literales-visibles.mjs',
+  'literales-visibles.mjs',
   // Dejó de nombrarlo en #52: el descubrimiento es el del build y el menú de
   // framework se deriva de `frameworksConstruibles`. Antes la lista estaba
   // escrita a mano —`[{ name: 'Angular' }]`— y el rótulo del runtime decía
