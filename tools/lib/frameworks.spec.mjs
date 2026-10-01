@@ -333,6 +333,9 @@ const CIEGAS_AL_FRAMEWORK = [
   // Los topes de los tests y las vueltas de `setTimeout(0)` (#84): recorre los specs de
   // cada plataforma con `raicesEnDisco`, así que la segunda entra sin tocar el fichero.
   'lib/esperas-de-los-specs.mjs',
+  // Un lavado de estado como tinta (UI#91): detector puro sobre texto; el recorrido de las
+  // plataformas lo hace su spec con `raicesEnDisco`.
+  'lib/tinta-de-lavado.mjs',
 ];
 
 /**

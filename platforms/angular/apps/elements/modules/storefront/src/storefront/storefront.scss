@@ -1179,8 +1179,12 @@
     margin: 0;
     border-radius: syn.$radius-md;
     padding: syn.$space-2 syn.$space-3;
-    background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
-    color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+    // Tinta de TEXTO de peligro, no el LAVADO (UI#91): `state-danger-surface` es un rgba al
+    // 10-16 % y como tinta daba 1,13-1,19:1 en los siete temas —texto invisible— y 3,43:1 con
+    // los respaldos de dev. Con `state-danger-text`, de 5,47:1 (silverGold) a 10,94:1; y en dev
+    // el aviso va sin fondo propio (4,83:1), porque danger-600 sobre danger-100 da 4,40.
+    background: var(--syn-color-state-danger-soft, transparent);
+    color: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
     font-size: syn.$font-size-sm;
   }
 
@@ -1207,8 +1211,9 @@
     font-size: syn.$font-size-sm;
 
     &.is-error {
-      background: var(--syn-color-state-danger-soft, #{syn.$color-danger-100});
-      color: var(--syn-color-state-danger-surface, #{syn.$color-danger-500});
+      // El mismo par que `__return-error`, por la misma razón (UI#91).
+      background: var(--syn-color-state-danger-soft, transparent);
+      color: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
     }
   }
 
