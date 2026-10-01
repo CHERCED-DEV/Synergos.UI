@@ -172,4 +172,31 @@ describe('product-grid — resultados y paginación (#82)', () => {
     responder(fixture, { items: [], total: 0, page: 1, pageSize: 10, totalPages: 1 });
     expect(estado(fixture).textContent?.trim()).toBe('No products found.');
   });
+
+  // ── #87, visto de paso: el buscador pide al servidor en CADA tecla ─────────────────
+  // Lo que se mide primero no es el debounce sino lo que puede salir MAL: dos búsquedas en
+  // vuelo, y la respuesta de la vieja llegando la última. Sin cancelar, la lista pinta los
+  // resultados de «a» con «au» escrito en el buscador.
+  it('la respuesta de una búsqueda VIEJA no pisa a la nueva', () => {
+    const fixture = montar();
+    const buscar = (texto: string): void => {
+      fixture.componentInstance.onSearch({ target: { value: texto } } as unknown as Event);
+      fixture.detectChanges();
+    };
+    const nombres = (): string[] => fixture.componentInstance.products().map((p) => p.name);
+
+    buscar('a');
+    buscar('au');
+    const [vieja, nueva] = http.match((req) => req.url === '/api/shop/products');
+    expect(nueva.request.params.get('search')).toBe('au');
+
+    nueva.flush({ items: [{ ...producto(7), name: 'Audífonos' }], total: 1, page: 1, pageSize: 10, totalPages: 1 });
+    // Una petición cancelada no se puede responder: si se canceló, ya no hay carrera.
+    if (!vieja.cancelled) {
+      vieja.flush({ items: [{ ...producto(8), name: 'Arroz' }], total: 1, page: 1, pageSize: 10, totalPages: 1 });
+    }
+    fixture.detectChanges();
+
+    expect(nombres()).toEqual(['Audífonos']);
+  });
 });

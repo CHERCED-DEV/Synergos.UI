@@ -179,6 +179,30 @@ describe(DynamicFormShellComponent.name, () => {
     expect(query(element, '.syn-dform__errors')?.textContent).toContain('formato');
   });
 
+  // ── #87, sospecha sin medir: `focusErrorSummary` con `queueMicrotask` ──────────────
+  // El test de arriba llama a `fixture.detectChanges()` a mano después del clic, así que pinta el
+  // resumen ANTES de que corra la microtarea. En zoneless el render lo programa el scheduler y
+  // llega después: el foco podría ir a un resumen que todavía no existe. Se mide como corre de
+  // verdad — sin detectChanges a mano— y la primera vez, cuando el resumen todavía no está.
+  it('la PRIMERA vez que falla, el foco llega al resumen de errores con el render del scheduler', async () => {
+    const fixture = await createHost();
+    const element: HTMLElement = fixture.nativeElement;
+    document.body.appendChild(element);
+    fixture.autoDetectChanges();
+    await fixture.whenStable();
+    expect(query(element, '.syn-dform__errors'), 'control: no existe antes del primer fallo').toBeNull();
+
+    clickButtonByText(element, '.syn-dform__btn--primary', 'Continuar');
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 0));
+    await fixture.whenStable();
+
+    const summary = query(element, '.syn-dform__errors');
+    expect(summary).not.toBeNull();
+    expect(document.activeElement).toBe(summary);
+    element.remove();
+  });
+
   // ── idempotent: re-submitting an incomplete form emits nothing repeatedly ─────
   it('never emits submit until every section is valid (idempotent case)', async () => {
     const fixture = await createHost();

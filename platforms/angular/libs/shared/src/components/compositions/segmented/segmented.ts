@@ -52,7 +52,8 @@ function nextSegmentedInstanceId(): string {
     <div
       class="syn-segmented"
       role="radiogroup"
-      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby() || null"
+      [attr.aria-label]="ariaLabelledby() ? null : ariaLabel() || null"
       [attr.data-size]="size()"
     >
       @for (option of options(); track option.value; let index = $index) {
@@ -71,7 +72,7 @@ function nextSegmentedInstanceId(): string {
           @if (option.icon) {
             <syn-icon class="syn-segmented__icon" [symbol]="option.icon" />
           }
-          <span class="syn-segmented__label">{{ option.label }}</span>
+          <span class="syn-segmented__label" [attr.data-label]="option.label">{{ option.label }}</span>
           @if (option.badge) {
             <syn-badge class="syn-segmented__badge" [text]="option.badge" />
           }
@@ -84,7 +85,18 @@ function nextSegmentedInstanceId(): string {
 export class SegmentedComponent {
   readonly options = input<readonly SegmentedOption[]>([]);
   readonly value = input('');
-  readonly ariaLabel = input('Segmented');
+  /**
+   * El nombre del grupo. Sin valor por defecto (#87): era `'Segmented'`, así que un
+   * consumidor que lo olvidaba nombraba el grupo EN INGLÉS y nada lo delataba. Sin nombre,
+   * el auditor de accesibilidad sí lo ve.
+   */
+  readonly ariaLabel = input('');
+  /**
+   * El id del rótulo VISIBLE que nombra el grupo (#87). Gana sobre `ariaLabel`: con un
+   * «Modalidad» a la vista, repetirlo en `aria-label` deja dos textos que se desvían y un
+   * nombre que no es el que se lee (WCAG 2.5.3).
+   */
+  readonly ariaLabelledby = input('');
   readonly size = input<SegmentedSize>('md');
 
   readonly valueChange = output<string>();

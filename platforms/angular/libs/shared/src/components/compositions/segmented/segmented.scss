@@ -1,8 +1,13 @@
 @use '../../../../../../../../vitals/core-assets/src/scss' as syn;
 
 // `syn-segmented` mirrors the `--syn-tabs-*` pill chrome but as a compact,
-// equal-width radiogroup. Everything is tokenised under `--syn-segmented-*` so a
-// consumer can retheme it (or a per-siteRoot theme can drift it) without a fork.
+// equal-width radiogroup. Lo que se puede retematizar DESDE FUERA son los tokens
+// semánticos (`--syn-color-*`), que es lo que mueve cada tema por-siteRoot: las
+// `--syn-segmented-*` se declaran SOBRE la propia pieza y un ancestro no las pisa.
+// Medido en el banco (#87): `--syn-segmented-surface` puesta en el host de EHR no
+// cambiaba nada y `--syn-color-surface-secondary` sí. Esta cabecera decía lo
+// contrario; nadie las sobrescribe hoy (ni el CMS ni el UI) y el mismo patrón está en
+// el resto del DS, así que abrirlas es una decisión del DS entero, no de esta pieza.
 .syn-segmented {
   --syn-segmented-surface: var(--syn-color-surface-secondary, #{syn.$color-surface-subtle});
   --syn-segmented-border: var(--syn-color-border-default, #{syn.$color-border-default});
@@ -111,8 +116,27 @@
 // deja 278 px para dos rótulos de 17 caracteres (medido, #83). Con sitio, el
 // max-content manda y el rótulo va en una línea.
 .syn-segmented__label {
+  display: inline-flex;
+  flex-direction: column;
   min-width: 0;
   overflow-wrap: anywhere;
+
+  // El segmento marcado va en seminegrita, y en una rejilla dimensionada por su
+  // contenido eso ensanchaba TODAS las columnas al cambiar la selección: medido en el
+  // banco, el grupo de EHR pasaba de 202 a 194 px (4 px por segmento) y movía lo que
+  // tuviera al lado (#87). Una copia invisible del rótulo en seminegrita reserva ese
+  // ancho siempre. `/ ""` la saca del nombre accesible; la línea de arriba es el
+  // respaldo para un motor sin texto alternativo en `content`.
+  &::after {
+    content: attr(data-label);
+    content: attr(data-label) / '';
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: syn.$font-weight-semibold;
+    pointer-events: none;
+    user-select: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

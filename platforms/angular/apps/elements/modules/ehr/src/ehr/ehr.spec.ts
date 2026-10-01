@@ -196,9 +196,15 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture.detectChanges();
 
     const group = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
-      'syn-segmented [role="radiogroup"][aria-label="Modalidad de la cita"]',
+      'syn-segmented.ehr__mode-toggle [role="radiogroup"]',
     );
     expect(group).not.toBeNull();
+    // #87: el nombre es el rótulo VISIBLE «Modalidad», por aria-labelledby. Antes el rótulo no
+    // se asociaba y el grupo llevaba otro texto aparte en aria-label.
+    const rotulo = document.getElementById(group?.getAttribute('aria-labelledby') ?? '');
+    expect(rotulo?.textContent?.trim()).toBe('Modalidad');
+    expect((fixture.nativeElement as HTMLElement).contains(rotulo)).toBe(true);
+    expect(group?.hasAttribute('aria-label')).toBe(false);
     const radios = Array.from(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []);
     const estado = (): string[][] =>
       radios.map((radio) => [radio.textContent?.trim() ?? '', radio.getAttribute('aria-checked') ?? '']);
