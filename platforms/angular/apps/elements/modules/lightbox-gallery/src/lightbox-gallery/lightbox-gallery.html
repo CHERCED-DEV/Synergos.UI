@@ -12,7 +12,7 @@
     class="lightbox-gallery__grid"
     role="list"
     [style.--lg-columns]="columns()"
-    aria-label="Galería de imágenes"
+    [attr.aria-label]="gridLabel()"
   >
     @for (image of images(); track $index) {
       <li class="lightbox-gallery__item">
@@ -20,7 +20,7 @@
           type="button"
           class="lightbox-gallery__thumb"
           (click)="open($index)"
-          [attr.aria-label]="'Ampliar imagen ' + ($index + 1) + (image.caption ? ': ' + image.caption : '')"
+          [attr.aria-label]="enlargeLabel($index, image.caption)"
         >
           <img
             class="lightbox-gallery__thumb-img"
@@ -50,7 +50,7 @@
         class="lightbox__dialog"
         role="dialog"
         aria-modal="true"
-        [attr.aria-label]="active.caption || active.alt || 'Imagen ampliada'"
+        [attr.aria-label]="active.caption || active.alt || enlargedLabel()"
         tabindex="-1"
       >
         <header class="lightbox__bar">
@@ -73,7 +73,7 @@
               type="button"
               class="lightbox__nav lightbox__nav--prev"
               (click)="previous()"
-              aria-label="Imagen anterior"
+              [attr.aria-label]="previousLabel()"
             >
               <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M15 6 9 12l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -93,7 +93,7 @@
               type="button"
               class="lightbox__nav lightbox__nav--next"
               (click)="next()"
-              aria-label="Imagen siguiente"
+              [attr.aria-label]="nextLabel()"
             >
               <svg class="lightbox__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />

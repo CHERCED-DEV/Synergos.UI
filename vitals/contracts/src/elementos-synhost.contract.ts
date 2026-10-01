@@ -348,7 +348,7 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
-/** <synergos-lightbox-gallery> · pieza */
+/** <synergos-lightbox-gallery> · pieza · diccionario: Gallery */
 export interface LightboxGalleryProps {
   /** contenido */
   readonly images?: readonly LightboxGalleryImage[];
@@ -935,8 +935,8 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
   nombre: "lightbox-gallery",
   tipo: "pieza",
   record: "LightboxGalleryProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Gallery"],
+  claves: ["Gallery.Aria","Gallery.Close","Gallery.Download","Gallery.Empty","Gallery.Enlarge","Gallery.Enlarged","Gallery.ImageOf","Gallery.Next","Gallery.Previous","Gallery.Zoom"],
   campos: ["images","columns"],
   listas: {"images":["src","thumb","alt","caption"]},
   ejemplo: {
