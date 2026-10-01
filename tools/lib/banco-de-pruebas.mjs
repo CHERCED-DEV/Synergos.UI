@@ -123,6 +123,34 @@ export const ENTRADAS_DE_CABLEADO = {
   // No es de una vertical, y se midió igual: media-explorer filtraba por la categoría
   // «muestra: defaultCategory», que ningún item tiene, y se quedaba sin un solo video.
   defaultCategory: 'una de las categorías del propio contenido: una inventada filtra todo y deja la lista vacía',
+
+  // ── Los vocabularios cerrados de las piezas que NO son verticales (UI#91) ──────────
+  // Medido sobre element-inputs.json: 25 entradas de 12 nombres seguían recibiendo
+  // «muestra: X» —`position` en fab, scroll-top y toast-center; `placement` en popover y
+  // rich-tooltip; `orientation`, `shape`, `style`, `variantKey`…—. Un valor fuera del
+  // vocabulario no es una muestra: el elemento lo descarta y cae a su valor por defecto, o lo
+  // pega en una clase que no existe. `theme`, `variant`, `tone`, `alignment`… hoy declaran su
+  // valor por defecto y ése va; están en el censo para que una entrada nueva sin él tampoco
+  // reciba un texto inventado.
+  theme: 'el tema de la pieza, de un vocabulario cerrado (light, dark…); el de verdad lo pone el siteRoot',
+  variant: 'la variante de presentación, de un vocabulario cerrado de cada pieza',
+  variantKey: 'la variante de presentación con el nombre del CMS, del mismo vocabulario cerrado',
+  tone: 'el tono semántico, de un vocabulario cerrado (neutral, success, warning, danger, info)',
+  size: 'la escala de la pieza (sm, md, lg…) o su medida en píxeles: un texto no es ninguna de las dos',
+  alignment: 'la alineación, de un vocabulario cerrado (left, center, right…)',
+  orientation: 'horizontal o vertical',
+  position: 'la esquina o el borde donde se fija la pieza, de un vocabulario cerrado',
+  placement: 'el lado donde se abre la capa (top, bottom, left, right…)',
+  shape: 'la forma, de un vocabulario cerrado (circle, square, text…)',
+  style: 'el estilo de la pieza, de un vocabulario cerrado de cada una',
+  density: 'la densidad del dibujo, de un vocabulario cerrado',
+  direction: 'la dirección del grupo, fila o columna',
+  headingLevel: 'el nivel del encabezado, de h1 a h6',
+  badgeType: 'el tipo de la insignia (info, warning, success)',
+  type: 'el tipo del aviso (info, success, warning, error)',
+  status: 'el estado de presencia (online, offline, busy, away)',
+  trend: 'la dirección de la tendencia (up, down, neutral)',
+  color: 'un color CSS: un texto inventado es un valor inválido que el navegador descarta',
 };
 
 /**

@@ -241,3 +241,44 @@ describe('las verticales, con el mismo criterio', () => {
     }
   });
 });
+
+describe('los vocabularios cerrados de las piezas que no son verticales (UI#91)', () => {
+  const inputs = loadInputs();
+
+  // Lo que se midió sobre element-inputs.json antes del arreglo: 25 entradas de 12 nombres
+  // que recibían «muestra: X» siendo un valor de un vocabulario cerrado (o un código CSS). Las
+  // siete de `variantKey` (las piezas de la Tienda) las cubre el test de abajo, que mira todas.
+  const MEDIDAS = [
+    'qr-code.size', 'chart-bar.orientation', 'splitter.orientation', 'timeline.orientation',
+    'fab.position', 'scroll-top.position', 'toast-center.position', 'color-swatches.shape',
+    'skeleton.shape', 'popover.placement', 'rich-tooltip.placement', 'countdown-digital.style',
+    'separator.style', 'card.badgeType', 'icon-block.color', 'notification-toast.type',
+    'avatar.status', 'stat-counter.trend',
+  ];
+
+  it('las que se midieron ya no reciben un texto inventado: van sin atributo', () => {
+    for (const par of MEDIDAS) {
+      const [elemento, nombre] = par.split('.');
+      const entrada = inputs[elemento]?.find((i) => i.name === nombre);
+      expect(entrada, `${par} ya no está en element-inputs.json`).toBeTruthy();
+      expect(valorDeMuestra(entrada), par).toBeNull();
+    }
+  });
+
+  it('y ninguna entrada de un vocabulario del censo, en NINGÚN elemento, recibe «muestra: X»', () => {
+    const inventadas = Object.entries(inputs)
+      .filter(([, lista]) => Array.isArray(lista))
+      .flatMap(([elemento, lista]) =>
+        lista
+          .filter((i) => Object.hasOwn(ENTRADAS_DE_CABLEADO, i.name))
+          .filter((i) => String(valorDeMuestra(i) ?? '').startsWith('muestra:'))
+          .map((i) => `${elemento}.${i.name}`),
+      );
+    expect(inventadas).toEqual([]);
+  });
+
+  it('el que declara su valor por defecto lo conserva: ése sí es un valor que la pieza acepta', () => {
+    const tema = inputs.accordion?.find((i) => i.name === 'theme') ?? { name: 'theme', type: 'string', default: 'light' };
+    expect(valorDeMuestra(tema)).toBe(tema.default);
+  });
+});
