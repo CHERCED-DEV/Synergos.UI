@@ -208,7 +208,7 @@ export interface BadgeGroupProps {
   readonly layout?: string;
 }
 
-/** <synergos-breadcrumb> · pieza */
+/** <synergos-breadcrumb> · pieza · diccionario: Nav.Breadcrumb */
 export interface BreadcrumbProps {
   /** contenido */
   readonly items?: readonly BreadcrumbStep[];
@@ -662,8 +662,8 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
   nombre: "breadcrumb",
   tipo: "pieza",
   record: "BreadcrumbProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Nav.Breadcrumb"],
+  claves: ["Nav.Breadcrumb"],
   campos: ["items"],
   listas: {"items":["label","href"]},
   ejemplo: {

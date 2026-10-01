@@ -8,6 +8,7 @@ import {
 import type { BreadcrumbProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-breadcrumb>: navigation breadcrumbs — an ordered trail of items, each optionally
@@ -19,6 +20,11 @@ import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/s
  * (ADR 0135): `items` es una LISTA ya parseada (`label`/`href`). La vista mandaba el TEXTO
  * `itemsJson` y este elemento hidrataba sin migas (D1). `label` (el nombre accesible de la
  * navegación) y `separator` no los autora el editor: llegan por atributo.
+ *
+ * Sin atributo, el nombre de la navegación sale del diccionario con `t()` (ADR 0136): la clave
+ * `Nav.Breadcrumb` ya existía para esto —«Ruta de navegación»— y `BreadcrumbProps` declara
+ * justo ese sub-prefijo, no `Nav` entero (17 claves que la miga no usa). Decía «Migas de pan»,
+ * escrito a mano: una segunda copia del mismo concepto con otro texto.
  *
  * **El JSON-LD `BreadcrumbList` NO es de este elemento** (UI#90, regla 49). Lo intentaba con un
  * `<script type="application/ld+json">` en la plantilla, y el compilador de Angular quita los
@@ -121,7 +127,7 @@ export class BreadcrumbElementComponent {
   readonly separatorInput = input<string | undefined>(undefined, { alias: 'separator' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
 
-  readonly label = computed(() => this.labelInput() ?? 'Migas de pan');
+  readonly label = computed(() => this.labelInput() ?? t('Nav.Breadcrumb', 'Ruta de navegación'));
   readonly separator = computed(() => this.separatorInput() ?? '/');
 
   readonly items = computed<readonly BreadcrumbItem[]>(() =>
