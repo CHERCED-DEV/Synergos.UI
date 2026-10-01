@@ -1253,6 +1253,19 @@ se desincroniza):
    veces allá) ni mostrar la clave cruda cuando falta. Los 15 componentes que leen
    `config.translations` **no los monta hoy ninguna vista del CMS** (medido por dos caminos): no hay
    a quién alimentar; migran a `t()` cuando tengan record.
+   **Tres criterios que dejó la escala (CMS#191, tanda E2: 14 elementos, 66 llamadas, 71 → 3
+   literales).** (d) **Una marca no es microcopia**: «Compartir en Facebook» es
+   `t('Share.On', 'Compartir en {network}', { network })` y el nombre de la red lo pone el catálogo
+   del elemento. El detector de `gate:literales` cuenta «Facebook» y «Telegram» igual (y el
+   `'noopener noreferrer'` de `icon-label`, que es un token de `rel`): quedan en la línea base, que
+   vigila la diferencia, no el valor. (e) **Una clave por intención, no por texto**: «Descartar
+   notificación» pasó a `Notification.Dismiss` y «Ver mapa completo» a `Map.ViewLarger` —ésas eran
+   las claves de esa acción, con otro texto—, y la acción genérica (siguiente, ver más, más
+   información) se pide a `Common.Actions` aunque la sección viaje entera: medido, 16 claves
+   (594 B es-CO) para una o dos. (f) **Dos elementos comparten sección sólo si comparten una clave**:
+   `avatar-group` declara `Avatar` por `Avatar.Fallback` además de su `AvatarGroup` (la clave común
+   vive en la sección de la pieza base), y `color-picker` y `color-swatches`, que no tienen un solo
+   texto con la misma intención, tienen una sección cada uno.
 
 45. **Un gate que comprueba que el comando NOMBRA cada sitio no comprueba que CORRA en el sistema
    de quien lo teclea — y un barrido por la FORMA de la llamada no ve la que pasa por un helper.**
