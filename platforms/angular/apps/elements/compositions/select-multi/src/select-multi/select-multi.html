@@ -4,7 +4,7 @@
   }
 
   @if (hasSelection()) {
-    <ul class="select-multi__chips" role="list" aria-label="Selección actual">
+    <ul class="select-multi__chips" role="list" [attr.aria-label]="selectionLabel()">
       @for (option of selectedOptions(); track option.value) {
         <li class="select-multi__chip">
           <span class="select-multi__chip-label">{{ option.label }}</span>
@@ -12,7 +12,7 @@
             type="button"
             class="select-multi__chip-remove"
             (click)="removeOption(option)"
-            [attr.aria-label]="'Quitar ' + option.label"
+            [attr.aria-label]="removeLabel(option.label)"
           >
             <svg class="select-multi__chip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -22,7 +22,7 @@
       }
       <li class="select-multi__chip-clear">
         <button type="button" class="select-multi__clear" (click)="clearSelection()">
-          Limpiar
+          {{ clearLabel() }}
         </button>
       </li>
     </ul>
@@ -40,7 +40,7 @@
       [attr.aria-expanded]="open()"
       [attr.aria-activedescendant]="open() && activeValue() ? optionId({ value: activeValue()!, label: '', disabled: false }) : null"
       [attr.aria-labelledby]="hasLabel() ? 'select-multi-label' : null"
-      [attr.aria-label]="hasLabel() ? null : 'Buscar opciones'"
+      [attr.aria-label]="hasLabel() ? null : searchLabel()"
       [placeholder]="placeholder()"
       [value]="query()"
       (input)="onQueryInput(search.value)"
@@ -60,7 +60,7 @@
       role="listbox"
       aria-multiselectable="true"
       [attr.aria-labelledby]="hasLabel() ? 'select-multi-label' : null"
-      [attr.aria-label]="hasLabel() ? null : 'Opciones'"
+      [attr.aria-label]="hasLabel() ? null : optionsLabel()"
     >
       @for (option of filteredOptions(); track option.value) {
         <!-- Patrón ARIA combobox: la ruta de teclado la da el <input role="combobox"> de
@@ -97,7 +97,7 @@
 
   <span class="select-multi__sr" role="status" aria-live="polite">
     @if (hasSelection()) {
-      {{ selectedOptions().length }} opción(es) seleccionada(s).
+      {{ selectedSummary() }}
     }
   </span>
 </div>

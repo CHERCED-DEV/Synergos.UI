@@ -430,7 +430,7 @@ export interface ScrollTopProps {
   readonly label?: string;
 }
 
-/** <synergos-select-multi> · pieza */
+/** <synergos-select-multi> · pieza · diccionario: SelectMulti, Common.States */
 export interface SelectMultiProps {
   /** contenido */
   readonly label?: string;
@@ -1095,8 +1095,8 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   nombre: "select-multi",
   tipo: "pieza",
   record: "SelectMultiProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["SelectMulti","Common.States"],
+  claves: ["Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success","SelectMulti.Capacity","SelectMulti.Clear","SelectMulti.Options","SelectMulti.Placeholder","SelectMulti.Remove","SelectMulti.Search","SelectMulti.Selected.One","SelectMulti.Selected.Other","SelectMulti.Selection"],
   campos: ["label","options","maxSelections"],
   listas: {"options":["value","label"]},
   ejemplo: {
