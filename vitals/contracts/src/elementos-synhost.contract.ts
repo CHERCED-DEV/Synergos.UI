@@ -268,13 +268,13 @@ export interface CookieConsentProps {
   readonly policyLabel?: string;
 }
 
-/** <synergos-countdown-clock> · pieza */
+/** <synergos-countdown-clock> · pieza · diccionario: Countdown */
 export interface CountdownClockProps {
   /** contenido */
   readonly targetDate?: string;
 }
 
-/** <synergos-countdown-digital> · pieza */
+/** <synergos-countdown-digital> · pieza · diccionario: Countdown */
 export interface CountdownDigitalProps {
   /** contenido */
   readonly targetDate?: string;
@@ -808,8 +808,8 @@ export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
   nombre: "countdown-clock",
   tipo: "pieza",
   record: "CountdownClockProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Countdown"],
+  claves: ["Countdown.Aria.Timer","Countdown.Days","Countdown.Expired","Countdown.Hours","Countdown.Label","Countdown.Milestone.Day","Countdown.Milestone.Hour","Countdown.Milestone.Minute","Countdown.Milestone.TenMinutes","Countdown.Minutes","Countdown.Seconds","Countdown.Short.Minutes","Countdown.Short.Seconds","Countdown.Started","Countdown.Unavailable"],
   campos: ["targetDate"],
   listas: {},
   ejemplo: {
@@ -822,8 +822,8 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   nombre: "countdown-digital",
   tipo: "pieza",
   record: "CountdownDigitalProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Countdown"],
+  claves: ["Countdown.Aria.Timer","Countdown.Days","Countdown.Expired","Countdown.Hours","Countdown.Label","Countdown.Milestone.Day","Countdown.Milestone.Hour","Countdown.Milestone.Minute","Countdown.Milestone.TenMinutes","Countdown.Minutes","Countdown.Seconds","Countdown.Short.Minutes","Countdown.Short.Seconds","Countdown.Started","Countdown.Unavailable"],
   campos: ["targetDate","showLabels","style"],
   listas: {},
   ejemplo: {

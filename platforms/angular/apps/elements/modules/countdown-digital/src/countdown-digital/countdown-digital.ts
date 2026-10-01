@@ -18,6 +18,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * Web Component for the CMS element `elementSynCountdownDigital`.
@@ -32,6 +33,10 @@ import {
  * (viaja siempre: `false` es una decisión) y `style` con el nombre de este elemento (el CMS
  * traduce `digits` a `plain`). La vista mandaba `endDateTime` y el reloj decía «Fecha del evento
  * no disponible» (D1). `startedLabel`, `invalidLabel` y `labels` llegan por atributo.
+ *
+ * Sin atributo, los textos salen del diccionario con `t()` (ADR 0136), de la sección
+ * `Countdown` que declara `CountdownDigitalProps` — la MISMA que declara `countdown-clock`: son el
+ * mismo concepto (UI#86), y los hitos, «empezó» y «no disponible» son una clave cada uno, no dos.
  */
 
 const SECOND = 1_000;
@@ -48,12 +53,15 @@ interface CountdownLabels {
   readonly seconds: string;
 }
 
-const DEFAULT_LABELS: CountdownLabels = {
-  days: 'Días',
-  hours: 'Horas',
-  minutes: 'Minutos',
-  seconds: 'Segundos',
-};
+/** Los rótulos de cada unidad, del diccionario (sección `Countdown`, ADR 0136). */
+function defaultLabels(): CountdownLabels {
+  return {
+    days: t('Countdown.Days', 'Días'),
+    hours: t('Countdown.Hours', 'Horas'),
+    minutes: t('Countdown.Minutes', 'Minutos'),
+    seconds: t('Countdown.Seconds', 'Segundos'),
+  };
+}
 
 interface CountdownUnit {
   readonly key: keyof CountdownLabels;
@@ -107,17 +115,19 @@ export function sanitizeCountdownDigitalConfig(value: Partial<CountdownDigitalPr
 }
 
 /**
- * Lo que el reloj dice EN VOZ ALTA (#82): los mismos umbrales que `countdown-clock`. Antes, un
+ * Lo que el reloj dice EN VOZ ALTA (#82): los mismos umbrales —y las mismas claves— que `countdown-clock`. Antes, un
  * `aria-live="polite"` sobre la frase del tiempo restante la anunciaba en cada tic. El tiempo
  * exacto lo describe el `role="timer"` —que calla por definición— y en voz alta sólo se dicen
  * estos umbrales, una vez cada uno. El último, «empezó», lo pone `startedLabel`.
  */
-const MILESTONES: readonly CountdownMilestone[] = [
-  { atSeconds: DAY / SECOND, message: 'Falta menos de un día.' },
-  { atSeconds: HOUR / SECOND, message: 'Falta menos de una hora.' },
-  { atSeconds: (10 * MINUTE) / SECOND, message: 'Faltan menos de 10 minutos.' },
-  { atSeconds: MINUTE / SECOND, message: 'Falta menos de un minuto.' },
-];
+function milestones(): readonly CountdownMilestone[] {
+  return [
+    { atSeconds: DAY / SECOND, message: t('Countdown.Milestone.Day', 'Falta menos de un día.') },
+    { atSeconds: HOUR / SECOND, message: t('Countdown.Milestone.Hour', 'Falta menos de una hora.') },
+    { atSeconds: (10 * MINUTE) / SECOND, message: t('Countdown.Milestone.TenMinutes', 'Faltan menos de 10 minutos.') },
+    { atSeconds: MINUTE / SECOND, message: t('Countdown.Milestone.Minute', 'Falta menos de un minuto.') },
+  ];
+}
 
 function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
@@ -169,6 +179,9 @@ export class CountdownDigitalElementComponent {
   });
   readonly integration = input<string | undefined>(undefined);
 
+  /** Los hitos del diccionario: se leen una vez (sin señales de las que depender), no en cada tic. */
+  readonly #milestones = computed(() => milestones());
+
   /** Reactive "now", refreshed by the per-second tick. */
   readonly #now = signal<number>(Date.now());
 
@@ -192,21 +205,22 @@ export class CountdownDigitalElementComponent {
 
   readonly labels = computed<CountdownLabels>(() => {
     const fromConfig = this.labelsInput() ?? {};
+    const defaults = defaultLabels();
     return {
-      days: fromConfig.days ?? DEFAULT_LABELS.days,
-      hours: fromConfig.hours ?? DEFAULT_LABELS.hours,
-      minutes: fromConfig.minutes ?? DEFAULT_LABELS.minutes,
-      seconds: fromConfig.seconds ?? DEFAULT_LABELS.seconds,
+      days: fromConfig.days ?? defaults.days,
+      hours: fromConfig.hours ?? defaults.hours,
+      minutes: fromConfig.minutes ?? defaults.minutes,
+      seconds: fromConfig.seconds ?? defaults.seconds,
     };
   });
 
   readonly startedLabel = computed(() =>
-    this.startedLabelInput() ?? 'El evento ha comenzado',
+    this.startedLabelInput() ?? t('Countdown.Started', 'El evento ha comenzado'),
   );
 
   /** Shown when no valid target date is configured. */
   readonly invalidLabel = computed(() =>
-    this.invalidLabelInput() ?? 'Fecha del evento no disponible',
+    this.invalidLabelInput() ?? t('Countdown.Unavailable', 'Fecha del evento no disponible'),
   );
 
   readonly remainingMs = computed<number | null>(() => {
@@ -264,7 +278,7 @@ export class CountdownDigitalElementComponent {
       return '';
     }
     return countdownMilestone(Math.ceil(remaining / SECOND), [
-      ...MILESTONES,
+      ...this.#milestones(),
       { atSeconds: 0, message: this.startedLabel() },
     ]);
   });

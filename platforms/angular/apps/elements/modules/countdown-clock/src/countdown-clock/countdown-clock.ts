@@ -17,6 +17,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * Web Component for the CMS element `elementSynCountdownClock`.
@@ -30,6 +31,10 @@ import {
  * (ADR 0135): `targetDate` es la fecha ISO que escribió el editor, validada y sin reescribir. La
  * vista la mandaba como `endDateTime` y el reloj decía «Fecha del evento no disponible» (D1).
  * `startedLabel`, `invalidLabel` y `labels` no los autora el editor: llegan por atributo.
+ *
+ * Sin atributo, los textos salen del diccionario con `t()` (ADR 0136), de la sección
+ * `Countdown` que declara `CountdownClockProps` — la MISMA que declara `countdown-digital`: son el
+ * mismo concepto (UI#86), y los hitos, «empezó» y «no disponible» son una clave cada uno, no dos.
  */
 
 const SECOND = 1_000;
@@ -44,12 +49,19 @@ interface CountdownLabels {
   readonly seconds: string;
 }
 
-const DEFAULT_LABELS: CountdownLabels = {
-  days: 'Días',
-  hours: 'Horas',
-  minutes: 'Min',
-  seconds: 'Seg',
-};
+/**
+ * Los rótulos de cada anillo, del diccionario (sección `Countdown`, ADR 0136). Los anillos son
+ * chicos: minutos y segundos van abreviados, con su propia clave (`Countdown.Short.*`); días y
+ * horas son las mismas claves que usa `countdown-digital`.
+ */
+function defaultLabels(): CountdownLabels {
+  return {
+    days: t('Countdown.Days', 'Días'),
+    hours: t('Countdown.Hours', 'Horas'),
+    minutes: t('Countdown.Short.Minutes', 'Min'),
+    seconds: t('Countdown.Short.Seconds', 'Seg'),
+  };
+}
 
 interface CountdownSegment {
   readonly key: keyof CountdownLabels;
@@ -109,12 +121,14 @@ export function sanitizeCountdownClockConfig(value: Partial<CountdownClockProps>
  * definición— y en voz alta sólo se dicen estos umbrales, una vez cada uno. El último, «empezó»,
  * lo pone `startedLabel`.
  */
-const MILESTONES: readonly CountdownMilestone[] = [
-  { atSeconds: DAY / SECOND, message: 'Falta menos de un día.' },
-  { atSeconds: HOUR / SECOND, message: 'Falta menos de una hora.' },
-  { atSeconds: (10 * MINUTE) / SECOND, message: 'Faltan menos de 10 minutos.' },
-  { atSeconds: MINUTE / SECOND, message: 'Falta menos de un minuto.' },
-];
+function milestones(): readonly CountdownMilestone[] {
+  return [
+    { atSeconds: DAY / SECOND, message: t('Countdown.Milestone.Day', 'Falta menos de un día.') },
+    { atSeconds: HOUR / SECOND, message: t('Countdown.Milestone.Hour', 'Falta menos de una hora.') },
+    { atSeconds: (10 * MINUTE) / SECOND, message: t('Countdown.Milestone.TenMinutes', 'Faltan menos de 10 minutos.') },
+    { atSeconds: MINUTE / SECOND, message: t('Countdown.Milestone.Minute', 'Falta menos de un minuto.') },
+  ];
+}
 
 function padTwo(value: number): string {
   return value < 10 ? `0${value}` : `${value}`;
@@ -158,6 +172,9 @@ export class CountdownClockElementComponent {
   });
   readonly integration = input<string | undefined>(undefined);
 
+  /** Los hitos del diccionario: se leen una vez (sin señales de las que depender), no en cada tic. */
+  readonly #milestones = computed(() => milestones());
+
   /** Reactive "now", refreshed by the per-second tick. */
   readonly #now = signal<number>(Date.now());
 
@@ -173,21 +190,24 @@ export class CountdownClockElementComponent {
 
   readonly labels = computed<CountdownLabels>(() => {
     const fromConfig = this.labelsInput() ?? {};
+    const defaults = defaultLabels();
     return {
-      days: fromConfig.days ?? DEFAULT_LABELS.days,
-      hours: fromConfig.hours ?? DEFAULT_LABELS.hours,
-      minutes: fromConfig.minutes ?? DEFAULT_LABELS.minutes,
-      seconds: fromConfig.seconds ?? DEFAULT_LABELS.seconds,
+      days: fromConfig.days ?? defaults.days,
+      hours: fromConfig.hours ?? defaults.hours,
+      minutes: fromConfig.minutes ?? defaults.minutes,
+      seconds: fromConfig.seconds ?? defaults.seconds,
     };
   });
 
   readonly startedLabel = computed(() =>
-    this.startedLabelInput() ?? coerceTrimmedStringInput(this.labelFormatInput()) ?? 'El evento ha comenzado',
+    this.startedLabelInput() ??
+    coerceTrimmedStringInput(this.labelFormatInput()) ??
+    t('Countdown.Started', 'El evento ha comenzado'),
   );
 
   /** Shown when no valid target date is configured. */
   readonly invalidLabel = computed(() =>
-    this.invalidLabelInput() ?? 'Fecha del evento no disponible',
+    this.invalidLabelInput() ?? t('Countdown.Unavailable', 'Fecha del evento no disponible'),
   );
 
   /** Remaining ms, clamped to >= 0. null when there is no valid target. */
@@ -246,7 +266,7 @@ export class CountdownClockElementComponent {
       return '';
     }
     return countdownMilestone(Math.ceil(remaining / SECOND), [
-      ...MILESTONES,
+      ...this.#milestones(),
       { atSeconds: 0, message: this.startedLabel() },
     ]);
   });
