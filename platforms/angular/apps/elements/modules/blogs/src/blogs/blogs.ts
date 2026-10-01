@@ -44,6 +44,7 @@ import {
 } from '@synergos/shells';
 import {
   LiveAnnouncerService,
+  LiveRegionComponent,
   SynEmptyStateComponent,
   SynSkeletonComponent,
   TabsComponent,
@@ -204,6 +205,11 @@ function coerceView(value: unknown): BlogsView | undefined {
 
 let blogsInstanceId = 0;
 
+/** Desde cuántos caracteres restantes el compositor avisa (una vez) de que quedan pocos. */
+const DRAFT_FEW_CHARS = 20;
+/** El mínimo del cuerpo de un artículo; es el mismo que pide `articleValid`. */
+const ARTICLE_MIN_BODY = 20;
+
 @Component({
   selector: 'sg-blogs',
   standalone: true,
@@ -218,6 +224,7 @@ let blogsInstanceId = 0;
     TabsComponent,
     SynSkeletonComponent,
     SynEmptyStateComponent,
+    LiveRegionComponent,
   ],
   templateUrl: './blogs.html',
   styleUrl: './blogs.scss',
@@ -375,6 +382,21 @@ export class BlogsElementComponent {
   readonly publishing = signal(false);
   readonly maxChars = 500;
   readonly draftRemaining = computed(() => this.maxChars - this.draftBody().length);
+  /**
+   * Lo que el contador dice EN VOZ ALTA: sólo los hitos (#87). El contador era una región
+   * viva y hablaba en cada tecla —«487», «486», «485»…—, encima de lo que la persona
+   * escribe. Hoy el número se DESCRIBE (`aria-describedby` del campo, se oye al entrar) y
+   * se anuncian los umbrales: quedan pocos, y el límite. Es la regla 42(c) del reloj:
+   * la pregunta no es «¿tiene aria-live?» sino «¿cuántas veces habla mientras escribo?».
+   * Un `computed` de TEXTO: mientras la banda no cambia, la cadena es la misma y la
+   * fachada no vuelve a hablar.
+   */
+  readonly draftCountMilestone = computed(() => {
+    const quedan = this.draftRemaining();
+    if (quedan <= 0) return `Llegaste al límite de ${this.maxChars} caracteres.`;
+    if (quedan <= DRAFT_FEW_CHARS) return `Quedan ${DRAFT_FEW_CHARS} caracteres o menos.`;
+    return '';
+  });
   readonly draftValid = computed(() => {
     const len = this.draftBody().trim().length;
     if (len < 1 || len > this.maxChars) {
@@ -394,9 +416,15 @@ export class BlogsElementComponent {
   readonly articleBody = signal('');
   readonly articleCover = signal('');
   readonly articleCoverAlt = signal('');
+  /** El hito del cuerpo del artículo: llegar al mínimo, una vez por cruce (#87). */
+  readonly articleBodyMilestone = computed(() =>
+    this.articleBody().trim().length >= ARTICLE_MIN_BODY
+      ? 'El cuerpo ya tiene la extensión mínima: puedes continuar.'
+      : '',
+  );
   readonly articleValid = computed(() => {
     const titleOk = this.articleTitle().trim().length >= 3;
-    const bodyOk = this.articleBody().trim().length >= 20;
+    const bodyOk = this.articleBody().trim().length >= ARTICLE_MIN_BODY;
     const coverOk = !this.articleCover().trim() || this.articleCoverAlt().trim().length > 0;
     return titleOk && bodyOk && coverOk;
   });

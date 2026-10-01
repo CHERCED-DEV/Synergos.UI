@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { LiveAnnouncerService } from '@synergos/shared';
 import {
   FULFILLMENT_STRATEGIES,
   FulfillmentContext,
@@ -1340,6 +1341,79 @@ describe('BlogsElementComponent', () => {
         'Conecta, publica y crece tu audiencia',
       );
     });
+  });
+
+  // ── #87: los contadores del editor hablaban en CADA tecla ──────────────────────
+  // Eran regiones vivas (`aria-live="polite"`) cuyo texto cambia con cada carácter: el lector
+  // decía «487», «486», «485»… encima de lo que se escribe. Lo que hay que contar no es si
+  // tienen aria-live, sino CUÁNTAS VECES hablan mientras se escribe (regla 42c).
+  function anunciosCon(texto: RegExp, espia: { mock: { calls: unknown[][] } }): string[] {
+    return espia.mock.calls.map((c: unknown[]) => String(c[0])).filter((m: string) => texto.test(m));
+  }
+
+  it('el contador del compositor se DESCRIBE y sólo habla en los hitos, no en cada tecla', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    (fixture.nativeElement.querySelector('.blogs__composer-open') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const campo = fixture.nativeElement.querySelector('.blogs__composer-input') as HTMLTextAreaElement;
+    const contador = fixture.nativeElement.querySelector('.blogs__char-count') as HTMLElement;
+    expect(campo).toBeTruthy();
+    expect(contador.getAttribute('aria-live')).toBeNull();
+    expect(contador.id).toBeTruthy();
+    expect(campo.getAttribute('aria-describedby')).toBe(contador.id);
+
+    const anuncios = vi.spyOn(LiveAnnouncerService.prototype, 'announce');
+    const escribir = async (n: number): Promise<void> => {
+      campo.value = 'a'.repeat(n);
+      campo.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
+
+    for (const n of [1, 2, 3, 50, 200, 479]) await escribir(n);
+    expect(anunciosCon(/caracteres/, anuncios)).toEqual([]);
+
+    for (const n of [480, 485, 490, 499]) await escribir(n);
+    expect(anunciosCon(/caracteres/, anuncios)).toEqual(['Quedan 20 caracteres o menos.']);
+
+    await escribir(500);
+    expect(anunciosCon(/caracteres/, anuncios)).toEqual([
+      'Quedan 20 caracteres o menos.',
+      'Llegaste al límite de 500 caracteres.',
+    ]);
+  });
+
+  it('la pista del cuerpo del artículo se describe y sólo avisa al llegar al mínimo', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    component.go('write');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const campo = fixture.nativeElement.querySelector('.blogs__editor-body') as HTMLTextAreaElement;
+    const pista = fixture.nativeElement.querySelector('.blogs__editor-hint') as HTMLElement;
+    expect(campo, 'el paso «contenido» no está a la vista').toBeTruthy();
+    expect(pista.getAttribute('aria-live')).toBeNull();
+    expect(campo.getAttribute('aria-describedby')).toBe(pista.id);
+
+    const anuncios = vi.spyOn(LiveAnnouncerService.prototype, 'announce');
+    const escribir = async (n: number): Promise<void> => {
+      campo.value = 'b'.repeat(n);
+      campo.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+    };
+
+    for (const n of [1, 5, 10, 19]) await escribir(n);
+    expect(anunciosCon(/extensión mínima/, anuncios)).toEqual([]);
+
+    for (const n of [20, 21, 40]) await escribir(n);
+    expect(anunciosCon(/extensión mínima/, anuncios)).toEqual([
+      'El cuerpo ya tiene la extensión mínima: puedes continuar.',
+    ]);
   });
 });
 

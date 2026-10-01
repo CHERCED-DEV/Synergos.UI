@@ -163,6 +163,33 @@ describe('MediaExplorerComponent', () => {
     expect(component.items()[0].id).toBe('demo-2');
   });
 
+  // #87: los filtros son exclusivos y marcaban la elección SÓLO con una clase. Un lector de
+  // pantalla no sabía cuál estaba puesto. Se pulsa el botón (regla 5), no se llama al método.
+  it('el filtro puesto se dice con aria-pressed, y sólo uno a la vez', async () => {
+    fixture.componentRef.setInput('items', JSON.stringify(SAMPLE_ITEMS));
+    fixture.componentRef.setInput('title', 'Demos');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const estado = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.media-explorer__filter') as NodeListOf<HTMLButtonElement>).map(
+        (b) => `${b.textContent?.trim()}=${b.getAttribute('aria-pressed')}`,
+      );
+    expect(estado()).toEqual(['All=true', 'Demo=false', 'Tutorial=false']);
+
+    const tutorial = Array.from(fixture.nativeElement.querySelectorAll('.media-explorer__filter') as NodeListOf<HTMLButtonElement>)
+      .find((b) => b.textContent?.trim() === 'Tutorial');
+    tutorial?.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(estado()).toEqual(['All=false', 'Demo=false', 'Tutorial=true']);
+
+    (fixture.nativeElement.querySelector('.media-explorer__filter') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(estado()).toEqual(['All=true', 'Demo=false', 'Tutorial=false']);
+  });
+
   it('should render title when provided', async () => {
     fixture.componentRef.setInput('title', 'Galería de demos');
     fixture.detectChanges();

@@ -155,6 +155,43 @@ describe('code-block — copiar se anuncia', () => {
     await pulsarCopiar();
     expect(region()?.textContent ?? '').not.toContain('copiado');
   });
+
+  // #87: «no dice copiado» no bastaba — no decía NADA. Quien pulsó se iba a pegar lo que tuviera
+  // de antes creyendo que era esto. El fallo se ve en el botón y se anuncia asertivo.
+  it('si el portapapeles falla, el botón lo dice y la región lo anuncia asertivo', async () => {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValue(new Error('denegado')) },
+      configurable: true,
+    });
+    // El respaldo (`execCommand`) también falla: es el caso sin ninguna salida.
+    Object.defineProperty(document, 'execCommand', { value: vi.fn(() => false), configurable: true });
+
+    await pulsarCopiar();
+    fixture.detectChanges();
+
+    const boton = fixture.nativeElement.querySelector('.code-block__copy') as HTMLButtonElement;
+    expect(boton.textContent?.trim()).toBe('No se pudo copiar');
+    expect(boton.classList.contains('code-block__copy--failed')).toBe(true);
+    expect(boton.classList.contains('code-block__copy--done')).toBe(false);
+    await esperarAnuncio('No se pudo copiar el código.');
+    expect(region()?.getAttribute('aria-live')).toBe('assertive');
+  });
+
+  it('y si después copia bien, el fallo no se queda pegado', async () => {
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockRejectedValueOnce(new Error('denegado')).mockResolvedValue(undefined) },
+      configurable: true,
+    });
+    Object.defineProperty(document, 'execCommand', { value: vi.fn(() => false), configurable: true });
+
+    await pulsarCopiar();
+    await pulsarCopiar();
+    fixture.detectChanges();
+
+    const boton = fixture.nativeElement.querySelector('.code-block__copy') as HTMLButtonElement;
+    expect(boton.textContent?.trim()).toBe('Código copiado');
+    expect(boton.classList.contains('code-block__copy--failed')).toBe(false);
+  });
 });
 
 describe('code-block pure helpers', () => {

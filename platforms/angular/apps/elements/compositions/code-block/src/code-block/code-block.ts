@@ -51,6 +51,12 @@ export interface CodeCopyDetail {
 
 const DEFAULT_COPY_LABEL = 'Copiar';
 const DEFAULT_COPIED_LABEL = 'Copiado';
+/**
+ * Lo que dice el botón cuando el portapapeles NO aceptó el texto (#87). Fijo y no
+ * configurable a propósito: `copyLabel`/`copiedLabel` viajan del CMS, y una clave nueva
+ * en el `config` sería contrato que el CMS no emite.
+ */
+const COPY_FAILED_LABEL = 'No se pudo copiar';
 
 /** Window the "Copiado" confirmation stays visible (ms). */
 const COPIED_FEEDBACK_MS = 2000;
@@ -167,9 +173,17 @@ export class CodeBlockElementComponent {
   readonly #copied = signal(false);
   readonly copied = this.#copied.asReadonly();
 
+  /**
+   * True while the "could not copy" label is showing (#87). Antes, si el portapapeles
+   * fallaba —permiso denegado, contexto inseguro, sin `execCommand`— no pasaba NADA: ni
+   * se veía ni se oía, y quien pulsaba pegaba lo que tuviera de antes creyendo que era esto.
+   */
+  readonly #copyFailed = signal(false);
+  readonly copyFailed = this.#copyFailed.asReadonly();
+
   /** Label the copy button currently shows. */
   readonly copyButtonLabel = computed(() =>
-    this.#copied() ? this.copiedLabel() : this.copyLabel(),
+    this.#copied() ? this.copiedLabel() : this.#copyFailed() ? COPY_FAILED_LABEL : this.copyLabel(),
   );
 
   #copiedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -185,7 +199,17 @@ export class CodeBlockElementComponent {
 
     if (success) {
       this.flagCopied();
+    } else {
+      this.flagFailed();
     }
+  }
+
+  /** El fallo se ve en el botón y se ANUNCIA asertivo: quien pulsó cree que ya lo tiene. */
+  private flagFailed(): void {
+    this.#announcer.announce(`${COPY_FAILED_LABEL} el código.`, 'assertive');
+    this.#copied.set(false);
+    this.#copyFailed.set(true);
+    this.#rearmarRotulo();
   }
 
   /**
@@ -195,13 +219,20 @@ export class CodeBlockElementComponent {
    */
   private flagCopied(): void {
     this.#announcer.announce(this.copiedLabel());
+    this.#copyFailed.set(false);
     this.#copied.set(true);
+    this.#rearmarRotulo();
+  }
+
+  /** El rótulo de «copiado»/«no se pudo» dura un rato y vuelve al de copiar. */
+  #rearmarRotulo(): void {
     if (this.#copiedTimer !== null) {
       clearTimeout(this.#copiedTimer);
     }
     if (typeof setTimeout === 'function') {
       this.#copiedTimer = setTimeout(() => {
         this.#copied.set(false);
+        this.#copyFailed.set(false);
         this.#copiedTimer = null;
       }, COPIED_FEEDBACK_MS);
     }

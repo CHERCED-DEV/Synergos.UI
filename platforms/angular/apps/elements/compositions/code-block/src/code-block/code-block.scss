@@ -11,6 +11,8 @@
   --code-copy-surface: var(--syn-color-neutral-700, #{syn.$color-neutral-700});
   --code-copy-surface-hover: var(--syn-color-neutral-600, #{syn.$color-neutral-600});
   --code-done: var(--syn-color-success-400, #{syn.$color-success-400});
+  // El fallo de copiar se VE (#87). 300 y no 500: el fondo del bloque es oscuro.
+  --code-failed: var(--syn-color-danger-300, #{syn.$color-danger-300});
   --code-shadow: var(--syn-shadow-card, #{syn.$shadow-card});
 
   display: block;
@@ -88,6 +90,11 @@
     &--done {
       color: var(--code-done);
       border-color: var(--code-done);
+    }
+
+    &--failed {
+      color: var(--code-failed);
+      border-color: var(--code-failed);
     }
   }
 

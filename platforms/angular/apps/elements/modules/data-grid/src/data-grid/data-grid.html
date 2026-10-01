@@ -2,9 +2,10 @@
   @if (hasTitle()) {
     <header class="data-grid__header">
       <syn-heading [text]="title()" level="h2" size="lg" class="data-grid__heading" />
-      @if (!loading()) {
-        <p class="data-grid__count" aria-live="polite">{{ resultLabel() }}</p>
-      }
+      <!-- Vive aunque el host recargue (#87): con `@if (!loading())` la región se re-creaba con la
+           cifra nueva —nacía con su mensaje— y el lector callaba justo el resultado de recargar.
+           Mientras carga va VACÍA, así que la cifra nueva siempre es un cambio y se dice. -->
+      <p class="data-grid__count" aria-live="polite">{{ loading() ? '' : resultLabel() }}</p>
     </header>
   }
 
@@ -25,8 +26,8 @@
     }
 
     <div class="data-grid__results">
-      @if (!hasTitle() && !loading()) {
-        <p class="data-grid__count data-grid__count--inline" aria-live="polite">{{ resultLabel() }}</p>
+      @if (!hasTitle()) {
+        <p class="data-grid__count data-grid__count--inline" aria-live="polite">{{ loading() ? '' : resultLabel() }}</p>
       }
 
       @if (loading()) {

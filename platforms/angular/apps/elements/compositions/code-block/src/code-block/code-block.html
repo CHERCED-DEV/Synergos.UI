@@ -15,6 +15,7 @@
           type="button"
           class="code-block__copy"
           [class.code-block__copy--done]="copied()"
+          [class.code-block__copy--failed]="copyFailed()"
           [attr.aria-label]="copyButtonLabel()"
           (click)="copy()"
         >
