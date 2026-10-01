@@ -200,7 +200,7 @@ export interface AvatarGroupProps {
   readonly label?: string;
 }
 
-/** <synergos-badge-group> · pieza */
+/** <synergos-badge-group> · pieza · diccionario: BadgeGroup */
 export interface BadgeGroupProps {
   /** contenido */
   readonly badges?: readonly BadgeGroupItem[];
@@ -638,8 +638,8 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
   nombre: "badge-group",
   tipo: "pieza",
   record: "BadgeGroupProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["BadgeGroup"],
+  claves: ["BadgeGroup.Aria","BadgeGroup.Empty"],
   campos: ["badges","layout"],
   listas: {"badges":["label","tone"]},
   ejemplo: {

@@ -101,4 +101,35 @@ describe('BadgeGroupElementComponent', () => {
     fixture.detectChanges();
     expect(component.layout()).toBe(first);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `BadgeGroup` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(BADGE_GROUP_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.badge-group__list')?.getAttribute('aria-label')).toBe('Grupo de etiquetas');
+      expect(component.emptyLabel()).toBe('No hay elementos.');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'BadgeGroup.Aria': 'Tag group' } },
+      };
+      const otra = TestBed.createComponent(BadgeGroupElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(BADGE_GROUP_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.badge-group__list')?.getAttribute('aria-label')).toBe('Tag group');
+      expect(otra.componentInstance.emptyLabel()).toBe('No hay elementos.');
+    });
+  });
 });
