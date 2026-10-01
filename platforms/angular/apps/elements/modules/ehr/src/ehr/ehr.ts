@@ -79,6 +79,7 @@ import {
   type SoapNote,
   type Vitals,
 } from './ehr.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEhr</c>.
@@ -1004,7 +1005,7 @@ export class EhrElementComponent {
   }
 
   private routeHash(view: EhrView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'home':
         return base;
@@ -1044,7 +1045,7 @@ export class EhrElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1055,15 +1056,14 @@ export class EhrElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     const map: Readonly<Record<string, EhrView>> = {
       '': 'home',
@@ -1082,7 +1082,7 @@ export class EhrElementComponent {
     };
     if (head === 'chart') {
       this.ensureClinicianRole();
-      this.applyRoute('chart', decodeURIComponent(tail));
+      this.applyRoute('chart', tail);
       return;
     }
     const target = map[head];

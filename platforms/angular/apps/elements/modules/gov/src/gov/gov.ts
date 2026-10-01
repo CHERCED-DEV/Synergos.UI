@@ -65,6 +65,7 @@ import {
   type GovView,
   type QueueCase,
 } from './gov.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
@@ -929,7 +930,7 @@ export class GovElementComponent {
   }
 
   private routeHash(view: GovView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'catalog':
         return base;
@@ -959,7 +960,7 @@ export class GovElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -970,15 +971,14 @@ export class GovElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
     const [head = '', tail = '', sub = ''] = segments;
     let target: GovView = this.role() === 'officer' ? 'queue' : 'catalog';
     let param = '';

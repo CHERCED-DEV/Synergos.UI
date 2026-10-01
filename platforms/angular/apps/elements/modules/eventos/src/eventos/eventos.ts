@@ -93,6 +93,7 @@ import {
   type WalletTicket,
   type EventPromo,
 } from './eventos.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEventos</c>.
@@ -932,7 +933,7 @@ export class EventosElementComponent {
   }
 
   private routeHash(view: EventosView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'catalog':
         return base;
@@ -959,12 +960,12 @@ export class EventosElementComponent {
     if (typeof window === 'undefined') {
       return;
     }
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     const hash =
       view === 'organizer'
         ? `${base}/organizador${param ? `/${param}` : ''}`
         : this.routeHash(view as EventosView, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -975,15 +976,14 @@ export class EventosElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
@@ -992,7 +992,7 @@ export class EventosElementComponent {
         return;
       case 'e':
         this.role.set('attendee');
-        this.applyRoute('event', decodeURIComponent(tail));
+        this.applyRoute('event', tail);
         return;
       case 'asientos':
         this.applyRoute(this.detail() ? 'select' : 'catalog', '');

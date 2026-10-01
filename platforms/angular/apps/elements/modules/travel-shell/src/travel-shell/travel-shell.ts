@@ -91,6 +91,7 @@ import {
   type TravelTrip,
   type TravelView,
 } from './travel.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynTravelShell</c>.
@@ -972,7 +973,7 @@ export class TravelShellElementComponent {
   }
 
   private routeHash(view: TravelView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'home':
         return base;
@@ -1002,7 +1003,7 @@ export class TravelShellElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1013,18 +1014,14 @@ export class TravelShellElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash
-      .slice(base.length)
-      .split('/')
-      .filter((segment) => segment !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
@@ -1040,7 +1037,7 @@ export class TravelShellElementComponent {
         this.applyRoute('cars', '');
         return;
       case 'estadia':
-        this.applyRoute('stay', decodeURIComponent(tail));
+        this.applyRoute('stay', tail);
         return;
       case 'carrito':
         this.applyRoute('cart', '');

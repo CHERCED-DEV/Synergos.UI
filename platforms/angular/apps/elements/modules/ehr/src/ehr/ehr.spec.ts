@@ -69,6 +69,30 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // ══ CAMINO NO DEGRADADO (el que antes no existía) ═══════════════════════════
 
   // ── empty: pristine patient home, no chart open ──────────────────────────────
+  // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
+  //
+  // El router armaba la base con el scope CRUDO y la comparaba con `location.hash`, que
+  // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
+  // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
+  // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
+    await createComponent();
+    fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
+    fixture.detectChanges();
+
+    // El enlace que alguien pega o teclea: el navegador lo guarda CODIFICADO.
+    window.location.hash = '#/Mi sitio: ñ/resultados';
+    expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/resultados');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('results');
+
+    // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
+    component.navigate('medications');
+    await flushMicrotasks();
+    expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/medicamentos');
+  });
+
   it('abre el home del paciente con los datos del SERVIDOR (empty/initial case)', async () => {
     await createComponent();
 

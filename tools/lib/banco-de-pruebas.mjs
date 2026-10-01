@@ -92,6 +92,10 @@ const TIPOS_ATRIBUIBLES = new Set(['string', 'number', 'boolean']);
  * apiBase"` no llegaba ni a aplicarse (ver `atributoDeInput` abajo); aplicado, no
  * es una URL y `fetch` lo rechaza.
  *
+ * Desde UI#91 las ocho verticales leen sus rutas con `segmentosDeRuta` y ese hash ya
+ * no las rompe. `scope` sigue sin muestra porque es una REFERENCIA —el siteRoot—, no
+ * un texto que se pinte.
+ *
  * Es un censo por NOMBRE porque el vocabulario es el mismo en todas las verticales
  * (`apiBase` en diez, `scope` en ocho, `currency` en nueve). Cada entrada dice por
  * qué no se inventa; el spec exige que cada una exista en `element-inputs.json` y
@@ -102,7 +106,7 @@ export const ENTRADAS_DE_CABLEADO = {
   apiBase:
     'la base del borde. Sin atributo, el elemento usa la suya, RELATIVA a la página —o sea al propio banco—: pide ahí, recibe 404 y degrada con su cartel',
   scope:
-    'el siteRoot, primer segmento de las rutas por hash: un texto con espacios llega codificado y el router deja de reconocer sus rutas',
+    'el siteRoot, primer segmento de las rutas por hash. Hasta UI#91 uno con espacios rompía los routers de las ocho verticales; hoy no, pero inventarlo pone un siteRoot que no existe en cada enlace que el banco enseña',
   currency: 'un código ISO 4217 que va a Intl.NumberFormat',
   role: 'el vocabulario cerrado de roles de cada vertical (alumno/instructor, paciente/médico, ciudadano/funcionario…)',
   view: 'el nombre de la vista inicial de blogs, de un vocabulario cerrado',

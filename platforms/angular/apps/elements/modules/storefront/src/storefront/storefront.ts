@@ -105,6 +105,7 @@ import {
   type StorefrontView,
   type WishlistEntry,
 } from './shop.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynStorefront</c>.
@@ -857,7 +858,7 @@ export class StorefrontElementComponent {
   }
 
   private routeHash(view: StorefrontView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'home':
         return base;
@@ -879,7 +880,7 @@ export class StorefrontElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -890,18 +891,14 @@ export class StorefrontElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash
-      .slice(base.length)
-      .split('/')
-      .filter((segment) => segment !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
@@ -911,7 +908,7 @@ export class StorefrontElementComponent {
         this.applyRoute('plp', '');
         return;
       case 'p':
-        this.applyRoute('pdp', decodeURIComponent(tail));
+        this.applyRoute('pdp', tail);
         return;
       case 'carrito':
         this.applyRoute('cart', '');

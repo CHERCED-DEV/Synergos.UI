@@ -231,6 +231,32 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   });
 
   // ── empty: pristine portal, catalogue view, mock catalogue, no enrolment ──────
+  // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
+  //
+  // El router armaba la base con el scope CRUDO y la comparaba con `location.hash`, que
+  // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
+  // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
+  // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
+    fixture.detectChanges();
+
+    // El enlace que alguien pega o teclea: el navegador lo guarda CODIFICADO.
+    window.location.hash = '#/Mi sitio: ñ/mi-aprendizaje';
+    expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/mi-aprendizaje');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('learning');
+
+    // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
+    component.navigate('catalog');
+    await flushMicrotasks();
+    expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1');
+  });
+
   it('opens on the SH-1 catalogue with seeded courses and facets (empty case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));

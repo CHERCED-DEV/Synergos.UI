@@ -119,7 +119,7 @@ describe('la ruta del banco', () => {
 
 // ── #88: muestras que el elemento ACEPTE ─────────────────────────────────────
 // El banco no dejaba recorrer academy: `scope="muestra: scope"` es el primer segmento de sus
-// rutas por hash, llega codificado (`muestra:%20scope`) y el router deja de reconocerlas. Y
+// rutas por hash, llegaba codificado (`muestra:%20scope`) y el router dejaba de reconocerlas (cerrado en UI#91). Y
 // `apiBase="…"` no llegaba ni a aplicarse: el HTML lo guarda como `apibase` y Angular observa
 // `api-base`. Medido con academy y con el badge en el banco (informe 62).
 

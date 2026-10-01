@@ -75,6 +75,7 @@ import {
   type StudioSection,
   type TrendingTag,
 } from './blogs.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynBlogs</c>.
@@ -965,7 +966,7 @@ export class BlogsElementComponent {
   }
 
   private routeHash(view: BlogsView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'feed':
         return base;
@@ -997,7 +998,7 @@ export class BlogsElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1008,25 +1009,21 @@ export class BlogsElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash
-      .slice(base.length)
-      .split('/')
-      .filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
         this.applyRoute('feed', '');
         return;
       case 'post':
-        this.applyRoute('post', decodeURIComponent(tail));
+        this.applyRoute('post', tail);
         return;
       case 'notificaciones':
         this.applyRoute('notifications', '');
@@ -1035,7 +1032,7 @@ export class BlogsElementComponent {
         this.applyRoute('search', '');
         return;
       case 'mensajes':
-        this.applyRoute('messages', tail ? decodeURIComponent(tail) : '');
+        this.applyRoute('messages', tail);
         return;
       case 'guardados':
         this.applyRoute('saved', '');
@@ -1051,7 +1048,7 @@ export class BlogsElementComponent {
         return;
       default:
         if (head.startsWith('@')) {
-          this.applyRoute('profile', decodeURIComponent(head.slice(1)));
+          this.applyRoute('profile', head.slice(1));
           return;
         }
         this.applyRoute('feed', '');
