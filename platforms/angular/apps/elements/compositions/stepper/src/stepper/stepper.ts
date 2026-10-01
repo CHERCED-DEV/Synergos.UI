@@ -16,6 +16,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-stepper>: a numbered progress indicator — a sequence of steps, each carrying a
@@ -35,6 +36,11 @@ import {
  * falso: la vista mandaba el TEXTO `stepsJson` y `currentStep` como texto, y el indicador
  * colocado salía vacío (D1). `orientation` y `linear` no los autora el editor: llegan por
  * atributo, igual que `steps` como JSON (con `id`/`description`), que gana sobre el `config`.
+ *
+ * Las frases de la interfaz —«Paso {n} de {total}», el nombre de cada paso con su estado y el
+ * del indicador— salen del diccionario con `t()` (ADR 0136), sección `Stepper` que declara
+ * `StepperProps`, con marcadores con nombre: el orden de las palabras es del idioma, no de una
+ * concatenación. El título de cada paso es contenido del editor y viaja como marcador.
  */
 
 export interface StepperStepConfig {
@@ -239,8 +245,27 @@ export class StepperElementComponent {
     if (!this.hasSteps()) {
       return '';
     }
-    return `Paso ${this.activeIndex() + 1} de ${this.stepCount()}`;
+    return t('Stepper.Summary', 'Paso {n} de {total}', { n: this.activeIndex() + 1, total: this.stepCount() });
   });
+
+  /** El nombre del indicador entero: «Progreso — Paso 2 de 4». */
+  readonly groupLabel = computed(() => t('Stepper.Aria', 'Progreso — {summary}', { summary: this.progressLabel() }));
+
+  /** El nombre accesible del botón de un paso: posición, título y estado. */
+  stepLabel(step: StepperStep): string {
+    const status =
+      step.status === 'done'
+        ? t('Stepper.Status.Done', 'completado')
+        : step.status === 'active'
+          ? t('Stepper.Status.Active', 'actual')
+          : t('Stepper.Status.Pending', 'pendiente');
+    return t('Stepper.Step', 'Paso {n} de {total}: {title} ({status})', {
+      n: step.displayNumber,
+      total: this.stepCount(),
+      title: step.title,
+      status,
+    });
+  }
 
   constructor() {
     // Re-seed the active index whenever the configured step changes.

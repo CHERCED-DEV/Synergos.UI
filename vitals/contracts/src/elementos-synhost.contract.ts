@@ -450,7 +450,7 @@ export interface ShareBarProps {
   readonly shareTitle?: string;
 }
 
-/** <synergos-stepper> · pieza */
+/** <synergos-stepper> · pieza · diccionario: Stepper */
 export interface StepperProps {
   /** contenido */
   readonly steps?: readonly StepperItem[];
@@ -1144,8 +1144,8 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   nombre: "stepper",
   tipo: "pieza",
   record: "StepperProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Stepper"],
+  claves: ["Stepper.Aria","Stepper.Status.Active","Stepper.Status.Done","Stepper.Status.Pending","Stepper.Step","Stepper.Summary"],
   campos: ["steps","currentStep"],
   listas: {"steps":["title"]},
   ejemplo: {

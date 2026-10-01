@@ -134,3 +134,48 @@ describe('stepper pure helpers', () => {
     expect(normalizeSteps('nope').length).toBe(0);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('stepper — microcopia del diccionario (ADR 0136, sección Stepper)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [StepperElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('las frases son las claves con marcadores con nombre; el título del paso es del editor', async () => {
+    publicar({
+      'Stepper.Summary': 'Step {n} of {total}',
+      'Stepper.Aria': 'Progress — {summary}',
+      'Stepper.Step': 'Step {n} of {total}: {title} ({status})',
+      'Stepper.Status.Done': 'completed',
+      'Stepper.Status.Active': 'current',
+    });
+    const fixture = TestBed.createComponent(StepperElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(STEPPER_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+
+    expect(c.progressLabel()).toBe('Step 2 of 3');
+    expect(c.groupLabel()).toBe('Progress — Step 2 of 3');
+    const pasos = c.resolvedSteps().map((paso) => c.stepLabel(paso));
+    // `Stepper.Status.Pending` no se publicó: sale su respaldo es-CO, nunca la clave cruda.
+    expect(pasos).toEqual([
+      'Step 1 of 3: Datos (completed)',
+      'Step 2 of 3: Pago (current)',
+      'Step 3 of 3: Confirmación (pendiente)',
+    ]);
+    const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.stepper__trigger'));
+    expect(botones.map((b) => b.getAttribute('aria-label'))).toEqual(pasos);
+  });
+});
