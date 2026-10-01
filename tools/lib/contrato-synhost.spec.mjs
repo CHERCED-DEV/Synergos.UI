@@ -87,6 +87,54 @@ describe('validarContrato', () => {
     expect(errores).toContain('no es un nombre de registry');
   });
 
+  // CMS#181: lo que el editor elige en un selector, pasado por el resolver.
+  const conSelector = () => {
+    const c = contrato();
+    c.elementos[0].selectores = [
+      {
+        propiedad: 'transition',
+        dataType: 'DTSelectTransition',
+        multiple: false,
+        campo: 'slides[].alt',
+        valores: [
+          { editor: 'fade', viaja: 'fade' },
+          { editor: 'zoom', viaja: null },
+        ],
+      },
+      { propiedad: 'orientation', dataType: 'DTSelectOrientation', multiple: false, campo: null, valores: [{ editor: 'vertical', viaja: null }] },
+    ];
+    return c;
+  };
+
+  it('acepta selectores con campo (también dentro de una lista) y sin campo', () => {
+    expect(validarContrato(conSelector())).toEqual([]);
+  });
+
+  it('rechaza un selector cuyo campo no empieza en un campo del record, o no es una ruta', () => {
+    const c = conSelector();
+    c.elementos[0].selectores[0].campo = 'transicion';
+    expect(validarContrato(c).join('\n')).toContain('no empieza en un campo del record');
+    c.elementos[0].selectores[0].campo = 'slides..alt';
+    expect(validarContrato(c).join('\n')).toContain('no es una ruta del config');
+  });
+
+  it('rechaza un valor que viaja sin campo donde caer, y un selector sin valores', () => {
+    const c = conSelector();
+    c.elementos[0].selectores[1].valores[0].viaja = 'vertical';
+    expect(validarContrato(c).join('\n')).toContain('viaja sin `campo`');
+    c.elementos[0].selectores[1].valores = [];
+    expect(validarContrato(c).join('\n')).toContain('sin `valores`');
+  });
+
+  it('rechaza un selector repetido o sin multiple', () => {
+    const c = conSelector();
+    c.elementos[0].selectores[1].propiedad = 'transition';
+    delete c.elementos[0].selectores[0].multiple;
+    const errores = validarContrato(c).join('\n');
+    expect(errores).toContain('selector repetido');
+    expect(errores).toContain('sin `multiple`');
+  });
+
   it('rechaza una lista de un record que el contrato no trae', () => {
     const c = contrato();
     c.tipos = [];
@@ -117,6 +165,17 @@ describe('generarTs', () => {
     expect(ts).toContain('"src": "/a.jpg"');
     expect(ts).toContain('  listas: {"slides":["src","alt"]},');
     expect(ts).toMatch(/export const ELEMENTOS_SYNHOST = \[\n {2}CAROUSEL_SYNHOST,\n\] as const;/);
+  });
+
+  it('publica los selectores del elemento, y una lista vacía si no tiene (CMS#181)', () => {
+    expect(generarTs(contrato())).toContain('  selectores: [],');
+
+    const c = contrato();
+    c.elementos[0].selectores = [{ propiedad: 'p', dataType: 'DT', multiple: true, campo: 'slides[].alt', valores: [{ editor: 'a', viaja: null }] }];
+    const ts = generarTs(c);
+    expect(ts).toContain('export interface SelectorSynHost {');
+    expect(ts).toContain('"campo": "slides[].alt"');
+    expect(ts).toContain('"viaja": null');
   });
 
   it('es determinista: el mismo contrato da el mismo texto (idempotent)', () => {

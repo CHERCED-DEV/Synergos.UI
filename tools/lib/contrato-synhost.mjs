@@ -18,6 +18,10 @@
  *     ──tsc──▶ el sanitizador del elemento, tipado con él (leer una clave que no viaja: TS2339)
  *     ──contrato-synhost.spec.ts──▶ el sanitizador EJECUTADO con el `config` exacto de la vista
  *
+ * Desde CMS#181 el contrato trae además, por elemento, sus `selectores`: lo que el editor puede
+ * elegir en cada desplegable del ElementType, pasado por el resolver REAL. El mismo spec lo cruza
+ * contra lo que el sanitizador acepta, en las dos direcciones (el gate de vocabulario).
+ *
  * ─────────────────────────────────────────────────────────────────────────────
  * POR QUÉ C# → TS Y NO AL REVÉS, Y POR QUÉ UN JSON EN MEDIO.
  *
@@ -105,6 +109,7 @@ export function validarContrato(contrato) {
     if (!Array.isArray(e?.diccionario)) errores.push(`${quien}: sin lista \`diccionario\``);
     errores.push(...revisarClaves(quien, e?.diccionario ?? [], e?.claves));
     revisarCampos(quien, e?.campos, true);
+    errores.push(...revisarSelectores(quien, e?.selectores, e?.campos));
 
     const ejemplo = e?.ejemplo;
     if (typeof ejemplo !== 'object' || ejemplo === null || Array.isArray(ejemplo)) {
@@ -171,6 +176,58 @@ function revisarClaves(quien, secciones, claves) {
   for (const seccion of secciones) {
     if (!claves.some((c) => enAlgunaSeccion(c, [seccion]))) {
       errores.push(`${quien}: la sección «${seccion}» no casa ninguna clave — prefijo vacío`);
+    }
+  }
+  return errores;
+}
+
+/** La ruta de un campo dentro del `config`: `position`, `platforms[]`, `toasts[].variant`. */
+const RUTA_DE_CAMPO = /^[A-Za-z_]\w*(\[\])?(\.[A-Za-z_]\w*(\[\])?)*$/;
+
+/**
+ * Los selectores que el contrato trae por elemento (CMS#181): por cada propiedad del ElementType
+ * cuyo DataType es un desplegable, dónde cae en el `config` (`campo`) y qué viaja de cada
+ * prevalor DESPUÉS del resolver. Un selector que no llega al elemento trae `campo: null`.
+ *
+ * La forma importa porque el gate de vocabulario (`contrato-synhost.spec.ts`) cruza esto contra
+ * lo que el sanitizador acepta: un `campo` que no empieza en un campo del record no se podría
+ * ejecutar, y un `viaja` con `campo: null` sería una contradicción que el CMS no escribe.
+ *
+ * @param {string} quien
+ * @param {unknown} selectores
+ * @param {unknown} campos
+ * @returns {string[]}
+ */
+function revisarSelectores(quien, selectores, campos) {
+  if (selectores === undefined || selectores === null) return [];
+  if (!Array.isArray(selectores)) return [`${quien}: \`selectores\` no es una lista`];
+
+  const declarados = new Set(Array.isArray(campos) ? campos.map((c) => c?.nombre) : []);
+  const errores = [];
+  const vistos = new Set();
+  for (const s of selectores) {
+    const cual = `${quien}.${s?.propiedad ?? '(sin propiedad)'}`;
+    if (typeof s?.propiedad !== 'string' || s.propiedad.length === 0) errores.push(`${cual}: selector sin \`propiedad\``);
+    if (vistos.has(s?.propiedad)) errores.push(`${cual}: selector repetido`);
+    vistos.add(s?.propiedad);
+    if (typeof s?.dataType !== 'string' || s.dataType.length === 0) errores.push(`${cual}: sin \`dataType\``);
+    if (typeof s?.multiple !== 'boolean') errores.push(`${cual}: sin \`multiple\``);
+
+    const campo = s?.campo;
+    if (campo !== null && (typeof campo !== 'string' || !RUTA_DE_CAMPO.test(campo))) {
+      errores.push(`${cual}: \`campo\` «${campo}» no es una ruta del config`);
+    } else if (typeof campo === 'string' && !declarados.has(campo.split(/[.[]/)[0])) {
+      errores.push(`${cual}: \`campo\` «${campo}» no empieza en un campo del record`);
+    }
+
+    if (!Array.isArray(s?.valores) || s.valores.length === 0) {
+      errores.push(`${cual}: sin \`valores\` — un selector sin prevalores no ofrece nada`);
+      continue;
+    }
+    for (const v of s.valores) {
+      if (typeof v?.editor !== 'string' || v.editor.length === 0) errores.push(`${cual}: un valor sin \`editor\``);
+      if (v?.viaja !== null && typeof v?.viaja !== 'string') errores.push(`${cual}: «${v?.editor}» sin \`viaja\` (cadena o null)`);
+      if (campo === null && v?.viaja !== null) errores.push(`${cual}: «${v?.editor}» viaja sin \`campo\` donde caer`);
     }
   }
   return errores;
@@ -246,6 +303,25 @@ export function generarTs(contrato) {
       `export const CLAVES_DE_ENVOLTURA_SYNHOST: readonly (keyof EnvolturaSynHost)[] = [${JSON.stringify(ENVOLTURA)}];`,
     ].join('\n'),
     [
+      '/** Un prevalor que el editor elige, y lo que de él llega al elemento DESPUÉS del resolver (`null`: nada). */',
+      'export interface ValorDeSelectorSynHost {',
+      '  readonly editor: string;',
+      '  readonly viaja: string | null;',
+      '}',
+      '',
+      '/**',
+      ' * Un selector del ElementType (desplegable, radios, casillas) y dónde cae en el `config`:',
+      " * `'position'`, `'platforms[]'`, `'toasts[].variant'`; `null` si no llega al elemento (CMS#181).",
+      ' */',
+      'export interface SelectorSynHost {',
+      '  readonly propiedad: string;',
+      '  readonly dataType: string;',
+      '  readonly multiple: boolean;',
+      '  readonly campo: string | null;',
+      '  readonly valores: readonly ValorDeSelectorSynHost[];',
+      '}',
+    ].join('\n'),
+    [
       '/** Un elemento con contrato: quién es, qué campos viajan y un `config` real de su vista. */',
       'export interface ElementoSynHost<T> {',
       '  readonly nombre: string;',
@@ -257,6 +333,8 @@ export function generarTs(contrato) {
       '  readonly campos: readonly (keyof T & string)[];',
       '  /** Por cada campo que es una lista de records, los campos de sus ítems. */',
       '  readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;',
+      '  /** Lo que el editor puede elegir en sus selectores, pasado por el resolver (CMS#181). */',
+      '  readonly selectores: readonly SelectorSynHost[];',
       '  readonly ejemplo: T & EnvolturaSynHost;',
       '}',
     ].join('\n'),
@@ -290,6 +368,7 @@ export function generarTs(contrato) {
         `  claves: ${JSON.stringify(e.claves ?? [])},`,
         `  campos: ${JSON.stringify(e.campos.map((c) => c.nombre))},`,
         `  listas: ${JSON.stringify(listasDe(e))},`,
+        `  selectores: ${literal(e.selectores ?? [], '  ')},`,
         `  ejemplo: ${literal(e.ejemplo, '  ')},`,
         '};',
       ].join('\n'),
