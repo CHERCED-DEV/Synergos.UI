@@ -16,6 +16,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-scroll-top>: a floating "back to top" button. It stays hidden until the page is
@@ -28,6 +29,10 @@ import {
  * alias», y era falso: la vista mandaba `ariaLabel` y este elemento lee `label`, así que el
  * nombre accesible que escribió el editor se tiraba al hidratar (D1). Los atributos ganan sobre
  * el `config`, que gana sobre los defaults.
+ *
+ * El nombre por defecto sale del diccionario con `t()` (ADR 0136), sección `ScrollTop` que
+ * declara `ScrollTopProps`. (`Footer.BackToTop` dice lo mismo, pero es copia del pie de página:
+ * acoplar este botón a ella haría que retocar el pie cambie este botón.)
  */
 
 export type ScrollTopPosition = 'bottom-right' | 'bottom-left' | 'bottom-center';
@@ -36,7 +41,6 @@ const POSITIONS: readonly ScrollTopPosition[] = ['bottom-right', 'bottom-left', 
 
 const DEFAULT_THRESHOLD = 320;
 const DEFAULT_POSITION: ScrollTopPosition = 'bottom-right';
-const DEFAULT_LABEL = 'Volver arriba';
 
 function readNumber(value: unknown): number | undefined {
   if (typeof value === 'number') {
@@ -117,7 +121,7 @@ export class ScrollTopElementComponent {
     resolveConfigValue(
       coerceTrimmedStringInput(this.labelInput()),
       this.config()?.label,
-      DEFAULT_LABEL,
+      t('ScrollTop.Aria', 'Volver arriba'),
     ),
   );
 

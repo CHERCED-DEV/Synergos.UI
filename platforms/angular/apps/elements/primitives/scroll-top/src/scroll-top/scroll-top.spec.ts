@@ -81,3 +81,35 @@ describe('ScrollTopElementComponent', () => {
     scrollYSpy.mockRestore();
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('scroll-top — microcopia del diccionario (ADR 0136, sección ScrollTop)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ScrollTopElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el rótulo del editor gana; sin rótulo, el nombre es ScrollTop.Aria', async () => {
+    publicar({ 'ScrollTop.Aria': 'Back to top' });
+    const conRotulo = TestBed.createComponent(ScrollTopElementComponent);
+    conRotulo.componentRef.setInput('config', JSON.stringify(SCROLL_TOP_SYNHOST.ejemplo));
+    conRotulo.detectChanges();
+    await conRotulo.whenStable();
+    expect(conRotulo.componentInstance.label()).toBe(SCROLL_TOP_SYNHOST.ejemplo.label);
+
+    const sinRotulo = TestBed.createComponent(ScrollTopElementComponent);
+    sinRotulo.detectChanges();
+    await sinRotulo.whenStable();
+    expect(sinRotulo.componentInstance.label()).toBe('Back to top');
+  });
+});

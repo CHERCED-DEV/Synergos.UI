@@ -420,7 +420,7 @@ export interface RichTooltipProps {
   readonly placement?: string;
 }
 
-/** <synergos-scroll-top> · pieza */
+/** <synergos-scroll-top> · pieza · diccionario: ScrollTop */
 export interface ScrollTopProps {
   /** decision */
   readonly scrollThreshold?: number;
@@ -1079,8 +1079,8 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   nombre: "scroll-top",
   tipo: "pieza",
   record: "ScrollTopProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ScrollTop"],
+  claves: ["ScrollTop.Aria"],
   campos: ["scrollThreshold","position","label"],
   listas: {},
   ejemplo: {
