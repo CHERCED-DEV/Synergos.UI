@@ -122,6 +122,37 @@ describe('AvatarElementComponent', () => {
     expect(component.shape()).toBe('circle');
     expect(component.status()).toBe('none');
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `Avatar` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', () => {
+      fixture.componentRef.setInput('status', 'busy');
+      fixture.detectChanges();
+
+      expect(component.fullLabel()).toBe('Avatar de usuario — Ocupado');
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.avatar__status')?.getAttribute('title')).toBe('Ocupado');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Avatar.Fallback': 'User avatar', 'Avatar.Status.Away': 'Away' } },
+      };
+      const otra = TestBed.createComponent(AvatarElementComponent);
+      otra.componentRef.setInput('status', 'away');
+      otra.detectChanges();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.avatar')?.getAttribute('aria-label')).toBe('User avatar — Away');
+      otra.componentRef.setInput('status', 'offline');
+      otra.detectChanges();
+      expect(otra.componentInstance.statusLabel()).toBe('Desconectado');
+    });
+  });
 });
 
 describe('deriveInitials', () => {

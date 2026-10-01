@@ -182,7 +182,7 @@ export interface AudioPlayerProps {
   readonly artistName?: string;
 }
 
-/** <synergos-avatar> · pieza */
+/** <synergos-avatar> · pieza · diccionario: Avatar */
 export interface AvatarProps {
   /** contenido */
   readonly src?: string;
@@ -190,7 +190,7 @@ export interface AvatarProps {
   readonly alt?: string;
 }
 
-/** <synergos-avatar-group> · pieza */
+/** <synergos-avatar-group> · pieza · diccionario: AvatarGroup, Avatar */
 export interface AvatarGroupProps {
   /** contenido */
   readonly avatars?: readonly AvatarGroupMember[];
@@ -595,8 +595,8 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
   nombre: "avatar",
   tipo: "pieza",
   record: "AvatarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Avatar"],
+  claves: ["Avatar.Fallback","Avatar.Status.Away","Avatar.Status.Busy","Avatar.Status.Offline","Avatar.Status.Online"],
   campos: ["src","alt"],
   listas: {},
   ejemplo: {
@@ -610,8 +610,8 @@ export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
   nombre: "avatar-group",
   tipo: "pieza",
   record: "AvatarGroupProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["AvatarGroup","Avatar"],
+  claves: ["Avatar.Fallback","Avatar.Status.Away","Avatar.Status.Busy","Avatar.Status.Offline","Avatar.Status.Online","AvatarGroup.Count.One","AvatarGroup.Count.Other","AvatarGroup.Empty","AvatarGroup.Label","AvatarGroup.More","AvatarGroup.Rest"],
   campos: ["avatars","maxVisible","label"],
   listas: {"avatars":["name","src"]},
   ejemplo: {

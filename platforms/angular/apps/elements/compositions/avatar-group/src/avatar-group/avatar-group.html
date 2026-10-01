@@ -1,5 +1,5 @@
 @if (isEmpty()) {
-  <p class="avatar-group__empty">No hay integrantes para mostrar.</p>
+  <p class="avatar-group__empty">{{ emptyLabel() }}</p>
 } @else {
   <ul
     class="avatar-group"
@@ -35,14 +35,14 @@
           <a
             class="avatar-group__avatar avatar-group__overflow"
             [href]="overflowHref()"
-            [attr.aria-label]="'Ver los ' + overflowCount() + ' integrantes restantes'"
+            [attr.aria-label]="restLabel()"
           >
             <span aria-hidden="true">{{ overflowLabel() }}</span>
           </a>
         } @else {
           <span
             class="avatar-group__avatar avatar-group__overflow"
-            [attr.aria-label]="overflowCount() + ' integrantes más'"
+            [attr.aria-label]="moreLabel()"
           >
             <span aria-hidden="true">{{ overflowLabel() }}</span>
           </span>

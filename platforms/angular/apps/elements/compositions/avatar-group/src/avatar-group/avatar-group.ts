@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import type { AvatarGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -28,6 +29,10 @@ import {
  * que es la foto, a `src`), `maxVisible` un número y `label` el nombre del grupo. La vista mandaba
  * el TEXTO `avatarsJson` y el grupo salía vacío (D1). `size` y `overflowHref` no los autora el
  * editor: llegan por atributo, igual que `avatars` como JSON.
+ *
+ * Su microcopia sale del diccionario (ADR 0136): sección `AvatarGroup` —el nombre por defecto, el
+ * recuento con su plural, el desborde y el grupo vacío— y `Avatar.Fallback`, el nombre de un avatar
+ * sin nombre, que comparte con `avatar` en vez de tener una copia.
  */
 export interface AvatarItemConfig {
   readonly name?: string;
@@ -111,7 +116,7 @@ export function normalizeAvatars(value: unknown): readonly AvatarItem[] {
         return null;
       }
 
-      const alt = readString(entry['alt']).trim() || name || 'Avatar';
+      const alt = readString(entry['alt']).trim() || name || t('Avatar.Fallback', 'Avatar de usuario');
       const href = readString(entry['href']).trim() || readString(entry['url']).trim();
 
       return {
@@ -167,7 +172,7 @@ export class AvatarGroupElementComponent {
   );
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.config()?.label, 'Equipo'),
+    resolveConfigValue(this.labelInput(), this.config()?.label, t('AvatarGroup.Label', 'Equipo')),
   );
 
   readonly overflowHref = computed(() => this.overflowHrefInput() ?? '');
@@ -203,12 +208,21 @@ export class AvatarGroupElementComponent {
   readonly hasOverflow = computed(() => this.overflowCount() > 0);
   readonly overflowLabel = computed(() => `+${this.overflowCount()}`);
 
-  /** Accessible roster summary, e.g. "Equipo: 8 integrantes". */
+  /** Accessible roster summary, e.g. "Equipo: 8 integrantes" (`AvatarGroup.Count.*`). */
   readonly groupAriaLabel = computed(() => {
-    const total = this.total();
-    const noun = total === 1 ? 'integrante' : 'integrantes';
-    return `${this.label()}: ${total} ${noun}`;
+    const count = this.total();
+    const label = this.label();
+    return count === 1
+      ? t('AvatarGroup.Count.One', '{label}: 1 integrante', { label })
+      : t('AvatarGroup.Count.Other', '{label}: {count} integrantes', { label, count });
   });
+
+  /** La microcopia del grupo, del diccionario (ADR 0136, sección `AvatarGroup`). */
+  readonly emptyLabel = computed(() => t('AvatarGroup.Empty', 'No hay integrantes para mostrar.'));
+  readonly restLabel = computed(() =>
+    t('AvatarGroup.Rest', 'Ver los {count} integrantes restantes', { count: this.overflowCount() }),
+  );
+  readonly moreLabel = computed(() => t('AvatarGroup.More', '{count} integrantes más', { count: this.overflowCount() }));
 
   /** Track id which currently holds focus inside the strip (roving tabindex). */
   readonly #focusedId = signal<string | null>(null);

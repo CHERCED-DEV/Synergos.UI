@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import type { AvatarProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -24,6 +25,9 @@ import {
  * (ADR 0135): `src` es la URL del medio que eligió el editor y `alt` su nombre accesible. La
  * vista mandaba `avatarSrc` y este elemento pintaba el icono genérico (D1). `name`, `size`,
  * `shape` y `status` no los autora el editor: llegan por atributo.
+ *
+ * Su microcopia sale del diccionario, sección `Avatar` (ADR 0136): el nombre de un avatar sin nombre
+ * (`Avatar.Fallback`, la misma clave que usa `avatar-group`) y los cuatro estados de presencia.
  */
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 export type AvatarShape = 'circle' | 'rounded' | 'square';
@@ -44,13 +48,21 @@ const DEFAULT_SHAPE: AvatarShape = 'circle';
 const DEFAULT_STATUS: AvatarStatus = 'none';
 const DEFAULT_NAME = '';
 
-const STATUS_LABELS: Record<AvatarStatus, string> = {
-  none: '',
-  online: 'En línea',
-  away: 'Ausente',
-  busy: 'Ocupado',
-  offline: 'Desconectado',
-};
+/** El nombre del estado de presencia, del diccionario (`Avatar.Status.*`). */
+function etiquetaDeEstado(status: AvatarStatus): string {
+  switch (status) {
+    case 'online':
+      return t('Avatar.Status.Online', 'En línea');
+    case 'away':
+      return t('Avatar.Status.Away', 'Ausente');
+    case 'busy':
+      return t('Avatar.Status.Busy', 'Ocupado');
+    case 'offline':
+      return t('Avatar.Status.Offline', 'Desconectado');
+    default:
+      return '';
+  }
+}
 
 /** Map an arbitrary string onto an allowed enum value, or a fallback. */
 export function coerceAvatarEnum<T extends string>(
@@ -153,10 +165,10 @@ export class AvatarElementComponent {
       return alt;
     }
     const name = this.name();
-    return name || 'Avatar de usuario';
+    return name || t('Avatar.Fallback', 'Avatar de usuario');
   });
 
-  readonly statusLabel = computed(() => STATUS_LABELS[this.status()]);
+  readonly statusLabel = computed(() => etiquetaDeEstado(this.status()));
   readonly hasStatus = computed(() => this.status() !== 'none');
 
   /** Composite accessible label including presence when set. */
