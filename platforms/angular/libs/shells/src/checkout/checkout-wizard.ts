@@ -39,7 +39,20 @@ export interface CheckoutWizardStep {
   readonly label: string;
 }
 
-/** Copy + behaviour config. `steps` is the only required part. */
+/**
+ * Copy + behaviour config. Required: `steps` and the two failure messages.
+ *
+ * **Los dos mensajes de fallo son OBLIGATORIOS (UI#91).** El asistente no sabe qué hace
+ * el `pay` de cada dominio: en la Tienda, Eventos, Viajes y Academia abre un cobro; en
+ * Propiedades y EHR acuña una referencia LOCAL y no mueve dinero; en Booking APARTA la
+ * habitación y el cobro es el `confirm`. Con un texto por defecto que presumía un cobro,
+ * una cita que no se pudo reservar decía «Ya recibimos tu pago (referencia APPT-…)» —un
+ * pago que nunca existió, con una referencia acuñada en el navegador— y una reserva cuyo
+ * PAGO falló decía que el pago se había recibido. Medido en el spec de EHR. Y como cada
+ * dominio lo «arreglaba» escribiendo su propio aviso encima, el lector de pantalla oía DOS
+ * `role="alert"` que se contradecían. Lo dice quien sabe qué hace su `pay`: el dominio, y
+ * en UN sitio: el aviso del asistente.
+ */
 export interface CheckoutWizardConfig {
   readonly steps: readonly CheckoutWizardStep[];
   readonly stepsLabel?: string;
@@ -55,18 +68,33 @@ export interface CheckoutWizardConfig {
    * Lo que se dice cuando el cobro NO salió. **Nada se cobró**, así que el mensaje
    * invita a reintentar sin más.
    */
-  readonly payFailedMessage?: string;
+  readonly payFailedMessage: string;
   /**
    * Lo que se dice cuando el cobro SÍ salió y la confirmación no. **Tiene que nombrar
    * lo que YA quedó**: decirle «no pudimos completar la compra» a quien acaba de
    * pagar le invita a pagar otra vez, y eso es daño propio, no «un botón de más».
+   * `{referencia}` se sustituye por la referencia que devolvió el `pay`.
    */
-  readonly confirmFailedMessage?: string;
+  readonly confirmFailedMessage: string;
   /** BCP-47 locale for the built-in price formatting. Default `es-CO`. */
   readonly locale?: string;
   /** Fraction digits for the built-in price formatting. Default 0. */
   readonly fractionDigits?: number;
 }
+
+/**
+ * Los avisos de un `pay` que ABRE UN COBRO de verdad (la Tienda, Viajes, Eventos de pago):
+ * en el primer fallo no se cobró nada; en el segundo el cobro quedó, y se nombra con su
+ * referencia para que nadie pague dos veces (CMS#117). Un dominio cuyo `pay` NO cobra
+ * —acuña una referencia local, o aparta— escribe los suyos: usar éstos ahí es decir «Ya
+ * recibimos tu pago» de un pago que no existió (UI#91).
+ */
+export const AVISOS_DE_UN_COBRO = {
+  payFailedMessage: 'No pudimos completar el cobro, así que no se te ha cobrado nada. Intenta de nuevo.',
+  confirmFailedMessage:
+    'Ya recibimos tu pago (referencia {referencia}) pero no pudimos confirmarlo. ' +
+    'Vuelve a intentarlo: no se te cobrará de nuevo.',
+} as const satisfies Pick<CheckoutWizardConfig, 'payFailedMessage' | 'confirmFailedMessage'>;
 
 /** Template context handed to the per-step template. */
 export interface CheckoutStepContext {
@@ -346,19 +374,12 @@ export class CheckoutWizardComponent {
     }
   }
 
+  /** El aviso de fallo: el que el dominio escribió para lo que QUEDÓ (ver la config). */
   private failureMessage(capturedReference: string): string {
     const config = this.config();
-    if (capturedReference) {
-      return (
-        config.confirmFailedMessage ||
-        `Ya recibimos tu pago (referencia ${capturedReference}) pero no pudimos confirmarlo. ` +
-          'Vuelve a intentarlo: no se te cobrará de nuevo.'
-      );
-    }
-    return (
-      config.payFailedMessage ||
-      'No pudimos completar el cobro, así que no se te ha cobrado nada. Intenta de nuevo.'
-    );
+    return capturedReference
+      ? config.confirmFailedMessage.replaceAll('{referencia}', capturedReference)
+      : config.payFailedMessage;
   }
 
   // ─── Formatting ────────────────────────────────────────────────────────────

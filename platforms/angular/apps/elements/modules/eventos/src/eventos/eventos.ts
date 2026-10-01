@@ -37,6 +37,7 @@ import {
   type AccountShellConfig,
   type AuthoringWizardConfig,
   type CheckoutWizardConfig,
+  AVISOS_DE_UN_COBRO,
   type CheckoutWizardResult,
   type ConsoleColumn,
   type ConsoleKpi,
@@ -556,6 +557,15 @@ export class EventosElementComponent {
       steps,
       summaryHeading: 'Tu orden',
       submitLabel: this.isFreeEvent() ? 'Confirmar registro' : 'Pagar y confirmar',
+      // El fallo lo dice el ASISTENTE, una vez (UI#91). Un evento gratis no cobra, y su
+      // aviso no puede hablar de un pago.
+      ...(this.isFreeEvent()
+        ? {
+            payFailedMessage: 'No pudimos completar tu registro. Intenta de nuevo.',
+            confirmFailedMessage:
+              'Tu registro quedó abierto (referencia {referencia}) pero no pudimos confirmarlo. Vuelve a intentarlo.',
+          }
+        : AVISOS_DE_UN_COBRO),
       processingLabel: 'Procesando…',
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
@@ -1328,11 +1338,6 @@ export class EventosElementComponent {
     };
     this.purchased.emit(payload);
     this.#bus.publish('purchased', payload);
-  }
-
-  onCheckoutFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos completar la compra. Intenta de nuevo.');
   }
 
   /** Print the e-tickets (browser print → PDF). */

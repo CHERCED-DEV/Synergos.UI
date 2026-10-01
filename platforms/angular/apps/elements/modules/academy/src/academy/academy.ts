@@ -602,10 +602,12 @@ export class AcademyElementComponent {
     totalLabel: 'Total',
     // Lo tecleado se queda donde está y el mensaje dice qué quedó del otro lado
     // (CMS#117). Antes el asistente completaba igual con una matrícula fabricada.
+    // Lo dice el ASISTENTE y sólo él: la ficha lo repetía en su banner, y el lector de
+    // pantalla oía dos `role="alert"` con dos textos distintos (UI#91).
     payFailedMessage:
       'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
     confirmFailedMessage:
-      'Ya recibimos tu pago pero la matrícula todavía no quedó activa. ' +
+      'Ya recibimos tu pago (referencia {referencia}) pero la matrícula todavía no quedó activa. ' +
       'Vuelve a pulsar «Pagar e inscribirme»: no se te cobrará de nuevo.',
   }));
 
@@ -1294,20 +1296,6 @@ export class AcademyElementComponent {
       (typeof detail['enrollmentId'] === 'string' ? detail['enrollmentId'] : '') || result.reference;
     const courseId = this.detail()?.course.id ?? this.#store.items()[0]?.productRef ?? '';
     this.finishEnrollment(courseId, enrollmentId);
-  }
-
-  /**
-   * El asistente no pudo cerrar la ronda. **El banner tiene que distinguir las dos
-   * mitades** (CMS#117): decirle «intenta de nuevo» a secas a quien ya pagó es
-   * exactamente lo que le invita a pagar por segunda vez. El detalle, con la
-   * referencia del cobro, lo enseña el propio asistente junto al botón.
-   */
-  onEnrollFailed(reason: string): void {
-    this.errorMessage.set(
-      reason.startsWith('confirm-')
-        ? 'Tu pago quedó registrado, pero la matrícula todavía no. Vuelve a confirmar — no se cobra de nuevo.'
-        : 'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
-    );
   }
 
   /** Free path: run pay+confirm directly (no wizard). */

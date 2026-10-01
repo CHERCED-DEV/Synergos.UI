@@ -56,6 +56,7 @@ import {
   TrackingTimelineComponent,
   type AccountShellConfig,
   type CheckoutWizardConfig,
+  AVISOS_DE_UN_COBRO,
   type CheckoutWizardResult,
   type DetailMedia,
   type DetailSpec,
@@ -685,6 +686,9 @@ export class StorefrontElementComponent {
     ],
     summaryHeading: 'Tu pedido',
     submitLabel: 'Pagar y confirmar',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `pay` abre el cobro, así que el
+    // aviso de después nombra su referencia.
+    ...AVISOS_DE_UN_COBRO,
     processingLabel: 'Procesando…',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
@@ -1843,11 +1847,6 @@ export class StorefrontElementComponent {
     this.orderconfirmed.emit(payload);
     this.#bus.publish('orderconfirmed', payload);
     this.emitCartUpdate();
-  }
-
-  onCheckoutFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos completar el pago. Intenta de nuevo.');
   }
 
   // ─── Account (SH-4 wiring) ───────────────────────────────────────────────────

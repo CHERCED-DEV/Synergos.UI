@@ -292,7 +292,14 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.myAppointments().length).toBe(before);
     expect(component.confirmedAppointmentRef()).toBe('');
     expect(component.view()).toBe('schedule');
-    expect(component.errorMessage()).toContain('NO quedó apartado');
+    // UNA alerta, y dice que la cita no quedó. Medido antes de UI#91: dos —la de la ficha y
+    // la del asistente—, y la del asistente decía «Ya recibimos tu pago (referencia
+    // APPT-…)», un pago que no existió con una referencia acuñada en el navegador.
+    fixture.detectChanges();
+    const alertas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]'))
+      .map((alerta) => (alerta.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+    expect(alertas).toEqual(['No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.']);
     // Y lo elegido sigue en el asistente: reintentar no obliga a volver a empezar.
     expect(component.scheduleTime()).toBe('10:00');
   });

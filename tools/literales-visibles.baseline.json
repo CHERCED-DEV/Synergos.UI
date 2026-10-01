@@ -1,5 +1,5 @@
 {
-  "academy": 316,
+  "academy": 314,
   "audio-player": 8,
   "autocomplete": 4,
   "avatar": 5,
@@ -28,7 +28,7 @@
   "drawer": 2,
   "dropzone": 16,
   "ehr": 355,
-  "eventos": 256,
+  "eventos": 257,
   "fab": 2,
   "feature-journey": 14,
   "file-uploader": 12,
@@ -60,7 +60,7 @@
   "qr-code": 4,
   "quote-animated": 4,
   "range-slider": 4,
-  "realty": 311,
+  "realty": 312,
   "rich-tooltip": 1,
   "scroll-top": 1,
   "search-box": 3,
@@ -74,7 +74,7 @@
   "social-share": 4,
   "splitter": 3,
   "stepper": 2,
-  "storefront": 275,
+  "storefront": 274,
   "tab-group": 2,
   "testimonial-carousel": 7,
   "testimonial-item": 1,
@@ -82,7 +82,7 @@
   "timeline-horizontal": 2,
   "toast-center": 7,
   "tour-guide": 4,
-  "travel-shell": 232,
+  "travel-shell": 231,
   "tree-view": 4,
   "video-player": 11
 }

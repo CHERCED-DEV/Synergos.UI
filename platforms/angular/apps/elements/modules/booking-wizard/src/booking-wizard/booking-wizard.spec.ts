@@ -256,6 +256,19 @@ describe('BookingWizardElementComponent', () => {
   });
 
   // ─── EL caso: los dos fallos que antes eran uno ─────────────────────────────
+
+  /**
+   * Los textos de los `role="alert"` con algo escrito. El fallo lo dice el ASISTENTE, una
+   * vez (UI#91): la ficha lo repetía en su banner, y con el texto por defecto del asistente
+   * el pago FALLIDO se anunciaba como «Ya recibimos tu pago».
+   */
+  function alertas(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]'))
+      .map((alerta) => (alerta.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  const NO_SE_COBRO = 'No pudimos completar el pago de tu reserva. Revisa tus datos e intenta de nuevo.';
   it('el APARTADO fallido manda a elegir otra habitación y suelta la línea muerta', async () => {
     stubFetch({ search: { offers: [SAMPLE_OFFER, OTRA_OFERTA] }, hold: false });
     mount();
@@ -264,9 +277,8 @@ describe('BookingWizardElementComponent', () => {
     await avanzar(); // intentar confirmar
     await settle(fixture);
 
-    // Dice lo que pasó de verdad: la habitación, no el pago.
-    expect(component.errorMessage()).toContain('ya no está disponible');
-    expect(component.errorMessage()).not.toContain('pago');
+    // Dice lo que pasó de verdad: la habitación, no el pago — y UNA vez.
+    expect(alertas()).toEqual(['Esa habitación ya no está disponible. Elige otra de las opciones.']);
     // Y suelta la selección: dejarla viva deja el botón de confirmar apuntando a
     // algo que el motor ya rechazó.
     expect(TestBed.inject(SessionStore).items()).toHaveLength(0);
@@ -287,9 +299,9 @@ describe('BookingWizardElementComponent', () => {
     await avanzar();
     await settle(fixture);
 
-    // Acá reintentar SÍ sirve, así que la reserva elegida se conserva.
-    expect(component.errorMessage()).toContain('pago');
-    expect(component.errorMessage()).not.toContain('ya no está disponible');
+    // Acá reintentar SÍ sirve, así que la reserva elegida se conserva. Y el aviso es UNO y
+    // dice que el pago NO salió: el texto por defecto decía «Ya recibimos tu pago».
+    expect(alertas()).toEqual([NO_SE_COBRO]);
     expect(TestBed.inject(SessionStore).items()).toHaveLength(1);
     expect(component.selectedOffer()?.offerId).toBe('OFR-1');
     expect(component.voucher()).toBeNull();
@@ -310,7 +322,7 @@ describe('BookingWizardElementComponent', () => {
     // Celebrar un «pendiente» le diría a alguien que tiene habitación cuando el
     // motor no lo ha aceptado.
     expect(component.voucher()).toBeNull();
-    expect(component.errorMessage()).toContain('pago');
+    expect(alertas()).toEqual([NO_SE_COBRO]);
   });
 
   // ─── búsqueda sin resultados ────────────────────────────────────────────────

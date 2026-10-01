@@ -225,7 +225,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Cincuenta y tres reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cincuenta y cuatro reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1464,3 +1464,28 @@ se desincroniza):
    el gate `rutas-por-hash` rechaza un `decodeURIComponent` en un router, además del `#/${…}` crudo.
    Ese gate deriva las verticales por dos caminos —quien escucha `hashchange` en el disco y quien
    declara `scope` en `element-inputs.json`— y exige que den las mismas ocho.
+
+54. **Una pieza compartida no presume lo que hace el dominio: si su texto depende de ello, el
+   dominio lo ESCRIBE y la pieza lo EXIGE — y un dominio que «corrige» el texto de la pieza
+   escribiendo su propio aviso encima no lo corrige: crea dos `role="alert"`.** `syn-checkout-wizard`
+   traía por defecto, para cuando el `pay` salía y el `confirm` no, «Ya recibimos tu pago
+   (referencia X)». Es verdad en la Tienda, Viajes, Eventos y Academia, donde el `pay` abre un
+   cobro. **No lo es en los otros cuatro**: en EHR y Propiedades el `pay` acuña en el navegador
+   una referencia LOCAL (`APPT-…`, `VISIT-…`) y no mueve dinero, en Blogs igual (`SUB-…`), y en
+   Booking el `pay` APARTA y el cobro es el `confirm`. Medido en el spec de EHR: la cita que no
+   se pudo reservar enseñaba **dos alertas**, la de la ficha («el hueco NO quedó apartado») y la
+   del asistente, «Ya recibimos tu pago (referencia APPT-MUPYHSFE)» — un pago que no existió con
+   un número que parece un comprobante. Y en Booking el pago FALLIDO se anunciaba como recibido.
+   El doble aviso que el ticket midió en academy (UI#91, punto 6) era la misma forma en las ocho
+   fichas que montan el asistente: cada una ponía su banner al recibir `failed`, porque el texto
+   por defecto no le servía.
+   Hoy `payFailedMessage` y `confirmFailedMessage` son **obligatorios** en `CheckoutWizardConfig`
+   (con `{referencia}` para nombrar el cobro que quedó), los dominios que cobran usan
+   `AVISOS_DE_UN_COBRO` —la copia de un cobro, en UN sitio— y los que no, escriben la suya. Las
+   fichas ya no repiten el fallo: se dice una vez, junto al botón que lo provocó. Un dominio
+   nuevo no puede olvidarlo: sin los dos campos no compila.
+   Mutado: con el texto por defecto de antes, 3 rojos (EHR y los dos de Booking); sin sustituir
+   `{referencia}`, 2 (el del asistente y el de academy); con el banner de academy de vuelta, 2.
+   Y el `gate:literales` subió en eventos y realty (+1 cada uno: la copia de un registro gratis y
+   la de una visita, que son verdades que el texto por defecto no decía) y bajó en academy,
+   storefront y travel-shell: la línea base va en el mismo commit.

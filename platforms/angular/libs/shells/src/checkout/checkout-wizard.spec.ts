@@ -14,6 +14,7 @@ import {
   type SessionItem,
 } from '@synergos/transaction-engine';
 import {
+  AVISOS_DE_UN_COBRO,
   CheckoutWizardComponent,
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
@@ -76,6 +77,9 @@ const THREE_STEPS: CheckoutWizardConfig = {
     { id: 'pago', label: 'Pago' },
     { id: 'revisar', label: 'Revisar' },
   ],
+  // Obligatorios desde UI#91: el asistente no sabe si el `pay` de un dominio cobra. El de
+  // este spec cobra, así que usa los avisos de un cobro — y con eso los prueba.
+  ...AVISOS_DE_UN_COBRO,
 };
 
 @Component({
@@ -226,6 +230,7 @@ describe(CheckoutWizardComponent.name, () => {
 
     // Pago OFF — only datos → revisar remain (pasos apagables por config).
     host.config.set({
+      ...THREE_STEPS,
       steps: [
         { id: 'datos', label: 'Datos' },
         { id: 'revisar', label: 'Revisar' },

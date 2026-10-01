@@ -140,6 +140,10 @@ const VISTAS_CON_PANEL: readonly string[] = ['notifications', 'messages', 'saved
 
 const DEFAULT_API_BASE = '/api/blogs';
 const DEFAULT_SCOPE = 'blogs';
+
+/** El fallo del asistente de suscripción: el `pay` es local, así que nunca hubo cobro (UI#91). */
+const SUSCRIPCION_NO_PROCESADA = 'No pudimos procesar la suscripción. Intenta de nuevo.';
+
 const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
 // `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html:14),
@@ -807,6 +811,10 @@ export class BlogsElementComponent {
     summaryHeading: 'Tu membresía',
     submitLabel: 'Suscribirme',
     processingLabel: 'Procesando…',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `SUB-…` del `pay` es local y no
+    // es un cobro.
+    payFailedMessage: SUSCRIPCION_NO_PROCESADA,
+    confirmFailedMessage: SUSCRIPCION_NO_PROCESADA,
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
     totalLabel: 'Total mensual',
@@ -1957,11 +1965,6 @@ export class BlogsElementComponent {
       this.subscribed.emit(payload);
       this.#bus.publish('subscribed', payload);
     }
-  }
-
-  onSubscribeFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos procesar la suscripción. Intenta de nuevo.');
   }
 
   onSubscribeExit(): void {

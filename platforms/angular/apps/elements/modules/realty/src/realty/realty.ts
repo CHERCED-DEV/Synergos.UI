@@ -702,6 +702,11 @@ export class RealtyElementComponent {
     summaryHeading: 'Tu visita',
     submitLabel: 'Agendar visita',
     processingLabel: 'Agendando…',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91). Agendar una visita no cobra nada: el
+    // `VISIT-…` que acuña el `pay` es local, y con el texto por defecto salía como «Ya
+    // recibimos tu pago (referencia VISIT-…)».
+    payFailedMessage: 'No pudimos agendar la visita. Intenta de nuevo.',
+    confirmFailedMessage: 'No pudimos agendar la visita: el horario no quedó reservado. Intenta de nuevo.',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
   };
@@ -1813,11 +1818,6 @@ export class RealtyElementComponent {
     const payload = { visitId: visit.id, listingId: visit.listingId };
     this.visitscheduled.emit(payload);
     this.#bus.publish('visitscheduled', payload);
-  }
-
-  onVisitFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos agendar la visita. Intenta de nuevo.');
   }
 
   backToPdp(): void {

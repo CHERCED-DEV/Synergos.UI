@@ -564,6 +564,17 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     );
   }
 
+  /**
+   * Los `role="alert"` que dicen `texto`. El fallo del asistente lo dice el ASISTENTE, una
+   * vez: la ficha lo repetía en su banner con otras palabras y el lector de pantalla oía dos
+   * alertas seguidas (UI#91).
+   */
+  function alertasQueDicen(texto: string): HTMLElement[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]')).filter(
+      (alerta) => (alerta.textContent ?? '').includes(texto),
+    );
+  }
+
   /** Lleva el asistente hasta el último paso, listo para pulsar «Pagar». */
   async function hastaElBotonDePagar(): Promise<CheckoutWizardComponent> {
     component.openCourse(component.courses().find((c) => c.amount > 0)!);
@@ -603,11 +614,10 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     // Lo tecleado sigue donde estaba: el asistente no se rebobina.
     expect(component.studentEmail()).toBe('ada@example.com');
     expect(wizard.isLastStep()).toBe(true);
-    // Y se DICE, sin fabricar un número de matrícula que no existe — en el aviso del
-    // asistente Y en el banner de la ficha, que son dos superficies distintas.
-    const aviso = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(aviso).toContain('no se te ha cobrado nada');
-    expect(bannerDeLaFicha()).toContain('no se te ha cobrado nada');
+    // Y se DICE, sin fabricar un número de matrícula que no existe — UNA vez, en el aviso
+    // del asistente junto al botón. La ficha lo repetía en su banner (UI#91).
+    expect(alertasQueDicen('no se te ha cobrado nada')).toHaveLength(1);
+    expect(bannerDeLaFicha()).toBe('');
   });
 
   it('EL caso: cobrado y sin confirmar, reintentar NO vuelve a matricular', async () => {
@@ -638,9 +648,11 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     const aviso = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(aviso).toContain('Ya recibimos tu pago');
     expect(aviso).toContain('no se te cobrará de nuevo');
-    // El banner de la ficha tampoco puede decir «intenta de nuevo» a secas: es la
-    // frase que le pide un segundo pago a quien ya pagó.
-    expect(bannerDeLaFicha()).toContain('Tu pago quedó registrado');
+    // UNA alerta, y nombra el cobro que quedó con su referencia (UI#91): la ficha decía lo
+    // mismo con otras palabras en un segundo `role="alert"`.
+    expect(alertasQueDicen('no se te cobrará de nuevo')).toHaveLength(1);
+    expect(alertasQueDicen('ORD-BORDE-7')).toHaveLength(1);
+    expect(bannerDeLaFicha()).toBe('');
 
     // El borde vuelve: se reintenta SOLO la confirmación, que es idempotente del
     // otro lado. Volver a `POST /enroll` abriría otra orden y otro cobro.

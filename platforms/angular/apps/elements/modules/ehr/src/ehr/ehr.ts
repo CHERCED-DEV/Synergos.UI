@@ -129,6 +129,10 @@ interface EhrBus extends Record<string, unknown> {
 const DEFAULT_API_BASE = '/api/ehr';
 const DEFAULT_CLINIC = 'Clínica Synergos';
 const DEFAULT_SCOPE = 'ehr';
+
+/** El fallo del asistente de citas, con o sin copago: la cita NO quedó (UI#91). */
+const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
+
 const DEFAULT_ROLE: EhrRole = 'patient';
 const DEFAULT_PATIENT = 'P-1';
 const DEFAULT_COPAY_MINOR = 0;
@@ -787,6 +791,12 @@ export class EhrElementComponent {
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
       totalLabel: this.copayMinor() > 0 ? 'Copago' : 'Sin costo',
+      // La cita NO quedó agendada, y lo dice el ASISTENTE, una vez (UI#91). Lo elegido sigue
+      // en el carrito: reintentar es un clic. El `APPT-…` del `pay` es local y no mueve
+      // dinero; medido, con el texto por defecto esta cita decía «Ya recibimos tu pago
+      // (referencia APPT-…)», y la ficha repetía el fallo en un segundo `role="alert"`.
+      payFailedMessage: CITA_NO_AGENDADA,
+      confirmFailedMessage: CITA_NO_AGENDADA,
     };
   });
 
@@ -1563,18 +1573,6 @@ export class EhrElementComponent {
     this.#bus.publish('appointmentbooked', payload);
     this.visitsSection.set('upcoming');
     this.navigate('visits');
-  }
-
-  /**
-   * **La cita NO quedó agendada, y el mensaje lo dice con todas las letras.** Lo que
-   * el paciente eligió sigue en el carrito: el asistente se queda donde está y
-   * reintentar es un clic, sin volver a escribir nada.
-   */
-  onScheduleFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set(
-      'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.',
-    );
   }
 
   onScheduleExit(): void {

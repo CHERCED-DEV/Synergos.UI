@@ -162,7 +162,6 @@
           [showSummary]="copayMinor() > 0"
           (stepchange)="onScheduleStepChange($event)"
           (completed)="onScheduleCompleted($event)"
-          (failed)="onScheduleFailed($event)"
           (exit)="onScheduleExit()"
         ></syn-checkout-wizard>
       }
