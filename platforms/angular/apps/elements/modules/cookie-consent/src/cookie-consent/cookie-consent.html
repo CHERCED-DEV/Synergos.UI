@@ -36,7 +36,7 @@
                 <span class="cookie-consent__category-label">
                   {{ category.label }}
                   @if (category.essential) {
-                    <span class="cookie-consent__badge" aria-label="Siempre activas">Siempre activas</span>
+                    <span class="cookie-consent__badge" [attr.aria-label]="alwaysOnLabel()">{{ alwaysOnLabel() }}</span>
                   }
                 </span>
                 @if (category.description) {
@@ -50,7 +50,7 @@
         </fieldset>
       }
 
-      <div class="cookie-consent__actions" role="group" aria-label="Opciones de consentimiento">
+      <div class="cookie-consent__actions" role="group" [attr.aria-label]="optionsLabel()">
         @if (settingsOpen()) {
           <button type="button" class="cookie-consent__btn cookie-consent__btn--primary" (click)="savePreferences()">
             {{ saveLabel() }}

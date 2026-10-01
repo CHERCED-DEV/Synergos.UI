@@ -14,6 +14,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-fab>: a floating action button — a fixed, circular trigger anchored to a screen
@@ -25,6 +26,10 @@ import {
  * `actionLink` y `target` salen del enlace del editor y `label` es su nombre accesible. La vista
  * mandaba `actionUrl`/`ariaLabel`: el botón no llevaba a ningún sitio y se anunciaba como
  * «Acción» (D1). `tooltip` no lo autora el editor: llega por atributo.
+ *
+ * El último respaldo del nombre accesible —sin rótulo del editor ni tooltip— sale del
+ * diccionario con `t()` (ADR 0136), sección `Fab` que declara `FabProps`. El `rel` de un enlace
+ * externo (`noopener noreferrer`) no es texto de interfaz: es un valor técnico y no se traduce.
  */
 /** Emitted on the `fabactivate` CustomEvent and the typed Angular output. */
 export interface FabActivateDetail {
@@ -131,7 +136,7 @@ export class FabElementComponent {
   /** Accessible name for the trigger; falls back to the tooltip text. */
   readonly label = computed(() => {
     const explicit = resolveConfigValue(this.labelInput(), this.config()?.label, '');
-    return explicit || this.tooltip() || 'Acción';
+    return explicit || this.tooltip() || t('Fab.Aria', 'Acción');
   });
 
   readonly hasTooltip = computed(() => this.tooltip().length > 0);

@@ -104,3 +104,35 @@ describe('FabElementComponent', () => {
     expect(anchor?.getAttribute('aria-label')).toBe(ejemplo.label);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('fab — microcopia del diccionario (ADR 0136, sección Fab)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [FabElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el rótulo del editor gana; sin rótulo ni tooltip, el nombre es Fab.Aria', async () => {
+    publicar({ 'Fab.Aria': 'Action' });
+    const conRotulo = TestBed.createComponent(FabElementComponent);
+    conRotulo.componentRef.setInput('config', JSON.stringify(FAB_SYNHOST.ejemplo));
+    conRotulo.detectChanges();
+    await conRotulo.whenStable();
+    expect(conRotulo.componentInstance.label()).toBe(FAB_SYNHOST.ejemplo.label);
+
+    const sinRotulo = TestBed.createComponent(FabElementComponent);
+    sinRotulo.detectChanges();
+    await sinRotulo.whenStable();
+    expect(sinRotulo.componentInstance.label()).toBe('Action');
+  });
+});

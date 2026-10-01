@@ -164,3 +164,44 @@ describe('range-slider pure helpers', () => {
     expect(snapToStep(Number.NaN, 5, 100, 10)).toBe(5);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('range-slider — microcopia del diccionario (ADR 0136, sección RangeSlider)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RangeSliderElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el nombre de cada pulgar es la clave con el rótulo del editor como marcador', async () => {
+    publicar({ 'RangeSlider.Min': '{label} — minimum', 'RangeSlider.Max': '{label} — maximum' });
+    const fixture = TestBed.createComponent(RangeSliderElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(RANGE_SLIDER_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const rotulo = RANGE_SLIDER_SYNHOST.ejemplo.label;
+    const nombres = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('input[type="range"]')).map((i) =>
+      i.getAttribute('aria-label'),
+    );
+    expect(nombres).toEqual([`${rotulo} — minimum`, `${rotulo} — maximum`]);
+  });
+
+  it('sin rótulo del editor, el nombre es RangeSlider.Aria (y lo no publicado, el respaldo es-CO)', async () => {
+    publicar({ 'RangeSlider.Aria': 'Range' });
+    const fixture = TestBed.createComponent(RangeSliderElementComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.lowThumbLabel()).toBe('Range — mínimo');
+  });
+});

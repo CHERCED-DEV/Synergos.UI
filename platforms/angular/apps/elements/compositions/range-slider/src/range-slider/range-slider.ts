@@ -15,6 +15,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-range-slider>: a dual-thumb range slider that lets a visitor pick a low/high bound
@@ -31,6 +32,10 @@ import {
  *
  * Selecting a value emits a `rangechange` CustomEvent with the resolved `{ low, high }` pair
  * (clamped + snapped to `step`).
+ *
+ * El nombre accesible de cada pulgar sale del diccionario con `t()` (ADR 0136), sección
+ * `RangeSlider` que declara `RangeSliderProps`: «{label} — mínimo/máximo», con el rótulo del
+ * editor (o «Rango» si no escribió ninguno) como marcador con nombre.
  */
 
 /** Emitted on the `rangechange` CustomEvent and the typed Angular output. */
@@ -119,6 +124,18 @@ export class RangeSliderElementComponent {
 
   readonly label = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.labelInput()), this.config()?.label, ''),
+  );
+
+  /** El nombre del control: el rótulo del editor, o el del diccionario si no escribió ninguno. */
+  readonly accessibleName = computed(() => this.label() || t('RangeSlider.Aria', 'Rango'));
+  readonly lowThumbLabel = computed(() =>
+    t('RangeSlider.Min', '{label} — mínimo', { label: this.accessibleName() }),
+  );
+  /** Con un solo pulgar no hay «máximo»: el pulgar ES el control. */
+  readonly highThumbLabel = computed(() =>
+    this.isRange()
+      ? t('RangeSlider.Max', '{label} — máximo', { label: this.accessibleName() })
+      : this.accessibleName(),
   );
 
   readonly prefix = computed(() => coerceTrimmedStringInput(this.prefixInput()) ?? '');

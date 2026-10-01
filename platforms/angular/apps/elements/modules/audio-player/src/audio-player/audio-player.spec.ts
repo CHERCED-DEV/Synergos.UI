@@ -120,3 +120,51 @@ describe('audio-player pure helpers', () => {
     expect(formatTime(-5)).toBe('0:00');
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('audio-player — microcopia del diccionario (ADR 0136, secciones Media y Audio)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [AudioPlayerElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el transporte sale de Media (el mismo que video-player); título y artista son del editor', async () => {
+    publicar({ 'Media.Play': 'Play', 'Media.Volume': 'Volume', 'Media.Time': '{current} of {total}' });
+    const fixture = TestBed.createComponent(AudioPlayerElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(AUDIO_PLAYER_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+    const { trackTitle, artistName } = AUDIO_PLAYER_SYNHOST.ejemplo;
+
+    expect(c.playLabel()).toBe('Play');
+    expect(c.mediaLabel()).toBe(`${trackTitle} — ${artistName}`);
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('.audio-player__volume-slider')?.getAttribute('aria-label')).toBe('Volume');
+    expect(raiz.querySelector('.audio-player__seek')?.getAttribute('aria-valuetext')).toBe('0:00 of 0:00');
+    // Lo que la página no publica sale por el respaldo es-CO, nunca la clave cruda.
+    expect(raiz.querySelector('.audio-player__seek')?.getAttribute('aria-label')).toBe('Posición de reproducción');
+    expect(c.muteLabel()).toBe('Silenciar');
+  });
+
+  it('sin fuente ni título, el nombre y el estado vacío son los de Audio', async () => {
+    publicar({ 'Audio.Aria': 'Audio track', 'Audio.Empty': 'No audio available.' });
+    const fixture = TestBed.createComponent(AudioPlayerElementComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.mediaLabel()).toBe('Audio track');
+    const vacio = (fixture.nativeElement as HTMLElement).querySelector('.audio-player__empty');
+    expect(vacio?.textContent?.trim()).toBe('No audio available.');
+  });
+});

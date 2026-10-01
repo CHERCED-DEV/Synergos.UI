@@ -192,7 +192,7 @@ export interface AppLauncherProps {
   readonly apps?: readonly AppDelLanzador[];
 }
 
-/** <synergos-audio-player> · pieza */
+/** <synergos-audio-player> · pieza · diccionario: Media, Audio */
 export interface AudioPlayerProps {
   /** contenido */
   readonly audioFile?: string;
@@ -228,7 +228,7 @@ export interface BadgeGroupProps {
   readonly layout?: string;
 }
 
-/** <synergos-breadcrumb> · pieza */
+/** <synergos-breadcrumb> · pieza · diccionario: Nav.Breadcrumb */
 export interface BreadcrumbProps {
   /** contenido */
   readonly items?: readonly BreadcrumbStep[];
@@ -272,7 +272,7 @@ export interface ColorSwatchesProps {
   readonly shape?: string;
 }
 
-/** <synergos-cookie-consent> · pieza */
+/** <synergos-cookie-consent> · pieza · diccionario: Cookie */
 export interface CookieConsentProps {
   /** contenido */
   readonly bannerText?: string;
@@ -288,13 +288,13 @@ export interface CookieConsentProps {
   readonly policyLabel?: string;
 }
 
-/** <synergos-countdown-clock> · pieza */
+/** <synergos-countdown-clock> · pieza · diccionario: Countdown */
 export interface CountdownClockProps {
   /** contenido */
   readonly targetDate?: string;
 }
 
-/** <synergos-countdown-digital> · pieza */
+/** <synergos-countdown-digital> · pieza · diccionario: Countdown */
 export interface CountdownDigitalProps {
   /** contenido */
   readonly targetDate?: string;
@@ -316,7 +316,7 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
-/** <synergos-fab> · pieza */
+/** <synergos-fab> · pieza · diccionario: Fab */
 export interface FabProps {
   /** decision */
   readonly iconKey?: string;
@@ -396,7 +396,7 @@ export interface NotificationToastProps {
   readonly durationMs?: number;
 }
 
-/** <synergos-progress-bar> · pieza */
+/** <synergos-progress-bar> · pieza · diccionario: ProgressBar */
 export interface ProgressBarProps {
   /** contenido */
   readonly value?: number;
@@ -406,7 +406,7 @@ export interface ProgressBarProps {
   readonly label?: string;
 }
 
-/** <synergos-range-slider> · pieza */
+/** <synergos-range-slider> · pieza · diccionario: RangeSlider */
 export interface RangeSliderProps {
   /** contenido */
   readonly label?: string;
@@ -440,7 +440,7 @@ export interface RichTooltipProps {
   readonly placement?: string;
 }
 
-/** <synergos-scroll-top> · pieza */
+/** <synergos-scroll-top> · pieza · diccionario: ScrollTop */
 export interface ScrollTopProps {
   /** decision */
   readonly scrollThreshold?: number;
@@ -470,7 +470,7 @@ export interface ShareBarProps {
   readonly shareTitle?: string;
 }
 
-/** <synergos-stepper> · pieza */
+/** <synergos-stepper> · pieza · diccionario: Stepper */
 export interface StepperProps {
   /** contenido */
   readonly steps?: readonly StepperItem[];
@@ -508,7 +508,7 @@ export interface TourGuideProps {
   readonly autoStart?: boolean;
 }
 
-/** <synergos-tree-view> · pieza */
+/** <synergos-tree-view> · pieza · diccionario: TreeView */
 export interface TreeViewProps {
   /** contenido */
   readonly tree?: readonly TreeViewNode[];
@@ -518,7 +518,7 @@ export interface TreeViewProps {
   readonly label?: string;
 }
 
-/** <synergos-video-player> · pieza */
+/** <synergos-video-player> · pieza · diccionario: Media, Video */
 export interface VideoPlayerProps {
   /** contenido */
   readonly videoFile?: string;
@@ -601,8 +601,8 @@ export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
   nombre: "audio-player",
   tipo: "pieza",
   record: "AudioPlayerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Media","Audio"],
+  claves: ["Audio.Aria","Audio.Empty","Media.Mute","Media.Pause","Media.Play","Media.Seek","Media.Time","Media.Unmute","Media.Volume"],
   campos: ["audioFile","trackTitle","artistName"],
   listas: {},
   selectores: [],
@@ -713,8 +713,8 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
   nombre: "breadcrumb",
   tipo: "pieza",
   record: "BreadcrumbProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Nav.Breadcrumb"],
+  claves: ["Nav.Breadcrumb"],
   campos: ["items"],
   listas: {"items":["label","href"]},
   selectores: [],
@@ -887,8 +887,8 @@ export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
   nombre: "cookie-consent",
   tipo: "pieza",
   record: "CookieConsentProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Cookie"],
+  claves: ["Cookie.AcceptAll","Cookie.Accepted","Cookie.AlwaysOn","Cookie.Analytics.Description","Cookie.Analytics.Label","Cookie.BannerMessage","Cookie.Customize","Cookie.Marketing.Description","Cookie.Marketing.Label","Cookie.MoreInfo","Cookie.Necessary.Description","Cookie.Necessary.Label","Cookie.NecessaryOnly","Cookie.Options","Cookie.RejectAll","Cookie.SavePreferences","Cookie.Title"],
   campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
   listas: {},
   selectores: [],
@@ -907,8 +907,8 @@ export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
   nombre: "countdown-clock",
   tipo: "pieza",
   record: "CountdownClockProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Countdown"],
+  claves: ["Countdown.Aria.Timer","Countdown.Days","Countdown.Expired","Countdown.Hours","Countdown.Label","Countdown.Milestone.Day","Countdown.Milestone.Hour","Countdown.Milestone.Minute","Countdown.Milestone.TenMinutes","Countdown.Minutes","Countdown.Seconds","Countdown.Short.Minutes","Countdown.Short.Seconds","Countdown.Started","Countdown.Unavailable"],
   campos: ["targetDate"],
   listas: {},
   selectores: [],
@@ -922,8 +922,8 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   nombre: "countdown-digital",
   tipo: "pieza",
   record: "CountdownDigitalProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Countdown"],
+  claves: ["Countdown.Aria.Timer","Countdown.Days","Countdown.Expired","Countdown.Hours","Countdown.Label","Countdown.Milestone.Day","Countdown.Milestone.Hour","Countdown.Milestone.Minute","Countdown.Milestone.TenMinutes","Countdown.Minutes","Countdown.Seconds","Countdown.Short.Minutes","Countdown.Short.Seconds","Countdown.Started","Countdown.Unavailable"],
   campos: ["targetDate","showLabels","style"],
   listas: {},
   selectores: [
@@ -988,8 +988,8 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   nombre: "fab",
   tipo: "pieza",
   record: "FabProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Fab"],
+  claves: ["Fab.Aria"],
   campos: ["iconKey","actionLink","target","position","label"],
   listas: {},
   selectores: [
@@ -1226,8 +1226,8 @@ export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
   nombre: "progress-bar",
   tipo: "pieza",
   record: "ProgressBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ProgressBar"],
+  claves: ["ProgressBar.Aria"],
   campos: ["value","max","label"],
   listas: {},
   selectores: [],
@@ -1243,8 +1243,8 @@ export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
   nombre: "range-slider",
   tipo: "pieza",
   record: "RangeSliderProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["RangeSlider"],
+  claves: ["RangeSlider.Aria","RangeSlider.Max","RangeSlider.Min"],
   campos: ["label","min","max","step","high"],
   listas: {},
   selectores: [],
@@ -1337,8 +1337,8 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   nombre: "scroll-top",
   tipo: "pieza",
   record: "ScrollTopProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ScrollTop"],
+  claves: ["ScrollTop.Aria"],
   campos: ["scrollThreshold","position","label"],
   listas: {},
   selectores: [
@@ -1483,8 +1483,8 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   nombre: "stepper",
   tipo: "pieza",
   record: "StepperProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Stepper"],
+  claves: ["Stepper.Aria","Stepper.Status.Active","Stepper.Status.Done","Stepper.Status.Pending","Stepper.Step","Stepper.Summary"],
   campos: ["steps","currentStep"],
   listas: {"steps":["title"]},
   selectores: [],
@@ -1622,8 +1622,8 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   nombre: "tree-view",
   tipo: "pieza",
   record: "TreeViewProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["TreeView"],
+  claves: ["TreeView.Aria","TreeView.Collapse","TreeView.Empty","TreeView.Expand"],
   campos: ["tree","expandAll","label"],
   listas: {"tree":["label","children"]},
   selectores: [],
@@ -1659,8 +1659,8 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
   nombre: "video-player",
   tipo: "pieza",
   record: "VideoPlayerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Media","Video"],
+  claves: ["Media.Mute","Media.Pause","Media.Play","Media.Seek","Media.Time","Media.Unmute","Media.Volume","Video.Aria","Video.Captions","Video.Empty","Video.ExitFullscreen","Video.Fullscreen","Video.Mute","Video.Pause","Video.Play","Video.Player","Video.Unmute"],
   campos: ["videoFile","posterImage"],
   listas: {},
   selectores: [],

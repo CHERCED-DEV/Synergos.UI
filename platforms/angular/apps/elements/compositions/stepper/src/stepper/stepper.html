@@ -1,7 +1,7 @@
 @if (hasSteps()) {
   <nav
     class="stepper"
-    [attr.aria-label]="'Progreso — ' + progressLabel()"
+    [attr.aria-label]="groupLabel()"
     [attr.aria-orientation]="orientation()"
   >
     <p class="stepper__status" role="status" aria-live="polite">{{ progressLabel() }}</p>
@@ -30,10 +30,7 @@
             [attr.tabindex]="step.index === focusedIndex() ? 0 : -1"
             [attr.aria-disabled]="isReachable(step) ? null : 'true'"
             [disabled]="!isReachable(step)"
-            [attr.aria-label]="
-              'Paso ' + step.displayNumber + ' de ' + stepCount() + ': ' + step.title +
-              (step.status === 'done' ? ' (completado)' : step.status === 'active' ? ' (actual)' : ' (pendiente)')
-            "
+            [attr.aria-label]="stepLabel(step)"
             (click)="goToStep(step)"
             (keydown)="onStepKeydown($event, step)"
           >

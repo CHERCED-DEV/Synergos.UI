@@ -122,3 +122,38 @@ describe('breadcrumb pure helpers', () => {
     expect(normalizeItems('nope')).toEqual([]);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('breadcrumb — microcopia del diccionario (ADR 0136, sección Nav.Breadcrumb)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [BreadcrumbElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el nombre de la navegación es la clave Nav.Breadcrumb; sin puente, su valor es-CO', async () => {
+    const sinPuente = TestBed.createComponent(BreadcrumbElementComponent);
+    sinPuente.componentRef.setInput('config', JSON.stringify(BREADCRUMB_SYNHOST.ejemplo));
+    sinPuente.detectChanges();
+    await sinPuente.whenStable();
+    expect((sinPuente.nativeElement as HTMLElement).querySelector('nav')?.getAttribute('aria-label')).toBe(
+      'Ruta de navegación',
+    );
+
+    publicar({ 'Nav.Breadcrumb': 'Breadcrumb' });
+    const conPuente = TestBed.createComponent(BreadcrumbElementComponent);
+    conPuente.componentRef.setInput('config', JSON.stringify(BREADCRUMB_SYNHOST.ejemplo));
+    conPuente.detectChanges();
+    await conPuente.whenStable();
+    expect((conPuente.nativeElement as HTMLElement).querySelector('nav')?.getAttribute('aria-label')).toBe('Breadcrumb');
+  });
+});

@@ -128,3 +128,58 @@ describe('video-player pure helpers', () => {
     expect(clamp(Number.NaN, 0, 1)).toBe(0);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('video-player — microcopia del diccionario (ADR 0136, secciones Media y Video)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [VideoPlayerElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el transporte sale de Media (el mismo que audio-player) y lo propio del video, de Video', async () => {
+    publicar({
+      'Media.Play': 'Play',
+      'Media.Mute': 'Mute',
+      'Media.Seek': 'Playback position',
+      'Media.Time': '{current} of {total}',
+      'Video.Player': 'Video player',
+      'Video.Fullscreen': 'Fullscreen',
+    });
+    const fixture = TestBed.createComponent(VideoPlayerElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(VIDEO_PLAYER_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+
+    expect(c.playLabel()).toBe('Play');
+    expect(c.muteLabel()).toBe('Mute');
+    expect(c.fullscreenLabel()).toBe('Fullscreen');
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('.video-player')?.getAttribute('aria-label')).toBe('Video player');
+    const posicion = raiz.querySelector('.video-player__seek-input');
+    expect(posicion?.getAttribute('aria-label')).toBe('Playback position');
+    expect(posicion?.getAttribute('aria-valuetext')).toBe('0:00 of 0:00');
+    // Lo que la página no publica sale por el respaldo es-CO, nunca la clave cruda.
+    expect(raiz.querySelector('.video-player__volume-input')?.getAttribute('aria-label')).toBe('Volumen');
+  });
+
+  it('sin fuente, el estado vacío es el de Video', async () => {
+    publicar({ 'Video.Empty': 'No video has been set up.' });
+    const fixture = TestBed.createComponent(VideoPlayerElementComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const vacio = (fixture.nativeElement as HTMLElement).querySelector('.video-player__empty');
+    expect(vacio?.textContent?.trim()).toBe('No video has been set up.');
+  });
+});

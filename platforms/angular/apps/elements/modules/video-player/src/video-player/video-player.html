@@ -4,7 +4,7 @@
     [class.video-player--playing]="playing()"
     [class.video-player--fullscreen]="fullscreen()"
     role="group"
-    [attr.aria-label]="hasTitle() ? title() : 'Reproductor de video'"
+    [attr.aria-label]="groupLabel()"
     tabindex="0"
     (keydown)="onSurfaceKeydown($event)"
     (fullscreenchange)="onFullscreenChange()"
@@ -20,7 +20,7 @@
         [muted]="initiallyMuted()"
         playsinline
         preload="metadata"
-        [attr.aria-label]="hasTitle() ? title() : 'Video'"
+        [attr.aria-label]="mediaLabel()"
         (click)="togglePlay()"
         (loadedmetadata)="onLoadedMetadata()"
         (canplay)="onCanPlay()"
@@ -81,8 +81,8 @@
           step="0.1"
           [value]="progress() * 100"
           (input)="onSeekInput($event)"
-          [attr.aria-label]="'Buscar en el video'"
-          [attr.aria-valuetext]="currentTimeLabel() + ' de ' + durationLabel()"
+          [attr.aria-label]="seekLabel()"
+          [attr.aria-valuetext]="seekValueText()"
         />
       </div>
 
@@ -115,7 +115,7 @@
           step="1"
           [value]="effectiveVolume() * 100"
           (input)="onVolumeInput($event)"
-          [attr.aria-label]="'Volumen'"
+          [attr.aria-label]="volumeLabel()"
           [attr.aria-valuetext]="volumePercent()"
         />
       </div>
@@ -140,5 +140,5 @@
     </div>
   </div>
 } @else {
-  <p class="video-player__empty" role="status">No hay un video configurado.</p>
+  <p class="video-player__empty" role="status">{{ emptyLabel() }}</p>
 }

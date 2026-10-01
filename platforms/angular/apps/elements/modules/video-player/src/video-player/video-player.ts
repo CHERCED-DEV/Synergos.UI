@@ -10,6 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { VideoPlayerProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -30,6 +31,12 @@ import {
  * `autoplay`, `loop` y `muted` no los autora el editor: llegan por atributo. Capítulos y
  * analítica no están implementados (los atributos `chaptersJson`/`enableAnalytics` son inertes),
  * así que el CMS no los manda.
+ *
+ * Los textos de la interfaz salen del diccionario con `t()` (ADR 0136), de DOS secciones que
+ * declara `VideoPlayerProps`: `Media`, el transporte que comparte con `audio-player`
+ * (reproducir, pausar, silenciar, volumen, posición, «x de y») —una sola clave por concepto, no
+ * dos copias de «Pausar»—, y `Video`, lo que sólo tiene un video (pantalla completa, su nombre
+ * accesible y su estado vacío).
  */
 /** Emitted on the `playstatechange` CustomEvent and the typed Angular output. */
 export interface VideoPlayStateDetail {
@@ -155,13 +162,28 @@ export class VideoPlayerElementComponent {
   readonly currentTimeLabel = computed(() => formatTime(this.currentTime()));
   readonly durationLabel = computed(() => formatTime(this.duration()));
 
-  readonly playLabel = computed(() => (this.playing() ? 'Pausar' : 'Reproducir'));
+  readonly playLabel = computed(() =>
+    this.playing() ? t('Media.Pause', 'Pausar') : t('Media.Play', 'Reproducir'),
+  );
   readonly muteLabel = computed(() =>
-    this.muted() || this.effectiveVolume() === 0 ? 'Activar sonido' : 'Silenciar',
+    this.muted() || this.effectiveVolume() === 0 ? t('Media.Unmute', 'Activar sonido') : t('Media.Mute', 'Silenciar'),
   );
   readonly fullscreenLabel = computed(() =>
-    this.fullscreen() ? 'Salir de pantalla completa' : 'Pantalla completa',
+    this.fullscreen()
+      ? t('Video.ExitFullscreen', 'Salir de pantalla completa')
+      : t('Video.Fullscreen', 'Pantalla completa'),
   );
+
+  /** Nombre del reproductor y del `<video>` cuando el editor no le dio título. */
+  readonly groupLabel = computed(() => (this.hasTitle() ? this.title() : t('Video.Player', 'Reproductor de video')));
+  readonly mediaLabel = computed(() => (this.hasTitle() ? this.title() : t('Video.Aria', 'Video')));
+  readonly seekLabel = computed(() => t('Media.Seek', 'Posición de reproducción'));
+  readonly volumeLabel = computed(() => t('Media.Volume', 'Volumen'));
+  /** «0:12 de 3:40»: el valor que lee el lector de pantalla en la barra de posición. */
+  readonly seekValueText = computed(() =>
+    t('Media.Time', '{current} de {total}', { current: this.currentTimeLabel(), total: this.durationLabel() }),
+  );
+  readonly emptyLabel = computed(() => t('Video.Empty', 'No hay un video configurado.'));
 
   // ─── Media element queries ──────────────────────────────────────────────────
   #media(): HTMLVideoElement | null {

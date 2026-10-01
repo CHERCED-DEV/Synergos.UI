@@ -16,6 +16,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-tree-view>: a hierarchical, accessible tree: nodes expand/collapse, a single node is
@@ -29,6 +30,10 @@ import {
  * alias», y era falso: la vista mandaba el TEXTO `treeJson` y el árbol colocado salía vacío
  * (D1). El atributo `treeJson` sigue existiendo para quien monte el elemento a mano (y admite
  * `id`/`href`/`icon`/`expanded` por nodo); `emptyLabel` no lo autora el editor: es atributo.
+ *
+ * Los textos de la interfaz —el nombre por defecto, el estado vacío y «Expandir/Contraer
+ * {label}» de cada rama— salen del diccionario con `t()` (ADR 0136), sección `TreeView` que
+ * declara `TreeViewProps`. El nombre de cada nodo es contenido: viaja como marcador.
  */
 
 /** Emitted on the `nodeselect` CustomEvent and the typed Angular output. */
@@ -158,9 +163,11 @@ export class TreeViewElementComponent {
   readonly nodeselect = output<TreeNodeSelectDetail>();
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.config()?.label, 'Árbol de navegación'),
+    resolveConfigValue(this.labelInput(), this.config()?.label, t('TreeView.Aria', 'Árbol de navegación')),
   );
-  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay elementos para mostrar.');
+  readonly emptyLabel = computed(() =>
+    this.emptyLabelInput() ?? t('TreeView.Empty', 'No hay elementos para mostrar.'),
+  );
   readonly expandAll = computed(() =>
     resolveConfigValue(this.expandAllInput(), this.config()?.expandAll, false),
   );
@@ -266,6 +273,13 @@ export class TreeViewElementComponent {
 
     return visible[0]?.id ?? '';
   });
+
+  /** El nombre accesible del botón de una rama: la acción que hará, con el nombre del nodo. */
+  toggleLabel(node: TreeFlatNode): string {
+    return this.isExpanded(node)
+      ? t('TreeView.Collapse', 'Contraer {label}', { label: node.label })
+      : t('TreeView.Expand', 'Expandir {label}', { label: node.label });
+  }
 
   isExpanded(node: TreeFlatNode): boolean {
     return node.hasChildren && this.#expandedIds().has(node.id);

@@ -9,6 +9,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
  * <synergos-progress-bar>: a horizontal progress indicator with two modes:
@@ -23,6 +24,9 @@ import {
  * (ADR 0135): `value` y `max` como números y `label`. La vista mandaba `valueNow`,
  * `valueMax` y `ariaLabel`, y este elemento pintaba «Progreso» al 0 % (D1). `indeterminate`,
  * `showValue`, `size` y `tone` no los autora el editor: llegan por atributo.
+ *
+ * Sin rótulo del editor, el nombre accesible sale del diccionario con `t()` (ADR 0136), sección
+ * `ProgressBar` que declara `ProgressBarProps`.
  */
 export type ProgressBarSize = 'sm' | 'md' | 'lg';
 export type ProgressBarTone = 'brand' | 'success' | 'warning' | 'danger';
@@ -144,7 +148,7 @@ export class ProgressBarElementComponent {
   );
 
   /** Accessible name shown to AT and (optionally) rendered as a caption. */
-  readonly accessibleLabel = computed(() => this.label() || 'Progreso');
+  readonly accessibleLabel = computed(() => this.label() || t('ProgressBar.Aria', 'Progreso'));
 
   /** Human-readable percent string for the optional value caption. */
   readonly valueText = computed(() => (this.indeterminate() ? '' : `${this.percent()}%`));

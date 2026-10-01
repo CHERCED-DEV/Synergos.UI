@@ -117,4 +117,35 @@ describe('countdown-digital — anuncios', () => {
     expect(aviso.textContent).toContain('Fecha del evento no disponible');
     expect(aviso.hasAttribute('role')).toBe(false);
   });
+
+  // ADR 0136: los dos relojes declaran la MISMA sección (`Countdown`) y piden las mismas claves.
+  it('microcopia del diccionario: el hito, «empezó» y los rótulos salen de la sección Countdown', () => {
+    (window as { synergos?: unknown }).synergos = {
+      i18n: {
+        culture: 'en-US',
+        defaultCulture: 'es-CO',
+        keys: {
+          'Countdown.Milestone.Hour': 'Less than an hour to go.',
+          'Countdown.Started': 'The concert has started',
+          'Countdown.Days': 'Days',
+        },
+      },
+    };
+    try {
+      const fixture = montar(3605);
+      pasar(fixture, 6);
+      expect(anuncios).toEqual(['Less than an hour to go.']);
+      expect(fixture.componentInstance.labels().days).toBe('Days');
+      // Lo que la página no publica sale por el respaldo es-CO, nunca la clave cruda.
+      expect(fixture.componentInstance.labels().hours).toBe('Horas');
+
+      // `montar` cuenta desde AHORA y el reloj falso ya avanzó 6 s: 68 deja 62 s al montar.
+      anuncios.length = 0;
+      const otro = montar(68);
+      pasar(otro, 63);
+      expect(anuncios).toEqual(['Falta menos de un minuto.', 'The concert has started']);
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
 });
