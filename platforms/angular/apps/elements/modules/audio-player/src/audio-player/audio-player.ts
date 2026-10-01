@@ -12,6 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { AudioPlayerProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -31,6 +32,11 @@ import {
  * (ADR 0135): `audioFile` es la URL absoluta del medio que eligió el editor. La vista la
  * mandaba como `audioUrl` y este elemento salía sin fuente (D1). `autoplay`, `loop` y
  * `preload` no los autora el editor: llegan por atributo.
+ *
+ * Los textos de la interfaz salen del diccionario con `t()` (ADR 0136), de DOS secciones que
+ * declara `AudioPlayerProps`: `Media`, el transporte que comparte con `video-player` (una clave
+ * por concepto, no dos copias de «Pausar»), y `Audio`, su nombre accesible y su estado vacío.
+ * El título y el artista son contenido del editor: no pasan por el diccionario.
  */
 export type AudioPlaybackState = 'playing' | 'paused' | 'ended';
 export type AudioPreload = 'none' | 'metadata' | 'auto';
@@ -156,7 +162,7 @@ export class AudioPlayerElementComponent {
 
   /** Accessible name for the whole region / the media element. */
   readonly mediaLabel = computed(() => {
-    const title = this.trackTitle() || 'Audio';
+    const title = this.trackTitle() || t('Audio.Aria', 'Audio');
     const artist = this.artistName();
     return artist ? `${title} — ${artist}` : title;
   });
@@ -180,7 +186,9 @@ export class AudioPlayerElementComponent {
   readonly durationLabel = computed(() =>
     this.#duration() > 0 ? formatTime(this.#duration()) : '0:00',
   );
-  readonly playLabel = computed(() => (this.isPlaying() ? 'Pausar' : 'Reproducir'));
+  readonly playLabel = computed(() =>
+    this.isPlaying() ? t('Media.Pause', 'Pausar') : t('Media.Play', 'Reproducir'),
+  );
 
   /** Progress as a 0–100 percentage for the scrubber fill + aria-valuenow. */
   readonly progressPercent = computed(() => {
@@ -193,7 +201,16 @@ export class AudioPlayerElementComponent {
 
   readonly volumePercent = computed(() => Math.round(this.#volume() * 100));
   readonly isMuted = computed(() => this.#muted() || this.#volume() === 0);
-  readonly muteLabel = computed(() => (this.isMuted() ? 'Activar sonido' : 'Silenciar'));
+  readonly muteLabel = computed(() =>
+    this.isMuted() ? t('Media.Unmute', 'Activar sonido') : t('Media.Mute', 'Silenciar'),
+  );
+  readonly seekLabel = computed(() => t('Media.Seek', 'Posición de reproducción'));
+  readonly volumeLabel = computed(() => t('Media.Volume', 'Volumen'));
+  /** «0:12 de 3:40»: el valor que lee el lector de pantalla en la barra de posición. */
+  readonly seekValueText = computed(() =>
+    t('Media.Time', '{current} de {total}', { current: this.currentTimeLabel(), total: this.durationLabel() }),
+  );
+  readonly emptyLabel = computed(() => t('Audio.Empty', 'No hay audio disponible.'));
 
   constructor() {
     this.#destroyRef.onDestroy(() => {

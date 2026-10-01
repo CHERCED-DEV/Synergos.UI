@@ -172,7 +172,7 @@ export interface AppLauncherProps {
   readonly apps?: readonly AppDelLanzador[];
 }
 
-/** <synergos-audio-player> · pieza */
+/** <synergos-audio-player> · pieza · diccionario: Media, Audio */
 export interface AudioPlayerProps {
   /** contenido */
   readonly audioFile?: string;
@@ -498,7 +498,7 @@ export interface TreeViewProps {
   readonly label?: string;
 }
 
-/** <synergos-video-player> · pieza */
+/** <synergos-video-player> · pieza · diccionario: Media, Video */
 export interface VideoPlayerProps {
   /** contenido */
   readonly videoFile?: string;
@@ -579,8 +579,8 @@ export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
   nombre: "audio-player",
   tipo: "pieza",
   record: "AudioPlayerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Media","Audio"],
+  claves: ["Audio.Aria","Audio.Empty","Media.Mute","Media.Pause","Media.Play","Media.Seek","Media.Time","Media.Unmute","Media.Volume"],
   campos: ["audioFile","trackTitle","artistName"],
   listas: {},
   ejemplo: {
@@ -1297,8 +1297,8 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
   nombre: "video-player",
   tipo: "pieza",
   record: "VideoPlayerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Media","Video"],
+  claves: ["Media.Mute","Media.Pause","Media.Play","Media.Seek","Media.Time","Media.Unmute","Media.Volume","Video.Aria","Video.Captions","Video.Empty","Video.ExitFullscreen","Video.Fullscreen","Video.Mute","Video.Pause","Video.Play","Video.Player","Video.Unmute"],
   campos: ["videoFile","posterImage"],
   listas: {},
   ejemplo: {

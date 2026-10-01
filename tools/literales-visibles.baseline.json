@@ -1,6 +1,5 @@
 {
   "academy": 316,
-  "audio-player": 8,
   "autocomplete": 4,
   "avatar": 5,
   "avatar-group": 6,
@@ -82,6 +81,5 @@
   "toast-center": 7,
   "tour-guide": 4,
   "travel-shell": 232,
-  "tree-view": 4,
-  "video-player": 11
+  "tree-view": 4
 }

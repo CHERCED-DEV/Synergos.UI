@@ -57,11 +57,11 @@
           step="0.1"
           [value]="progressPercent()"
           [style.--audio-progress.%]="progressPercent()"
-          [attr.aria-label]="'Posición de reproducción'"
+          [attr.aria-label]="seekLabel()"
           [attr.aria-valuemin]="0"
           [attr.aria-valuemax]="100"
           [attr.aria-valuenow]="progressPercent() | number: '1.0-0'"
-          [attr.aria-valuetext]="currentTimeLabel() + ' de ' + durationLabel()"
+          [attr.aria-valuetext]="seekValueText()"
           (input)="onSeekInput($event)"
           (change)="onSeekCommit($event)"
           (keydown)="onSeekKeydown($event)"
@@ -99,7 +99,7 @@
           step="1"
           [value]="volumePercent()"
           [style.--audio-volume.%]="volumePercent()"
-          [attr.aria-label]="'Volumen'"
+          [attr.aria-label]="volumeLabel()"
           [attr.aria-valuemin]="0"
           [attr.aria-valuemax]="100"
           [attr.aria-valuenow]="volumePercent()"
@@ -110,6 +110,6 @@
       </div>
     </div>
   } @else {
-    <p class="audio-player__empty" role="status">No hay audio disponible.</p>
+    <p class="audio-player__empty" role="status">{{ emptyLabel() }}</p>
   }
 </section>
