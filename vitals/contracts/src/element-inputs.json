@@ -3466,35 +3466,59 @@
       "name": "config",
       "type": "json",
       "required": false,
-      "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
+      "description": "Configuración del elemento: title, emptyLabel, ctaLabel, loading, columns, rows, filters y sort. Lo que emite hoy la vista del CMS (dataSource, columnsJson, pageSize) no lo lee el componente (UI#91)."
     },
     {
-      "name": "dataSource",
+      "name": "title",
       "type": "string",
       "required": false,
       "default": "",
-      "description": "Campo \"Data Source\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
+      "description": "Título sobre la rejilla."
     },
     {
-      "name": "columnsJson",
+      "name": "emptyLabel",
       "type": "string",
       "required": false,
-      "default": "",
-      "description": "Campo \"Columns Json\" del componente synergos-data-grid. Editor: editar manualmente para enriquecer documentación."
+      "default": "No hay resultados que coincidan con los filtros.",
+      "description": "Texto cuando ningún registro pasa los filtros."
     },
     {
-      "name": "pageSize",
+      "name": "ctaLabel",
       "type": "string",
       "required": false,
-      "default": "",
-      "description": "Tamaño: sm | md | lg | xl según escala del componente (campo \"Page Size\" del componente synergos-data-grid)"
+      "default": "Ver detalle",
+      "description": "Rótulo del enlace de cada tarjeta."
     },
     {
-      "name": "integration",
-      "type": "string",
+      "name": "loading",
+      "type": "boolean",
       "required": false,
-      "default": "",
-      "description": "Hook opcional para integración custom — vacío por default"
+      "default": false,
+      "description": "Pinta el esqueleto de carga en vez de las tarjetas."
+    },
+    {
+      "name": "columns",
+      "type": "json",
+      "required": false,
+      "description": "Columnas (JSON): [{ key, label, type: text|number|currency|badge, prefix, suffix }]."
+    },
+    {
+      "name": "rows",
+      "type": "json",
+      "required": false,
+      "description": "Registros (JSON): un objeto por tarjeta, con las claves que nombran las columnas."
+    },
+    {
+      "name": "filters",
+      "type": "json",
+      "required": false,
+      "description": "Facetas (JSON): [{ key, label, type: range|select|checkbox, … }]."
+    },
+    {
+      "name": "sort",
+      "type": "json",
+      "required": false,
+      "description": "Órdenes (JSON): [{ key, label, direction: asc|desc }]."
     }
   ],
   "date-picker": [
