@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import type { ColorPickerProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -26,6 +27,10 @@ import {
  * (ADR 0135): `label`, `initialColor` y `palette`, una LISTA de colores hex ya validados por el
  * CMS. La vista mandaba el TEXTO `paletteJson` y el selector pintaba la paleta de fábrica (D1).
  * El atributo `paletteJson` sigue aceptando la paleta como JSON.
+ *
+ * Su microcopia sale del diccionario, sección `ColorPicker` (ADR 0136): el rótulo por defecto, el del
+ * campo hex y su error. No comparte sección con `color-swatches`: no tienen ni un texto con la misma
+ * intención.
  */
 /** Emitted on the `colorchange` CustomEvent and the typed Angular output. */
 export interface ColorPickerChangeDetail {
@@ -40,7 +45,6 @@ interface PaletteSwatch {
 const SHORT_HEX = /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/i;
 const LONG_HEX = /^#?([0-9a-f]{6})$/i;
 
-const DEFAULT_LABEL = 'Color';
 const DEFAULT_COLOR = '#4f6ef7';
 const DEFAULT_PALETTE: readonly string[] = [
   '#4f6ef7',
@@ -158,7 +162,7 @@ export class ColorPickerElementComponent {
   readonly colorchange = output<ColorPickerChangeDetail>();
 
   readonly label = computed(() =>
-    resolveConfigValue(this.labelInput(), this.config()?.label, DEFAULT_LABEL),
+    resolveConfigValue(this.labelInput(), this.config()?.label, t('ColorPicker.Label', 'Color')),
   );
 
   readonly initialColor = computed(() => {
@@ -185,6 +189,10 @@ export class ColorPickerElementComponent {
 
   readonly isDraftValid = computed(() => normalizeHex(this.draft()) !== '');
   readonly selectedLabel = computed(() => this.selected().toUpperCase());
+
+  /** La microcopia del campo hex, del diccionario (ADR 0136, sección `ColorPicker`). */
+  readonly hexLabel = computed(() => t('ColorPicker.Hex', 'Hex'));
+  readonly invalidLabel = computed(() => t('ColorPicker.Invalid', 'Ingresa un color hex válido (#rgb o #rrggbb).'));
   readonly selectedIsLight = computed(() => isLightColor(this.selected()));
 
   /** Hex that should carry tabindex=0 in the palette (roving). */

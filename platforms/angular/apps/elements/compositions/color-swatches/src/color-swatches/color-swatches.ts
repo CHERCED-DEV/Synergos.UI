@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import type { ColorSwatchesProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -30,6 +31,10 @@ import {
  * mandaba el TEXTO `swatchesJson` y este elemento hidrataba sin muestras (D1). `heading`,
  * `columns`, `selected`, `allowDeselect` y, por muestra, `value` y `disabled` no los autora
  * el editor: llegan por atributo (`swatches` como JSON), que gana sobre el `config`.
+ *
+ * Su microcopia sale del diccionario, sección `ColorSwatches` (ADR 0136): el nombre por defecto de la
+ * paleta, el anuncio del color elegido (o de ninguno) y la paleta vacía. No comparte sección con
+ * `color-picker`: no tienen ni un texto con la misma intención.
  */
 
 export interface ColorSwatch {
@@ -173,6 +178,16 @@ export class ColorSwatchesElementComponent {
 
   readonly heading = computed(() => this.headingInput() ?? '');
   readonly hasHeading = computed(() => this.heading().trim().length > 0);
+
+  /** La microcopia de la paleta, del diccionario (ADR 0136, sección `ColorSwatches`). */
+  readonly paletteLabel = computed(() => t('ColorSwatches.Aria', 'Paleta de colores'));
+  readonly noneLabel = computed(() => t('ColorSwatches.None', 'Ningún color seleccionado.'));
+  readonly emptyLabel = computed(() => t('ColorSwatches.Empty', 'No hay colores para mostrar.'));
+
+  /** «Color seleccionado: {color}»: lo que anuncia la región viva al elegir. */
+  selectedLabel(color: string): string {
+    return t('ColorSwatches.Selected', 'Color seleccionado: {color}', { color });
+  }
 
   readonly shape = computed<ColorSwatchShape>(() =>
     normalizeShape(resolveConfigValue(this.shapeInput(), this.config()?.shape, DEFAULT_SHAPE)),

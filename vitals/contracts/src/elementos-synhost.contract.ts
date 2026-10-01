@@ -234,7 +234,7 @@ export interface ChartBarProps {
   readonly data?: readonly ChartBarEntry[];
 }
 
-/** <synergos-color-picker> · pieza */
+/** <synergos-color-picker> · pieza · diccionario: ColorPicker */
 export interface ColorPickerProps {
   /** contenido */
   readonly label?: string;
@@ -244,7 +244,7 @@ export interface ColorPickerProps {
   readonly palette?: readonly string[];
 }
 
-/** <synergos-color-swatches> · pieza */
+/** <synergos-color-swatches> · pieza · diccionario: ColorSwatches */
 export interface ColorSwatchesProps {
   /** contenido */
   readonly swatches?: readonly ColorSwatchesItem[];
@@ -744,8 +744,8 @@ export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
   nombre: "color-picker",
   tipo: "pieza",
   record: "ColorPickerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ColorPicker"],
+  claves: ["ColorPicker.Hex","ColorPicker.Invalid","ColorPicker.Label"],
   campos: ["label","initialColor","palette"],
   listas: {},
   ejemplo: {
@@ -765,8 +765,8 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
   nombre: "color-swatches",
   tipo: "pieza",
   record: "ColorSwatchesProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ColorSwatches"],
+  claves: ["ColorSwatches.Aria","ColorSwatches.Empty","ColorSwatches.None","ColorSwatches.Selected"],
   campos: ["swatches","shape"],
   listas: {"swatches":["color","label"]},
   ejemplo: {
