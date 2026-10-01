@@ -1,7 +1,7 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BREADCRUMB_SYNHOST } from '@synergos/contracts';
-import { BreadcrumbElementComponent, normalizeItems } from './breadcrumb';
+import { BreadcrumbElementComponent, normalizeItems, sanitizeBreadcrumbConfig } from './breadcrumb';
 
 const ITEMS = JSON.stringify([
   { label: 'Inicio', href: '/' },
@@ -30,7 +30,6 @@ describe('BreadcrumbElementComponent', () => {
     expect(component).toBeTruthy();
     expect(component.items()).toEqual([]);
     expect(component.hasItems()).toBe(false);
-    expect(component.structuredData()).toBe('');
   });
 
   it('should build a trail from config, dropping invalid entries (render/config case)', async () => {
@@ -59,8 +58,8 @@ describe('BreadcrumbElementComponent', () => {
     expect(items.slice(0, -1).every((item) => !item.isCurrent)).toBe(true);
   });
 
-  // D1: con `itemsJson` —el TEXTO que mandaba la vista— este elemento hidrataba sin migas ni
-  // JSON-LD. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
+  // D1: con `itemsJson` —el TEXTO que mandaba la vista— este elemento hidrataba sin migas.
+  // Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
   it('pinta los pasos que el editor autoró con el config exacto que emite la vista del CMS', async () => {
     const { ejemplo } = BREADCRUMB_SYNHOST;
     fixture.componentRef.setInput('config', JSON.stringify(ejemplo));
@@ -70,42 +69,37 @@ describe('BreadcrumbElementComponent', () => {
     const pasos = ejemplo.items ?? [];
     expect(component.items().map((item) => item.label)).toEqual(pasos.map((paso) => paso.label));
     expect(component.items().slice(0, -1).map((item) => item.href)).toEqual(pasos.slice(0, -1).map((paso) => paso.href));
-    expect(component.includeStructuredData()).toBe(ejemplo.includeStructuredData);
-    expect(JSON.parse(component.structuredData()).itemListElement.length).toBe(pasos.length);
     expect((fixture.nativeElement as HTMLElement).querySelectorAll('.breadcrumb__item').length).toBe(pasos.length);
   });
 
   // `separator` y `label` no los autora el editor en el CMS (ADR 0135): son atributo.
   it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"includeStructuredData":false}');
-    fixture.componentRef.setInput('includeStructuredData', 'true');
+    fixture.componentRef.setInput('config', '{"items":[{"label":"Del config"}]}');
+    fixture.componentRef.setInput('items', '[{"label":"Del atributo"}]');
     fixture.componentRef.setInput('separator', '>');
     fixture.componentRef.setInput('label', 'Ruta');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.includeStructuredData()).toBe(true);
+    expect(component.items().map((item) => item.label)).toEqual(['Del atributo']);
     expect(component.separator()).toBe('>');
     expect(component.label()).toBe('Ruta');
   });
 
-  it('should emit BreadcrumbList JSON-LD only when structured data is enabled', async () => {
-    fixture.componentRef.setInput('items', ITEMS);
-    fixture.componentRef.setInput('includeStructuredData', 'true');
+  // UI#90: el JSON-LD lo emite el CMS en el SSR. Un `config` viejo que todavía traiga el
+  // interruptor no lo resucita: el saneador lo tira, y el elemento no tiene de dónde leerlo.
+  it('no se encarga del JSON-LD: el interruptor no sobrevive al saneador', async () => {
+    const viejo = { items: [{ label: 'Inicio', href: '/' }], includeStructuredData: true };
+    expect(sanitizeBreadcrumbConfig(viejo as never)).toEqual({
+      items: normalizeItems(viejo.items),
+    });
+
+    fixture.componentRef.setInput('config', JSON.stringify(viejo));
     fixture.detectChanges();
     await fixture.whenStable();
 
-    const ld = JSON.parse(component.structuredData());
-    expect(ld['@type']).toBe('BreadcrumbList');
-    expect(ld.itemListElement.length).toBe(3);
-    expect(ld.itemListElement[0]).toEqual({
-      '@type': 'ListItem',
-      position: 1,
-      name: 'Inicio',
-      item: '/',
-    });
-    // current item has no `item` URL
-    expect(ld.itemListElement[2].item).toBeUndefined();
+    expect('structuredData' in component).toBe(false);
+    expect('includeStructuredData' in component).toBe(false);
   });
 });
 

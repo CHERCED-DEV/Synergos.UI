@@ -186,8 +186,6 @@ export interface BadgeGroupProps {
 export interface BreadcrumbProps {
   /** contenido */
   readonly items?: readonly BreadcrumbStep[];
-  /** decision */
-  readonly includeStructuredData?: boolean;
 }
 
 /** <synergos-carousel> · pieza */
@@ -589,7 +587,7 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
   tipo: "pieza",
   record: "BreadcrumbProps",
   diccionario: [],
-  campos: ["items","includeStructuredData"],
+  campos: ["items"],
   listas: {"items":["label","href"]},
   ejemplo: {
     "culture": "es-CO",
@@ -605,8 +603,7 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
       {
         "label": "Zapatos"
       }
-    ],
-    "includeStructuredData": true
+    ]
   },
 };
 
