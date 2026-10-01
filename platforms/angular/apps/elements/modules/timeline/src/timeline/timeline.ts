@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import type { TimelineProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/shared';
 
 /**
@@ -20,6 +21,9 @@ import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/s
  * el TEXTO `eventsJson` y la línea de tiempo colocada salía sin hitos (D1). `title`,
  * `emptyLabel` y `locale` no los autora el editor: son atributos, igual que `eventsJson`, que
  * gana sobre el `config`. `orientation` se acepta como atributo y no se pinta: siempre vertical.
+ *
+ * Su microcopia sale del diccionario, sección `Timeline` (ADR 0136): el nombre de la región sin
+ * título y la línea vacía. El atributo `emptyLabel` sigue ganando.
  */
 
 /** Normalized, render-ready timeline item. */
@@ -140,7 +144,10 @@ export class TimelineElementComponent {
   readonly integration = input<string | undefined>(undefined, { alias: 'integration' });
 
   readonly title = computed(() => this.titleInput() ?? '');
-  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay hitos para mostrar.');
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? t('Timeline.Empty', 'No hay hitos para mostrar.'));
+
+  /** El nombre de la región: el título, o `Timeline.Aria` si no lo tiene. */
+  readonly regionLabel = computed(() => this.title() || t('Timeline.Aria', 'Línea de tiempo'));
   readonly locale = computed(() => this.localeInput() ?? DEFAULT_LOCALE);
 
   readonly hasTitle = computed(() => this.title().trim().length > 0);

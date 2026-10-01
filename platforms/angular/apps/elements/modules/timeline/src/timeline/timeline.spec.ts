@@ -103,4 +103,34 @@ describe('TimelineElementComponent', () => {
       'timeline-item-2',
     ]);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `Timeline` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(TIMELINE_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.timeline')?.getAttribute('aria-label')).toBe('Línea de tiempo');
+      expect(component.emptyLabel()).toBe('No hay hitos para mostrar.');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Timeline.Empty': 'No milestones to show.' } },
+      };
+      const otra = TestBed.createComponent(TimelineElementComponent);
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.timeline__empty')?.textContent?.trim()).toBe('No milestones to show.');
+      expect(raiz.querySelector('.timeline')?.getAttribute('aria-label')).toBe('Línea de tiempo');
+    });
+  });
 });

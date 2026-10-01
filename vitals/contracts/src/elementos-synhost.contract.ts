@@ -474,7 +474,7 @@ export interface TagProps {
   readonly color?: string;
 }
 
-/** <synergos-timeline> · pieza */
+/** <synergos-timeline> · pieza · diccionario: Timeline */
 export interface TimelineProps {
   /** contenido */
   readonly events?: readonly TimelineEntry[];
@@ -1210,8 +1210,8 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   nombre: "timeline",
   tipo: "pieza",
   record: "TimelineProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Timeline"],
+  claves: ["Timeline.Aria","Timeline.Empty"],
   campos: ["events"],
   listas: {"events":["date","title","body"]},
   ejemplo: {
