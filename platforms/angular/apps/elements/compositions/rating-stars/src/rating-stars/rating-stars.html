@@ -21,7 +21,7 @@
   <div
     class="rating rating--interactive"
     role="radiogroup"
-    [attr.aria-label]="label() || 'Calificación'"
+    [attr.aria-label]="groupLabel()"
     (mouseleave)="clearPreview()"
   >
     <span class="rating__stars">
@@ -33,7 +33,7 @@
           role="radio"
           [attr.data-position]="star.position"
           [attr.aria-checked]="isChecked(star.position)"
-          [attr.aria-label]="star.position + ' de ' + max() + ' estrellas'"
+          [attr.aria-label]="estrellas(star.position)"
           [attr.tabindex]="isFocusTarget(star.position) ? 0 : -1"
           (click)="pick(star.position)"
           (mouseenter)="preview(star.position)"

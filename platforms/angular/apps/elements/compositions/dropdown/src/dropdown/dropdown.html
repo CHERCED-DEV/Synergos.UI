@@ -24,8 +24,8 @@
             type="text"
             class="dropdown__search-input"
             [value]="query()"
-            [attr.aria-label]="'Filtrar opciones'"
-            placeholder="Buscar…"
+            [attr.aria-label]="filterLabel()"
+            [attr.placeholder]="searchPlaceholder()"
             (input)="onSearchInput($event)"
             (keydown.escape)="close(true)"
             (keydown.arrowdown)="$event.preventDefault(); focusFirst()"
@@ -87,7 +87,7 @@
             }
           </li>
         } @empty {
-          <li class="dropdown__empty" role="none">Sin resultados</li>
+          <li class="dropdown__empty" role="none">{{ emptyLabel() }}</li>
         }
       </ul>
     </div>

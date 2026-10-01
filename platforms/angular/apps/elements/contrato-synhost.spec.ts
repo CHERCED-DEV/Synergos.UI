@@ -35,6 +35,7 @@ import { sanitizeLightboxGalleryConfig } from './modules/lightbox-gallery/src/li
 import { sanitizeChartBarConfig } from './modules/chart-bar/src/chart-bar/chart-bar';
 import { sanitizeMapPinConfig } from './modules/map-pin/src/map-pin/map-pin';
 import { sanitizeColorPickerConfig } from './compositions/color-picker/src/color-picker/color-picker';
+import { sanitizeAppLauncherConfig } from './modules/app-launcher/src/app-launcher/app-launcher';
 
 /**
  * El gate que EJECUTA el sanitizador de cada elemento con el `config` que emite su vista
@@ -87,6 +88,7 @@ const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = {
   'chart-bar': createConfigInputTransform(sanitizeChartBarConfig),
   'map-pin': createConfigInputTransform(sanitizeMapPinConfig),
   'color-picker': createConfigInputTransform(sanitizeColorPickerConfig),
+  'app-launcher': createConfigInputTransform(sanitizeAppLauncherConfig),
 };
 
 type Config = Record<string, unknown>;

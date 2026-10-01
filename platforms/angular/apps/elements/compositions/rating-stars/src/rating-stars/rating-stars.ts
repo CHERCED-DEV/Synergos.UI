@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import type { RatingStarsProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -30,6 +31,9 @@ import {
  * `maxStars` y `ariaLabel`, y el editor ponía un 4 y se leía «0 de 5 estrellas» (D1).
  * `readonly`, `allowHalf` y `showValue` no los autora el editor: son atributos del elemento,
  * que ganan sobre el `config`, que gana sobre los defaults (`resolveConfigValue`).
+ *
+ * Su microcopia sale del diccionario, sección `Rating` (ADR 0136): «{n} de {max} estrellas» es
+ * `Rating.Stars.Aria` y el nombre del selector, `Rating.SelectStars`.
  */
 
 interface RatingStar {
@@ -185,9 +189,17 @@ export class RatingStarsElementComponent {
   /** Accessible description of the current state (e.g. "3 de 5 estrellas"). */
   readonly ariaLabel = computed(() => {
     const base = this.label();
-    const stateText = `${this.formattedValue()} de ${this.max()} estrellas`;
+    const stateText = this.estrellas(this.formattedValue());
     return base ? `${base}: ${stateText}` : stateText;
   });
+
+  /** El nombre del selector interactivo cuando el editor no le dio rótulo. */
+  readonly groupLabel = computed(() => this.label() || t('Rating.SelectStars', 'Selecciona una valoración'));
+
+  /** «{n} de {max} estrellas», del diccionario (`Rating.Stars.Aria`). */
+  estrellas(n: number | string): string {
+    return t('Rating.Stars.Aria', '{n} de {max} estrellas', { n, max: this.max() });
+  }
 
   /** Human-readable value for the optional inline number. */
   readonly formattedValue = computed(() => {

@@ -103,6 +103,7 @@ export function validarContrato(contrato) {
     if (!TIPOS_DE_COLOCABLE.has(e?.tipo)) errores.push(`${quien}: tipo de colocable «${e?.tipo}»`);
     if (!IDENTIFICADOR.test(e?.record ?? '')) errores.push(`${quien}: record «${e?.record}» no es un identificador`);
     if (!Array.isArray(e?.diccionario)) errores.push(`${quien}: sin lista \`diccionario\``);
+    errores.push(...revisarClaves(quien, e?.diccionario ?? [], e?.claves));
     revisarCampos(quien, e?.campos, true);
 
     const ejemplo = e?.ejemplo;
@@ -124,6 +125,54 @@ export function validarContrato(contrato) {
     revisarCampos(t?.record ?? '(sin nombre)', t?.campos, false);
   }
 
+  return errores;
+}
+
+/**
+ * ¿`clave` cae en alguna de `secciones`? Es la regla con la que el CMS publica
+ * (`DiccionarioDelBridge.EnAlgunaSeccion`): la sección ENTERA como prefijo, sin mayúsculas.
+ * `Tag` casa `Tag.Remove` y no `Tagline.X`.
+ *
+ * @param {string} clave
+ * @param {readonly string[]} secciones
+ */
+export function enAlgunaSeccion(clave, secciones) {
+  const k = clave.toLowerCase();
+  return secciones.some((s) => {
+    const sec = s.toLowerCase();
+    return k === sec || k.startsWith(`${sec}.`);
+  });
+}
+
+/**
+ * Las claves que el contrato trae por elemento (ADR 0136): las de uSync que caen en las secciones
+ * que declara su record. Un elemento que declara secciones y no trae ninguna clave declaró un
+ * prefijo vacío —en la página no se publicaría nada y su `t()` pintaría siempre el respaldo—.
+ *
+ * @param {string} quien
+ * @param {readonly string[]} secciones
+ * @param {unknown} claves
+ * @returns {string[]}
+ */
+function revisarClaves(quien, secciones, claves) {
+  if (claves === undefined || claves === null) {
+    return secciones.length > 0
+      ? [`${quien}: declara las secciones ${secciones.join(', ')} y el contrato no trae ninguna clave — prefijo vacío`]
+      : [];
+  }
+  if (!Array.isArray(claves) || claves.some((c) => typeof c !== 'string')) {
+    return [`${quien}: \`claves\` no es una lista de cadenas`];
+  }
+  const errores = [];
+  if (claves.length === 0 && secciones.length > 0) errores.push(`${quien}: secciones sin claves — prefijo vacío`);
+  for (const clave of claves) {
+    if (!enAlgunaSeccion(clave, secciones)) errores.push(`${quien}: la clave «${clave}» no cae en ninguna sección que declara`);
+  }
+  for (const seccion of secciones) {
+    if (!claves.some((c) => enAlgunaSeccion(c, [seccion]))) {
+      errores.push(`${quien}: la sección «${seccion}» no casa ninguna clave — prefijo vacío`);
+    }
+  }
   return errores;
 }
 
@@ -203,6 +252,8 @@ export function generarTs(contrato) {
       "  readonly tipo: 'pieza' | 'funcionalidad';",
       '  readonly record: string;',
       '  readonly diccionario: readonly string[];',
+      '  /** Las claves de uSync de esas secciones (ADR 0136): las únicas que el elemento puede pedir con `t()`. */',
+      '  readonly claves: readonly string[];',
       '  readonly campos: readonly (keyof T & string)[];',
       '  /** Por cada campo que es una lista de records, los campos de sus ítems. */',
       '  readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;',
@@ -236,6 +287,7 @@ export function generarTs(contrato) {
         `  tipo: ${JSON.stringify(e.tipo)},`,
         `  record: ${JSON.stringify(e.record)},`,
         `  diccionario: ${JSON.stringify(e.diccionario)},`,
+        `  claves: ${JSON.stringify(e.claves ?? [])},`,
         `  campos: ${JSON.stringify(e.campos.map((c) => c.nombre))},`,
         `  listas: ${JSON.stringify(listasDe(e))},`,
         `  ejemplo: ${literal(e.ejemplo, '  ')},`,

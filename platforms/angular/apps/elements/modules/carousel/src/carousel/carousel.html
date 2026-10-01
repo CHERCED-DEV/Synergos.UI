@@ -1,4 +1,4 @@
-<section class="carousel" [attr.aria-label]="title() || 'Galería'">
+<section class="carousel" [attr.aria-label]="ariaLabel()">
   @if (hasTitle()) {
     <header class="carousel__header">
       <syn-heading [text]="title()" level="h2" size="md" class="carousel__heading" />
@@ -11,7 +11,11 @@
     [loop]="loop()"
     [compact]="compact()"
     [startIndex]="activeIndex()"
-    [ariaLabel]="title() || 'Galería de la propiedad'"
+    [ariaLabel]="ariaLabel()"
+    [previousLabel]="previousLabel()"
+    [nextLabel]="nextLabel()"
+    [pagerLabel]="pagerLabel()"
+    [slideLabel]="slideLabel()"
     (activeIndexChange)="onActiveIndexChange($event)"
   />
 </section>

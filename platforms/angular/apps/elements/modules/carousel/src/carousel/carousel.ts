@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import type { CarouselProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   CarouselComponent,
   type CarouselItem,
@@ -33,6 +34,10 @@ import {
  * este elemento se oculta: el carrusel colocado no se veía (D1). `title`, `loop`, `compact` y
  * los campos ricos de una diapositiva (`type`, `poster`, `thumbnailSrc`) no los autora el
  * editor: llegan por atributo (`slides` como JSON), que gana sobre el `config`.
+ *
+ * Su microcopia sale del diccionario, sección `Slider` (ADR 0136): este elemento la traduce con
+ * `t()` y se la pasa a `syn-carousel` como texto. La pieza del DS pintaba «Previous»/«Next» en
+ * inglés en un sitio en español.
  */
 
 function readString(value: unknown): string {
@@ -147,6 +152,13 @@ export class CarouselElementComponent {
 
   readonly hasSlides = computed(() => this.slides().length > 0);
   readonly hasTitle = computed(() => this.title().trim().length > 0);
+
+  /** La microcopia, del diccionario (sección `Slider`); el respaldo es el texto es-CO. */
+  readonly ariaLabel = computed(() => this.title() || t('Slider.Aria', 'Galería'));
+  readonly previousLabel = computed(() => t('Slider.Previous', 'Diapositiva anterior'));
+  readonly nextLabel = computed(() => t('Slider.Next', 'Siguiente diapositiva'));
+  readonly pagerLabel = computed(() => t('Slider.Pager', 'Diapositivas'));
+  readonly slideLabel = computed(() => t('Slider.GoToSlide', 'Ir a diapositiva {n}'));
 
   readonly activeIndex = signal(0);
 

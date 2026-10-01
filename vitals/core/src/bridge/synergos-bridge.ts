@@ -5,9 +5,10 @@
 // inyectado por el CMS host. Standalone-safe: si el bridge no existe,
 // retornan null/fallback values graceful.
 //
-// Pattern — usage:
-//   import { t, getMember, getTheme } from '@synergos/core/bridge/synergos-bridge';
-//   const label = t('Form.Submit', 'Submit');
+// Pattern — usage (en Angular el alias es `@synergos/vitals-core`: `@synergos/core` es
+// `libs/core`, regla 44):
+//   import { t, getMember } from '@synergos/vitals-core';
+//   const label = t('Slider.Next', 'Siguiente diapositiva');
 //   const isLoggedIn = getMember() !== null;
 
 import type {
@@ -26,9 +27,22 @@ export function getBridge(): SynergosWindowBridge | null {
   return bridge && typeof bridge === 'object' ? bridge : null;
 }
 
-/** Lookup i18n key. Standalone fallback graceful — devuelve `fallback`
- *  o `key` literal si no hay bridge. Soporta {0}, {1}, ... placeholders
- *  via args opcional. */
+/**
+ * El texto de una clave del diccionario que publica el CMS (ADR 0136), o `fallback` si la
+ * página no la trae — standalone, Storybook, o una clave fuera de las secciones que declaró el
+ * elemento.
+ *
+ * Lo llama la FUNCIONALIDAD (o la pieza colocable) y le pasa el texto a sus hojas: una pieza del
+ * design system recibe strings, nunca claves. La clave va LITERAL —`t('Slider.Next', '…')`—: el
+ * gate `gate:diccionario` cruza cada llamada contra las claves del contrato del elemento, y una
+ * clave armada en tiempo de ejecución se le esconde (regla 37).
+ *
+ * Marcadores, los dos que tiene el diccionario de uSync:
+ *  - con nombre — `t('Rating.Stars.Aria', '{n} de {max} estrellas', { n: 4, max: 5 })`. Son 20 de
+ *    las 25 claves con marcador (medido al escribir esto; el resto son posicionales);
+ *  - posicionales — `t('Admin.Welcome', 'Hola, {0}', nombre)`.
+ * Un marcador que no se pasa queda escrito tal cual: se ve, no se inventa un valor.
+ */
 export function t(key: string, fallback: string, ...args: unknown[]): string {
   const bridge = getBridge();
   let str: string;
@@ -40,10 +54,21 @@ export function t(key: string, fallback: string, ...args: unknown[]): string {
     str = fallback;
   }
 
+  const [primero] = args;
+  if (args.length === 1 && esMarcadoresConNombre(primero)) {
+    return str.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (marca, nombre: string) =>
+      Object.prototype.hasOwnProperty.call(primero, nombre) ? String(primero[nombre]) : marca,
+    );
+  }
+
   for (let i = 0; i < args.length; i++) {
     str = str.replace(`{${i}}`, String(args[i]));
   }
   return str;
+}
+
+function esMarcadoresConNombre(valor: unknown): valor is Readonly<Record<string, unknown>> {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor);
 }
 
 /** Member context si autenticado. Null para anónimos o standalone. */
