@@ -356,7 +356,7 @@ export interface LightboxGalleryProps {
   readonly columns?: number;
 }
 
-/** <synergos-map-pin> · pieza */
+/** <synergos-map-pin> · pieza · diccionario: Map, Common.Actions */
 export interface MapPinProps {
   /** decision */
   readonly centerLat?: number;
@@ -963,8 +963,8 @@ export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
   nombre: "map-pin",
   tipo: "pieza",
   record: "MapPinProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Map","Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll","Map.Aria","Map.CenteredOn","Map.Error","Map.GetDirections","Map.Loading","Map.MoreAbout","Map.Pin","Map.Pins","Map.ViewLarger"],
   campos: ["centerLat","centerLng","zoomLevel","pins"],
   listas: {"pins":["lat","lng","label","description"]},
   ejemplo: {

@@ -10,6 +10,7 @@ import {
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
 import type { MapPinProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -35,6 +36,10 @@ import {
  * numéricos, `label`: el CMS traduce el `title` del editor). La vista mandaba texto y el TEXTO
  * `pinsJson`, y el mapa salía en el centro por defecto y sin pines (D1). `integration` no la
  * autora el editor: llega por atributo.
+ *
+ * Su microcopia sale del diccionario (ADR 0136): sección `Map` —el nombre de la región y de la
+ * lista, «Ubicación {n}» para un pin sin título, el título del iframe y «Ver mapa ampliado»— y
+ * `Common.Actions.SeeMore` para el enlace de cada pin.
  */
 export interface MapPinConfig {
   readonly lat?: number | string;
@@ -151,7 +156,7 @@ export function normalizePins(value: unknown): readonly MapPin[] {
       return {
         lat: clamp(lat, -LAT_LIMIT, LAT_LIMIT),
         lng: clamp(lng, -LNG_LIMIT, LNG_LIMIT),
-        label: label || `Ubicación ${index + 1}`,
+        label: label || t('Map.Pin', 'Ubicación {n}', { n: index + 1 }),
         description: readString(entry['description']).trim(),
         href: readString(entry['href']).trim() || readString(entry['url']).trim(),
       };
@@ -301,7 +306,7 @@ export class MapPinElementComponent {
     this.#sanitizer.bypassSecurityTrustResourceUrl(this.embedUrl()),
   );
 
-  /** Full-map link for the "Ver mapa completo" affordance. */
+  /** Full-map link for the «Ver mapa ampliado» affordance (`Map.ViewLarger`). */
   readonly viewUrl = computed(() =>
     buildOsmViewUrl(this.viewLat(), this.viewLng(), this.zoomLevel()),
   );
@@ -309,11 +314,20 @@ export class MapPinElementComponent {
   /** Accessible title surfaced on the iframe. */
   readonly frameTitle = computed(() => {
     const active = this.activePin();
-    if (active) {
-      return `Mapa centrado en ${active.label}`;
-    }
-    return `Mapa centrado en ${this.centerLat().toFixed(4)}, ${this.centerLng().toFixed(4)}`;
+    const place = active ? active.label : `${this.centerLat().toFixed(4)}, ${this.centerLng().toFixed(4)}`;
+    return t('Map.CenteredOn', 'Mapa centrado en {place}', { place });
   });
+
+  /** La microcopia del mapa, del diccionario (ADR 0136, sección `Map`). */
+  readonly regionLabel = computed(() => t('Map.Aria', 'Mapa de ubicación'));
+  readonly pinsLabel = computed(() => t('Map.Pins', 'Ubicaciones señaladas en el mapa'));
+  readonly viewLargerLabel = computed(() => t('Map.ViewLarger', 'Ver mapa ampliado'));
+  readonly seeMoreLabel = computed(() => t('Common.Actions.SeeMore', 'Ver más'));
+
+  /** «Más información sobre {name}»: el nombre accesible del enlace de un pin. */
+  moreAbout(name: string): string {
+    return t('Map.MoreAbout', 'Más información sobre {name}', { name });
+  }
 
   /** Index that should carry tabindex=0 inside the pin list (roving). */
   readonly focusedIndex = computed<number>(() => {

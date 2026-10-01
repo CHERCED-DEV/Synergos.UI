@@ -1,4 +1,4 @@
-<section class="map-pin" role="region" [attr.aria-label]="'Mapa de ubicación'">
+<section class="map-pin" role="region" [attr.aria-label]="regionLabel()">
   <div class="map-pin__surface">
     <iframe
       class="map-pin__frame"
@@ -13,7 +13,7 @@
     <ul
       class="map-pin__list"
       role="list"
-      [attr.aria-label]="'Ubicaciones señaladas en el mapa'"
+      [attr.aria-label]="pinsLabel()"
     >
       @for (pin of pins(); track $index) {
         <li class="map-pin__item">
@@ -52,9 +52,9 @@
               [href]="pin.href"
               target="_blank"
               rel="noopener noreferrer"
-              [attr.aria-label]="'Más información sobre ' + pin.label"
+              [attr.aria-label]="moreAbout(pin.label)"
             >
-              Ver más
+              {{ seeMoreLabel() }}
             </a>
           }
         </li>
@@ -68,6 +68,6 @@
     target="_blank"
     rel="noopener noreferrer"
   >
-    Ver mapa completo
+    {{ viewLargerLabel() }}
   </a>
 </section>
