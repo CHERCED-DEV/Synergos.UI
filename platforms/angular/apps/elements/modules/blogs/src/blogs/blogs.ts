@@ -75,6 +75,7 @@ import {
   type StudioSection,
   type TrendingTag,
 } from './blogs.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynBlogs</c>.
@@ -139,6 +140,10 @@ const VISTAS_CON_PANEL: readonly string[] = ['notifications', 'messages', 'saved
 
 const DEFAULT_API_BASE = '/api/blogs';
 const DEFAULT_SCOPE = 'blogs';
+
+/** El fallo del asistente de suscripción: el `pay` es local, así que nunca hubo cobro (UI#91). */
+const SUSCRIPCION_NO_PROCESADA = 'No pudimos procesar la suscripción. Intenta de nuevo.';
+
 const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
 // `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html:14),
@@ -806,6 +811,10 @@ export class BlogsElementComponent {
     summaryHeading: 'Tu membresía',
     submitLabel: 'Suscribirme',
     processingLabel: 'Procesando…',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `SUB-…` del `pay` es local y no
+    // es un cobro.
+    payFailedMessage: SUSCRIPCION_NO_PROCESADA,
+    confirmFailedMessage: SUSCRIPCION_NO_PROCESADA,
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
     totalLabel: 'Total mensual',
@@ -965,7 +974,7 @@ export class BlogsElementComponent {
   }
 
   private routeHash(view: BlogsView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'feed':
         return base;
@@ -997,7 +1006,7 @@ export class BlogsElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1008,25 +1017,21 @@ export class BlogsElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash
-      .slice(base.length)
-      .split('/')
-      .filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
         this.applyRoute('feed', '');
         return;
       case 'post':
-        this.applyRoute('post', decodeURIComponent(tail));
+        this.applyRoute('post', tail);
         return;
       case 'notificaciones':
         this.applyRoute('notifications', '');
@@ -1035,7 +1040,7 @@ export class BlogsElementComponent {
         this.applyRoute('search', '');
         return;
       case 'mensajes':
-        this.applyRoute('messages', tail ? decodeURIComponent(tail) : '');
+        this.applyRoute('messages', tail);
         return;
       case 'guardados':
         this.applyRoute('saved', '');
@@ -1051,7 +1056,7 @@ export class BlogsElementComponent {
         return;
       default:
         if (head.startsWith('@')) {
-          this.applyRoute('profile', decodeURIComponent(head.slice(1)));
+          this.applyRoute('profile', head.slice(1));
           return;
         }
         this.applyRoute('feed', '');
@@ -1960,11 +1965,6 @@ export class BlogsElementComponent {
       this.subscribed.emit(payload);
       this.#bus.publish('subscribed', payload);
     }
-  }
-
-  onSubscribeFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos procesar la suscripción. Intenta de nuevo.');
   }
 
   onSubscribeExit(): void {

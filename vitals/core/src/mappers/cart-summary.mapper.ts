@@ -13,7 +13,7 @@ export function mapCartSummaryData(data: Record<string, unknown>): CartSummaryIn
     showCoupon: readBooleanAsString(data, 'showCoupon', false),
     title: readStringFromKeys(data, ['title', 'summaryTitle'], ''),
     summaryTitle: readString(data, 'summaryTitle', ''),
-    checkoutUrl: readStringFromKeys(data, ['checkoutUrl', 'checkoutEndpoint'], '/checkout'),
+    checkoutUrl: readStringFromKeys(data, ['checkoutUrl', 'checkoutEndpoint'], ''),
     checkoutEndpoint: readString(data, 'checkoutEndpoint', ''),
     continueShoppingUrl: readString(data, 'continueShoppingUrl', '/'),
     showShipping: readBooleanAsString(data, 'showShipping', false),

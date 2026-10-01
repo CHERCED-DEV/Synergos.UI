@@ -6,6 +6,7 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -29,10 +30,7 @@ function installMemoryStorage(): Map<string, string> {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('TravelShellElementComponent (v2 sobre shells)', () => {
@@ -99,6 +97,32 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
   });
 
   // ── render + empty: pristine app, home view, cart empty ──────────────────────
+  // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
+  //
+  // El router armaba la base con el scope CRUDO y la comparaba con `location.hash`, que
+  // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
+  // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
+  // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
+    fixture.detectChanges();
+
+    // El enlace que alguien pega o teclea: el navegador lo guarda CODIFICADO.
+    window.location.hash = '#/Mi sitio: ñ/vuelos';
+    expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/vuelos');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('flights');
+
+    // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
+    component.navigate('stays');
+    await flushMicrotasks();
+    expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/estadias');
+  });
+
   it('renders the home with the product tabs and an empty cart (render/empty case)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));

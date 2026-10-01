@@ -345,7 +345,6 @@
         [validity]="checkoutValidity()"
         [instrument]="checkoutInstrument()"
         (completed)="onCheckoutCompleted($event)"
-        (failed)="onCheckoutFailed($event)"
         (exit)="navigate('cart')"
       />
 

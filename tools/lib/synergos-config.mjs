@@ -61,6 +61,13 @@ export function contratoDelManifiesto() {
 // si algún día vuelve otra plataforma, se añade una entrada acá y el pipeline
 // entero la reconoce.
 
+/**
+ * El nombre del ATRIBUTO HTML de un input: `apiBase` → `api-base`. Es la convención de
+ * `@angular/elements` (`camelToDashCase`) y, desde UI#91, también la del adaptador de
+ * Preact: el mismo HTML del CMS tiene que hidratar igual en las dos.
+ */
+const enDashCase = (nombre) => nombre.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`);
+
 export const PLATFORMS = [
   {
     name: 'angular',
@@ -84,7 +91,7 @@ export const PLATFORMS = [
     // input en dash-case —`apiBase` → `api-base`— y el HTML guarda los nombres en
     // minúsculas, así que `apiBase="…"` llega como `apibase` y no lo lee nadie.
     // Es la misma conversión que su `camelToDashCase`.
-    atributoDeInput: (nombre) => nombre.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`),
+    atributoDeInput: enDashCase,
   },
   {
     name: 'preact',
@@ -100,9 +107,12 @@ export const PLATFORMS = [
       resolve(ROOT, 'platforms/preact/dist', elementName, 'browser', 'main.js'),
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/preact/dist', elementName),
-    // Su adaptador lee cada atributo con `getAttribute(nombre)`, que en HTML no
-    // distingue mayúsculas: el nombre del input sirve tal cual (#88).
-    atributoDeInput: (nombre) => nombre,
+    // Decía «el nombre del input sirve tal cual (#88)», porque `getAttribute` no distingue
+    // mayúsculas. Servía AL CONECTAR: `observedAttributes` llevaba `ariaLabel`, que no casa
+    // con ningún atributo HTML, así que un cambio posterior no llegaba nunca, y `aria-label`
+    // —lo que observa Angular y escribe el CMS— no lo leía ni al conectar (UI#91). Hoy el
+    // adaptador observa en dash-case, como Angular.
+    atributoDeInput: enDashCase,
   },
 ];
 

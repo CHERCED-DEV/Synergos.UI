@@ -108,6 +108,17 @@ export class PreactElement<P extends Record<string, unknown>> implements Element
  * atributo HTML siempre llega como cadena; quien sabe qué es cada clave es el
  * normalizador de `vitals/core/src/inputs/`, que el elemento ya usa — por eso
  * esto pasa la cadena tal cual y no adivina tipos.
+ *
+ * **El atributo de un input en camello va en dash-case** (`ariaLabel` → `aria-label`),
+ * la misma convención que `@angular/elements` (UI#91). `observedAttributes` decía
+ * `ariaLabel`, y el HTML guarda los nombres en minúsculas: un nombre con mayúscula no
+ * casa con ningún atributo, así que el custom element no lo observaba nunca —sólo lo
+ * leía al conectar, porque `getAttribute` no distingue mayúsculas— y `aria-label`, que es
+ * lo que observa Angular para el mismo input, no lo leía ni al conectar. El mismo HTML
+ * pintaba distinto según qué plataforma lo hidratara.
+ *
+ * @param atributos los nombres de los INPUTS (las props del componente); el nombre del
+ *   atributo sale de cada uno.
  */
 export function registrarElementoPreact<P extends Record<string, unknown>>(
   tag: string,
@@ -115,17 +126,19 @@ export function registrarElementoPreact<P extends Record<string, unknown>>(
   atributos: readonly string[] = [],
 ): PreactElement<P> {
   const adaptador = new PreactElement<P>(tag, componente);
+  // atributo HTML → input del componente
+  const inputDe = new Map(atributos.map((input) => [atributoDeInput(input), input]));
 
   if (!customElements.get(tag)) {
     customElements.define(
       tag,
       class extends HTMLElement {
-        static readonly observedAttributes = atributos;
+        static readonly observedAttributes = [...inputDe.keys()];
 
         private readonly propio = new PreactElement<P>(tag, componente);
 
         connectedCallback(): void {
-          this.propio.mount(this, leerAtributos(this, atributos));
+          this.propio.mount(this, leerAtributos(this, inputDe));
         }
 
         disconnectedCallback(): void {
@@ -133,7 +146,8 @@ export function registrarElementoPreact<P extends Record<string, unknown>>(
         }
 
         attributeChangedCallback(nombre: string, _viejo: string | null, nuevo: string | null): void {
-          this.propio.update({ [nombre]: nuevo ?? undefined });
+          const input = inputDe.get(nombre);
+          if (input) this.propio.update({ [input]: nuevo ?? undefined });
         }
       },
     );
@@ -142,14 +156,19 @@ export function registrarElementoPreact<P extends Record<string, unknown>>(
   return adaptador;
 }
 
-/** Los atributos presentes, como cadenas. Los ausentes NO se emiten. */
-function leerAtributos(el: HTMLElement, atributos: readonly string[]): Record<string, unknown> {
+/** El nombre del atributo de un input: `ariaLabel` → `aria-label`, como en Angular. */
+function atributoDeInput(input: string): string {
+  return input.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`);
+}
+
+/** Los atributos presentes, como cadenas y con el nombre de su INPUT. Los ausentes NO se emiten. */
+function leerAtributos(el: HTMLElement, inputDe: ReadonlyMap<string, string>): Record<string, unknown> {
   const salida: Record<string, unknown> = {};
-  for (const nombre of atributos) {
+  for (const [atributo, input] of inputDe) {
     // Un atributo AUSENTE no es lo mismo que uno vacío, y la diferencia la
     // resuelve el normalizador con `undefined`. Emitir `null` haría que
     // `resolveConfigValue` lo tomara por un valor dado y pisara el del `config`.
-    if (el.hasAttribute(nombre)) salida[nombre] = el.getAttribute(nombre);
+    if (el.hasAttribute(atributo)) salida[input] = el.getAttribute(atributo);
   }
   return salida;
 }

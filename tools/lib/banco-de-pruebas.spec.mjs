@@ -119,7 +119,7 @@ describe('la ruta del banco', () => {
 
 // ── #88: muestras que el elemento ACEPTE ─────────────────────────────────────
 // El banco no dejaba recorrer academy: `scope="muestra: scope"` es el primer segmento de sus
-// rutas por hash, llega codificado (`muestra:%20scope`) y el router deja de reconocerlas. Y
+// rutas por hash, llegaba codificado (`muestra:%20scope`) y el router dejaba de reconocerlas (cerrado en UI#91). Y
 // `apiBase="…"` no llegaba ni a aplicarse: el HTML lo guarda como `apibase` y Angular observa
 // `api-base`. Medido con academy y con el badge en el banco (informe 62).
 
@@ -158,6 +158,13 @@ describe('el nombre del atributo lo decide la plataforma', () => {
       const nombre = p.atributoDeInput('headingText');
       expect(nombre.toLowerCase(), p.name).toMatch(/^heading-?text$/);
     }
+  });
+
+  it('las dos plataformas observan el MISMO atributo: el HTML del CMS hidrata igual en las dos (UI#91)', () => {
+    // Preact decía «el nombre del input tal cual»: `ariaLabel` en observedAttributes no casa
+    // con ningún atributo HTML, y `aria-label` —lo que observa Angular— no lo leía nadie.
+    const nombres = PLATFORMS.map((p) => p.atributoDeInput('ariaLabel'));
+    expect(new Set(nombres)).toEqual(new Set(['aria-label']));
   });
 
   it('Angular observa en dash-case: `apiBase` → `api-base`', () => {
@@ -239,5 +246,46 @@ describe('las verticales, con el mismo criterio', () => {
     for (const [nombre, razon] of Object.entries(ENTRADAS_DE_CABLEADO)) {
       expect(razon.length, nombre).toBeGreaterThan(20);
     }
+  });
+});
+
+describe('los vocabularios cerrados de las piezas que no son verticales (UI#91)', () => {
+  const inputs = loadInputs();
+
+  // Lo que se midió sobre element-inputs.json antes del arreglo: 25 entradas de 12 nombres
+  // que recibían «muestra: X» siendo un valor de un vocabulario cerrado (o un código CSS). Las
+  // siete de `variantKey` (las piezas de la Tienda) las cubre el test de abajo, que mira todas.
+  const MEDIDAS = [
+    'qr-code.size', 'chart-bar.orientation', 'splitter.orientation', 'timeline.orientation',
+    'fab.position', 'scroll-top.position', 'toast-center.position', 'color-swatches.shape',
+    'skeleton.shape', 'popover.placement', 'rich-tooltip.placement', 'countdown-digital.style',
+    'separator.style', 'card.badgeType', 'icon-block.color', 'notification-toast.type',
+    'avatar.status', 'stat-counter.trend',
+  ];
+
+  it('las que se midieron ya no reciben un texto inventado: van sin atributo', () => {
+    for (const par of MEDIDAS) {
+      const [elemento, nombre] = par.split('.');
+      const entrada = inputs[elemento]?.find((i) => i.name === nombre);
+      expect(entrada, `${par} ya no está en element-inputs.json`).toBeTruthy();
+      expect(valorDeMuestra(entrada), par).toBeNull();
+    }
+  });
+
+  it('y ninguna entrada de un vocabulario del censo, en NINGÚN elemento, recibe «muestra: X»', () => {
+    const inventadas = Object.entries(inputs)
+      .filter(([, lista]) => Array.isArray(lista))
+      .flatMap(([elemento, lista]) =>
+        lista
+          .filter((i) => Object.hasOwn(ENTRADAS_DE_CABLEADO, i.name))
+          .filter((i) => String(valorDeMuestra(i) ?? '').startsWith('muestra:'))
+          .map((i) => `${elemento}.${i.name}`),
+      );
+    expect(inventadas).toEqual([]);
+  });
+
+  it('el que declara su valor por defecto lo conserva: ése sí es un valor que la pieza acepta', () => {
+    const tema = inputs.accordion?.find((i) => i.name === 'theme') ?? { name: 'theme', type: 'string', default: 'light' };
+    expect(valorDeMuestra(tema)).toBe(tema.default);
   });
 });

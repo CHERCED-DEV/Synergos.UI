@@ -135,9 +135,36 @@ describe('el camino de entrada está cableado', () => {
   // pieza esté ENCHUFADA y no que exista).
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
-  it.each(['pretest', 'prebuild', 'predev:cdn'])('%s verifica antes de arrancar', (gancho) => {
+  it.each(['pretest', 'prebuild', 'predev:cdn', 'prebuild:cdn'])('%s verifica antes de arrancar', (gancho) => {
     expect(pkg.scripts[gancho]).toContain('tools/setup.mjs');
     expect(pkg.scripts[gancho]).toContain('--verificar');
+  });
+
+  // La lista de arriba está escrita a mano, y por eso olvidó `build:cdn` (UI#91): en un árbol
+  // limpio instalaba sólo platforms/angular, 1 min 49 s, y moría en build:vitals con «This is
+  // not the tsc command you are looking for». Ésta se DERIVA: toda herramienta de `tools/` que
+  // construye lanzando npm (importa el lanzador de `lib/npm.mjs`) necesita las dependencias
+  // instaladas, y el script que la lanza tiene que pasar antes por el setup.
+  it('todo script que lanza una herramienta que usa el lanzador de npm pasa antes por el setup — derivado', () => {
+    const herramientas = readdirSync(join(ROOT, 'tools'))
+      .filter((f) => f.endsWith('.mjs') && f !== 'setup.mjs')
+      .filter((f) => /from\s+['"]\.\/lib\/npm\.mjs['"]/.test(readFileSync(join(ROOT, 'tools', f), 'utf8')));
+    // build-cdn, dev-cdn y test-todo, medido el 2026-10-01.
+    expect(herramientas.length).toBeGreaterThanOrEqual(3);
+
+    const sinGancho = [];
+    for (const herramienta of herramientas) {
+      const scripts = Object.entries(pkg.scripts).filter(
+        ([nombre, comando]) => !nombre.startsWith('//') && !nombre.startsWith('pre') && comando.includes(`tools/${herramienta}`),
+      );
+      expect(scripts.length, `tools/${herramienta} no lo lanza ningún script`).toBeGreaterThan(0);
+      for (const [nombre] of scripts) {
+        if (!(pkg.scripts[`pre${nombre}`] ?? '').includes('tools/setup.mjs --verificar')) {
+          sinGancho.push(`${nombre} → tools/${herramienta} (falta "pre${nombre}": "node tools/setup.mjs --verificar")`);
+        }
+      }
+    }
+    expect(sinGancho).toEqual([]);
   });
 
   it('y el propio repo está completo', () => {

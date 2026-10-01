@@ -95,13 +95,13 @@ export class QuantitySelectorComponent {
   readonly canIncrement = computed(() => this.quantity() < this.max());
   readonly hostClasses  = computed(() => `sg-quantity-selector--${this.theme()}`);
   readonly quantityLabel = computed(
-    () => this.labelInput() ?? this.ariaLabelInput() ?? this.config()?.label ?? this.translations()['Shop.Product.Quantity'] ?? 'Quantity',
+    () => this.labelInput() ?? this.ariaLabelInput() ?? this.config()?.label ?? this.translations()['Shop.Product.Quantity'] ?? 'Cantidad',
   );
   readonly decrementLabel = computed(
-    () => this.translations()['Shop.Product.DecreaseQuantity'] ?? 'Decrease quantity',
+    () => this.translations()['Shop.Product.DecreaseQuantity'] ?? 'Disminuir la cantidad',
   );
   readonly incrementLabel = computed(
-    () => this.translations()['Shop.Product.IncreaseQuantity'] ?? 'Increase quantity',
+    () => this.translations()['Shop.Product.IncreaseQuantity'] ?? 'Aumentar la cantidad',
   );
   readonly ariaLabelledBy = computed(() => this.ariaLabelledByInput() ?? null);
 

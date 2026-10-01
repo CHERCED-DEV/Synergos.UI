@@ -15,6 +15,8 @@
     "build:preact": "npm run --prefix platforms/preact build",
     "build:runtime": "node tools/build-runtime.mjs",
     "build:runtime:dry": "node tools/build-runtime.mjs --dry-run",
+    "// prebuild:cdn — el mismo gancho que pretest/prebuild/predev:cdn (UI#91). Sin él, en un árbol limpio build:cdn instalaba SÓLO platforms/angular (1 min 49 s) y moría en build:vitals con «This is not the tsc command you are looking for», que no dice qué teclear": "",
+    "prebuild:cdn": "node tools/setup.mjs --verificar",
     "build:cdn": "node tools/build-cdn.mjs",
     "dev": "npm run --prefix platforms/angular dev",
     "// ─── TEST / LINT ───────────────────────────────────────────────────────": "",

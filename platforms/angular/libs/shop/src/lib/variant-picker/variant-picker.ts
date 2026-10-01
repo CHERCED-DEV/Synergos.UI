@@ -116,10 +116,10 @@ export class VariantPickerComponent {
   );
 
   readonly selectLabel = computed(
-    () => this.labelInput() ?? this.config()?.label ?? this.translations()['Shop.Product.SelectVariant'] ?? 'Select an option',
+    () => this.labelInput() ?? this.config()?.label ?? this.translations()['Shop.Product.SelectVariant'] ?? 'Elige una opción',
   );
   readonly outOfStockLabel = computed(
-    () => this.translations()['Shop.Product.OutOfStock'] ?? 'Out of stock',
+    () => this.translations()['Shop.Product.OutOfStock'] ?? 'Agotado',
   );
 
   // Convert variants to SelectOption[] for syn-select

@@ -14,10 +14,12 @@ import {
   type SessionItem,
 } from '@synergos/transaction-engine';
 import {
+  AVISOS_DE_UN_COBRO,
   CheckoutWizardComponent,
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
 } from './checkout-wizard';
+import { asentar } from '../../../../tools/asentar';
 
 const FLOW = 'spec-flow';
 
@@ -75,6 +77,9 @@ const THREE_STEPS: CheckoutWizardConfig = {
     { id: 'pago', label: 'Pago' },
     { id: 'revisar', label: 'Revisar' },
   ],
+  // Obligatorios desde UI#91: el asistente no sabe si el `pay` de un dominio cobra. El de
+  // este spec cobra, así que usa los avisos de un cobro — y con eso los prueba.
+  ...AVISOS_DE_UN_COBRO,
 };
 
 @Component({
@@ -118,10 +123,7 @@ function cartItem(id: string, amount = 10_000): SessionItem {
 }
 
 async function flush(times = 10): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe(CheckoutWizardComponent.name, () => {
@@ -228,6 +230,7 @@ describe(CheckoutWizardComponent.name, () => {
 
     // Pago OFF — only datos → revisar remain (pasos apagables por config).
     host.config.set({
+      ...THREE_STEPS,
       steps: [
         { id: 'datos', label: 'Datos' },
         { id: 'revisar', label: 'Revisar' },

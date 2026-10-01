@@ -178,3 +178,91 @@ describe('CartSummaryComponent como custom element — el lazo del reflejo', () 
     expect((el.querySelector('aside.cart-drawer') as HTMLElement).getAttribute('aria-hidden')).toBe('false');
   });
 });
+
+describe('CartSummaryComponent — lo que dice el cajón y adónde manda (UI#91 · CMS#188)', () => {
+  let fixture: ComponentFixture<CartSummaryComponent>;
+  const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+
+  /** El carrito de servidor de mentira: una línea, con la forma que devuelve el borde. */
+  const LINEA = {
+    sku: 'SKU-1',
+    variantSku: null,
+    quantity: 1,
+    productName: 'Silla Nórdica',
+    unitPrice: 49000,
+    lineTotal: 49000,
+    imageUrl: null,
+    productUrl: null,
+  };
+
+  async function montarConUnaLinea(config?: Record<string, unknown>): Promise<void> {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ lines: [LINEA], subtotal: 49000, currency: 'COP', itemCount: 1 }),
+        } as Response),
+      ),
+    );
+    await TestBed.configureTestingModule({
+      imports: [CartSummaryComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(CartSummaryComponent);
+    if (config) fixture.componentRef.setInput('config', config);
+    document.body.appendChild(host());
+    fixture.autoDetectChanges();
+    await cartStore.add({ productId: 'SKU-1', sku: 'SKU-1', name: 'Silla Nórdica', price: 49000, currency: 'COP', quantity: 1 });
+    cartStore.openDrawer();
+    await fixture.whenStable();
+    await esperar(0);
+    await fixture.whenStable();
+  }
+
+  /** Todo lo que el cajón dice: el texto y los nombres accesibles. */
+  function loQueDice(): string {
+    const nombres = Array.from(host().querySelectorAll('[aria-label], [placeholder]')).flatMap((n) => [
+      n.getAttribute('aria-label') ?? '',
+      n.getAttribute('placeholder') ?? '',
+    ]);
+    return [host().textContent ?? '', ...nombres].join(' | ');
+  }
+
+  afterEach(() => {
+    cartStore.closeDrawer();
+    host().remove();
+    vi.unstubAllGlobals();
+  });
+
+  it('habla en es-CO: ningún texto por defecto en inglés, ni del cajón ni de la línea (regla 44)', async () => {
+    await montarConUnaLinea();
+    const dice = loQueDice();
+    // Los textos por defecto de antes, del cajón y de las piezas de libs/shop que monta.
+    for (const ingles of [
+      'Shopping cart', 'Your cart is empty', 'Proceed to checkout', 'Continue shopping', 'Close cart',
+      'Discount code', 'Cart items', 'Cart totals', 'item(s)', 'Remove', 'Quantity',
+      'Decrease quantity', 'Increase quantity',
+    ]) {
+      expect(dice, `dice «${ingles}»`).not.toContain(ingles);
+    }
+    expect(dice).toContain('Tu carrito');
+    expect(dice).toContain('Cerrar el carrito');
+    expect(dice).toContain('1 producto');
+    expect(dice).toContain('Quitar Silla Nórdica');
+  });
+
+  it('sin checkoutEndpoint del CMS NO promete una ruta: no hay enlace a «/checkout», que no existe (CMS#188)', async () => {
+    await montarConUnaLinea();
+    expect(host().querySelector('a.cart-drawer__checkout-btn')).toBeNull();
+    expect(host().querySelector('a[href="/checkout"]')).toBeNull();
+  });
+
+  it('con el checkoutEndpoint que compuso el editor, el botón va ahí', async () => {
+    await montarConUnaLinea({ checkoutEndpoint: '/tienda/pagar' });
+    const pagar = host().querySelector<HTMLAnchorElement>('a.cart-drawer__checkout-btn');
+    expect(pagar?.getAttribute('href')).toBe('/tienda/pagar');
+    expect(pagar?.textContent?.trim()).toBe('Ir a pagar');
+  });
+});

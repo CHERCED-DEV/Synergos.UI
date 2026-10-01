@@ -12,16 +12,14 @@ import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-a
 import { BlogsElementComponent } from './blogs';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from './blogs.model';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 const AUTHOR: Author = {
@@ -205,6 +203,31 @@ describe('BlogsElementComponent', () => {
   }
 
   // ── empty: pristine shell, feed view, mock fallback flagged ──────────────────
+  // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
+  //
+  // El router armaba la base con el scope CRUDO y la comparaba con `location.hash`, que
+  // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
+  // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
+  // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
+    fixture.detectChanges();
+
+    // El enlace que alguien pega o teclea: el navegador lo guarda CODIFICADO.
+    window.location.hash = '#/Mi sitio: ñ/explorar';
+    expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/explorar');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('search');
+
+    // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
+    component.go('notifications');
+    await flushMicrotasks();
+    expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/notificaciones');
+  });
+
   it('lands on the feed with a populated demo timeline and flags degradation (empty case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();

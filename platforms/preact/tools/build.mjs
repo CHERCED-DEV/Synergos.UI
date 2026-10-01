@@ -34,7 +34,7 @@
  */
 
 import { build } from 'esbuild';
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, watch } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as sass from 'sass';
@@ -45,6 +45,7 @@ const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const BASE = path.resolve(AQUI, '..');
 const REPO = path.resolve(BASE, '../..');
 const DIST = path.join(BASE, 'dist');
+const WATCH = process.argv.includes('--watch');
 
 /** La entrada de un elemento, tal como la declara `PLATFORMS[].entrada` (#64). */
 const ENTRADA = 'src/main.tsx';
@@ -161,10 +162,56 @@ async function principal() {
 
   const s = ((Date.now() - inicio) / 1000).toFixed(1);
   console.log(`[build] ${s}s  dist listo → platforms/preact/dist/<nombre>/browser/main.js`);
-  console.log(`[build] ${s}s  hecho`);
+  // Quien lanza este build por IPC (`dev:cdn`) construye el runtime con lo que acaba de
+  // quedar en `dist/libs/`: necesita saber CUÁNDO terminó (#88). Es el mismo aviso que
+  // da el build de Angular; sin canal, `process.send` no existe y esto no hace nada.
+  process.send?.({ evento: 'dist-listo' });
+  if (!WATCH) console.log(`[build] ${s}s  hecho`);
 }
 
-principal().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+/**
+ * `--watch` (UI#91). `dev:cdn --framework=preact` lanza este build con `--watch` y no lo
+ * tenía: se construía una vez y el banco no se enteraba de ningún cambio. Mira lo mismo
+ * que el de Angular —`apps/`, `libs/` y `vitals/`— y rehace todo, porque esbuild tarda
+ * 0,4 s y un incremental sería una pieza más que mantener.
+ */
+function mirar() {
+  let temporizador = null;
+  let corriendo = false;
+  let pendiente = false;
+  const reconstruir = () => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(async () => {
+      if (corriendo) {
+        pendiente = true;
+        return;
+      }
+      corriendo = true;
+      try {
+        await principal();
+        console.log('[build] ✓ al día\n');
+      } catch (e) {
+        console.error(`[build] ✗ ${e.message}\n`);
+      } finally {
+        corriendo = false;
+        if (pendiente) {
+          pendiente = false;
+          reconstruir();
+        }
+      }
+    }, 150);
+  };
+  for (const dir of [path.join(BASE, 'apps'), path.join(BASE, 'libs'), path.join(REPO, 'vitals')]) {
+    watch(dir, { recursive: true }, reconstruir);
+  }
+  console.log('[build] mirando apps/, libs/ y vitals/ — Ctrl-C para salir');
+}
+
+principal()
+  .then(() => {
+    if (WATCH) mirar();
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

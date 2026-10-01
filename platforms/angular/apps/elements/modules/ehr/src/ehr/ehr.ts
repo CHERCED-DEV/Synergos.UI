@@ -79,6 +79,7 @@ import {
   type SoapNote,
   type Vitals,
 } from './ehr.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEhr</c>.
@@ -128,6 +129,10 @@ interface EhrBus extends Record<string, unknown> {
 const DEFAULT_API_BASE = '/api/ehr';
 const DEFAULT_CLINIC = 'Clínica Synergos';
 const DEFAULT_SCOPE = 'ehr';
+
+/** El fallo del asistente de citas, con o sin copago: la cita NO quedó (UI#91). */
+const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
+
 const DEFAULT_ROLE: EhrRole = 'patient';
 const DEFAULT_PATIENT = 'P-1';
 const DEFAULT_COPAY_MINOR = 0;
@@ -786,6 +791,12 @@ export class EhrElementComponent {
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
       totalLabel: this.copayMinor() > 0 ? 'Copago' : 'Sin costo',
+      // La cita NO quedó agendada, y lo dice el ASISTENTE, una vez (UI#91). Lo elegido sigue
+      // en el carrito: reintentar es un clic. El `APPT-…` del `pay` es local y no mueve
+      // dinero; medido, con el texto por defecto esta cita decía «Ya recibimos tu pago
+      // (referencia APPT-…)», y la ficha repetía el fallo en un segundo `role="alert"`.
+      payFailedMessage: CITA_NO_AGENDADA,
+      confirmFailedMessage: CITA_NO_AGENDADA,
     };
   });
 
@@ -1004,7 +1015,7 @@ export class EhrElementComponent {
   }
 
   private routeHash(view: EhrView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'home':
         return base;
@@ -1044,7 +1055,7 @@ export class EhrElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1055,15 +1066,14 @@ export class EhrElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     const map: Readonly<Record<string, EhrView>> = {
       '': 'home',
@@ -1082,7 +1092,7 @@ export class EhrElementComponent {
     };
     if (head === 'chart') {
       this.ensureClinicianRole();
-      this.applyRoute('chart', decodeURIComponent(tail));
+      this.applyRoute('chart', tail);
       return;
     }
     const target = map[head];
@@ -1563,18 +1573,6 @@ export class EhrElementComponent {
     this.#bus.publish('appointmentbooked', payload);
     this.visitsSection.set('upcoming');
     this.navigate('visits');
-  }
-
-  /**
-   * **La cita NO quedó agendada, y el mensaje lo dice con todas las letras.** Lo que
-   * el paciente eligió sigue en el carrito: el asistente se queda donde está y
-   * reintentar es un clic, sin volver a escribir nada.
-   */
-  onScheduleFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set(
-      'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.',
-    );
   }
 
   onScheduleExit(): void {

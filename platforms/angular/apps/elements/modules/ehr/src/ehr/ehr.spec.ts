@@ -7,6 +7,7 @@ import { EhrApiClient, EhrUnavailableError, EhrWriteFailedError } from './ehr-ap
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
 import { EhrElementComponent } from './ehr';
 import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.server.fake';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * Specs del SPA clínico de dos portales — reescritos por
@@ -27,10 +28,7 @@ import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.s
  * microtask drains to let each fetch().then() hop resolve.
  */
 async function flushMicrotasks(times = 12): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('EhrElementComponent (v2 dual portal)', () => {
@@ -71,6 +69,30 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // ══ CAMINO NO DEGRADADO (el que antes no existía) ═══════════════════════════
 
   // ── empty: pristine patient home, no chart open ──────────────────────────────
+  // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
+  //
+  // El router armaba la base con el scope CRUDO y la comparaba con `location.hash`, que
+  // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
+  // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
+  // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
+    await createComponent();
+    fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
+    fixture.detectChanges();
+
+    // El enlace que alguien pega o teclea: el navegador lo guarda CODIFICADO.
+    window.location.hash = '#/Mi sitio: ñ/resultados';
+    expect(window.location.hash).toBe('#/Mi%20sitio:%20%C3%B1/resultados');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('results');
+
+    // Y lo que la vertical escribe al navegar es suyo: codificado y reconocible.
+    component.navigate('medications');
+    await flushMicrotasks();
+    expect(window.location.hash).toBe('#/Mi%20sitio%3A%20%C3%B1/medicamentos');
+  });
+
   it('abre el home del paciente con los datos del SERVIDOR (empty/initial case)', async () => {
     await createComponent();
 
@@ -270,7 +292,14 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.myAppointments().length).toBe(before);
     expect(component.confirmedAppointmentRef()).toBe('');
     expect(component.view()).toBe('schedule');
-    expect(component.errorMessage()).toContain('NO quedó apartado');
+    // UNA alerta, y dice que la cita no quedó. Medido antes de UI#91: dos —la de la ficha y
+    // la del asistente—, y la del asistente decía «Ya recibimos tu pago (referencia
+    // APPT-…)», un pago que no existió con una referencia acuñada en el navegador.
+    fixture.detectChanges();
+    const alertas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]'))
+      .map((alerta) => (alerta.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+    expect(alertas).toEqual(['No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.']);
     // Y lo elegido sigue en el asistente: reintentar no obliga a volver a empezar.
     expect(component.scheduleTime()).toBe('10:00');
   });

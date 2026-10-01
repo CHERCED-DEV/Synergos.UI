@@ -603,7 +603,6 @@
           [validity]="subscribeValidity()"
           [instrument]="subscribeInstrument()"
           (completed)="onSubscribeCompleted($event)"
-          (failed)="onSubscribeFailed($event)"
           (exit)="onSubscribeExit()"
         ></syn-checkout-wizard>
       }

@@ -1152,7 +1152,9 @@
   display: block;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--syn-color-state-warning-surface, #8a6a12);
+  /* Tinta de TEXTO de advertencia, no el lavado (UI#91): `state-warning-surface` es un rgba al
+     12 % y como tinta daba 1,13-1,33:1 en los siete temas; `state-warning-text`, de 5,47 a 14,27. */
+  color: var(--syn-color-state-warning-text, #8a6a12);
 }
 
 /* El acuse es el dato que sostiene el plazo: se lee antes que el cuerpo. */
@@ -1173,6 +1175,8 @@
   margin: 0;
   padding: 0.75rem 0.9rem;
   border-radius: 0.4rem;
-  color: var(--syn-color-state-danger-surface, #a8481a);
+  /* Tinta de TEXTO de peligro, no el lavado (UI#91): 1,13-1,19:1 en los siete temas con
+     `state-danger-surface`; con `state-danger-text`, de 5,47 a 10,94, y 4,62 en dev. */
+  color: var(--syn-color-state-danger-text, #a8481a);
   background: var(--syn-color-state-danger-soft, #f3e2d8);
 }

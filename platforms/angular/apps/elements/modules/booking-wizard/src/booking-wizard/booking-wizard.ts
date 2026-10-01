@@ -270,6 +270,11 @@ export class BookingWizardElementComponent {
     nextLabel: 'Continuar',
     submitLabel: 'Confirmar y pagar',
     processingLabel: 'Procesando…',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91). Acá el `pay` APARTA la habitación y el
+    // cobro es el `confirm`, así que el texto por defecto decía «Ya recibimos tu pago» justo
+    // cuando lo que había fallado era el pago.
+    payFailedMessage: 'Esa habitación ya no está disponible. Elige otra de las opciones.',
+    confirmFailedMessage: 'No pudimos completar el pago de tu reserva. Revisa tus datos e intenta de nuevo.',
   }));
 
   /**
@@ -432,23 +437,24 @@ export class BookingWizardElementComponent {
    * pago es reintentar contra algo que no va a existir y hay que volver a elegir;
    * si la tarjeta no pasó, reintentar ahí mismo es lo correcto. Antes las dos
    * caían al mismo `catch` con el mismo texto y en el mismo sitio.
+   *
+   * **El aviso lo pone el asistente** (`payFailedMessage` = no se pudo apartar,
+   * `confirmFailedMessage` = no se pudo cobrar; ver `wizardConfig`). Esta ficha lo
+   * repetía en su banner y el lector de pantalla oía dos `role="alert"` (UI#91). Lo que
+   * queda acá es lo que el asistente no puede hacer: soltar la habitación que ya no está.
    */
   onFailed(reason: string): void {
-    if (reason === BOOKING_HOLD_FAILED) {
-      this.errorMessage.set(
-        'Esa habitación ya no está disponible. Elige otra de las opciones.',
-      );
-      // La selección muerta se quita: dejarla deja el botón de confirmar vivo
-      // sobre algo que el motor ya rechazó.
-      const item = this.selectedItem();
-      if (item) {
-        this.#store.removeItem(item.id);
-      }
-      this.offers.set([]);
-      void this.refreshAvailability();
+    if (reason !== BOOKING_HOLD_FAILED) {
       return;
     }
-    this.errorMessage.set('No pudimos completar el pago. Revisa tus datos e intenta de nuevo.');
+    // La selección muerta se quita: dejarla deja el botón de confirmar vivo
+    // sobre algo que el motor ya rechazó.
+    const item = this.selectedItem();
+    if (item) {
+      this.#store.removeItem(item.id);
+    }
+    this.offers.set([]);
+    void this.refreshAvailability();
   }
 
   /** Vuelve al carrito/búsqueda desde el primer paso. */

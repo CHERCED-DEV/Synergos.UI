@@ -56,6 +56,7 @@ import {
   TrackingTimelineComponent,
   type AccountShellConfig,
   type CheckoutWizardConfig,
+  AVISOS_DE_UN_COBRO,
   type CheckoutWizardResult,
   type DetailMedia,
   type DetailSpec,
@@ -105,6 +106,7 @@ import {
   type StorefrontView,
   type WishlistEntry,
 } from './shop.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynStorefront</c>.
@@ -684,6 +686,9 @@ export class StorefrontElementComponent {
     ],
     summaryHeading: 'Tu pedido',
     submitLabel: 'Pagar y confirmar',
+    // El fallo lo dice el ASISTENTE, una vez (UI#91): el `pay` abre el cobro, así que el
+    // aviso de después nombra su referencia.
+    ...AVISOS_DE_UN_COBRO,
     processingLabel: 'Procesando…',
     nextLabel: 'Continuar',
     backLabel: 'Atrás',
@@ -857,7 +862,7 @@ export class StorefrontElementComponent {
   }
 
   private routeHash(view: StorefrontView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'home':
         return base;
@@ -879,7 +884,7 @@ export class StorefrontElementComponent {
       return;
     }
     const hash = this.routeHash(view, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -890,18 +895,14 @@ export class StorefrontElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash
-      .slice(base.length)
-      .split('/')
-      .filter((segment) => segment !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
@@ -911,7 +912,7 @@ export class StorefrontElementComponent {
         this.applyRoute('plp', '');
         return;
       case 'p':
-        this.applyRoute('pdp', decodeURIComponent(tail));
+        this.applyRoute('pdp', tail);
         return;
       case 'carrito':
         this.applyRoute('cart', '');
@@ -1846,11 +1847,6 @@ export class StorefrontElementComponent {
     this.orderconfirmed.emit(payload);
     this.#bus.publish('orderconfirmed', payload);
     this.emitCartUpdate();
-  }
-
-  onCheckoutFailed(reason: string): void {
-    void reason;
-    this.errorMessage.set('No pudimos completar el pago. Intenta de nuevo.');
   }
 
   // ─── Account (SH-4 wiring) ───────────────────────────────────────────────────

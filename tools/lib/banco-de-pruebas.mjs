@@ -92,6 +92,10 @@ const TIPOS_ATRIBUIBLES = new Set(['string', 'number', 'boolean']);
  * apiBase"` no llegaba ni a aplicarse (ver `atributoDeInput` abajo); aplicado, no
  * es una URL y `fetch` lo rechaza.
  *
+ * Desde UI#91 las ocho verticales leen sus rutas con `segmentosDeRuta` y ese hash ya
+ * no las rompe. `scope` sigue sin muestra porque es una REFERENCIA —el siteRoot—, no
+ * un texto que se pinte.
+ *
  * Es un censo por NOMBRE porque el vocabulario es el mismo en todas las verticales
  * (`apiBase` en diez, `scope` en ocho, `currency` en nueve). Cada entrada dice por
  * qué no se inventa; el spec exige que cada una exista en `element-inputs.json` y
@@ -102,7 +106,7 @@ export const ENTRADAS_DE_CABLEADO = {
   apiBase:
     'la base del borde. Sin atributo, el elemento usa la suya, RELATIVA a la página —o sea al propio banco—: pide ahí, recibe 404 y degrada con su cartel',
   scope:
-    'el siteRoot, primer segmento de las rutas por hash: un texto con espacios llega codificado y el router deja de reconocer sus rutas',
+    'el siteRoot, primer segmento de las rutas por hash. Hasta UI#91 uno con espacios rompía los routers de las ocho verticales; hoy no, pero inventarlo pone un siteRoot que no existe en cada enlace que el banco enseña',
   currency: 'un código ISO 4217 que va a Intl.NumberFormat',
   role: 'el vocabulario cerrado de roles de cada vertical (alumno/instructor, paciente/médico, ciudadano/funcionario…)',
   view: 'el nombre de la vista inicial de blogs, de un vocabulario cerrado',
@@ -119,6 +123,34 @@ export const ENTRADAS_DE_CABLEADO = {
   // No es de una vertical, y se midió igual: media-explorer filtraba por la categoría
   // «muestra: defaultCategory», que ningún item tiene, y se quedaba sin un solo video.
   defaultCategory: 'una de las categorías del propio contenido: una inventada filtra todo y deja la lista vacía',
+
+  // ── Los vocabularios cerrados de las piezas que NO son verticales (UI#91) ──────────
+  // Medido sobre element-inputs.json: 25 entradas de 12 nombres seguían recibiendo
+  // «muestra: X» —`position` en fab, scroll-top y toast-center; `placement` en popover y
+  // rich-tooltip; `orientation`, `shape`, `style`, `variantKey`…—. Un valor fuera del
+  // vocabulario no es una muestra: el elemento lo descarta y cae a su valor por defecto, o lo
+  // pega en una clase que no existe. `theme`, `variant`, `tone`, `alignment`… hoy declaran su
+  // valor por defecto y ése va; están en el censo para que una entrada nueva sin él tampoco
+  // reciba un texto inventado.
+  theme: 'el tema de la pieza, de un vocabulario cerrado (light, dark…); el de verdad lo pone el siteRoot',
+  variant: 'la variante de presentación, de un vocabulario cerrado de cada pieza',
+  variantKey: 'la variante de presentación con el nombre del CMS, del mismo vocabulario cerrado',
+  tone: 'el tono semántico, de un vocabulario cerrado (neutral, success, warning, danger, info)',
+  size: 'la escala de la pieza (sm, md, lg…) o su medida en píxeles: un texto no es ninguna de las dos',
+  alignment: 'la alineación, de un vocabulario cerrado (left, center, right…)',
+  orientation: 'horizontal o vertical',
+  position: 'la esquina o el borde donde se fija la pieza, de un vocabulario cerrado',
+  placement: 'el lado donde se abre la capa (top, bottom, left, right…)',
+  shape: 'la forma, de un vocabulario cerrado (circle, square, text…)',
+  style: 'el estilo de la pieza, de un vocabulario cerrado de cada una',
+  density: 'la densidad del dibujo, de un vocabulario cerrado',
+  direction: 'la dirección del grupo, fila o columna',
+  headingLevel: 'el nivel del encabezado, de h1 a h6',
+  badgeType: 'el tipo de la insignia (info, warning, success)',
+  type: 'el tipo del aviso (info, success, warning, error)',
+  status: 'el estado de presencia (online, offline, busy, away)',
+  trend: 'la dirección de la tendencia (up, down, neutral)',
+  color: 'un color CSS: un texto inventado es un valor inválido que el navegador descarta',
 };
 
 /**
@@ -160,9 +192,10 @@ export function valorDeMuestra(input) {
  * **El nombre del ATRIBUTO no es el del input, y lo decide la plataforma** (#88).
  * `@angular/elements` observa `api-base` para el input `apiBase`; el banco escribía
  * `apiBase="…"`, que el HTML guarda como `apibase`, y el elemento no lo leía nunca:
- * medido con el badge, su `ariaLabel` de muestra no llegaba. Preact, en cambio,
- * lee con `getAttribute(nombre)`, que no distingue mayúsculas. Sin default: una
- * plataforma que no declara su convención no tiene banco.
+ * medido con el badge, su `ariaLabel` de muestra no llegaba. Preact decía leer «con
+ * `getAttribute(nombre)`, que no distingue mayúsculas», y eso sólo valía al conectar:
+ * no observaba ningún nombre con mayúscula. Desde UI#91 las dos observan en dash-case.
+ * Sin default: una plataforma que no declara su convención no tiene banco.
  *
  * @param {Array} inputs
  * @param {{ atributoDeInput: (nombre: string) => string }} plataforma

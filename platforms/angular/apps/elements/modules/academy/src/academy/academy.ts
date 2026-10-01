@@ -102,6 +102,7 @@ import {
   type LessonQuestion,
   type ProgressUpdate,
 } from './academy.model';
+import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynAcademy</c>.
@@ -601,10 +602,12 @@ export class AcademyElementComponent {
     totalLabel: 'Total',
     // Lo tecleado se queda donde está y el mensaje dice qué quedó del otro lado
     // (CMS#117). Antes el asistente completaba igual con una matrícula fabricada.
+    // Lo dice el ASISTENTE y sólo él: la ficha lo repetía en su banner, y el lector de
+    // pantalla oía dos `role="alert"` con dos textos distintos (UI#91).
     payFailedMessage:
       'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
     confirmFailedMessage:
-      'Ya recibimos tu pago pero la matrícula todavía no quedó activa. ' +
+      'Ya recibimos tu pago (referencia {referencia}) pero la matrícula todavía no quedó activa. ' +
       'Vuelve a pulsar «Pagar e inscribirme»: no se te cobrará de nuevo.',
   }));
 
@@ -1027,7 +1030,7 @@ export class AcademyElementComponent {
   }
 
   private routeHash(view: AcademyView, param: string): string {
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     switch (view) {
       case 'catalog':
         return base;
@@ -1052,12 +1055,12 @@ export class AcademyElementComponent {
     if (typeof window === 'undefined') {
       return;
     }
-    const base = `#/${this.scope()}`;
+    const base = baseDeRuta(this.scope());
     const hash =
       view === 'instructor'
         ? `${base}/instructor${param ? `/${param}` : ''}`
         : this.routeHash(view as AcademyView, param);
-    if (window.location.hash !== hash) {
+    if (!mismaRuta(window.location.hash, hash)) {
       this.#suppressedHash = hash;
       window.location.hash = hash;
     }
@@ -1068,15 +1071,14 @@ export class AcademyElementComponent {
       return;
     }
     const hash = window.location.hash;
-    if (hash === this.#suppressedHash) {
+    if (mismaRuta(hash, this.#suppressedHash)) {
       this.#suppressedHash = '';
       return;
     }
-    const base = `#/${this.scope()}`;
-    if (hash !== base && !hash.startsWith(`${base}/`)) {
+    const segments = segmentosDeRuta(hash, this.scope());
+    if (!segments) {
       return;
     }
-    const segments = hash.slice(base.length).split('/').filter((s) => s !== '');
     const [head = '', tail = ''] = segments;
     switch (head) {
       case '':
@@ -1085,7 +1087,7 @@ export class AcademyElementComponent {
         return;
       case 'curso':
         this.role.set('student');
-        this.applyRoute('course', decodeURIComponent(tail));
+        this.applyRoute('course', tail);
         return;
       case 'aula':
         this.role.set('student');
@@ -1294,20 +1296,6 @@ export class AcademyElementComponent {
       (typeof detail['enrollmentId'] === 'string' ? detail['enrollmentId'] : '') || result.reference;
     const courseId = this.detail()?.course.id ?? this.#store.items()[0]?.productRef ?? '';
     this.finishEnrollment(courseId, enrollmentId);
-  }
-
-  /**
-   * El asistente no pudo cerrar la ronda. **El banner tiene que distinguir las dos
-   * mitades** (CMS#117): decirle «intenta de nuevo» a secas a quien ya pagó es
-   * exactamente lo que le invita a pagar por segunda vez. El detalle, con la
-   * referencia del cobro, lo enseña el propio asistente junto al botón.
-   */
-  onEnrollFailed(reason: string): void {
-    this.errorMessage.set(
-      reason.startsWith('confirm-')
-        ? 'Tu pago quedó registrado, pero la matrícula todavía no. Vuelve a confirmar — no se cobra de nuevo.'
-        : 'No pudimos abrir tu matrícula, así que no se te ha cobrado nada. Intenta de nuevo.',
-    );
   }
 
   /** Free path: run pay+confirm directly (no wizard). */

@@ -87,6 +87,7 @@ export {
 
 // ─── SH-3 Checkout wizard ────────────────────────────────────────────────────
 export {
+  AVISOS_DE_UN_COBRO,
   CheckoutWizardComponent,
   type CheckoutStepContext,
   type CheckoutWizardConfig,
