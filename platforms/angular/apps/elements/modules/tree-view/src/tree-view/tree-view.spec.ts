@@ -126,3 +126,47 @@ describe('TreeViewElementComponent', () => {
     expect(once.length).toBe(2);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('tree-view — microcopia del diccionario (ADR 0136, sección TreeView)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TreeViewElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el botón de cada rama dice la acción de la clave, con el nombre del nodo como marcador', async () => {
+    publicar({ 'TreeView.Collapse': 'Collapse {label}', 'TreeView.Expand': 'Expand {label}' });
+    const fixture = TestBed.createComponent(TreeViewElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(TREE_VIEW_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    const botones = Array.from(raiz.querySelectorAll('.tree-view__toggle[aria-label]'));
+    // expandAll viene encendido en el ejemplo: las ramas están abiertas y el botón las contrae.
+    expect(botones.map((b) => b.getAttribute('aria-label'))).toEqual(['Collapse Productos', 'Collapse Hogar']);
+    // El nombre del árbol es contenido del editor: el diccionario no lo pisa.
+    expect(raiz.querySelector('[role="tree"]')?.getAttribute('aria-label')).toBe(TREE_VIEW_SYNHOST.ejemplo.label);
+  });
+
+  it('sin árbol, el estado vacío es TreeView.Empty', async () => {
+    publicar({ 'TreeView.Empty': 'No items to show.' });
+    const fixture = TestBed.createComponent(TreeViewElementComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.componentInstance.emptyLabel()).toBe('No items to show.');
+    // Lo que la página no publica sale por el respaldo es-CO.
+    expect(fixture.componentInstance.label()).toBe('Árbol de navegación');
+  });
+});

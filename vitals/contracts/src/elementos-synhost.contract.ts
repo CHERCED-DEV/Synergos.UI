@@ -488,7 +488,7 @@ export interface TourGuideProps {
   readonly autoStart?: boolean;
 }
 
-/** <synergos-tree-view> · pieza */
+/** <synergos-tree-view> · pieza · diccionario: TreeView */
 export interface TreeViewProps {
   /** contenido */
   readonly tree?: readonly TreeViewNode[];
@@ -1261,8 +1261,8 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   nombre: "tree-view",
   tipo: "pieza",
   record: "TreeViewProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["TreeView"],
+  claves: ["TreeView.Aria","TreeView.Collapse","TreeView.Empty","TreeView.Expand"],
   campos: ["tree","expandAll","label"],
   listas: {"tree":["label","children"]},
   ejemplo: {

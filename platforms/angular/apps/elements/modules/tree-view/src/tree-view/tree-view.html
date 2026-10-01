@@ -27,7 +27,7 @@
                 class="tree-view__toggle"
                 [class.tree-view__toggle--open]="isExpanded(node)"
                 tabindex="-1"
-                [attr.aria-label]="(isExpanded(node) ? 'Contraer ' : 'Expandir ') + node.label"
+                [attr.aria-label]="toggleLabel(node)"
                 (click)="toggle(node); $event.stopPropagation()"
               >
                 <svg class="tree-view__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
