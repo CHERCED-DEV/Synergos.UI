@@ -296,7 +296,7 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
-/** <synergos-fab> · pieza */
+/** <synergos-fab> · pieza · diccionario: Fab */
 export interface FabProps {
   /** decision */
   readonly iconKey?: string;
@@ -865,8 +865,8 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   nombre: "fab",
   tipo: "pieza",
   record: "FabProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Fab"],
+  claves: ["Fab.Aria"],
   campos: ["iconKey","actionLink","target","position","label"],
   listas: {},
   ejemplo: {
