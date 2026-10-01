@@ -135,7 +135,7 @@ export function sanitizeKpiCardConfig(value: Partial<KpiCardProps>): Partial<Kpi
     label: coerceTrimmedStringInput(value.label),
     value: coerceTrimmedStringInput(value.value),
     deltaLabel: coerceTrimmedStringInput(value.deltaLabel),
-    trend: coerceTrimmedStringInput(value.trend),
+    trend: normalizeTrend(value.trend) ?? undefined,
     period: coerceTrimmedStringInput(value.period),
   });
 }

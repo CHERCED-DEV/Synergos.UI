@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import type { FabProps } from '@synergos/contracts';
 import {
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -67,7 +68,7 @@ export function sanitizeFabConfig(value: Partial<FabProps>): Partial<FabProps> {
     iconKey: coerceTrimmedStringInput(value.iconKey),
     actionLink: coerceTrimmedStringInput(value.actionLink),
     target: coerceTrimmedStringInput(value.target),
-    position: coerceTrimmedStringInput(value.position),
+    position: coerceStringEnumInput(value.position, VALID_POSITIONS),
     label: coerceTrimmedStringInput(value.label),
   });
 }

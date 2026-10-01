@@ -16,6 +16,24 @@ export interface EnvolturaSynHost {
 /** Las claves de la envoltura: viajan siempre y no las declara ningún record. */
 export const CLAVES_DE_ENVOLTURA_SYNHOST: readonly (keyof EnvolturaSynHost)[] = ["culture"];
 
+/** Un prevalor que el editor elige, y lo que de él llega al elemento DESPUÉS del resolver (`null`: nada). */
+export interface ValorDeSelectorSynHost {
+  readonly editor: string;
+  readonly viaja: string | null;
+}
+
+/**
+ * Un selector del ElementType (desplegable, radios, casillas) y dónde cae en el `config`:
+ * `'position'`, `'platforms[]'`, `'toasts[].variant'`; `null` si no llega al elemento (CMS#181).
+ */
+export interface SelectorSynHost {
+  readonly propiedad: string;
+  readonly dataType: string;
+  readonly multiple: boolean;
+  readonly campo: string | null;
+  readonly valores: readonly ValorDeSelectorSynHost[];
+}
+
 /** Un elemento con contrato: quién es, qué campos viajan y un `config` real de su vista. */
 export interface ElementoSynHost<T> {
   readonly nombre: string;
@@ -27,6 +45,8 @@ export interface ElementoSynHost<T> {
   readonly campos: readonly (keyof T & string)[];
   /** Por cada campo que es una lista de records, los campos de sus ítems. */
   readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;
+  /** Lo que el editor puede elegir en sus selectores, pasado por el resolver (CMS#181). */
+  readonly selectores: readonly SelectorSynHost[];
   readonly ejemplo: T & EnvolturaSynHost;
 }
 
@@ -514,6 +534,7 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
   claves: [],
   campos: ["items","allowMultiple"],
   listas: {"items":["title","body"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "items": [
@@ -538,6 +559,7 @@ export const APP_LAUNCHER_SYNHOST: ElementoSynHost<AppLauncherProps> = {
   claves: ["AppLauncher.Capabilities","AppLauncher.Count.Filtered","AppLauncher.Count.One","AppLauncher.Count.Other","AppLauncher.EmbedPreview","AppLauncher.Empty","AppLauncher.Filters.All","AppLauncher.Filters.Aria","AppLauncher.Filters.Capability","AppLauncher.Filters.Industry","AppLauncher.Filters.Persona","AppLauncher.Open","AppLauncher.Search.Label","AppLauncher.Search.Placeholder","AppLauncher.Status.Aria","AppLauncher.Status.Beta","AppLauncher.Status.Live","AppLauncher.Title","Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success"],
   campos: ["title","subtitle","apps"],
   listas: {"apps":["name","id","tagline","icon","status","industry","persona","capabilities","url","demoMode"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "title": "Explora las apps",
@@ -583,6 +605,7 @@ export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
   claves: [],
   campos: ["audioFile","trackTitle","artistName"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "audioFile": "/media/podcast/episodio-12.mp3",
@@ -599,6 +622,7 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
   claves: [],
   campos: ["src","alt"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "src": "/media/equipo/ana-gomez.jpg",
@@ -614,6 +638,7 @@ export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
   claves: [],
   campos: ["avatars","maxVisible","label"],
   listas: {"avatars":["name","src"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "avatars": [
@@ -642,6 +667,32 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
   claves: [],
   campos: ["badges","layout"],
   listas: {"badges":["label","tone"]},
+  selectores: [
+    {
+      "propiedad": "layout",
+      "dataType": "DTSelectDisplayLayout",
+      "multiple": false,
+      "campo": "layout",
+      "valores": [
+        {
+          "editor": "inline",
+          "viaja": "inline"
+        },
+        {
+          "editor": "stack",
+          "viaja": "stack"
+        },
+        {
+          "editor": "grid",
+          "viaja": "grid"
+        },
+        {
+          "editor": "cluster",
+          "viaja": "wrap"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "badges": [
@@ -666,6 +717,7 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
   claves: [],
   campos: ["items"],
   listas: {"items":["label","href"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "items": [
@@ -692,6 +744,7 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   claves: ["Slider.Aria","Slider.Current","Slider.GoToSlide","Slider.Next","Slider.Pager","Slider.Pause","Slider.Play","Slider.Previous","Slider.SlideOf"],
   campos: ["slides","autoplay","interval"],
   listas: {"slides":["src","alt","label"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "slides": [
@@ -719,6 +772,24 @@ export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
   claves: [],
   campos: ["title","orientation","data"],
   listas: {"data":["label","value"]},
+  selectores: [
+    {
+      "propiedad": "orientation",
+      "dataType": "DTSelectOrientation",
+      "multiple": false,
+      "campo": "orientation",
+      "valores": [
+        {
+          "editor": "horizontal",
+          "viaja": "horizontal"
+        },
+        {
+          "editor": "vertical",
+          "viaja": "vertical"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "title": "Afiliados nuevos por trimestre",
@@ -748,6 +819,7 @@ export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
   claves: [],
   campos: ["label","initialColor","palette"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "label": "Color de acento de tu tienda",
@@ -769,6 +841,32 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
   claves: [],
   campos: ["swatches","shape"],
   listas: {"swatches":["color","label"]},
+  selectores: [
+    {
+      "propiedad": "shape",
+      "dataType": "DTSelectSwatchShape",
+      "multiple": false,
+      "campo": "shape",
+      "valores": [
+        {
+          "editor": "swatch",
+          "viaja": "swatch"
+        },
+        {
+          "editor": "chip",
+          "viaja": "chip"
+        },
+        {
+          "editor": "dot",
+          "viaja": "dot"
+        },
+        {
+          "editor": "circle",
+          "viaja": "circle"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "swatches": [
@@ -793,6 +891,7 @@ export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
   claves: [],
   campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "bannerText": "Usamos cookies propias y de terceros para medir el uso del sitio.",
@@ -812,6 +911,7 @@ export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
   claves: [],
   campos: ["targetDate"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "targetDate": "2030-12-31T23:59:59-05:00"
@@ -826,6 +926,28 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   claves: [],
   campos: ["targetDate","showLabels","style"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "style",
+      "dataType": "DTSelectCountdownStyle",
+      "multiple": false,
+      "campo": "style",
+      "valores": [
+        {
+          "editor": "digits",
+          "viaja": "plain"
+        },
+        {
+          "editor": "flip",
+          "viaja": "flip"
+        },
+        {
+          "editor": "circular",
+          "viaja": "circular"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "targetDate": "2030-12-31T23:59:59-05:00",
@@ -842,6 +964,7 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   claves: ["Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success","Dropdown.Filter","Dropdown.Search","Dropdown.Trigger"],
   campos: ["triggerLabel","options","selectedValue","searchable"],
   listas: {"options":["value","label","href"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "triggerLabel": "País",
@@ -869,6 +992,40 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   claves: [],
   campos: ["iconKey","actionLink","target","position","label"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "position",
+      "dataType": "DTSelectScreenPosition",
+      "multiple": false,
+      "campo": "position",
+      "valores": [
+        {
+          "editor": "top-left",
+          "viaja": "top-left"
+        },
+        {
+          "editor": "top-center",
+          "viaja": "top-center"
+        },
+        {
+          "editor": "top-right",
+          "viaja": "top-right"
+        },
+        {
+          "editor": "bottom-left",
+          "viaja": "bottom-left"
+        },
+        {
+          "editor": "bottom-center",
+          "viaja": "bottom-center"
+        },
+        {
+          "editor": "bottom-right",
+          "viaja": "bottom-right"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "iconKey": "whatsapp",
@@ -887,6 +1044,7 @@ export const HERO_BANNER_SYNHOST: ElementoSynHost<HeroBannerProps> = {
   claves: ["Synhost.Hero.Aria"],
   campos: ["title","subtitle","media","mediaAlt","ctaLabel","ctaLink"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "title": "Viví el Caribe colombiano",
@@ -906,6 +1064,7 @@ export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
   claves: [],
   campos: ["iconName","labelText"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "iconName": "check",
@@ -921,6 +1080,28 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   claves: ["Synhost.Kpi.Aria","Synhost.Kpi.NoData","Synhost.Kpi.Sparkline","Synhost.Kpi.Trend.Down","Synhost.Kpi.Trend.Flat","Synhost.Kpi.Trend.Up"],
   campos: ["label","value","trend","deltaLabel","period"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "kpiTrend",
+      "dataType": "DTSelectKpiTrend",
+      "multiple": false,
+      "campo": "trend",
+      "valores": [
+        {
+          "editor": "up",
+          "viaja": "up"
+        },
+        {
+          "editor": "down",
+          "viaja": "down"
+        },
+        {
+          "editor": "flat",
+          "viaja": "flat"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "label": "Ventas del mes",
@@ -939,6 +1120,7 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
   claves: [],
   campos: ["images","columns"],
   listas: {"images":["src","thumb","alt","caption"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "images": [
@@ -967,6 +1149,7 @@ export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
   claves: [],
   campos: ["centerLat","centerLng","zoomLevel","pins"],
   listas: {"pins":["lat","lng","label","description"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "centerLat": 4.711,
@@ -997,6 +1180,36 @@ export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps>
   claves: [],
   campos: ["toasts","durationMs"],
   listas: {"toasts":["message","variant"]},
+  selectores: [
+    {
+      "propiedad": "type",
+      "dataType": "DTSelectToastType",
+      "multiple": false,
+      "campo": "toasts[].variant",
+      "valores": [
+        {
+          "editor": "info",
+          "viaja": "info"
+        },
+        {
+          "editor": "success",
+          "viaja": "success"
+        },
+        {
+          "editor": "warning",
+          "viaja": "warning"
+        },
+        {
+          "editor": "error",
+          "viaja": "error"
+        },
+        {
+          "editor": "neutral",
+          "viaja": "neutral"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "toasts": [
@@ -1017,6 +1230,7 @@ export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
   claves: [],
   campos: ["value","max","label"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "value": 3,
@@ -1033,6 +1247,7 @@ export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
   claves: [],
   campos: ["label","min","max","step","high"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "label": "Precio por noche",
@@ -1051,6 +1266,7 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   claves: ["Rating.AlreadyRated","Rating.Average","Rating.SelectStars","Rating.Stars.Aria","Rating.Submit","Rating.Success"],
   campos: ["value","max","label"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "value": 4,
@@ -1067,6 +1283,48 @@ export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   claves: [],
   campos: ["triggerText","body","placement"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "placement",
+      "dataType": "DTSelectPlacement",
+      "multiple": false,
+      "campo": "placement",
+      "valores": [
+        {
+          "editor": "top",
+          "viaja": "top"
+        },
+        {
+          "editor": "top-start",
+          "viaja": "top"
+        },
+        {
+          "editor": "top-end",
+          "viaja": "top"
+        },
+        {
+          "editor": "bottom",
+          "viaja": "bottom"
+        },
+        {
+          "editor": "bottom-start",
+          "viaja": "bottom"
+        },
+        {
+          "editor": "bottom-end",
+          "viaja": "bottom"
+        },
+        {
+          "editor": "left",
+          "viaja": "left"
+        },
+        {
+          "editor": "right",
+          "viaja": "right"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "triggerText": "Cuota de manejo",
@@ -1083,6 +1341,40 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   claves: [],
   campos: ["scrollThreshold","position","label"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "position",
+      "dataType": "DTSelectScreenPosition",
+      "multiple": false,
+      "campo": "position",
+      "valores": [
+        {
+          "editor": "top-left",
+          "viaja": "top-left"
+        },
+        {
+          "editor": "top-center",
+          "viaja": "top-center"
+        },
+        {
+          "editor": "top-right",
+          "viaja": "top-right"
+        },
+        {
+          "editor": "bottom-left",
+          "viaja": "bottom-left"
+        },
+        {
+          "editor": "bottom-center",
+          "viaja": "bottom-center"
+        },
+        {
+          "editor": "bottom-right",
+          "viaja": "bottom-right"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "scrollThreshold": 400,
@@ -1099,6 +1391,7 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   claves: [],
   campos: ["label","options","maxSelections"],
   listas: {"options":["value","label"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "label": "Amenidades",
@@ -1128,6 +1421,52 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   claves: [],
   campos: ["platforms","shareLink","shareTitle"],
   listas: {},
+  selectores: [
+    {
+      "propiedad": "platforms",
+      "dataType": "DTSelectSharePlatform",
+      "multiple": true,
+      "campo": "platforms[]",
+      "valores": [
+        {
+          "editor": "facebook",
+          "viaja": "facebook"
+        },
+        {
+          "editor": "twitter",
+          "viaja": "x"
+        },
+        {
+          "editor": "linkedin",
+          "viaja": "linkedin"
+        },
+        {
+          "editor": "whatsapp",
+          "viaja": "whatsapp"
+        },
+        {
+          "editor": "telegram",
+          "viaja": "telegram"
+        },
+        {
+          "editor": "email",
+          "viaja": "email"
+        },
+        {
+          "editor": "copy",
+          "viaja": "copy"
+        },
+        {
+          "editor": "reddit",
+          "viaja": "reddit"
+        },
+        {
+          "editor": "pinterest",
+          "viaja": "pinterest"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "platforms": [
@@ -1148,6 +1487,7 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   claves: [],
   campos: ["steps","currentStep"],
   listas: {"steps":["title"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "steps": [
@@ -1173,6 +1513,7 @@ export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
   claves: [],
   campos: ["tabs","initialTab"],
   listas: {"tabs":["label","id","content"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "tabs": [
@@ -1199,6 +1540,7 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   claves: ["Tag.Remove"],
   campos: ["label","color"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "label": "Oferta",
@@ -1214,6 +1556,24 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   claves: [],
   campos: ["events"],
   listas: {"events":["date","title","body"]},
+  selectores: [
+    {
+      "propiedad": "orientation",
+      "dataType": "DTSelectOrientation",
+      "multiple": false,
+      "campo": null,
+      "valores": [
+        {
+          "editor": "horizontal",
+          "viaja": null
+        },
+        {
+          "editor": "vertical",
+          "viaja": null
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "events": [
@@ -1239,6 +1599,7 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   claves: [],
   campos: ["steps","autoStart"],
   listas: {"steps":["target","title","body"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "steps": [
@@ -1265,6 +1626,7 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   claves: [],
   campos: ["tree","expandAll","label"],
   listas: {"tree":["label","children"]},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "tree": [
@@ -1301,6 +1663,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
   claves: [],
   campos: ["videoFile","posterImage"],
   listas: {},
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "videoFile": "/media/propiedades/recorrido-casa-lago.mp4",
