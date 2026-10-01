@@ -386,7 +386,7 @@ export interface ProgressBarProps {
   readonly label?: string;
 }
 
-/** <synergos-range-slider> · pieza */
+/** <synergos-range-slider> · pieza · diccionario: RangeSlider */
 export interface RangeSliderProps {
   /** contenido */
   readonly label?: string;
@@ -1029,8 +1029,8 @@ export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
   nombre: "range-slider",
   tipo: "pieza",
   record: "RangeSliderProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["RangeSlider"],
+  claves: ["RangeSlider.Aria","RangeSlider.Max","RangeSlider.Min"],
   campos: ["label","min","max","step","high"],
   listas: {},
   ejemplo: {
