@@ -94,8 +94,8 @@ export class CartItemComponent {
 
   readonly translations = computed(() => this.config()?.translations ?? {});
 
-  readonly removeLabel = computed(() => this.translations()['Shop.Cart.Remove'] ?? 'Remove');
-  readonly qtyLabel = computed(() => this.translations()['Shop.Product.Quantity'] ?? 'Quantity');
+  readonly removeLabel = computed(() => this.translations()['Shop.Cart.Remove'] ?? 'Quitar');
+  readonly qtyLabel = computed(() => this.translations()['Shop.Product.Quantity'] ?? 'Cantidad');
 
   readonly hasImage = computed(() => !!this.item()?.image);
 

@@ -71,16 +71,16 @@ export class PriceDisplayComponent {
   readonly hasOriginal     = computed(() => !!this.basePrice() && this.showOriginalPrice());
   readonly hostClasses     = computed(() => `sg-price-display--${this.priceSize()} sg-price-display--${this.theme()}`);
   readonly displayLabel = computed(
-    () => this.translations()['Shop.Price.Display'] ?? 'Product price',
+    () => this.translations()['Shop.Price.Display'] ?? 'Precio del producto',
   );
   readonly originalLabel = computed(
-    () => this.translations()['Shop.Price.Original'] ?? 'Original price',
+    () => this.translations()['Shop.Price.Original'] ?? 'Precio anterior',
   );
   readonly discountLabel = computed(
-    () => this.translations()['Shop.Price.Discount'] ?? 'Discount',
+    () => this.translations()['Shop.Price.Discount'] ?? 'Descuento',
   );
   readonly currentLabel = computed(
-    () => this.translations()['Shop.Price.Current'] ?? 'Price',
+    () => this.translations()['Shop.Price.Current'] ?? 'Precio',
   );
 
   formatPrice(value: number | undefined): string {

@@ -2571,8 +2571,8 @@
       "name": "checkoutUrl",
       "type": "string",
       "required": false,
-      "default": "/checkout",
-      "description": "Checkout destination URL."
+      "default": "",
+      "description": "Adónde lleva «Ir a pagar». Sin ruta del editor no hay botón: no se promete una ruta que no existe (CMS#188)."
     },
     {
       "name": "checkoutEndpoint",

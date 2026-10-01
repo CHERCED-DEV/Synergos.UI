@@ -96,8 +96,13 @@ export class CartSummaryComponent {
   readonly title               = computed(() =>
     resolveConfigValue(this.titleInput() ?? this.summaryTitleInput(), this.config()?.title ?? this.config()?.summaryTitle, ''),
   );
+  /**
+   * Adónde lleva «Ir a pagar»: la ruta que compuso el editor (`checkoutEndpoint` en el CMS)
+   * o NINGUNA. Traía `/checkout` por defecto, una ruta que no existe en ningún sitio del CMS:
+   * el botón prometía un pago que acababa en un 404 (CMS#188). Sin ruta no hay botón.
+   */
   readonly checkoutUrl         = computed(() =>
-    resolveConfigValue(this.checkoutUrlInput() ?? this.checkoutEndpointInput(), this.config()?.checkoutUrl ?? this.config()?.checkoutEndpoint, '/checkout'),
+    resolveConfigValue(this.checkoutUrlInput() ?? this.checkoutEndpointInput(), this.config()?.checkoutUrl ?? this.config()?.checkoutEndpoint, ''),
   );
   readonly continueShoppingUrl = computed(() =>
     resolveConfigValue(undefined, this.config()?.continueShoppingUrl, '/'),
@@ -126,22 +131,26 @@ export class CartSummaryComponent {
   readonly couponApplied = cartStore.coupon;
 
   // Translation helpers
+  // Los respaldos van en es-CO (UI#91, regla 44): decían «Shopping cart», «Proceed to
+  // checkout», «Close cart»… en un sitio en español, porque `translations` no lo alimenta
+  // ninguna vista del CMS. Este elemento no tiene record, así que todavía no traduce con `t()`.
   readonly t = computed(() => this.translations());
-  readonly titleLabel          = computed(() => this.title() || (this.t()['Shop.Cart.Title'] ?? 'Shopping cart'));
-  readonly emptyLabel          = computed(() => this.t()['Shop.Cart.Empty']           ?? 'Your cart is empty');
+  readonly titleLabel          = computed(() => this.title() || (this.t()['Shop.Cart.Title'] ?? 'Tu carrito'));
+  readonly emptyLabel          = computed(() => this.t()['Shop.Cart.Empty']           ?? 'Tu carrito está vacío');
   readonly subtotalLabel       = computed(() => this.t()['Shop.Cart.Subtotal']        ?? 'Subtotal');
   readonly totalLabel          = computed(() => this.t()['Shop.Cart.Total']           ?? 'Total');
-  readonly checkoutLabel       = computed(() => this.t()['Shop.Cart.Checkout']        ?? 'Proceed to checkout');
-  readonly continueLabel       = computed(() => this.t()['Shop.Cart.ContinueShopping'] ?? 'Continue shopping');
-  readonly closeLabel          = computed(() => this.t()['Shop.Cart.Close']            ?? 'Close cart');
+  readonly checkoutLabel       = computed(() => this.t()['Shop.Cart.Checkout']        ?? 'Ir a pagar');
+  readonly continueLabel       = computed(() => this.t()['Shop.Cart.ContinueShopping'] ?? 'Seguir comprando');
+  readonly closeLabel          = computed(() => this.t()['Shop.Cart.Close']            ?? 'Cerrar el carrito');
   readonly closeBackdropLabel  = computed(() => this.t()['Shop.Cart.CloseBackdrop']    ?? this.closeLabel());
-  readonly couponLabel         = computed(() => this.t()['Shop.Cart.Coupon']          ?? 'Discount code');
-  readonly applyCouponLabel    = computed(() => this.t()['Shop.Cart.ApplyCoupon']     ?? 'Apply');
-  readonly cartItemsLabel      = computed(() => this.t()['Shop.Cart.Items']           ?? 'Cart items');
-  readonly totalsLabel         = computed(() => this.t()['Shop.Cart.Totals']          ?? 'Cart totals');
+  readonly couponLabel         = computed(() => this.t()['Shop.Cart.Coupon']          ?? 'Código de descuento');
+  readonly applyCouponLabel    = computed(() => this.t()['Shop.Cart.ApplyCoupon']     ?? 'Aplicar');
+  readonly cartItemsLabel      = computed(() => this.t()['Shop.Cart.Items']           ?? 'Productos en el carrito');
+  readonly totalsLabel         = computed(() => this.t()['Shop.Cart.Totals']          ?? 'Totales del carrito');
   readonly itemsCountLabel     = computed(() => {
     const n = this.count();
-    return (this.t()['Shop.Cart.ItemsCount'] ?? '{count} item(s)').replace('{count}', String(n));
+    const plantilla = this.t()['Shop.Cart.ItemsCount'] ?? (n === 1 ? '{count} producto' : '{count} productos');
+    return plantilla.replace('{count}', String(n));
   });
 
   readonly hostClasses = computed(() => `sg-cart-summary--${this.theme()}`);
