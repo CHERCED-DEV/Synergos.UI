@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import type { LightboxGalleryProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -29,6 +30,10 @@ import {
  * `fullUrl`/`thumbUrl` del editor) y `columns` un número. La vista mandaba el TEXTO `imagesJson` y
  * la galería salía vacía (D1). `closeLabel` y `emptyLabel` no los autora el editor: llegan por
  * atributo, igual que `images`/`imagesJson` como JSON.
+ *
+ * Su microcopia sale del diccionario, sección `Gallery` (ADR 0136): el nombre de la rejilla, «Ampliar
+ * imagen {n}», el del diálogo, anterior/siguiente, cerrar y la galería vacía. Los atributos
+ * `closeLabel` y `emptyLabel` siguen ganando para quien monte la galería a mano.
  */
 export interface LightboxImageConfig {
   readonly src?: string;
@@ -145,9 +150,21 @@ export class LightboxGalleryElementComponent {
     return resolveConfigValue(fromInput, clampColumns(this.config()?.columns), DEFAULT_COLUMNS);
   });
 
-  readonly closeLabel = computed(() => this.closeLabelInput() ?? 'Cerrar galería');
+  readonly closeLabel = computed(() => this.closeLabelInput() ?? t('Gallery.Close', 'Cerrar galería'));
 
-  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay imágenes para mostrar.');
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? t('Gallery.Empty', 'No hay imágenes para mostrar.'));
+
+  /** La microcopia de la galería, del diccionario (ADR 0136, sección `Gallery`). */
+  readonly gridLabel = computed(() => t('Gallery.Aria', 'Galería de imágenes'));
+  readonly enlargedLabel = computed(() => t('Gallery.Enlarged', 'Imagen ampliada'));
+  readonly previousLabel = computed(() => t('Gallery.Previous', 'Imagen anterior'));
+  readonly nextLabel = computed(() => t('Gallery.Next', 'Imagen siguiente'));
+
+  /** «Ampliar imagen {n}», con su pie si lo tiene: el nombre accesible de cada miniatura. */
+  enlargeLabel(index: number, caption: string): string {
+    const base = t('Gallery.Enlarge', 'Ampliar imagen {n}', { n: index + 1 });
+    return caption ? `${base}: ${caption}` : base;
+  }
 
   readonly hasImages = computed(() => this.images().length > 0);
 

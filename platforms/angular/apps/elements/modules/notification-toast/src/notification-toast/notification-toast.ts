@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import type { NotificationToastProps, NotificationToastSeed } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceStringEnumInput,
@@ -35,6 +36,10 @@ import {
  * `message`/`type` sueltos en el `config`, que este elemento sólo lee como atributo, y no
  * sembraba ningún aviso (D1). `position` y el `title` de cada aviso no los autora el editor:
  * llegan por atributo (`toasts` como JSON), que gana sobre el `config`.
+ *
+ * Su microcopia sale del diccionario, sección `Notification` (ADR 0136), que ya tenía las dos claves
+ * con esa intención: el nombre de la región (`Notification.Aria.List`) y el botón de descartar
+ * (`Notification.Dismiss`).
  */
 export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
 export type ToastPosition =
@@ -181,6 +186,10 @@ export class NotificationToastElementComponent {
 
   /** Politeness for the live region: assertive when any toast is an error. */
   readonly liveAssertive = computed(() => this.toasts().some((toast) => toast.variant === 'error'));
+
+  /** La microcopia de la pila, del diccionario (ADR 0136, sección `Notification`). */
+  readonly regionLabel = computed(() => t('Notification.Aria.List', 'Notificaciones'));
+  readonly dismissLabel = computed(() => t('Notification.Dismiss', 'Cerrar'));
 
   readonly #toasts = signal<readonly ToastItem[]>([]);
   readonly toasts = this.#toasts.asReadonly();

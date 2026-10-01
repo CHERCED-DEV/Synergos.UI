@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import type { SelectMultiProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -30,6 +31,9 @@ import {
  * multiselector colocado salía sin opciones (D1). El atributo `optionsJson` sigue existiendo
  * para quien monte el elemento a mano (y admite `disabled` por opción); `placeholder` y
  * `emptyLabel` no los autora el editor: son atributos. Los atributos ganan sobre el `config`.
+ *
+ * Su microcopia sale del diccionario (ADR 0136): sección `SelectMulti` y, para la lista sin
+ * coincidencias, `Common.States.NoResults` —la misma clave que el dropdown del piloto—.
  */
 
 export interface SelectMultiOption {
@@ -154,8 +158,14 @@ export class SelectMultiElementComponent {
   readonly label = computed(() =>
     resolveConfigValue(this.labelInput(), this.config()?.label, ''),
   );
-  readonly placeholder = computed(() => this.placeholderInput() ?? 'Buscar opciones…');
-  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'Sin coincidencias.');
+  readonly placeholder = computed(() => this.placeholderInput() ?? t('SelectMulti.Placeholder', 'Buscar opciones…'));
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? t('Common.States.NoResults', 'Sin resultados.'));
+
+  /** La microcopia del selector, del diccionario (ADR 0136, sección `SelectMulti`). */
+  readonly selectionLabel = computed(() => t('SelectMulti.Selection', 'Selección actual'));
+  readonly clearLabel = computed(() => t('SelectMulti.Clear', 'Limpiar'));
+  readonly searchLabel = computed(() => t('SelectMulti.Search', 'Buscar opciones'));
+  readonly optionsLabel = computed(() => t('SelectMulti.Options', 'Opciones'));
 
   /** 0 (or negative) means unlimited selections. */
   readonly maxSelections = computed(() => {
@@ -200,6 +210,19 @@ export class SelectMultiElementComponent {
 
   readonly hasSelection = computed(() => this.selectedOptions().length > 0);
 
+  /** Lo que anuncia la región viva al cambiar la selección: «3 opciones seleccionadas.». */
+  readonly selectedSummary = computed(() => {
+    const count = this.selectedOptions().length;
+    return count === 1
+      ? t('SelectMulti.Selected.One', '1 opción seleccionada.')
+      : t('SelectMulti.Selected.Other', '{count} opciones seleccionadas.', { count });
+  });
+
+  /** «Quitar {label}»: el nombre accesible del botón de cada chip. */
+  removeLabel(label: string): string {
+    return t('SelectMulti.Remove', 'Quitar {label}', { label });
+  }
+
   /** Options matching the query (case/diacritic-insensitive). */
   readonly filteredOptions = computed<readonly SelectMultiOption[]>(() => {
     const needle = this.#fold(this.query().trim());
@@ -223,7 +246,7 @@ export class SelectMultiElementComponent {
     if (max <= 0) {
       return '';
     }
-    return `${this.#selected().length} / ${max} seleccionadas`;
+    return t('SelectMulti.Capacity', '{count} / {max} seleccionadas', { count: this.#selected().length, max });
   });
 
   isSelected(option: SelectMultiOption): boolean {

@@ -122,6 +122,43 @@ describe('ColorPickerElementComponent', () => {
     expect(component.label()).toBe('Directo');
     expect(component.selected()).toBe('#000000');
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `ColorPicker` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(COLOR_PICKER_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      component.onDraftInput('#zz');
+      fixture.detectChanges();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.color-picker__field-label')?.textContent?.trim()).toBe('Hex');
+      expect(raiz.querySelector('.color-picker__error')?.textContent?.trim()).toBe('Ingresa un color hex válido (#rgb o #rrggbb).');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'ColorPicker.Label': 'Color', 'ColorPicker.Invalid': 'Enter a valid hex color (#rgb or #rrggbb).' },
+        },
+      };
+      const otra = TestBed.createComponent(ColorPickerElementComponent);
+      otra.detectChanges();
+      otra.componentInstance.onDraftInput('#zz');
+      otra.detectChanges();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.color-picker__error')?.textContent?.trim()).toBe('Enter a valid hex color (#rgb or #rrggbb).');
+      expect(otra.componentInstance.hexLabel()).toBe('Hex');
+    });
+  });
 });
 
 describe('color-picker pure helpers', () => {

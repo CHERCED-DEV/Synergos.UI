@@ -118,4 +118,55 @@ describe('SelectMultiElementComponent', () => {
     component.toggleOption(option);
     expect(component.selectedValues()).toEqual(['mx']);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de `SelectMulti` y `Common.States` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO, con el plural bien escrito', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(SELECT_MULTI_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      component.toggleOption(component.options()[0]);
+      fixture.detectChanges();
+      expect(component.selectedSummary()).toBe('1 opción seleccionada.');
+      expect(component.capacityHint()).toBe('1 / 2 seleccionadas');
+      component.toggleOption(component.options()[1]);
+      expect(component.selectedSummary()).toBe('2 opciones seleccionadas.');
+      expect(component.removeLabel('Piscina')).toBe('Quitar Piscina');
+      expect(component.placeholder()).toBe('Buscar opciones…');
+      expect(component.emptyLabel()).toBe('Sin resultados.');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: {
+            'SelectMulti.Clear': 'Clear',
+            'SelectMulti.Selected.Other': '{count} options selected.',
+            'Common.States.NoResults': 'No results found.',
+          },
+        },
+      };
+      const otra = TestBed.createComponent(SelectMultiElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(SELECT_MULTI_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const c = otra.componentInstance;
+      c.toggleOption(c.options()[0]);
+      c.toggleOption(c.options()[1]);
+      otra.detectChanges();
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.select-multi__clear')?.textContent?.trim()).toBe('Clear');
+      expect(raiz.querySelector('.select-multi__sr')?.textContent?.trim()).toBe('2 options selected.');
+      expect(c.emptyLabel()).toBe('No results found.');
+      expect(c.removeLabel('Piscina')).toBe('Quitar Piscina');
+    });
+  });
 });

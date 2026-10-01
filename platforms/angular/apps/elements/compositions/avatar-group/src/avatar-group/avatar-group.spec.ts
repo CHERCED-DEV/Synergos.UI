@@ -107,6 +107,48 @@ describe('AvatarGroupElementComponent', () => {
     expect(component.label()).toBe(ejemplo.label);
     expect(component.hasOverflow()).toBe(true);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de `AvatarGroup` y de `Avatar.Fallback`, la clave que
+  // comparte con avatar.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO, con el plural y el desborde', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(AVATAR_GROUP_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.avatar-group')?.getAttribute('aria-label')).toBe('Equipo directivo: 3 integrantes');
+      expect(raiz.querySelector('.avatar-group__overflow')?.getAttribute('aria-label')).toBe('2 integrantes más');
+      expect(normalizeAvatars([{ src: '/x.jpg' }])[0].alt).toBe('Avatar de usuario');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: {
+            'AvatarGroup.Count.Other': '{label}: {count} members',
+            'AvatarGroup.Label': 'Team',
+            'Avatar.Fallback': 'User avatar',
+          },
+        },
+      };
+      const otra = TestBed.createComponent(AvatarGroupElementComponent);
+      otra.componentRef.setInput('avatars', JSON.stringify([{ src: '/a.jpg' }, { name: 'Luis' }]));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const c = otra.componentInstance;
+      expect(c.groupAriaLabel()).toBe('Team: 2 members');
+      expect(c.avatars()[0].alt).toBe('User avatar');
+      expect(c.emptyLabel()).toBe('No hay integrantes para mostrar.');
+    });
+  });
 });
 
 describe('avatar-group pure helpers', () => {

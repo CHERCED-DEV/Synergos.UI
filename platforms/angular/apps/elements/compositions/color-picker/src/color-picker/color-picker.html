@@ -13,7 +13,7 @@
   </div>
 
   <div class="color-picker__field">
-    <label class="color-picker__field-label" [attr.for]="'cp-hex'">Hex</label>
+    <label class="color-picker__field-label" [attr.for]="'cp-hex'">{{ hexLabel() }}</label>
     <input
       class="color-picker__input"
       [class.color-picker__input--invalid]="!isDraftValid()"
@@ -32,7 +32,7 @@
     />
     @if (!isDraftValid()) {
       <span class="color-picker__error" id="cp-hex-error" role="alert">
-        Ingresá un color hex válido (#rgb o #rrggbb).
+        {{ invalidLabel() }}
       </span>
     }
   </div>

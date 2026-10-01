@@ -118,6 +118,48 @@ describe('ColorSwatchesElementComponent', () => {
     await fixture.whenStable();
     expect(component.shape()).toBe('pill');
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `ColorSwatches` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(COLOR_SWATCHES_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.color-swatches__group')?.getAttribute('aria-label')).toBe('Paleta de colores');
+      expect(raiz.querySelector('.color-swatches__selection')?.textContent?.trim()).toBe('Ningún color seleccionado.');
+      component.selectSwatch(component.swatches()[1]);
+      fixture.detectChanges();
+      expect(raiz.querySelector('.color-swatches__selection')?.textContent?.trim()).toBe('Color seleccionado: Naranja');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'ColorSwatches.Selected': 'Selected color: {color}', 'ColorSwatches.Aria': 'Color palette' },
+        },
+      };
+      const otra = TestBed.createComponent(ColorSwatchesElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(COLOR_SWATCHES_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const c = otra.componentInstance;
+      c.selectSwatch(c.swatches()[0]);
+      otra.detectChanges();
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.color-swatches__group')?.getAttribute('aria-label')).toBe('Color palette');
+      expect(raiz.querySelector('.color-swatches__selection')?.textContent?.trim()).toBe('Selected color: Azul noche');
+      expect(c.emptyLabel()).toBe('No hay colores para mostrar.');
+    });
+  });
 });
 
 describe('color-swatches pure helpers', () => {

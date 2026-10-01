@@ -111,6 +111,52 @@ describe('MapPinElementComponent', () => {
     expect(component.pins().map((p) => p.label)).toEqual(ejemplo.pins?.map((p) => p.label));
     expect(component.pins().map((p) => p.description)).toEqual(ejemplo.pins?.map((p) => p.description));
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de las secciones `Map` y `Common.Actions` que publica la
+  // página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', () => {
+      fixture.componentRef.setInput('config', JSON.stringify(MAP_PIN_SYNHOST.ejemplo));
+      fixture.detectChanges();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.map-pin')?.getAttribute('aria-label')).toBe('Mapa de ubicación');
+      expect(raiz.querySelector('.map-pin__view-all')?.textContent?.trim()).toBe('Ver mapa ampliado');
+      expect(component.frameTitle()).toBe('Mapa centrado en 4.7110, -74.0721');
+      expect(component.moreAbout('Oficina Bogotá')).toBe('Más información sobre Oficina Bogotá');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: {
+            'Map.Aria': 'Location map',
+            'Map.CenteredOn': 'Map centered on {place}',
+            'Map.Pin': 'Location {n}',
+            'Common.Actions.SeeMore': 'See more',
+          },
+        },
+      };
+      const otra = TestBed.createComponent(MapPinElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(MAP_PIN_SYNHOST.ejemplo));
+      otra.detectChanges();
+
+      const c = otra.componentInstance;
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.map-pin')?.getAttribute('aria-label')).toBe('Location map');
+      c.selectPin(0);
+      expect(c.frameTitle()).toBe('Map centered on Oficina Bogotá');
+      expect(c.seeMoreLabel()).toBe('See more');
+      expect(normalizePins([{ lat: 1, lng: 2 }])[0].label).toBe('Location 1');
+      expect(raiz.querySelector('.map-pin__view-all')?.textContent?.trim()).toBe('Ver mapa ampliado');
+    });
+  });
 });
 
 describe('map-pin pure helpers', () => {

@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import type { ChartBarProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -28,6 +29,10 @@ import {
  * (el CMS lee lo que escribe el editor es-CO; «500.000» no viaja). La vista mandaba `chartTitle` y
  * el TEXTO `dataJson`, y el gráfico salía vacío (D1). Los ejes, prefijo/sufijo, `maxValue`,
  * `locale`, `showValues` y `emptyLabel` no los autora el editor: llegan por atributo.
+ *
+ * Su microcopia sale del diccionario, sección `ChartBar` (ADR 0136): el nombre por defecto, el
+ * resumen con su plural, las cabeceras de la tabla para lectores de pantalla y el gráfico vacío. El
+ * atributo `emptyLabel` sigue ganando.
  */
 export interface ChartBarDatumConfig {
   readonly label?: string;
@@ -58,7 +63,6 @@ export type ChartBarOrientation = 'vertical' | 'horizontal';
 
 const ORIENTATIONS: readonly ChartBarOrientation[] = ['vertical', 'horizontal'];
 const DEFAULT_LOCALE = 'es-CO';
-const DEFAULT_EMPTY_LABEL = 'No hay datos para graficar.';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -190,7 +194,7 @@ export class ChartBarElementComponent {
     this.showValuesInput() ?? true,
   );
   readonly emptyLabel = computed(() =>
-    this.emptyLabelInput() ?? DEFAULT_EMPTY_LABEL,
+    this.emptyLabelInput() ?? t('ChartBar.Empty', 'No hay datos para graficar.'),
   );
 
   readonly #rawData = computed<readonly ChartBarPoint[]>(() =>
@@ -235,13 +239,18 @@ export class ChartBarElementComponent {
   /** ARIA summary describing the dataset for the chart region. */
   readonly chartSummary = computed(() => {
     const count = this.bars().length;
-    const base = this.title().trim() || 'Gráfico de barras';
+    const title = this.title().trim() || t('ChartBar.Aria', 'Gráfico de barras');
     if (count === 0) {
-      return base;
+      return title;
     }
-    const unit = count === 1 ? 'categoría' : 'categorías';
-    return `${base}: ${count} ${unit}.`;
+    return count === 1
+      ? t('ChartBar.Summary.One', '{title}: 1 categoría.', { title })
+      : t('ChartBar.Summary.Other', '{title}: {count} categorías.', { title, count });
   });
+
+  /** Las cabeceras de la tabla para lectores de pantalla cuando el eje no tiene nombre. */
+  readonly categoryHeader = computed(() => this.categoryAxisLabel() || t('ChartBar.Category', 'Categoría'));
+  readonly valueHeader = computed(() => this.valueAxisLabel() || t('ChartBar.Value', 'Valor'));
 
   setActive(index: number | null): void {
     this.activeIndex.set(index);

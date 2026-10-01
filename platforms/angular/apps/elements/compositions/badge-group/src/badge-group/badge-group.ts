@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import type { BadgeGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -31,6 +32,9 @@ import {
  * `label`, `size`, `selectable`, `multiple`, `emptyLabel` y, por insignia, `id`, `count`,
  * `href` y `selected` no los autora el editor: llegan por atributo (`badges` como JSON), que
  * gana sobre el `config`.
+ *
+ * Su microcopia sale del diccionario, sección `BadgeGroup` (ADR 0136): el nombre del grupo sin rótulo
+ * y el grupo vacío. El atributo `emptyLabel` sigue ganando.
  */
 
 /** Visual layout of the badge cluster. */
@@ -223,7 +227,10 @@ export class BadgeGroupElementComponent {
   readonly size = computed<BadgeGroupSize>(() => normalizeSize(this.sizeInput() ?? 'md'));
   readonly selectable = computed(() => this.selectableInput() ?? false);
   readonly multiple = computed(() => this.multipleInput() ?? true);
-  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? 'No hay elementos.');
+  readonly emptyLabel = computed(() => this.emptyLabelInput() ?? t('BadgeGroup.Empty', 'No hay elementos.'));
+
+  /** El nombre del grupo cuando no tiene rótulo visible (`BadgeGroup.Aria`). */
+  readonly groupLabel = computed(() => t('BadgeGroup.Aria', 'Grupo de etiquetas'));
 
   readonly badges = computed<readonly Badge[]>(() =>
     normalizeBadges(this.resolveSource(this.badgesInput(), this.config()?.badges)),

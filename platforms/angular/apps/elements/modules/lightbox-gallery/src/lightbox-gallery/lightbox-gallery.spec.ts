@@ -120,6 +120,47 @@ describe('LightboxGalleryElementComponent', () => {
     component.onDialogKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(component.isOpen()).toBe(false);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `Gallery` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(LIGHTBOX_GALLERY_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.lightbox-gallery__grid')?.getAttribute('aria-label')).toBe('Galería de imágenes');
+      expect(raiz.querySelector('.lightbox-gallery__thumb')?.getAttribute('aria-label')).toBe('Ampliar imagen 1: La sala');
+      expect(component.closeLabel()).toBe('Cerrar galería');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'Gallery.Enlarge': 'Enlarge image {n}', 'Gallery.Next': 'Next image', 'Gallery.Close': 'Close gallery' },
+        },
+      };
+      const otra = TestBed.createComponent(LightboxGalleryElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(LIGHTBOX_GALLERY_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.lightbox-gallery__thumb')?.getAttribute('aria-label')).toBe('Enlarge image 1: La sala');
+      otra.componentInstance.open(0);
+      otra.detectChanges();
+      expect(raiz.querySelector('.lightbox__nav--next')?.getAttribute('aria-label')).toBe('Next image');
+      expect(raiz.querySelector('.lightbox__close')?.getAttribute('aria-label')).toBe('Close gallery');
+      expect(raiz.querySelector('.lightbox__nav--prev')?.getAttribute('aria-label')).toBe('Imagen anterior');
+      otra.componentInstance.close();
+    });
+  });
 });
 
 describe('lightbox-gallery pure helpers', () => {

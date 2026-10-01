@@ -202,7 +202,7 @@ export interface AudioPlayerProps {
   readonly artistName?: string;
 }
 
-/** <synergos-avatar> · pieza */
+/** <synergos-avatar> · pieza · diccionario: Avatar */
 export interface AvatarProps {
   /** contenido */
   readonly src?: string;
@@ -210,7 +210,7 @@ export interface AvatarProps {
   readonly alt?: string;
 }
 
-/** <synergos-avatar-group> · pieza */
+/** <synergos-avatar-group> · pieza · diccionario: AvatarGroup, Avatar */
 export interface AvatarGroupProps {
   /** contenido */
   readonly avatars?: readonly AvatarGroupMember[];
@@ -220,7 +220,7 @@ export interface AvatarGroupProps {
   readonly label?: string;
 }
 
-/** <synergos-badge-group> · pieza */
+/** <synergos-badge-group> · pieza · diccionario: BadgeGroup */
 export interface BadgeGroupProps {
   /** contenido */
   readonly badges?: readonly BadgeGroupItem[];
@@ -244,7 +244,7 @@ export interface CarouselProps {
   readonly interval?: number;
 }
 
-/** <synergos-chart-bar> · pieza */
+/** <synergos-chart-bar> · pieza · diccionario: ChartBar */
 export interface ChartBarProps {
   /** contenido */
   readonly title?: string;
@@ -254,7 +254,7 @@ export interface ChartBarProps {
   readonly data?: readonly ChartBarEntry[];
 }
 
-/** <synergos-color-picker> · pieza */
+/** <synergos-color-picker> · pieza · diccionario: ColorPicker */
 export interface ColorPickerProps {
   /** contenido */
   readonly label?: string;
@@ -264,7 +264,7 @@ export interface ColorPickerProps {
   readonly palette?: readonly string[];
 }
 
-/** <synergos-color-swatches> · pieza */
+/** <synergos-color-swatches> · pieza · diccionario: ColorSwatches */
 export interface ColorSwatchesProps {
   /** contenido */
   readonly swatches?: readonly ColorSwatchesItem[];
@@ -368,7 +368,7 @@ export interface KpiCardProps {
   readonly period?: string;
 }
 
-/** <synergos-lightbox-gallery> · pieza */
+/** <synergos-lightbox-gallery> · pieza · diccionario: Gallery */
 export interface LightboxGalleryProps {
   /** contenido */
   readonly images?: readonly LightboxGalleryImage[];
@@ -376,7 +376,7 @@ export interface LightboxGalleryProps {
   readonly columns?: number;
 }
 
-/** <synergos-map-pin> · pieza */
+/** <synergos-map-pin> · pieza · diccionario: Map, Common.Actions */
 export interface MapPinProps {
   /** decision */
   readonly centerLat?: number;
@@ -388,7 +388,7 @@ export interface MapPinProps {
   readonly pins?: readonly MapPinItem[];
 }
 
-/** <synergos-notification-toast> · pieza */
+/** <synergos-notification-toast> · pieza · diccionario: Notification */
 export interface NotificationToastProps {
   /** contenido */
   readonly toasts?: readonly NotificationToastSeed[];
@@ -430,7 +430,7 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
-/** <synergos-rich-tooltip> · pieza */
+/** <synergos-rich-tooltip> · pieza · diccionario: Common.Actions */
 export interface RichTooltipProps {
   /** contenido */
   readonly triggerText?: string;
@@ -450,7 +450,7 @@ export interface ScrollTopProps {
   readonly label?: string;
 }
 
-/** <synergos-select-multi> · pieza */
+/** <synergos-select-multi> · pieza · diccionario: SelectMulti, Common.States */
 export interface SelectMultiProps {
   /** contenido */
   readonly label?: string;
@@ -460,7 +460,7 @@ export interface SelectMultiProps {
   readonly maxSelections?: number;
 }
 
-/** <synergos-share-bar> · pieza */
+/** <synergos-share-bar> · pieza · diccionario: Share */
 export interface ShareBarProps {
   /** decision */
   readonly platforms?: readonly string[];
@@ -494,13 +494,13 @@ export interface TagProps {
   readonly color?: string;
 }
 
-/** <synergos-timeline> · pieza */
+/** <synergos-timeline> · pieza · diccionario: Timeline */
 export interface TimelineProps {
   /** contenido */
   readonly events?: readonly TimelineEntry[];
 }
 
-/** <synergos-tour-guide> · pieza */
+/** <synergos-tour-guide> · pieza · diccionario: TourGuide, Common.Actions */
 export interface TourGuideProps {
   /** contenido */
   readonly steps?: readonly TourGuideStep[];
@@ -618,8 +618,8 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
   nombre: "avatar",
   tipo: "pieza",
   record: "AvatarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Avatar"],
+  claves: ["Avatar.Fallback","Avatar.Status.Away","Avatar.Status.Busy","Avatar.Status.Offline","Avatar.Status.Online"],
   campos: ["src","alt"],
   listas: {},
   selectores: [],
@@ -634,8 +634,8 @@ export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
   nombre: "avatar-group",
   tipo: "pieza",
   record: "AvatarGroupProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["AvatarGroup","Avatar"],
+  claves: ["Avatar.Fallback","Avatar.Status.Away","Avatar.Status.Busy","Avatar.Status.Offline","Avatar.Status.Online","AvatarGroup.Count.One","AvatarGroup.Count.Other","AvatarGroup.Empty","AvatarGroup.Label","AvatarGroup.More","AvatarGroup.Rest"],
   campos: ["avatars","maxVisible","label"],
   listas: {"avatars":["name","src"]},
   selectores: [],
@@ -663,8 +663,8 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
   nombre: "badge-group",
   tipo: "pieza",
   record: "BadgeGroupProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["BadgeGroup"],
+  claves: ["BadgeGroup.Aria","BadgeGroup.Empty"],
   campos: ["badges","layout"],
   listas: {"badges":["label","tone"]},
   selectores: [
@@ -768,8 +768,8 @@ export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
   nombre: "chart-bar",
   tipo: "pieza",
   record: "ChartBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ChartBar"],
+  claves: ["ChartBar.Aria","ChartBar.Category","ChartBar.Empty","ChartBar.Summary.One","ChartBar.Summary.Other","ChartBar.Value"],
   campos: ["title","orientation","data"],
   listas: {"data":["label","value"]},
   selectores: [
@@ -815,8 +815,8 @@ export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
   nombre: "color-picker",
   tipo: "pieza",
   record: "ColorPickerProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ColorPicker"],
+  claves: ["ColorPicker.Hex","ColorPicker.Invalid","ColorPicker.Label"],
   campos: ["label","initialColor","palette"],
   listas: {},
   selectores: [],
@@ -837,8 +837,8 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
   nombre: "color-swatches",
   tipo: "pieza",
   record: "ColorSwatchesProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ColorSwatches"],
+  claves: ["ColorSwatches.Aria","ColorSwatches.Empty","ColorSwatches.None","ColorSwatches.Selected"],
   campos: ["swatches","shape"],
   listas: {"swatches":["color","label"]},
   selectores: [
@@ -1116,8 +1116,8 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
   nombre: "lightbox-gallery",
   tipo: "pieza",
   record: "LightboxGalleryProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Gallery"],
+  claves: ["Gallery.Aria","Gallery.Close","Gallery.Download","Gallery.Empty","Gallery.Enlarge","Gallery.Enlarged","Gallery.ImageOf","Gallery.Next","Gallery.Previous","Gallery.Zoom"],
   campos: ["images","columns"],
   listas: {"images":["src","thumb","alt","caption"]},
   selectores: [],
@@ -1145,8 +1145,8 @@ export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
   nombre: "map-pin",
   tipo: "pieza",
   record: "MapPinProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Map","Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll","Map.Aria","Map.CenteredOn","Map.Error","Map.GetDirections","Map.Loading","Map.MoreAbout","Map.Pin","Map.Pins","Map.ViewLarger"],
   campos: ["centerLat","centerLng","zoomLevel","pins"],
   listas: {"pins":["lat","lng","label","description"]},
   selectores: [],
@@ -1176,8 +1176,8 @@ export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps>
   nombre: "notification-toast",
   tipo: "pieza",
   record: "NotificationToastProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Notification"],
+  claves: ["Notification.Aria.List","Notification.Dismiss","Notification.DismissAll","Notification.Empty","Notification.MarkAllRead","Notification.MarkRead","Notification.New"],
   campos: ["toasts","durationMs"],
   listas: {"toasts":["message","variant"]},
   selectores: [
@@ -1279,8 +1279,8 @@ export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   nombre: "rich-tooltip",
   tipo: "pieza",
   record: "RichTooltipProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll"],
   campos: ["triggerText","body","placement"],
   listas: {},
   selectores: [
@@ -1387,8 +1387,8 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   nombre: "select-multi",
   tipo: "pieza",
   record: "SelectMultiProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["SelectMulti","Common.States"],
+  claves: ["Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success","SelectMulti.Capacity","SelectMulti.Clear","SelectMulti.Options","SelectMulti.Placeholder","SelectMulti.Remove","SelectMulti.Search","SelectMulti.Selected.One","SelectMulti.Selected.Other","SelectMulti.Selection"],
   campos: ["label","options","maxSelections"],
   listas: {"options":["value","label"]},
   selectores: [],
@@ -1417,8 +1417,8 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   nombre: "share-bar",
   tipo: "pieza",
   record: "ShareBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Share"],
+  claves: ["Share.Copied","Share.Copy","Share.CopyFailed","Share.Email","Share.Label","Share.On"],
   campos: ["platforms","shareLink","shareTitle"],
   listas: {},
   selectores: [
@@ -1552,8 +1552,8 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   nombre: "timeline",
   tipo: "pieza",
   record: "TimelineProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Timeline"],
+  claves: ["Timeline.Aria","Timeline.Empty"],
   campos: ["events"],
   listas: {"events":["date","title","body"]},
   selectores: [
@@ -1595,8 +1595,8 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   nombre: "tour-guide",
   tipo: "pieza",
   record: "TourGuideProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["TourGuide","Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll","TourGuide.Done","TourGuide.Skip"],
   campos: ["steps","autoStart"],
   listas: {"steps":["target","title","body"]},
   selectores: [],

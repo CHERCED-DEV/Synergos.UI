@@ -93,4 +93,40 @@ describe('ChartBarElementComponent', () => {
     expect(second).toEqual(first);
     expect(second[0].percent).toBe(100);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `ChartBar` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO, con el plural', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(CHART_BAR_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.chart-bar')?.getAttribute('aria-label')).toBe('Afiliados nuevos por trimestre: 3 categorías.');
+      expect(Array.from(raiz.querySelectorAll('thead th')).map((th) => th.textContent?.trim())).toEqual(['Categoría', 'Valor']);
+      expect(component.emptyLabel()).toBe('No hay datos para graficar.');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'ChartBar.Summary.Other': '{title}: {count} categories.', 'ChartBar.Category': 'Category' },
+        },
+      };
+      const otra = TestBed.createComponent(ChartBarElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(CHART_BAR_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.chart-bar')?.getAttribute('aria-label')).toBe('Afiliados nuevos por trimestre: 3 categories.');
+      expect(Array.from(raiz.querySelectorAll('thead th')).map((th) => th.textContent?.trim())).toEqual(['Category', 'Valor']);
+    });
+  });
 });

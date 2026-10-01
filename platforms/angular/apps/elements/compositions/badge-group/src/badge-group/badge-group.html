@@ -12,7 +12,7 @@
     <ul
       class="badge-group__list"
       [attr.role]="selectable() ? 'group' : 'list'"
-      [attr.aria-label]="hasLabel() ? null : 'Grupo de etiquetas'"
+      [attr.aria-label]="hasLabel() ? null : groupLabel()"
       [attr.aria-labelledby]="hasLabel() ? 'badge-group-label' : null"
     >
       @for (badge of badges(); track badge.id) {

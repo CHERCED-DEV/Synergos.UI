@@ -137,6 +137,48 @@ describe('ShareBarElementComponent', () => {
     expect(component.shareUrl()).toBe(ejemplo.shareLink);
     expect(component.shareTitle()).toBe(ejemplo.shareTitle);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `Share` que publica la página; el nombre
+  // de la red es marca y lo pone el elemento.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO, con el nombre de la red del catálogo', () => {
+      fixture.componentRef.setInput('config', JSON.stringify(SHARE_BAR_SYNHOST.ejemplo));
+      fixture.detectChanges();
+
+      expect(component.platforms().map((p) => p.label)).toEqual([
+        'Compartir en WhatsApp',
+        'Compartir en X',
+        'Compartir en LinkedIn',
+      ]);
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.share-bar__label')?.textContent?.trim()).toBe('Compartir');
+      expect(raiz.querySelector('.share-bar__action--copy')?.getAttribute('aria-label')).toBe('Copiar enlace');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'Share.Label': 'Share', 'Share.On': 'Share on {network}', 'Share.Copy': 'Copy link' },
+        },
+      };
+      const otra = TestBed.createComponent(ShareBarElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(SHARE_BAR_SYNHOST.ejemplo));
+      otra.detectChanges();
+
+      const c = otra.componentInstance;
+      expect(c.platforms()[0].label).toBe('Share on WhatsApp');
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.share-bar__label')?.textContent?.trim()).toBe('Share');
+      expect(raiz.querySelector('.share-bar__action--copy')?.getAttribute('title')).toBe('Copy link');
+      expect(c.copyFailedLabel()).toBe('No se pudo copiar el enlace');
+    });
+  });
 });
 
 describe('share-bar pure helpers', () => {

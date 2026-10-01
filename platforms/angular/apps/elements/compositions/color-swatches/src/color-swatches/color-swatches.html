@@ -8,7 +8,7 @@
       class="color-swatches__group"
       role="radiogroup"
       [attr.aria-labelledby]="hasHeading() ? 'color-swatches-heading' : null"
-      [attr.aria-label]="hasHeading() ? null : 'Paleta de colores'"
+      [attr.aria-label]="hasHeading() ? null : paletteLabel()"
       [style.--color-swatches-columns]="columns()"
     >
       @for (swatch of swatches(); track swatch.value) {
@@ -61,12 +61,12 @@
 
     <p class="color-swatches__selection" role="status" aria-live="polite">
       @if (selectedSwatch(); as picked) {
-        Color seleccionado: {{ picked.label }}
+        {{ selectedLabel(picked.label) }}
       } @else {
-        Ningún color seleccionado.
+        {{ noneLabel() }}
       }
     </p>
   } @else {
-    <p class="color-swatches__empty" role="status">No hay colores para mostrar.</p>
+    <p class="color-swatches__empty" role="status">{{ emptyLabel() }}</p>
   }
 </div>

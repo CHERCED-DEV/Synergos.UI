@@ -102,6 +102,35 @@ describe('RichTooltipElementComponent', () => {
     const cuerpo = (fixture.nativeElement as HTMLElement).querySelector('.rich-tooltip__body');
     expect(cuerpo?.textContent).toBe(ejemplo.body);
   });
+
+  // ADR 0136 (CMS#191): el nombre del disparador sin texto sale de `Common.Actions.LearnMore`.
+  describe('microcopia del diccionario', () => {
+    const sinTexto = { ...RICH_TOOLTIP_SYNHOST.ejemplo, triggerText: undefined };
+
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', () => {
+      fixture.componentRef.setInput('config', JSON.stringify(sinTexto));
+      fixture.detectChanges();
+
+      const disparador = (fixture.nativeElement as HTMLElement).querySelector('.rich-tooltip__trigger');
+      expect(disparador?.getAttribute('aria-label')).toBe('Más información');
+    });
+
+    it('con el bridge pinta la clave que publicó la página', () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Common.Actions.LearnMore': 'Learn more' } },
+      };
+      const otra = TestBed.createComponent(RichTooltipElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(sinTexto));
+      otra.detectChanges();
+
+      const disparador = (otra.nativeElement as HTMLElement).querySelector('.rich-tooltip__trigger');
+      expect(disparador?.getAttribute('aria-label')).toBe('Learn more');
+    });
+  });
 });
 
 describe('rich-tooltip pure helpers', () => {
