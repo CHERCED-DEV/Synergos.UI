@@ -7,25 +7,25 @@ import {
 } from '@angular/core';
 import type { BreadcrumbProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
-import {
-  coerceOptionalBooleanInput,
-  coerceTrimmedStringInput,
-  createConfigInputTransform,
-  omitUndefinedProperties,
-  resolveConfigValue,
-} from '@synergos/shared';
+import { createConfigInputTransform, omitUndefinedProperties } from '@synergos/shared';
 
 /**
  * <synergos-breadcrumb>: navigation breadcrumbs — an ordered trail of items, each optionally
  * linked, separated by a glyph, with the final item flagged as the current page
  * (`aria-current="page"`). Items can be authored as a JSON array (objects with `label`/`href`,
- * or bare strings). When `includeStructuredData` is on the component also emits a schema.org
- * `BreadcrumbList` JSON-LD block for SEO.
+ * or bare strings).
  *
  * El `config` que manda el CMS tiene la forma de `BreadcrumbProps`, GENERADO del record C#
- * (ADR 0135): `items` es una LISTA ya parseada (`label`/`href`) e `includeStructuredData`.
- * La vista mandaba el TEXTO `itemsJson` y este elemento hidrataba sin migas (D1). `label` (el
- * nombre accesible de la navegación) y `separator` no los autora el editor: llegan por atributo.
+ * (ADR 0135): `items` es una LISTA ya parseada (`label`/`href`). La vista mandaba el TEXTO
+ * `itemsJson` y este elemento hidrataba sin migas (D1). `label` (el nombre accesible de la
+ * navegación) y `separator` no los autora el editor: llegan por atributo.
+ *
+ * **El JSON-LD `BreadcrumbList` NO es de este elemento** (UI#90, regla 49). Lo intentaba con un
+ * `<script type="application/ld+json">` en la plantilla, y el compilador de Angular quita los
+ * `<script>` de las plantillas: con el interruptor encendido, 0 `ld+json` en el bundle y en el
+ * DOM. Lo emite el CMS en el SSR —el resolver de `breadcrumb`, con los mismos pasos que viajan
+ * acá—, junto al tag y no dentro, porque la hidratación vacía el host. Por eso no hay input
+ * `includeStructuredData`: prometía algo que este elemento no puede cumplir.
  */
 
 /** Fully-resolved trail item ready to render. */
@@ -100,7 +100,6 @@ export function sanitizeBreadcrumbConfig(value: Partial<BreadcrumbProps>): Parti
   const items = normalizeItems(value.items);
   return omitUndefinedProperties<BreadcrumbProps>({
     items: items.length > 0 ? items : undefined,
-    includeStructuredData: coerceOptionalBooleanInput(value.includeStructuredData),
   });
 }
 
@@ -121,51 +120,15 @@ export class BreadcrumbElementComponent {
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly separatorInput = input<string | undefined>(undefined, { alias: 'separator' });
   readonly itemsInput = input<string | undefined>(undefined, { alias: 'items' });
-  readonly includeStructuredDataInput = input<boolean | undefined, unknown>(undefined, {
-    alias: 'includeStructuredData',
-    transform: coerceOptionalBooleanInput,
-  });
 
   readonly label = computed(() => this.labelInput() ?? 'Migas de pan');
   readonly separator = computed(() => this.separatorInput() ?? '/');
-  readonly includeStructuredData = computed(() =>
-    resolveConfigValue(
-      this.includeStructuredDataInput(),
-      this.config()?.includeStructuredData,
-      false,
-    ),
-  );
 
   readonly items = computed<readonly BreadcrumbItem[]>(() =>
     normalizeItems(this.resolveSource(this.itemsInput(), this.config()?.items)),
   );
 
   readonly hasItems = computed(() => this.items().length > 0);
-
-  /** schema.org BreadcrumbList JSON-LD, emitted only when opted-in. */
-  readonly structuredData = computed<string>(() => {
-    if (!this.includeStructuredData() || !this.hasItems()) {
-      return '';
-    }
-
-    const payload = {
-      '@context': 'https://schema.org',
-      '@type': 'BreadcrumbList',
-      itemListElement: this.items().map((item) => {
-        const entry: Record<string, unknown> = {
-          '@type': 'ListItem',
-          position: item.position,
-          name: item.label,
-        };
-        if (item.href) {
-          entry['item'] = item.href;
-        }
-        return entry;
-      }),
-    };
-
-    return JSON.stringify(payload);
-  });
 
   private resolveSource(rawInput: string | undefined, configValue: unknown): unknown {
     if (rawInput !== undefined) {

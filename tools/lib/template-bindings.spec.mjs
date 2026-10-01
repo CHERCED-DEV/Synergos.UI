@@ -85,3 +85,64 @@ describe('ataduras de plantilla', () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * Un `<script>` en una plantilla de Angular NO llega nunca al DOM (UI#90).
+ *
+ * El compilador de plantillas los quita en silencio: ni error ni aviso, y el componente compila.
+ * `breadcrumb` calculaba su JSON-LD `BreadcrumbList` y lo ataba a un
+ * `<script type="application/ld+json">` de su plantilla — con el interruptor encendido, 0
+ * `ld+json` en el bundle publicado y 0 en el DOM. Ningún spec lo veía, porque buscar el
+ * `<script>` en el DOM da lo mismo con el defecto que sin él: no está nunca.
+ *
+ * Lo que un elemento quiere emitir como `<script>` (datos estructurados, sobre todo) es del SSR
+ * del CMS: el resolver del elemento lo arma y el emitter lo escribe junto al tag (regla 49).
+ *
+ * Trinquete absoluto: medido por dos caminos —este grep, y el parser HTML del compilador sobre
+ * las 196 plantillas de componente que lista el programa de TypeScript—, el de `breadcrumb` era
+ * el único, y tras el UI#90 no queda ninguno. Mira las plantillas externas (sin los `index.html`
+ * de desarrollo, que no compila Angular) y las INLINE (`template: \`…\``).
+ */
+const PLANTILLAS_DE_COMPONENTE = TODAS.filter((f) => path.basename(f) !== 'index.html');
+
+function inlineTemplates(raiz) {
+  const encontradas = [];
+  if (!existsSync(raiz)) return encontradas;
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) {
+        if (/^(node_modules|dist|\.cdn-out|\.test-out)$/.test(e.name)) continue;
+        walk(full);
+      } else if (e.name.endsWith('.ts') && !e.name.endsWith('.spec.ts')) {
+        for (const m of readFileSync(full, 'utf8').matchAll(/\btemplate:\s*`([\s\S]*?)`/g)) {
+          encontradas.push({ fichero: full, texto: m[1] });
+        }
+      }
+    }
+  };
+  walk(raiz);
+  return encontradas;
+}
+
+const INLINE = [...inlineTemplates(path.join(NG, 'apps')), ...inlineTemplates(path.join(NG, 'libs'))];
+
+describe('plantillas que el compilador recorta', () => {
+  it('hay plantillas de componente, externas e inline, que revisar', () => {
+    expect(PLANTILLAS_DE_COMPONENTE.length).toBeGreaterThan(100);
+    expect(INLINE.length).toBeGreaterThan(30);
+  });
+
+  it('ninguna plantilla lleva <script>: Angular lo quita y el componente compila igual', () => {
+    const culpables = [
+      ...PLANTILLAS_DE_COMPONENTE.filter((f) => /<script\b/i.test(readFileSync(f, 'utf8'))),
+      ...INLINE.filter((p) => /<script\b/i.test(p.texto)).map((p) => `${p.fichero} (inline)`),
+    ].map((f) => path.relative(REPO, f));
+
+    expect(
+      culpables,
+      'Un <script> en una plantilla no llega al DOM. Si es JSON-LD, lo emite el CMS en el SSR ' +
+        `(regla 49).\n  ${culpables.join('\n  ')}`,
+    ).toEqual([]);
+  });
+});
