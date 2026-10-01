@@ -135,7 +135,7 @@ describe('el camino de entrada está cableado', () => {
   // pieza esté ENCHUFADA y no que exista).
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 
-  it.each(['pretest', 'prebuild'])('%s verifica antes de arrancar', (gancho) => {
+  it.each(['pretest', 'prebuild', 'predev:cdn'])('%s verifica antes de arrancar', (gancho) => {
     expect(pkg.scripts[gancho]).toContain('tools/setup.mjs');
     expect(pkg.scripts[gancho]).toContain('--verificar');
   });

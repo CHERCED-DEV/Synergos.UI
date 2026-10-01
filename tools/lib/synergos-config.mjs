@@ -80,6 +80,11 @@ export const PLATFORMS = [
       resolve(ROOT, 'platforms/angular/dist', elementName, 'browser', 'main.js'),
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/angular/dist', elementName),
+    // El nombre del ATRIBUTO HTML de un input (#88). `@angular/elements` observa el
+    // input en dash-case —`apiBase` → `api-base`— y el HTML guarda los nombres en
+    // minúsculas, así que `apiBase="…"` llega como `apibase` y no lo lee nadie.
+    // Es la misma conversión que su `camelToDashCase`.
+    atributoDeInput: (nombre) => nombre.replace(/[A-Z]/g, (letra) => `-${letra.toLowerCase()}`),
   },
   {
     name: 'preact',
@@ -95,6 +100,9 @@ export const PLATFORMS = [
       resolve(ROOT, 'platforms/preact/dist', elementName, 'browser', 'main.js'),
     elementDistDir: (elementName) =>
       resolve(ROOT, 'platforms/preact/dist', elementName),
+    // Su adaptador lee cada atributo con `getAttribute(nombre)`, que en HTML no
+    // distingue mayúsculas: el nombre del input sirve tal cual (#88).
+    atributoDeInput: (nombre) => nombre,
   },
 ];
 

@@ -79,16 +79,68 @@ export function resolverImportMap(mapa, base = BASE_DEV) {
 const TIPOS_ATRIBUIBLES = new Set(['string', 'number', 'boolean']);
 
 /**
- * Valores de muestra por input, para que el elemento no salga en blanco.
+ * Las entradas de CABLEADO: su valor es una REFERENCIA —una URL base, un
+ * identificador, un código, una clave o uno de un vocabulario cerrado—, no un
+ * texto que se pinta. El banco NO las inventa (#88): sin atributo, el elemento usa
+ * su propio valor por defecto, que acepta por construcción.
+ *
+ * Medido en el banco con academy: le ponía `scope="muestra: scope"`, que es el
+ * primer segmento de sus rutas por hash (`#/<scope>/curso/<id>`). El navegador
+ * devuelve ese hash CODIFICADO (`#/muestra:%20scope/…`) y el router compara contra
+ * el texto crudo, así que academy dejaba de reconocer sus propias rutas: recargar,
+ * volver atrás o entrar por enlace no abría el curso. Y `apiBase="muestra:
+ * apiBase"` no llegaba ni a aplicarse (ver `atributoDeInput` abajo); aplicado, no
+ * es una URL y `fetch` lo rechaza.
+ *
+ * Es un censo por NOMBRE porque el vocabulario es el mismo en todas las verticales
+ * (`apiBase` en diez, `scope` en ocho, `currency` en nueve). Cada entrada dice por
+ * qué no se inventa; el spec exige que cada una exista en `element-inputs.json` y
+ * que toda entrada de texto de una vertical esté clasificada aquí o en
+ * `TEXTO_DE_LAS_VERTICALES` — una entrada nueva obliga a decidir.
+ */
+export const ENTRADAS_DE_CABLEADO = {
+  apiBase:
+    'la base del borde. Sin atributo, el elemento usa la suya, RELATIVA a la página —o sea al propio banco—: pide ahí, recibe 404 y degrada con su cartel',
+  scope:
+    'el siteRoot, primer segmento de las rutas por hash: un texto con espacios llega codificado y el router deja de reconocer sus rutas',
+  currency: 'un código ISO 4217 que va a Intl.NumberFormat',
+  role: 'el vocabulario cerrado de roles de cada vertical (alumno/instructor, paciente/médico, ciudadano/funcionario…)',
+  view: 'el nombre de la vista inicial de blogs, de un vocabulario cerrado',
+  user: 'el identificador del autor cuyas publicaciones se listan',
+  viewerHandle: 'la identidad de quien lee: inventarla es actuar en nombre de nadie',
+  sessionKey: 'la clave con la que el asistente guarda su progreso',
+  clinic: 'el identificador de la clínica',
+  patient: 'el identificador del paciente que se abre al cargar: inventarlo pide la historia de nadie',
+  agency: 'el identificador de la entidad',
+  traveler: 'el identificador del viajero',
+  eventId: 'el identificador del evento que se abre al cargar',
+  operation: 'venta o arriendo, de un vocabulario cerrado',
+  layout: 'la variante de presentación, de un vocabulario cerrado',
+  // No es de una vertical, y se midió igual: media-explorer filtraba por la categoría
+  // «muestra: defaultCategory», que ningún item tiene, y se quedaba sin un solo video.
+  defaultCategory: 'una de las categorías del propio contenido: una inventada filtra todo y deja la lista vacía',
+};
+
+/**
+ * Las entradas de texto de las verticales que el banco SÍ rellena: se pintan tal
+ * cual, así que cualquier texto es un valor que el elemento acepta.
+ */
+export const TEXTO_DE_LAS_VERTICALES = ['viewerName', 'destinationLabel', 'sellerName', 'heading'];
+
+/**
+ * Valores de muestra por input, para que el elemento no salga en blanco — o
+ * `null` cuando el banco no tiene un valor que el elemento acepte.
  *
  * **Son de MUESTRA y la página lo dice.** No se leen de ningún sitio ni
  * pretenden ser datos: existen para que haya algo que mirar. La regla 14 del
  * `CLAUDE.md` —no fabricar lo que vale por ser cierto— habla de lo que se le
  * enseña a un usuario como verdad; acá lo que se enseña es el elemento, y el
- * dato es andamiaje declarado.
+ * dato es andamiaje declarado. Pero un andamiaje que el elemento RECHAZA no deja
+ * mirarlo: por eso el cableado sin valor por defecto no se inventa.
  */
 export function valorDeMuestra(input) {
   if (input.default !== undefined && input.default !== '') return String(input.default);
+  if (Object.hasOwn(ENTRADAS_DE_CABLEADO, input.name)) return null;
 
   switch (input.type) {
     case 'number':  return '1';
@@ -101,13 +153,38 @@ export function valorDeMuestra(input) {
  * Los atributos con los que se monta el elemento.
  *
  * Se dejan fuera los `json` —un `config` de muestra sería inventarse la forma
- * del contenido, y cada elemento la tiene distinta— y los que no llevan tipo
- * simple. Quien quiera probar un `config` lo edita en la página.
+ * del contenido, y cada elemento la tiene distinta—, los que no llevan tipo
+ * simple y el cableado sin valor por defecto. Quien quiera probar un `config` lo
+ * edita en la página.
+ *
+ * **El nombre del ATRIBUTO no es el del input, y lo decide la plataforma** (#88).
+ * `@angular/elements` observa `api-base` para el input `apiBase`; el banco escribía
+ * `apiBase="…"`, que el HTML guarda como `apibase`, y el elemento no lo leía nunca:
+ * medido con el badge, su `ariaLabel` de muestra no llegaba. Preact, en cambio,
+ * lee con `getAttribute(nombre)`, que no distingue mayúsculas. Sin default: una
+ * plataforma que no declara su convención no tiene banco.
+ *
+ * @param {Array} inputs
+ * @param {{ atributoDeInput: (nombre: string) => string }} plataforma
  */
-export function atributosDeMuestra(inputs = []) {
+export function atributosDeMuestra(inputs = [], { atributoDeInput } = {}) {
+  if (typeof atributoDeInput !== 'function') {
+    throw new Error(
+      'atributosDeMuestra sin `atributoDeInput`: el nombre del atributo lo decide la plataforma ' +
+        '(PLATFORMS[].atributoDeInput en tools/lib/synergos-config.mjs) y no hay uno por defecto.',
+    );
+  }
   return inputs
     .filter((i) => TIPOS_ATRIBUIBLES.has(i.type))
-    .map((i) => ({ nombre: i.name, valor: valorDeMuestra(i) }));
+    .map((i) => ({ input: i.name, nombre: atributoDeInput(i.name), valor: valorDeMuestra(i) }))
+    .filter((a) => a.valor !== null);
+}
+
+/** Las entradas de cableado que el banco deja sin atributo, para decirlo en la página. */
+export function cableadoSinMuestra(inputs = []) {
+  return inputs
+    .filter((i) => TIPOS_ATRIBUIBLES.has(i.type) && valorDeMuestra(i) === null)
+    .map((i) => i.name);
 }
 
 const escapar = (s) =>
@@ -122,10 +199,12 @@ const escapar = (s) =>
  * @param {string} o.framework la plataforma que sirve este servidor
  * @param {object|null} o.importMap  `{ imports: {...} }` del runtime, o null si no está compilado
  * @param {Array} o.inputs     descriptores de `element-inputs.json`
+ * @param {(nombre: string) => string} o.atributoDeInput  la convención de la plataforma
  */
-export function paginaDelBanco({ elemento, tag, framework, importMap, inputs = [] }) {
-  const atributos = atributosDeMuestra(inputs);
+export function paginaDelBanco({ elemento, tag, framework, importMap, inputs = [], atributoDeInput }) {
+  const atributos = atributosDeMuestra(inputs, { atributoDeInput });
   const attrHtml = atributos.map((a) => `${escapar(a.nombre)}="${escapar(a.valor)}"`).join(' ');
+  const sinMuestra = cableadoSinMuestra(inputs);
 
   // Sin runtime no hay import map, y sin import map el módulo del elemento no
   // resuelve sus bare specifiers y NO HIDRATA — con la página en 200 y el hueco
@@ -165,6 +244,13 @@ ${faltaRuntime ? '' : `<script type="importmap">${JSON.stringify(mapa)}</script>
   hay tema del CMS aplicado — así que esto no es una vista previa de cómo se verá
   en el producto: es el elemento, montado, para poder mirarlo mientras se edita.
 </p>
+${sinMuestra.length > 0 ? `
+<p class="aviso">
+  <strong>Sin muestra:</strong> ${sinMuestra.map((n) => `<code>${escapar(n)}</code>`).join(', ')}.
+  Son cableado —una base, un identificador, un código o un valor de un vocabulario
+  cerrado— y un texto inventado ahí el elemento no lo acepta: va sin atributo y usa
+  su propio valor por defecto.
+</p>` : ''}
 
 ${faltaRuntime ? `<p class="aviso">
   <strong>No hay runtime compilado</strong>, así que no hay import map y este

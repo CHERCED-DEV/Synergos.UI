@@ -132,9 +132,11 @@ async function assertExists(filePath, label) {
   try {
     await stat(filePath);
   } catch {
+    // Decía «→ Run: npm run build:angular:elements», un script que no existe, y salía
+    // con el prefijo dos veces (el `catch` de abajo ya lo pone) (#88).
     throw new Error(
-      `[build-runtime] ${label} not found:\n  ${filePath}\n` +
-      `  → Run: npm run build:angular:elements`,
+      `${label} — no está:\n  ${filePath}\n` +
+      `  → npm run build:angular   (dev:cdn ya lo construye DESPUÉS del build de los elementos)`,
     );
   }
 }

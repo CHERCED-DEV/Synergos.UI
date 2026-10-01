@@ -238,6 +238,10 @@ async function construir(oldProgram) {
   copiarJson();
   await empaquetar(apps);
   log(`dist listo → ${path.relative(REPO, DIST)}/<nombre>/browser/main.js`);
+  // Quien lanza este build por IPC (`dev:cdn`) construye el runtime con lo que acaba
+  // de quedar en `dist/libs/`: necesita saber CUÁNDO terminó, no adivinarlo mirando
+  // ficheros (#88). Sin canal, `process.send` no existe y esto no hace nada.
+  process.send?.({ evento: 'dist-listo' });
   return program;
 }
 

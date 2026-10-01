@@ -32,7 +32,7 @@
  */
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFileSync, existsSync, readdirSync, watch } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,7 +41,11 @@ import { PLATFORMS, loadRegistry, loadInputs, readPackageVersion } from './lib/s
 import { buildContracts } from './lib/manifest-builder.mjs';
 import { LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
 import { paginaDelBanco } from './lib/banco-de-pruebas.mjs';
-import { ejecutarNpm, lanzarNpm } from './lib/npm.mjs';
+import { lanzarNpm } from './lib/npm.mjs';
+import { ficherosDelRuntime } from './lib/mapa-del-runtime.mjs';
+import {
+  arrancarRuntimeDeDesarrollo, huellaDeEntradas, runtimeCompleto,
+} from './lib/runtime-en-desarrollo.mjs';
 import {
   resolverRuta, cabecerasDev, tipoDe, registryDeDesarrollo,
 } from './lib/dev-cdn-routes.mjs';
@@ -63,6 +67,7 @@ if (!FRAMEWORK || !PLATFORMS.some((p) => p.name === FRAMEWORK)) {
   process.exit(2);
 }
 
+const PLATAFORMA = PLATFORMS.find((p) => p.name === FRAMEWORK);
 const NG = join(ROOT, 'platforms', FRAMEWORK);
 
 // Los elementos y el runtime salen a sitios DISTINTOS, y hace falta saberlo:
@@ -86,46 +91,97 @@ const log = (m) => console.log(`[dev-cdn] ${m}`);
 // el proceso muere mal.
 let latido = Date.now();
 
-/** La carpeta del runtime compilado, leída del disco y no cableada a una versión. */
+const FICHEROS_DEL_RUNTIME = ficherosDelRuntime(FRAMEWORK);
+const estaEntero = (dir) =>
+  runtimeCompleto({ dir, ficheros: FICHEROS_DEL_RUNTIME, existe: existsSync, unir: join });
+
+/**
+ * La carpeta del runtime compilado, leída del disco y no cableada a una versión — y
+ * ENTERA: una carpeta de versión vacía no es un runtime (#88). `build-runtime` la crea
+ * antes de mirar sus entradas, así que un intento fallido la dejaba vacía y la corrida
+ * siguiente la servía: el banco montaba y `sg-core.js` contestaba 404.
+ */
 function runtimeDir() {
   if (!existsSync(DIST_RUNTIME)) return null;
-  const ver = readdirSync(DIST_RUNTIME).find((d) => /^\d+\.\d+\.\d+/.test(d));
+  const ver = readdirSync(DIST_RUNTIME)
+    .filter((d) => /^\d+\.\d+\.\d+/.test(d))
+    .find((d) => estaEntero(join(DIST_RUNTIME, d)));
   return ver ? join(DIST_RUNTIME, ver) : null;
 }
 
-// ── El runtime, una vez ──────────────────────────────────────────────────────
+// ── El build, y el runtime DESPUÉS ───────────────────────────────────────────
 //
-// `build.mjs --watch` NO lo compila: es otro script y cambia sólo cuando cambia
-// la versión de Angular. Pero sin él los elementos cargan y se rompen al
-// arrancar, con un error que habla de módulos y no dice «falta el runtime».
+// El build no se reimplementa: se lanza `tools/build.mjs --watch`, que ya
+// recompila incremental reusando el programa de ngtsc. Su salida va tal cual a la
+// terminal — quien mira quiere ver los errores de compilación, no un resumen que
+// se los coma.
 //
-// Así que se comprueba y se construye si falta. Es la misma lección del issue
-// #7: la pregunta se hace cuando puede ser cierta, y acá se puede contestar
-// antes de servir nada.
-if (!runtimeDir()) {
-  log('el runtime no está compilado — construyéndolo (una vez)…');
-  const r = ejecutarNpm(['run', 'build:runtime'], { cwd: ROOT });
-  if (r.status !== 0 || !runtimeDir()) {
-    console.error('[dev-cdn] ✗ no se pudo compilar el runtime. Los elementos no arrancarían.');
-    process.exit(1);
-  }
+// El runtime NO lo compila el build: es otro script. Y se arma con lo que el build
+// deja en `dist/libs/` —por eso va DESPUÉS, nunca antes—. Este fichero lo construía
+// antes de lanzar el build, así que en un árbol sin `dist/` moría con «sg-core.js
+// not found» (#88). Hoy el build avisa por IPC cada vez que termina y
+// `runtime-en-desarrollo.mjs` decide: construirlo si falta, rehacerlo si cambió el
+// CONTENIDO de sus entradas, y no perder un build que llega mientras se construye.
+//
+// Y la otra mitad del mismo eslabón: tocar `libs/` NO cambia ningún bundle.
+// `@synergos/core` y `@synergos/shared` son EXTERNALS (cdn.config.mjs): viven en el
+// runtime y los resuelve el import map. Sin rehacer el runtime, editar el design
+// system recompila, el navegador recarga y todo sigue igual — con el build diciendo
+// «✓ al día». Cuesta ~3,4 s y sólo se paga cuando una lib cambia de verdad.
+const ENTRADAS_DEL_RUNTIME = [join(DIST, 'libs', 'sg-core.js'), join(DIST, 'libs', 'sg-shared.js')];
+
+/** `build-runtime`, por el lanzador (#79). Resuelve `true` si salió 0. */
+function construirRuntime() {
+  return new Promise((resolver) => {
+    // Sin el oyente de `error`, un npm que no arranca tumbaba el servidor (#79).
+    const p = lanzarNpm(['run', 'build:runtime'], { cwd: ROOT });
+    p.on('error', (error) => {
+      console.error(`[dev-cdn] ✗ no se pudo lanzar npm para construir el runtime: ${error.message}`);
+      resolver(false);
+    });
+    p.on('exit', (code) => resolver(code === 0));
+  });
 }
 
-// ── El build, en watch ───────────────────────────────────────────────────────
-//
-// No se reimplementa: se lanza `tools/build.mjs --watch`, que ya recompila
-// incremental reusando el programa de ngtsc. Su salida va tal cual a la
-// terminal — quien mira quiere ver los errores de compilación, no un resumen
-// que se los coma.
-const argsBuild = ['tools/build.mjs', '--watch', ...(SOLO ? [`--solo=${SOLO}`] : [])];
-log(`compilando${SOLO ? ` (sólo ${SOLO})` : ''}…`);
+const recargar = () => {
+  latido = Date.now();
+  log('recargando el navegador');
+};
 
-const build = spawn('node', argsBuild, { cwd: NG, stdio: 'inherit' });
-build.on('exit', (code) => {
-  if (code !== 0) {
-    console.error(`[dev-cdn] ✗ el build murió (código ${code}). Sin él no hay nada que servir.`);
-    process.exit(code ?? 1);
-  }
+/** Lo que hay que hacer cada vez que un build termina. */
+async function alTerminarUnBuild(trasUnBuild) {
+  const resultado = await trasUnBuild();
+  // Con el runtime caído no se recarga: un runtime viejo sirviendo es mejor que nada
+  // mientras se arregla el error que lo causó. Y 'en-curso' recarga quien construye.
+  if (resultado !== 'fallo' && resultado !== 'en-curso') recargar();
+}
+
+const argsBuild = ['tools/build.mjs', '--watch', ...(SOLO ? [`--solo=${SOLO}`] : [])];
+log(`compilando${SOLO ? ` (sólo ${SOLO})` : ''} — el runtime se construye cuando termine…`);
+
+let build;
+arrancarRuntimeDeDesarrollo({
+  lanzarBuild: (trasUnBuild) => {
+    // El cuarto canal es el IPC: `build.mjs` manda `{ evento: 'dist-listo' }` al
+    // terminar cada build. Un build sin watch (la plataforma que no lo tiene) no
+    // manda nada y sale 0: ese final cuenta como su único build.
+    build = spawn(process.execPath, argsBuild, { cwd: NG, stdio: ['inherit', 'inherit', 'inherit', 'ipc'] });
+    build.on('message', (m) => {
+      if (m?.evento === 'dist-listo') void alTerminarUnBuild(trasUnBuild);
+    });
+    build.on('exit', (code) => {
+      if (code !== 0) {
+        console.error(`[dev-cdn] ✗ el build murió (código ${code}). Sin él no hay nada que servir.`);
+        process.exit(code ?? 1);
+      }
+      void alTerminarUnBuild(trasUnBuild);
+    });
+  },
+  estaCompleto: () => runtimeDir() !== null,
+  huellaDeLasEntradas: () =>
+    huellaDeEntradas(ENTRADAS_DEL_RUNTIME, { existe: existsSync, leer: (p) => readFileSync(p) }),
+  construir: construirRuntime,
+  avisar: log,
 });
 
 // ── Lo que se está sirviendo ─────────────────────────────────────────────────
@@ -216,6 +272,8 @@ ${servibles.length === 0 ? `Ninguno: corré <code>npm run build:${FRAMEWORK}</co
         framework: FRAMEWORK,
         importMap,
         inputs: loadInputs()[entrada.name] ?? [],
+        // El nombre del atributo lo decide la plataforma, no el banco (#88).
+        atributoDeInput: PLATAFORMA.atributoDeInput,
       }), tipoDe('.html'));
     }
 
@@ -245,82 +303,6 @@ ${servibles.length === 0 ? `Ninguno: corré <code>npm run build:${FRAMEWORK}</co
       return responder(res, 404, `sin ruta: ${pathname}\n`);
   }
 });
-
-// ── Vigilar `dist/` para avisar al navegador ─────────────────────────────────
-//
-// Se vigila la SALIDA y no las fuentes a propósito: que un fichero cambie no
-// significa que compile. Recargando cuando `dist/` se mueve, el navegador
-// siempre recibe algo que el compilador dio por bueno.
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// Y HAY UN ESLABÓN QUE NO ES OBVIO: TOCAR `libs/` NO CAMBIA NINGÚN BUNDLE.
-//
-// `@synergos/core` y `@synergos/shared` están en EXTERNALS (cdn.config.mjs), o
-// sea que NO se empaquetan dentro de los elementos: viven en el runtime, y el
-// import-map los resuelve. `build.mjs --watch` los recompila a
-// `dist/libs/sg-*.js`, pero quien los mete en el runtime es `build-runtime.mjs`,
-// que corre una sola vez al arrancar.
-//
-// Sin esto, editar el design system recompila, el navegador recarga, y todo
-// sigue igual — el síntoma exacto que este servidor existe para eliminar, y el
-// más desconcertante de todos porque el build dice «✓ al día». Lo encontré
-// levantándolo y cambiando una clase de `syn-badge`: el latido se movía y el
-// bundle no.
-//
-// Cuesta ~3,4 s y sólo se paga cuando se toca `libs/`.
-// ─────────────────────────────────────────────────────────────────────────────
-const DIST_LIBS = join(DIST, 'libs');
-let rehaciendoRuntime = false;
-
-function rehacerRuntime(cuandoTermine) {
-  if (rehaciendoRuntime) return;
-  rehaciendoRuntime = true;
-  log('cambió una lib compartida — rehaciendo el runtime…');
-
-  // Por el lanzador (#79): `spawn('npm', …)` en Windows emitía `error` ENOENT y, sin
-  // oyente, ese evento TUMBABA el servidor — `dev:cdn` moría a los ~11 s, en cuanto el
-  // primer build tocaba `libs/`. El oyente de `error` es la otra mitad: si npm no puede
-  // ni arrancar, se avisa y se sigue sirviendo, igual que cuando el build falla.
-  const p = lanzarNpm(['run', 'build:runtime'], { cwd: ROOT });
-  p.on('error', (error) => {
-    rehaciendoRuntime = false;
-    console.error(`[dev-cdn] ✗ no se pudo lanzar npm para rehacer el runtime: ${error.message}`);
-  });
-  p.on('exit', (code) => {
-    rehaciendoRuntime = false;
-    if (code !== 0) {
-      // No se mata el servidor: un runtime viejo sirviendo es mejor que nada
-      // mientras se arregla el error de compilación que lo causó.
-      console.error('[dev-cdn] ✗ el runtime no se pudo rehacer — el navegador verá el anterior.');
-      return;
-    }
-    cuandoTermine();
-  });
-}
-
-if (existsSync(DIST)) {
-  let timer = null;
-  let tocoLibs = false;
-
-  watch(DIST, { recursive: true }, (_evento, fichero) => {
-    if (fichero && `${fichero}`.startsWith('libs')) tocoLibs = true;
-
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      const recargar = () => {
-        latido = Date.now();
-        log('recargando el navegador');
-      };
-
-      if (tocoLibs && existsSync(DIST_LIBS)) {
-        tocoLibs = false;
-        rehacerRuntime(recargar);
-      } else {
-        recargar();
-      }
-    }, 200);
-  });
-}
 
 servidor.listen(PUERTO, () => {
   log(`sirviendo en http://localhost:${PUERTO}`);
