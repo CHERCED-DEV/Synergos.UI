@@ -440,7 +440,7 @@ export interface SelectMultiProps {
   readonly maxSelections?: number;
 }
 
-/** <synergos-share-bar> · pieza */
+/** <synergos-share-bar> · pieza · diccionario: Share */
 export interface ShareBarProps {
   /** decision */
   readonly platforms?: readonly string[];
@@ -1124,8 +1124,8 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   nombre: "share-bar",
   tipo: "pieza",
   record: "ShareBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Share"],
+  claves: ["Share.Copied","Share.Copy","Share.CopyFailed","Share.Email","Share.Label","Share.On"],
   campos: ["platforms","shareLink","shareTitle"],
   listas: {},
   ejemplo: {

@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import type { ShareBarProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -28,6 +29,10 @@ import {
  * `twitter` a `x`) y `shareLink` el destino del enlace del editor. La vista mandaba el texto
  * `platformsCsv` y `shareUrl`, y la barra ignoraba las dos cosas (D1). El atributo `platforms`
  * sigue aceptando CSV o JSON.
+ *
+ * Su microcopia sale del diccionario, sección `Share` (ADR 0136): «Compartir», copiar el enlace y
+ * su confirmación, y «Compartir en {network}». El NOMBRE de cada red es marca y lo pone el
+ * catálogo de acá, no el diccionario.
  */
 export type SharePlatformId =
   | 'facebook'
@@ -39,6 +44,9 @@ export type SharePlatformId =
 
 export interface SharePlatform {
   readonly id: SharePlatformId;
+  /** El nombre de la red. Es MARCA, no microcopia: no va al diccionario. Vacío en `email`. */
+  readonly name: string;
+  /** Nombre accesible del botón: «Compartir en {network}», del diccionario (sección `Share`). */
   readonly label: string;
   /** SVG path data for the brand glyph (24×24 viewBox). */
   readonly icon: string;
@@ -66,40 +74,47 @@ const DEFAULT_PLATFORMS: readonly SharePlatformId[] = [
 ];
 
 /** Canonical catalog: label + brand glyph for every supported network. */
-const PLATFORM_CATALOG: Readonly<Record<SharePlatformId, SharePlatform>> = {
+const PLATFORM_CATALOG: Readonly<Record<SharePlatformId, Omit<SharePlatform, 'label'>>> = {
   facebook: {
     id: 'facebook',
-    label: 'Compartir en Facebook',
+    name: 'Facebook',
     icon: 'M14 9h2.5l.5-3h-3V4.2c0-.8.3-1.2 1.3-1.2H17V.2C16.6.1 15.6 0 14.5 0 12 0 10.4 1.5 10.4 4v2H8v3h2.4v9H14V9Z',
   },
   x: {
     id: 'x',
-    label: 'Compartir en X',
+    name: 'X',
     icon: 'M17.5 2h2.8l-6.1 7 7.2 9.5h-5.6l-4.4-5.8-5 5.8H3.6l6.5-7.5L2.9 2h5.7l4 5.3L17.5 2Zm-1 15h1.6L7.9 3.7H6.2L16.5 17Z',
   },
   linkedin: {
     id: 'linkedin',
-    label: 'Compartir en LinkedIn',
+    name: 'LinkedIn',
     icon: 'M4.5 3.5A2.5 2.5 0 1 1 2 6 2.5 2.5 0 0 1 4.5 3.5ZM2.5 8h4v13h-4V8Zm7 0h3.8v1.8h.05a4.2 4.2 0 0 1 3.8-2.1c4 0 4.8 2.6 4.8 6V21h-4v-5.6c0-1.3 0-3-1.9-3s-2.2 1.4-2.2 2.9V21h-4V8Z',
   },
   whatsapp: {
     id: 'whatsapp',
-    label: 'Compartir por WhatsApp',
+    name: 'WhatsApp',
     icon: 'M12 2a10 10 0 0 0-8.5 15.3L2 22l4.8-1.5A10 10 0 1 0 12 2Zm5.3 13.9c-.2.6-1.3 1.2-1.8 1.2s-1.1.3-3.6-.8-3.9-3.8-4-4-1-1.3-1-2.5.6-1.8.9-2 .5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .6l-.4.5-.3.4c-.1.1-.3.3-.1.6s.6 1 1.3 1.6c.9.8 1.6 1 1.9 1.2s.5.1.6-.1l.8-1c.2-.2.4-.2.6-.1l2 .9c.2.1.4.2.4.3s0 .6-.2 1.1Z',
   },
   telegram: {
     id: 'telegram',
-    label: 'Compartir en Telegram',
+    name: 'Telegram',
     icon: 'M21.9 4.3 18.6 20c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.4-5 9-8.2c.4-.3-.1-.5-.6-.2L6.6 13l-4.8-1.5c-1-.3-1-1 .2-1.5L20.6 2.9c.9-.3 1.6.2 1.3 1.4Z',
   },
   email: {
     id: 'email',
-    label: 'Compartir por correo',
+    name: '',
     icon: 'M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm.8 2 8.2 6 8.2-6H3.8ZM20 7.6l-7.4 5.4a1 1 0 0 1-1.2 0L4 7.6V18h16V7.6Z',
   },
 };
 
 const ALL_IDS = Object.keys(PLATFORM_CATALOG) as readonly SharePlatformId[];
+
+/** «Compartir en Facebook»: la frase sale del diccionario y el nombre de la red, del catálogo. */
+function etiquetaDeRed(red: Omit<SharePlatform, 'label'>): string {
+  return red.id === 'email'
+    ? t('Share.Email', 'Compartir por correo')
+    : t('Share.On', 'Compartir en {network}', { network: red.name });
+}
 
 function isPlatformId(value: string): value is SharePlatformId {
   return (ALL_IDS as readonly string[]).includes(value);
@@ -223,8 +238,14 @@ export class ShareBarElementComponent {
     const spec = this.resolveSource(this.platformsInput(), this.config()?.platforms);
     const ids = normalizePlatforms(spec);
     const resolved = ids.length > 0 ? ids : DEFAULT_PLATFORMS;
-    return resolved.map((id) => PLATFORM_CATALOG[id]);
+    return resolved.map((id) => ({ ...PLATFORM_CATALOG[id], label: etiquetaDeRed(PLATFORM_CATALOG[id]) }));
   });
+
+  /** La microcopia de la barra, del diccionario (ADR 0136, sección `Share`). */
+  readonly shareLabel = computed(() => t('Share.Label', 'Compartir'));
+  readonly copyLabel = computed(() => t('Share.Copy', 'Copiar enlace'));
+  readonly copiedLabel = computed(() => t('Share.Copied', 'Enlace copiado'));
+  readonly copyFailedLabel = computed(() => t('Share.CopyFailed', 'No se pudo copiar el enlace'));
 
   readonly hasPlatforms = computed(() => this.platforms().length > 0);
 

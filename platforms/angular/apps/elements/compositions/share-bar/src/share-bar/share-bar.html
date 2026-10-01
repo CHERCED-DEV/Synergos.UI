@@ -1,5 +1,5 @@
-<div class="share-bar" role="group" [attr.aria-label]="'Compartir'">
-  <span class="share-bar__label" id="share-bar-label">Compartir</span>
+<div class="share-bar" role="group" [attr.aria-label]="shareLabel()">
+  <span class="share-bar__label" id="share-bar-label">{{ shareLabel() }}</span>
 
   @if (hasPlatforms()) {
     <ul class="share-bar__list" aria-labelledby="share-bar-label">
@@ -32,12 +32,12 @@
           [class.share-bar__action--failed]="copyState() === 'failed'"
           [attr.aria-label]="
             copyState() === 'copied'
-              ? 'Enlace copiado'
+              ? copiedLabel()
               : copyState() === 'failed'
-                ? 'No se pudo copiar el enlace'
-                : 'Copiar enlace'
+                ? copyFailedLabel()
+                : copyLabel()
           "
-          [attr.title]="'Copiar enlace'"
+          [attr.title]="copyLabel()"
           (click)="onCopyLink()"
         >
           <svg
@@ -73,9 +73,9 @@
 
   <span class="share-bar__status" role="status" aria-live="polite">
     @if (copyState() === 'copied') {
-      Enlace copiado
+      {{ copiedLabel() }}
     } @else if (copyState() === 'failed') {
-      No se pudo copiar
+      {{ copyFailedLabel() }}
     }
   </span>
 </div>
