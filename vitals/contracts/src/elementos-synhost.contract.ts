@@ -410,7 +410,7 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
-/** <synergos-rich-tooltip> · pieza */
+/** <synergos-rich-tooltip> · pieza · diccionario: Common.Actions */
 export interface RichTooltipProps {
   /** contenido */
   readonly triggerText?: string;
@@ -1063,8 +1063,8 @@ export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   nombre: "rich-tooltip",
   tipo: "pieza",
   record: "RichTooltipProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll"],
   campos: ["triggerText","body","placement"],
   listas: {},
   ejemplo: {

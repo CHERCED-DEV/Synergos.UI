@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import type { RichTooltipProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -28,6 +29,9 @@ import {
  * texto) y `placement` el lado. La vista mandaba el HTML como `tooltipContent` y el tooltip no
  * tenía contenido (D1). `title`, `actionLabel` y `actionHref` no los autora el editor: llegan por
  * atributo.
+ *
+ * Su única microcopia —el nombre del disparador cuando no tiene texto ni título— sale del
+ * diccionario: `Common.Actions.LearnMore` (ADR 0136), la misma acción del resto del sitio.
  */
 /** Emitted on the `tooltiptoggle` CustomEvent and the typed Angular output. */
 export interface RichTooltipToggleDetail {
@@ -105,7 +109,7 @@ export class RichTooltipElementComponent {
 
   /** Accessible label for the trigger when it shows no visible text. */
   readonly triggerLabel = computed(
-    () => this.triggerText() || this.title() || 'Más información',
+    () => this.triggerText() || this.title() || t('Common.Actions.LearnMore', 'Más información'),
   );
 
   readonly #open = signal(false);
