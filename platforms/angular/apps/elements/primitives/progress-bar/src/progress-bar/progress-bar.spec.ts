@@ -131,3 +131,35 @@ describe('progress-bar pure helpers', () => {
     expect(computePercent(200, 100)).toBe(100);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('progress-bar — microcopia del diccionario (ADR 0136, sección ProgressBar)', () => {
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ProgressBarElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('el rótulo del editor gana; sin rótulo, el nombre es ProgressBar.Aria', async () => {
+    publicar({ 'ProgressBar.Aria': 'Progress' });
+    const conRotulo = TestBed.createComponent(ProgressBarElementComponent);
+    conRotulo.componentRef.setInput('config', JSON.stringify(PROGRESS_BAR_SYNHOST.ejemplo));
+    conRotulo.detectChanges();
+    await conRotulo.whenStable();
+    expect(conRotulo.componentInstance.accessibleLabel()).toBe(PROGRESS_BAR_SYNHOST.ejemplo.label);
+
+    const sinRotulo = TestBed.createComponent(ProgressBarElementComponent);
+    sinRotulo.detectChanges();
+    await sinRotulo.whenStable();
+    expect(sinRotulo.componentInstance.accessibleLabel()).toBe('Progress');
+  });
+});

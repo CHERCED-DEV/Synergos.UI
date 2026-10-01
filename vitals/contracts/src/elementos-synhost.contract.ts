@@ -376,7 +376,7 @@ export interface NotificationToastProps {
   readonly durationMs?: number;
 }
 
-/** <synergos-progress-bar> · pieza */
+/** <synergos-progress-bar> · pieza · diccionario: ProgressBar */
 export interface ProgressBarProps {
   /** contenido */
   readonly value?: number;
@@ -1013,8 +1013,8 @@ export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
   nombre: "progress-bar",
   tipo: "pieza",
   record: "ProgressBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ProgressBar"],
+  claves: ["ProgressBar.Aria"],
   campos: ["value","max","label"],
   listas: {},
   ejemplo: {
