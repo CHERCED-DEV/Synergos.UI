@@ -11,6 +11,7 @@ import type { BadgeGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -179,7 +180,7 @@ export function sanitizeBadgeGroupConfig(value: Partial<BadgeGroupProps>): Parti
   const badges = normalizeBadges(value.badges);
   return omitUndefinedProperties<BadgeGroupProps>({
     badges: badges.length > 0 ? badges : undefined,
-    layout: coerceTrimmedStringInput(value.layout),
+    layout: coerceStringEnumInput(value.layout, LAYOUTS),
   });
 }
 

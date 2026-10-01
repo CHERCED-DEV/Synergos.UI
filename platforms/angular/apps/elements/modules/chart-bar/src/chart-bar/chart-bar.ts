@@ -10,6 +10,7 @@ import type { ChartBarProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -120,7 +121,7 @@ export function normalizeData(value: unknown): readonly ChartBarPoint[] {
 export function sanitizeChartBarConfig(value: Partial<ChartBarProps>): Partial<ChartBarProps> {
   return omitUndefinedProperties<ChartBarProps>({
     title: coerceTrimmedStringInput(value.title),
-    orientation: coerceTrimmedStringInput(value.orientation),
+    orientation: coerceStringEnumInput(value.orientation, ORIENTATIONS),
     data: Array.isArray(value.data) ? value.data : undefined,
   });
 }

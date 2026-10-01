@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import type { RichTooltipProps } from '@synergos/contracts';
 import {
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -51,7 +52,7 @@ export function sanitizeRichTooltipConfig(value: Partial<RichTooltipProps>): Par
   return omitUndefinedProperties<RichTooltipProps>({
     triggerText: coerceTrimmedStringInput(value.triggerText),
     body: coerceTrimmedStringInput(value.body),
-    placement: coerceTrimmedStringInput(value.placement),
+    placement: coerceStringEnumInput(value.placement, PLACEMENTS),
   });
 }
 

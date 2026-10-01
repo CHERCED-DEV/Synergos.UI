@@ -151,19 +151,13 @@ export function buildShareUrl(
   }
 }
 
-/** Una lista de cadenas no vacías, o `undefined` si no es una lista o queda vacía. */
-function coerceStringList(value: unknown): readonly string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const items = value.map((item) => coerceTrimmedStringInput(item)).filter((item): item is string => item !== undefined);
-  return items.length > 0 ? items : undefined;
-}
-
 /** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
 export function sanitizeShareBarConfig(value: Partial<ShareBarProps>): Partial<ShareBarProps> {
+  // Sólo las redes que esta barra pinta: el vocabulario se cierra acá, que es lo que ejecuta el
+  // gate de vocabulario (CMS#181). Una lista que queda vacía no viaja y la barra pinta las suyas.
+  const platforms = Array.isArray(value.platforms) ? normalizePlatforms(value.platforms) : [];
   return omitUndefinedProperties<ShareBarProps>({
-    platforms: coerceStringList(value.platforms),
+    platforms: platforms.length > 0 ? platforms : undefined,
     shareLink: coerceTrimmedStringInput(value.shareLink),
     shareTitle: coerceTrimmedStringInput(value.shareTitle),
   });

@@ -136,7 +136,7 @@ export function sanitizeColorSwatchesConfig(value: Partial<ColorSwatchesProps>):
   const swatches = normalizeSwatches(value.swatches);
   return omitUndefinedProperties<ColorSwatchesProps>({
     swatches: swatches.length > 0 ? swatches : undefined,
-    shape: coerceTrimmedStringInput(value.shape),
+    shape: coerceStringEnumInput(value.shape, SWATCH_SHAPES),
   });
 }
 

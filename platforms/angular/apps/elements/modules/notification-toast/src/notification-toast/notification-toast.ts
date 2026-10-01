@@ -121,7 +121,7 @@ export function normalizeSeeds(value: unknown): readonly ToastSeedConfig[] {
       return omitUndefinedProperties<ToastSeedConfig>({
         message,
         title: coerceTrimmedStringInput(entry['title']),
-        variant: coerceTrimmedStringInput(entry['variant']),
+        variant: coerceStringEnumInput(entry['variant'], TOAST_VARIANTS),
         durationMs: coerceOptionalNumberInput(entry['durationMs']),
       });
     })
