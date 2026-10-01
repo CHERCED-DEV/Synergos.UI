@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import type { KpiCardProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
@@ -29,6 +30,10 @@ import {
  * `delta` (número) y `sparkline` NO viajan en el `config`: el editor no los autora. Siguen
  * siendo atributos del elemento para quien lo monte a mano; los atributos ganan sobre el
  * `config`, que gana sobre los defaults (`resolveConfigValue`).
+ *
+ * Su microcopia sale del diccionario, sección `Synhost.Kpi` (ADR 0136) — la MISMA que usa el
+ * respaldo SSR de la vista para la frase de la tendencia. Antes este elemento escribía «al alza» a
+ * mano y, al hidratar, reemplazaba «Tendencia al alza» que el SSR había pintado del diccionario.
  */
 
 /** Resolved trend direction driving the delta colour + arrow glyph. */
@@ -205,14 +210,29 @@ export class KpiCardElementComponent {
   readonly sparkline = computed<Sparkline | null>(() => buildSparkline(this.series()));
   readonly hasSparkline = computed(() => this.sparkline() !== null);
 
-  /** Accessible description combining delta direction + period for screen readers. */
+  /**
+   * La frase de la tendencia para un lector de pantalla — «Tendencia al alza: +12 % vs. agosto» —,
+   * con la misma clave que el respaldo SSR (`Synhost.Kpi.Trend.*`): el SSR y la hidratación dicen
+   * lo mismo.
+   */
   readonly trendDescription = computed<string>(() => {
     if (!this.hasDelta()) {
       return '';
     }
-    const direction =
-      this.trend() === 'up' ? 'al alza' : this.trend() === 'down' ? 'a la baja' : 'sin cambio';
+    const frase =
+      this.trend() === 'up'
+        ? t('Synhost.Kpi.Trend.Up', 'Tendencia al alza')
+        : this.trend() === 'down'
+          ? t('Synhost.Kpi.Trend.Down', 'Tendencia a la baja')
+          : t('Synhost.Kpi.Trend.Flat', 'Tendencia estable');
     const period = this.hasPeriod() ? ` ${this.period()}` : '';
-    return `Variación ${this.deltaLabel()} ${direction}${period}`.trim();
+    return `${frase}: ${this.deltaLabel()}${period}`;
   });
+
+  /** El nombre del grupo cuando el editor no le dio rótulo, y el texto de «sin valor». */
+  readonly groupLabel = computed(() => this.label() || t('Synhost.Kpi.Aria', 'Indicador'));
+  readonly noDataLabel = computed(() => t('Synhost.Kpi.NoData', 'Sin dato'));
+  readonly sparklineLabel = computed(() =>
+    t('Synhost.Kpi.Sparkline', 'Evolución: {label}', { label: this.groupLabel() }),
+  );
 }

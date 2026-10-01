@@ -80,13 +80,6 @@ const PENDIENTES = new Map([
       'hoy sólo existe la 1.x.',
   ],
   [
-    't',
-    'DEUDA, y medida: la i18n del host no la consume ninguna app — las copias ' +
-      'están en español en línea, en las plantillas. Una cuenta anterior dijo «15 ' +
-      'consumidores» y era una colisión: el regex `t(` casa con cualquier cosa. ' +
-      'Cablearlo es traducir las copias de nueve apps y no cabe en el defecto #17.',
-  ],
-  [
     'getPage',
     'DEUDA, y medida: cero consumidores. La cuenta anterior dijo 1 y era otra ' +
       'colisión — `CmsPageService.getPage(path)` es un método distinto que se ' +

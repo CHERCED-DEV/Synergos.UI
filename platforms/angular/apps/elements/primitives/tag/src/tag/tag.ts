@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import type { TagProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -20,6 +21,9 @@ import {
  * 0135): `label` y `color`. La vista mandaba `tagLabel`/`tagColor` y el chip DESAPARECÍA al
  * hidratar (D1). `icon`, `removable`, `ariaLabel` y `removeLabel` no los autora el editor:
  * siguen siendo atributos del elemento.
+ *
+ * Su microcopia sale del diccionario (ADR 0136, sección `Tag`): «Quitar» es `Tag.Remove`. El
+ * atributo `removeLabel` sigue ganando para quien monte el chip a mano.
  */
 
 export type TagColor = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info';
@@ -101,7 +105,7 @@ export class TagElementComponent {
 
   readonly removable = computed(() => this.removableInput() ?? false);
 
-  readonly removeLabel = computed(() => this.removeLabelInput() ?? 'Quitar');
+  readonly removeLabel = computed(() => this.removeLabelInput() ?? t('Tag.Remove', 'Quitar'));
 
   /** Accessible name for the chip; falls back to the visible label. */
   readonly ariaLabel = computed(() => this.ariaLabelInput() || this.label());

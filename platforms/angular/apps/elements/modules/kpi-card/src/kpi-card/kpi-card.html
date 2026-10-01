@@ -4,7 +4,7 @@
   [class.kpi-card--down]="trend() === 'down'"
   [class.kpi-card--flat]="trend() === 'flat'"
   role="group"
-  [attr.aria-label]="label() || 'Indicador'"
+  [attr.aria-label]="groupLabel()"
 >
   @if (label()) {
     <p class="kpi-card__label">{{ label() }}</p>
@@ -15,7 +15,7 @@
       {{ value() }}
     } @else {
       <span class="kpi-card__value-empty" aria-hidden="true">—</span>
-      <span class="kpi-card__sr">Sin dato</span>
+      <span class="kpi-card__sr">{{ noDataLabel() }}</span>
     }
   </p>
 
@@ -44,7 +44,7 @@
           [attr.viewBox]="'0 0 ' + sparkline()!.width + ' ' + sparkline()!.height"
           preserveAspectRatio="none"
           role="img"
-          [attr.aria-label]="'Tendencia ' + (label() || 'del indicador')"
+          [attr.aria-label]="sparklineLabel()"
         >
           <polygon class="kpi-card__spark-area" [attr.points]="sparkline()!.area" />
           <polyline class="kpi-card__spark-line" [attr.points]="sparkline()!.points" />

@@ -1,6 +1,6 @@
 <section
   class="hero"
-  [attr.aria-label]="hasTitle() ? title() : 'Sección destacada'"
+  [attr.aria-label]="regionLabel()"
 >
   <div class="hero__media-frame">
     @if (hasMedia()) {

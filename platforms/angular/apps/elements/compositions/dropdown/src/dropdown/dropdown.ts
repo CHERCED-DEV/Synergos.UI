@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import type { DropdownProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import { InitialDataService } from '@synergos/core';
 import {
   coerceOptionalBooleanInput,
@@ -32,6 +33,9 @@ import {
  * `optionsJson`, este elemento leía la lista `options`, y todo dropdown colocado salía como un
  * botón gris sin opciones (D1). El atributo `optionsJson` sigue existiendo para quien monte el
  * elemento a mano; los atributos ganan sobre el `config`, que gana sobre los defaults.
+ *
+ * Su microcopia sale del diccionario (ADR 0136): sección `Dropdown` para el rótulo por defecto, el
+ * nombre y el placeholder del filtro, y `Common.States.NoResults` para la lista vacía.
  */
 
 export interface DropdownItem {
@@ -47,8 +51,6 @@ export interface DropdownSelectDetail {
   readonly label: string;
   readonly href: string;
 }
-
-const DEFAULT_TRIGGER_LABEL = 'Opciones';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -154,8 +156,13 @@ export class DropdownElementComponent {
   readonly menuId = `syn-dropdown-menu-${nextId()}`;
 
   readonly triggerLabel = computed(() =>
-    resolveConfigValue(this.triggerLabelInput(), this.config()?.triggerLabel, DEFAULT_TRIGGER_LABEL),
+    resolveConfigValue(this.triggerLabelInput(), this.config()?.triggerLabel, t('Dropdown.Trigger', 'Opciones')),
   );
+
+  /** La microcopia del filtro y de la lista vacía, del diccionario. */
+  readonly filterLabel = computed(() => t('Dropdown.Filter', 'Filtrar opciones'));
+  readonly searchPlaceholder = computed(() => t('Dropdown.Search', 'Buscar…'));
+  readonly emptyLabel = computed(() => t('Common.States.NoResults', 'Sin resultados.'));
 
   readonly searchable = computed(() =>
     resolveConfigValue(this.searchableInput(), this.config()?.searchable, false),

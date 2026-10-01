@@ -22,6 +22,8 @@ export interface ElementoSynHost<T> {
   readonly tipo: 'pieza' | 'funcionalidad';
   readonly record: string;
   readonly diccionario: readonly string[];
+  /** Las claves de uSync de esas secciones (ADR 0136): las únicas que el elemento puede pedir con `t()`. */
+  readonly claves: readonly string[];
   readonly campos: readonly (keyof T & string)[];
   /** Por cada campo que es una lista de records, los campos de sus ítems. */
   readonly listas: Readonly<Partial<Record<keyof T & string, readonly string[]>>>;
@@ -32,6 +34,20 @@ export interface ElementoSynHost<T> {
 export interface AccordionSection {
   readonly title: string;
   readonly body?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: AppDelLanzador). */
+export interface AppDelLanzador {
+  readonly name: string;
+  readonly id?: string;
+  readonly tagline?: string;
+  readonly icon?: string;
+  readonly status?: string;
+  readonly industry?: string;
+  readonly persona?: string;
+  readonly capabilities?: readonly string[];
+  readonly url?: string;
+  readonly demoMode?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: AvatarGroupMember). */
@@ -146,6 +162,16 @@ export interface AccordionProps {
   readonly allowMultiple?: boolean;
 }
 
+/** <synergos-app-launcher> · funcionalidad · diccionario: AppLauncher, Common.States */
+export interface AppLauncherProps {
+  /** contenido */
+  readonly title?: string;
+  /** contenido */
+  readonly subtitle?: string;
+  /** contenido */
+  readonly apps?: readonly AppDelLanzador[];
+}
+
 /** <synergos-audio-player> · pieza */
 export interface AudioPlayerProps {
   /** contenido */
@@ -190,7 +216,7 @@ export interface BreadcrumbProps {
   readonly includeStructuredData?: boolean;
 }
 
-/** <synergos-carousel> · pieza */
+/** <synergos-carousel> · pieza · diccionario: Slider */
 export interface CarouselProps {
   /** contenido */
   readonly slides?: readonly CarouselSlide[];
@@ -260,7 +286,7 @@ export interface CountdownDigitalProps {
   readonly style?: string;
 }
 
-/** <synergos-dropdown> · pieza */
+/** <synergos-dropdown> · pieza · diccionario: Dropdown, Common.States */
 export interface DropdownProps {
   /** contenido */
   readonly triggerLabel?: string;
@@ -376,7 +402,7 @@ export interface RangeSliderProps {
   readonly high?: number;
 }
 
-/** <synergos-rating-stars> · pieza */
+/** <synergos-rating-stars> · pieza · diccionario: Rating */
 export interface RatingStarsProps {
   /** contenido */
   readonly value?: number;
@@ -442,7 +468,7 @@ export interface TabsProps {
   readonly initialTab?: string;
 }
 
-/** <synergos-tag> · pieza */
+/** <synergos-tag> · pieza · diccionario: Tag */
 export interface TagProps {
   /** contenido */
   readonly label?: string;
@@ -487,6 +513,7 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
   tipo: "pieza",
   record: "AccordionProps",
   diccionario: [],
+  claves: [],
   campos: ["items","allowMultiple"],
   listas: {"items":["title","body"]},
   ejemplo: {
@@ -505,11 +532,57 @@ export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
   },
 };
 
+export const APP_LAUNCHER_SYNHOST: ElementoSynHost<AppLauncherProps> = {
+  nombre: "app-launcher",
+  tipo: "funcionalidad",
+  record: "AppLauncherProps",
+  diccionario: ["AppLauncher","Common.States"],
+  claves: ["AppLauncher.Capabilities","AppLauncher.Count.Filtered","AppLauncher.Count.One","AppLauncher.Count.Other","AppLauncher.EmbedPreview","AppLauncher.Empty","AppLauncher.Filters.All","AppLauncher.Filters.Aria","AppLauncher.Filters.Capability","AppLauncher.Filters.Industry","AppLauncher.Filters.Persona","AppLauncher.Open","AppLauncher.Search.Label","AppLauncher.Search.Placeholder","AppLauncher.Status.Aria","AppLauncher.Status.Beta","AppLauncher.Status.Live","AppLauncher.Title","Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success"],
+  campos: ["title","subtitle","apps"],
+  listas: {"apps":["name","id","tagline","icon","status","industry","persona","capabilities","url","demoMode"]},
+  ejemplo: {
+    "culture": "es-CO",
+    "title": "Explora las apps",
+    "subtitle": "Un motor, muchos productos",
+    "apps": [
+      {
+        "name": "Tienda",
+        "id": "tienda",
+        "tagline": "Catálogo, carrito y checkout.",
+        "icon": "bag",
+        "status": "live",
+        "industry": "Retail",
+        "persona": "Comprador",
+        "capabilities": [
+          "Catálogo",
+          "Pagos"
+        ],
+        "url": "/tienda",
+        "demoMode": "deeplink"
+      },
+      {
+        "name": "Gobierno",
+        "id": "gobierno",
+        "status": "soon",
+        "industry": "Sector público",
+        "persona": "Ciudadano",
+        "capabilities": [
+          "Trámites",
+          "Citas"
+        ],
+        "url": "/gobierno",
+        "demoMode": "embed"
+      }
+    ]
+  },
+};
+
 export const AUDIO_PLAYER_SYNHOST: ElementoSynHost<AudioPlayerProps> = {
   nombre: "audio-player",
   tipo: "pieza",
   record: "AudioPlayerProps",
   diccionario: [],
+  claves: [],
   campos: ["audioFile","trackTitle","artistName"],
   listas: {},
   ejemplo: {
@@ -525,6 +598,7 @@ export const AVATAR_SYNHOST: ElementoSynHost<AvatarProps> = {
   tipo: "pieza",
   record: "AvatarProps",
   diccionario: [],
+  claves: [],
   campos: ["src","alt"],
   listas: {},
   ejemplo: {
@@ -539,6 +613,7 @@ export const AVATAR_GROUP_SYNHOST: ElementoSynHost<AvatarGroupProps> = {
   tipo: "pieza",
   record: "AvatarGroupProps",
   diccionario: [],
+  claves: [],
   campos: ["avatars","maxVisible","label"],
   listas: {"avatars":["name","src"]},
   ejemplo: {
@@ -566,6 +641,7 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
   tipo: "pieza",
   record: "BadgeGroupProps",
   diccionario: [],
+  claves: [],
   campos: ["badges","layout"],
   listas: {"badges":["label","tone"]},
   ejemplo: {
@@ -589,6 +665,7 @@ export const BREADCRUMB_SYNHOST: ElementoSynHost<BreadcrumbProps> = {
   tipo: "pieza",
   record: "BreadcrumbProps",
   diccionario: [],
+  claves: [],
   campos: ["items","includeStructuredData"],
   listas: {"items":["label","href"]},
   ejemplo: {
@@ -614,7 +691,8 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   nombre: "carousel",
   tipo: "pieza",
   record: "CarouselProps",
-  diccionario: [],
+  diccionario: ["Slider"],
+  claves: ["Slider.Aria","Slider.Current","Slider.GoToSlide","Slider.Next","Slider.Pager","Slider.Pause","Slider.Play","Slider.Previous","Slider.SlideOf"],
   campos: ["slides","autoplay","interval"],
   listas: {"slides":["src","alt","label"]},
   ejemplo: {
@@ -641,6 +719,7 @@ export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
   tipo: "pieza",
   record: "ChartBarProps",
   diccionario: [],
+  claves: [],
   campos: ["title","orientation","data"],
   listas: {"data":["label","value"]},
   ejemplo: {
@@ -669,6 +748,7 @@ export const COLOR_PICKER_SYNHOST: ElementoSynHost<ColorPickerProps> = {
   tipo: "pieza",
   record: "ColorPickerProps",
   diccionario: [],
+  claves: [],
   campos: ["label","initialColor","palette"],
   listas: {},
   ejemplo: {
@@ -689,6 +769,7 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
   tipo: "pieza",
   record: "ColorSwatchesProps",
   diccionario: [],
+  claves: [],
   campos: ["swatches","shape"],
   listas: {"swatches":["color","label"]},
   ejemplo: {
@@ -712,6 +793,7 @@ export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
   tipo: "pieza",
   record: "CookieConsentProps",
   diccionario: [],
+  claves: [],
   campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
   listas: {},
   ejemplo: {
@@ -730,6 +812,7 @@ export const COUNTDOWN_CLOCK_SYNHOST: ElementoSynHost<CountdownClockProps> = {
   tipo: "pieza",
   record: "CountdownClockProps",
   diccionario: [],
+  claves: [],
   campos: ["targetDate"],
   listas: {},
   ejemplo: {
@@ -743,6 +826,7 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   tipo: "pieza",
   record: "CountdownDigitalProps",
   diccionario: [],
+  claves: [],
   campos: ["targetDate","showLabels","style"],
   listas: {},
   ejemplo: {
@@ -757,7 +841,8 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
   tipo: "pieza",
   record: "DropdownProps",
-  diccionario: [],
+  diccionario: ["Dropdown","Common.States"],
+  claves: ["Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success","Dropdown.Filter","Dropdown.Search","Dropdown.Trigger"],
   campos: ["triggerLabel","options","selectedValue","searchable"],
   listas: {"options":["value","label","href"]},
   ejemplo: {
@@ -784,6 +869,7 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   tipo: "pieza",
   record: "FabProps",
   diccionario: [],
+  claves: [],
   campos: ["iconKey","actionLink","target","position","label"],
   listas: {},
   ejemplo: {
@@ -801,6 +887,7 @@ export const HERO_BANNER_SYNHOST: ElementoSynHost<HeroBannerProps> = {
   tipo: "pieza",
   record: "HeroBannerProps",
   diccionario: ["Synhost.Hero"],
+  claves: ["Synhost.Hero.Aria"],
   campos: ["title","subtitle","media","mediaAlt","ctaLabel","ctaLink"],
   listas: {},
   ejemplo: {
@@ -819,6 +906,7 @@ export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
   tipo: "pieza",
   record: "IconLabelProps",
   diccionario: [],
+  claves: [],
   campos: ["iconName","labelText"],
   listas: {},
   ejemplo: {
@@ -833,6 +921,7 @@ export const KPI_CARD_SYNHOST: ElementoSynHost<KpiCardProps> = {
   tipo: "pieza",
   record: "KpiCardProps",
   diccionario: ["Synhost.Kpi"],
+  claves: ["Synhost.Kpi.Aria","Synhost.Kpi.NoData","Synhost.Kpi.Sparkline","Synhost.Kpi.Trend.Down","Synhost.Kpi.Trend.Flat","Synhost.Kpi.Trend.Up"],
   campos: ["label","value","trend","deltaLabel","period"],
   listas: {},
   ejemplo: {
@@ -850,6 +939,7 @@ export const LIGHTBOX_GALLERY_SYNHOST: ElementoSynHost<LightboxGalleryProps> = {
   tipo: "pieza",
   record: "LightboxGalleryProps",
   diccionario: [],
+  claves: [],
   campos: ["images","columns"],
   listas: {"images":["src","thumb","alt","caption"]},
   ejemplo: {
@@ -877,6 +967,7 @@ export const MAP_PIN_SYNHOST: ElementoSynHost<MapPinProps> = {
   tipo: "pieza",
   record: "MapPinProps",
   diccionario: [],
+  claves: [],
   campos: ["centerLat","centerLng","zoomLevel","pins"],
   listas: {"pins":["lat","lng","label","description"]},
   ejemplo: {
@@ -906,6 +997,7 @@ export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps>
   tipo: "pieza",
   record: "NotificationToastProps",
   diccionario: [],
+  claves: [],
   campos: ["toasts","durationMs"],
   listas: {"toasts":["message","variant"]},
   ejemplo: {
@@ -925,6 +1017,7 @@ export const PROGRESS_BAR_SYNHOST: ElementoSynHost<ProgressBarProps> = {
   tipo: "pieza",
   record: "ProgressBarProps",
   diccionario: [],
+  claves: [],
   campos: ["value","max","label"],
   listas: {},
   ejemplo: {
@@ -940,6 +1033,7 @@ export const RANGE_SLIDER_SYNHOST: ElementoSynHost<RangeSliderProps> = {
   tipo: "pieza",
   record: "RangeSliderProps",
   diccionario: [],
+  claves: [],
   campos: ["label","min","max","step","high"],
   listas: {},
   ejemplo: {
@@ -956,7 +1050,8 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   nombre: "rating-stars",
   tipo: "pieza",
   record: "RatingStarsProps",
-  diccionario: [],
+  diccionario: ["Rating"],
+  claves: ["Rating.AlreadyRated","Rating.Average","Rating.SelectStars","Rating.Stars.Aria","Rating.Submit","Rating.Success"],
   campos: ["value","max","label"],
   listas: {},
   ejemplo: {
@@ -972,6 +1067,7 @@ export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   tipo: "pieza",
   record: "RichTooltipProps",
   diccionario: [],
+  claves: [],
   campos: ["triggerText","body","placement"],
   listas: {},
   ejemplo: {
@@ -987,6 +1083,7 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   tipo: "pieza",
   record: "ScrollTopProps",
   diccionario: [],
+  claves: [],
   campos: ["scrollThreshold","position","label"],
   listas: {},
   ejemplo: {
@@ -1002,6 +1099,7 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   tipo: "pieza",
   record: "SelectMultiProps",
   diccionario: [],
+  claves: [],
   campos: ["label","options","maxSelections"],
   listas: {"options":["value","label"]},
   ejemplo: {
@@ -1030,6 +1128,7 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   tipo: "pieza",
   record: "ShareBarProps",
   diccionario: [],
+  claves: [],
   campos: ["platforms","shareLink","shareTitle"],
   listas: {},
   ejemplo: {
@@ -1049,6 +1148,7 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   tipo: "pieza",
   record: "StepperProps",
   diccionario: [],
+  claves: [],
   campos: ["steps","currentStep"],
   listas: {"steps":["title"]},
   ejemplo: {
@@ -1073,6 +1173,7 @@ export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
   tipo: "pieza",
   record: "TabsProps",
   diccionario: [],
+  claves: [],
   campos: ["tabs","initialTab"],
   listas: {"tabs":["label","id","content"]},
   ejemplo: {
@@ -1097,7 +1198,8 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   nombre: "tag",
   tipo: "pieza",
   record: "TagProps",
-  diccionario: [],
+  diccionario: ["Tag"],
+  claves: ["Tag.Remove"],
   campos: ["label","color"],
   listas: {},
   ejemplo: {
@@ -1112,6 +1214,7 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   tipo: "pieza",
   record: "TimelineProps",
   diccionario: [],
+  claves: [],
   campos: ["events"],
   listas: {"events":["date","title","body"]},
   ejemplo: {
@@ -1136,6 +1239,7 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   tipo: "pieza",
   record: "TourGuideProps",
   diccionario: [],
+  claves: [],
   campos: ["steps","autoStart"],
   listas: {"steps":["target","title","body"]},
   ejemplo: {
@@ -1161,6 +1265,7 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   tipo: "pieza",
   record: "TreeViewProps",
   diccionario: [],
+  claves: [],
   campos: ["tree","expandAll","label"],
   listas: {"tree":["label","children"]},
   ejemplo: {
@@ -1196,6 +1301,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
   tipo: "pieza",
   record: "VideoPlayerProps",
   diccionario: [],
+  claves: [],
   campos: ["videoFile","posterImage"],
   listas: {},
   ejemplo: {
@@ -1208,6 +1314,7 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
   ACCORDION_SYNHOST,
+  APP_LAUNCHER_SYNHOST,
   AUDIO_PLAYER_SYNHOST,
   AVATAR_SYNHOST,
   AVATAR_GROUP_SYNHOST,

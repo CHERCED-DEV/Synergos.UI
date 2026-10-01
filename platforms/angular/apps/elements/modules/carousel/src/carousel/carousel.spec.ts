@@ -84,4 +84,34 @@ describe('CarouselElementComponent', () => {
 
     expect(component.interval()).toBe(5000);
   });
+
+  // ADR 0136 (CMS#186): la microcopia sale de la sección `Slider` que publica el bridge. Visto en
+  // vivo en /propiedades: los botones decían «Previous»/«Next».
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO, nunca la clave ni el inglés de la hoja', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(CAROUSEL_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const controles = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.syn-carousel__control'));
+      expect(controles.map((b) => b.textContent?.trim())).toEqual(['Diapositiva anterior', 'Siguiente diapositiva']);
+    });
+
+    it('con el bridge pinta el texto de las claves que publicó la página', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Slider.Previous': 'Previous slide', 'Slider.Next': 'Next slide' } },
+      };
+      const otra = TestBed.createComponent(CarouselElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(CAROUSEL_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const controles = Array.from((otra.nativeElement as HTMLElement).querySelectorAll('.syn-carousel__control'));
+      expect(controles.map((b) => b.textContent?.trim())).toEqual(['Previous slide', 'Next slide']);
+    });
+  });
 });

@@ -6,6 +6,7 @@ import {
   output,
 } from '@angular/core';
 import type { HeroBannerProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   LinkComponent,
   coerceStringEnumInput,
@@ -140,6 +141,12 @@ export class HeroBannerElementComponent {
 
   readonly hasEyebrow = computed(() => this.eyebrow().length > 0);
   readonly hasTitle = computed(() => this.title().length > 0);
+  /**
+   * El nombre de la sección cuando no hay título: `Synhost.Hero.Aria`, la MISMA clave con la que el
+   * respaldo SSR la nombra (ADR 0136). Estaba escrito a mano aquí, igual en el texto y fuera del
+   * diccionario: la sección que el record declara se publicaba y nadie la leía al hidratar.
+   */
+  readonly regionLabel = computed(() => (this.hasTitle() ? this.title() : t('Synhost.Hero.Aria', 'Sección destacada')));
   readonly hasSubtitle = computed(() => this.subtitle().length > 0);
   readonly hasCta = computed(() => this.ctaLabel().length > 0 && this.ctaLink().length > 0);
   readonly hasContent = computed(

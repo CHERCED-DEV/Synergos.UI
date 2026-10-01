@@ -58,10 +58,10 @@ export interface CarouselItem {
             [disabled]="!loop() && activeIndex() === 0"
             (click)="previous()"
           >
-            Previous
+            {{ previousLabel() }}
           </button>
 
-          <div class="syn-carousel__pager" role="tablist" aria-label="Slides">
+          <div class="syn-carousel__pager" role="tablist" [attr.aria-label]="pagerLabel()">
             @for (item of items(); track trackBy(item, $index); let index = $index) {
               <button
                 type="button"
@@ -91,7 +91,7 @@ export interface CarouselItem {
             [disabled]="!loop() && activeIndex() === lastIndex()"
             (click)="next()"
           >
-            Next
+            {{ nextLabel() }}
           </button>
         </div>
       }
@@ -104,6 +104,18 @@ export class CarouselComponent {
 
   readonly items = input<readonly CarouselItem[]>([]);
   readonly ariaLabel = input('Media carousel');
+  /**
+   * Los rótulos de los controles. Una hoja del design system recibe TEXTO, nunca claves ni el
+   * diccionario (ADR 0136): los traduce quien la monta —`<synergos-carousel>` con `t()`— y se
+   * los pasa. Estaban escritos aquí en inglés, «Previous»/«Next», y salían así en un sitio en
+   * español (visto en vivo en /propiedades). Los defaults siguen siendo los de antes para quien
+   * monte la pieza sin pasarlos.
+   */
+  readonly previousLabel = input('Previous');
+  readonly nextLabel = input('Next');
+  readonly pagerLabel = input('Slides');
+  /** Nombre accesible de la miniatura de una diapositiva sin rótulo; `{n}` es su número. */
+  readonly slideLabel = input('Slide {n}');
   readonly loop = input(true);
   readonly startIndex = input(0);
   readonly compact = input(false);
@@ -164,7 +176,7 @@ export class CarouselComponent {
   }
 
   thumbLabel(item: CarouselItem, index: number): string {
-    return item.label || `Slide ${index + 1}`;
+    return item.label || this.slideLabel().replace('{n}', String(index + 1));
   }
 
   trackBy(item: CarouselItem, index: number): string {

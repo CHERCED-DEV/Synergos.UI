@@ -46,6 +46,30 @@ describe('validarContrato', () => {
     expect(validarContrato(c).join('\n')).toContain('«slidesJson»');
   });
 
+  // ADR 0136 (CMS#186): el contrato trae, por elemento, las claves de uSync de sus secciones.
+  it('acepta las claves de las secciones que declara el elemento', () => {
+    const c = contrato();
+    c.elementos[0].diccionario = ['Slider'];
+    c.elementos[0].claves = ['Slider.Next', 'Slider.Previous'];
+    expect(validarContrato(c)).toEqual([]);
+  });
+
+  it('rechaza una sección declarada que no casa ninguna clave: un prefijo vacío', () => {
+    const c = contrato();
+    c.elementos[0].diccionario = ['Slider', 'Comments'];
+    c.elementos[0].claves = ['Slider.Next'];
+    expect(validarContrato(c).join('\n')).toContain('«Comments» no casa ninguna clave');
+    delete c.elementos[0].claves;
+    expect(validarContrato(c).join('\n')).toContain('prefijo vacío');
+  });
+
+  it('rechaza una clave que no cae en las secciones declaradas', () => {
+    const c = contrato();
+    c.elementos[0].diccionario = ['Slider'];
+    c.elementos[0].claves = ['Slider.Next', 'Rating.Submit'];
+    expect(validarContrato(c).join('\n')).toContain('«Rating.Submit» no cae en ninguna sección');
+  });
+
   it('rechaza un ejemplo sin la envoltura que el emitter añade siempre', () => {
     const c = contrato();
     delete c.elementos[0].ejemplo.culture;

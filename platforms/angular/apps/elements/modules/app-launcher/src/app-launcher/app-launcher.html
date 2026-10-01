@@ -32,10 +32,10 @@
     </div>
 
     @if (hasFilters()) {
-      <div class="app-launcher__filters" role="group" aria-label="Filtros">
+      <div class="app-launcher__filters" role="group" [attr.aria-label]="filtersLabel()">
         @if (hasIndustryFilter()) {
           <div class="app-launcher__filter">
-            <label class="app-launcher__filter-label" for="app-launcher-industry">Industria</label>
+            <label class="app-launcher__filter-label" for="app-launcher-industry">{{ industryLabel() }}</label>
             <select
               id="app-launcher-industry"
               class="app-launcher__select"
@@ -52,7 +52,7 @@
 
         @if (hasPersonaFilter()) {
           <div class="app-launcher__filter">
-            <label class="app-launcher__filter-label" for="app-launcher-persona">Persona</label>
+            <label class="app-launcher__filter-label" for="app-launcher-persona">{{ personaLabel() }}</label>
             <select
               id="app-launcher-persona"
               class="app-launcher__select"
@@ -69,7 +69,7 @@
 
         @if (hasCapabilityFilter()) {
           <div class="app-launcher__filter">
-            <label class="app-launcher__filter-label" for="app-launcher-capability">Capacidad</label>
+            <label class="app-launcher__filter-label" for="app-launcher-capability">{{ capabilityLabel() }}</label>
             <select
               id="app-launcher-capability"
               class="app-launcher__select"
@@ -117,7 +117,7 @@
                 class="domain-card__badge"
                 [text]="app.statusLabel"
                 [tone]="app.status === 'live' ? 'brand' : 'neutral'"
-                [ariaLabel]="'Estado: ' + app.statusLabel"
+                [ariaLabel]="statusAriaLabel(app)"
               />
             </div>
 
@@ -128,7 +128,7 @@
               }
 
               @if (app.capabilities.length > 0) {
-                <ul class="domain-card__caps" aria-label="Capacidades">
+                <ul class="domain-card__caps" [attr.aria-label]="capabilitiesLabel()">
                   @for (cap of app.capabilities; track cap) {
                     <li class="domain-card__cap">{{ cap }}</li>
                   }
@@ -138,7 +138,7 @@
 
             <div class="domain-card__actions">
               @if (app.demoMode === 'embed') {
-                <span class="domain-card__embed-mark">Vista previa integrada</span>
+                <span class="domain-card__embed-mark">{{ embedLabel() }}</span>
               }
               <syn-link
                 class="domain-card__cta"

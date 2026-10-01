@@ -1,5 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { APP_LAUNCHER_SYNHOST } from '@synergos/contracts';
 import {
   ALL_FACET_VALUE,
   AppLauncherElementComponent,
@@ -152,6 +153,58 @@ describe('AppLauncherElementComponent', () => {
       expect(
         fixture.nativeElement.querySelector('.app-launcher__subtitle').textContent.trim(),
       ).toBe('Un motor, mil productos');
+    });
+  });
+
+  // ─── ADR 0135/0136 (CMS#186): la funcionalidad del piloto ───────────────────
+  describe('con el config EXACTO de la vista y el diccionario de la página', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('pinta el título, el subtítulo y las apps que autoró el editor', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(APP_LAUNCHER_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.title()).toBe('Explora las apps');
+      expect(component.subtitle()).toBe('Un motor, muchos productos');
+      expect(component.allApps().map((app) => app.name)).toEqual(['Tienda', 'Gobierno']);
+      // «Trámites, Citas» llegó del CMS ya como lista.
+      expect(component.allApps()[1].capabilities).toEqual(['Trámites', 'Citas']);
+    });
+
+    it('la microcopia sale de las claves que publicó la página, no del componente', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: {
+            'AppLauncher.Open': 'Open app',
+            'AppLauncher.Count.Other': '{count} apps',
+            'Common.States.ComingSoon': 'Coming soon',
+          },
+        },
+      };
+      const otra = TestBed.createComponent(AppLauncherElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(APP_LAUNCHER_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const c = otra.componentInstance;
+      expect(c.ctaLabel()).toBe('Open app');
+      expect(c.resultLabel()).toBe('2 apps');
+      expect(c.allApps()[1].statusLabel).toBe('Coming soon');
+      // Lo que la página no publica sale por el respaldo es-CO, nunca la clave cruda.
+      expect(c.emptyLabel()).toBe('No hay aplicaciones que coincidan con los filtros.');
+    });
+
+    it('la microcopia ya NO entra por el config: la sanea el sanitizador', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify({ ...APP_LAUNCHER_SYNHOST.ejemplo, ctaLabel: 'Pisado' }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.ctaLabel()).toBe('Abrir app');
     });
   });
 });
