@@ -111,6 +111,37 @@ describe('NotificationToastElementComponent', () => {
     component.dismiss(id);
     expect(component.toasts().length).toBe(0);
   });
+
+  // ADR 0136 (CMS#191): la microcopia sale de la sección `Notification` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(NOTIFICATION_TOAST_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const raiz = fixture.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.toast-stack')?.getAttribute('aria-label')).toBe('Notificaciones');
+      expect(raiz.querySelector('.toast__close')?.getAttribute('aria-label')).toBe('Cerrar');
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys: { 'Notification.Dismiss': 'Dismiss' } },
+      };
+      const otra = TestBed.createComponent(NotificationToastElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(NOTIFICATION_TOAST_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+
+      const raiz = otra.nativeElement as HTMLElement;
+      expect(raiz.querySelector('.toast__close')?.getAttribute('aria-label')).toBe('Dismiss');
+      expect(raiz.querySelector('.toast-stack')?.getAttribute('aria-label')).toBe('Notificaciones');
+    });
+  });
 });
 
 describe('notification-toast pure helpers', () => {

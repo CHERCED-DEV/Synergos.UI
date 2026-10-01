@@ -368,7 +368,7 @@ export interface MapPinProps {
   readonly pins?: readonly MapPinItem[];
 }
 
-/** <synergos-notification-toast> · pieza */
+/** <synergos-notification-toast> · pieza · diccionario: Notification */
 export interface NotificationToastProps {
   /** contenido */
   readonly toasts?: readonly NotificationToastSeed[];
@@ -993,8 +993,8 @@ export const NOTIFICATION_TOAST_SYNHOST: ElementoSynHost<NotificationToastProps>
   nombre: "notification-toast",
   tipo: "pieza",
   record: "NotificationToastProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Notification"],
+  claves: ["Notification.Aria.List","Notification.Dismiss","Notification.DismissAll","Notification.Empty","Notification.MarkAllRead","Notification.MarkRead","Notification.New"],
   campos: ["toasts","durationMs"],
   listas: {"toasts":["message","variant"]},
   ejemplo: {
