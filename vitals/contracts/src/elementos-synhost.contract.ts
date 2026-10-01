@@ -224,7 +224,7 @@ export interface CarouselProps {
   readonly interval?: number;
 }
 
-/** <synergos-chart-bar> · pieza */
+/** <synergos-chart-bar> · pieza · diccionario: ChartBar */
 export interface ChartBarProps {
   /** contenido */
   readonly title?: string;
@@ -715,8 +715,8 @@ export const CHART_BAR_SYNHOST: ElementoSynHost<ChartBarProps> = {
   nombre: "chart-bar",
   tipo: "pieza",
   record: "ChartBarProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["ChartBar"],
+  claves: ["ChartBar.Aria","ChartBar.Category","ChartBar.Empty","ChartBar.Summary.One","ChartBar.Summary.Other","ChartBar.Value"],
   campos: ["title","orientation","data"],
   listas: {"data":["label","value"]},
   ejemplo: {
