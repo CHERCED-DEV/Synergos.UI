@@ -55,6 +55,45 @@ export function runtimeCompleto({ dir, ficheros, existe, unir }) {
 }
 
 /**
+ * Las ENTRADAS del runtime de una plataforma: los ficheros de su runtime que salen de SUS
+ * libs —los `sg-*`, que su build deja en `dist/libs/`—; el resto (`ng-*.js`, `preact.js`…)
+ * sale de paquetes de npm y no lo produce ningún build de este repo (UI#91).
+ *
+ * `dev-cdn` las tenía escritas —`dist/libs/sg-core.js` y `sg-shared.js`, las de Angular—,
+ * así que con `--framework=preact` el build terminaba y decía «el build terminó sin dejar
+ * las entradas del runtime»: miraba ficheros que Preact no produce (los suyos son
+ * `sg-preact-core.js` y `sg-preact-shared.js`). Medido: el banco salía con «No hay runtime
+ * compilado» y el runtime contestaba 404. Se derivan de `FICHEROS_POR_FRAMEWORK`, la misma
+ * tabla con la que el runtime se publica.
+ *
+ * @param {{ ficheros: readonly string[], dist: string, unir: (...p: string[]) => string }} o
+ */
+export function entradasDelRuntime({ ficheros, dist, unir }) {
+  const propias = ficheros.filter((f) => f.startsWith('sg-'));
+  if (propias.length === 0) {
+    throw new Error(
+      'entradasDelRuntime: ningún fichero `sg-*` en el runtime de la plataforma. Sin entradas no ' +
+        'hay huella, y sin huella el runtime no se construiría nunca — callando.',
+    );
+  }
+  return propias.map((f) => unir(dist, 'libs', f));
+}
+
+/**
+ * Quién construye el runtime de una plataforma: el `build:runtime` de SU `package.json` si
+ * lo declara (Preact), y si no el de la raíz (Angular: su linker vive allá). Es la misma
+ * regla con la que lo construye `build-cdn.mjs` (UI#91). `dev-cdn` lanzaba siempre el de la
+ * raíz, o sea el de Angular, también con `--framework=preact`.
+ *
+ * @param {{ raiz: string, dirDeLaPlataforma: string, scriptsDe: (dir: string) => Record<string,string>|undefined }} o
+ * @returns {{ args: string[], cwd: string }} lo que se le pasa al lanzador de npm
+ */
+export function comandoDelRuntime({ raiz, dirDeLaPlataforma, scriptsDe }) {
+  const propio = Boolean(scriptsDe(dirDeLaPlataforma)?.['build:runtime']);
+  return { args: ['run', 'build:runtime'], cwd: propio ? dirDeLaPlataforma : raiz };
+}
+
+/**
  * La huella de CONTENIDO de las entradas del runtime, o `null` si falta alguna.
  *
  * @param {readonly string[]} rutas

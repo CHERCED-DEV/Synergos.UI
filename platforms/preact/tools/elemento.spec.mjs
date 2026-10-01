@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fork } from 'node:child_process';
 import { EXTERNALS } from '../cdn.config.mjs';
 
 const BASE = path.resolve(import.meta.dirname, '..');
@@ -74,6 +75,27 @@ describe('el badge de Preact, desde su bundle publicado', () => {
     expect(host.querySelector('.syn-badge').textContent).toBe('del atributo');
   });
 
+  // ── UI#91: el atributo de un input en camello va en dash-case, como en Angular ──────────
+  //
+  // `observedAttributes` decía `ariaLabel`, y el HTML guarda los nombres en minúsculas: el
+  // custom element no observaba NADA con mayúscula, así que `ariaLabel` sólo se leía al
+  // conectar (getAttribute no distingue mayúsculas) y un cambio posterior no llegaba nunca.
+  // Y `aria-label` —el nombre que observa Angular para el mismo input, y el que escribe el
+  // CMS— no lo leía ni al conectar: el mismo HTML pintaba distinto según la plataforma.
+  it('lee `aria-label` al conectar — el mismo atributo que observa Angular', () => {
+    const host = colocar({ text: 'Nuevo', 'aria-label': 'Producto nuevo' });
+
+    expect(host.querySelector('.syn-badge').getAttribute('aria-label')).toBe('Producto nuevo');
+  });
+
+  it('y un cambio DESPUÉS de conectar también llega: está en observedAttributes', () => {
+    const host = colocar({ text: 'Nuevo', 'aria-label': 'antes' });
+    host.setAttribute('aria-label', 'después');
+
+    expect(host.querySelector('.syn-badge').getAttribute('aria-label')).toBe('después');
+    expect(customElements.get('synergos-badge').observedAttributes).toContain('aria-label');
+  });
+
   it('un `tone` que no está en el vocabulario cae al por defecto, no a la clase inventada', () => {
     const host = colocar({ text: 'x', tone: 'fucsia' });
 
@@ -127,5 +149,39 @@ describe('el badge de Preact, desde su bundle publicado', () => {
     // publicaba y entraba en el techo de su tier (24 KB). Sólo se rompía la
     // idea fundacional del repo, en silencio.
     expect(fuente.length).toBeLessThan(4_000);
+  });
+});
+
+/**
+ * `node tools/build.mjs --watch` es lo que lanza `dev:cdn --framework=preact` (UI#91).
+ *
+ * El build de Preact no tenía `--watch`: se construía una vez y salía, así que el banco no se
+ * enteraba de ningún cambio. Y `dev:cdn` decide cuándo construir el runtime por el AVISO del
+ * build (`{ evento: 'dist-listo' }` por IPC, #88), que éste no daba. Se lanza de verdad, con
+ * canal IPC como lo lanza `dev:cdn`, y se exige el aviso y que el proceso SIGA vivo.
+ *
+ * Va al FINAL de este fichero y no en uno propio: el build reescribe `dist/`, y en otro
+ * fichero correría en paralelo con los de arriba, que leen el bundle de ahí.
+ */
+describe('el build de Preact en modo --watch', () => {
+  let hijo = null;
+  afterEach(() => {
+    hijo?.kill();
+    hijo = null;
+  });
+
+  it('avisa `dist-listo` por IPC al terminar, y se queda mirando en vez de salir', async () => {
+    hijo = fork(path.join(BASE, 'tools/build.mjs'), ['--watch'], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] });
+    let salio = false;
+    hijo.on('exit', () => {
+      salio = true;
+    });
+
+    const aviso = await new Promise((resolver) => hijo.on('message', resolver));
+    expect(aviso).toEqual({ evento: 'dist-listo' });
+
+    // Sin --watch el proceso termina enseguida; con --watch sigue vivo mirando.
+    await new Promise((r) => setTimeout(r, 300));
+    expect(salio).toBe(false);
   });
 });

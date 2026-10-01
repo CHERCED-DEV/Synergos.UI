@@ -160,6 +160,13 @@ describe('el nombre del atributo lo decide la plataforma', () => {
     }
   });
 
+  it('las dos plataformas observan el MISMO atributo: el HTML del CMS hidrata igual en las dos (UI#91)', () => {
+    // Preact decía «el nombre del input tal cual»: `ariaLabel` en observedAttributes no casa
+    // con ningún atributo HTML, y `aria-label` —lo que observa Angular— no lo leía nadie.
+    const nombres = PLATFORMS.map((p) => p.atributoDeInput('ariaLabel'));
+    expect(new Set(nombres)).toEqual(new Set(['aria-label']));
+  });
+
   it('Angular observa en dash-case: `apiBase` → `api-base`', () => {
     // Medido en el banco: con `ariaLabel="…"` el badge no recibía su etiqueta y con
     // `aria-label="…"` sí. Es el `camelToDashCase` de @angular/elements.

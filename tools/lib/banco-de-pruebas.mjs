@@ -192,9 +192,10 @@ export function valorDeMuestra(input) {
  * **El nombre del ATRIBUTO no es el del input, y lo decide la plataforma** (#88).
  * `@angular/elements` observa `api-base` para el input `apiBase`; el banco escribía
  * `apiBase="…"`, que el HTML guarda como `apibase`, y el elemento no lo leía nunca:
- * medido con el badge, su `ariaLabel` de muestra no llegaba. Preact, en cambio,
- * lee con `getAttribute(nombre)`, que no distingue mayúsculas. Sin default: una
- * plataforma que no declara su convención no tiene banco.
+ * medido con el badge, su `ariaLabel` de muestra no llegaba. Preact decía leer «con
+ * `getAttribute(nombre)`, que no distingue mayúsculas», y eso sólo valía al conectar:
+ * no observaba ningún nombre con mayúscula. Desde UI#91 las dos observan en dash-case.
+ * Sin default: una plataforma que no declara su convención no tiene banco.
  *
  * @param {Array} inputs
  * @param {{ atributoDeInput: (nombre: string) => string }} plataforma

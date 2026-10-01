@@ -6,10 +6,13 @@ import { join } from 'node:path';
 import {
   MAPA_DEL_RUNTIME,
   arrancarRuntimeDeDesarrollo,
+  comandoDelRuntime,
+  entradasDelRuntime,
   huellaDeEntradas,
   runtimeCompleto,
 } from './runtime-en-desarrollo.mjs';
 import { ROOT } from './synergos-config.mjs';
+import { ficherosDelRuntime } from './mapa-del-runtime.mjs';
 import { sinComentarios } from './vitals-purity.mjs';
 
 /**
@@ -235,5 +238,44 @@ describe('dev-cdn está ENCHUFADO al arranque', () => {
 
   it('y no construye el runtime por su cuenta antes de lanzar el build', () => {
     expect(fuente).not.toMatch(/ejecutarNpm\(\s*\[\s*'run'\s*,\s*'build:runtime'/);
+  });
+});
+
+// ── UI#91: las entradas y el comando del runtime son de CADA plataforma ──────────────────
+//
+// `dev-cdn` tenía escritas las de Angular —`dist/libs/sg-core.js`/`sg-shared.js` y el
+// `build:runtime` de la raíz—, así que con `--framework=preact` el build terminaba «sin dejar
+// las entradas del runtime», el banco salía sin runtime y `/synergos/runtime/preact/…` daba
+// 404 (medido). Hoy se derivan: de `FICHEROS_POR_FRAMEWORK` y del package.json de la plataforma.
+describe('el runtime de desarrollo de cada plataforma (UI#91)', () => {
+  const unir = (...p) => p.join('/');
+
+  it('las entradas son los `sg-*` del runtime de ESA plataforma, en su dist/libs', () => {
+    expect(entradasDelRuntime({ ficheros: ficherosDelRuntime('angular'), dist: 'ng/dist', unir })).toEqual([
+      'ng/dist/libs/sg-core.js',
+      'ng/dist/libs/sg-shared.js',
+    ]);
+    expect(entradasDelRuntime({ ficheros: ficherosDelRuntime('preact'), dist: 'pr/dist', unir })).toEqual([
+      'pr/dist/libs/sg-preact-core.js',
+      'pr/dist/libs/sg-preact-shared.js',
+    ]);
+  });
+
+  it('sin ninguna entrada propia se rechaza: sin huella el runtime no se construiría nunca, callando', () => {
+    expect(() => entradasDelRuntime({ ficheros: ['preact.js'], dist: 'd', unir })).toThrow(/sg-/);
+  });
+
+  it('el comando es el `build:runtime` de la plataforma si lo declara, y si no el de la raíz', () => {
+    const scripts = { pr: { 'build:runtime': 'node tools/build-runtime.mjs' }, ng: { build: 'x' } };
+    const scriptsDe = (dir) => scripts[dir];
+    expect(comandoDelRuntime({ raiz: 'raiz', dirDeLaPlataforma: 'pr', scriptsDe })).toEqual({ args: ['run', 'build:runtime'], cwd: 'pr' });
+    expect(comandoDelRuntime({ raiz: 'raiz', dirDeLaPlataforma: 'ng', scriptsDe })).toEqual({ args: ['run', 'build:runtime'], cwd: 'raiz' });
+  });
+
+  it('y dev-cdn los DERIVA: no cablea las entradas ni el comando de una plataforma', () => {
+    const fuente = sinComentarios(readFileSync(join(ROOT, 'tools/dev-cdn.mjs'), 'utf8'));
+    expect(fuente).toMatch(/entradasDelRuntime\(/);
+    expect(fuente).toMatch(/comandoDelRuntime\(/);
+    expect(fuente).not.toMatch(/['"]sg-[a-z-]+\.js['"]/);
   });
 });

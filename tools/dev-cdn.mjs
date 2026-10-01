@@ -44,7 +44,7 @@ import { paginaDelBanco } from './lib/banco-de-pruebas.mjs';
 import { lanzarNpm } from './lib/npm.mjs';
 import { ficherosDelRuntime } from './lib/mapa-del-runtime.mjs';
 import {
-  arrancarRuntimeDeDesarrollo, huellaDeEntradas, runtimeCompleto,
+  arrancarRuntimeDeDesarrollo, comandoDelRuntime, entradasDelRuntime, huellaDeEntradas, runtimeCompleto,
 } from './lib/runtime-en-desarrollo.mjs';
 import {
   resolverRuta, cabecerasDev, tipoDe, registryDeDesarrollo,
@@ -128,13 +128,26 @@ function runtimeDir() {
 // runtime y los resuelve el import map. Sin rehacer el runtime, editar el design
 // system recompila, el navegador recarga y todo sigue igual — con el build diciendo
 // «✓ al día». Cuesta ~3,4 s y sólo se paga cuando una lib cambia de verdad.
-const ENTRADAS_DEL_RUNTIME = [join(DIST, 'libs', 'sg-core.js'), join(DIST, 'libs', 'sg-shared.js')];
+//
+// Las entradas y el comando son de ESTA plataforma, derivados (UI#91): estaban escritos
+// —`sg-core.js`/`sg-shared.js` y el `build:runtime` de la raíz, los de Angular— y con
+// `--framework=preact` el build terminaba «sin dejar las entradas del runtime»: el banco
+// salía sin runtime y `/synergos/runtime/preact/…` contestaba 404.
+const ENTRADAS_DEL_RUNTIME = entradasDelRuntime({ ficheros: FICHEROS_DEL_RUNTIME, dist: DIST, unir: join });
+const COMANDO_DEL_RUNTIME = comandoDelRuntime({
+  raiz: ROOT,
+  dirDeLaPlataforma: NG,
+  scriptsDe: (dir) => {
+    const pkg = join(dir, 'package.json');
+    return existsSync(pkg) ? JSON.parse(readFileSync(pkg, 'utf8')).scripts : undefined;
+  },
+});
 
-/** `build-runtime`, por el lanzador (#79). Resuelve `true` si salió 0. */
+/** `build-runtime` de esta plataforma, por el lanzador (#79). Resuelve `true` si salió 0. */
 function construirRuntime() {
   return new Promise((resolver) => {
     // Sin el oyente de `error`, un npm que no arranca tumbaba el servidor (#79).
-    const p = lanzarNpm(['run', 'build:runtime'], { cwd: ROOT });
+    const p = lanzarNpm(COMANDO_DEL_RUNTIME.args, { cwd: COMANDO_DEL_RUNTIME.cwd });
     p.on('error', (error) => {
       console.error(`[dev-cdn] ✗ no se pudo lanzar npm para construir el runtime: ${error.message}`);
       resolver(false);
