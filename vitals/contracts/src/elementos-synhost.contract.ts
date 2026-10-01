@@ -480,7 +480,7 @@ export interface TimelineProps {
   readonly events?: readonly TimelineEntry[];
 }
 
-/** <synergos-tour-guide> · pieza */
+/** <synergos-tour-guide> · pieza · diccionario: TourGuide, Common.Actions */
 export interface TourGuideProps {
   /** contenido */
   readonly steps?: readonly TourGuideStep[];
@@ -1235,8 +1235,8 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   nombre: "tour-guide",
   tipo: "pieza",
   record: "TourGuideProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["TourGuide","Common.Actions"],
+  claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll","TourGuide.Done","TourGuide.Skip"],
   campos: ["steps","autoStart"],
   listas: {"steps":["target","title","body"]},
   ejemplo: {

@@ -126,6 +126,49 @@ describe('TourGuideElementComponent', () => {
     expect(skips).toBe(1);
     expect(component.isActive()).toBe(false);
   });
+
+  // ADR 0136 (CMS#191): los rótulos salen de `Common.Actions` y `TourGuide` que publica la página.
+  describe('microcopia del diccionario', () => {
+    afterEach(() => {
+      delete (window as { synergos?: unknown }).synergos;
+    });
+
+    it('sin bridge pinta el respaldo es-CO', async () => {
+      fixture.componentRef.setInput('config', JSON.stringify(TOUR_GUIDE_SYNHOST.ejemplo));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      component.start();
+      fixture.detectChanges();
+
+      const botones = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.tour__footer button'));
+      expect(botones.map((b) => b.textContent?.trim())).toEqual(['Saltar', 'Anterior', 'Siguiente']);
+      component.next();
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.tour__btn--primary')?.textContent?.trim()).toBe('Finalizar');
+      component.skip();
+    });
+
+    it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {
+      (window as { synergos?: unknown }).synergos = {
+        i18n: {
+          culture: 'en-US',
+          defaultCulture: 'es-CO',
+          keys: { 'Common.Actions.Next': 'Next', 'Common.Actions.Previous': 'Previous', 'TourGuide.Skip': 'Skip' },
+        },
+      };
+      const otra = TestBed.createComponent(TourGuideElementComponent);
+      otra.componentRef.setInput('config', JSON.stringify(TOUR_GUIDE_SYNHOST.ejemplo));
+      otra.detectChanges();
+      await otra.whenStable();
+      otra.componentInstance.start();
+      otra.detectChanges();
+
+      const botones = Array.from((otra.nativeElement as HTMLElement).querySelectorAll('.tour__footer button'));
+      expect(botones.map((b) => b.textContent?.trim())).toEqual(['Skip', 'Previous', 'Next']);
+      expect(otra.componentInstance.doneLabel()).toBe('Finalizar');
+      otra.componentInstance.skip();
+    });
+  });
 });
 
 describe('tour-guide pure helpers', () => {

@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import type { TourGuideProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   createConfigInputTransform,
@@ -36,6 +37,11 @@ import {
  * falso: la vista mandaba el TEXTO `stepsJson` y el recorrido colocado no tenía pasos (D1). Los
  * rótulos de los botones no los autora el editor: son atributos, igual que `steps`/`stepsJson`
  * como JSON (con `placement` por paso), que ganan sobre el `config`.
+ *
+ * Sus rótulos por defecto salen del diccionario (ADR 0136): «Siguiente» y «Anterior» son
+ * `Common.Actions.Next`/`Previous` —la misma acción del resto del sitio— y «Saltar»/«Finalizar»,
+ * `TourGuide.Skip`/`Done`. Los atributos `nextLabel`, `previousLabel`, `skipLabel` y `doneLabel`
+ * siguen ganando.
  */
 
 export type TourPlacement = 'top' | 'bottom' | 'left' | 'right' | 'auto';
@@ -62,11 +68,6 @@ export interface TourLifecycleDetail {
 }
 
 const PLACEMENTS: readonly TourPlacement[] = ['top', 'bottom', 'left', 'right', 'auto'];
-
-const DEFAULT_NEXT_LABEL = 'Siguiente';
-const DEFAULT_PREVIOUS_LABEL = 'Anterior';
-const DEFAULT_SKIP_LABEL = 'Saltar';
-const DEFAULT_DONE_LABEL = 'Finalizar';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -175,10 +176,10 @@ export class TourGuideElementComponent {
     resolveConfigValue(this.autoStartInput(), this.config()?.autoStart, false),
   );
 
-  readonly nextLabel = computed(() => this.nextLabelInput() ?? DEFAULT_NEXT_LABEL);
-  readonly previousLabel = computed(() => this.previousLabelInput() ?? DEFAULT_PREVIOUS_LABEL);
-  readonly skipLabel = computed(() => this.skipLabelInput() ?? DEFAULT_SKIP_LABEL);
-  readonly doneLabel = computed(() => this.doneLabelInput() ?? DEFAULT_DONE_LABEL);
+  readonly nextLabel = computed(() => this.nextLabelInput() ?? t('Common.Actions.Next', 'Siguiente'));
+  readonly previousLabel = computed(() => this.previousLabelInput() ?? t('Common.Actions.Previous', 'Anterior'));
+  readonly skipLabel = computed(() => this.skipLabelInput() ?? t('TourGuide.Skip', 'Saltar'));
+  readonly doneLabel = computed(() => this.doneLabelInput() ?? t('TourGuide.Done', 'Finalizar'));
 
   readonly hasSteps = computed(() => this.steps().length > 0);
   readonly total = computed(() => this.steps().length);
