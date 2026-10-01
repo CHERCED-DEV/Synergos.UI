@@ -330,6 +330,9 @@ const CIEGAS_AL_FRAMEWORK = [
   'lib/css-parity.mjs',
   'lib/cms-contract-rules.mjs',
   'lib/vitals-purity.mjs',
+  // Los topes de los tests y las vueltas de `setTimeout(0)` (#84): recorre los specs de
+  // cada plataforma con `raicesEnDisco`, así que la segunda entra sin tocar el fichero.
+  'lib/esperas-de-los-specs.mjs',
 ];
 
 /**

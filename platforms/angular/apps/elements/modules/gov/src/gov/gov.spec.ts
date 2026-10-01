@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { GovApiClient, isGovForbidden } from './gov-api.client';
 import { GovElementComponent } from './gov';
 import { OUTCOME_TO_STATUS, isClosedStatus } from './gov.model';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * Smoke tests (directiva: tests solo smoke) for the Gobierno v2 dual-face SPA.
@@ -14,10 +15,7 @@ import { OUTCOME_TO_STATUS, isClosedStatus } from './gov.model';
  * microtask drains to let each fetch().then() hop resolve.
  */
 async function flushMicrotasks(times = 12): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('GovElementComponent (v2 dual face)', () => {

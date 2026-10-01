@@ -12,16 +12,14 @@ import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-a
 import { BlogsElementComponent } from './blogs';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from './blogs.model';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 const AUTHOR: Author = {

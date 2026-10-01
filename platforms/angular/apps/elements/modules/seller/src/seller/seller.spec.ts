@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import { ConsoleShellComponent } from '@synergos/shells';
 import { SellerApiClient } from './seller-api.client';
 import { SellerElementComponent } from './seller';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the wizard's draft store can persist. */
 function installMemoryStorage(): void {
@@ -26,10 +27,7 @@ function installMemoryStorage(): void {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 /**

@@ -8,6 +8,7 @@ import { ShopFulfillmentStrategy } from './shop-fulfillment.strategy';
 import { StorefrontElementComponent } from './storefront';
 import type { ShopOrder } from './shop.model';
 import type { ShopProduct } from './shop.model';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -31,10 +32,7 @@ function installMemoryStorage(): Map<string, string> {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 const PRODUCT_A: ShopProduct = {

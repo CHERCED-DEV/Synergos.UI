@@ -7,6 +7,7 @@ import { RealtyApiClient } from './realty-api.client';
 import { RealtyFulfillmentStrategy } from './realty-fulfillment.strategy';
 import { RealtyElementComponent } from './realty';
 import { calculateMortgage } from './mortgage.calc';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -30,10 +31,7 @@ function installMemoryStorage(): Map<string, string> {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 10): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('RealtyElementComponent (v2 sobre shells)', () => {

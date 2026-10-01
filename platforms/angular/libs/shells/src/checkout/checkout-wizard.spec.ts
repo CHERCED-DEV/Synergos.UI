@@ -18,6 +18,7 @@ import {
   type CheckoutWizardConfig,
   type CheckoutWizardResult,
 } from './checkout-wizard';
+import { asentar } from '../../../../tools/asentar';
 
 const FLOW = 'spec-flow';
 
@@ -118,10 +119,7 @@ function cartItem(id: string, amount = 10_000): SessionItem {
 }
 
 async function flush(times = 10): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe(CheckoutWizardComponent.name, () => {

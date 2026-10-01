@@ -6,6 +6,7 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -29,10 +30,7 @@ function installMemoryStorage(): Map<string, string> {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 8): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('TravelShellElementComponent (v2 sobre shells)', () => {

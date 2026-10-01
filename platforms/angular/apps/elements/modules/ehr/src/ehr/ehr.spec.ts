@@ -7,6 +7,7 @@ import { EhrApiClient, EhrUnavailableError, EhrWriteFailedError } from './ehr-ap
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
 import { EhrElementComponent } from './ehr';
 import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.server.fake';
+import { asentar } from '../../../../../../tools/asentar';
 
 /**
  * Specs del SPA clínico de dos portales — reescritos por
@@ -27,10 +28,7 @@ import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.s
  * microtask drains to let each fetch().then() hop resolve.
  */
 async function flushMicrotasks(times = 12): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('EhrElementComponent (v2 dual portal)', () => {

@@ -6,6 +6,7 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { AcademyApiClient } from './academy-api.client';
 import { AcademyFulfillmentStrategy } from './academy-fulfillment.strategy';
 import { AcademyElementComponent } from './academy';
+import { asentar } from '../../../../../../tools/asentar';
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -196,10 +197,7 @@ function matriculaServidor(): Record<string, unknown> {
  * yield to real timers between microtask drains to let each hop resolve.
  */
 async function flushMicrotasks(times = 12): Promise<void> {
-  for (let i = 0; i < times; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await Promise.resolve();
-  }
+  await asentar(times);
 }
 
 describe('AcademyElementComponent (v2 sobre shells)', () => {
