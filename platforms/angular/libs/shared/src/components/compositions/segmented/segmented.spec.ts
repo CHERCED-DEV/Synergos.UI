@@ -153,6 +153,47 @@ describe(SegmentedComponent.name, () => {
     expect(radios.map((radio) => radio.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
   });
 
+  // ── #87: el nombre del grupo ──────────────────────────────────────────────────
+  // El `ariaLabel` por defecto era 'Segmented': quien lo olvidaba nombraba el grupo en inglés y
+  // nada lo delataba. Y no había forma de nombrarlo con el rótulo que ya se ve.
+  it('sin ariaLabel NO inventa un nombre — y menos en inglés', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('[role="radiogroup"]') as HTMLElement;
+    expect(group.hasAttribute('aria-label')).toBe(false);
+    expect(group.hasAttribute('aria-labelledby')).toBe(false);
+    expect(fixture.nativeElement.innerHTML).not.toContain('Segmented');
+  });
+
+  it('se nombra con el rótulo VISIBLE por aria-labelledby, que gana sobre ariaLabel', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    fixture.componentRef.setInput('ariaLabel', 'Otro texto');
+    fixture.componentRef.setInput('ariaLabelledby', 'rotulo-vista');
+    fixture.detectChanges();
+
+    const group = fixture.nativeElement.querySelector('[role="radiogroup"]') as HTMLElement;
+    expect(group.getAttribute('aria-labelledby')).toBe('rotulo-vista');
+    // Con los dos, aria-label se calla: dos textos para el mismo grupo se desvían.
+    expect(group.hasAttribute('aria-label')).toBe(false);
+  });
+
+  // #87, visto de paso: el segmento marcado va en seminegrita y el grupo cambiaba de ancho al
+  // cambiar la selección (202 → 194 px en EHR, medido en el banco). La reserva es CSS —jsdom no
+  // maqueta, así que el ancho se midió en el navegador—; lo que sí se prueba acá es el cable: el
+  // rótulo lleva su propio texto en `data-label`, que es lo que la copia en seminegrita pinta.
+  it('cada rótulo lleva su texto en data-label, para reservar el ancho en seminegrita', () => {
+    const fixture = TestBed.createComponent(SegmentedComponent);
+    fixture.componentRef.setInput('options', LAYOUTS);
+    fixture.detectChanges();
+
+    const rotulos = Array.from(fixture.nativeElement.querySelectorAll('.syn-segmented__label')) as HTMLElement[];
+    expect(rotulos.map((r) => r.getAttribute('data-label'))).toEqual(['Lista', 'Dividido', 'Mapa']);
+    expect(rotulos.map((r) => r.textContent?.trim())).toEqual(['Lista', 'Dividido', 'Mapa']);
+  });
+
   it('follows the parent-fed `value`, and never lands on a disabled or unknown one', () => {
     const fixture = TestBed.createComponent(SegmentedComponent);
     fixture.componentRef.setInput('options', [

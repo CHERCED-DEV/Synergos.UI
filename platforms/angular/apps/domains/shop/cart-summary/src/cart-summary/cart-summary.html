@@ -14,9 +14,12 @@
   [class]="hostClasses()"
   role="dialog"
   aria-modal="true"
+  tabindex="-1"
   [attr.aria-labelledby]="dialogTitleId"
   [attr.aria-hidden]="!isOpen()"
+  [attr.inert]="isOpen() ? null : ''"
   (keydown.escape)="close()"
+  (keydown)="onDrawerKeydown($event)"
 >
 
   <!-- Header -->

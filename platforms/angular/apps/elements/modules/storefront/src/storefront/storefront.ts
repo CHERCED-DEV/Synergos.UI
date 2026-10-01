@@ -1714,7 +1714,16 @@ export class StorefrontElementComponent {
     this.addToCart(product, variant, 1);
   }
 
+  /**
+   * El producto cuyo último «agregar» FALLÓ, para que se VEA junto al botón que se pulsó
+   * (#87). Desde el #82 el fallo se oía —el anunciador, asertivo— y no se veía nada: quien
+   * mira la pantalla pulsaba, el cajón no se abría y no había ningún porqué. No es una
+   * región viva: el anuncio ya lo hace el anunciador, y una segunda región lo diría dos veces.
+   */
+  readonly addFailedId = signal<string | null>(null);
+
   private addToCart(product: ShopProduct, variant: ProductVariant, quantity: number): void {
+    this.addFailedId.set(null);
     const session = this.#store.getValidSession();
     const payload: ShopSelectionPayload = {
       productId: product.id,
@@ -1756,8 +1765,9 @@ export class StorefrontElementComponent {
       })
       .catch(() => {
         // Antes el `.then` no tenía `catch`: el fallo era un rechazo sin manejar, mudo para
-        // todos. Ahora se oye; que también se VEA queda anotado en #82 (no es de anuncios).
+        // todos. Desde el #82 se oye, y desde el #87 también se VE, junto al botón.
         this.#announcer.announce(`No se pudo agregar ${product.title} al carrito.`, 'assertive');
+        this.addFailedId.set(product.id);
       });
   }
 

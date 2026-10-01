@@ -208,7 +208,7 @@ export class ProductGridComponent {
 
   // ── Fetch products when filters change ────────────────────────────────────
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const category = this.categoryAlias();
       const sort     = this.activeSort();
       const search   = this.searchQuery();
@@ -226,7 +226,10 @@ export class ProductGridComponent {
       if (category) params = params.set('category', category);
       if (search)   params = params.set('search',   search);
 
-      this.http
+      // La petición anterior se CANCELA al lanzar la nueva (#87). El buscador pide en cada
+      // tecla, y sin esto la respuesta de «a» podía llegar después de la de «au» y pintar sus
+      // resultados con «au» escrito: medido en el spec, con las dos en vuelo.
+      const peticion = this.http
         .get<ProductListResponse>('/api/shop/products', { params })
         .subscribe({
           next: (res) => {
@@ -240,6 +243,7 @@ export class ProductGridComponent {
             this.loading.set(false);
           },
         });
+      onCleanup(() => peticion.unsubscribe());
     });
   }
 

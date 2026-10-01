@@ -239,8 +239,11 @@
                 class="storefront__btn storefront__btn--primary storefront__btn--sm"
                 (click)="quickAdd(product)"
               >
-                Agregar
+                {{ addFailedId() === product.id ? 'Reintentar' : 'Agregar' }}
               </button>
+              @if (addFailedId() === product.id) {
+                <p class="storefront__add-error">No se pudo agregar al carrito.</p>
+              }
             } @else {
               <span class="storefront__out">Sin stock</span>
             }
@@ -381,8 +384,11 @@
           [disabled]="!pdpInStock()"
           (click)="addCurrentToCart()"
         >
-          Agregar al carrito
+          {{ addFailedId() === pdp.product.id ? 'Reintentar' : 'Agregar al carrito' }}
         </button>
+        @if (addFailedId() === pdp.product.id) {
+          <p class="storefront__add-error">No se pudo agregar al carrito. Intenta de nuevo.</p>
+        }
         <button
           type="button"
           class="storefront__btn storefront__btn--ghost storefront__btn--block"

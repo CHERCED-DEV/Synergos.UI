@@ -647,6 +647,7 @@
       <label class="blogs__sr-only" [attr.for]="fieldId + '-body'">Texto de la publicación</label>
       <textarea class="blogs__composer-input" [id]="fieldId + '-body'" rows="3"
         placeholder="¿Qué estás pensando? Usa #hashtags y @menciones" [attr.maxlength]="maxChars"
+        [attr.aria-describedby]="fieldId + '-count'"
         [value]="draftBody()" (input)="bind(draftBody.set)($event)"></textarea>
     </div>
     <div class="blogs__composer-media">
@@ -661,7 +662,9 @@
       }
     </div>
     <div class="blogs__composer-foot">
-      <span class="blogs__char-count" [class.is-over]="draftRemaining() < 0" aria-live="polite">{{ draftRemaining() }}</span>
+      <!-- El contador se DESCRIBE y no habla en cada tecla; los hitos los dice syn-live-region (#87). -->
+      <span class="blogs__char-count" [class.is-over]="draftRemaining() < 0" [id]="fieldId + '-count'">{{ draftRemaining() }}<span class="blogs__sr-only"> caracteres disponibles</span></span>
+      <syn-live-region [message]="draftCountMilestone()" />
       <button type="submit" class="blogs__btn blogs__btn--brand" [disabled]="!draftValid() || publishing()">
         {{ publishing() ? 'Publicando…' : 'Publicar' }}
       </button>
@@ -1006,13 +1009,16 @@
         <label class="blogs__field-label" [attr.for]="fieldId + '-art-body'">Cuerpo</label>
         <textarea class="blogs__editor-body" [id]="fieldId + '-art-body'" rows="14"
           placeholder="Escribe tu historia… usa #hashtags y @menciones" [value]="articleBody()"
+          [attr.aria-describedby]="fieldId + '-art-body-hint'"
           (input)="onArticleField(patch, 'body', $event)"></textarea>
-        <p class="blogs__editor-hint" aria-live="polite">
+        <!-- Se DESCRIBE y no habla en cada tecla; el hito lo dice syn-live-region (#87). -->
+        <p class="blogs__editor-hint" [id]="fieldId + '-art-body-hint'">
           {{ articleBody().length }} caracteres
           @if (articleBody().trim().length < 20) {
             · faltan {{ 20 - articleBody().trim().length }} para poder continuar
           }
         </p>
+        <syn-live-region [message]="articleBodyMilestone()" />
       </div>
     }
 

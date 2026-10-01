@@ -36,6 +36,8 @@
     "publish:runtime": "node tools/publish-runtime.mjs",
     "release:cdn": "node tools/release-cdn.mjs",
     "// ─── HERRAMIENTAS ──────────────────────────────────────────────────────": "",
+    "// predev:cdn — el mismo gancho que pretest/prebuild (#88): en un árbol sin node_modules, dev:cdn moría con «Cannot find module esbuild» desde build-runtime, sin decir qué teclear": "",
+    "predev:cdn": "node tools/setup.mjs --verificar",
     "dev:cdn": "node tools/dev-cdn.mjs",
     "clean:dist": "node tools/clean-dist.mjs",
     "manifest:gen": "node tools/manifest-gen.mjs",

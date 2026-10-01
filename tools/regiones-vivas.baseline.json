@@ -173,14 +173,6 @@
       "razon": "Los pasos vienen de la configuración: «Paso N de M» vive con el indicador y cambia al avanzar."
     },
     {
-      "clave": "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · ng-template · span[live=polite]",
-      "razon": "Contador de caracteres del compositor: vive mientras se escribe. OJO, otro defecto anotado en #82: habla en CADA tecla."
-    },
-    {
-      "clave": "platforms/angular/apps/elements/modules/blogs/src/blogs/blogs.html · @case('contenido') · p[live=polite]",
-      "razon": "Pista del editor en el paso «contenido»: vive con el paso y cambia al escribir. OJO: también habla en cada tecla (anotado en #82)."
-    },
-    {
       "clave": "platforms/angular/apps/elements/modules/booking-wizard/src/booking-wizard/booking-wizard.html · @case('fechas') · p[live=polite]",
       "razon": "Resumen del paso «fechas»: nace con el paso y cambia al elegir fechas y ocupación dentro de él."
     },
@@ -189,12 +181,12 @@
       "razon": "Resumen del paso «habitación»: nace con el paso y cambia al elegir dentro de él."
     },
     {
-      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(!loading()) · p[live=polite]",
-      "razon": "`loading` es un INPUT del host (data-grid.ts:349) y el filtrado es local: el contador vive y cambia al filtrar. Latente: si un host lo pone en loading para recargar, pasa a nacer con su mensaje."
+      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(hasTitle()) · p[live=polite]",
+      "razon": "`hasTitle` es configuración: el contador vive con la cabecera y cambia al filtrar. Desde #87 tampoco depende de `loading` (input del host): mientras carga va VACÍO en vez de destruirse, así que recargar ya no lo re-crea con la cifra nueva (medido: identidad del nodo antes y después)."
     },
     {
-      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(!hasTitle() && !loading()) · p[live=polite]",
-      "razon": "El mismo contador sin título: `hasTitle` es configuración y `loading` un input del host; vive mientras se filtra. Mismo riesgo latente que el de arriba."
+      "clave": "platforms/angular/apps/elements/modules/data-grid/src/data-grid/data-grid.html · @if(!hasTitle()) · p[live=polite]",
+      "razon": "El mismo contador sin título: `hasTitle` es configuración y la región vive mientras se filtra. Igual que el de arriba, desde #87 va vacío mientras el host recarga en vez de re-crearse."
     },
     {
       "clave": "platforms/angular/apps/elements/modules/eventos/src/eventos/eventos.html · @else · span[live=polite]",

@@ -336,6 +336,57 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(document.querySelector('[data-syn-live-announcer]')?.getAttribute('aria-live')).toBe('assertive');
   });
 
+  // ── #87: el fallo de agregar también se VE, junto al botón que se pulsó ──────────
+  // Desde el #82 se oía y no se veía nada: quien mira pulsaba, el cajón no se abría y no
+  // había ningún porqué. Se pulsa el BOTÓN de la tarjeta (regla 5), no se llama al método.
+  it('si el motor no puede agregar, la tarjeta lo dice al lado del botón, y reintentar lo limpia', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    // El «Agregar» rápido vive en las tarjetas del PLP, no en las de la portada.
+    component.navigate('plp');
+
+    const botonDe = (tarjeta: Element) =>
+      tarjeta.querySelector('.storefront__card-actions .storefront__btn--primary') as HTMLButtonElement;
+    const tarjetaConAgregar = (): Element | undefined =>
+      Array.from(fixture.nativeElement.querySelectorAll('.storefront__card') as NodeListOf<Element>).find((t) => botonDe(t));
+    await vi.waitFor(
+      () => {
+        fixture.detectChanges();
+        expect(tarjetaConAgregar(), 'no hay ninguna tarjeta con «Agregar» en el PLP').toBeTruthy();
+      },
+      { timeout: 2000, interval: 20 },
+    );
+    const tarjeta = tarjetaConAgregar();
+    expect(tarjeta!.querySelector('.storefront__add-error')).toBeNull();
+
+    const select = vi.spyOn(ShopFulfillmentStrategy.prototype, 'select').mockRejectedValueOnce(new Error('sin cupo'));
+    botonDe(tarjeta!).click();
+    await vi.waitFor(
+      () => {
+        fixture.detectChanges();
+        expect(tarjeta!.querySelector('.storefront__add-error')?.textContent).toContain('No se pudo agregar');
+      },
+      { timeout: 2000, interval: 20 },
+    );
+    expect(botonDe(tarjeta!).textContent?.trim()).toBe('Reintentar');
+    // No es una región viva: el anuncio ya lo hizo el anunciador; una segunda lo diría dos veces.
+    const aviso = tarjeta!.querySelector('.storefront__add-error')!;
+    expect(aviso.getAttribute('role')).toBeNull();
+    expect(aviso.getAttribute('aria-live')).toBeNull();
+
+    select.mockRestore();
+    botonDe(tarjeta!).click();
+    await vi.waitFor(
+      () => {
+        fixture.detectChanges();
+        expect(tarjeta!.querySelector('.storefront__add-error')).toBeNull();
+      },
+      { timeout: 2000, interval: 20 },
+    );
+    expect(botonDe(tarjeta!).textContent?.trim()).toBe('Agregar');
+  });
+
   // ── happy: add → cart agrupado → SH-3 wizard → pay → confirm ─────────────────
   it('runs the full lifecycle through the SH-3 wizard to a confirmation (happy case)', async () => {
     installMemoryStorage();

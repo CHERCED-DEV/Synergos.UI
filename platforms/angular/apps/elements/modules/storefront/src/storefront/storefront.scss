@@ -402,6 +402,17 @@
     padding-top: syn.$space-2;
   }
 
+  // El fallo de «agregar» se VE junto al botón (#87). Tinta de TEXTO de peligro sobre la
+  // superficie de la tarjeta, sin fondo propio: el par de `__return-error` (surface como
+  // tinta sobre soft) daba 3,43:1 medido en el banco, y `state-danger-text` sobre la tarjeta
+  // blanca da 4,83:1 con el respaldo de dev.
+  &__add-error {
+    margin: syn.$space-1 0 0;
+    color: var(--syn-color-state-danger-text, #{syn.$color-danger-600});
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
   &__out {
     color: var(--sf-muted);
     font-size: syn.$font-size-sm;

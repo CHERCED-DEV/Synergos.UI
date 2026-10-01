@@ -107,4 +107,37 @@ describe('DataGridElementComponent', () => {
 
     expect(component.title()).toBe('Input title');
   });
+
+  // ── #87, sospecha sin medir: `loading` es un input del HOST ─────────────────────
+  // El contador está en el censo de `regiones-vivas` porque «vive y cambia al filtrar», con
+  // un riesgo anotado: si un host lo pone en `loading` para recargar, la región pasa a nacer
+  // con su mensaje y el lector calla. Se MIDE la identidad del nodo antes y después: una
+  // región que se re-crea con el texto nuevo ya no es la que existía cuando el texto cambió.
+  for (const conTitulo of [true, false]) {
+    it(`al recargar (loading → false) el contador ${conTitulo ? 'con' : 'sin'} título es la MISMA región`, async () => {
+      fixture.componentRef.setInput('columns', COLUMNS);
+      fixture.componentRef.setInput('rows', ROWS);
+      if (conTitulo) fixture.componentRef.setInput('title', 'Inmuebles');
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const contador = () =>
+        fixture.nativeElement.querySelector('[aria-live="polite"].data-grid__count') as HTMLElement | null;
+      const antes = contador();
+      expect(antes, 'control: el contador existe antes de recargar').not.toBeNull();
+      expect(antes!.textContent).toContain('3');
+
+      fixture.componentRef.setInput('loading', true);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.componentRef.setInput('rows', JSON.stringify(JSON.parse(ROWS).slice(0, 2)));
+      fixture.componentRef.setInput('loading', false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const despues = contador();
+      expect(despues!.textContent).toContain('2');
+      expect(despues, 'la región se re-creó con el texto nuevo: nace con su mensaje').toBe(antes);
+    });
+  }
 });

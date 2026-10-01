@@ -42,7 +42,8 @@
   pointer-events: none;
   font-family: inherit;
 
-  &[open] {
+  // `data-open` y no `open`: el reflejo sobre el input observado entraba en bucle (#87).
+  &[data-open] {
     pointer-events: auto;
 
     .cart-backdrop {

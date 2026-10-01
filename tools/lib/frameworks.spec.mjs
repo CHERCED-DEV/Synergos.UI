@@ -231,6 +231,10 @@ const CIEGAS_AL_FRAMEWORK = [
   // El lanzador de `npm` (#79): decide el `shell` por SISTEMA operativo, no por plataforma
   // del árbol. Recibe los argumentos; quien nombra la carpeta es quien lo llama.
   'lib/npm.mjs',
+  // Cuándo construye `dev:cdn` el runtime (#88): recibe el build, las entradas y el
+  // constructor inyectados. Qué ficheros son el runtime se lo dice quien llama, con
+  // `ficherosDelRuntime(framework)`; acá no hay ninguna ruta que cablear.
+  'lib/runtime-en-desarrollo.mjs',
   // El runner de `npm test` (#79): los tramos salen de los `test:*` del package.json, así que
   // el de una plataforma nueva entra solo, sin que este fichero la nombre.
   'test-todo.mjs',

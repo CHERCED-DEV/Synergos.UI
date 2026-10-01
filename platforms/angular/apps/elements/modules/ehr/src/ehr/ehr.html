@@ -905,11 +905,12 @@
         }
       </select>
 
-      <p class="ehr__field-label">Modalidad</p>
+      <p class="ehr__field-label" [id]="fieldId + '-sch-mode'">Modalidad</p>
+      <!-- El rótulo VISIBLE nombra el grupo (#87): antes se repetía en un aria-label aparte. -->
       <syn-segmented
         class="ehr__mode-toggle"
         size="sm"
-        ariaLabel="Modalidad de la cita"
+        [ariaLabelledby]="fieldId + '-sch-mode'"
         [options]="scheduleModes"
         [value]="scheduleMode()"
         (valueChange)="setScheduleMode($event)"

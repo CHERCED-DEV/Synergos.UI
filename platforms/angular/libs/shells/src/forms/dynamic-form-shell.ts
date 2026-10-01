@@ -1,9 +1,11 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
   computed,
   inject,
+  Injector,
   input,
   linkedSignal,
   output,
@@ -409,6 +411,7 @@ let dynamicFormInstanceId = 0;
 })
 export class DynamicFormShellComponent {
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #injector = inject(Injector);
 
   // ─── Inputs ────────────────────────────────────────────────────────────────
   readonly schema = input.required<FormSchema>();
@@ -656,11 +659,17 @@ export class DynamicFormShellComponent {
   }
 
   private focusErrorSummary(): void {
-    // Defer to the next frame so the summary is rendered before we move focus.
-    queueMicrotask(() => {
-      const summary = this.#host.nativeElement.querySelector<HTMLElement>(`#${cssEscape(this.fieldId)}-errors`);
-      summary?.focus();
-    });
+    // DESPUÉS del render, no en una microtarea (#87). En zoneless el render lo programa el
+    // scheduler y llega después de la microtarea: la PRIMERA vez que fallaba, el resumen no
+    // existía todavía y el foco no se movía. Medido con el render real del scheduler; el spec
+    // de antes pintaba a mano con `detectChanges()` y por eso no lo veía.
+    afterNextRender(
+      () => {
+        const summary = this.#host.nativeElement.querySelector<HTMLElement>(`#${cssEscape(this.fieldId)}-errors`);
+        summary?.focus();
+      },
+      { injector: this.#injector },
+    );
   }
 }
 
