@@ -252,7 +252,7 @@ export interface ColorSwatchesProps {
   readonly shape?: string;
 }
 
-/** <synergos-cookie-consent> · pieza */
+/** <synergos-cookie-consent> · pieza · diccionario: Cookie */
 export interface CookieConsentProps {
   /** contenido */
   readonly bannerText?: string;
@@ -789,8 +789,8 @@ export const COOKIE_CONSENT_SYNHOST: ElementoSynHost<CookieConsentProps> = {
   nombre: "cookie-consent",
   tipo: "pieza",
   record: "CookieConsentProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Cookie"],
+  claves: ["Cookie.AcceptAll","Cookie.Accepted","Cookie.AlwaysOn","Cookie.Analytics.Description","Cookie.Analytics.Label","Cookie.BannerMessage","Cookie.Customize","Cookie.Marketing.Description","Cookie.Marketing.Label","Cookie.MoreInfo","Cookie.Necessary.Description","Cookie.Necessary.Label","Cookie.NecessaryOnly","Cookie.Options","Cookie.RejectAll","Cookie.SavePreferences","Cookie.Title"],
   campos: ["bannerText","acceptLabel","rejectLabel","settingsLabel","policyLink","policyLabel"],
   listas: {},
   ejemplo: {

@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import type { CookieConsentProps } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 import {
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
@@ -28,6 +29,12 @@ import {
  * (ADR 0135): los textos del aviso y el enlace a la política (`policyLink` + `policyLabel`). La
  * vista mandaba `policyUrl` y el aviso salía sin enlace a la política (D1). `title`,
  * `saveLabel`, `storageKey` y `categories` no los autora el editor: llegan por atributo.
+ *
+ * Los textos por defecto —lo que se pinta cuando ni el editor ni un atributo dicen nada— salen
+ * de la sección `Cookie` del diccionario con `t()` (ADR 0136; la declara `CookieConsentProps`).
+ * Cinco reusan claves que ya existían para este aviso (`AcceptAll`, `RejectAll`, `Customize`,
+ * `BannerMessage`, `MoreInfo`): el respaldo de cada `t()` es su valor es-CO, así que con o sin
+ * puente el elemento dice lo mismo que el diccionario.
  */
 export interface CookieCategoryConfig {
   readonly id?: string;
@@ -58,38 +65,36 @@ export interface CookieConsentDecision {
 }
 
 const DEFAULT_STORAGE_KEY = 'syn-cookie-consent';
-const DEFAULT_BANNER_TEXT =
-  'Usamos cookies para mejorar tu experiencia y analizar el tráfico del sitio. Tú decides qué aceptar.';
-const DEFAULT_TITLE = 'Tu privacidad';
-const DEFAULT_ACCEPT_LABEL = 'Aceptar todo';
-const DEFAULT_REJECT_LABEL = 'Rechazar';
-const DEFAULT_SETTINGS_LABEL = 'Configurar';
-const DEFAULT_SAVE_LABEL = 'Guardar preferencias';
-const DEFAULT_POLICY_LABEL = 'Política de cookies';
 
-const DEFAULT_CATEGORIES: readonly CookieCategory[] = [
-  {
-    id: 'necessary',
-    label: 'Necesarias',
-    description: 'Imprescindibles para el funcionamiento del sitio. Siempre activas.',
-    essential: true,
-    enabled: true,
-  },
-  {
-    id: 'analytics',
-    label: 'Analíticas',
-    description: 'Nos ayudan a entender cómo se usa el sitio para mejorarlo.',
-    essential: false,
-    enabled: false,
-  },
-  {
-    id: 'marketing',
-    label: 'Marketing',
-    description: 'Permiten mostrar contenido y anuncios más relevantes.',
-    essential: false,
-    enabled: false,
-  },
-];
+/**
+ * Las tres categorías canónicas, con sus textos del diccionario. Una función y no una constante:
+ * `t()` lee el puente al llamarla, y el módulo se evalúa antes de que el elemento se monte.
+ */
+function defaultCategories(): readonly CookieCategory[] {
+  return [
+    {
+      id: 'necessary',
+      label: t('Cookie.Necessary.Label', 'Necesarias'),
+      description: t('Cookie.Necessary.Description', 'Imprescindibles para el funcionamiento del sitio. Siempre activas.'),
+      essential: true,
+      enabled: true,
+    },
+    {
+      id: 'analytics',
+      label: t('Cookie.Analytics.Label', 'Analíticas'),
+      description: t('Cookie.Analytics.Description', 'Nos ayudan a entender cómo se usa el sitio para mejorarlo.'),
+      essential: false,
+      enabled: false,
+    },
+    {
+      id: 'marketing',
+      label: t('Cookie.Marketing.Label', 'Marketing'),
+      description: t('Cookie.Marketing.Description', 'Permiten mostrar contenido y anuncios más relevantes.'),
+      essential: false,
+      enabled: false,
+    },
+  ];
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -179,25 +184,33 @@ export class CookieConsentElementComponent {
   readonly cookieconsent = output<CookieConsentDecision>();
 
   readonly bannerText = computed(() =>
-    resolveConfigValue(this.bannerTextInput(), this.config()?.bannerText, DEFAULT_BANNER_TEXT),
+    resolveConfigValue(
+      this.bannerTextInput(),
+      this.config()?.bannerText,
+      t('Cookie.BannerMessage', 'Usamos cookies para mejorar tu experiencia.'),
+    ),
   );
-  readonly title = computed(() => this.titleInput() ?? DEFAULT_TITLE);
+  readonly title = computed(() => this.titleInput() ?? t('Cookie.Title', 'Tu privacidad'));
   readonly acceptLabel = computed(() =>
-    resolveConfigValue(this.acceptLabelInput(), this.config()?.acceptLabel, DEFAULT_ACCEPT_LABEL),
+    resolveConfigValue(this.acceptLabelInput(), this.config()?.acceptLabel, t('Cookie.AcceptAll', 'Aceptar todo')),
   );
   readonly rejectLabel = computed(() =>
-    resolveConfigValue(this.rejectLabelInput(), this.config()?.rejectLabel, DEFAULT_REJECT_LABEL),
+    resolveConfigValue(this.rejectLabelInput(), this.config()?.rejectLabel, t('Cookie.RejectAll', 'Rechazar todo')),
   );
   readonly settingsLabel = computed(() =>
-    resolveConfigValue(this.settingsLabelInput(), this.config()?.settingsLabel, DEFAULT_SETTINGS_LABEL),
+    resolveConfigValue(this.settingsLabelInput(), this.config()?.settingsLabel, t('Cookie.Customize', 'Personalizar')),
   );
-  readonly saveLabel = computed(() => this.saveLabelInput() ?? DEFAULT_SAVE_LABEL);
+  readonly saveLabel = computed(() => this.saveLabelInput() ?? t('Cookie.SavePreferences', 'Guardar preferencias'));
   readonly policyLink = computed(() =>
     resolveConfigValue(this.policyLinkInput(), this.config()?.policyLink, ''),
   );
   readonly policyLabel = computed(() =>
-    resolveConfigValue(this.policyLabelInput(), this.config()?.policyLabel, DEFAULT_POLICY_LABEL),
+    resolveConfigValue(this.policyLabelInput(), this.config()?.policyLabel, t('Cookie.MoreInfo', 'Más información')),
   );
+  /** El distintivo de las categorías que no se pueden apagar. */
+  readonly alwaysOnLabel = computed(() => t('Cookie.AlwaysOn', 'Siempre activas'));
+  /** El nombre del grupo de botones de decisión. */
+  readonly optionsLabel = computed(() => t('Cookie.Options', 'Opciones de consentimiento'));
   readonly hasPolicyLink = computed(() => this.policyLink().trim().length > 0);
 
   readonly storageKey = computed(() => this.storageKeyInput() ?? DEFAULT_STORAGE_KEY);
@@ -205,7 +218,7 @@ export class CookieConsentElementComponent {
   /** Categories from the `categories` attribute, falling back to the canonical defaults. */
   readonly categories = computed<readonly CookieCategory[]>(() => {
     const normalized = normalizeCategories(this.resolveCategoriesSource());
-    return normalized.length > 0 ? normalized : DEFAULT_CATEGORIES;
+    return normalized.length > 0 ? normalized : defaultCategories();
   });
 
   /** Live per-category toggle state inside the preferences panel. */

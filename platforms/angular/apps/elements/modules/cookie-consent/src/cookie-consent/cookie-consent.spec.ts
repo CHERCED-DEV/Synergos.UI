@@ -151,3 +151,62 @@ describe('cookie-consent pure helpers', () => {
     expect(categories[0].enabled).toBe(true);
   });
 });
+
+/** El puente que publica la página (ADR 0136): sólo las claves que se pasan. */
+function publicar(keys: Record<string, string>): void {
+  (window as { synergos?: unknown }).synergos = { i18n: { culture: 'en-US', defaultCulture: 'es-CO', keys } };
+}
+
+describe('cookie-consent — microcopia del diccionario (ADR 0136, sección Cookie)', () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [CookieConsentElementComponent],
+      providers: [provideZonelessChangeDetection()],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    delete (window as { synergos?: unknown }).synergos;
+  });
+
+  it('lo que escribió el editor gana; lo que no autora sale de las claves que publicó la página', async () => {
+    publicar({
+      'Cookie.AcceptAll': 'Accept all',
+      'Cookie.Title': 'Your privacy',
+      'Cookie.SavePreferences': 'Save preferences',
+      'Cookie.Options': 'Consent options',
+      'Cookie.Necessary.Label': 'Necessary',
+    });
+    const fixture = TestBed.createComponent(CookieConsentElementComponent);
+    fixture.componentRef.setInput('config', JSON.stringify(COOKIE_CONSENT_SYNHOST.ejemplo));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+
+    // Contenido del editor: el diccionario no lo pisa.
+    expect(c.acceptLabel()).toBe(COOKIE_CONSENT_SYNHOST.ejemplo.acceptLabel);
+    expect(c.bannerText()).toBe(COOKIE_CONSENT_SYNHOST.ejemplo.bannerText);
+    // Lo que el editor no autora: del diccionario.
+    expect(c.title()).toBe('Your privacy');
+    expect(c.saveLabel()).toBe('Save preferences');
+    expect(c.categories()[0].label).toBe('Necessary');
+    const grupo = (fixture.nativeElement as HTMLElement).querySelector('.cookie-consent__actions');
+    expect(grupo?.getAttribute('aria-label')).toBe('Consent options');
+    // Lo que la página no publica sale por el respaldo es-CO, nunca la clave cruda.
+    expect(c.categories()[1].label).toBe('Analíticas');
+  });
+
+  it('sin texto del editor, los rótulos son las claves que ya existían para este aviso', async () => {
+    publicar({ 'Cookie.AcceptAll': 'Accept all', 'Cookie.RejectAll': 'Reject all', 'Cookie.MoreInfo': 'More information' });
+    const fixture = TestBed.createComponent(CookieConsentElementComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const c = fixture.componentInstance;
+
+    expect(c.acceptLabel()).toBe('Accept all');
+    expect(c.rejectLabel()).toBe('Reject all');
+    expect(c.policyLabel()).toBe('More information');
+    expect(c.settingsLabel()).toBe('Personalizar');
+  });
+});
