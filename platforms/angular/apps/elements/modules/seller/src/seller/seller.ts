@@ -1,4 +1,5 @@
 import {
+  type OnInit,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -29,6 +30,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { SellerProps } from '@synergos/contracts';
 import { SellerApiClient } from './seller-api.client';
 import {
   type SellerKpiMetric,
@@ -55,20 +57,12 @@ import {
  * compradores). The component only contributes domain data, templates and API
  * wiring — the shells stay domain-free (contrato D3).
  *
- * 100% composable: nothing but UI copy lives here. Data/KPIs/products always
- * come from the shop API (visible mock degradation while endpoints land) and
- * every knob arrives from the CMS via inputs or the `config` JSON.
+ * El `config` que manda el CMS tiene la forma de `SellerProps`, GENERADO del record C# (ADR 0135):
+ * lo del editor y dónde vive la API para el sitio, que sale de `Synergos:Features:Seller` y el
+ * editor no ve (ADR 0137, CMS#196). La moneda no es configuración: llega con cada precio. Lo que
+ * sólo entraba por el JSON libre queda como atributo del tag crudo con su valor del componente.
  */
-export interface SellerRuntimeConfig {
-  /** Base URL of the shop API. Default `/api/shop`. */
-  readonly apiBase?: string;
-  /** Display name of the seller account (chip next to the heading). */
-  readonly sellerName?: string;
-  /** Console heading. Default `Centro de vendedores`. */
-  readonly heading?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-}
+export type SellerConfig = Partial<SellerProps>;
 
 /**
  * One pre-rendered row for the SH-5 table: the shell treats rows as opaque, so
@@ -86,8 +80,6 @@ interface SellerRowVm {
   readonly rma?: SellerReturn;
 }
 
-const DEFAULT_API_BASE = '/api/shop';
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_HEADING = 'Centro de vendedores';
 
 const SECTION_IDS: readonly SellerSectionId[] = [
@@ -160,12 +152,14 @@ const PUBLISH_STEPS = [
   { id: 'preview', label: 'Revisar' },
 ] as const;
 
-function sanitizeConfig(value: Partial<SellerRuntimeConfig>): SellerRuntimeConfig {
-  return omitUndefinedProperties<SellerRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    sellerName: coerceTrimmedStringInput(value.sellerName),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
+  return omitUndefinedProperties<SellerProps>({
     heading: coerceTrimmedStringInput(value.heading),
-    currency: coerceTrimmedStringInput(value.currency),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -180,29 +174,31 @@ let sellerInstanceId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-seller' },
 })
-export class SellerElementComponent {
+export class SellerElementComponent implements OnInit {
   readonly #api = inject(SellerApiClient);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<SellerRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<SellerRuntimeConfig>(sanitizeConfig),
+  readonly config = input<SellerConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<SellerProps>(sanitizeSellerConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly sellerNameInput = input<string | undefined>(undefined, { alias: 'sellerName' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
   readonly sellerName = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.sellerNameInput()),
-      this.config()?.sellerName,
+      undefined,
       '',
     ),
   );
@@ -213,13 +209,12 @@ export class SellerElementComponent {
       DEFAULT_HEADING,
     ),
   );
-  readonly currency = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
-    ),
-  );
+  /**
+   * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería
+   * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
+   * número solo).
+   */
+  readonly currency = computed(() => this.orders()[0]?.currency || this.listings()[0]?.currency || '');
 
   readonly instanceId = (sellerInstanceId += 1);
   readonly fieldId = `syn-seller-${this.instanceId}`;
@@ -432,8 +427,14 @@ export class SellerElementComponent {
     sendingLabel: 'Enviando…',
   };
 
-  constructor() {
-    // Open on the panel: KPIs + ventas queue.
+  /**
+   * Abre en el panel (KPIs y cola de ventas) contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
     void this.loadSummary();
     void this.loadOrders();
   }
@@ -926,7 +927,11 @@ export class SellerElementComponent {
     return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 }).format(value);
   }
 
+  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   private formatPrice(amount: number, currency: string): string {
+    if (!currency) {
+      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',

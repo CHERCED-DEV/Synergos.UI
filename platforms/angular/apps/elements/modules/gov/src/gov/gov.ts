@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  type OnInit,
   computed,
   effect,
   inject,
@@ -46,6 +47,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { GovProps } from '@synergos/contracts';
 import { GovApiClient, isGovForbidden, isGovUnauthorized } from './gov-api.client';
 import {
   OUTCOME_LABELS,
@@ -82,39 +84,13 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *  - **FUNCIONARIO:** cola de casos (**SH-5**: filtros por agencia/estado, SLA,
  *    prioridad) → revisar caso → decisión (aprobar/rechazar/pedir info + nota).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`role`/`agency`/`config` JSON, patrón createConfigInputTransform/
- * resolveConfigValue) and data always comes from the API with visible mock
- * degradation. Shells stay domain-free (contrato D3) — the module only feeds
- * data + templates. WCAG AA + lenguaje claro GOV.UK are first-class (state
- * changes announced in a `role="status"` region without a reload).
- *
- * **Angular Elements lesson:** the initial fetch is NOT fired from the constructor
- * (inputs land AFTER construction); it fires from an `effect()` reactive to the
- * resolved identity/role, so a CMS-supplied `agency`/`role` re-fetches.
- *
- * **Quién es el ciudadano NO se compone (T2).** Hubo un prop `citizen` que el mount
- * mandaba como `?citizen=<email>`: era la identidad puesta por el cliente, o sea el
- * IDOR. Ahora la resuelve el servidor desde la cookie de sesión y aquí no hay knob
- * que valga — un `citizen` componible solo podría mentir. `agency` sí sigue: es un
- * filtro de la cola, no una identidad.
+ * El `config` que manda el CMS tiene la forma de `GovProps`, GENERADO del record C# (ADR 0135):
+ * lo del editor y dónde vive la API para el sitio, que sale de `Synergos:Features:Gov` y el
+ * editor no ve (ADR 0137, CMS#196). La moneda no es configuración: llega con cada precio. Lo que
+ * sólo entraba por el JSON libre queda como atributo del tag crudo con su valor del componente.
  */
-export interface GovRuntimeConfig {
-  /** Base URL of the gov API. Default `/api/gov`. */
-  readonly apiBase?: string;
-  /** Initial demo role. Default `citizen`. */
-  readonly role?: GovRole;
-  /** Agency scope for the officer queue (empty = all). Default `''`. */
-  readonly agency?: string;
-  /** Storage / hash-route scope. Default `gov`. */
-  readonly scope?: string;
-  /** Catalog hero heading. Default `¿Qué trámite necesita hacer?`. */
-  readonly heading?: string;
-  /** Catalog hero lead under the heading. */
-  readonly subheading?: string;
-}
+export type GovConfig = Partial<GovProps>;
 
-const DEFAULT_API_BASE = '/api/gov';
 const DEFAULT_ROLE: GovRole = 'citizen';
 const DEFAULT_AGENCY = '';
 const DEFAULT_SCOPE = 'gov';
@@ -169,14 +145,15 @@ function coerceRole(value: unknown): GovRole | undefined {
   return raw === 'citizen' || raw === 'officer' ? raw : undefined;
 }
 
-function sanitizeConfig(value: Partial<GovRuntimeConfig>): GovRuntimeConfig {
-  return omitUndefinedProperties<GovRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    role: coerceRole(value.role),
-    agency: coerceTrimmedStringInput(value.agency),
-    scope: coerceTrimmedStringInput(value.scope),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeGovConfig(value: GovConfig): GovConfig {
+  return omitUndefinedProperties<GovProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -201,7 +178,7 @@ let govInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-gov' },
 })
-export class GovElementComponent {
+export class GovElementComponent implements OnInit {
   readonly #api = inject(GovApiClient);
   readonly #destroyRef = inject(DestroyRef);
   /**
@@ -215,8 +192,8 @@ export class GovElementComponent {
   readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<GovRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<GovRuntimeConfig>(sanitizeConfig),
+  readonly config = input<GovConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<GovProps>(sanitizeGovConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
@@ -225,25 +202,28 @@ export class GovElementComponent {
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
   readonly initialRole = computed<GovRole>(() =>
-    resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+    resolveConfigValue(coerceRole(this.roleInput()), undefined, DEFAULT_ROLE),
   );
   readonly agency = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.agencyInput()),
-      this.config()?.agency,
+      undefined,
       DEFAULT_AGENCY,
     ),
   );
   readonly scope = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly heading = computed(() =>
     resolveConfigValue(
@@ -744,10 +724,6 @@ export class GovElementComponent {
   );
 
   constructor() {
-    const initialRole = this.initialRole();
-    this.role.set(initialRole);
-    this.view.set(initialRole === 'officer' ? 'queue' : 'catalog');
-
     const onHashChange = (): void => this.applyHash();
     if (typeof window !== 'undefined') {
       window.addEventListener('hashchange', onHashChange);
@@ -757,10 +733,6 @@ export class GovElementComponent {
         window.removeEventListener('hashchange', onHashChange);
       }
     });
-
-    // Resolve the initial route from the hash (deep-link) BEFORE any data loads so
-    // the identity effect reloads the RIGHT view.
-    this.applyHash();
 
     // Identity effect: fires with the default first, then again once the CMS-supplied
     // `agency`/`role` land after construction (Angular Elements lifecycle),
@@ -793,7 +765,23 @@ export class GovElementComponent {
       // en el orden de tabulación, donde un contenedor no pinta nada).
       panel.nativeElement.focus();
     });
+  }
 
+
+  /**
+   * La cara inicial y la ruta del hash (deep-link), ANTES de que el effect de identidad cargue,
+   * para que recargue la vista CORRECTA.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS con la base de
+   * la API, el `role` y el `scope` del tag— se aplican DESPUÉS de crear el componente y ANTES del
+   * primer ciclo. Resolver el hash ahí CARGABA sin base: la carga caía a la muestra y su respuesta
+   * pisaba la del borde (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
+    const initialRole = this.initialRole();
+    this.role.set(initialRole);
+    this.view.set(initialRole === 'officer' ? 'queue' : 'catalog');
+    this.applyHash();
   }
 
   /**

@@ -72,6 +72,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { TravelShellProps } from '@synergos/contracts';
 import { TravelApiClient, mockSeatMap } from './travel-api.client';
 import {
   TRAVEL_FLOW,
@@ -107,20 +108,7 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  * The app only contributes domain data, templates and its
  * `TravelFulfillmentStrategy` — the shells stay domain-free (contrato D3).
  */
-export interface TravelShellRuntimeConfig {
-  /** Base URL of the travel API. Default `/api/travel`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-  /** Storage scope for the session (typically the siteRoot). Default `travel`. */
-  readonly scope?: string;
-  /** Traveler id used to load "mis viajes". Optional. */
-  readonly traveler?: string;
-  /** Home hero title. Default `Tu próximo viaje empieza aquí`. */
-  readonly heading?: string;
-  /** Home hero lead under the title. Default `Estadías, vuelos y autos en un solo lugar · un solo pago`. */
-  readonly subheading?: string;
-}
+export type TravelShellConfig = Partial<TravelShellProps>;
 
 /** Typed event map for the transaction bus (search ↔ cart ↔ checkout ↔ IA). */
 interface TravelBus extends Record<string, unknown> {
@@ -137,8 +125,6 @@ interface ConfirmedVoucher {
   readonly reservationId: string;
 }
 
-const DEFAULT_API_BASE = '/api/travel';
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'travel';
 const DEFAULT_HEADING = 'Tu próximo viaje empieza aquí';
 /**
@@ -157,14 +143,15 @@ const DEFAULT_SUBHEADING = 'Estadías, vuelos y autos en un solo lugar · un sol
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const ACCOUNT_SECTIONS: readonly TravelAccountSection[] = ['viajes', 'credenciales', 'perfil'];
 
-function sanitizeConfig(value: Partial<TravelShellRuntimeConfig>): TravelShellRuntimeConfig {
-  return omitUndefinedProperties<TravelShellRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    scope: coerceTrimmedStringInput(value.scope),
-    traveler: coerceTrimmedStringInput(value.traveler),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeTravelShellConfig(value: TravelShellConfig): TravelShellConfig {
+  return omitUndefinedProperties<TravelShellProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -235,41 +222,42 @@ export class TravelShellElementComponent {
   readonly #api = inject(TravelApiClient);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<TravelShellRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<TravelShellRuntimeConfig>(sanitizeConfig),
+  readonly config = input<TravelShellConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<TravelShellProps>(sanitizeTravelShellConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly travelerInput = input<string | undefined>(undefined, { alias: 'traveler' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
-  );
-  readonly currency = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
     ),
   );
+  /**
+   * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería
+   * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
+   * número solo).
+   */
+  readonly currency = computed(() => this.stay()?.currency || this.offers()[0]?.currency || '');
   readonly scope = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.scopeInput()),
-      this.config()?.scope,
+      undefined,
       DEFAULT_SCOPE,
     ),
   );
   readonly traveler = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.travelerInput()),
-      this.config()?.traveler,
+      undefined,
       '',
     ),
   );
@@ -848,7 +836,6 @@ export class TravelShellElementComponent {
       scope: `travel.${this.instanceId}`,
       flow: TRAVEL_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
     this.#bus.scope(`travel-${this.instanceId}`);
 
@@ -1854,7 +1841,11 @@ export class TravelShellElementComponent {
     return typeof value === 'string' ? value : '';
   }
 
+  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   private formatPrice(amount: number, currency: string): string {
+    if (!currency) {
+      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',

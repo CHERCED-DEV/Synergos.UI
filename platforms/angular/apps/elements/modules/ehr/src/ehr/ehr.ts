@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   computed,
   effect,
   inject,
@@ -44,6 +45,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { EhrProps } from '@synergos/contracts';
 import { EhrApiClient } from './ehr-api.client';
 import { EHR_FLOW } from './ehr-fulfillment.strategy';
 import {
@@ -99,25 +101,12 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *    routing) · chart del paciente (Storyboard + SOAP + órdenes/e-Rx + evolución) ·
  *    cerrar encuentro → AVS · cockpit KPIs (SH-5).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`clinic`/`config` JSON, patrón createConfigInputTransform/
- * resolveConfigValue) and the data always comes from the API — a read that fails shows
- * a gap, never someone else's record (#106). The shells stay domain-free (contrato D3)
- * — the module only feeds
- * data, templates and its `EhrFulfillmentStrategy` (cita/copago).
+ * El `config` que manda el CMS tiene la forma de `EhrProps`, GENERADO del record C# (ADR 0135):
+ * lo del editor y dónde vive la API para el sitio, que sale de `Synergos:Features:Ehr` y el
+ * editor no ve (ADR 0137, CMS#196). La moneda no es configuración: llega con cada precio. Lo que
+ * sólo entraba por el JSON libre queda como atributo del tag crudo con su valor del componente.
  */
-export interface EhrRuntimeConfig {
-  /** Base URL of the EHR API. Default `/api/ehr`. */
-  readonly apiBase?: string;
-  /** Display name of the clinic shown in the shell header. Default `Clínica Synergos`. */
-  readonly clinic?: string;
-  /** Storage / instance scope (typically the siteRoot). Default `ehr`. */
-  readonly scope?: string;
-  /** Initial demo role. Default `patient`. */
-  readonly role?: EhrRole;
-  /** The patient the portal is scoped to (MyChart is single-patient). Default `P-1`. */
-  readonly patient?: string;
-}
+export type EhrConfig = Partial<EhrProps>;
 
 /** Typed event map for the transaction bus (ehr ↔ appointment ↔ refill ↔ order). */
 interface EhrBus extends Record<string, unknown> {
@@ -125,7 +114,6 @@ interface EhrBus extends Record<string, unknown> {
   readonly refillrequested: { readonly medicationId: string; readonly patientId: string };
 }
 
-const DEFAULT_API_BASE = '/api/ehr';
 const DEFAULT_CLINIC = 'Clínica Synergos';
 const DEFAULT_SCOPE = 'ehr';
 
@@ -197,13 +185,14 @@ const SCHEDULE_MODES: readonly { readonly value: ScheduleMode; readonly label: s
   { value: 'video', label: 'Video' },
 ];
 
-function sanitizeConfig(value: Partial<EhrRuntimeConfig>): EhrRuntimeConfig {
-  return omitUndefinedProperties<EhrRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    clinic: coerceTrimmedStringInput(value.clinic),
-    scope: coerceTrimmedStringInput(value.scope),
-    role: coerceRole(value.role),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
+  return omitUndefinedProperties<EhrProps>({
     patient: coerceTrimmedStringInput(value.patient),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -240,7 +229,7 @@ let ehrInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-ehr' },
 })
-export class EhrElementComponent {
+export class EhrElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -249,8 +238,8 @@ export class EhrElementComponent {
   readonly #api = inject(EhrApiClient);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<EhrRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<EhrRuntimeConfig>(sanitizeConfig),
+  readonly config = input<EhrConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<EhrProps>(sanitizeEhrConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly clinicInput = input<string | undefined>(undefined, { alias: 'clinic' });
@@ -258,21 +247,24 @@ export class EhrElementComponent {
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly patientInput = input<string | undefined>(undefined, { alias: 'patient' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
   readonly clinic = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.clinicInput()), this.config()?.clinic, DEFAULT_CLINIC),
+    resolveConfigValue(coerceTrimmedStringInput(this.clinicInput()), undefined, DEFAULT_CLINIC),
   );
   readonly scope = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly initialRole = computed<EhrRole>(() =>
-    resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+    resolveConfigValue(coerceRole(this.roleInput()), undefined, DEFAULT_ROLE),
   );
   readonly patientId = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.patientInput()), this.config()?.patient, DEFAULT_PATIENT),
@@ -817,7 +809,6 @@ export class EhrElementComponent {
       scope: `ehr.${this.instanceId}`,
       flow: EHR_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: 'COP',
     });
     this.#bus.scope(`ehr-${this.instanceId}`);
 
@@ -837,10 +828,6 @@ export class EhrElementComponent {
       }
     });
 
-    // Resolve the initial route from the hash (deep-link) BEFORE any data loads so
-    // the identity effect reloads the RIGHT view (not just home).
-    this.applyHash();
-
     // Identity effect: reacts to the resolved `patientId()`. In Angular Elements the
     // real id lands AFTER construction, so this fires first with the default and then
     // again with the CMS-supplied id (`config.patient`), re-fetching against the true
@@ -856,6 +843,19 @@ export class EhrElementComponent {
       // signals, so keep them out of this effect's dependency graph.
       untracked(() => this.reloadForIdentity());
     });
+  }
+
+  /**
+   * Resuelve la ruta inicial del hash (enlace profundo) ANTES de que cargue nada, para que el
+   * effect de identidad recargue la vista CORRECTA (no sólo el inicio).
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS, con la base
+   * de la API— se aplican DESPUÉS de crear el componente, y la ruta dispara cargas (el defecto que
+   * el piloto de la ADR 0137 encontró en `eventos`, CMS#194). Sigue antes del primer ciclo, que es
+   * cuando corre por primera vez el effect.
+   */
+  ngOnInit(): void {
+    this.applyHash();
   }
 
   /**
@@ -1537,7 +1537,8 @@ export class EhrElementComponent {
     this.#store.reset();
     this.#store.addItem(selection.item);
     this.#store.setPricing({
-      currency: 'COP',
+      // La moneda del copago que contestó el servidor, no una escrita (CMS#196).
+      currency: this.copay()?.currency ?? '',
       totalAmount: this.copayMinor(),
       balanceDue: this.copayMinor(),
       breakdown:

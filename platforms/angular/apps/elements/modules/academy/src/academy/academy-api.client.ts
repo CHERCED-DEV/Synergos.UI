@@ -135,6 +135,15 @@ export class AcademyWriteFailedError extends Error {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class AcademyApiClient {
   readonly #logger = inject(LoggerService);
@@ -161,7 +170,7 @@ export class AcademyApiClient {
     const query = this.toCatalogQuery(criteria);
     const url = `${apiBase}/courses${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeCatalog(data, currency);
       if (result && (result.courses.length > 0 || isRecord(data))) {
         return result;
@@ -178,7 +187,7 @@ export class AcademyApiClient {
   async course(apiBase: string, id: string, currency: string): Promise<CourseDetail> {
     const url = `${apiBase}/course/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(data, currency);
       if (detail) {
         return detail;
@@ -210,7 +219,7 @@ export class AcademyApiClient {
     }
     const url = `${apiBase}/courses/${encodeURIComponent(courseId)}/reviews`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(submission),
@@ -253,7 +262,7 @@ export class AcademyApiClient {
     }
     const url = `${apiBase}/moderation/${encodeURIComponent(reviewId)}/${decision}`;
     try {
-      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      const response = await llamar(apiBase, url, { method: 'POST', headers: { Accept: 'application/json' } });
       if (response.ok) {
         return { ok: true };
       }
@@ -284,7 +293,7 @@ export class AcademyApiClient {
     }
     const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
     try {
-      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      const response = await llamar(apiBase, url, { method: 'POST', headers: { Accept: 'application/json' } });
       if (response.ok) {
         return { ok: true };
       }
@@ -324,7 +333,7 @@ export class AcademyApiClient {
   ): Promise<EnrollResult> {
     const url = `${apiBase}/enroll`;
     try {
-      const data = await this.postJson(url, { courseId, planId, student });
+      const data = await this.postJson(apiBase, url, { courseId, planId, student });
       const result = normalizeEnroll(data, currency);
       if (result) {
         return result;
@@ -353,7 +362,7 @@ export class AcademyApiClient {
   async confirm(apiBase: string, orderRef: string): Promise<EnrollConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
-      const data = await this.postJson(url, { orderRef });
+      const data = await this.postJson(apiBase, url, { orderRef });
       const confirmation = normalizeConfirmation(data);
       if (confirmation) {
         return confirmation;
@@ -375,7 +384,7 @@ export class AcademyApiClient {
     const query = params.toString();
     const url = `${apiBase}/progress${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const progress = normalizeProgress(data);
       if (progress) {
         return progress;
@@ -414,7 +423,7 @@ export class AcademyApiClient {
       // Sin `student`: el borde lo tomaba del cuerpo y eso permitía marcar lecciones
       // completadas en el expediente de OTRO. Hoy sale del gate y el campo no decide
       // nada — mandarlo sólo mantiene viva la idea de que sí.
-      const data = await this.postJson(url, { course: courseId, lessonId });
+      const data = await this.postJson(apiBase, url, { course: courseId, lessonId });
       const update = normalizeProgressUpdate(data);
       if (update) {
         return update;
@@ -446,7 +455,7 @@ export class AcademyApiClient {
     const url = `${apiBase}/certificate${query ? `?${query}` : ''}`;
     try {
       // `null` es una respuesta legítima del borde: «todavía no la ganaste».
-      return normalizeCertificate(await this.getJson(url));
+      return normalizeCertificate(await this.getJson(apiBase, url));
     } catch (error) {
       this.markDegraded('GET /api/academy/certificate', error);
       return null;
@@ -474,7 +483,7 @@ export class AcademyApiClient {
   async learning(apiBase: string, currency: string): Promise<LearningResult> {
     const url = `${apiBase}/learning`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeLearning(data, currency);
       if (result) {
         return this.mergeLearning(result);
@@ -537,7 +546,7 @@ export class AcademyApiClient {
     const query = instructor ? `?instructor=${encodeURIComponent(instructor)}` : '';
     const url = `${apiBase}/instructor/courses${query}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeInstructorDesk(data);
       if (result) {
         return this.mergeInstructorDesk(result);
@@ -573,7 +582,7 @@ export class AcademyApiClient {
   ): Promise<CreateCourseResult> {
     const url = `${apiBase}/course`;
     try {
-      const data = await this.postJson(url, toCourseDraftWire(body));
+      const data = await this.postJson(apiBase, url, toCourseDraftWire(body));
       const result = normalizeCreate(data);
       if (result) {
         this.seedCreated(result.id, body, currency);
@@ -609,23 +618,31 @@ export class AcademyApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>
@@ -1591,6 +1608,18 @@ function mockCourses(currency: string): readonly AcademyCourse[] {
   return base.map((course) => ({ ...course, currency }));
 }
 
+/**
+ * Un importe de la muestra con la moneda que trajeron los datos. Sin moneda —ningún precio real
+ * la trajo, y no hay una de respaldo compilada (ADR 0137)— va el número solo: un `Intl` con
+ * moneda vacía lanza y el curso no abría.
+ */
+function importeDeMuestra(amount: number, currency: string): string {
+  return new Intl.NumberFormat(
+    'es-CO',
+    currency ? { style: 'currency', currency, maximumFractionDigits: 0 } : { maximumFractionDigits: 0 },
+  ).format(amount);
+}
+
 function mockDetail(id: string, currency: string): CourseDetail {
   const course = mockCourses(currency).find((entry) => entry.id === id) ?? mockCourses(currency)[0];
   const isFree = course.amount === 0;
@@ -1728,7 +1757,7 @@ function mockDetail(id: string, currency: string): CourseDetail {
             label: 'Plan completo',
             description: 'Todo lo que necesitas para dominar el curso',
             amount: course.amount,
-            installments: `4 x ${new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Math.round(course.amount / 4))}`,
+            installments: `4 x ${importeDeMuestra(Math.round(course.amount / 4), currency)}`,
             perks: [
               'Acceso de por vida',
               'Recursos descargables',
@@ -1742,7 +1771,7 @@ function mockDetail(id: string, currency: string): CourseDetail {
             label: 'Plan con mentoría',
             description: 'Acompañamiento personalizado del instructor',
             amount: Math.round(course.amount * 1.6),
-            installments: `6 x ${new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(Math.round((course.amount * 1.6) / 6))}`,
+            installments: `6 x ${importeDeMuestra(Math.round((course.amount * 1.6) / 6), currency)}`,
             perks: [
               'Todo lo del plan completo',
               '3 sesiones 1:1 con el instructor',

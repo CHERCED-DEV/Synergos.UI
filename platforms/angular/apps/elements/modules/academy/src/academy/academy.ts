@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   computed,
   inject,
   input,
@@ -72,6 +73,7 @@ import {
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
+import type { AcademyProps } from '@synergos/contracts';
 import { AcademyApiClient } from './academy-api.client';
 import type { EnrollSelectionPayload } from './academy-fulfillment.strategy';
 import {
@@ -122,28 +124,12 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *    Q&A dashboard · performance/ingresos) + SH-6 `syn-authoring-wizard` crear curso
  *    (datos → currículum builder → precio → publicar).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`currency`/`config` JSON) and the data always comes from the API with
- * visible mock degradation. The shells stay domain-free (contrato D3) — the module
- * only feeds data, templates and its `AcademyFulfillmentStrategy`.
+ * El `config` que manda el CMS tiene la forma de `AcademyProps`, GENERADO del record C# (ADR 0135):
+ * lo del editor y dónde vive la API para el sitio, que sale de `Synergos:Features:Academy` y el
+ * editor no ve (ADR 0137, CMS#196). La moneda no es configuración: llega con cada precio. Lo que
+ * sólo entraba por el JSON libre queda como atributo del tag crudo con su valor del componente.
  */
-export interface AcademyRuntimeConfig {
-  /** Base URL of the academy API. Default `/api/academy`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-  /** Storage scope for the session (typically the siteRoot). Default `academy`. */
-  readonly scope?: string;
-  /** Initial cara. Default `student`. */
-  readonly role?: AcademyRole;
-  /** Catalogue hero heading. Default `Aprende de verdad, a tu ritmo`. */
-  readonly heading?: string;
-  /**
-   * Catalogue hero subheading. Default
-   * `Cursos con proyectos reales, mentoría y certificado verificable.`
-   */
-  readonly subheading?: string;
-}
+export type AcademyConfig = Partial<AcademyProps>;
 
 /** Typed event map for the transaction bus (academy ↔ checkout ↔ classroom ↔ IA). */
 interface AcademyBus extends Record<string, unknown> {
@@ -156,8 +142,6 @@ interface AcademyBus extends Record<string, unknown> {
   readonly certified: { readonly courseId: string; readonly certificateId: string };
 }
 
-const DEFAULT_API_BASE = '/api/academy';
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'academy';
 const DEFAULT_ROLE: AcademyRole = 'student';
 const DEFAULT_HEADING = 'Aprende de verdad, a tu ritmo';
@@ -204,14 +188,15 @@ const INSTRUCTOR_SECTIONS: readonly InstructorView[] = [
 
 type ClassroomTab = 'overview' | 'resources' | 'qa' | 'assignment';
 
-function sanitizeConfig(value: Partial<AcademyRuntimeConfig>): AcademyRuntimeConfig {
-  return omitUndefinedProperties<AcademyRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    scope: coerceTrimmedStringInput(value.scope),
-    role: coerceRole(value.role),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeAcademyConfig(value: AcademyConfig): AcademyConfig {
+  return omitUndefinedProperties<AcademyProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -250,7 +235,7 @@ let academyInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-academy' },
 })
-export class AcademyElementComponent {
+export class AcademyElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -260,31 +245,36 @@ export class AcademyElementComponent {
   readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<AcademyRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<AcademyRuntimeConfig>(sanitizeConfig),
+  readonly config = input<AcademyConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<AcademyProps>(sanitizeAcademyConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
-  readonly currency = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.currencyInput()), this.config()?.currency, DEFAULT_CURRENCY),
-  );
+  /**
+   * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería
+   * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
+   * número solo).
+   */
+  readonly currency = computed(() => this.detail()?.course.currency || this.courses()[0]?.currency || '');
   readonly scope = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly initialRole = computed<AcademyRole>(() =>
-    resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+    resolveConfigValue(coerceRole(this.roleInput()), undefined, DEFAULT_ROLE),
   );
   readonly heading = computed(() =>
     resolveConfigValue(
@@ -891,14 +881,11 @@ export class AcademyElementComponent {
   });
 
   constructor() {
-    this.role.set(this.initialRole());
-
     // Bind the unified cart to this origin and rehydrate any live session.
     this.#store.init({
       scope: `academy.${this.instanceId}`,
       flow: ACADEMY_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
     this.#bus.scope(`academy-${this.instanceId}`);
 
@@ -918,7 +905,17 @@ export class AcademyElementComponent {
         window.removeEventListener('hashchange', onHashChange);
       }
     });
+  }
 
+  /**
+   * Abre lo que eligió el editor y carga contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
+    this.role.set(this.initialRole());
     if (this.role() === 'instructor') {
       void this.loadDesk().then(() => this.applyHash());
     } else {
@@ -2208,7 +2205,11 @@ export class AcademyElementComponent {
     }
   }
 
+  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   formatPrice(amount: number, currency: string): string {
+    if (!currency) {
+      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',

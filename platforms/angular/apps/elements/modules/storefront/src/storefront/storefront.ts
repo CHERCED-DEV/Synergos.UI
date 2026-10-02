@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   computed,
   inject,
   input,
@@ -78,6 +79,7 @@ import {
   SynErrorStateComponent,
   SynStatusBannerComponent,
 } from '@synergos/shared';
+import type { StorefrontProps } from '@synergos/contracts';
 import { ShopApiClient } from './shop-api.client';
 import type { ShopSelectionPayload } from './shop-fulfillment.strategy';
 import {
@@ -119,18 +121,7 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  * The storefront only contributes domain data, templates and its
  * `ShopFulfillmentStrategy` — the shells stay domain-free (contrato D3).
  */
-export interface StorefrontRuntimeConfig {
-  /** Base URL of the shop API. Default `/api/shop`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-  /** Storage scope for the session (typically the siteRoot). Default `storefront`. */
-  readonly scope?: string;
-  /** Home hero heading. Default `Todo lo que buscas, en un solo lugar`. */
-  readonly heading?: string;
-  /** Home hero subheading. Default `Envíos a todo el país · hasta 36 cuotas · compra protegida`. */
-  readonly subheading?: string;
-}
+export type StorefrontConfig = Partial<StorefrontProps>;
 
 /** Typed event map for the transaction bus (storefront ↔ cart ↔ checkout ↔ IA). */
 interface StorefrontBus extends Record<string, unknown> {
@@ -145,8 +136,6 @@ interface CartSellerGroup {
   readonly totalMinor: number;
 }
 
-const DEFAULT_API_BASE = '/api/shop';
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_SCOPE = 'storefront';
 const DEFAULT_HEADING = 'Todo lo que buscas, en un solo lugar';
 const DEFAULT_SUBHEADING = 'Envíos a todo el país · hasta 36 cuotas · compra protegida';
@@ -265,13 +254,15 @@ const ACCOUNT_SECTIONS: readonly AccountSectionId[] = [
   'perfil',
 ];
 
-function sanitizeConfig(value: Partial<StorefrontRuntimeConfig>): StorefrontRuntimeConfig {
-  return omitUndefinedProperties<StorefrontRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    scope: coerceTrimmedStringInput(value.scope),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeStorefrontConfig(value: StorefrontConfig): StorefrontConfig {
+  return omitUndefinedProperties<StorefrontProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -304,7 +295,7 @@ let storefrontInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-storefront' },
 })
-export class StorefrontElementComponent {
+export class StorefrontElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -315,33 +306,34 @@ export class StorefrontElementComponent {
   readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<StorefrontRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<StorefrontRuntimeConfig>(sanitizeConfig),
+  readonly config = input<StorefrontConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<StorefrontProps>(sanitizeStorefrontConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
-  );
-  readonly currency = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
     ),
   );
+  /**
+   * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería
+   * una segunda fuente para un dato del precio. Sin datos todavía, vacía (`formatPrice` pinta el
+   * número solo).
+   */
+  readonly currency = computed(() => this.detail()?.product.currency || this.products()[0]?.currency || '');
   readonly scope = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.scopeInput()),
-      this.config()?.scope,
+      undefined,
       DEFAULT_SCOPE,
     ),
   );
@@ -762,7 +754,6 @@ export class StorefrontElementComponent {
       scope: `storefront.${this.instanceId}`,
       flow: STOREFRONT_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
     this.#bus.scope(`storefront-${this.instanceId}`);
 
@@ -783,7 +774,16 @@ export class StorefrontElementComponent {
         window.removeEventListener('hashchange', onHashChange);
       }
     });
+  }
 
+  /**
+   * Abre lo que eligió el editor y carga contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
     // Open with an unfiltered listing (feeds home rails + PLP), then honour a deep link.
     void this.runSearch().then(() => this.applyHash());
   }
@@ -2297,7 +2297,11 @@ export class StorefrontElementComponent {
     return typeof value === 'string' ? value : '';
   }
 
+  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   private formatPrice(amount: number, currency: string): string {
+    if (!currency) {
+      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',

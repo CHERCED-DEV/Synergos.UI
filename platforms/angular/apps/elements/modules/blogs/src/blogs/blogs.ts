@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   ElementRef,
   computed,
   effect,
@@ -53,6 +54,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { BlogsProps } from '@synergos/contracts';
 import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
 import { mockViewer, reactionStateFor } from './blogs.mock';
@@ -95,39 +97,12 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *    **Long-form** editor (`/write`) · **Suscripción/tip** con **SH-3
  *    `syn-checkout-wizard`** sobre el motor (opcional).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`scope`/`config` JSON, patrón createConfigInputTransform/
- * resolveConfigValue) and the data always comes from the API with visible mock
- * degradation. The shells stay domain-free (contrato D3) — the module only feeds
- * data, templates and its `BlogsFulfillmentStrategy` (monetización).
+ * El `config` que manda el CMS tiene la forma de `BlogsProps`, GENERADO del record C# (ADR 0135):
+ * lo del editor y dónde vive la API para el sitio, que sale de `Synergos:Features:Blogs` y el
+ * editor no ve (ADR 0137, CMS#196). La moneda no es configuración: llega con cada precio. Lo que
+ * sólo entraba por el JSON libre queda como atributo del tag crudo con su valor del componente.
  */
-export interface BlogsRuntimeConfig {
-  /** Base URL of the blogs API. Default `/api/blogs`. */
-  readonly apiBase?: string;
-  /** Storage / instance scope (typically the siteRoot). Default `blogs`. */
-  readonly scope?: string;
-  /**
-   * Etiqueta de instancia, **NO identidad**. Ya no viaja a ninguna ruta: la bandeja, los
-   * guardados y el estudio los scopea el servidor desde la cookie de sesión. Enviarlo
-   * como `?user=` era el IDOR (bastaba el handle ajeno). No re-cablear como identidad.
-   */
-  readonly user?: string;
-  /** The current viewer's public @handle (nav identity). Default `tu`. */
-  readonly viewerHandle?: string;
-  /** The current viewer's display name (nav identity). Default `Tú`. */
-  readonly viewerName?: string;
-  /**
-   * Título de la vista `feed`, compuesto en el CMS. Default `Inicio`.
-   *
-   * Las otras cinco vistas (search/notifications/compose/studio/subscribe) ya traen su
-   * `blogs__view-title`; el feed era la única sin `<h1>`, así que la página entera se
-   * quedaba sin encabezado de nivel superior. El CMS ya componía este texto y el
-   * sanitizer lo descartaba en silencio, que es el defecto que cierra esta clave.
-   */
-  readonly heading?: string;
-  /** Initial view. Default `feed`. */
-  readonly view?: BlogsView;
-}
+export type BlogsConfig = Partial<BlogsProps>;
 
 /** Typed event map for the transaction bus (blogs ↔ monetización). */
 interface BlogsBus extends Record<string, unknown> {
@@ -138,7 +113,6 @@ interface BlogsBus extends Record<string, unknown> {
  *  su aviso en el canal global o el usuario no ve absolutamente nada. */
 const VISTAS_CON_PANEL: readonly string[] = ['notifications', 'messages', 'saved', 'studio'];
 
-const DEFAULT_API_BASE = '/api/blogs';
 const DEFAULT_SCOPE = 'blogs';
 
 /** El fallo del asistente de suscripción: el `pay` es local, así que nunca hubo cobro (UI#91). */
@@ -191,15 +165,14 @@ const VALID_VIEWS: readonly BlogsView[] = [
   'subscribe',
 ];
 
-function sanitizeConfig(value: Partial<BlogsRuntimeConfig>): BlogsRuntimeConfig {
-  return omitUndefinedProperties<BlogsRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    scope: coerceTrimmedStringInput(value.scope),
-    user: coerceTrimmedStringInput(value.user),
-    viewerHandle: coerceTrimmedStringInput(value.viewerHandle),
-    viewerName: coerceTrimmedStringInput(value.viewerName),
-    view: coerceView(value.view),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
+  return omitUndefinedProperties<BlogsProps>({
     heading: coerceTrimmedStringInput(value.heading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
 
@@ -239,7 +212,7 @@ const ARTICLE_MIN_BODY = 20;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-blogs' },
 })
-export class BlogsElementComponent {
+export class BlogsElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -256,8 +229,8 @@ export class BlogsElementComponent {
   readonly #announcer = inject(LiveAnnouncerService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<BlogsRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<BlogsRuntimeConfig>(sanitizeConfig),
+  readonly config = input<BlogsConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<BlogsProps>(sanitizeBlogsConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
@@ -267,21 +240,24 @@ export class BlogsElementComponent {
   readonly viewInput = input<string | undefined>(undefined, { alias: 'view' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
   readonly scope = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly user = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.userInput()), this.config()?.user, DEFAULT_USER),
+    resolveConfigValue(coerceTrimmedStringInput(this.userInput()), undefined, DEFAULT_USER),
   );
   readonly initialView = computed<BlogsView>(() =>
-    resolveConfigValue(coerceView(this.viewInput()), this.config()?.view, DEFAULT_VIEW),
+    resolveConfigValue(coerceView(this.viewInput()), undefined, DEFAULT_VIEW),
   );
 
   readonly instanceId = (blogsInstanceId += 1);
@@ -328,14 +304,14 @@ export class BlogsElementComponent {
   readonly #viewerHandle = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.viewerHandleInput()),
-      this.config()?.viewerHandle,
+      undefined,
       mockViewer().handle,
     ),
   );
   readonly #viewerName = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.viewerNameInput()),
-      this.config()?.viewerName,
+      undefined,
       mockViewer().displayName,
     ),
   );
@@ -833,7 +809,6 @@ export class BlogsElementComponent {
   }));
 
   constructor() {
-    this.view.set(this.initialView());
     this.feedScope.set('foryou');
 
     // Bind the unified session (subscription cart) to this origin and rehydrate.
@@ -895,7 +870,17 @@ export class BlogsElementComponent {
       // enfocable por código sin meterlo en el orden de tabulación.
       panel.nativeElement.focus();
     });
+  }
 
+  /**
+   * Abre lo que eligió el editor y carga contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * (el defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
+    this.view.set(this.initialView());
     void this.loadFeed();
     void this.loadTrending();
     this.applyHash();

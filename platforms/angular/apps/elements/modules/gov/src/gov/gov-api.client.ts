@@ -105,6 +105,15 @@ export class GovForbiddenError extends Error {
 export function isGovForbidden(error: unknown): error is GovForbiddenError {
   return error instanceof Error && error.name === 'GovForbiddenError';
 }
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class GovApiClient {
   readonly #logger = inject(LoggerService);
@@ -150,7 +159,7 @@ export class GovApiClient {
     const query = params.toString();
     const url = `${apiBase}/services${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const services = normalizeServices(data);
       if (services) {
         return services;
@@ -165,7 +174,7 @@ export class GovApiClient {
   async service(apiBase: string, id: string): Promise<GovServiceDetail> {
     const url = `${apiBase}/service/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeServiceDetail(data);
       if (detail) {
         return detail;
@@ -180,7 +189,7 @@ export class GovApiClient {
   async form(apiBase: string, serviceId: string): Promise<GovForm> {
     const url = `${apiBase}/form/${encodeURIComponent(serviceId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const form = normalizeForm(data);
       if (form) {
         return form;
@@ -206,7 +215,7 @@ export class GovApiClient {
   ): Promise<ApplicationSummary> {
     const url = `${apiBase}/application`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const summary = normalizeSummary(isRecord(data) ? data['application'] : data);
       if (summary) {
         return summary;
@@ -229,7 +238,7 @@ export class GovApiClient {
   async applications(apiBase: string): Promise<readonly ApplicationSummary[]> {
     const url = `${apiBase}/applications`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const list = normalizeSummaries(data);
       if (list) {
         return list;
@@ -257,7 +266,7 @@ export class GovApiClient {
   async application(apiBase: string, id: string): Promise<ApplicationDetail> {
     const url = `${apiBase}/application/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(isRecord(data) ? data['application'] : data);
       if (detail) {
         return detail;
@@ -288,7 +297,7 @@ export class GovApiClient {
     form.append('applicationId', body.applicationId);
     form.append('file', body.file, body.file.name);
     try {
-      const data = await this.request(url, { method: 'POST', body: form });
+      const data = await this.request(apiBase, url, { method: 'POST', body: form });
       const doc = normalizeDocument(isRecord(data) ? data['document'] : data);
       if (doc) {
         return doc;
@@ -319,7 +328,7 @@ export class GovApiClient {
     const query = params.toString();
     const url = `${apiBase}/queue${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const cases = normalizeQueue(data);
       if (cases) {
         return cases;
@@ -336,7 +345,7 @@ export class GovApiClient {
   async case(apiBase: string, id: string): Promise<GovCase> {
     const url = `${apiBase}/case/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const kase = normalizeCase(isRecord(data) ? data['case'] : data);
       if (kase) {
         return kase;
@@ -359,7 +368,7 @@ export class GovApiClient {
   async decide(apiBase: string, body: DecisionRequest): Promise<GovCase> {
     const url = `${apiBase}/decision`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const kase = normalizeCase(isRecord(data) ? data['case'] : data);
       if (kase) {
         return kase;
@@ -391,7 +400,7 @@ export class GovApiClient {
   async notifications(apiBase: string): Promise<readonly GovActNotification[]> {
     const url = `${apiBase}/notifications`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const list = normalizeNotifications(data);
       if (list) {
         return list;
@@ -418,7 +427,7 @@ export class GovApiClient {
    */
   async openNotification(apiBase: string, id: string): Promise<GovActNotification> {
     const url = `${apiBase}/notification/${encodeURIComponent(id)}/open`;
-    const data = await this.postJson(url, {});
+    const data = await this.postJson(apiBase, url, {});
     const one = normalizeNotification(isRecord(data) ? data['notification'] : null);
     if (!one) {
       throw new Error('open-notification-shape');
@@ -442,7 +451,7 @@ export class GovApiClient {
       readonly acknowledgeBefore?: string;
     },
   ): Promise<GovActNotification> {
-    const data = await this.postJson(`${apiBase}/notification`, request);
+    const data = await this.postJson(apiBase, `${apiBase}/notification`, request);
     const one = normalizeNotification(isRecord(data) ? data['notification'] : null);
     if (!one) {
       throw new Error('notify-act-shape');
@@ -450,23 +459,31 @@ export class GovApiClient {
     return one;
   }
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) => {

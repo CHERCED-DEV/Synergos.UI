@@ -8,6 +8,10 @@ import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
 import { EhrElementComponent } from './ehr';
 import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.server.fake';
 import { asentar } from '../../../../../../tools/asentar';
+import { EHR_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = { apiBase: EHR_SYNHOST.ejemplo.apiBase };
 
 /**
  * Specs del SPA clínico de dos portales — reescritos por
@@ -39,6 +43,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   async function createComponent(
     options: FakeServerOptions = {},
     patient: string = MARIA.id,
+    config: object = NEGOCIO_DEL_CMS,
   ): Promise<void> {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
@@ -56,6 +61,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     fixture = TestBed.createComponent(EhrElementComponent);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('patient', patient);
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
     await flushMicrotasks();
   }
@@ -75,6 +81,14 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
   // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
   // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('sin la base de la API no llama a nada y la lectura falla, visible (ADR 0137, CMS#196)', async () => {
+    await createComponent({}, MARIA.id, {});
+
+    // Acá no hay muestra: una lectura clínica que no llegó se dice, no se inventa.
+    expect(fetch).not.toHaveBeenCalled();
+    expect(component.readFailed('home')).toBe(true);
+  });
+
   it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
     await createComponent();
     fixture.componentRef.setInput('scope', 'Mi sitio: ñ');
@@ -438,6 +452,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
 
     fixture = TestBed.createComponent(EhrElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
     fixture.detectChanges();
     await flushMicrotasks();
     // Primer tick: el default `P-1` no existe en el servidor → 404 → lectura fallida.

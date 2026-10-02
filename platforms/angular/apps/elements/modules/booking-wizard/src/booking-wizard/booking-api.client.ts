@@ -54,8 +54,11 @@ function readBoolean(value: unknown): boolean {
   return false;
 }
 
-/** Formatea un importe en es-CO para la moneda dada. */
+/** Formatea un importe en es-CO para la moneda dada; sin moneda, el número solo. */
 export function formatPrice(amount: number, currency: string): string {
+  if (!currency) {
+    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+  }
   try {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -148,7 +151,7 @@ export class BookingApiClient {
     rooms: readonly BookingRoom[],
     currency: string,
   ): Promise<readonly BookingOffer[]> {
-    const data = await this.post(`${apiBase}/search`, {
+    const data = await this.post(apiBase, `${apiBase}/search`, {
       checkIn,
       checkOut,
       rooms: rooms.map((room) => ({ adults: room.adults, childAges: [...room.childAges] })),
@@ -171,7 +174,7 @@ export class BookingApiClient {
     guest: BookingGuest,
   ): Promise<BookingHold | null> {
     try {
-      const data = await this.post(`${apiBase}/hold`, {
+      const data = await this.post(apiBase, `${apiBase}/hold`, {
         offerId: offer.offerId,
         offer,
         checkIn,
@@ -195,7 +198,7 @@ export class BookingApiClient {
     fallback: { readonly offer: BookingOffer; readonly checkIn: string; readonly checkOut: string },
   ): Promise<BookingVoucher | null> {
     try {
-      const data = await this.post(`${apiBase}/pay`, { reservationId });
+      const data = await this.post(apiBase, `${apiBase}/pay`, { reservationId });
       const voucher = this.toVoucher(data, reservationId, fallback);
       // Un estado que no es «confirmado» no es un comprobante: devolverlo dejaría
       // al asistente celebrando una reserva que el motor no aceptó.
@@ -231,9 +234,17 @@ export class BookingApiClient {
     };
   }
 
-  private async post(url: string, payload: unknown): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada paso lo trata como cualquier caída.
+   */
+  private async post(apiBase: string, url: string, payload: unknown): Promise<unknown> {
     if (typeof fetch !== 'function') {
       throw new Error('fetch-unavailable');
+    }
+    if (!apiBase) {
+      throw new Error('sin-api');
     }
     const response = await fetch(url, {
       method: 'POST',

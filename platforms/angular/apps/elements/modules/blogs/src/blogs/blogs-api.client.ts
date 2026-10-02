@@ -146,7 +146,7 @@ export class BlogsApiClient {
     }
     const url = `${apiBase}/feed?${params.toString()}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const page = normalizeFeed(data);
       if (page) {
         return page;
@@ -163,7 +163,7 @@ export class BlogsApiClient {
   async post(apiBase: string, id: string): Promise<PostDetail> {
     const url = `${apiBase}/post/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(data);
       if (detail) {
         return detail;
@@ -183,7 +183,7 @@ export class BlogsApiClient {
   async publish(apiBase: string, draft: NewPost, author: Author): Promise<PublishOutcome> {
     const url = `${apiBase}/post`;
     try {
-      const data = await this.postJson(url, draft);
+      const data = await this.postJson(apiBase, url, draft);
       const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
       if (post) {
         return { post, persisted: true };
@@ -205,7 +205,7 @@ export class BlogsApiClient {
   ): Promise<ReactionState> {
     const url = `${apiBase}/post/${encodeURIComponent(postId)}/react`;
     try {
-      const data = await this.postJson(url, { type });
+      const data = await this.postJson(apiBase, url, { type });
       const reactions = normalizeReactions(
         isRecord(data) && data['reactions'] !== undefined ? data['reactions'] : data,
       );
@@ -225,7 +225,7 @@ export class BlogsApiClient {
   async follow(apiBase: string, authorKey: string, optimistic: boolean): Promise<boolean> {
     const url = `${apiBase}/follow/${encodeURIComponent(authorKey)}`;
     try {
-      const data = await this.postJson(url, {});
+      const data = await this.postJson(apiBase, url, {});
       if (isRecord(data) && typeof data['following'] === 'boolean') {
         return data['following'];
       }
@@ -241,7 +241,7 @@ export class BlogsApiClient {
   async profile(apiBase: string, handle: string): Promise<ProfilePayload> {
     const url = `${apiBase}/profile/${encodeURIComponent(handle)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const payload = normalizeProfile(data);
       if (payload) {
         return payload;
@@ -263,7 +263,7 @@ export class BlogsApiClient {
   async notifications(apiBase: string): Promise<readonly Notification[]> {
     const url = `${apiBase}/notifications`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const list = normalizeNotifications(data);
       if (list) {
         return list;
@@ -289,7 +289,7 @@ export class BlogsApiClient {
   async trending(apiBase: string): Promise<readonly TrendingTag[]> {
     const url = `${apiBase}/trending`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const tags = normalizeTrending(data);
       if (tags) {
         return tags;
@@ -316,7 +316,7 @@ export class BlogsApiClient {
     const qs = params.toString();
     const url = `${apiBase}/explore${qs ? `?${qs}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeSearch(data);
       if (result) {
         return result;
@@ -342,7 +342,7 @@ export class BlogsApiClient {
   async messages(apiBase: string): Promise<readonly MessageThread[]> {
     const url = `${apiBase}/messages`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const list = normalizeThreads(data);
       if (list) {
         return list;
@@ -364,7 +364,7 @@ export class BlogsApiClient {
   async thread(apiBase: string, threadId: string): Promise<MessageThread> {
     const url = `${apiBase}/thread/${encodeURIComponent(threadId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const thread = normalizeThread(
         isRecord(data) && isRecord(data['thread']) ? data['thread'] : data,
       );
@@ -398,7 +398,7 @@ export class BlogsApiClient {
   ): Promise<DirectMessage> {
     const url = `${apiBase}/message`;
     try {
-      const data = await this.postJson(url, draft);
+      const data = await this.postJson(apiBase, url, draft);
       const message = normalizeMessage(
         isRecord(data) && isRecord(data['message']) ? data['message'] : data,
         draft.threadId,
@@ -427,7 +427,7 @@ export class BlogsApiClient {
   async saved(apiBase: string): Promise<readonly Post[]> {
     const url = `${apiBase}/saved`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const rawPosts = Array.isArray(data)
         ? data
         : isRecord(data) && Array.isArray(data['posts'])
@@ -461,12 +461,12 @@ export class BlogsApiClient {
       : `${apiBase}/saved?postId=${encodeURIComponent(postId)}`;
     try {
       await (saved
-        ? this.send(url, {
+        ? this.send(apiBase, url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ postId }),
           })
-        : this.send(url, { method: 'DELETE' }));
+        : this.send(apiBase, url, { method: 'DELETE' }));
     } catch (error) {
       this.#logger.warn(
         `Blogs API "${saved ? 'POST' : 'DELETE'} /api/blogs/saved" falló — el marcador se revierte.`,
@@ -489,7 +489,7 @@ export class BlogsApiClient {
   async publishArticle(apiBase: string, draft: NewArticle, author: Author): Promise<PublishOutcome> {
     const url = `${apiBase}/article`;
     try {
-      const data = await this.postJson(url, draft);
+      const data = await this.postJson(apiBase, url, draft);
       const post = normalizePost(isRecord(data) && isRecord(data['post']) ? data['post'] : data);
       if (post) {
         return { post, persisted: true };
@@ -514,7 +514,7 @@ export class BlogsApiClient {
   async studio(apiBase: string): Promise<StudioPayload> {
     const url = `${apiBase}/studio`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const payload = normalizeStudio(data);
       if (payload) {
         return payload;
@@ -529,20 +529,20 @@ export class BlogsApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
-    return this.send(url, init).then((response) => response.json());
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
+    return this.send(apiBase, url, init).then((response) => response.json());
   }
 
   /**
@@ -550,10 +550,17 @@ export class BlogsApiClient {
    * `Response` SIN leer el cuerpo. `request()` la parsea; las mutaciones que no
    * devuelven nada útil (`POST`/`DELETE /saved`) NO — un `204 No Content` legítimo
    * revienta en `.json()`, y ese falso fallo revertiría un guardado que sí quedó.
+   *
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada como ante cualquier caída.
    */
-  private send(url: string, init: RequestInit): Promise<Response> {
+  private send(apiBase: string, url: string, init: RequestInit): Promise<Response> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
+    }
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
     }
     return fetch(url, {
       ...init,

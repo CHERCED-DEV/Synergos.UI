@@ -105,7 +105,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 1 — catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<AcademySearchCriteria>;
-    const apiBase = criteria.apiBase ?? '/api/academy';
+    const apiBase = criteria.apiBase ?? '';
     const catalogCriteria: CatalogCriteria = criteria.criteria ?? {
       q: '',
       category: '',
@@ -113,7 +113,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
       price: '',
       sort: 'relevance',
     };
-    const result = await this.#api.courses(apiBase, catalogCriteria, query.currency ?? 'COP');
+    const result = await this.#api.courses(apiBase, catalogCriteria, query.currency ?? '');
     return result.courses.map((course) => this.toProduct(course));
   }
 
@@ -163,7 +163,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
    */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<AcademyPayInstrument>;
-    const apiBase = instrument.apiBase ?? '/api/academy';
+    const apiBase = instrument.apiBase ?? '';
     const student: AcademyStudent = instrument.student ?? { name: '', email: '' };
     const line = request.session.items[0];
     if (!line) {
@@ -254,7 +254,7 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
   private apiBaseOf(session: SessionData): string {
     const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
     const base = selection?.['apiBase'];
-    return typeof base === 'string' && base.trim() ? base.trim() : '/api/academy';
+    return typeof base === 'string' && base.trim() ? base.trim() : '';
   }
 
   private lineId(payload: EnrollSelectionPayload): string {

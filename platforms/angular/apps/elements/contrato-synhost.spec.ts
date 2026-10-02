@@ -43,6 +43,14 @@ import { sanitizeColorPickerConfig } from './compositions/color-picker/src/color
 import { sanitizeAppLauncherConfig } from './modules/app-launcher/src/app-launcher/app-launcher';
 import { sanitizeEventosConfig } from './modules/eventos/src/eventos/eventos';
 import { sanitizeRealtyConfig } from './modules/realty/src/realty/realty';
+import { sanitizeAcademyConfig } from './modules/academy/src/academy/academy';
+import { sanitizeBlogsConfig } from './modules/blogs/src/blogs/blogs';
+import { sanitizeGovConfig } from './modules/gov/src/gov/gov';
+import { sanitizeSellerConfig } from './modules/seller/src/seller/seller';
+import { sanitizeStorefrontConfig } from './modules/storefront/src/storefront/storefront';
+import { sanitizeTravelShellConfig } from './modules/travel-shell/src/travel-shell/travel-shell';
+import { sanitizeEhrConfig } from './modules/ehr/src/ehr/ehr';
+import { sanitizeBookingWizardConfig } from './modules/booking-wizard/src/booking-wizard/booking-wizard';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -104,6 +112,14 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   'app-launcher': sanitizeAppLauncherConfig,
   eventos: sanitizeEventosConfig,
   realty: sanitizeRealtyConfig,
+  academy: sanitizeAcademyConfig,
+  blogs: sanitizeBlogsConfig,
+  gov: sanitizeGovConfig,
+  seller: sanitizeSellerConfig,
+  storefront: sanitizeStorefrontConfig,
+  'travel-shell': sanitizeTravelShellConfig,
+  ehr: sanitizeEhrConfig,
+  'booking-wizard': sanitizeBookingWizardConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(

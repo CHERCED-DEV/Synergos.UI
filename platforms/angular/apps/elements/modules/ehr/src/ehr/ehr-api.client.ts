@@ -100,6 +100,15 @@ export class EhrWriteFailedError extends Error {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class EhrApiClient {
   readonly #logger = inject(LoggerService);
@@ -110,7 +119,7 @@ export class EhrApiClient {
     const q = query.trim();
     const url = `${apiBase}/patients${q ? `?q=${encodeURIComponent(q)}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const patients = normalizePatients(data);
       if (patients) {
         return patients;
@@ -124,7 +133,7 @@ export class EhrApiClient {
   async patientChart(apiBase: string, id: string): Promise<PatientChart> {
     const url = `${apiBase}/patient/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const chart = normalizeChart(data);
       if (chart) {
         return chart;
@@ -142,7 +151,7 @@ export class EhrApiClient {
   async doctors(apiBase: string): Promise<readonly Doctor[]> {
     const url = `${apiBase}/doctors`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const doctors = normalizeDoctors(data);
       if (doctors) {
         return doctors;
@@ -164,7 +173,7 @@ export class EhrApiClient {
   async copay(apiBase: string): Promise<EhrCopay> {
     const url = `${apiBase}/copay`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       // El número tiene que VENIR: `readNumber` da 0 si falta, y acá un 0 diría «sin costo».
       const amountMinor = isRecord(data) ? data['amountMinor'] : undefined;
       const currency = isRecord(data) ? readString(data['currency']).trim() : '';
@@ -182,7 +191,7 @@ export class EhrApiClient {
   async appointments(apiBase: string, date: string): Promise<readonly Appointment[]> {
     const url = `${apiBase}/appointments${date ? `?date=${encodeURIComponent(date)}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const appointments = normalizeAppointments(data);
       if (appointments) {
         return appointments;
@@ -209,7 +218,7 @@ export class EhrApiClient {
   ): Promise<Appointment> {
     const url = `${apiBase}/appointment`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const appointment = normalizeAppointment(pluck(data, 'appointment') ?? data);
       if (appointment) {
         return appointment;
@@ -227,7 +236,7 @@ export class EhrApiClient {
   ): Promise<Encounter> {
     const url = `${apiBase}/encounter`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const encounter = normalizeEncounter(pluck(data, 'encounter') ?? data);
       if (encounter) {
         return encounter;
@@ -245,7 +254,7 @@ export class EhrApiClient {
   ): Promise<Prescription> {
     const url = `${apiBase}/prescription`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const prescription = normalizePrescription(pluck(data, 'prescription') ?? data);
       if (prescription) {
         return prescription;
@@ -262,7 +271,7 @@ export class EhrApiClient {
   async portalHome(apiBase: string, patientId: string): Promise<PortalHome> {
     const url = `${apiBase}/portal/home?patient=${encodeURIComponent(patientId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const home = normalizePortalHome(data);
       if (home) {
         return home;
@@ -278,7 +287,7 @@ export class EhrApiClient {
   async results(apiBase: string, patientId: string): Promise<readonly LabResult[]> {
     const url = `${apiBase}/results?patient=${encodeURIComponent(patientId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const results = normalizeResults(data);
       if (results) {
         return results;
@@ -293,7 +302,7 @@ export class EhrApiClient {
   async medications(apiBase: string, patientId: string): Promise<readonly Medication[]> {
     const url = `${apiBase}/medications?patient=${encodeURIComponent(patientId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const meds = normalizeMedications(data);
       if (meds) {
         return meds;
@@ -311,7 +320,7 @@ export class EhrApiClient {
   ): Promise<RefillStatus> {
     const url = `${apiBase}/refill`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const status = readString(pluck(data, 'status')).toLowerCase();
       if (status === 'requested' || status === 'approved' || status === 'denied') {
         return status;
@@ -326,7 +335,7 @@ export class EhrApiClient {
   async healthSummary(apiBase: string, patientId: string): Promise<HealthSummary> {
     const url = `${apiBase}/health?patient=${encodeURIComponent(patientId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const summary = normalizeHealthSummary(data);
       if (summary) {
         return summary;
@@ -342,7 +351,7 @@ export class EhrApiClient {
   async billing(apiBase: string, patientId: string): Promise<BillingStatement> {
     const url = `${apiBase}/billing?patient=${encodeURIComponent(patientId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const statement = normalizeBilling(data);
       if (statement) {
         return statement;
@@ -359,7 +368,7 @@ export class EhrApiClient {
   async messages(apiBase: string, user: string): Promise<readonly MessageThread[]> {
     const url = `${apiBase}/messages?user=${encodeURIComponent(user)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const threads = normalizeThreads(data);
       if (threads) {
         return threads;
@@ -377,7 +386,7 @@ export class EhrApiClient {
   ): Promise<void> {
     const url = `${apiBase}/message`;
     try {
-      await this.postJson(url, body);
+      await this.postJson(apiBase, url, body);
     } catch (error) {
       this.writeFailed('POST /api/ehr/message', error);
     }
@@ -387,7 +396,7 @@ export class EhrApiClient {
   async inbox(apiBase: string, provider: string): Promise<readonly InboxItem[]> {
     const url = `${apiBase}/inbasket?provider=${encodeURIComponent(provider)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const items = normalizeInbox(data);
       if (items) {
         return items;
@@ -405,7 +414,7 @@ export class EhrApiClient {
   ): Promise<void> {
     const url = `${apiBase}/order`;
     try {
-      await this.postJson(url, body);
+      await this.postJson(apiBase, url, body);
     } catch (error) {
       this.writeFailed('POST /api/ehr/order', error);
     }
@@ -417,7 +426,7 @@ export class EhrApiClient {
   async schedule(apiBase: string, date: string): Promise<readonly ScheduleSlot[]> {
     const url = `${apiBase}/schedule${date ? `?date=${encodeURIComponent(date)}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const slots = normalizeSchedule(data);
       if (slots) {
         return slots;
@@ -430,23 +439,31 @@ export class EhrApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>

@@ -5,6 +5,10 @@ import { ConsoleShellComponent } from '@synergos/shells';
 import { SellerApiClient } from './seller-api.client';
 import { SellerElementComponent } from './seller';
 import { asentar } from '../../../../../../tools/asentar';
+import { SELLER_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = { apiBase: SELLER_SYNHOST.ejemplo.apiBase };
 
 /** Minimal in-memory localStorage stand-in so the wizard's draft store can persist. */
 function installMemoryStorage(): void {
@@ -77,7 +81,7 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   let fixture: ComponentFixture<SellerElementComponent>;
   let component: SellerElementComponent;
 
-  async function createComponent(): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [SellerElementComponent],
       providers: [provideZonelessChangeDetection(), SellerApiClient],
@@ -85,8 +89,9 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     fixture = TestBed.createComponent(SellerElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
-    // Summary + orders load in the constructor; let them settle.
+    // Resumen y pedidos cargan en ngOnInit, ya con el config del CMS; que asienten.
     await flushMicrotasks();
     fixture.detectChanges();
   }
@@ -98,6 +103,16 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   });
 
   // ── render: panel + KPIs + secciones + degradación visible ──────────────────
+  it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+    await createComponent({});
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.orders().length).toBeGreaterThan(0);
+    expect(component.degraded()).toBe(true);
+  });
+
   it('renders the panel with KPIs, the four sections and a visible degradation flag', async () => {
     installMemoryStorage();
     // Offline → every endpoint degrades to mock data.

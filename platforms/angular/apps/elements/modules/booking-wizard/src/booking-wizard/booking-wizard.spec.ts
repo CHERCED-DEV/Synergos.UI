@@ -5,6 +5,10 @@ import { BookingWizardElementComponent } from './booking-wizard';
 import { BookingApiClient } from './booking-api.client';
 import { BookingFulfillmentStrategy } from './booking-fulfillment.strategy';
 import type { BookingOffer } from './booking.model';
+import { BOOKING_WIZARD_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = { apiBase: BOOKING_WIZARD_SYNHOST.ejemplo.apiBase };
 
 /**
  * El asistente de reserva, ya compuesto (#24).
@@ -121,9 +125,10 @@ describe('BookingWizardElementComponent', () => {
     vi.unstubAllGlobals();
   });
 
-  function mount(): void {
+  function mount(config: object = NEGOCIO_DEL_CMS): void {
     fixture = TestBed.createComponent(BookingWizardElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
   }
 
@@ -158,6 +163,18 @@ describe('BookingWizardElementComponent', () => {
   }
 
   // ─── vacío ──────────────────────────────────────────────────────────────────
+  it('sin la base de la API no llama a nada y la búsqueda avisa, visible (ADR 0137, CMS#196)', async () => {
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+    mount({});
+    conFechas();
+    await avanzar();
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.offers()).toHaveLength(0);
+    expect(component.errorMessage()).not.toBe('');
+  });
+
   it('arranca en fechas, con una habitación por defecto y sin pedir disponibilidad', () => {
     const fetchMock = stubFetch({ search: { offers: [SAMPLE_OFFER] } });
     mount();
@@ -228,6 +245,23 @@ describe('BookingWizardElementComponent', () => {
     // El motor cuenta en unidades menores.
     expect(store.pricing().totalAmount).toBe(120_000_000);
     expect(component.selectedOffer()?.roomTypeName).toBe('Suite Vista al Mar');
+  });
+
+  it('el sessionKey del tag, que llega DESPUÉS del constructor, rige la sesión (CMS#196)', async () => {
+    const almacen = installMemoryStorage();
+    stubFetch({ search: { offers: [SAMPLE_OFFER] } });
+    fixture = TestBed.createComponent(BookingWizardElementComponent);
+    component = fixture.componentInstance;
+    // Como en un custom element: los inputs se aplican tras crear el componente y antes del primer ciclo.
+    fixture.componentRef.setInput('sessionKey', 'reserva-a');
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
+    fixture.detectChanges();
+    conFechas();
+    await avanzar();
+    fixture.nativeElement.querySelectorAll('.booking-wizard__offer button')[0].click();
+    await settle(fixture);
+
+    expect([...almacen.keys()]).toContain('syn.txn.session.booking.reserva-a');
   });
 
   it('confirma y entrega el desenlace a SH-11 con la referencia de la reserva', async () => {

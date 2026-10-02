@@ -13,6 +13,10 @@ import { BlogsElementComponent } from './blogs';
 import { BlogsFulfillmentStrategy } from './blogs-fulfillment.strategy';
 import type { Author, Post } from './blogs.model';
 import { asentar } from '../../../../../../tools/asentar';
+import { BLOGS_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = { apiBase: BLOGS_SYNHOST.ejemplo.apiBase };
 
 /**
  * Settle a fetch().then() chain — fetch rejection is a macrotask in jsdom, so we
@@ -152,7 +156,7 @@ describe('BlogsElementComponent', () => {
   let component: BlogsElementComponent;
 
   // `hash` alimenta el router de hash (deep-links `#/blogs/mensajes/<id>`); vacío = feed.
-  async function createComponent(hash = ''): Promise<void> {
+  async function createComponent(hash = '', config: object = NEGOCIO_DEL_CMS): Promise<void> {
     if (typeof window !== 'undefined') {
       window.location.hash = hash;
     }
@@ -172,8 +176,9 @@ describe('BlogsElementComponent', () => {
 
     fixture = TestBed.createComponent(BlogsElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
-    // Initial feed load runs in the constructor; let it settle.
+    // La carga inicial del feed corre en ngOnInit, ya con el config del CMS; que asiente.
     await flushMicrotasks();
   }
 
@@ -209,6 +214,16 @@ describe('BlogsElementComponent', () => {
   // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
   // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
   // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+    await createComponent('', {});
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.posts().length).toBeGreaterThan(0);
+    expect(component.degraded()).toBe(true);
+  });
+
   it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();

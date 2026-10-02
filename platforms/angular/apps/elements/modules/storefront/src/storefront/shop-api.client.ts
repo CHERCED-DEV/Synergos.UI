@@ -59,6 +59,15 @@ import {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class ShopApiClient {
   readonly #logger = inject(LoggerService);
@@ -80,7 +89,7 @@ export class ShopApiClient {
     const query = this.toSearchQuery(criteria);
     const url = `${apiBase}/search${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeSearch(data, currency);
       // A legitimately empty live result is fine — return it as-is when the shape matches.
       if (result && (result.products.length > 0 || isRecord(data))) {
@@ -98,7 +107,7 @@ export class ShopApiClient {
   async product(apiBase: string, id: string, currency: string): Promise<ProductDetail> {
     const url = `${apiBase}/product/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(data, currency);
       if (detail) {
         return detail;
@@ -140,7 +149,7 @@ export class ShopApiClient {
       return { ok: false, reason: 'failed' };
     }
     try {
-      const response = await fetch(`${apiBase}/promo`, {
+      const response = await llamar(apiBase, `${apiBase}/promo`, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, subtotalMinor }),
@@ -191,7 +200,7 @@ export class ShopApiClient {
 
     const url = `${apiBase}/products/${encodeURIComponent(sku)}/reviews`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -237,7 +246,7 @@ export class ShopApiClient {
     }
     const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json' },
       });
@@ -271,7 +280,7 @@ export class ShopApiClient {
   ): Promise<CheckoutResult> {
     const url = `${apiBase}/checkout`;
     try {
-      const data = await this.postJson(url, { items: lines, customer });
+      const data = await this.postJson(apiBase, url, { items: lines, customer });
       const result = normalizeCheckout(data, currency);
       if (result) {
         return result;
@@ -297,7 +306,7 @@ export class ShopApiClient {
   ): Promise<OrderConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
-      const data = await this.postJson(url, { orderRef });
+      const data = await this.postJson(apiBase, url, { orderRef });
       const confirmation = normalizeConfirmation(data);
       if (confirmation) {
         return confirmation;
@@ -324,7 +333,7 @@ export class ShopApiClient {
     const query = customer ? `?customer=${encodeURIComponent(customer)}` : '';
     const url = `${apiBase}/orders${query}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const orders = normalizeOrders(data, currency);
       if (orders) {
         return orders;
@@ -341,7 +350,7 @@ export class ShopApiClient {
   async wishlist(apiBase: string, currency: string): Promise<readonly WishlistEntry[]> {
     const url = `${apiBase}/wishlist`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const entries = normalizeWishlist(data, currency);
       if (entries) {
         return entries;
@@ -360,7 +369,7 @@ export class ShopApiClient {
   ): Promise<readonly WishlistEntry[]> {
     const url = `${apiBase}/wishlist`;
     try {
-      const data = await this.postJson(url, { productId: entry.productId, action });
+      const data = await this.postJson(apiBase, url, { productId: entry.productId, action });
       const entries = normalizeWishlist(data, entry.currency);
       if (entries) {
         return entries;
@@ -380,7 +389,7 @@ export class ShopApiClient {
   async tracking(apiBase: string, orderRef: string, status: string): Promise<OrderTracking> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const tracking = normalizeTracking(data, orderRef);
       if (tracking) {
         return tracking;
@@ -418,7 +427,7 @@ export class ShopApiClient {
     }
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify({ lineId, reason }),
@@ -450,7 +459,7 @@ export class ShopApiClient {
   async orderReturns(apiBase: string, orderRef: string): Promise<readonly ReturnCase[] | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/return`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const raw = isRecord(data) && Array.isArray(data['returns']) ? data['returns'] : [];
       return raw
         .map((entry) => normalizeReturnCase(entry))
@@ -479,7 +488,7 @@ export class ShopApiClient {
     }
     const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(note ? { status, note } : { status }),
@@ -515,7 +524,7 @@ export class ShopApiClient {
     }
     const url = `${apiBase}/moderation/${encodeURIComponent(reviewId)}/${decision}`;
     try {
-      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      const response = await llamar(apiBase, url, { method: 'POST', headers: { Accept: 'application/json' } });
       if (response.ok) {
         return { ok: true };
       }
@@ -548,7 +557,7 @@ export class ShopApiClient {
   async sellerDesk(apiBase: string): Promise<SellerDeskResult> {
     const url = `${apiBase}/seller/desk`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const desk = normalizeSellerDesk(data);
       if (desk) {
         return desk;
@@ -565,7 +574,7 @@ export class ShopApiClient {
   async messages(apiBase: string): Promise<readonly MessageThread[]> {
     const url = `${apiBase}/messages`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const threads = normalizeThreads(data);
       if (threads) {
         return threads;
@@ -582,23 +591,31 @@ export class ShopApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>

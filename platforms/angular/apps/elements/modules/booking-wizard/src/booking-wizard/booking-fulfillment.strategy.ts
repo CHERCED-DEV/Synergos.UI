@@ -68,9 +68,9 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Paso 1 — disponibilidad para las fechas y la ocupación. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<BookingSearchCriteria>;
-    const apiBase = criteria.apiBase ?? '/api/booking';
+    const apiBase = criteria.apiBase ?? '';
     const rooms = criteria.rooms ?? [{ adults: 2, childAges: [] }];
-    const currency = query.currency ?? 'COP';
+    const currency = query.currency ?? '';
     const offers = await this.#api.search(
       apiBase,
       criteria.checkIn ?? '',
@@ -196,7 +196,7 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
       checkOut: raw.checkOut ?? '',
       rooms: raw.rooms ?? [{ adults: 2, childAges: [] }],
       offer: raw.offer as BookingOffer,
-      currency: raw.currency ?? 'COP',
+      currency: raw.currency ?? '',
     };
   }
 }

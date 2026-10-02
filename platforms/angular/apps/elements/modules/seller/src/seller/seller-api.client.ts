@@ -39,6 +39,15 @@ import {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class SellerApiClient {
   readonly #logger = inject(LoggerService);
@@ -55,7 +64,7 @@ export class SellerApiClient {
   async summary(apiBase: string): Promise<SellerSummary> {
     const url = `${apiBase}/seller/summary`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const summary = normalizeSummary(data);
       if (summary) {
         return summary;
@@ -72,7 +81,7 @@ export class SellerApiClient {
   async orders(apiBase: string, currency: string): Promise<readonly SellerOrder[]> {
     const url = `${apiBase}/orders`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const orders = normalizeOrders(data, currency);
       if (orders) {
         return orders;
@@ -104,7 +113,7 @@ export class SellerApiClient {
   async advanceShipment(apiBase: string, orderRef: string): Promise<SellerOrderStatus | null> {
     const url = `${apiBase}/order/${encodeURIComponent(orderRef)}/tracking/advance`;
     try {
-      const data = await this.postJson(url, { orderRef });
+      const data = await this.postJson(apiBase, url, { orderRef });
       const status = normalizeOrderStatus(isRecord(data) ? data['status'] : undefined);
       if (status) {
         return status;
@@ -121,7 +130,7 @@ export class SellerApiClient {
   async listings(apiBase: string, currency: string): Promise<readonly SellerListing[]> {
     const url = `${apiBase}/seller/products`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const listings = normalizeListings(data, currency);
       if (listings) {
         return listings;
@@ -138,7 +147,7 @@ export class SellerApiClient {
   async returns(apiBase: string): Promise<readonly SellerReturn[]> {
     const url = `${apiBase}/returns`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const returns = normalizeReturns(data);
       if (returns) {
         return returns;
@@ -167,7 +176,7 @@ export class SellerApiClient {
   ): Promise<SellerReturnStatus | null> {
     const url = `${apiBase}/return/${encodeURIComponent(rmaId)}/advance`;
     try {
-      const data = await this.postJson(url, { action });
+      const data = await this.postJson(apiBase, url, { action });
       const status = normalizeReturnStatus(isRecord(data) ? data['status'] : undefined);
       if (status) {
         return status;
@@ -203,7 +212,7 @@ export class SellerApiClient {
   ): Promise<SellerPublishReceipt | null> {
     const url = `${apiBase}/seller/product`;
     try {
-      const data = await this.postJson(url, request);
+      const data = await this.postJson(apiBase, url, request);
       const receipt = normalizePublishReceipt(data);
       if (receipt) {
         return receipt;
@@ -220,7 +229,7 @@ export class SellerApiClient {
   async threads(apiBase: string): Promise<readonly SellerThread[]> {
     const url = `${apiBase}/messages`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const threads = normalizeThreads(data);
       if (threads) {
         return threads;
@@ -235,7 +244,7 @@ export class SellerApiClient {
   async reply(apiBase: string, threadId: string, body: string): Promise<SellerMessage> {
     const url = `${apiBase}/messages/${encodeURIComponent(threadId)}/reply`;
     try {
-      const data = await this.postJson(url, { body });
+      const data = await this.postJson(apiBase, url, { body });
       const message = normalizeMessage(data, 'seller');
       if (message) {
         return message;
@@ -254,23 +263,31 @@ export class SellerApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>

@@ -174,6 +174,16 @@ export interface TreeViewNode {
   readonly children?: readonly TreeViewNode[];
 }
 
+/** <synergos-academy> · funcionalidad */
+export interface AcademyProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
 /** <synergos-accordion> · pieza */
 export interface AccordionProps {
   /** contenido */
@@ -226,6 +236,22 @@ export interface BadgeGroupProps {
   readonly badges?: readonly BadgeGroupItem[];
   /** decision */
   readonly layout?: string;
+}
+
+/** <synergos-blogs> · funcionalidad */
+export interface BlogsProps {
+  /** contenido */
+  readonly heading?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
+/** <synergos-booking-wizard> · funcionalidad */
+export interface BookingWizardProps {
+  /** contenido */
+  readonly destinationLabel?: string;
+  /** negocio */
+  readonly apiBase: string;
 }
 
 /** <synergos-breadcrumb> · pieza · diccionario: Nav.Breadcrumb */
@@ -316,6 +342,14 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
+/** <synergos-ehr> · funcionalidad */
+export interface EhrProps {
+  /** sesion */
+  readonly patient?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
 /** <synergos-eventos> · funcionalidad */
 export interface EventosProps {
   /** contenido */
@@ -344,6 +378,16 @@ export interface FabProps {
   readonly position?: string;
   /** contenido */
   readonly label?: string;
+}
+
+/** <synergos-gov> · funcionalidad */
+export interface GovProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** negocio */
+  readonly apiBase: string;
 }
 
 /** <synergos-hero-banner> · pieza · diccionario: Synhost.Hero */
@@ -488,6 +532,14 @@ export interface SelectMultiProps {
   readonly maxSelections?: number;
 }
 
+/** <synergos-seller> · funcionalidad */
+export interface SellerProps {
+  /** contenido */
+  readonly heading?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
 /** <synergos-share-bar> · pieza · diccionario: Share */
 export interface ShareBarProps {
   /** decision */
@@ -504,6 +556,16 @@ export interface StepperProps {
   readonly steps?: readonly StepperItem[];
   /** decision */
   readonly currentStep?: number;
+}
+
+/** <synergos-storefront> · funcionalidad */
+export interface StorefrontProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** negocio */
+  readonly apiBase: string;
 }
 
 /** <synergos-tabs> · pieza */
@@ -536,6 +598,16 @@ export interface TourGuideProps {
   readonly autoStart?: boolean;
 }
 
+/** <synergos-travel-shell> · funcionalidad */
+export interface TravelShellProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** negocio */
+  readonly apiBase: string;
+}
+
 /** <synergos-tree-view> · pieza · diccionario: TreeView */
 export interface TreeViewProps {
   /** contenido */
@@ -553,6 +625,23 @@ export interface VideoPlayerProps {
   /** contenido */
   readonly posterImage?: string;
 }
+
+export const ACADEMY_SYNHOST: ElementoSynHost<AcademyProps> = {
+  nombre: "academy",
+  tipo: "funcionalidad",
+  record: "AcademyProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Aprende lo que el mercado pide",
+    "subheading": "Catálogo, lecciones e instructores a tu ritmo",
+    "apiBase": "/api/academy"
+  },
+};
 
 export const ACCORDION_SYNHOST: ElementoSynHost<AccordionProps> = {
   nombre: "accordion",
@@ -734,6 +823,38 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
       }
     ],
     "layout": "stack"
+  },
+};
+
+export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
+  nombre: "blogs",
+  tipo: "funcionalidad",
+  record: "BlogsProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Conecta, publica y crece tu audiencia",
+    "apiBase": "/api/blogs"
+  },
+};
+
+export const BOOKING_WIZARD_SYNHOST: ElementoSynHost<BookingWizardProps> = {
+  nombre: "booking-wizard",
+  tipo: "funcionalidad",
+  record: "BookingWizardProps",
+  diccionario: [],
+  claves: [],
+  campos: ["destinationLabel","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "destinationLabel": "Hoteles SynergosLabs",
+    "apiBase": "/api/booking"
   },
 };
 
@@ -1012,6 +1133,22 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   },
 };
 
+export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
+  nombre: "ehr",
+  tipo: "funcionalidad",
+  record: "EhrProps",
+  diccionario: [],
+  claves: [],
+  campos: ["patient","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "patient": "pat-jorge-medina",
+    "apiBase": "/api/ehr"
+  },
+};
+
 export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   nombre: "eventos",
   tipo: "funcionalidad",
@@ -1081,6 +1218,23 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
     "target": "_blank",
     "position": "bottom-left",
     "label": "Escribinos por WhatsApp"
+  },
+};
+
+export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
+  nombre: "gov",
+  tipo: "funcionalidad",
+  record: "GovProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Tus trámites, sin filas",
+    "subheading": "Radica, paga la tasa y sigue tu expediente",
+    "apiBase": "/api/gov"
   },
 };
 
@@ -1479,6 +1633,22 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   },
 };
 
+export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
+  nombre: "seller",
+  tipo: "funcionalidad",
+  record: "SellerProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Tu negocio, en un solo panel",
+    "apiBase": "/api/shop"
+  },
+};
+
 export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   nombre: "share-bar",
   tipo: "pieza",
@@ -1568,6 +1738,23 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
       }
     ],
     "currentStep": 1
+  },
+};
+
+export const STOREFRONT_SYNHOST: ElementoSynHost<StorefrontProps> = {
+  nombre: "storefront",
+  tipo: "funcionalidad",
+  record: "StorefrontProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Compra en nuestra tienda online",
+    "subheading": "Catálogo, carrito y checkout",
+    "apiBase": "/api/shop"
   },
 };
 
@@ -1684,6 +1871,23 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   },
 };
 
+export const TRAVEL_SHELL_SYNHOST: ElementoSynHost<TravelShellProps> = {
+  nombre: "travel-shell",
+  tipo: "funcionalidad",
+  record: "TravelShellProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","apiBase"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Reserva tu próximo viaje",
+    "subheading": "Vuelos, hoteles y paquetes",
+    "apiBase": "/api/travel"
+  },
+};
+
 export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   nombre: "tree-view",
   tipo: "pieza",
@@ -1739,12 +1943,15 @@ export const VIDEO_PLAYER_SYNHOST: ElementoSynHost<VideoPlayerProps> = {
 
 /** Todos los elementos con contrato. Un spec exige que cada uno tenga su sanitizador ejecutado. */
 export const ELEMENTOS_SYNHOST = [
+  ACADEMY_SYNHOST,
   ACCORDION_SYNHOST,
   APP_LAUNCHER_SYNHOST,
   AUDIO_PLAYER_SYNHOST,
   AVATAR_SYNHOST,
   AVATAR_GROUP_SYNHOST,
   BADGE_GROUP_SYNHOST,
+  BLOGS_SYNHOST,
+  BOOKING_WIZARD_SYNHOST,
   BREADCRUMB_SYNHOST,
   CAROUSEL_SYNHOST,
   CHART_BAR_SYNHOST,
@@ -1754,8 +1961,10 @@ export const ELEMENTOS_SYNHOST = [
   COUNTDOWN_CLOCK_SYNHOST,
   COUNTDOWN_DIGITAL_SYNHOST,
   DROPDOWN_SYNHOST,
+  EHR_SYNHOST,
   EVENTOS_SYNHOST,
   FAB_SYNHOST,
+  GOV_SYNHOST,
   HERO_BANNER_SYNHOST,
   ICON_LABEL_SYNHOST,
   KPI_CARD_SYNHOST,
@@ -1769,12 +1978,15 @@ export const ELEMENTOS_SYNHOST = [
   RICH_TOOLTIP_SYNHOST,
   SCROLL_TOP_SYNHOST,
   SELECT_MULTI_SYNHOST,
+  SELLER_SYNHOST,
   SHARE_BAR_SYNHOST,
   STEPPER_SYNHOST,
+  STOREFRONT_SYNHOST,
   TABS_SYNHOST,
   TAG_SYNHOST,
   TIMELINE_SYNHOST,
   TOUR_GUIDE_SYNHOST,
+  TRAVEL_SHELL_SYNHOST,
   TREE_VIEW_SYNHOST,
   VIDEO_PLAYER_SYNHOST,
 ] as const;

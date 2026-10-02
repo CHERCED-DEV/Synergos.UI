@@ -96,6 +96,13 @@ describe('validarContrato', () => {
     expect(validarContrato(c)).toEqual([]);
   });
 
+  // ADR 0137 (CMS#196, #197): la identidad de quien mira la decide el servidor, no el editor.
+  it('acepta un campo de sesión', () => {
+    const c = contrato();
+    c.elementos[0].campos[2].origen = 'sesion';
+    expect(validarContrato(c)).toEqual([]);
+  });
+
   // CMS#181: lo que el editor elige en un selector, pasado por el resolver.
   const conSelector = () => {
     const c = contrato();

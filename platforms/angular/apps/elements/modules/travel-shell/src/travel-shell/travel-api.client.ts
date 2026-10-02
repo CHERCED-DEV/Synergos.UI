@@ -44,6 +44,15 @@ import {
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
+/**
+ * `fetch`, pero sin `apiBase` no llama a nada —ni a una ruta del propio sitio, que podría ser de
+ * otra cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+ * compilada. Rechaza, y cada llamada degrada como ante cualquier caída.
+ */
+function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
+  return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
 @Injectable()
 export class TravelApiClient {
   readonly #logger = inject(LoggerService);
@@ -66,7 +75,7 @@ export class TravelApiClient {
     const query = this.toQuery(criteria);
     const url = `${apiBase}/search/${product}${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const offers = normalizeOffers(data, product, currency);
       if (offers.length > 0) {
         return offers;
@@ -102,7 +111,7 @@ export class TravelApiClient {
     }
     const url = `${apiBase}/stays/${encodeURIComponent(stayId)}/reviews`;
     try {
-      const response = await fetch(url, {
+      const response = await llamar(apiBase, url, {
         method: 'POST',
         headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
         body: JSON.stringify(submission),
@@ -134,7 +143,7 @@ export class TravelApiClient {
     }
     const url = `${apiBase}/reviews/${encodeURIComponent(reviewId)}/reports`;
     try {
-      const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+      const response = await llamar(apiBase, url, { method: 'POST', headers: { Accept: 'application/json' } });
       if (response.ok) {
         return { ok: true };
       }
@@ -156,7 +165,7 @@ export class TravelApiClient {
   async stay(apiBase: string, id: string, currency: string): Promise<StayDetail> {
     const url = `${apiBase}/stay/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeStay(data, id, currency);
       if (detail) {
         return detail;
@@ -179,7 +188,7 @@ export class TravelApiClient {
   ): Promise<TravelCheckoutResult> {
     const url = `${apiBase}/checkout`;
     try {
-      const data = await this.postJson(url, { items: lines, guest });
+      const data = await this.postJson(apiBase, url, { items: lines, guest });
       const result = normalizeCheckout(data, currency);
       if (result) {
         return result;
@@ -205,7 +214,7 @@ export class TravelApiClient {
   ): Promise<TravelConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
-      const data = await this.postJson(url, { orderRef });
+      const data = await this.postJson(apiBase, url, { orderRef });
       const confirmation = normalizeConfirmation(data);
       if (confirmation) {
         return confirmation;
@@ -237,7 +246,7 @@ export class TravelApiClient {
     const query = traveler ? `?traveler=${encodeURIComponent(traveler)}` : '';
     const url = `${apiBase}/trips${query}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const trips = normalizeTrips(data, currency);
       if (trips) {
         return trips;
@@ -254,7 +263,7 @@ export class TravelApiClient {
   async cancel(apiBase: string, ref: string): Promise<CancelReceipt> {
     const url = `${apiBase}/order/${encodeURIComponent(ref)}/cancel`;
     try {
-      const data = await this.postJson(url, { ref });
+      const data = await this.postJson(apiBase, url, { ref });
       const receipt = normalizeCancel(data, ref);
       if (receipt) {
         return receipt;
@@ -268,23 +277,31 @@ export class TravelApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
     }
-    return fetch(url, {
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
+    }
+    return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>

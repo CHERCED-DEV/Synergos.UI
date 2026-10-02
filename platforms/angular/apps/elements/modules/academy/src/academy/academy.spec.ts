@@ -7,6 +7,10 @@ import { AcademyApiClient } from './academy-api.client';
 import { AcademyFulfillmentStrategy } from './academy-fulfillment.strategy';
 import { AcademyElementComponent } from './academy';
 import { asentar } from '../../../../../../tools/asentar';
+import { ACADEMY_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = { apiBase: ACADEMY_SYNHOST.ejemplo.apiBase };
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -204,7 +208,7 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<AcademyElementComponent>;
   let component: AcademyElementComponent;
 
-  async function createComponent(): Promise<void> {
+  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [AcademyElementComponent],
       providers: [
@@ -216,8 +220,9 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
 
     fixture = TestBed.createComponent(AcademyElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
-    // Initial catalogue search runs in the constructor; let it settle.
+    // La búsqueda inicial corre en ngOnInit, ya con el config del CMS; que asiente.
     await flushMicrotasks();
   }
 
@@ -237,6 +242,16 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
   // el navegador devuelve codificado: con `Mi sitio: ñ` no casaba nunca y recargar,
   // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
   // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
+  it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+    await createComponent({});
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.courses().length).toBeGreaterThan(0);
+    expect(component.degraded()).toBe(true);
+  });
+
   it('un scope con espacio, tilde y «:» sigue reconociendo sus rutas (UI#91)', async () => {
     installMemoryStorage();
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));

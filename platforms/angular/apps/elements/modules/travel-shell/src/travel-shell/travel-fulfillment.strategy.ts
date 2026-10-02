@@ -55,12 +55,12 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<TravelSearchCriteria>;
     const product = criteria.product ?? 'hotel';
-    const apiBase = criteria.apiBase ?? '/api/travel';
+    const apiBase = criteria.apiBase ?? '';
     const offers = await this.#api.search(
       apiBase,
       product,
       criteria.criteria ?? {},
-      query.currency ?? 'COP',
+      query.currency ?? '',
     );
     return offers.map((offer) => this.toProduct(offer));
   }
@@ -93,7 +93,7 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 3 — one PSP checkout for the whole mixed cart. */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<TravelPayInstrument>;
-    const apiBase = instrument.apiBase ?? '/api/travel';
+    const apiBase = instrument.apiBase ?? '';
     const guest: TravelGuest = instrument.guest ?? { name: '', email: '' };
     const lines = this.toLines(request.session);
     const fallbackAmount = request.session.pricing.totalAmount / 100;
@@ -153,7 +153,7 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
 
   private apiBaseOf(session: SessionData): string {
     const first = session.items[0]?.selection as Record<string, unknown> | undefined;
-    return readString(first?.['apiBase']) || '/api/travel';
+    return readString(first?.['apiBase']);
   }
 
   private toProduct(offer: TravelOffer): FulfillmentProduct {

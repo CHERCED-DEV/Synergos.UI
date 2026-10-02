@@ -74,7 +74,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 1 — faceted catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<ShopSearchCriteria>;
-    const apiBase = criteria.apiBase ?? '/api/shop';
+    const apiBase = criteria.apiBase ?? '';
     const searchCriteria: SearchCriteria = criteria.criteria ?? {
       q: '',
       category: '',
@@ -82,7 +82,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
       sort: 'relevance',
       page: 1,
     };
-    const result = await this.#api.search(apiBase, searchCriteria, query.currency ?? 'COP');
+    const result = await this.#api.search(apiBase, searchCriteria, query.currency ?? '');
     // The storefront needs the facets too; carry them on the first product's meta is
     // wrong — instead we expose facets via a sentinel product. Keep it simple: the
     // shell reads facets from the client directly. Here we only map products.
@@ -128,7 +128,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 3 — one PSP checkout for the whole cart. */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<ShopPayInstrument>;
-    const apiBase = instrument.apiBase ?? '/api/shop';
+    const apiBase = instrument.apiBase ?? '';
     const customer: ShopCustomer = instrument.customer ?? { name: '', email: '' };
     const lines = this.toLines(request.session);
     const fallbackAmount = request.session.pricing.totalAmount / 100;
@@ -162,7 +162,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
   private apiBaseOf(session: SessionData): string {
     const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
     const base = selection?.['apiBase'];
-    return typeof base === 'string' && base.trim() ? base.trim() : '/api/shop';
+    return typeof base === 'string' && base.trim() ? base.trim() : '';
   }
 
   private lineId(payload: ShopSelectionPayload): string {

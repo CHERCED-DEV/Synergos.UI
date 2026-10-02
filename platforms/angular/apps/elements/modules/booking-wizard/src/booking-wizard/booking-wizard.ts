@@ -5,6 +5,7 @@ import {
   computed,
   inject,
   input,
+  type OnInit,
   output,
   signal,
 } from '@angular/core';
@@ -31,6 +32,7 @@ import {
   SynSkeletonComponent,
   SynEmptyStateComponent,
 } from '@synergos/shared';
+import type { BookingWizardProps } from '@synergos/contracts';
 import { normalizeRooms } from './booking-api.client';
 import {
   BOOKING_FLOW,
@@ -64,15 +66,13 @@ import {
  *
  * Sigue embebiendo el `<synergos-pax-selector>` publicado (escucha su
  * `occupancychange`) para que las reglas de habitación/pax vivan en un sitio.
+ *
+ * El `config` que manda el CMS tiene la forma de `BookingWizardProps`, GENERADO del record C#
+ * (ADR 0135): el alojamiento que eligió el editor y dónde vive la API para el sitio, que sale de
+ * `Synergos:Features:BookingWizard` y el editor no ve (ADR 0137, CMS#196). La moneda no es
+ * configuración: llega con cada oferta.
  */
-export interface BookingWizardRuntimeConfig {
-  /** Base URL of the booking engine API. Default `/api/booking`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display hints. Default `COP`. */
-  readonly currency?: string;
-  /** Pre-filled destination label (read-only banner in the search step). */
-  readonly destinationLabel?: string;
-}
+export type BookingWizardConfig = Partial<BookingWizardProps>;
 
 /** Los pasos del asistente. Los ejecuta SH-3; acá sólo se declaran. */
 export type BookingStep = 'fechas' | 'habitacion' | 'huesped' | 'revisar';
@@ -84,8 +84,6 @@ const STEP_LABELS: Readonly<Record<BookingStep, string>> = {
   revisar: 'Revisar',
 };
 
-const DEFAULT_API_BASE = '/api/booking';
-const DEFAULT_CURRENCY = 'COP';
 /**
  * La sesión del motor caduca; la de antes NO tenía caducidad ninguna, así que
  * abrir la página en marzo rehidrataba un intento de reserva para fechas de
@@ -93,12 +91,13 @@ const DEFAULT_CURRENCY = 'COP';
  */
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
-function sanitizeBookingWizardConfig(
-  value: Partial<BookingWizardRuntimeConfig>,
-): BookingWizardRuntimeConfig {
-  return omitUndefinedProperties<BookingWizardRuntimeConfig>({
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeBookingWizardConfig(value: BookingWizardConfig): BookingWizardConfig {
+  return omitUndefinedProperties<BookingWizardProps>({
     apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
     destinationLabel: coerceTrimmedStringInput(value.destinationLabel),
   });
 }
@@ -121,36 +120,36 @@ let bookingWizardInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-booking-wizard' },
 })
-export class BookingWizardElementComponent {
+export class BookingWizardElementComponent implements OnInit {
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<BookingWizardRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<BookingWizardRuntimeConfig>(sanitizeBookingWizardConfig),
+  readonly config = input<BookingWizardConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<BookingWizardProps>(sanitizeBookingWizardConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly destinationLabelInput = input<string | undefined>(undefined, {
     alias: 'destinationLabel',
   });
   /** Scopes the engine session so multiple wizards on a page never collide. */
   readonly sessionKeyInput = input<string | undefined>(undefined, { alias: 'sessionKey' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y la búsqueda avisa que no pudo: no hay una
+   * base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
-  );
-  readonly currency = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
     ),
   );
+  /**
+   * La moneda de la oferta elegida: la que trae cada precio de la API. No es configuración: sería
+   * una segunda fuente para un dato del precio. Sin oferta todavía, vacía.
+   */
+  readonly currency = computed(() => this.selection()?.offer.currency || '');
   readonly destinationLabel = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.destinationLabelInput()),
@@ -179,15 +178,21 @@ export class BookingWizardElementComponent {
   readonly errorMessage = signal('');
   readonly currentStep = signal<BookingStep>('fechas');
 
-  constructor() {
-    // La sesión del carrito unificado, con scope y caducidad — reemplaza a la
-    // `BookingSession` a mano que vivía en localStorage sin ninguna de las dos.
+  /**
+   * La sesión del carrito unificado, con scope y caducidad — reemplaza a la `BookingSession` a
+   * mano que vivía en localStorage sin ninguna de las dos.
+   *
+   * No va en el constructor: en un custom element los inputs —el `sessionKey` del tag— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * y la sesión caía siempre en el scope por instancia (el defecto que el piloto de la ADR 0137
+   * encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
     const explicit = coerceTrimmedStringInput(this.sessionKeyInput());
     this.#store.init({
       scope: `booking.${explicit ?? `i${this.instanceId}`}`,
       flow: BOOKING_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
   }
 

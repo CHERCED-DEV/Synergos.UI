@@ -111,7 +111,7 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
       return { confirmed: false, vouchers: [] };
     }
     const selection = line.selection as Record<string, unknown>;
-    const apiBase = readString(selection['apiBase']) || '/api/ehr';
+    const apiBase = readString(selection['apiBase']);
     const date = readString(selection['slotDate']);
     const time = readString(selection['slotTime']);
 
