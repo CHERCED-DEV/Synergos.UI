@@ -127,6 +127,17 @@ export interface Patient {
   readonly active: boolean | null;
 }
 
+/**
+ * El copago de una consulta, de la MISMA fuente que lo cobra al agendar (CMS#196). Cero es «sin
+ * costo»; no saberlo es `null`, nunca un cero.
+ */
+export interface EhrCopay {
+  /** En unidades menores de `currency`. */
+  readonly amountMinor: number;
+  /** ISO-4217. */
+  readonly currency: string;
+}
+
 /** A provider / doctor in the directory. */
 export interface Doctor {
   readonly id: string;

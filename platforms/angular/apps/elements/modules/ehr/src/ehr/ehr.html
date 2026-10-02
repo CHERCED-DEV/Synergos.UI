@@ -936,7 +936,9 @@
       </div>
     }
     @case ('copago') {
-      <p class="ehr__panel-text">Se aplicará un copago de {{ formatMinor(copayMinor()) }} para esta cita.</p>
+      @if (copay(); as c) {
+        <p class="ehr__panel-text">Se aplicará un copago de {{ formatMinor(c.amountMinor, c.currency) }} para esta cita.</p>
+      }
       <p class="ehr__panel-text">El pago se procesa de forma segura al confirmar (PSP de demostración).</p>
     }
     @case ('confirmar') {
@@ -944,7 +946,7 @@
       <p class="ehr__panel-text">{{ doctorName(scheduleDoctorId()) }}</p>
       <p class="ehr__panel-text">{{ formatDate(scheduleDate()) }} · {{ scheduleTime() }} · {{ scheduleMode() === 'video' ? 'Video' : 'Presencial' }}</p>
       <p class="ehr__panel-text">Motivo: {{ scheduleReason() || 'Consulta' }}</p>
-      @if (copayMinor() > 0) { <p class="ehr__panel-text">Copago: {{ formatMinor(copayMinor()) }}</p> }
+      @if (copay(); as c) { @if (c.amountMinor > 0) { <p class="ehr__panel-text">Copago: {{ formatMinor(c.amountMinor, c.currency) }}</p> } }
     }
   }
 </ng-template>

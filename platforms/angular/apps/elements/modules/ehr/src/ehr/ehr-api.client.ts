@@ -6,6 +6,7 @@ import {
   type BillingStatement,
   type CareStatus,
   type Doctor,
+  type EhrCopay,
   type Encounter,
   type HealthSummary,
   type InboxItem,
@@ -149,6 +150,30 @@ export class EhrApiClient {
       throw new Error('doctors-shape');
     } catch (error) {
       this.unavailable('GET /api/ehr/doctors', error);
+    }
+  }
+
+  // ─── Copay ─────────────────────────────────────────────────────────────────
+
+  /**
+   * `GET /{apiBase}/copay` — lo que cuesta agendar, de la MISMA fuente que lo cobra (CMS#196).
+   *
+   * Como toda lectura clínica, si falla **lanza** y no devuelve una muestra: un copago inventado
+   * es una promesa de plata que el agendamiento rompe. El que llama decide qué decir.
+   */
+  async copay(apiBase: string): Promise<EhrCopay> {
+    const url = `${apiBase}/copay`;
+    try {
+      const data = await this.getJson(url);
+      // El número tiene que VENIR: `readNumber` da 0 si falta, y acá un 0 diría «sin costo».
+      const amountMinor = isRecord(data) ? data['amountMinor'] : undefined;
+      const currency = isRecord(data) ? readString(data['currency']).trim() : '';
+      if (typeof amountMinor === 'number' && Number.isInteger(amountMinor) && amountMinor >= 0 && currency) {
+        return { amountMinor, currency };
+      }
+      throw new Error('copay-shape');
+    } catch (error) {
+      this.unavailable('GET /api/ehr/copay', error);
     }
   }
 

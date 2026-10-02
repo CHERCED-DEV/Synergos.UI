@@ -48,6 +48,12 @@ export interface FakeServerOptions {
    * probar —el del cliente reponiendo `true` y `0` por su cuenta—.
    */
   readonly opcionales?: 'omit' | 'full';
+  /**
+   * El copago que contesta `GET /copay`, en COP (CMS#196). Por defecto, el del motor en proceso
+   * del CMS (80.000): un falso que contestara cero haría verde justo el «Sin costo» que el
+   * servidor de verdad no cobra. `null` = el borde no lo sabe (503).
+   */
+  readonly copago?: number | null;
 }
 
 interface FakePatient {
@@ -250,6 +256,14 @@ export function servidorFalso(
       const id = decodeURIComponent(ruta.slice(ruta.lastIndexOf('/') + 1));
       const p = paciente(id);
       return Promise.resolve(p ? respuesta(200, ficha(p, options)) : respuesta(404, { error: 'no existe' }));
+    }
+    if (ruta.includes('/copay')) {
+      const copago = options.copago === undefined ? 80_000 : options.copago;
+      return Promise.resolve(
+        copago === null
+          ? respuesta(503, { error: 'No se pudo calcular el copago.' })
+          : respuesta(200, { amount: copago, amountMinor: Math.round(copago * 100), currency: 'COP' }),
+      );
     }
     if (ruta.includes('/doctors')) {
       return Promise.resolve(respuesta(200, { doctors: medicos(options) }));

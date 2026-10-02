@@ -733,6 +733,43 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(estilo.display).not.toBe('none');
     expect(estilo.visibility).not.toBe('hidden');
   });
+
+  // ── CMS#196: el copago que se muestra es el que el servidor cobra ─────────────
+  //
+  // Era `DEFAULT_COPAY_MINOR = 0` compilado: la pantalla decía «Sin costo» mientras el
+  // motor en proceso del CMS capturaba 80.000 al agendar. Ahora lo pregunta a `GET /copay`.
+
+  it('el copago lo dice el servidor que lo cobra, y el carrito lo suma', async () => {
+    await createComponent({ copago: 80_000 });
+
+    await agendarPorElAsistente();
+
+    expect(component.copayMinor()).toBe(8_000_000);
+    expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(true);
+    expect(component.scheduleConfig().totalLabel).toBe('Copago');
+  });
+
+  it('sin un copago conocido no dice «Sin costo»: dice que no lo sabe', async () => {
+    await createComponent({ copago: null });
+
+    component.navigate('schedule');
+    await flushMicrotasks();
+
+    expect(component.copayUnknown()).toBe(true);
+    expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(true);
+    expect(component.scheduleConfig().totalLabel).toBe('Copago');
+  });
+
+  it('un copago de cero sí es «Sin costo»', async () => {
+    await createComponent({ copago: 0 });
+
+    component.navigate('schedule');
+    await flushMicrotasks();
+
+    expect(component.copayUnknown()).toBe(false);
+    expect(component.scheduleConfig().steps.some((s) => s.id === 'copago')).toBe(false);
+    expect(component.scheduleConfig().totalLabel).toBe('Sin costo');
+  });
 });
 
 describe('EhrApiClient (v2 endpoints)', () => {
@@ -760,12 +797,13 @@ describe('EhrApiClient (v2 endpoints)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    // Las doce lecturas, una por una: el barrido es el gate. Añadir una lectura nueva
+    // Las trece lecturas, una por una: el barrido es el gate. Añadir una lectura nueva
     // con `catch → mock` sin añadirla aquí es exactamente cómo volvería el defecto.
     const lecturas: readonly [string, () => Promise<unknown>][] = [
       ['patients', () => client.patients('/api/ehr', '')],
       ['patientChart', () => client.patientChart('/api/ehr', MARIA.id)],
       ['doctors', () => client.doctors('/api/ehr')],
+      ['copay', () => client.copay('/api/ehr')],
       ['appointments', () => client.appointments('/api/ehr', '2026-09-14')],
       ['portalHome', () => client.portalHome('/api/ehr', MARIA.id)],
       ['results', () => client.results('/api/ehr', MARIA.id)],
@@ -890,6 +928,15 @@ describe('EhrApiClient (v2 endpoints)', () => {
     client = createClient();
     expect((await client.patients('/api/ehr', ''))[0].active).toBe(true);
     expect((await client.doctors('/api/ehr'))[0].acceptingPatients).toBe(true);
+  });
+
+  it('un copago sin el número no es un cero: lanza, no dice «sin costo» (CMS#196)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ currency: 'COP' }) } as Response)),
+    );
+
+    await expect(createClient().copay('/api/ehr')).rejects.toBeInstanceOf(EhrUnavailableError);
   });
 
   it('el tablero del día se normaliza sin `checkedInAhead` (ya no se emite)', async () => {

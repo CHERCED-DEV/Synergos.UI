@@ -52,6 +52,7 @@ import {
   type ChartTab,
   type ClinicalAlert,
   type Doctor,
+  type EhrCopay,
   type EhrDataset,
   type EhrPortal,
   type EhrRole,
@@ -116,8 +117,6 @@ export interface EhrRuntimeConfig {
   readonly role?: EhrRole;
   /** The patient the portal is scoped to (MyChart is single-patient). Default `P-1`. */
   readonly patient?: string;
-  /** Copay in minor units charged when scheduling (0 = pago OFF). Default `0`. */
-  readonly copayMinor?: number;
 }
 
 /** Typed event map for the transaction bus (ehr ↔ appointment ↔ refill ↔ order). */
@@ -135,7 +134,6 @@ const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartad
 
 const DEFAULT_ROLE: EhrRole = 'patient';
 const DEFAULT_PATIENT = 'P-1';
-const DEFAULT_COPAY_MINOR = 0;
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EhrRole; label: string; portal: EhrPortal }[] = [
@@ -206,7 +204,6 @@ function sanitizeConfig(value: Partial<EhrRuntimeConfig>): EhrRuntimeConfig {
     scope: coerceTrimmedStringInput(value.scope),
     role: coerceRole(value.role),
     patient: coerceTrimmedStringInput(value.patient),
-    copayMinor: coerceCopay(value.copayMinor),
   });
 }
 
@@ -215,16 +212,6 @@ function coerceRole(value: unknown): EhrRole | undefined {
   return raw === 'patient' || raw === 'doctor' || raw === 'nurse' ? raw : undefined;
 }
 
-function coerceCopay(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return Math.trunc(value);
-  }
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) && parsed >= 0 ? Math.trunc(parsed) : undefined;
-  }
-  return undefined;
-}
 
 function portalOf(role: EhrRole): EhrPortal {
   return role === 'patient' ? 'patient' : 'clinician';
@@ -270,7 +257,6 @@ export class EhrElementComponent {
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly patientInput = input<string | undefined>(undefined, { alias: 'patient' });
-  readonly copayInput = input<string | number | undefined>(undefined, { alias: 'copayMinor' });
 
   readonly apiBase = computed(() =>
     resolveConfigValue(
@@ -291,9 +277,16 @@ export class EhrElementComponent {
   readonly patientId = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.patientInput()), this.config()?.patient, DEFAULT_PATIENT),
   );
-  readonly copayMinor = computed(() =>
-    resolveConfigValue(coerceCopay(this.copayInput()), this.config()?.copayMinor, DEFAULT_COPAY_MINOR),
-  );
+  /**
+   * El copago de una consulta, de la MISMA fuente que lo cobra al agendar (CMS#196). Era
+   * `DEFAULT_COPAY_MINOR = 0` y la pantalla decía «Sin costo» mientras el servidor capturaba 80.000.
+   * `null` mientras no se sabe —o si no se pudo saber—, nunca un cero inventado.
+   */
+  readonly copay = signal<EhrCopay | null>(null);
+  #pidiendoCopago = false;
+  readonly copayMinor = computed(() => this.copay()?.amountMinor ?? 0);
+  /** Lo que se dice cuando el copago no se pudo saber: ni «Sin costo» ni un número. */
+  readonly copayUnknown = computed(() => this.copay() === null);
 
   readonly instanceId = (ehrInstanceId += 1);
   readonly fieldId = `syn-ehr-${this.instanceId}`;
@@ -778,7 +771,8 @@ export class EhrElementComponent {
       { id: 'proveedor', label: 'Motivo y médico' },
       { id: 'slot', label: 'Fecha y hora' },
     ];
-    if (this.copayMinor() > 0) {
+    // Sin saberlo también hay paso: es donde se dice que no se sabe, en vez de «Sin costo».
+    if (this.copayMinor() > 0 || this.copayUnknown()) {
       steps.push({ id: 'copago', label: 'Copago' });
     }
     steps.push({ id: 'confirmar', label: 'Confirmar' });
@@ -790,7 +784,7 @@ export class EhrElementComponent {
       processingLabel: 'Agendando…',
       nextLabel: 'Continuar',
       backLabel: 'Atrás',
-      totalLabel: this.copayMinor() > 0 ? 'Copago' : 'Sin costo',
+      totalLabel: this.copayMinor() > 0 || this.copayUnknown() ? 'Copago' : 'Sin costo',
       // La cita NO quedó agendada, y lo dice el ASISTENTE, una vez (UI#91). Lo elegido sigue
       // en el carrito: reintentar es un clic. El `APPT-…` del `pay` es local y no mueve
       // dinero; medido, con el texto por defecto esta cita decía «Ya recibimos tu pago
@@ -1426,6 +1420,18 @@ export class EhrElementComponent {
 
   // ─── Scheduling (SH-3 over engine — copago apagable) ─────────────────────────
   private async ensureDoctors(): Promise<void> {
+    // El copago se pide junto al directorio: los dos hacen falta para agendar. Una vez por
+    // vez: entrar a agendar llama acá dos veces antes de que vuelva la primera (medido).
+    if (this.copay() === null && !this.#pidiendoCopago) {
+      this.#pidiendoCopago = true;
+      void this.#api
+        .copay(this.apiBase())
+        .then(
+          (copay) => this.copay.set(copay),
+          () => this.copay.set(null),
+        )
+        .finally(() => (this.#pidiendoCopago = false));
+    }
     if (this.doctorsLoaded()) {
       return;
     }
