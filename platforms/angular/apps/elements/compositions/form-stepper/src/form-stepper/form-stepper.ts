@@ -7,31 +7,45 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { InitialDataService } from '@synergos/core';
+import type { CampoDelFormulario, FormStepperProps, PasoDelFormulario } from '@synergos/contracts';
 import {
+  LiveAnnouncerService,
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
+  createConfigInputTransform,
+  omitUndefinedProperties,
 } from '@synergos/shared';
+import { t } from '@synergos/vitals-core';
 
 /**
- * Web Component for the CMS element `elementSynFormStepper`.
+ * Web Component del elemento del CMS `elementSynFormStepper`: un formulario del sitio presentado por
+ * pasos (#196, tanda D).
  *
- * Renders a multi-step form from a JSON `steps` definition: a numbered step
- * indicator (active / completed), the current step's fields, Back / Next
- * navigation, and a Submit action on the final step. Required fields are
- * validated before advancing. On submit it dispatches a
- * `synergos:form-stepper:complete` CustomEvent carrying the collected values.
+ * Es un formulario del modelo de Forms (ADR 0018/0030): el `config` que manda el CMS tiene la forma
+ * de `FormStepperProps`, GENERADO del record C# (ADR 0135), con los pasos y los campos que el editor
+ * compuso con `elementFormStep` y `elementFormField`, la clave del formulario, y dónde vive la API y
+ * cómo se llama el campo trampa, que son del despliegue (ADR 0137). El servidor exige los
+ * obligatorios con esta MISMA definición.
  *
- * Bridge contract: every CMS property is a TypeScript input with the same
- * alias (`stepsJson`, `submitEndpoint`, `allowSkip`, `integration`).
+ * **Sólo dice «enviado» si el servidor lo confirmó.** Antes pintaba «¡Gracias! Tu información fue
+ * enviada» y despachaba un evento que nadie escuchaba: el envío no salía nunca. Ahora envía a
+ * `${apiBase}/${formKey}/submit` pidiendo JSON, y el evento `synergos:form-stepper:complete` sale
+ * después de la confirmación. Sin base o sin clave no se llama a nada y se dice que no se pudo.
+ *
+ * Sus textos son los de los formularios del sitio, del diccionario (`Form.*`, ADR 0136).
  */
+
+/** El `config` que manda el CMS (ver `FormStepperProps`). */
+export type FormStepperConfig = Partial<FormStepperProps>;
 
 type FieldType = 'text' | 'email' | 'tel' | 'number' | 'textarea' | 'select' | 'checkbox';
 
-interface StepFieldOption {
-  readonly value: string;
-  readonly label: string;
-}
+const FIELD_TYPES: readonly FieldType[] = ['text', 'email', 'tel', 'number', 'textarea', 'select', 'checkbox'];
+
+type FieldValue = string | boolean;
+
+/** En qué punto está el envío. */
+type EstadoDelEnvio = 'editando' | 'enviando' | 'enviado' | 'error';
 
 interface StepField {
   readonly name: string;
@@ -39,7 +53,8 @@ interface StepField {
   readonly type: FieldType;
   readonly required: boolean;
   readonly placeholder: string;
-  readonly options: readonly StepFieldOption[];
+  readonly helpText: string;
+  readonly options: readonly string[];
 }
 
 interface FormStep {
@@ -48,106 +63,92 @@ interface FormStep {
   readonly fields: readonly StepField[];
 }
 
-type FieldValue = string | boolean;
-
-const FIELD_TYPES: readonly FieldType[] = [
-  'text',
-  'email',
-  'tel',
-  'number',
-  'textarea',
-  'select',
-  'checkbox',
-];
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function normalizeFieldType(value: unknown): FieldType {
-  const trimmed = readString(value).trim().toLowerCase() as FieldType;
-  return FIELD_TYPES.includes(trimmed) ? trimmed : 'text';
-}
-
-function normalizeOption(value: unknown): StepFieldOption | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed ? { value: trimmed, label: trimmed } : null;
-  }
-  if (!isRecord(value)) {
-    return null;
-  }
-  const optionValue = readString(value['value']).trim();
-  if (!optionValue) {
-    return null;
-  }
-  const label = readString(value['label']).trim();
-  return { value: optionValue, label: label || optionValue };
-}
-
-function normalizeOptions(value: unknown): readonly StepFieldOption[] {
+function sanitizeOptions(value: unknown): readonly string[] | undefined {
   if (!Array.isArray(value)) {
-    return [];
+    return undefined;
   }
-  return value
-    .map((option) => normalizeOption(option))
-    .filter((option): option is StepFieldOption => option !== null);
+  const options = value.map((o) => coerceTrimmedStringInput(o)).filter((o): o is string => !!o);
+  return options.length ? options : undefined;
 }
 
-function normalizeField(value: unknown, index: number): StepField | null {
+function sanitizeField(value: unknown): CampoDelFormulario | null {
   if (!isRecord(value)) {
     return null;
   }
-  const label = readString(value['label']).trim();
-  const name = readString(value['name']).trim() || (label
-    ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    : `field-${index + 1}`);
-  if (!label) {
+  const name = coerceTrimmedStringInput(value['name']);
+  const label = coerceTrimmedStringInput(value['label']);
+  if (!name || !label) {
     return null;
   }
-
-  return {
+  // Nombre, etiqueta, tipo y obligatoriedad están siempre: el Partial sólo suelta los opcionales.
+  return omitUndefinedProperties<CampoDelFormulario>({
     name,
     label,
-    type: normalizeFieldType(value['type']),
+    type: coerceTrimmedStringInput(value['type'])?.toLowerCase() ?? 'text',
     required: value['required'] === true,
-    placeholder: readString(value['placeholder']).trim(),
-    options: normalizeOptions(value['options']),
-  };
+    placeholder: coerceTrimmedStringInput(value['placeholder']),
+    helpText: coerceTrimmedStringInput(value['helpText']),
+    options: sanitizeOptions(value['options']),
+  }) as CampoDelFormulario;
 }
 
-function normalizeStep(value: unknown): FormStep | null {
+function sanitizeStep(value: unknown): PasoDelFormulario | null {
   if (!isRecord(value)) {
     return null;
   }
-  const title = readString(value['title']).trim();
-  if (!title) {
+  const title = coerceTrimmedStringInput(value['title']);
+  const fields = Array.isArray(value['fields'])
+    ? value['fields'].map(sanitizeField).filter((f): f is CampoDelFormulario => f !== null)
+    : [];
+  if (!title || fields.length === 0) {
     return null;
   }
-  const fields = Array.isArray(value['fields'])
-    ? value['fields']
-        .map((field, index) => normalizeField(field, index))
-        .filter((field): field is StepField => field !== null)
-    : [];
-
-  return {
+  return omitUndefinedProperties<PasoDelFormulario>({
     title,
-    description: readString(value['description']).trim(),
     fields,
-  };
+    description: coerceTrimmedStringInput(value['description']),
+  }) as PasoDelFormulario;
 }
 
-export function normalizeSteps(value: unknown): readonly FormStep[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((step) => normalizeStep(step))
-    .filter((step): step is FormStep => step !== null);
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeFormStepperConfig(value: FormStepperConfig): FormStepperConfig {
+  const steps = Array.isArray(value.steps)
+    ? value.steps.map(sanitizeStep).filter((s): s is PasoDelFormulario => s !== null)
+    : undefined;
+  return omitUndefinedProperties<FormStepperProps>({
+    formKey: coerceTrimmedStringInput(value.formKey),
+    steps: steps?.length ? steps : undefined,
+    allowSkip: coerceOptionalBooleanInput(value.allowSkip),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
+    honeypotField: coerceTrimmedStringInput(value.honeypotField),
+  });
+}
+
+function toFieldType(value: string): FieldType {
+  const type = value as FieldType;
+  return FIELD_TYPES.includes(type) ? type : 'text';
+}
+
+/** Un select sin opciones se pinta como texto, igual que en el formulario SSR. */
+function toStepField(campo: CampoDelFormulario): StepField {
+  const options = campo.options ?? [];
+  const type = toFieldType(campo.type);
+  return {
+    name: campo.name,
+    label: campo.label,
+    type: type === 'select' && options.length === 0 ? 'text' : type,
+    required: campo.required,
+    placeholder: campo.placeholder ?? '',
+    helpText: campo.helpText ?? '',
+    options,
+  };
 }
 
 @Component({
@@ -159,28 +160,31 @@ export function normalizeSteps(value: unknown): readonly FormStep[] {
   host: { class: 'sg-form-stepper' },
 })
 export class FormStepperElementComponent {
-  readonly #initialData = inject(InitialDataService);
   readonly #host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly #announcer = inject(LiveAnnouncerService);
 
-  readonly stepsJson = input<string | undefined>(undefined);
-  readonly submitEndpoint = input<string | undefined>(undefined);
-  readonly allowSkipInput = input<boolean | undefined, unknown>(undefined, {
-    alias: 'allowSkip',
-    transform: coerceOptionalBooleanInput,
+  readonly config = input<FormStepperConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<FormStepperProps>(sanitizeFormStepperConfig),
   });
-  readonly integration = input<string | undefined>(undefined);
 
   readonly #currentIndex = signal(0);
   readonly #values = signal<Record<string, FieldValue>>({});
   readonly #errors = signal<ReadonlySet<string>>(new Set());
-  readonly #completed = signal(false);
+  readonly #estado = signal<EstadoDelEnvio>('editando');
+  readonly #mensajeDeError = signal('');
 
-  readonly allowSkip = computed(() => this.allowSkipInput() ?? false);
+  readonly allowSkip = computed(() => this.config()?.allowSkip ?? false);
+  /** Dónde vive la API. Sin ella no se envía nada: no hay una base de respaldo compilada (ADR 0137). */
+  readonly apiBase = computed(() => (this.config()?.apiBase ?? '').replace(/\/+$/, ''));
+  readonly formKey = computed(() => this.config()?.formKey ?? '');
 
-  readonly steps = computed<readonly FormStep[]>(() => {
-    const parsed = this.#initialData.parseValue<unknown>(this.stepsJson());
-    return normalizeSteps(parsed);
-  });
+  readonly steps = computed<readonly FormStep[]>(() =>
+    (this.config()?.steps ?? []).map((paso) => ({
+      title: paso.title,
+      description: paso.description ?? '',
+      fields: paso.fields.map(toStepField),
+    })),
+  );
 
   readonly hasSteps = computed(() => this.steps().length > 0);
   readonly stepCount = computed(() => this.steps().length);
@@ -190,8 +194,21 @@ export class FormStepperElementComponent {
   readonly currentStep = computed<FormStep | undefined>(() => this.steps()[this.currentIndex()]);
   readonly isFirst = computed(() => this.currentIndex() === 0);
   readonly isLast = computed(() => this.currentIndex() === this.stepCount() - 1);
-  readonly completed = computed(() => this.#completed());
+  /** El servidor confirmó el envío. Es lo único que enciende el «gracias». */
+  readonly completed = computed(() => this.#estado() === 'enviado');
+  readonly sending = computed(() => this.#estado() === 'enviando');
+  readonly errorMessage = computed(() => (this.#estado() === 'error' ? this.#mensajeDeError() : ''));
   readonly errors = computed(() => this.#errors());
+
+  readonly textos = {
+    back: () => t('Form.Actions.Back', 'Atrás'),
+    next: () => t('Form.Actions.Next', 'Siguiente'),
+    submit: () => t('Form.Submit', 'Enviar'),
+    sending: () => t('Form.Messages.Sending', 'Enviando…'),
+    success: () => t('Form.Messages.Success', '¡Gracias! Tu mensaje ha sido enviado.'),
+    required: () => t('Form.Validation.Required', 'Este campo es obligatorio.'),
+    selectOption: () => t('Form.Placeholders.SelectOption', 'Selecciona una opción'),
+  };
 
   /** Indicator chips: state for each step (active / completed / upcoming). */
   readonly indicators = computed(() =>
@@ -199,7 +216,7 @@ export class FormStepperElementComponent {
       index,
       title: step.title,
       active: index === this.currentIndex(),
-      completed: index < this.currentIndex() || this.#completed(),
+      completed: index < this.currentIndex() || this.completed(),
     })),
   );
 
@@ -253,9 +270,7 @@ export class FormStepperElementComponent {
       }
       const value = this.#values()[field.name];
       const isEmpty =
-        value === undefined ||
-        value === '' ||
-        (field.type === 'checkbox' && value !== true);
+        value === undefined || value === '' || (field.type === 'checkbox' && value !== true);
       if (isEmpty) {
         missing.add(field.name);
       }
@@ -266,7 +281,7 @@ export class FormStepperElementComponent {
   }
 
   back(): void {
-    if (this.isFirst()) {
+    if (this.isFirst() || this.sending()) {
       return;
     }
     this.#errors.set(new Set());
@@ -283,26 +298,81 @@ export class FormStepperElementComponent {
     this.#focusStepHeading();
   }
 
-  submit(): void {
+  /**
+   * Envía a la API de formularios del sitio y sólo dice «enviado» si el servidor lo confirma. Un
+   * fallo se dice —con el texto del sitio— y deja el formulario como estaba para reintentar.
+   */
+  async submit(): Promise<void> {
+    if (this.sending()) {
+      return;
+    }
     if (!this.allowSkip() && !this.#validateCurrentStep()) {
       this.#focusFirstError();
       return;
     }
 
-    this.#completed.set(true);
+    const apiBase = this.apiBase();
+    const formKey = this.formKey();
+    if (!apiBase || !formKey || typeof fetch !== 'function') {
+      this.#fallo(t('Form.Messages.Error', 'Ocurrió un error. Por favor inténtalo de nuevo.'));
+      return;
+    }
 
-    const detail = {
-      values: { ...this.#values() },
-      submitEndpoint: coerceTrimmedStringInput(this.submitEndpoint()) ?? null,
-    };
+    this.#estado.set('enviando');
+    const values = { ...this.#values() };
+    try {
+      const response = await fetch(`${apiBase}/${encodeURIComponent(formKey)}/submit`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: this.#cuerpo(values),
+      });
+      await response.body?.cancel();
+      if (!response.ok) {
+        this.#fallo(t('Form.Messages.Error', 'Ocurrió un error. Por favor inténtalo de nuevo.'));
+        return;
+      }
+    } catch {
+      this.#fallo(t('Form.Messages.NetworkError', 'Error de conexión. Inténtalo de nuevo.'));
+      return;
+    }
 
+    this.#estado.set('enviado');
     this.#host.nativeElement.dispatchEvent(
       new CustomEvent('synergos:form-stepper:complete', {
-        detail,
+        detail: { formKey, values },
         bubbles: true,
         composed: true,
       }),
     );
+  }
+
+  /** Los valores, más el campo trampa vacío que el servidor espera de un humano. */
+  #cuerpo(values: Record<string, FieldValue>): string {
+    const params = new URLSearchParams();
+    for (const [name, value] of Object.entries(values)) {
+      if (value === false || value === '') {
+        continue;
+      }
+      params.set(name, value === true ? 'true' : value);
+    }
+    const trampa = this.config()?.honeypotField;
+    if (trampa) {
+      params.set(trampa, '');
+    }
+    return params.toString();
+  }
+
+  /**
+   * El fallo se ve junto a los botones y se DICE por el anunciador del documento: una región propia
+   * que naciera con el mensaje no la leería el lector de pantalla (gate de regiones vivas).
+   */
+  #fallo(mensaje: string): void {
+    this.#mensajeDeError.set(mensaje);
+    this.#estado.set('error');
+    this.#announcer.announce(mensaje, 'assertive');
   }
 
   #focusStepHeading(): void {
@@ -316,9 +386,7 @@ export class FormStepperElementComponent {
 
   #focusFirstError(): void {
     queueMicrotask(() => {
-      const field = this.#host.nativeElement.querySelector<HTMLElement>(
-        '[aria-invalid="true"]',
-      );
+      const field = this.#host.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]');
       field?.focus();
     });
   }

@@ -24,7 +24,7 @@
 
     @if (completed()) {
       <div class="form-stepper__done" role="status">
-        <p class="form-stepper__done-text">¡Gracias! Tu información fue enviada.</p>
+        <p class="form-stepper__done-text">{{ textos.success() }}</p>
       </div>
     } @else if (currentStep(); as step) {
       <form class="form-stepper__panel" (submit)="$event.preventDefault()" novalidate>
@@ -49,6 +49,7 @@
                       [checked]="isChecked(field.name)"
                       [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
                       [attr.aria-required]="field.required ? 'true' : null"
+                    [attr.aria-describedby]="field.helpText ? 'fs-' + field.name + '-help' : null"
                       (change)="onCheckboxChange(field.name, $event)"
                     />
                     <span class="form-stepper__label-text">
@@ -74,6 +75,7 @@
                     [value]="textValue(field.name)"
                     [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
                     [attr.aria-required]="field.required ? 'true' : null"
+                    [attr.aria-describedby]="field.helpText ? 'fs-' + field.name + '-help' : null"
                     rows="3"
                     (input)="onTextInput(field.name, $event)"
                   ></textarea>
@@ -92,13 +94,14 @@
                     [value]="textValue(field.name)"
                     [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
                     [attr.aria-required]="field.required ? 'true' : null"
+                    [attr.aria-describedby]="field.helpText ? 'fs-' + field.name + '-help' : null"
                     (change)="onTextInput(field.name, $event)"
                   >
                     <option value="" disabled selected>
-                      {{ field.placeholder || 'Selecciona una opción' }}
+                      {{ field.placeholder || textos.selectOption() }}
                     </option>
-                    @for (option of field.options; track option.value) {
-                      <option [value]="option.value">{{ option.label }}</option>
+                    @for (option of field.options; track option) {
+                      <option [value]="option">{{ option }}</option>
                     }
                   </select>
                 }
@@ -118,33 +121,47 @@
                     [value]="textValue(field.name)"
                     [attr.aria-invalid]="hasError(field.name) ? 'true' : null"
                     [attr.aria-required]="field.required ? 'true' : null"
+                    [attr.aria-describedby]="field.helpText ? 'fs-' + field.name + '-help' : null"
                     (input)="onTextInput(field.name, $event)"
                   />
                 }
               }
+              @if (field.helpText) {
+                <small class="form-stepper__help" [id]="'fs-' + field.name + '-help'">{{ field.helpText }}</small>
+              }
               @if (hasError(field.name)) {
-                <span class="form-stepper__error" role="alert">Este campo es obligatorio.</span>
+                <span class="form-stepper__error" role="alert">{{ textos.required() }}</span>
               }
             </div>
           }
         </div>
 
+        @if (errorMessage()) {
+          <p class="form-stepper__send-error">{{ errorMessage() }}</p>
+        }
+
         <div class="form-stepper__actions">
           <button
             type="button"
             class="form-stepper__btn form-stepper__btn--ghost"
-            [disabled]="isFirst()"
+            [disabled]="isFirst() || sending()"
             (click)="back()"
           >
-            Atrás
+            {{ textos.back() }}
           </button>
           @if (isLast()) {
-            <button type="button" class="form-stepper__btn form-stepper__btn--primary" (click)="submit()">
-              Enviar
+            <button
+              type="button"
+              class="form-stepper__btn form-stepper__btn--primary"
+              [disabled]="sending()"
+              [attr.aria-busy]="sending() ? 'true' : null"
+              (click)="submit()"
+            >
+              {{ sending() ? textos.sending() : textos.submit() }}
             </button>
           } @else {
             <button type="button" class="form-stepper__btn form-stepper__btn--primary" (click)="next()">
-              Siguiente
+              {{ textos.next() }}
             </button>
           }
         </div>

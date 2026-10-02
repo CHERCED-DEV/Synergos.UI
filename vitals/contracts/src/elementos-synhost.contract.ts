@@ -88,6 +88,17 @@ export interface BreadcrumbStep {
   readonly href?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: CampoDelFormulario). */
+export interface CampoDelFormulario {
+  readonly name: string;
+  readonly label: string;
+  readonly type: string;
+  readonly required: boolean;
+  readonly placeholder?: string;
+  readonly helpText?: string;
+  readonly options?: readonly string[];
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: CarouselSlide). */
 export interface CarouselSlide {
   readonly src: string;
@@ -134,6 +145,13 @@ export interface MapPinItem {
 export interface NotificationToastSeed {
   readonly message: string;
   readonly variant?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: PasoDelFormulario). */
+export interface PasoDelFormulario {
+  readonly title: string;
+  readonly fields: readonly CampoDelFormulario[];
+  readonly description?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: SelectMultiItem). */
@@ -378,6 +396,20 @@ export interface FabProps {
   readonly position?: string;
   /** contenido */
   readonly label?: string;
+}
+
+/** <synergos-form-stepper> · funcionalidad · diccionario: Form.Messages, Form.Actions, Form.Validation.Required, Form.Placeholders.SelectOption, Form.Submit */
+export interface FormStepperProps {
+  /** contenido */
+  readonly formKey?: string;
+  /** contenido */
+  readonly steps?: readonly PasoDelFormulario[];
+  /** decision */
+  readonly allowSkip?: boolean;
+  /** negocio */
+  readonly apiBase: string;
+  /** negocio */
+  readonly honeypotField: string;
 }
 
 /** <synergos-gov> · funcionalidad */
@@ -1221,6 +1253,44 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   },
 };
 
+export const FORM_STEPPER_SYNHOST: ElementoSynHost<FormStepperProps> = {
+  nombre: "form-stepper",
+  tipo: "funcionalidad",
+  record: "FormStepperProps",
+  diccionario: ["Form.Messages","Form.Actions","Form.Validation.Required","Form.Placeholders.SelectOption","Form.Submit"],
+  claves: ["Form.Actions.Apply","Form.Actions.Back","Form.Actions.Next","Form.Actions.Register","Form.Actions.RequestDemo","Form.Actions.Send","Form.Actions.Subscribe","Form.Messages.Error","Form.Messages.NetworkError","Form.Messages.NotFound","Form.Messages.Sending","Form.Messages.Success","Form.Placeholders.SelectOption","Form.Submit","Form.Validation.Required"],
+  campos: ["formKey","steps","allowSkip","apiBase","honeypotField"],
+  listas: {"steps":["title","fields","description"]},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "formKey": "reserva-cita",
+    "steps": [
+      {
+        "title": "Tu reserva",
+        "fields": [
+          {
+            "name": "servicio",
+            "label": "Servicio",
+            "type": "select",
+            "required": true,
+            "placeholder": "Elige uno",
+            "helpText": "Puedes cambiarlo después.",
+            "options": [
+              "Asesoría express",
+              "Auditorio"
+            ]
+          }
+        ],
+        "description": "Elige el servicio y la fecha."
+      }
+    ],
+    "allowSkip": true,
+    "apiBase": "/api/forms",
+    "honeypotField": "syn_hp"
+  },
+};
+
 export const GOV_SYNHOST: ElementoSynHost<GovProps> = {
   nombre: "gov",
   tipo: "funcionalidad",
@@ -1964,6 +2034,7 @@ export const ELEMENTOS_SYNHOST = [
   EHR_SYNHOST,
   EVENTOS_SYNHOST,
   FAB_SYNHOST,
+  FORM_STEPPER_SYNHOST,
   GOV_SYNHOST,
   HERO_BANNER_SYNHOST,
   ICON_LABEL_SYNHOST,

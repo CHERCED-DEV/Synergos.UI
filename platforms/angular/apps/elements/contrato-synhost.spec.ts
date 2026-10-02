@@ -51,6 +51,7 @@ import { sanitizeStorefrontConfig } from './modules/storefront/src/storefront/st
 import { sanitizeTravelShellConfig } from './modules/travel-shell/src/travel-shell/travel-shell';
 import { sanitizeEhrConfig } from './modules/ehr/src/ehr/ehr';
 import { sanitizeBookingWizardConfig } from './modules/booking-wizard/src/booking-wizard/booking-wizard';
+import { sanitizeFormStepperConfig } from './compositions/form-stepper/src/form-stepper/form-stepper';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -120,6 +121,7 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   'travel-shell': sanitizeTravelShellConfig,
   ehr: sanitizeEhrConfig,
   'booking-wizard': sanitizeBookingWizardConfig,
+  'form-stepper': sanitizeFormStepperConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(

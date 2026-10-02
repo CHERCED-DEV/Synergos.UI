@@ -205,6 +205,20 @@
     font-weight: syn.$font-weight-medium;
   }
 
+  &__help {
+    color: var(--fs-muted);
+    font-size: syn.$font-size-xs;
+    line-height: syn.$line-height-normal;
+  }
+
+  // El envío que no entró se dice junto a los botones, que es donde el visitante lo intentó.
+  &__send-error {
+    margin: 0;
+    color: var(--fs-danger);
+    font-size: syn.$font-size-sm;
+    font-weight: syn.$font-weight-medium;
+  }
+
   // ─── Actions ──────────────────────────────────────────────────────
   &__actions {
     display: flex;
