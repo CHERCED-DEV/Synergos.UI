@@ -67,7 +67,8 @@ describe('DataGridElementComponent', () => {
     expect(first.title).toBe('Loft Condesa');
     const precio = first.specs.find((spec) => spec.key === 'precio');
     expect(precio?.value).toContain('$');
-    expect(precio?.value).toContain('4,200,000');
+    // es-CO: el punto es el separador de miles (antes salía en formato mexicano en un sitio es-CO).
+    expect(precio?.value).toContain('4.200.000');
   });
 
   it('should filter cards by an active facet (filter case)', async () => {
@@ -99,13 +100,52 @@ describe('DataGridElementComponent', () => {
     expect(cards.map((card) => card.id)).toEqual(['p2', 'p1', 'p3']);
   });
 
-  it('should let direct inputs override config (idempotent precedence)', async () => {
-    fixture.componentRef.setInput('config', '{"title":"Config title"}');
-    fixture.componentRef.setInput('title', 'Input title');
+  // ── CMS#196, tanda D: las filas las arma el servidor ──────────────────────────────
+  // Antes el editor escribía un `dataSource` que nadie consultaba, y la grilla decía «No hay
+  // resultados que coincidan con los filtros» sin haber buscado nada.
+  it('pinta las filas que manda el CMS con sus datos tal cual, sin formatearlos de nuevo', async () => {
+    fixture.componentRef.setInput('config', {
+      rows: [
+        {
+          id: 'f1',
+          title: 'Asesoría express',
+          href: '/booking/servicios/asesoria-express/',
+          badge: 'Consultoría',
+          specs: [{ label: 'Precio', value: '$ 180.000' }],
+        },
+      ],
+    });
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.title()).toBe('Input title');
+    const card = component.visibleCards()[0];
+    expect(card.title).toBe('Asesoría express');
+    expect(card.ctaHref).toBe('/booking/servicios/asesoria-express/');
+    expect(card.specs.map((s) => [s.label, s.value])).toEqual([['Precio', '$ 180.000']]);
+    expect(component.resultLabel()).toBe('1 resultado');
+  });
+
+  it('con ?q y sin filas dice que no hay resultados PARA ESO, no que no hay nada', async () => {
+    history.pushState({}, '', '?q=jazz');
+    try {
+      const conConsulta = TestBed.createComponent(DataGridElementComponent);
+      conConsulta.componentRef.setInput('config', {});
+      conConsulta.detectChanges();
+      await conConsulta.whenStable();
+
+      expect(conConsulta.componentInstance.emptyLabel()).toBe('No hay resultados para «jazz».');
+    } finally {
+      history.pushState({}, '', '/');
+    }
+  });
+
+  it('sin filas dice que no hay nada publicado, no que un filtro no coincide', async () => {
+    fixture.componentRef.setInput('config', {});
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.visibleCards()).toEqual([]);
+    expect(component.emptyLabel()).toBe('Todavía no hay nada publicado aquí.');
   });
 
   // ── #87, sospecha sin medir: `loading` es un input del HOST ─────────────────────

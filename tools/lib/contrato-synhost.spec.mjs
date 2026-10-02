@@ -151,6 +151,17 @@ describe('validarContrato', () => {
     expect(errores).toContain('sin `multiple`');
   });
 
+  // CMS#196: el selector que elige datos (la fuente de un listado) no es vocabulario.
+  it('acepta un selector de datos sin campo y lo rechaza con campo o con otro valor', () => {
+    const c = conSelector();
+    c.elementos[0].selectores[1].deDatos = true;
+    expect(validarContrato(c)).toEqual([]);
+    c.elementos[0].selectores[0].deDatos = true;
+    expect(validarContrato(c).join('\n')).toContain('un selector de datos no cae en ningún');
+    c.elementos[0].selectores[1].deDatos = false;
+    expect(validarContrato(c).join('\n')).toContain('sólo puede ser true');
+  });
+
   it('rechaza una lista de un record que el contrato no trae', () => {
     const c = contrato();
     c.tipos = [];

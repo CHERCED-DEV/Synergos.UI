@@ -52,6 +52,8 @@ import { sanitizeTravelShellConfig } from './modules/travel-shell/src/travel-she
 import { sanitizeEhrConfig } from './modules/ehr/src/ehr/ehr';
 import { sanitizeBookingWizardConfig } from './modules/booking-wizard/src/booking-wizard/booking-wizard';
 import { sanitizeFormStepperConfig } from './compositions/form-stepper/src/form-stepper/form-stepper';
+import { sanitizeDataGridConfig } from './modules/data-grid/src/data-grid/data-grid';
+import { sanitizeSearchBoxConfig } from './compositions/search-box/src/search-box/search-box';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -122,6 +124,8 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   ehr: sanitizeEhrConfig,
   'booking-wizard': sanitizeBookingWizardConfig,
   'form-stepper': sanitizeFormStepperConfig,
+  'data-grid': sanitizeDataGridConfig,
+  'search-box': sanitizeSearchBoxConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(
@@ -470,6 +474,8 @@ describe('contrato SynHost: lo que el editor elige en un selector ↔ lo que el 
       if (!crudo || !sanitizar) throw new Error(`${elemento.nombre}: sin sanitizador en la tabla`);
       const minados = candidatosDe(fuenteDe(crudo.name, ficheros));
       for (const selector of selectores) {
+        // Un selector de datos (la fuente de un listado, CMS#196) elige filas, no vocabulario.
+        if (selector.deDatos) continue;
         lista.push(cruzarSelector(`${elemento.nombre}.${selector.propiedad}`, selector, sanitizar, elemento.ejemplo as unknown as Config, minados));
       }
     }
@@ -478,7 +484,9 @@ describe('contrato SynHost: lo que el editor elige en un selector ↔ lo que el 
   };
 
   it('cruza cada selector del contrato, y alguno (red de seguridad por el vacío)', () => {
-    const enElContrato = ELEMENTOS_SYNHOST.flatMap((e) => e.selectores.map((s) => `${e.nombre}.${s.propiedad}`));
+    const enElContrato = ELEMENTOS_SYNHOST.flatMap((e) =>
+      e.selectores.filter((s) => !s.deDatos).map((s) => `${e.nombre}.${s.propiedad}`),
+    );
 
     expect(enElContrato.length).toBeGreaterThan(0);
     expect(cruces().cruces.map((c) => c.clave)).toEqual(enElContrato);

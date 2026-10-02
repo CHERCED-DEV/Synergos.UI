@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SearchBoxElementComponent } from './search-box';
+import { SearchBoxElementComponent, navegacion } from './search-box';
 
 describe('SearchBoxElementComponent', () => {
   let fixture: ComponentFixture<SearchBoxElementComponent>;
@@ -23,17 +23,51 @@ describe('SearchBoxElementComponent', () => {
     expect(component.suggestions()).toEqual([]);
   });
 
-  it('should read config payloads (happy case)', async () => {
-    fixture.componentRef.setInput(
-      'config',
-      '{"placeholder":"Buscar propiedad","minChars":2,"suggestions":["Polanco","Condesa"]}',
-    );
+  // CMS#196, tanda D: del CMS sólo llega lo que declara SearchBoxProps; lo demás, por atributo.
+  it('should read the CMS config and keep the rest as attributes (happy case)', async () => {
+    fixture.componentRef.setInput('config', '{"placeholder":"Buscar propiedad","minChars":2}');
+    fixture.componentRef.setInput('suggestions', '["Polanco","Condesa"]');
     fixture.detectChanges();
     await fixture.whenStable();
 
     expect(component.placeholder()).toBe('Buscar propiedad');
-    expect(component.minChars()).toBe(2);
+    expect(component.minChars()).toBe(0);
     expect(component.suggestions().map((s) => s.label)).toEqual(['Polanco', 'Condesa']);
+  });
+
+  // CMS#196, tanda D: con submitToPage, buscar recarga la página con ?q para el listado de al lado.
+  it('con submitToPage, buscar recarga la página con ?q, y vaciar la quita', async () => {
+    const ir = vi.spyOn(navegacion, 'ir').mockImplementation(() => undefined);
+    fixture.componentRef.setInput('config', { submitToPage: true });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+
+    input.value = 'Chicó Norte';
+    input.dispatchEvent(new Event('input'));
+    (input.form as HTMLFormElement).requestSubmit(); // lo que hace el navegador con Enter
+    expect(new URL(ir.mock.calls[0][0]).searchParams.get('q')).toBe('Chicó Norte');
+
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    (input.form as HTMLFormElement).requestSubmit(); // lo que hace el navegador con Enter
+    expect(new URL(ir.mock.calls[1][0]).searchParams.has('q')).toBe(false);
+    ir.mockRestore();
+  });
+
+  it('sin submitToPage, buscar no navega: sólo avisa por sus eventos', async () => {
+    const ir = vi.spyOn(navegacion, 'ir').mockImplementation(() => undefined);
+    const enviados: string[] = [];
+    component.submitted.subscribe((q) => enviados.push(q));
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+
+    input.value = 'jazz';
+    input.dispatchEvent(new Event('input'));
+    (input.form as HTMLFormElement).requestSubmit(); // lo que hace el navegador con Enter
+
+    expect(enviados).toEqual(['jazz']);
+    expect(ir).not.toHaveBeenCalled();
+    ir.mockRestore();
   });
 
   it('should let direct inputs override config', async () => {

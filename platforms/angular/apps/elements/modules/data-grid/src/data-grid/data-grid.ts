@@ -20,6 +20,8 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { DataGridProps, DatoDeLaFila, FilaDelListado } from '@synergos/contracts';
+import { t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynDataGrid</c>.
@@ -30,9 +32,15 @@ import {
  * are entirely client-side and reactive (signals); facets are described
  * declaratively via `filters`.
  *
- * The shared `@synergos/contracts` package does not declare a
- * `DataGridElementConfig`; the canonical shape lives here next to the
- * component until that contract lands in the registry ola.
+ * **Lo que manda el CMS** (`config`) tiene la forma de `DataGridProps`, GENERADO del record
+ * C# (ADR 0135): las FILAS que el servidor arma desde la fuente que eligió el editor (las fichas
+ * de su sección, o el catálogo de cursos, de eventos o de inmuebles), cada una con sus datos ya
+ * formateados (CMS#196, tanda D). Antes el editor escribía un `dataSource` que nadie consultaba y
+ * la grilla decía «No hay resultados que coincidan con los filtros» sin haber buscado nada.
+ *
+ * Las columnas, los filtros y el orden siguen para el tag crudo, por atributos (`columns`,
+ * `rows`, `filters`, `sort`…): ese es el shape de abajo. Sus textos salen del diccionario,
+ * sección `DataGrid` (ADR 0136).
  */
 export interface DataGridRuntimeConfig {
   readonly title?: string;
@@ -299,17 +307,55 @@ function normalizeRows(value: unknown): readonly DataGridRecord[] {
   return value.filter((row): row is DataGridRecord => isRecord(row));
 }
 
-function sanitizeDataGridConfig(value: Partial<DataGridRuntimeConfig>): DataGridRuntimeConfig {
-  return omitUndefinedProperties<DataGridRuntimeConfig>({
-    title: coerceTrimmedStringInput(value.title),
-    emptyLabel: coerceTrimmedStringInput(value.emptyLabel),
-    ctaLabel: coerceTrimmedStringInput(value.ctaLabel),
-    loading: coerceOptionalBooleanInput(value.loading),
-    columns: value.columns,
-    rows: value.rows,
-    filters: value.filters,
-    sort: value.sort,
-  });
+/** El `config` que manda el CMS (ver `DataGridProps`). */
+export type DataGridConfig = Partial<DataGridProps>;
+
+function sanitizeDato(value: unknown): DatoDeLaFila | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const label = coerceTrimmedStringInput(value['label']);
+  const valor = coerceTrimmedStringInput(value['value']);
+  return label && valor ? { label, value: valor } : null;
+}
+
+function sanitizeFila(value: unknown): FilaDelListado | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const id = coerceTrimmedStringInput(value['id']);
+  const title = coerceTrimmedStringInput(value['title']);
+  if (!id || !title) {
+    return null;
+  }
+  const specs = Array.isArray(value['specs'])
+    ? value['specs'].map(sanitizeDato).filter((d): d is DatoDeLaFila => d !== null)
+    : [];
+  return omitUndefinedProperties<FilaDelListado>({
+    id,
+    title,
+    href: coerceTrimmedStringInput(value['href']),
+    image: coerceTrimmedStringInput(value['image']),
+    imageAlt: coerceTrimmedStringInput(value['imageAlt']),
+    badge: coerceTrimmedStringInput(value['badge']),
+    specs: specs.length ? specs : undefined,
+  }) as FilaDelListado;
+}
+
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeDataGridConfig(value: DataGridConfig): DataGridConfig {
+  const rows = Array.isArray(value.rows)
+    ? value.rows.map(sanitizeFila).filter((f): f is FilaDelListado => f !== null)
+    : undefined;
+  return omitUndefinedProperties<DataGridProps>({ rows: rows?.length ? rows : undefined });
+}
+
+/** El `?q` de la página: el buscador la recarga con él y el servidor ya filtró las filas. */
+function consultaDeLaPagina(): string {
+  return typeof location === 'undefined' ? '' : (new URLSearchParams(location.search).get('q') ?? '').trim();
 }
 
 @Component({
@@ -324,8 +370,8 @@ function sanitizeDataGridConfig(value: Partial<DataGridRuntimeConfig>): DataGrid
 export class DataGridElementComponent {
   readonly #initialData = inject(InitialDataService);
 
-  readonly config = input<DataGridRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<DataGridRuntimeConfig>(sanitizeDataGridConfig),
+  readonly config = input<DataGridConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<DataGridProps>(sanitizeDataGridConfig),
   });
   readonly titleInput = input<string | undefined>(undefined, { alias: 'title' });
   readonly emptyLabelInput = input<string | undefined>(undefined, { alias: 'emptyLabel' });
@@ -339,28 +385,38 @@ export class DataGridElementComponent {
   readonly filtersInput = input<string | undefined>(undefined, { alias: 'filters' });
   readonly sortInput = input<string | undefined>(undefined, { alias: 'sort' });
 
-  readonly title = computed(() => resolveConfigValue(this.titleInput(), this.config()?.title, ''));
+  readonly title = computed(() => this.titleInput() ?? '');
+  /** Lo que se buscó, si la página se recargó con `?q`. */
+  readonly consulta = consultaDeLaPagina();
+  readonly ariaLabel = t('DataGrid.Aria', 'Listado');
+  readonly loadingLabel = t('DataGrid.Loading', 'Cargando…');
   readonly emptyLabel = computed(() =>
-    resolveConfigValue(this.emptyLabelInput(), this.config()?.emptyLabel, 'No hay resultados que coincidan con los filtros.'),
+    resolveConfigValue(
+      this.emptyLabelInput(),
+      undefined,
+      this.consulta
+        ? t('DataGrid.NoResults', 'No hay resultados para «{query}».', { query: this.consulta })
+        : t('DataGrid.Empty', 'Todavía no hay nada publicado aquí.'),
+    ),
   );
   readonly ctaLabel = computed(() =>
-    resolveConfigValue(this.ctaLabelInput(), this.config()?.ctaLabel, 'Ver detalle'),
+    resolveConfigValue(this.ctaLabelInput(), undefined, t('DataGrid.Cta', 'Ver detalle')),
   );
   readonly loading = computed(() =>
-    resolveConfigValue(this.loadingInput(), this.config()?.loading, false),
+    resolveConfigValue(this.loadingInput(), undefined, false),
   );
 
   /** Placeholder rows for the loading skeleton; mirrors a typical page size. */
   readonly skeletonRows = [0, 1, 2, 3, 4, 5];
 
   readonly columns = computed<readonly DataGridColumn[]>(() =>
-    normalizeColumns(this.resolveSource(this.columnsInput(), this.config()?.columns)),
+    normalizeColumns(this.resolveSource(this.columnsInput(), undefined)),
   );
   readonly filters = computed<readonly DataGridFilter[]>(() =>
-    normalizeFilters(this.resolveSource(this.filtersInput(), this.config()?.filters)),
+    normalizeFilters(this.resolveSource(this.filtersInput(), undefined)),
   );
   readonly sortOptions = computed<readonly DataGridSortOption[]>(() =>
-    normalizeSortOptions(this.resolveSource(this.sortInput(), this.config()?.sort)),
+    normalizeSortOptions(this.resolveSource(this.sortInput(), undefined)),
   );
   readonly rows = computed<readonly DataGridRecord[]>(() =>
     normalizeRows(this.resolveSource(this.rowsInput(), this.config()?.rows)),
@@ -427,11 +483,11 @@ export class DataGridElementComponent {
   readonly resultLabel = computed(() => {
     const count = this.resultCount();
     const total = this.allCards().length;
-    if (count === total) {
-      return count === 1 ? '1 propiedad' : `${count} propiedades`;
+    if (count === 1 && total === 1) {
+      return t('DataGrid.Count.One', '1 resultado');
     }
 
-    return `${count} de ${total} propiedades`;
+    return t('DataGrid.Count.Other', '{count} resultados', { count });
   });
 
   onFilterStateChange(state: FilterPanelState): void {
@@ -456,7 +512,7 @@ export class DataGridElementComponent {
       readString(row['title']).trim() ||
       readString(row['name']).trim() ||
       readString(row['nombre']).trim() ||
-      `Propiedad ${index + 1}`;
+      String(index + 1);
     const imageSrc =
       readString(row['image']).trim() ||
       readString(row['imageSrc']).trim() ||
@@ -467,6 +523,15 @@ export class DataGridElementComponent {
       readString(row['href']).trim() ||
       readString(row['url']).trim() ||
       readString(row['ctaHref']).trim();
+
+    const datos = Array.isArray(row['specs']) ? (row['specs'] as unknown[]) : null;
+    if (datos) {
+      const specs = datos
+        .map(sanitizeDato)
+        .filter((d): d is DatoDeLaFila => d !== null)
+        .map((d, i) => ({ key: `dato-${i}`, label: d.label, value: d.value }));
+      return { id, title, imageSrc, imageAlt, badge, specs, ctaHref, record: row };
+    }
 
     const specs: DataGridCardSpec[] = this.columns()
       .filter((column) => column.type !== 'badge')
@@ -488,7 +553,7 @@ export class DataGridElementComponent {
     if (column.type === 'currency') {
       const numeric = readNumber(value);
       if (numeric !== null) {
-        const formatted = new Intl.NumberFormat('es-MX').format(numeric);
+        const formatted = new Intl.NumberFormat('es-CO').format(numeric);
         return `${column.prefix || '$'}${formatted}${column.suffix}`;
       }
     }
@@ -496,7 +561,7 @@ export class DataGridElementComponent {
     if (column.type === 'number') {
       const numeric = readNumber(value);
       if (numeric !== null) {
-        return `${column.prefix}${new Intl.NumberFormat('es-MX').format(numeric)}${column.suffix}`;
+        return `${column.prefix}${new Intl.NumberFormat('es-CO').format(numeric)}${column.suffix}`;
       }
     }
 

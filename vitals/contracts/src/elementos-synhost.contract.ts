@@ -32,6 +32,8 @@ export interface SelectorSynHost {
   readonly multiple: boolean;
   readonly campo: string | null;
   readonly valores: readonly ValorDeSelectorSynHost[];
+  /** Elige DATOS (la fuente de un listado), no vocabulario: el gate no lo cruza (CMS#196). */
+  readonly deDatos?: true;
 }
 
 /** Un elemento con contrato: quién es, qué campos viajan y un `config` real de su vista. */
@@ -118,11 +120,28 @@ export interface ColorSwatchesItem {
   readonly label?: string;
 }
 
+/** Parte de un record de `ElementoSynHost` (C#: DatoDeLaFila). */
+export interface DatoDeLaFila {
+  readonly label: string;
+  readonly value: string;
+}
+
 /** Parte de un record de `ElementoSynHost` (C#: DropdownOption). */
 export interface DropdownOption {
   readonly value: string;
   readonly label: string;
   readonly href?: string;
+}
+
+/** Parte de un record de `ElementoSynHost` (C#: FilaDelListado). */
+export interface FilaDelListado {
+  readonly id: string;
+  readonly title: string;
+  readonly href?: string;
+  readonly image?: string;
+  readonly imageAlt?: string;
+  readonly badge?: string;
+  readonly specs?: readonly DatoDeLaFila[];
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: LightboxGalleryImage). */
@@ -348,6 +367,12 @@ export interface CountdownDigitalProps {
   readonly style?: string;
 }
 
+/** <synergos-data-grid> · pieza · diccionario: DataGrid */
+export interface DataGridProps {
+  /** contenido */
+  readonly rows?: readonly FilaDelListado[];
+}
+
 /** <synergos-dropdown> · pieza · diccionario: Dropdown, Common.States */
 export interface DropdownProps {
   /** contenido */
@@ -552,6 +577,14 @@ export interface ScrollTopProps {
   readonly position?: string;
   /** contenido */
   readonly label?: string;
+}
+
+/** <synergos-search-box> · pieza */
+export interface SearchBoxProps {
+  /** contenido */
+  readonly placeholder?: string;
+  /** decision */
+  readonly submitToPage?: boolean;
 }
 
 /** <synergos-select-multi> · pieza · diccionario: SelectMulti, Common.States */
@@ -1137,6 +1170,62 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   },
 };
 
+export const DATA_GRID_SYNHOST: ElementoSynHost<DataGridProps> = {
+  nombre: "data-grid",
+  tipo: "pieza",
+  record: "DataGridProps",
+  diccionario: ["DataGrid"],
+  claves: ["DataGrid.Aria","DataGrid.Count.One","DataGrid.Count.Other","DataGrid.Cta","DataGrid.Date","DataGrid.Detail","DataGrid.Duration","DataGrid.Empty","DataGrid.Free","DataGrid.Level","DataGrid.Loading","DataGrid.Location","DataGrid.NoResults","DataGrid.Place","DataGrid.Price","DataGrid.PriceFrom"],
+  campos: ["rows"],
+  listas: {"rows":["id","title","href","image","imageAlt","badge","specs"]},
+  selectores: [
+    {
+      "propiedad": "fuente",
+      "dataType": "DTSelectFuenteDeListado",
+      "multiple": false,
+      "campo": null,
+      "valores": [
+        {
+          "editor": "fichas",
+          "viaja": null
+        },
+        {
+          "editor": "cursos",
+          "viaja": null
+        },
+        {
+          "editor": "eventos",
+          "viaja": null
+        },
+        {
+          "editor": "inmuebles",
+          "viaja": null
+        }
+      ],
+      "deDatos": true
+    }
+  ],
+  ejemplo: {
+    "culture": "es-CO",
+    "rows": [
+      {
+        "id": "ficha-1",
+        "title": "Asesoría express",
+        "href": "/booking/servicios/asesoria-express/",
+        "image": "/media/asesoria.jpg",
+        "imageAlt": "Asesoría express",
+        "badge": "Consultoría",
+        "specs": [
+          {
+            "label": "Precio",
+            "value": "$ 180.000"
+          }
+        ]
+      }
+    ]
+  },
+};
+
 export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
   nombre: "dropdown",
   tipo: "pieza",
@@ -1673,6 +1762,22 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
   },
 };
 
+export const SEARCH_BOX_SYNHOST: ElementoSynHost<SearchBoxProps> = {
+  nombre: "search-box",
+  tipo: "pieza",
+  record: "SearchBoxProps",
+  diccionario: [],
+  claves: [],
+  campos: ["placeholder","submitToPage"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "placeholder": "Buscar cursos por tema o nivel…",
+    "submitToPage": true
+  },
+};
+
 export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   nombre: "select-multi",
   tipo: "pieza",
@@ -2030,6 +2135,7 @@ export const ELEMENTOS_SYNHOST = [
   COOKIE_CONSENT_SYNHOST,
   COUNTDOWN_CLOCK_SYNHOST,
   COUNTDOWN_DIGITAL_SYNHOST,
+  DATA_GRID_SYNHOST,
   DROPDOWN_SYNHOST,
   EHR_SYNHOST,
   EVENTOS_SYNHOST,
@@ -2048,6 +2154,7 @@ export const ELEMENTOS_SYNHOST = [
   REALTY_SYNHOST,
   RICH_TOOLTIP_SYNHOST,
   SCROLL_TOP_SYNHOST,
+  SEARCH_BOX_SYNHOST,
   SELECT_MULTI_SYNHOST,
   SELLER_SYNHOST,
   SHARE_BAR_SYNHOST,

@@ -1,4 +1,4 @@
-<section class="data-grid" [attr.aria-label]="title() || 'Listado de propiedades'">
+<section class="data-grid" [attr.aria-label]="title() || ariaLabel">
   @if (hasTitle()) {
     <header class="data-grid__header">
       <syn-heading [text]="title()" level="h2" size="lg" class="data-grid__heading" />
@@ -14,7 +14,7 @@
       <aside class="data-grid__aside">
         <syn-filter-panel
           title="Filtros"
-          [ariaLabel]="'Filtrar ' + (title() || 'propiedades')"
+          [ariaLabel]="title() || ariaLabel"
           commitMode="immediate"
           [sections]="filterSections()"
           [sortOptions]="panelSortOptions()"
@@ -52,7 +52,7 @@
             </li>
           }
         </ul>
-        <p class="data-grid__sr" role="status">Cargando propiedades…</p>
+        <p class="data-grid__sr" role="status">{{ loadingLabel }}</p>
       } @else if (visibleCards().length > 0) {
         <ul class="data-grid__list" role="list">
           @for (card of visibleCards(); track card.id) {

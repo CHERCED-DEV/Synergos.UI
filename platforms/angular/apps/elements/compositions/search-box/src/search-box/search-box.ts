@@ -1,4 +1,5 @@
 import {
+  type OnInit,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -11,12 +12,14 @@ import {
 import { InitialDataService } from '@synergos/core';
 import {
   IconComponent,
+  coerceOptionalBooleanInput,
   coerceOptionalNumberInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { SearchBoxProps } from '@synergos/contracts';
 
 /**
  * Runtime config for the CMS element <c>elementSynSearchBox</c>.
@@ -69,15 +72,40 @@ export function normalizeSuggestions(value: unknown): readonly SearchSuggestion[
   return suggestions.length > 0 ? suggestions : undefined;
 }
 
-function sanitizeSearchBoxConfig(value: Partial<SearchBoxRuntimeConfig>): SearchBoxRuntimeConfig {
-  return omitUndefinedProperties<SearchBoxRuntimeConfig>({
+/**
+ * El `config` que manda el CMS tiene la forma de `SearchBoxProps`, GENERADO del record C#
+ * (ADR 0135): el texto de ayuda del editor y si buscar recarga la página con `?q` para el listado
+ * de al lado, que lo lee en el servidor (CMS#196, tanda D). Antes la vista mandaba
+ * `searchPlaceholder`, `searchEndpoint` y `searchParamName`, que este elemento no leía: salía sin
+ * texto y lo buscado no le llegaba a nadie. Las sugerencias, el retardo y demás quedan para el tag
+ * crudo, por atributos.
+ */
+export type SearchBoxConfig = Partial<SearchBoxProps>;
+
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeSearchBoxConfig(value: SearchBoxConfig): SearchBoxConfig {
+  return omitUndefinedProperties<SearchBoxProps>({
     placeholder: coerceTrimmedStringInput(value.placeholder),
-    label: coerceTrimmedStringInput(value.label),
-    initialQuery: coerceTrimmedStringInput(value.initialQuery),
-    debounceMs: coerceOptionalNumberInput(value.debounceMs),
-    minChars: coerceOptionalNumberInput(value.minChars),
-    suggestions: normalizeSuggestions(value.suggestions) as SearchBoxRuntimeConfig['suggestions'],
+    submitToPage: coerceOptionalBooleanInput(value.submitToPage),
   });
+}
+
+/**
+ * Cómo se recarga la página con la búsqueda. Un objeto y no la llamada directa: la `location` de
+ * jsdom no se deja reemplazar, y el spec necesita ver ADÓNDE se navega.
+ */
+export const navegacion = {
+  ir(url: string): void {
+    location.assign(url);
+  },
+};
+
+/** El `?q` de la página. */
+function consultaDeLaPagina(): string {
+  return typeof location === 'undefined' ? '' : (new URLSearchParams(location.search).get('q') ?? '').trim();
 }
 
 let searchBoxInstanceId = 0;
@@ -91,12 +119,12 @@ let searchBoxInstanceId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'sg-search-box' },
 })
-export class SearchBoxElementComponent {
+export class SearchBoxElementComponent implements OnInit {
   readonly #initialData = inject(InitialDataService);
   readonly #destroyRef = inject(DestroyRef);
 
-  readonly config = input<SearchBoxRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<SearchBoxRuntimeConfig>(sanitizeSearchBoxConfig),
+  readonly config = input<SearchBoxConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<SearchBoxProps>(sanitizeSearchBoxConfig),
   });
   readonly placeholderInput = input<string | undefined>(undefined, { alias: 'placeholder' });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
@@ -127,13 +155,15 @@ export class SearchBoxElementComponent {
   readonly placeholder = computed(() =>
     resolveConfigValue(this.placeholderInput(), this.config()?.placeholder, 'Buscar…'),
   );
-  readonly label = computed(() => resolveConfigValue(this.labelInput(), this.config()?.label, ''));
+  readonly label = computed(() => this.labelInput() ?? '');
+  /** Buscar recarga la página con `?q` (lo decide el editor). */
+  readonly submitToPage = computed(() => this.config()?.submitToPage ?? false);
   readonly debounceMs = computed(() => {
-    const resolved = resolveConfigValue(this.debounceMsInput(), this.config()?.debounceMs, 250);
+    const resolved = resolveConfigValue(this.debounceMsInput(), undefined, 250);
     return resolved >= 0 ? resolved : 250;
   });
   readonly minChars = computed(() => {
-    const resolved = resolveConfigValue(this.minCharsInput(), this.config()?.minChars, 0);
+    const resolved = resolveConfigValue(this.minCharsInput(), undefined, 0);
     return resolved >= 0 ? resolved : 0;
   });
 
@@ -143,7 +173,7 @@ export class SearchBoxElementComponent {
       return normalizeSuggestions(parsed) ?? [];
     }
 
-    return normalizeSuggestions(this.config()?.suggestions) ?? [];
+    return [];
   });
 
   readonly query = signal('');
@@ -272,7 +302,11 @@ export class SearchBoxElementComponent {
       return;
     }
 
-    const initial = resolveConfigValue(this.initialQueryInput(), this.config()?.initialQuery, '');
+    const initial = resolveConfigValue(
+      this.initialQueryInput(),
+      this.submitToPage() ? consultaDeLaPagina() : undefined,
+      '',
+    );
     if (initial) {
       this.query.set(initial);
     }
@@ -280,11 +314,34 @@ export class SearchBoxElementComponent {
     this.#initialQuerySeeded = true;
   }
 
+  /**
+   * Fija la búsqueda. Si el editor lo pidió, recarga la página con `?q` —sin él, si se vació— y
+   * el listado de la página la lee en el servidor.
+   */
   private commit(value: string): void {
     this.clearDebounce();
     const trimmed = value.trim();
     this.querychange.emit(trimmed);
     this.submitted.emit(trimmed);
+    if (this.submitToPage() && typeof location !== 'undefined') {
+      const url = new URL(location.href);
+      if (trimmed) {
+        url.searchParams.set('q', trimmed);
+      } else {
+        url.searchParams.delete('q');
+      }
+      navegacion.ir(url.toString());
+    }
+  }
+
+  /**
+   * Con `submitToPage`, la caja arranca con lo que se buscó. En `ngOnInit` y no en el constructor:
+   * en un custom element el `config` llega después de crear el componente (CMS#194).
+   */
+  ngOnInit(): void {
+    if (this.submitToPage()) {
+      this.seedInitialQuery();
+    }
   }
 
   private scheduleSearch(value: string): void {

@@ -219,6 +219,10 @@ function revisarSelectores(quien, selectores, campos) {
     vistos.add(s?.propiedad);
     if (typeof s?.dataType !== 'string' || s.dataType.length === 0) errores.push(`${cual}: sin \`dataType\``);
     if (typeof s?.multiple !== 'boolean') errores.push(`${cual}: sin \`multiple\``);
+    // Un selector que elige DATOS (la fuente de un listado, CMS#196) no es vocabulario: si lo dice,
+    // lo dice con `true` y sin campo donde caer.
+    if (s?.deDatos !== undefined && s.deDatos !== true) errores.push(`${cual}: \`deDatos\` sólo puede ser true`);
+    if (s?.deDatos === true && s?.campo !== null) errores.push(`${cual}: un selector de datos no cae en ningún \`campo\``);
 
     const campo = s?.campo;
     if (campo !== null && (typeof campo !== 'string' || !RUTA_DE_CAMPO.test(campo))) {
@@ -326,6 +330,8 @@ export function generarTs(contrato) {
       '  readonly multiple: boolean;',
       '  readonly campo: string | null;',
       '  readonly valores: readonly ValorDeSelectorSynHost[];',
+      '  /** Elige DATOS (la fuente de un listado), no vocabulario: el gate no lo cruza (CMS#196). */',
+      '  readonly deDatos?: true;',
       '}',
     ].join('\n'),
     [
