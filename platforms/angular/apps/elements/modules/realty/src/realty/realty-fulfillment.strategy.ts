@@ -63,7 +63,7 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 1 — search the listings catalogue. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<RealtySearchCriteria>;
-    const apiBase = criteria.apiBase ?? '/api/realty';
+    const apiBase = criteria.apiBase ?? '';
     const searchCriteria: SearchCriteria = criteria.criteria ?? {
       q: '',
       operation: 'sale',
@@ -74,7 +74,7 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
       location: '',
       sort: 'relevance',
     };
-    const result = await this.#api.listings(apiBase, searchCriteria, query.currency ?? 'COP');
+    const result = await this.#api.listings(apiBase, searchCriteria, query.currency ?? '');
     return result.listings.map((listing) => this.toProduct(listing));
   }
 
@@ -97,7 +97,7 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
       productRef: payload.listingId,
       label: `Visita · ${payload.listingTitle}`,
       selection: {
-        apiBase: readString(raw['apiBase']) || '/api/realty',
+        apiBase: readString(raw['apiBase']),
         listingId: payload.listingId,
         listingTitle: payload.listingTitle,
         slotDate: payload.slot.date,
@@ -132,7 +132,7 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
       return { confirmed: false, vouchers: [] };
     }
     const selection = line.selection as Record<string, unknown>;
-    const apiBase = readString(selection['apiBase']) || '/api/realty';
+    const apiBase = readString(selection['apiBase']);
     const listingId = readString(selection['listingId']);
     const listingTitle = readString(selection['listingTitle']);
     const slot: VisitSlot = {

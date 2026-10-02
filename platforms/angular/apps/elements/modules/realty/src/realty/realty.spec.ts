@@ -8,6 +8,13 @@ import { RealtyFulfillmentStrategy } from './realty-fulfillment.strategy';
 import { RealtyElementComponent } from './realty';
 import { calculateMortgage } from './mortgage.calc';
 import { asentar } from '../../../../../../tools/asentar';
+import { REALTY_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = {
+  apiBase: REALTY_SYNHOST.ejemplo.apiBase,
+  defaultRatePercent: REALTY_SYNHOST.ejemplo.defaultRatePercent,
+};
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -38,7 +45,11 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<RealtyElementComponent>;
   let component: RealtyElementComponent;
 
-  async function createComponent(): Promise<void> {
+  /**
+   * Monta el elemento como lo monta el CMS: el `config` llega DESPUÉS del constructor y ANTES del
+   * primer ciclo. Por defecto, la configuración de negocio con los valores base del sitio.
+   */
+  async function createComponent(config: Record<string, unknown> = NEGOCIO_DEL_CMS): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [RealtyElementComponent],
       providers: [
@@ -50,8 +61,9 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
 
     fixture = TestBed.createComponent(RealtyElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
-    // Initial search runs in the constructor; let it settle.
+    // Initial search runs in ngOnInit; let it settle.
     await flushMicrotasks();
   }
 
@@ -866,6 +878,38 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.compare.count()).toBe(3);
     expect(component.compareMessage()).toBe('');
   });
+
+  // ── ADR 0137 (CMS#196): la tasa del simulador llega del sitio, no del bundle ────────────
+  //
+  // Era `DEFAULT_RATE = 12` compilado; ahora la manda el CMS desde `Synergos:Features:Realty`.
+
+  it('el simulador arranca con la tasa del sitio: el config llega después del constructor', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+
+    await createComponent({ ...NEGOCIO_DEL_CMS, defaultRatePercent: 10.5 });
+
+    expect(component.mortgageRate()).toBe(10.5);
+  });
+
+  it('sin tasa configurada no inventa una cuota: el simulador espera a que la escriban', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+
+    await createComponent({ apiBase: NEGOCIO_DEL_CMS.apiBase });
+
+    expect(component.mortgageRate()).toBeNull();
+    component.setMortgageRate(11);
+    expect(component.mortgageRate()).toBe(11);
+  });
+
+  it('sin la base de la API no llama a nada y degrada a la muestra', async () => {
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+
+    await createComponent({});
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.listings().length).toBeGreaterThan(0);
+  });
 });
 
 describe('RealtyApiClient', () => {
@@ -1137,6 +1181,7 @@ describe('RealtyElementComponent · mis visitas (#73)', () => {
 
     fixture = TestBed.createComponent(RealtyElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
     fixture.detectChanges();
     await flushMicrotasks();
   }

@@ -143,7 +143,7 @@ export class RealtyApiClient {
     const query = this.toSearchQuery(criteria);
     const url = `${apiBase}/listings${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeSearch(data, currency);
       if (result && (result.listings.length > 0 || isRecord(data))) {
         return result;
@@ -160,7 +160,7 @@ export class RealtyApiClient {
   async listing(apiBase: string, id: string, currency: string): Promise<ListingDetail> {
     const url = `${apiBase}/listing/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(data, currency);
       if (detail) {
         return detail;
@@ -181,7 +181,7 @@ export class RealtyApiClient {
   ): Promise<Visit> {
     const url = `${apiBase}/visit`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const visit = normalizeVisit(pluck(data, 'visit') ?? data, body, listingTitle);
       if (visit) {
         return visit;
@@ -222,7 +222,7 @@ export class RealtyApiClient {
    */
   async myVisits(apiBase: string): Promise<readonly BookedVisit[]> {
     const url = `${apiBase}/visits`;
-    const data = await this.getJson(url);
+    const data = await this.getJson(apiBase, url);
     const raw = pluck(data, 'visits');
     if (!Array.isArray(raw)) {
       // Una forma que no se reconoce es un fallo, no una bandeja vacía: `[]` diría «no tienes
@@ -239,7 +239,7 @@ export class RealtyApiClient {
   async submitLead(apiBase: string, body: LeadRequest, listingTitle: string): Promise<LeadResult> {
     const url = `${apiBase}/lead`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const lead = normalizeLead(pluck(data, 'lead') ?? data, body);
       if (lead) {
         this.seedAgentLead(lead.leadId, body, listingTitle);
@@ -300,7 +300,7 @@ export class RealtyApiClient {
     // Always have a deterministic client result ready as the canonical fallback.
     const clientResult = calculateMortgage(body);
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const result = normalizeMortgage(pluck(data, 'mortgage') ?? data, clientResult);
       if (result) {
         return result;
@@ -339,7 +339,7 @@ export class RealtyApiClient {
   async savedSearches(apiBase: string): Promise<SavedResult> {
     const url = `${apiBase}/saved`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeSaved(data);
       if (result) {
         this.#savedSearches = result.searches;
@@ -359,7 +359,7 @@ export class RealtyApiClient {
   async saveSearch(apiBase: string, body: SavedSearchRequest): Promise<SavedSearch> {
     const url = `${apiBase}/saved-search`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const saved = normalizeSavedSearch(pluck(data, 'search') ?? data, body);
       if (saved) {
         this.#savedSearches = [saved, ...this.#savedSearches];
@@ -396,7 +396,7 @@ export class RealtyApiClient {
    * @throws {Error} si el backend falla por cualquier otro motivo.
    */
   async addFavorite(apiBase: string, listingId: string): Promise<readonly string[] | undefined> {
-    return this.writeFavorite(`${apiBase}/favorite`, 'POST', listingId);
+    return this.writeFavorite(apiBase, `${apiBase}/favorite`, 'POST', listingId);
   }
 
   /**
@@ -404,7 +404,7 @@ export class RealtyApiClient {
    * @throws {Error} si el backend falla por cualquier otro motivo.
    */
   async removeFavorite(apiBase: string, listingId: string): Promise<readonly string[] | undefined> {
-    return this.writeFavorite(`${apiBase}/favorite`, 'DELETE', listingId);
+    return this.writeFavorite(apiBase, `${apiBase}/favorite`, 'DELETE', listingId);
   }
 
   /**
@@ -421,6 +421,7 @@ export class RealtyApiClient {
    * `undefined` (no `[]`) cuando no viene: ausencia no es negación.
    */
   private async writeFavorite(
+    apiBase: string,
     url: string,
     method: string,
     listingId: string,
@@ -428,7 +429,7 @@ export class RealtyApiClient {
     try {
       // Sin `user` en el cuerpo: la identidad la pone la cookie y el backend IGNORA
       // el `User` del DTO — ponerlo aquí solo reviviría el IDOR ya cerrado.
-      const data = await this.request(url, {
+      const data = await this.request(apiBase, url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingId }),
@@ -473,7 +474,7 @@ export class RealtyApiClient {
   async agentDesk(apiBase: string): Promise<AgentDeskResult> {
     const url = `${apiBase}/agent/leads`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeAgentDesk(data);
       if (result) {
         return this.mergeAgentDesk(result);
@@ -508,7 +509,7 @@ export class RealtyApiClient {
   ): Promise<PublishListingResult> {
     const url = `${apiBase}/listing`;
     try {
-      const data = await this.postJson(url, body);
+      const data = await this.postJson(apiBase, url, body);
       const result = normalizePublish(data);
       if (result) {
         this.seedPublished(result.id, body, currency);
@@ -544,21 +545,29 @@ export class RealtyApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
+    }
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
     }
     return fetch(url, {
       ...init,

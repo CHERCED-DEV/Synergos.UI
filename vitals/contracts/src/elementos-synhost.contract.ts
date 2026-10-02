@@ -446,6 +446,18 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
+/** <synergos-realty> · funcionalidad */
+export interface RealtyProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** negocio */
+  readonly apiBase: string;
+  /** negocio */
+  readonly defaultRatePercent: number;
+}
+
 /** <synergos-rich-tooltip> · pieza · diccionario: Common.Actions */
 export interface RichTooltipProps {
   /** contenido */
@@ -1311,6 +1323,24 @@ export const RATING_STARS_SYNHOST: ElementoSynHost<RatingStarsProps> = {
   },
 };
 
+export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
+  nombre: "realty",
+  tipo: "funcionalidad",
+  record: "RealtyProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","apiBase","defaultRatePercent"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Encuentra el lugar que estás buscando",
+    "subheading": "Compra y arriendo, en lista y en mapa",
+    "apiBase": "/api/realty",
+    "defaultRatePercent": 12
+  },
+};
+
 export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
   nombre: "rich-tooltip",
   tipo: "pieza",
@@ -1735,6 +1765,7 @@ export const ELEMENTOS_SYNHOST = [
   PROGRESS_BAR_SYNHOST,
   RANGE_SLIDER_SYNHOST,
   RATING_STARS_SYNHOST,
+  REALTY_SYNHOST,
   RICH_TOOLTIP_SYNHOST,
   SCROLL_TOP_SYNHOST,
   SELECT_MULTI_SYNHOST,

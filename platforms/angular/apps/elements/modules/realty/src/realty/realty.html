@@ -218,10 +218,12 @@
             @if (pdp.listing.operation === 'sale') {
               <div class="realty__cta-mortgage">
                 <p class="realty__cta-mortgage-label">Cuota mensual estimada</p>
-                <p class="realty__cta-mortgage-value">{{ formatPrice(mortgageResult().monthly, currency()) }}</p>
-                <p class="realty__cta-mortgage-hint">
-                  Cuota inicial {{ downPaymentPct() }}% · {{ mortgageTermMonths() / 12 }} años · {{ mortgageRate() }}% E.A.
-                </p>
+                @if (mortgageRate() !== null) {
+                  <p class="realty__cta-mortgage-value">{{ formatPrice(mortgageResult().monthly, currency()) }}</p>
+                  <p class="realty__cta-mortgage-hint">
+                    Cuota inicial {{ downPaymentPct() }}% · {{ mortgageTermMonths() / 12 }} años · {{ mortgageRate() }}% E.A.
+                  </p>
+                }
                 <button type="button" class="realty__link-btn" (click)="goToMortgage()">Abrir calculadora →</button>
               </div>
             }
@@ -347,9 +349,10 @@
             </label>
             <label class="realty__field">
               <span>Tasa E.A. (%)</span>
-              <input type="text" [value]="mortgageRate()" (input)="bindNumber(setMortgageRate.bind(this))($event)" />
+              <input type="text" [value]="mortgageRate() ?? ''" (input)="bindNumber(setMortgageRate.bind(this))($event)" />
             </label>
           </div>
+          @if (mortgageRate() !== null) {
           <div class="realty__mortgage-result">
             <p class="realty__mortgage-monthly-label">Cuota mensual</p>
             <p class="realty__mortgage-monthly">{{ formatPrice(mortgageResult().monthly, currency()) }}</p>
@@ -359,6 +362,7 @@
               <div><dt>Total pagado</dt><dd>{{ formatPrice(mortgageResult().totalPaid, currency()) }}</dd></div>
             </dl>
           </div>
+          }
         </div>
       </div>
     }

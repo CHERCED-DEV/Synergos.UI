@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  type OnInit,
   computed,
   effect,
   inject,
@@ -63,6 +64,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import type { RealtyProps } from '@synergos/contracts';
 import { RealtyApiClient, isRealtyForbidden, isRealtyUnauthorized } from './realty-api.client';
 import { calculateMortgage } from './mortgage.calc';
 import {
@@ -115,31 +117,15 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *    leads mini-CRM, agenda, analítica) + SH-6 `syn-authoring-wizard` (publicar
  *    inmueble: datos→fotos→precio→ubicación/pin→publicar).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`currency`/`config` JSON) and the data always comes from the API with
- * visible mock degradation. The shells stay domain-free (contrato D3) — the module
- * only feeds data, templates and its `RealtyFulfillmentStrategy` (pago apagado).
+ * El `config` que manda el CMS tiene la forma de `RealtyProps`, GENERADO del record C# (ADR
+ * 0135): lo que escribe el editor —título y subtítulo— y la configuración de NEGOCIO del sitio
+ * —dónde vive la API y la tasa con que arranca el simulador—, que sale de
+ * `Synergos:Features:Realty` y el editor no ve (ADR 0137, CMS#196). La moneda no es
+ * configuración: llega con el precio de cada inmueble. La cara, la operación y el diseño de
+ * resultados quedan como atributos del tag crudo con su valor del componente. Los datos vienen
+ * siempre de la API, con degradación visible. Los shells quedan sin dominio (contrato D3).
  */
-export interface RealtyRuntimeConfig {
-  /** Base URL of the realty API. Default `/api/realty`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-  /** Storage scope for the session (typically the siteRoot). Default `realty`. */
-  readonly scope?: string;
-  /** Initial cara. Default `demand`. */
-  readonly role?: RealtyRole;
-  /** Initial operation: `sale` (venta) or `rent` (arriendo). Default `sale`. */
-  readonly operation?: Operation;
-  /** Initial results layout: `split` · `list` · `map`. Default `split`. */
-  readonly layout?: ResultsLayout;
-  /** Default annual mortgage rate (E.A. %) seeded in the calculator. Default `12`. */
-  readonly defaultRate?: number;
-  /** Hero heading. Default `Encuentra tu próximo hogar en Colombia`. */
-  readonly heading?: string;
-  /** Hero subheading below the title. Default `Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita`. */
-  readonly subheading?: string;
-}
+export type RealtyConfig = Partial<RealtyProps>;
 
 /** Typed event map for the transaction bus (realty ↔ visit ↔ lead ↔ IA). */
 interface RealtyBus extends Record<string, unknown> {
@@ -147,13 +133,11 @@ interface RealtyBus extends Record<string, unknown> {
   readonly leadsubmitted: { readonly leadId: string; readonly listingId: string };
 }
 
-const DEFAULT_API_BASE = '/api/realty';
-const DEFAULT_CURRENCY = 'COP';
+/** El prefijo de las rutas por hash: es de runtime, no de negocio. */
 const DEFAULT_SCOPE = 'realty';
 const DEFAULT_ROLE: RealtyRole = 'demand';
 const DEFAULT_OPERATION: Operation = 'sale';
 const DEFAULT_LAYOUT: ResultsLayout = 'split';
-const DEFAULT_RATE = 12;
 const DEFAULT_HEADING = 'Encuentra tu próximo hogar en Colombia';
 const DEFAULT_SUBHEADING = 'Compra y arriendo · lista y mapa · calculadora de hipoteca · agenda tu visita';
 const MAX_SCHEDULE_ROWS = 12;
@@ -200,17 +184,16 @@ const TYPE_LABELS: Readonly<Record<PropertyType, string>> = {
   lote: 'Lote',
 };
 
-function sanitizeConfig(value: Partial<RealtyRuntimeConfig>): RealtyRuntimeConfig {
-  return omitUndefinedProperties<RealtyRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    scope: coerceTrimmedStringInput(value.scope),
-    role: coerceRole(value.role),
-    operation: coerceOperation(value.operation),
-    layout: coerceLayout(value.layout),
-    defaultRate: coerceRate(value.defaultRate),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeRealtyConfig(value: RealtyConfig): RealtyConfig {
+  return omitUndefinedProperties<RealtyProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
+    defaultRatePercent: coerceRate(value.defaultRatePercent),
   });
 }
 
@@ -265,7 +248,7 @@ let realtyInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-realty' },
 })
-export class RealtyElementComponent {
+export class RealtyElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -274,44 +257,51 @@ export class RealtyElementComponent {
   readonly #api = inject(RealtyApiClient);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<RealtyRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<RealtyRuntimeConfig>(sanitizeConfig),
+  readonly config = input<RealtyConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<RealtyProps>(sanitizeRealtyConfig),
   });
+  // Los atributos sueltos son la API del tag crudo. La tasa NO tiene atributo: una regla de negocio
+  // escrita en una plantilla no la cambia el sitio.
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly operationInput = input<string | undefined>(undefined, { alias: 'operation' });
   readonly layoutInput = input<string | undefined>(undefined, { alias: 'layout' });
-  readonly defaultRateInput = input<string | number | undefined>(undefined, { alias: 'defaultRate' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
+    ),
   );
-  readonly currency = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.currencyInput()), this.config()?.currency, DEFAULT_CURRENCY),
-  );
+  /**
+   * La moneda de lo que se muestra: la del inmueble abierto o la de la cartelera. No es
+   * configuración: viaja con el precio. Sin datos todavía, vacía (`formatPrice` pinta el número).
+   */
+  readonly currency = computed(() => this.detail()?.listing.currency || this.listings()[0]?.currency || '');
   readonly scope = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), this.config()?.scope, DEFAULT_SCOPE),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly initialRole = computed<RealtyRole>(() =>
-    resolveConfigValue(coerceRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+    resolveConfigValue(coerceRole(this.roleInput()), undefined, DEFAULT_ROLE),
   );
   readonly initialOperation = computed<Operation>(() =>
-    resolveConfigValue(coerceOperation(this.operationInput()), this.config()?.operation, DEFAULT_OPERATION),
+    resolveConfigValue(coerceOperation(this.operationInput()), undefined, DEFAULT_OPERATION),
   );
   readonly initialLayout = computed<ResultsLayout>(() =>
-    resolveConfigValue(coerceLayout(this.layoutInput()), this.config()?.layout, DEFAULT_LAYOUT),
+    resolveConfigValue(coerceLayout(this.layoutInput()), undefined, DEFAULT_LAYOUT),
   );
-  readonly initialRate = computed(() =>
-    resolveConfigValue(coerceRate(this.defaultRateInput()), this.config()?.defaultRate, DEFAULT_RATE),
-  );
+  /**
+   * La tasa con que arranca el simulador: la del sitio (ADR 0137). Sin ella no se inventa una
+   * —una tasa 0 sería un crédito sin intereses—: el simulador espera a que la escriban.
+   */
+  readonly initialRate = computed(() => this.config()?.defaultRatePercent ?? null);
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -481,7 +471,7 @@ export class RealtyElementComponent {
   readonly mortgagePrice = signal(0);
   readonly mortgageDown = signal(0);
   readonly mortgageTermMonths = signal(240);
-  readonly mortgageRate = signal(DEFAULT_RATE);
+  readonly mortgageRate = signal<number | null>(null);
   readonly mortgageServerResult = signal<MortgageResult | null>(null);
 
   // Visit wizard (SH-3 over engine — pago OFF)
@@ -630,7 +620,7 @@ export class RealtyElementComponent {
         price: this.mortgagePrice(),
         downPayment: this.mortgageDown(),
         termMonths: this.mortgageTermMonths(),
-        annualRatePercent: this.mortgageRate(),
+        annualRatePercent: this.mortgageRate() ?? 0,
       },
       MAX_SCHEDULE_ROWS,
     );
@@ -889,17 +879,11 @@ export class RealtyElementComponent {
   });
 
   constructor() {
-    this.role.set(this.initialRole());
-    this.operation.set(this.initialOperation());
-    this.layout.set(this.initialLayout());
-    this.mortgageRate.set(this.initialRate());
-
     // Bind the unified session (visit hold) to this origin and rehydrate.
     this.#store.init({
       scope: `realty.${this.instanceId}`,
       flow: REALTY_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
     this.#bus.scope(`realty-${this.instanceId}`);
 
@@ -936,7 +920,20 @@ export class RealtyElementComponent {
       // enfocable por código sin meterlo en el orden de tabulación.
       panel.nativeElement.focus();
     });
+  }
 
+  /**
+   * Abre la cara, la operación, el diseño y la tasa que rigen y carga contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos
+   * (el mismo defecto que el piloto de la ADR 0137 encontró en `eventos`, CMS#194).
+   */
+  ngOnInit(): void {
+    this.role.set(this.initialRole());
+    this.operation.set(this.initialOperation());
+    this.layout.set(this.initialLayout());
+    this.mortgageRate.set(this.initialRate());
     if (this.role() === 'agent') {
       void this.loadDesk().then(() => this.applyHash());
     } else {
@@ -2237,7 +2234,11 @@ export class RealtyElementComponent {
     return this.desk()?.agenda ?? [];
   }
 
+  /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   formatPrice(amount: number, currency: string): string {
+    if (!currency) {
+      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
     } catch {
