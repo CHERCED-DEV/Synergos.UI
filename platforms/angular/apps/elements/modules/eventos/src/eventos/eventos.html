@@ -787,8 +787,10 @@
               @if (manage(); as data) {
                 <dl class="eventos__cart-summary">
                   <div class="eventos__cart-row"><dt>Ingresos brutos</dt><dd>{{ formatPrice(data.revenue, currency()) }}</dd></div>
-                  <div class="eventos__cart-row"><dt>Comisión plataforma (10%)</dt><dd>− {{ formatPrice(data.revenue * 0.1, currency()) }}</dd></div>
-                  <div class="eventos__cart-row eventos__cart-row--total"><dt>Neto a liquidar</dt><dd>{{ formatPrice(data.revenue * 0.9, currency()) }}</dd></div>
+                  @if (payout(); as liquidacion) {
+                    <div class="eventos__cart-row"><dt>Comisión plataforma ({{ liquidacion.porcentaje }})</dt><dd>− {{ formatPrice(liquidacion.comision, currency()) }}</dd></div>
+                    <div class="eventos__cart-row eventos__cart-row--total"><dt>Neto a liquidar</dt><dd>{{ formatPrice(liquidacion.neto, currency()) }}</dd></div>
+                  }
                 </dl>
                 <p class="eventos__notice">Liquidación programada tras el evento. Demostración: sin transferencia real.</p>
               }

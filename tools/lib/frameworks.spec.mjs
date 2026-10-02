@@ -298,6 +298,11 @@ const CIEGAS_AL_FRAMEWORK = [
   'vectores-hipoteca.mjs',
   // Comparación pura: recibe los vectores y una calculadora. No sabe qué es un disco.
   'lib/vectores-hipoteca.mjs',
+  // G-12 (CMS#194): la misma forma que G-9 — recorre las apps de `PLATAFORMAS` buscando
+  // `eventos-comision.ts`, así que otra plataforma que muestre la comisión se cruza igual.
+  'vectores-comision.mjs',
+  // Comparación pura: recibe los vectores y la regla. No sabe qué es un disco.
+  'lib/vectores-comision.mjs',
   // Toma la carpeta de apps de `PLATAFORMAS` (#76), así que un cliente HTTP de otra
   // plataforma se cruza igual.
   'clientes-sin-llamador.mjs',

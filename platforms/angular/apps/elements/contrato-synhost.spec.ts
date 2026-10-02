@@ -41,6 +41,7 @@ import { sanitizeChartBarConfig } from './modules/chart-bar/src/chart-bar/chart-
 import { sanitizeMapPinConfig } from './modules/map-pin/src/map-pin/map-pin';
 import { sanitizeColorPickerConfig } from './compositions/color-picker/src/color-picker/color-picker';
 import { sanitizeAppLauncherConfig } from './modules/app-launcher/src/app-launcher/app-launcher';
+import { sanitizeEventosConfig } from './modules/eventos/src/eventos/eventos';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -100,6 +101,7 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   'map-pin': sanitizeMapPinConfig,
   'color-picker': sanitizeColorPickerConfig,
   'app-launcher': sanitizeAppLauncherConfig,
+  eventos: sanitizeEventosConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(

@@ -56,6 +56,7 @@
     "gate:literales": "node tools/literales-visibles.mjs",
     "gate:literales:baseline": "node tools/literales-visibles.mjs --actualizar",
     "gate:hipoteca": "node tools/vectores-hipoteca.mjs",
+    "gate:comision": "node tools/vectores-comision.mjs",
     "gate:rutas": "node tools/rutas-del-borde.mjs",
     "contratos:synhost": "node tools/contrato-synhost.mjs",
     "contratos:synhost:check": "node tools/contrato-synhost.mjs --check",

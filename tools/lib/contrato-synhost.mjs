@@ -45,7 +45,7 @@ export const RUTA_EN_CMS = ['Synergos.CMS.Web', 'docs', 'contracts', 'elementos-
 export const RUTA_GENERADA = ['vitals', 'contracts', 'src', 'elementos-synhost.contract.ts'];
 
 const PRIMITIVOS = new Set(['string', 'number', 'boolean']);
-const ORIGENES = new Set(['contenido', 'decision']);
+const ORIGENES = new Set(['contenido', 'decision', 'negocio']);
 const TIPOS_DE_COLOCABLE = new Set(['pieza', 'funcionalidad']);
 const IDENTIFICADOR = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const NOMBRE_DE_REGISTRY = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -93,7 +93,7 @@ export function validarContrato(contrato) {
       if (!conocido(campo?.tipo)) errores.push(`${duenio}.${campo?.nombre}: tipo «${campo?.tipo}» sin traducción`);
       if (typeof campo?.opcional !== 'boolean') errores.push(`${duenio}.${campo?.nombre}: sin \`opcional\``);
       if (conOrigen && !ORIGENES.has(campo?.origen)) {
-        errores.push(`${duenio}.${campo?.nombre}: origen «${campo?.origen}» (tiene que ser contenido o decision)`);
+        errores.push(`${duenio}.${campo?.nombre}: origen «${campo?.origen}» (tiene que ser contenido, decision o negocio)`);
       }
     }
   };
@@ -109,6 +109,13 @@ export function validarContrato(contrato) {
     if (!Array.isArray(e?.diccionario)) errores.push(`${quien}: sin lista \`diccionario\``);
     errores.push(...revisarClaves(quien, e?.diccionario ?? [], e?.claves));
     revisarCampos(quien, e?.campos, true);
+    // ADR 0134 + 0137: la configuración de negocio sólo la recibe una funcionalidad. Una pieza
+    // con un campo de negocio repartiría la regla de la funcionalidad por la página.
+    if (e?.tipo !== 'funcionalidad') {
+      for (const campo of (Array.isArray(e?.campos) ? e.campos : []).filter((c) => c?.origen === 'negocio')) {
+        errores.push(`${quien}.${campo.nombre}: origen «negocio» en una pieza (sólo lo lleva una funcionalidad)`);
+      }
+    }
     errores.push(...revisarSelectores(quien, e?.selectores, e?.campos));
 
     const ejemplo = e?.ejemplo;

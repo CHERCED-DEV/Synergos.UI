@@ -79,12 +79,21 @@ describe('validarContrato', () => {
   it('rechaza un tipo sin traducción, un campo sin origen y un nombre que no es de registry (filter)', () => {
     const c = contrato();
     c.elementos[0].campos[1].tipo = 'Date';
-    c.elementos[0].campos[2].origen = 'negocio';
+    c.elementos[0].campos[2].origen = 'otro';
     c.elementos[0].nombre = 'Carousel';
     const errores = validarContrato(c).join('\n');
     expect(errores).toContain('«Date» sin traducción');
-    expect(errores).toContain('origen «negocio»');
+    expect(errores).toContain('origen «otro»');
     expect(errores).toContain('no es un nombre de registry');
+  });
+
+  // ADR 0137 (CMS#194): la configuración de negocio de una funcionalidad.
+  it('acepta un campo de negocio en una funcionalidad y lo rechaza en una pieza', () => {
+    const c = contrato();
+    c.elementos[0].campos[2].origen = 'negocio';
+    expect(validarContrato(c).join('\n')).toContain('interval: origen «negocio» en una pieza');
+    c.elementos[0].tipo = 'funcionalidad';
+    expect(validarContrato(c)).toEqual([]);
   });
 
   // CMS#181: lo que el editor elige en un selector, pasado por el resolver.

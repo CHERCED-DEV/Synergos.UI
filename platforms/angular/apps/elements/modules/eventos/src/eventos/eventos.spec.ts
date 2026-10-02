@@ -6,7 +6,16 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { EventosApiClient } from './eventos-api.client';
 import { EventosFulfillmentStrategy } from './eventos-fulfillment.strategy';
 import { EventosElementComponent } from './eventos';
+import { comisionEnMenores } from './eventos-comision';
 import { asentar } from '../../../../../../tools/asentar';
+import { EVENTOS_SYNHOST } from '@synergos/contracts';
+
+/** La configuración de negocio que el CMS manda con los valores base de su sección (ADR 0137). */
+const NEGOCIO_DEL_CMS = {
+  apiBase: EVENTOS_SYNHOST.ejemplo.apiBase,
+  feePercent: EVENTOS_SYNHOST.ejemplo.feePercent,
+  platformFeePercent: EVENTOS_SYNHOST.ejemplo.platformFeePercent,
+};
 
 /** Minimal in-memory localStorage stand-in so the SessionStore can persist. */
 function installMemoryStorage(): Map<string, string> {
@@ -37,7 +46,12 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<EventosElementComponent>;
   let component: EventosElementComponent;
 
-  async function createComponent(): Promise<void> {
+  /**
+   * Monta el elemento como lo monta el CMS: el `config` llega DESPUÉS del constructor y ANTES
+   * del primer ciclo. Por defecto, la configuración de negocio que la vista emite con los valores
+   * base del sitio (el `ejemplo` del contrato, ADR 0137), sin la cara que eligió esa muestra.
+   */
+  async function createComponent(config: Record<string, unknown> = NEGOCIO_DEL_CMS): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [EventosElementComponent],
       providers: [
@@ -49,6 +63,7 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
 
     fixture = TestBed.createComponent(EventosElementComponent);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
     // Initial catalogue search runs in the constructor; let it settle.
     await flushMicrotasks();
@@ -580,6 +595,72 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.liveConnected()).toBe(true);
   });
 
+  // ── ADR 0137 (CMS#194): la configuración de negocio llega del sitio, no del bundle ──────
+  //
+  // La comisión era `DEFAULT_FEE_PERCENT = 12` compilada acá, y ningún motor del CMS la cobraba:
+  // el carrito sumaba un 12 % que el checkout no cobraba. Ahora la manda el CMS desde
+  // `Synergos:Features:Eventos`, la MISMA que cobran sus motores.
+
+  it('abre la cara que eligió el editor: el config llega después del constructor', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+
+    await createComponent({ ...NEGOCIO_DEL_CMS, role: 'organizer' });
+
+    expect(component.role()).toBe('organizer');
+  });
+
+  it('suma la comisión del sitio con la regla de los motores del CMS', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ ...NEGOCIO_DEL_CMS, feePercent: 8.5 });
+
+    await ponerEntradasEnCarrito();
+
+    const subtotal = component.cartSubtotalMinor();
+    expect(subtotal).toBeGreaterThan(0);
+    expect(component.feesMinor()).toBe(comisionEnMenores(subtotal, 8.5));
+    expect(component.cartSummary().find((f) => f.id === 'fees')?.label).toBe('Cargos por servicio (8,5 %)');
+  });
+
+  it('sin comisión configurada no inventa una', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ apiBase: NEGOCIO_DEL_CMS.apiBase });
+
+    await ponerEntradasEnCarrito();
+
+    expect(component.feesMinor()).toBe(0);
+    expect(component.cartSummary().some((f) => f.id === 'fees')).toBe(false);
+    expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor());
+  });
+
+  it('sin la base de la API no llama a nada y degrada a la muestra, visible', async () => {
+    installMemoryStorage();
+    const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));
+    vi.stubGlobal('fetch', red);
+
+    await createComponent({});
+
+    expect(red).not.toHaveBeenCalled();
+    expect(component.events().length).toBeGreaterThan(0);
+  });
+
+  it('liquida al organizador con la comisión de la plataforma del sitio, y sin ella no pinta un neto', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent({ ...NEGOCIO_DEL_CMS, platformFeePercent: 7.5 });
+    const panel = { attendees: [], capacity: 10, sold: 1, revenue: 1_000_000, portfolio: [] };
+
+    component.manage.set(panel);
+
+    expect(component.payout()).toEqual({ porcentaje: '7,5 %', comision: 75_000, neto: 925_000 });
+
+    TestBed.resetTestingModule();
+    await createComponent({ apiBase: NEGOCIO_DEL_CMS.apiBase });
+    component.manage.set(panel);
+    expect(component.payout()).toBeNull();
+  });
 });
 
 describe('EventosApiClient', () => {

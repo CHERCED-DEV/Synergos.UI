@@ -68,14 +68,14 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 1 — catalogue search. */
   override async search(query: FulfillmentSearchQuery): Promise<readonly FulfillmentProduct[]> {
     const criteria = query.criteria as Partial<EventosSearchCriteria>;
-    const apiBase = criteria.apiBase ?? '/api/eventos';
+    const apiBase = criteria.apiBase ?? '';
     const catalogCriteria: CatalogCriteria = criteria.criteria ?? {
       q: '',
       category: '',
       city: '',
       sort: 'relevance',
     };
-    const result = await this.#api.events(apiBase, catalogCriteria, query.currency ?? 'COP');
+    const result = await this.#api.events(apiBase, catalogCriteria, query.currency ?? '');
     return result.events.map((event) => this.toProduct(event));
   }
 
@@ -119,7 +119,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   /** Step 3 — one PSP order for the whole cart (or free order). */
   override async pay(request: FulfillmentPayRequest): Promise<FulfillmentPayResult> {
     const instrument = request.instrument as Partial<EventosPayInstrument>;
-    const apiBase = instrument.apiBase ?? '/api/eventos';
+    const apiBase = instrument.apiBase ?? '';
     const eventId =
       instrument.eventId ?? (request.session.items[0]?.productRef ?? '');
     const attendees = instrument.attendees ?? [];
@@ -202,7 +202,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
   private apiBaseOf(session: SessionData): string {
     const selection = session.items[0]?.selection as Record<string, unknown> | undefined;
     const base = selection?.['apiBase'];
-    return typeof base === 'string' && base.trim() ? base.trim() : '/api/eventos';
+    return typeof base === 'string' ? base.trim() : '';
   }
 
   private lineId(payload: TierSelectionPayload): string {

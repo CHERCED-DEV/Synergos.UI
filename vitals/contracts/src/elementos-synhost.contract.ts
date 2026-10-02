@@ -316,6 +316,22 @@ export interface DropdownProps {
   readonly searchable?: boolean;
 }
 
+/** <synergos-eventos> · funcionalidad */
+export interface EventosProps {
+  /** contenido */
+  readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
+  /** decision */
+  readonly role?: string;
+  /** negocio */
+  readonly apiBase: string;
+  /** negocio */
+  readonly feePercent: number;
+  /** negocio */
+  readonly platformFeePercent: number;
+}
+
 /** <synergos-fab> · pieza · diccionario: Fab */
 export interface FabProps {
   /** decision */
@@ -981,6 +997,26 @@ export const DROPDOWN_SYNHOST: ElementoSynHost<DropdownProps> = {
     ],
     "selectedValue": "co",
     "searchable": true
+  },
+};
+
+export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
+  nombre: "eventos",
+  tipo: "funcionalidad",
+  record: "EventosProps",
+  diccionario: [],
+  claves: [],
+  campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent"],
+  listas: {},
+  selectores: [],
+  ejemplo: {
+    "culture": "es-CO",
+    "heading": "Vive los mejores eventos",
+    "subheading": "Conciertos, teatro y festivales",
+    "role": "organizer",
+    "apiBase": "/api/eventos",
+    "feePercent": 12,
+    "platformFeePercent": 10
   },
 };
 
@@ -1688,6 +1724,7 @@ export const ELEMENTOS_SYNHOST = [
   COUNTDOWN_CLOCK_SYNHOST,
   COUNTDOWN_DIGITAL_SYNHOST,
   DROPDOWN_SYNHOST,
+  EVENTOS_SYNHOST,
   FAB_SYNHOST,
   HERO_BANNER_SYNHOST,
   ICON_LABEL_SYNHOST,

@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  type OnInit,
   computed,
   inject,
   input,
@@ -64,6 +65,8 @@ import {
   SynSkeletonComponent,
   SynErrorStateComponent,
 } from '@synergos/shared';
+import type { EventosProps } from '@synergos/contracts';
+import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
 import { subscribeToChannel, type RealtimeSubscription } from './realtime-stream';
 import {
@@ -112,29 +115,15 @@ import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
  *    vendidos/aforo/ingresos, asistentes, check-in scan Válido/Ya-usado/Inválido,
  *    payout) + SH-6 `syn-authoring-wizard` (crear evento: tiers/aforo → publicar).
  *
- * 100% composable: no business is hardcoded; every knob comes from CMS props
- * (`apiBase`/`currency`/`config` JSON) and the data always comes from the API
- * with visible mock degradation. The shells stay domain-free (contrato D3) — the
- * module only feeds data, templates and its `EventosFulfillmentStrategy`.
+ * El `config` que manda el CMS tiene la forma de `EventosProps`, GENERADO del record C# (ADR
+ * 0135): lo que escribe el editor —título, subtítulo, cara inicial— y la configuración de NEGOCIO
+ * del sitio —dónde vive la API y las dos comisiones—, que sale de `Synergos:Features:Eventos` y
+ * el editor no ve (ADR 0137, CMS#194). Ninguna de las dos comisiones está compilada acá: la que
+ * el carrito muestra es la que los motores del CMS cobran, de la MISMA fuente. La moneda no es
+ * configuración: llega con cada importe del catálogo. Los datos vienen siempre de la API, con
+ * degradación visible a la muestra. Los shells quedan sin dominio (contrato D3).
  */
-export interface EventosRuntimeConfig {
-  /** Base URL of the eventos API. Default `/api/eventos`. */
-  readonly apiBase?: string;
-  /** ISO currency for price display. Default `COP`. */
-  readonly currency?: string;
-  /** Storage scope for the session (typically the siteRoot). Default `eventos`. */
-  readonly scope?: string;
-  /** Initial cara. Default `attendee`. */
-  readonly role?: EventosRole;
-  /** Optional event id/slug to deep-link the organizer dashboard to. */
-  readonly eventId?: string;
-  /** Service-fee percentage applied on the ticket subtotal. Default 12. */
-  readonly feePercent?: number;
-  /** Catalog hero heading. Default `Vive los mejores eventos, sin complicarte`. */
-  readonly heading?: string;
-  /** Catalog hero subheading rendered under the title. */
-  readonly subheading?: string;
-}
+export type EventosConfig = Partial<EventosProps>;
 
 /** Typed event map for the transaction bus (eventos ↔ checkout ↔ check-in ↔ IA). */
 interface EventosBus extends Record<string, unknown> {
@@ -142,11 +131,9 @@ interface EventosBus extends Record<string, unknown> {
   readonly checkedin: { readonly eventId: string; readonly ticketId: string };
 }
 
-const DEFAULT_API_BASE = '/api/eventos';
-const DEFAULT_CURRENCY = 'COP';
+/** El prefijo de las rutas por hash (`#/eventos/e/<id>`): es de runtime, no de negocio. */
 const DEFAULT_SCOPE = 'eventos';
 const DEFAULT_ROLE: EventosRole = 'attendee';
-const DEFAULT_FEE_PERCENT = 12;
 const DEFAULT_HEADING = 'Vive los mejores eventos, sin complicarte';
 const DEFAULT_SUBHEADING =
   'Conciertos, deportes, teatro y festivales · e-ticket con QR · check-in ágil';
@@ -176,16 +163,18 @@ const MANAGER_SECTIONS: readonly ManagerView[] = [
   'payout',
 ];
 
-function sanitizeConfig(value: Partial<EventosRuntimeConfig>): EventosRuntimeConfig {
-  return omitUndefinedProperties<EventosRuntimeConfig>({
-    apiBase: coerceTrimmedStringInput(value.apiBase),
-    currency: coerceTrimmedStringInput(value.currency),
-    scope: coerceTrimmedStringInput(value.scope),
-    role: normalizeRole(value.role),
-    eventId: coerceTrimmedStringInput(value.eventId),
-    feePercent: normalizeFee(value.feePercent),
+/**
+ * Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el
+ * `config` real de la vista.
+ */
+export function sanitizeEventosConfig(value: EventosConfig): EventosConfig {
+  return omitUndefinedProperties<EventosProps>({
     heading: coerceTrimmedStringInput(value.heading),
     subheading: coerceTrimmedStringInput(value.subheading),
+    role: normalizeRole(value.role),
+    apiBase: coerceTrimmedStringInput(value.apiBase),
+    feePercent: normalizeFee(value.feePercent),
+    platformFeePercent: normalizeFee(value.platformFeePercent),
   });
 }
 
@@ -196,6 +185,13 @@ function normalizeRole(value: unknown): EventosRole | undefined {
 function normalizeFee(value: unknown): number | undefined {
   const num = typeof value === 'string' ? Number(value) : value;
   return typeof num === 'number' && Number.isFinite(num) && num >= 0 && num <= 100 ? num : undefined;
+}
+
+/** La moneda de las entradas del carrito: la trajo su localidad desde el catálogo. */
+function monedaDelCarrito(items: readonly { readonly selection?: unknown }[]): string {
+  const seleccion = items[0]?.selection as Readonly<Record<string, unknown>> | undefined;
+  const moneda = seleccion?.['currency'];
+  return typeof moneda === 'string' ? moneda.trim() : '';
 }
 
 let eventosInstanceId = 0;
@@ -226,7 +222,7 @@ let eventosInstanceId = 0;
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   host: { class: 'sg-eventos' },
 })
-export class EventosElementComponent {
+export class EventosElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
@@ -235,48 +231,56 @@ export class EventosElementComponent {
   readonly #api = inject(EventosApiClient);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
-  readonly config = input<EventosRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<EventosRuntimeConfig>(sanitizeConfig),
+  readonly config = input<EventosConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<EventosProps>(sanitizeEventosConfig),
   });
+  // Los atributos sueltos son la API del tag crudo. Las comisiones NO tienen atributo: una regla
+  // de negocio escrita en una plantilla volvería a separar lo que se muestra de lo que se cobra.
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly currencyInput = input<string | undefined>(undefined, { alias: 'currency' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
   readonly eventIdInput = input<string | undefined>(undefined, { alias: 'eventId' });
-  readonly feePercentInput = input<string | number | undefined>(undefined, { alias: 'feePercent' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
+  /**
+   * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
+   * no hay una base de respaldo compilada (era la tercera copia de `/api/eventos`, ADR 0137).
+   */
   readonly apiBase = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.apiBaseInput()),
-      this.config()?.apiBase,
-      DEFAULT_API_BASE,
-    ).replace(/\/+$/, ''),
-  );
-  readonly currency = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.currencyInput()),
-      this.config()?.currency,
-      DEFAULT_CURRENCY,
+    resolveConfigValue(coerceTrimmedStringInput(this.apiBaseInput()), this.config()?.apiBase, '').replace(
+      /\/+$/,
+      '',
     ),
+  );
+  /**
+   * La moneda de lo que se muestra: la que trae cada importe del catálogo —la del carrito, la
+   * del evento abierto o la de la cartelera—. No es configuración: sería una segunda fuente para
+   * un dato del precio. Sin datos todavía, vacía (y `formatPrice` pinta el número solo).
+   */
+  readonly currency = computed(
+    () =>
+      monedaDelCarrito(this.#store.items()) ||
+      this.detail()?.event.currency ||
+      this.events()[0]?.currency ||
+      '',
   );
   readonly scope = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.scopeInput()),
-      this.config()?.scope,
-      DEFAULT_SCOPE,
-    ),
+    resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
   );
   readonly initialRole = computed<EventosRole>(() =>
-    resolveConfigValue(normalizeRole(this.roleInput()), this.config()?.role, DEFAULT_ROLE),
+    resolveConfigValue(normalizeRole(this.roleInput()), normalizeRole(this.config()?.role), DEFAULT_ROLE),
   );
   readonly deepLinkEventId = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.eventIdInput()), this.config()?.eventId, ''),
+    resolveConfigValue(coerceTrimmedStringInput(this.eventIdInput()), undefined, ''),
   );
-  readonly feePercent = computed(() =>
-    resolveConfigValue(normalizeFee(this.feePercentInput()), this.config()?.feePercent, DEFAULT_FEE_PERCENT),
-  );
+  /**
+   * La comisión de servicio del sitio (ADR 0137): la misma que cobran los motores del CMS. Sin
+   * ella no se inventa una: el carrito no suma comisión.
+   */
+  readonly feePercent = computed(() => this.config()?.feePercent ?? 0);
+  /** La comisión de la plataforma sobre lo que se le liquida al organizador; sin ella, no se pinta. */
+  readonly platformFeePercent = computed(() => this.config()?.platformFeePercent ?? null);
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -345,6 +349,25 @@ export class EventosElementComponent {
   readonly managerView = signal<ManagerView>('portfolio');
   readonly manageEventId = signal('');
   readonly manage = signal<ManageResult | null>(null);
+  /**
+   * La liquidación del organizador con la comisión de la plataforma del sitio (ADR 0137). Era un
+   * 10 % escrito en la plantilla. Sin comisión configurada no se pinta un neto: sería inventarlo.
+   * Se redondea con la regla de la comisión de servicio.
+   */
+  readonly payout = computed(() => {
+    const data = this.manage();
+    const porcentaje = this.platformFeePercent();
+    if (!data || porcentaje === null) {
+      return null;
+    }
+    const brutoMinor = Math.round(data.revenue * 100);
+    const comisionMinor = comisionEnMenores(brutoMinor, porcentaje);
+    return {
+      porcentaje: `${porcentaje.toLocaleString('es-CO')} %`,
+      comision: comisionMinor / 100,
+      neto: (brutoMinor - comisionMinor) / 100,
+    };
+  });
   /**
    * Acceso a la CONSOLA DEL ORGANIZADOR (panel, crear evento, check-in), que ahora exige
    * rol. `'anon'` (401) → ofrecer login; `'forbidden'` (403) → el login NO ayuda, hace
@@ -522,7 +545,8 @@ export class EventosElementComponent {
   readonly cartSubtotalMinor = computed(() =>
     this.#store.items().reduce((sum, item) => sum + item.amount * item.quantity, 0),
   );
-  readonly feesMinor = computed(() => Math.round((this.cartSubtotalMinor() * this.feePercent()) / 100));
+  // La regla de los motores del CMS (al par, exacta): `eventos-comision.ts`, cruzada con G-12.
+  readonly feesMinor = computed(() => comisionEnMenores(this.cartSubtotalMinor(), this.feePercent()));
   readonly cartTotalMinor = computed(() =>
     // Con el cupón restado y con suelo en cero — mismo criterio que `reprice()`.
     Math.max(0, this.cartSubtotalMinor() + this.feesMinor() + this.promoMinor()),
@@ -799,14 +823,11 @@ export class EventosElementComponent {
   });
 
   constructor() {
-    this.role.set(this.initialRole());
-
     // Bind the unified cart to this origin and rehydrate any live session.
     this.#store.init({
       scope: `eventos.${this.instanceId}`,
       flow: EVENTOS_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: DEFAULT_CURRENCY,
     });
     this.#bus.scope(`eventos-${this.instanceId}`);
 
@@ -829,8 +850,18 @@ export class EventosElementComponent {
         window.removeEventListener('hashchange', onHashChange);
       }
     });
+  }
 
-    // Open the right cara, then honour a deep link.
+  /**
+   * Abre la cara que eligió el editor y la carga contra la API del sitio.
+   *
+   * No va en el constructor: en un custom element los inputs —el `config` del CMS— se aplican
+   * DESPUÉS de crear el componente y ANTES del primer ciclo, así que el constructor los ve vacíos.
+   * Ahí se abría siempre la cara de asistente aunque el editor eligiera la de organizador, y la
+   * primera búsqueda salía con la base de la API compilada en vez de la del sitio (CMS#194).
+   */
+  ngOnInit(): void {
+    this.role.set(this.initialRole());
     if (this.role() === 'organizer') {
       this.manageEventId.set(this.deepLinkEventId());
       void this.loadManage().then(() => this.applyHash());
@@ -1227,10 +1258,15 @@ export class EventosElementComponent {
    * entrada. La pieza sólo las pinta — los importes los calcula este dominio.
    */
   readonly cartSummary = computed<readonly CartSummaryRow[]>(() => {
-    const filas: CartSummaryRow[] = [
-      { id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() },
-      { id: 'fees', label: `Cargos por servicio (${this.feePercent()}%)`, value: this.feesLabel() },
-    ];
+    const filas: CartSummaryRow[] = [{ id: 'subtotal', label: 'Subtotal', value: this.cartSubtotalLabel() }];
+    // Sin comisión configurada no hay fila: la misma regla con la que `reprice()` arma el cobro.
+    if (this.feePercent() > 0) {
+      filas.push({
+        id: 'fees',
+        label: `Cargos por servicio (${this.feePercent().toLocaleString('es-CO')} %)`,
+        value: this.feesLabel(),
+      });
+    }
     const promo = this.promo();
     if (promo) {
       // El descuento se VE: un total más bajo sin la línea que lo explica se lee
@@ -1766,7 +1802,7 @@ export class EventosElementComponent {
   private reprice(): void {
     const items = this.#store.items();
     const subtotal = items.reduce((sum, item) => sum + item.amount * item.quantity, 0);
-    const fees = Math.round((subtotal * this.feePercent()) / 100);
+    const fees = comisionEnMenores(subtotal, this.feePercent());
     const promo = this.promo();
     // El descuento se aplica sobre subtotal + cargos, y nunca deja el total bajo
     // cero: un carrito que se debe a sí mismo lo cobraría el checkout en negativo.
@@ -1842,15 +1878,25 @@ export class EventosElementComponent {
     this.reprice();
   }
 
+  /**
+   * Un importe con su moneda. Sin centavos cuando no los tiene, y con ellos cuando sí: una
+   * comisión de 22.500,12 se cobra así, y pintarla redondeada sería mostrar otra cifra. Sin
+   * moneda (todavía no llegó ningún importe del catálogo) se pinta el número solo.
+   */
   formatPrice(amount: number, currency: string): string {
+    const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
+    if (!currency) {
+      return numero.format(amount);
+    }
     try {
       return new Intl.NumberFormat('es-CO', {
         style: 'currency',
         currency,
-        maximumFractionDigits: 0,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
       }).format(amount);
     } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
+      return `${currency} ${numero.format(amount)}`;
     }
   }
 

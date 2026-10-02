@@ -112,7 +112,7 @@ export class EventosApiClient {
     code: string,
     subtotalMinor: number,
   ): Promise<EventPromoResult> {
-    if (typeof fetch !== 'function') {
+    if (typeof fetch !== 'function' || !apiBase) {
       return { ok: false, reason: 'failed' };
     }
     try {
@@ -154,7 +154,7 @@ export class EventosApiClient {
     const query = this.toCatalogQuery(criteria);
     const url = `${apiBase}/events${query ? `?${query}` : ''}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeCatalog(data, currency);
       if (result && (result.events.length > 0 || isRecord(data))) {
         return result;
@@ -171,7 +171,7 @@ export class EventosApiClient {
   async event(apiBase: string, id: string, currency: string): Promise<EventDetail> {
     const url = `${apiBase}/event/${encodeURIComponent(id)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const detail = normalizeDetail(data, currency);
       if (detail) {
         return detail;
@@ -196,7 +196,7 @@ export class EventosApiClient {
   ): Promise<CheckoutResult> {
     const url = `${apiBase}/checkout`;
     try {
-      const data = await this.postJson(url, { eventId, items, attendees, buyer });
+      const data = await this.postJson(apiBase, url, { eventId, items, attendees, buyer });
       const result = normalizeCheckout(data, currency);
       if (result) {
         return result;
@@ -226,7 +226,7 @@ export class EventosApiClient {
   ): Promise<ConfirmResult> {
     const url = `${apiBase}/confirm`;
     try {
-      const data = await this.postJson(url, { orderRef });
+      const data = await this.postJson(apiBase, url, { orderRef });
       const confirmation = normalizeConfirm(data);
       if (confirmation) {
         this.#lastTickets = confirmation.tickets;
@@ -279,7 +279,7 @@ export class EventosApiClient {
   async tickets(apiBase: string, holder: string): Promise<WalletResult> {
     const url = `${apiBase}/tickets`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeWallet(data);
       if (result) {
         this.#walletTickets = result.tickets;
@@ -301,7 +301,7 @@ export class EventosApiClient {
   async transfer(apiBase: string, ticketId: string, to: string): Promise<TransferResult> {
     const url = `${apiBase}/ticket/${encodeURIComponent(ticketId)}/transfer`;
     try {
-      const data = await this.postJson(url, { to });
+      const data = await this.postJson(apiBase, url, { to });
       const result = normalizeTransfer(data, ticketId, to);
       if (result) {
         this.applyTransfer(ticketId);
@@ -327,7 +327,7 @@ export class EventosApiClient {
   async createEvent(apiBase: string, request: CreateEventRequest): Promise<CreateEventResult> {
     const url = `${apiBase}/event`;
     try {
-      const data = await this.postJson(url, request);
+      const data = await this.postJson(apiBase, url, request);
       const result = normalizeCreate(data, request);
       if (result) {
         return result;
@@ -346,7 +346,7 @@ export class EventosApiClient {
   async manage(apiBase: string, eventId: string): Promise<ManageResult> {
     const url = `${apiBase}/manage/${encodeURIComponent(eventId)}`;
     try {
-      const data = await this.getJson(url);
+      const data = await this.getJson(apiBase, url);
       const result = normalizeManage(data);
       if (result) {
         return result;
@@ -364,7 +364,7 @@ export class EventosApiClient {
   async checkin(apiBase: string, ticketId: string): Promise<CheckInResult> {
     const url = `${apiBase}/checkin`;
     try {
-      const data = await this.postJson(url, { ticketId });
+      const data = await this.postJson(apiBase, url, { ticketId });
       const result = normalizeCheckin(data);
       if (result) {
         return result;
@@ -400,12 +400,12 @@ export class EventosApiClient {
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
 
-  private getJson(url: string): Promise<unknown> {
-    return this.request(url, { method: 'GET' });
+  private getJson(apiBase: string, url: string): Promise<unknown> {
+    return this.request(apiBase, url, { method: 'GET' });
   }
 
-  private postJson(url: string, body: unknown): Promise<unknown> {
-    return this.request(url, {
+  private postJson(apiBase: string, url: string, body: unknown): Promise<unknown> {
+    return this.request(apiBase, url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -419,9 +419,17 @@ export class EventosApiClient {
     }
   }
 
-  private request(url: string, init: RequestInit): Promise<unknown> {
+  /**
+   * Sin `apiBase` no se llama a nada —ni a una ruta del propio sitio, que podría ser de otra
+   * cosa—: la base es configuración del despliegue (ADR 0137) y no hay una de respaldo
+   * compilada. Se rechaza y cada llamada degrada a su muestra, visible.
+   */
+  private request(apiBase: string, url: string, init: RequestInit): Promise<unknown> {
     if (typeof fetch !== 'function') {
       return Promise.reject(new Error('fetch-unavailable'));
+    }
+    if (!apiBase) {
+      return Promise.reject(new Error('sin-api'));
     }
     return fetch(url, {
       ...init,

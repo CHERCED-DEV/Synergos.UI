@@ -52,6 +52,9 @@ on:
       - '**/mortgage.calc.ts'
       - 'tools/vectores-hipoteca.mjs'
       - 'tools/lib/vectores-hipoteca.mjs'
+      - '**/eventos-comision.ts'
+      - 'tools/vectores-comision.mjs'
+      - 'tools/lib/vectores-comision.mjs'
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
@@ -71,6 +74,9 @@ on:
       - '**/mortgage.calc.ts'
       - 'tools/vectores-hipoteca.mjs'
       - 'tools/lib/vectores-hipoteca.mjs'
+      - '**/eventos-comision.ts'
+      - 'tools/vectores-comision.mjs'
+      - 'tools/lib/vectores-comision.mjs'
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
@@ -81,7 +87,7 @@ on:
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión
     runs-on: ubuntu-latest
 
     steps:
@@ -170,6 +176,18 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/vectores-hipoteca.mjs
+
+      # ── G-12 — la comisión que el carrito muestra es la que se cobra (CMS#194) ──
+      #
+      # Tres implementaciones de la misma regla —el carrito de `eventos`, el motor en proceso
+      # del CMS y el orquestador— contra los mismos vectores de oro, con la forma de G-9: se
+      # compila la fuente de verdad y, sin el CMS, sale en ROJO. Del lado del CMS los corren
+      # `NegocioDeEventosTests` y `ComisionDeServicioTests`.
+      - name: Vectores de oro de la comisión (G-12)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/vectores-comision.mjs
 
       # ── G-10 — las rutas que los clientes piden existen en el borde ────────
       #
