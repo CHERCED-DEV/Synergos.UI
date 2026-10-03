@@ -39,6 +39,110 @@ async function flushMicrotasks(times = 8): Promise<void> {
   await asentar(times);
 }
 
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de la Tienda que contesta las ESCRITURAS con la forma del de verdad y se apaga
+ * por MÉTODO y ruta (UI#92; reglas 16 y 18).
+ *
+ * Las formas son las de `ShopCatalogController` del CMS: `CheckoutResponse`,
+ * `ConfirmResponse` —con `status: 'Paid'`, que es lo que contesta cuando capturó
+ * (`ShopConfirmationResult`), y sus `OrderLineDto`— y `WishlistResponse`, la lista ENTERA
+ * del member. Los favoritos llevan estado, como el de verdad.
+ *
+ * **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): la orden es
+ * `ord_77` y el pedido `SYN-77` (el `catch` acuñaba `MOCK-<ts>` y usaba la orden como
+ * número de pedido), y el favorito vuelve con el título que tiene el SERVIDOR.
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel).
+ */
+function bordeDeLaTienda(opciones: { readonly caidas?: readonly string[] } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly llamadas: (clave: string) => number;
+  readonly encender: (clave: string) => void;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  const vistas: string[] = [];
+  const favoritos = new Map<string, Record<string, unknown>>();
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+  const linea = (productId: string, title: string, amount: number) => ({
+    productId,
+    variantId: null,
+    title,
+    qty: 1,
+    amount,
+    productName: title,
+    quantity: 1,
+    unitPrice: amount,
+    unitPriceFormatted: '',
+    lineTotal: amount,
+    lineTotalFormatted: '',
+    currency: 'COP',
+    canReturn: false,
+    returnBlock: null,
+  });
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/shop/, '');
+    const clave = `${metodo} ${ruta}`;
+    vistas.push(clave);
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+    switch (clave) {
+      case 'POST /checkout':
+        return responder(200, {
+          orderRef: 'ord_77',
+          paymentSessionId: 'psp_77',
+          amount: 700_000,
+          amountFormatted: '$ 700.000',
+          currency: 'COP',
+        });
+      case 'POST /confirm':
+        return responder(200, {
+          status: 'Paid',
+          orderNumber: 'SYN-77',
+          orderRef: 'ord_77',
+          total: 700_000,
+          totalFormatted: '$ 700.000',
+          currency: 'COP',
+          items: [linea('P-A', 'Audífonos Pro (servidor)', 500_000), linea('P-B', 'Mouse Pro (servidor)', 200_000)],
+        });
+      case 'POST /wishlist': {
+        const productId = String(cuerpo['productId'] ?? '');
+        if (cuerpo['action'] === 'remove') {
+          favoritos.delete(productId);
+        } else {
+          favoritos.set(productId, {
+            owner: 'ada@example.com',
+            collection: 'favoritos',
+            itemRef: productId,
+            addedAt: '2026-10-03T10:00:00+00:00',
+            productId,
+            title: 'Favorito guardado en el servidor',
+            amount: 99_000,
+            currency: 'COP',
+          });
+        }
+        return responder(200, { owner: 'ada@example.com', collection: 'favoritos', items: [...favoritos.values()] });
+      }
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return {
+    fetchDoble,
+    llamadas: (clave) => vistas.filter((vista) => vista === clave).length,
+    encender: (clave) => {
+      caidas.delete(clave);
+    },
+  };
+}
+
 const PRODUCT_A: ShopProduct = {
   id: 'P-A',
   title: 'Audífonos Pro',
@@ -426,10 +530,51 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     expect(botonDe(tarjeta!).textContent?.trim()).toBe('Agregar');
   });
 
+  const alertas = (): string[] =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]')).map(
+      (alerta) => alerta.textContent?.trim() ?? '',
+    );
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+  }
+
+  /** Carrito con A y B, datos de envío, y el asistente hasta el envío final. */
+  async function comprarAyB(antesDeEnviar: (wizard: CheckoutWizardComponent) => void = () => undefined): Promise<void> {
+    component.quickAdd(PRODUCT_A);
+    component.quickAdd(PRODUCT_B);
+    await flushMicrotasks();
+    component.customerName.set('Ada Lovelace');
+    component.customerEmail.set('ada@example.com');
+    component.customerAddress.set('Calle 1 #2-3');
+    component.customerCity.set('Bogotá');
+    component.goToCheckout();
+    fixture.detectChanges();
+    while (!asistente().isLastStep()) {
+      asistente().next();
+      fixture.detectChanges();
+    }
+    antesDeEnviar(asistente());
+    asistente().next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  /** Lo que el asistente emite en `failed`: el motivo con el que la estrategia contestó que no. */
+  function motivosDe(): { readonly motivos: string[]; readonly escuchar: (wizard: CheckoutWizardComponent) => void } {
+    const motivos: string[] = [];
+    return { motivos, escuchar: (wizard) => wizard.failed.subscribe((motivo) => motivos.push(motivo)) };
+  }
+
   // ── happy: add → cart agrupado → SH-3 wizard → pay → confirm ─────────────────
+  //
+  // Corría con la red caída y lo que probaba era la orden `MOCK-<ts>` (UI#92, regla 16).
+  // Contra la forma de verdad destapó además que la estrategia sólo aceptaba `confirmed`
+  // y el borde contesta `Paid`: un pedido colocado salía como «no pudimos confirmarlo».
   it('runs the full lifecycle through the SH-3 wizard to a confirmation (happy case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeLaTienda().fetchDoble);
     await createComponent();
 
     component.quickAdd(PRODUCT_A);
@@ -465,14 +610,68 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
     expect(wizard.currentStep()?.id).toBe('revisar');
 
-    wizard.next(); // submit → pay → confirm (mock degradado)
+    wizard.next(); // submit → pay (POST /checkout) → confirm (POST /confirm)
     await flushMicrotasks(30);
     fixture.detectChanges();
 
     expect(component.view()).toBe('confirmation');
-    expect(component.orderNumber().length).toBeGreaterThan(0);
-    expect(component.confirmedItems().length).toBeGreaterThan(0);
+    expect(component.orderRef()).toBe('ord_77');
+    expect(component.orderNumber()).toBe('SYN-77');
+    expect(component.confirmedItems().map((item) => item.title)).toEqual([
+      'Audífonos Pro (servidor)',
+      'Mouse Pro (servidor)',
+    ]);
     expect(window.location.hash).toContain('/confirmacion');
+  });
+
+  // ── UI#92: sin orden abierta no hay pedido, ni cobro, ni anuncio ──────────────
+  it('con el POST /checkout caído no hay pedido: lo dice una vez, sin cobro ni anuncio', async () => {
+    installMemoryStorage();
+    const borde = bordeDeLaTienda({ caidas: ['POST /checkout'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const pedidos: unknown[] = [];
+    component.orderconfirmed.subscribe((payload) => pedidos.push(payload));
+    const fallos = motivosDe();
+
+    await comprarAyB(fallos.escuchar);
+
+    // La estrategia CONTESTA que no abrió la orden; no revienta.
+    expect(fallos.motivos).toEqual(['checkout-not-opened']);
+
+    expect(component.view()).toBe('checkout');
+    expect(component.orderNumber()).toBe('');
+    expect(pedidos).toEqual([]);
+    expect(borde.llamadas('POST /confirm')).toBe(0);
+    // El carrito sigue ahí: nada se compró.
+    expect(component.cartCount()).toBe(2);
+    expect(alertas()).toEqual([asistente().config().payFailedMessage]);
+  });
+
+  // ── UI#92: la orden quedó y el pedido no — reintentar NO vuelve a cobrar ──────
+  it('con el POST /confirm caído nombra la orden que quedó; reintentar confirma la MISMA', async () => {
+    installMemoryStorage();
+    const borde = bordeDeLaTienda({ caidas: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await comprarAyB(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['order-not-placed']);
+    expect(component.view()).toBe('checkout');
+    expect(component.orderNumber()).toBe('');
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'ord_77')]);
+
+    borde.encender('POST /confirm');
+    asistente().next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmation');
+    expect(component.orderNumber()).toBe('SYN-77');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST /confirm')).toBe(2);
   });
 
   // ── filter: removing one line keeps the rest ─────────────────────────────────
@@ -516,7 +715,7 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
   // ── PDP (SH-2): open product, switch variant, qty, add, wishlist toggle ──────
   it('opens the PDP, adds the selected variant and toggles wishlist once (SH-2 case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeLaTienda().fetchDoble);
     await createComponent();
 
     const first = component.products()[0];
@@ -541,12 +740,32 @@ describe('StorefrontElementComponent (v2 sobre shells)', () => {
     component.toggleWishlist(product);
     await flushMicrotasks();
     expect(component.isWished(product.id)).toBe(true);
-    expect(component.wishlist()).toHaveLength(1);
+    // La lista es la que devolvió el SERVIDOR, no la entrada que pintó el optimista.
+    expect(component.wishlist().map((line) => line.title)).toEqual(['Favorito guardado en el servidor']);
 
     component.toggleWishlist(product);
     await flushMicrotasks();
     expect(component.isWished(product.id)).toBe(false);
     expect(component.wishlist()).toHaveLength(0);
+  });
+
+  // ── UI#92: un favorito que el servidor no guardó se revierte y se dice ────────
+  it('con el POST /wishlist caído el favorito vuelve a como estaba y se dice una vez', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeLaTienda({ caidas: ['POST /wishlist'] }).fetchDoble);
+    await createComponent();
+    const product = component.products()[0];
+
+    component.toggleWishlist(product);
+    // El optimista se pinta…
+    expect(component.isWished(product.id)).toBe(true);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    // …y el fallo lo revierte: nada quedó guardado.
+    expect(component.isWished(product.id)).toBe(false);
+    expect(component.wishlist()).toEqual([]);
+    expect(alertas()).toEqual(['No pudimos guardar el cambio en tus favoritos. Intenta de nuevo.']);
   });
 
   // ── Account (SH-4): orders inbox + tracking timeline + return ────────────────
@@ -1596,28 +1815,40 @@ describe('ShopApiClient', () => {
   });
 
   it('opens a single checkout session and confirms the order (happy case)', async () => {
-    const fetchMock = vi.fn((url: string) => {
-      const body = url.endsWith('/checkout')
-        ? { orderRef: 'ORD-1', paymentSessionId: 'psp_1', amount: 100, currency: 'COP' }
-        : { status: 'confirmed', orderNumber: 'NUM-1', items: [] };
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', bordeDeLaTienda().fetchDoble);
     const client = createClient();
 
     const checkout = await client.checkout(
       '/api/shop',
       [{ productId: 'X1', variantId: 'V1', qty: 1 }],
       { name: 'Ada', email: 'a@b.co' },
-      100,
       'COP',
     );
-    expect(checkout.orderRef).toBe('ORD-1');
-    expect(checkout.paymentSessionId).toBe('psp_1');
+    expect(checkout.orderRef).toBe('ord_77');
+    expect(checkout.paymentSessionId).toBe('psp_77');
 
-    const confirmation = await client.confirm('/api/shop', 'ORD-1', []);
-    expect(confirmation.status).toBe('confirmed');
-    expect(confirmation.orderNumber).toBe('NUM-1');
+    const confirmation = await client.confirm('/api/shop', 'ord_77');
+    expect(confirmation.status).toBe('Paid');
+    expect(confirmation.orderNumber).toBe('SYN-77');
+  });
+
+  // ── EL QUE MUERDE: con la red caída no hay orden, ni pedido, ni favorito ─────
+  it('con la red caída abrir la orden, colocar el pedido y tocar favoritos LANZAN (UI#92)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+    const entry = { productId: 'X1', title: 'Producto X', amount: 10, currency: 'COP' };
+
+    await expect(
+      client.checkout('/api/shop', [{ productId: 'X1', variantId: 'V1', qty: 1 }], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+    ).rejects.toMatchObject({ name: 'ShopWriteFailedError', endpoint: 'POST /api/shop/checkout' });
+    await expect(client.confirm('/api/shop', 'ord_77')).rejects.toMatchObject({ name: 'ShopWriteFailedError' });
+    await expect(client.wishlistMutate('/api/shop', entry, 'add')).rejects.toMatchObject({
+      name: 'ShopWriteFailedError',
+    });
+    // Ninguna escritura caída enciende el cartel de «datos de ejemplo», y la lectura
+    // degradada de favoritos no lleva el que no se guardó.
+    expect(client.degraded).toBe(false);
+    expect(await client.wishlist('/api/shop', 'COP')).toEqual([]);
   });
 
   it('filters the mock catalogue by selected facet when degraded (filter case)', async () => {
@@ -1635,7 +1866,7 @@ describe('ShopApiClient', () => {
     expect(result.products.every((product) => product.brand === 'Sony')).toBe(true);
   });
 
-  it('degrades tracking to a status-coherent timeline and wishlist to a local store', async () => {
+  it('degrades tracking to a status-coherent timeline (a READ)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
@@ -1652,15 +1883,6 @@ describe('ShopApiClient', () => {
     // Y un pedido sin pagar NO avanza, esté donde esté en el mapa del ejemplo.
     const sinPagar = await client.tracking('/api/shop', 'ORD-2026-00481', 'pending');
     expect(sinPagar.stages.find((stage) => stage.id === 'delivered')?.state).toBe('pending');
-
-    // Wishlist add + remove degradan a un store local coherente (idempotente).
-    const entry = { productId: 'X1', title: 'Producto X', amount: 10, currency: 'COP' };
-    let list = await client.wishlistMutate('/api/shop', entry, 'add');
-    expect(list.map((line) => line.productId)).toEqual(['X1']);
-    list = await client.wishlistMutate('/api/shop', entry, 'add');
-    expect(list).toHaveLength(1);
-    list = await client.wishlistMutate('/api/shop', entry, 'remove');
-    expect(list).toHaveLength(0);
 
     // Los mensajes SÍ degradan visibles — son una lectura.
     const threads = await client.messages('/api/shop');

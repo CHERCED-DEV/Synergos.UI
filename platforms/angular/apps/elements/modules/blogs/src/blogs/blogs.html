@@ -848,9 +848,18 @@
   </header>
   <ol class="blogs__dm-messages">
     @for (message of thread.messages; track trackMessage($index, message)) {
-      <li class="blogs__dm-bubble" [class.is-outgoing]="message.outgoing">
+      <li class="blogs__dm-bubble" [class.is-outgoing]="message.outgoing" [class.is-failed]="message.failed">
         <span class="blogs__dm-text">{{ message.body }}</span>
-        <span class="blogs__dm-time">{{ relativeTime(message.createdAtUtc) }}</span>
+        <!-- Un mensaje que no salió NO lleva hora de envío: sería el acuse que no existe.
+             Lleva su marca y su reintento, y el texto no se pierde (UI#92, regla 18). -->
+        @if (message.failed) {
+          <span class="blogs__dm-failed">
+            No enviado
+            <button type="button" class="blogs__dm-retry" (click)="retryMessage(thread, message)">Reintentar</button>
+          </span>
+        } @else {
+          <span class="blogs__dm-time">{{ relativeTime(message.createdAtUtc) }}</span>
+        }
       </li>
     }
   </ol>

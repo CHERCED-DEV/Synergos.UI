@@ -1632,14 +1632,24 @@ export class TravelShellElementComponent {
     if (!this.canCancel(trip)) {
       return;
     }
-    void this.#api.cancel(this.apiBase(), trip.ref).then((receipt) => {
-      this.cancelByRef.update((map) => ({ ...map, [trip.ref]: receipt }));
-      this.trips.update((list) =>
-        list.map((entry) =>
-          entry.ref === trip.ref ? { ...entry, status: 'cancelled' as const } : entry,
-        ),
-      );
-    });
+    this.errorMessage.set('');
+    void this.#api
+      .cancel(this.apiBase(), trip.ref)
+      .then((receipt) => {
+        this.cancelByRef.update((map) => ({ ...map, [trip.ref]: receipt }));
+        this.trips.update((list) =>
+          list.map((entry) =>
+            entry.ref === trip.ref ? { ...entry, status: 'cancelled' as const } : entry,
+          ),
+        );
+      })
+      .catch((error: unknown) => {
+        // El viaje NO se canceló (UI#92): sigue «Próximo», con su botón para reintentar, y
+        // se dice. Antes el cliente devolvía «cancelado, reembolso en 5–7 días hábiles» y la
+        // promesa ni siquiera tenía `catch`.
+        void error;
+        this.errorMessage.set('No pudimos cancelar el viaje: sigue en pie. Intenta de nuevo.');
+      });
   }
 
   tripTotalLabel(trip: TravelTrip): string {

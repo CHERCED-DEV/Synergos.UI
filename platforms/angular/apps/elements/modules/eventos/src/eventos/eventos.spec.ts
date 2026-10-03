@@ -42,6 +42,109 @@ async function flushMicrotasks(times = 8): Promise<void> {
   await asentar(times);
 }
 
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de eventos que contesta las ESCRITURAS con la forma del de verdad y se apaga
+ * por MÉTODO y ruta (UI#92; reglas 16, 18 y 38).
+ *
+ * Las formas son las de `EventosController` del CMS: `CheckoutResponse`, `ConfirmResponse`
+ * con sus `EventTicketDto`, `TransferResponse` (con `status`, `to` y `ticketId` en la raíz),
+ * `CreateEventResponse` y `CheckInResponse`. El check-in lleva ESTADO, como el de verdad:
+ * la primera vez es `valid`, la segunda `already-used`, y lo que no emitió es `invalid`.
+ *
+ * **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): la orden es
+ * `evord_77` (el `catch` acuñaba `MOCK-<ts>`), la entrada `tkt_77_1` con el QR
+ * `QR-SERVIDOR-77-1` (allá `TKT-<orden>-1` con un `SYN1|…` hecho en el navegador) y el
+ * evento `evt_77` con un slug que `slugify(título)` no da.
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora (catálogo de muestra con su cartel).
+ */
+function bordeDeEventos(opciones: { readonly caidas?: readonly string[] } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly llamadas: (clave: string) => number;
+  readonly encender: (clave: string) => void;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  const vistas: string[] = [];
+  const quemadas = new Set<string>();
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+  const entrada = (estado: string) => ({
+    id: 'tkt_77_1',
+    qr: 'QR-SERVIDOR-77-1',
+    eventId: 'evt_1',
+    attendeeName: 'Ada Lovelace',
+    attendee: 'Ada Lovelace',
+    tier: 'General',
+    seat: null,
+    holderEmail: 'ada@example.com',
+    holder: 'ada@example.com',
+    status: estado,
+    eventTitle: 'Evento del servidor',
+    venueName: 'Ágora',
+    startsAt: '2026-11-14T20:00:00',
+  });
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/eventos/, '');
+    const clave = `${metodo} ${ruta.replace(/^\/ticket\/[^/]+\/transfer$/, '/ticket/{id}/transfer')}`;
+    vistas.push(clave);
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+    switch (clave) {
+      case 'POST /checkout':
+        return responder(200, {
+          orderRef: 'evord_77',
+          paymentSessionId: 'psp_77',
+          amount: 180_000,
+          amountFormatted: '$ 180.000',
+          currency: 'COP',
+          free: false,
+        });
+      case 'POST /confirm':
+        return responder(200, { status: 'Paid', tickets: [entrada('valid')] });
+      case 'POST /ticket/{id}/transfer':
+        return responder(200, {
+          ticket: entrada('transferred'),
+          newQr: 'QR-NUEVO-77',
+          status: 'transferred',
+          to: cuerpo['to'],
+          ticketId: 'tkt_77_1',
+        });
+      case 'POST /event':
+        return responder(200, {
+          eventId: 'evt_77',
+          id: 'evt_77',
+          slug: 'festival-synergos-2026-en-bogota',
+          status: 'draft',
+        });
+      case 'POST /checkin': {
+        const codigo = String(cuerpo['ticketId'] ?? '');
+        if (codigo !== 'QR-SERVIDOR-77-1') {
+          return responder(200, { status: 'invalid', ticketId: null, attendee: null });
+        }
+        const estado = quemadas.has(codigo) ? 'already-used' : 'valid';
+        quemadas.add(codigo);
+        return responder(200, { status: estado, ticketId: 'tkt_77_1', attendee: 'Ada Lovelace' });
+      }
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return {
+    fetchDoble,
+    llamadas: (clave) => vistas.filter((vista) => vista === clave).length,
+    encender: (clave) => {
+      caidas.delete(clave);
+    },
+  };
+}
+
 describe('EventosElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<EventosElementComponent>;
   let component: EventosElementComponent;
@@ -78,8 +181,15 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     TestBed.resetTestingModule();
   });
 
+  const alertas = (): string[] =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]')).map(
+      (alerta) => alerta.textContent?.trim() ?? '',
+    );
+
   /** Drive catálogo → SH-2 ficha → selección → carrito → SH-3 wizard → confirm. */
-  async function purchaseFirstGeneralEvent(): Promise<void> {
+  async function purchaseFirstGeneralEvent(
+    antesDeEnviar: (wizard: CheckoutWizardComponent) => void = () => undefined,
+  ): Promise<void> {
     const event =
       component.events().find((e) => e.mode === 'general' && e.fromAmount > 0) ??
       component.events()[0];
@@ -105,9 +215,21 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
       wizard.next();
       fixture.detectChanges();
     }
-    wizard.next(); // submit → pay → confirm (mock degradado)
+    antesDeEnviar(wizard);
+    wizard.next(); // submit → pay (POST /checkout) → confirm (POST /confirm)
     await flushMicrotasks(30);
     fixture.detectChanges();
+  }
+
+  /** Lo que el asistente emite en `failed`: el motivo con el que la estrategia contestó que no. */
+  function motivosDe(): { readonly motivos: string[]; readonly escuchar: (wizard: CheckoutWizardComponent) => void } {
+    const motivos: string[] = [];
+    return { motivos, escuchar: (wizard) => wizard.failed.subscribe((motivo) => motivos.push(motivo)) };
+  }
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
   }
 
   // ── empty: pristine app, catalogue view, no order ────────────────────────────
@@ -251,21 +373,76 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   });
 
   // ── happy: catálogo → ficha → carrito(+fees) → SH-3 wizard → confirm + QR ─────
+  //
+  // Corría con la red caída y lo que probaba era la orden `MOCK-<ts>` y las entradas con
+  // QR hecho en el navegador (UI#92, regla 16). Hoy el borde contesta con la forma de
+  // verdad y lo que se mira son la orden y el QR que emitió el SERVIDOR.
   it('runs the full purchase lifecycle through the SH-3 wizard into e-tickets (happy case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const borde = bordeDeEventos();
+    vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
 
     await purchaseFirstGeneralEvent();
 
     expect(component.view()).toBe('confirmed');
-    expect(component.orderRef().length).toBeGreaterThan(0);
-    expect(component.tickets().length).toBeGreaterThan(0);
-    expect(component.tickets().every((ticket) => ticket.qr.length > 0)).toBe(true);
+    expect(component.orderRef()).toBe('evord_77');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
     // Fees were applied on top of the ticket subtotal.
     expect(component.feesMinor()).toBeGreaterThan(0);
     expect(component.cartTotalMinor()).toBe(component.cartSubtotalMinor() + component.feesMinor());
     expect(window.location.hash).toContain('/confirmacion');
+  });
+
+  // ── UI#92: sin orden abierta no hay compra, ni entradas, ni anuncio ───────────
+  it('con el POST /checkout caído no cobra ni emite: lo dice una vez y no anuncia la compra', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ caidas: ['POST /checkout'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const compras: unknown[] = [];
+    component.purchased.subscribe((payload) => compras.push(payload));
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    // La estrategia CONTESTA que no abrió la orden; no revienta.
+    expect(fallos.motivos).toEqual(['checkout-not-opened']);
+
+    expect(component.view()).not.toBe('confirmed');
+    expect(component.tickets()).toEqual([]);
+    expect(compras).toEqual([]);
+    expect(borde.llamadas('POST /confirm')).toBe(0);
+    expect(alertas()).toEqual([asistente().config().payFailedMessage]);
+  });
+
+  // ── UI#92: la orden quedó abierta y la emisión no — reintentar NO abre otra ──
+  it('con el POST /confirm caído no emite entradas; reintentar confirma la MISMA orden', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEventos({ caidas: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await purchaseFirstGeneralEvent(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['tickets-not-issued']);
+    expect(component.view()).not.toBe('confirmed');
+    expect(component.tickets()).toEqual([]);
+    // El aviso nombra la orden que SÍ quedó, la del servidor.
+    expect(alertas()).toEqual([
+      asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'evord_77'),
+    ]);
+
+    borde.encender('POST /confirm');
+    asistente().next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmed');
+    expect(component.tickets().map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST /confirm')).toBe(2);
   });
 
   // ── filter: SH-1 criteria filters the catalogue by category ──────────────────
@@ -327,9 +504,9 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
   });
 
   // ── wallet (SH-10): a purchase surfaces in "mis tickets" + transfer ──────────
-  it('surfaces the purchase in the SH-10 wallet and transfers a ticket', async () => {
+  async function compraEnLaBilletera(borde: ReturnType<typeof bordeDeEventos>): Promise<string> {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', borde.fetchDoble);
     await createComponent();
 
     await purchaseFirstGeneralEvent();
@@ -337,10 +514,15 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     await flushMicrotasks();
 
     expect(component.view()).toBe('wallet');
-    expect(component.wallet().length).toBeGreaterThan(0);
+    // La billetera lleva la entrada que emitió el servidor, no una de esta pestaña.
+    expect(component.wallet().map((ticket) => ticket.id)).toContain('tkt_77_1');
     expect(component.walletCredentials().length).toBe(component.wallet().length);
+    return 'tkt_77_1';
+  }
 
-    const ticketId = component.wallet()[0].id;
+  it('surfaces the purchase in the SH-10 wallet and transfers a ticket', async () => {
+    const ticketId = await compraEnLaBilletera(bordeDeEventos());
+
     component.openTransfer(ticketId);
     component.transferTo.set('nuevo@example.com');
     component.confirmTransfer();
@@ -350,13 +532,29 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(transferred?.status).toBe('transferred');
   });
 
+  // ── UI#92: una entrada que no se transfirió sigue siendo de quien la tenía ───
+  it('con la transferencia caída la entrada sigue «Válida», el formulario abierto y se dice una vez', async () => {
+    const ticketId = await compraEnLaBilletera(bordeDeEventos({ caidas: ['POST /ticket/{id}/transfer'] }));
+
+    component.openTransfer(ticketId);
+    component.transferTo.set('nuevo@example.com');
+    component.confirmTransfer();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.wallet().find((t) => t.id === ticketId)?.status).toBe('valid');
+    expect(component.transferTicketId()).toBe(ticketId);
+    expect(component.transferTo()).toBe('nuevo@example.com');
+    expect(alertas()).toEqual(['No pudimos transferir la entrada: sigue a tu nombre. Intenta de nuevo.']);
+  });
+
   // ── organizer console (SH-5): dashboard aforo + check-in Válido/Ya-usado ─────
   it('loads the SH-5 organizer console and checks in a valid e-ticket idempotently', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
     await createComponent();
 
-    // First purchase to issue a recognisable e-ticket for the mock check-in.
+    // First purchase to issue a recognisable e-ticket for the check-in.
     await purchaseFirstGeneralEvent();
     // T9: se entra con el TOKEN del QR, no con el id (que la UI imprime bajo el código).
     const ticketQr = component.tickets()[0].qr;
@@ -382,12 +580,34 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
     expect(component.lastScan()?.status).toBe('already-used');
   });
 
-  // ── create event (SH-6): authoring wizard publishes an event ─────────────────
-  it('publishes a new event through the SH-6 authoring wizard', async () => {
+  // ── UI#92: sin respuesta del servidor la puerta no da veredicto ──────────────
+  it('con el POST /checkin caído no dice «Válido» ni «Inválido»: lo dice y deja el código', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeEventos({ caidas: ['POST /checkin'] }).fetchDoble);
     await createComponent();
+    await purchaseFirstGeneralEvent();
+    const ticketQr = component.tickets()[0].qr;
+    const validadas: unknown[] = [];
+    component.checkedin.subscribe((payload) => validadas.push(payload));
 
+    component.setRole('organizer');
+    await flushMicrotasks();
+    component.onManagerSectionChange('checkin');
+    const antes = component.checkedInCount();
+    component.checkinCode.set(ticketQr);
+    component.submitCheckin();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.lastScan()).toBeNull();
+    expect(component.checkedInCount()).toBe(antes);
+    expect(validadas).toEqual([]);
+    expect(component.checkinCode()).toBe(ticketQr);
+    expect(alertas()).toEqual(['No pudimos validar la entrada: el servidor no respondió. Vuelve a escanearla.']);
+  });
+
+  // ── create event (SH-6): authoring wizard publishes an event ─────────────────
+  async function llenarEventoNuevo(): Promise<void> {
     component.setRole('organizer');
     await flushMicrotasks();
     component.openCreateEvent();
@@ -402,10 +622,34 @@ describe('EventosElementComponent (v2 sobre shells)', () => {
       capacity: '500',
     });
     expect(component.createValidity()['publicar']).toBe(true);
+  }
+
+  it('publishes a new event through the SH-6 authoring wizard', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
+    await createComponent();
+    await llenarEventoNuevo();
 
     component.onCreatePublished(component.createDraft());
     await flushMicrotasks();
-    expect(component.createResultSlug()).toContain('festival');
+    // El slug que devolvió `CreateEventResponse`, no el que `slugify` sacaría del título.
+    expect(component.createResultSlug()).toBe('festival-synergos-2026-en-bogota');
+  });
+
+  // ── UI#92: un evento que no se creó no sale como «Evento publicado» ──────────
+  it('con el POST /event caído no dice «Evento publicado» y el borrador sobrevive', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEventos({ caidas: ['POST /event'] }).fetchDoble);
+    await createComponent();
+    await llenarEventoNuevo();
+
+    component.onCreatePublished(component.createDraft());
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.createResultSlug()).toBe('');
+    expect(component.createDraft()['title']).toBe('Festival Synergos 2026');
+    expect(alertas()).toEqual(['No pudimos publicar el evento. Intenta de nuevo.']);
   });
 
   // ── hash router: deep-links a view + the organizer console ───────────────────
@@ -703,47 +947,81 @@ describe('EventosApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
-  it('issues mock e-tickets, seeds the wallet and validates check-in idempotently', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  const CONTEXTO = { eventId: 'evt_1', eventTitle: 'Evento X', venueName: 'Ágora', startsAt: '2026-08-14T09:00:00' };
+
+  it('emite las entradas que devuelve el borde, las siembra en la billetera y valida en la puerta', async () => {
+    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
     const client = createClient();
 
     const confirmation = await client.confirm(
       '/api/eventos',
-      'ORD-9',
-      [{ name: 'Grace', email: 'g@b.co', document: 'CC9' }],
-      [{ tier: 'vip', qty: 1 }],
-      { eventId: 'EVT-1', eventTitle: 'Evento X', venueName: 'Ágora', startsAt: '2026-08-14T09:00:00' },
+      'evord_77',
+      [{ name: 'Ada Lovelace', email: 'ada@example.com', document: 'CC9' }],
+      CONTEXTO,
     );
-    expect(client.degraded).toBe(true);
-    expect(confirmation.tickets.length).toBe(1);
+    expect(confirmation.tickets.map((ticket) => ticket.qr)).toEqual(['QR-SERVIDOR-77-1']);
     const id = confirmation.tickets[0].id;
     // T9: la credencial es el token del QR, no el id.
     const qr = confirmation.tickets[0].qr;
 
     // The confirmed ticket is now in the wallet ("mis tickets").
-    const wallet = await client.tickets('/api/eventos', 'g@b.co');
+    const wallet = await client.tickets('/api/eventos', 'ada@example.com');
     expect(wallet.tickets.some((t) => t.id === id)).toBe(true);
 
     // Transfer invalidates the origin.
     const transfer = await client.transfer('/api/eventos', id, 'nuevo@b.co');
     expect(transfer.status).toBe('transferred');
-    const walletAfter = await client.tickets('/api/eventos', 'g@b.co');
+    const walletAfter = await client.tickets('/api/eventos', 'ada@example.com');
     expect(walletAfter.tickets.find((t) => t.id === id)?.status).toBe('transferred');
 
-    // Check-in: first valid, second already-used, unknown invalid.
-    const first = await client.checkin('/api/eventos', qr);
-    expect(first.status).toBe('valid');
-    const second = await client.checkin('/api/eventos', qr);
-    expect(second.status).toBe('already-used');
-    const unknown = await client.checkin('/api/eventos', 'NOPE');
-    expect(unknown.status).toBe('invalid');
-    // T9: el id suelto NO abre la puerta (la UI lo imprime bajo el QR).
-    const bareId = await client.checkin('/api/eventos', id);
-    expect(bareId.status).toBe('invalid');
+    // Check-in: lo decide el SERVIDOR — primero válida, después ya usada, lo ajeno inválido.
+    expect((await client.checkin('/api/eventos', qr)).status).toBe('valid');
+    expect((await client.checkin('/api/eventos', qr)).status).toBe('already-used');
+    expect((await client.checkin('/api/eventos', 'NOPE')).status).toBe('invalid');
+  });
+
+  // ── EL QUE MUERDE: con la red caída no hay entradas, ni transferencia, ni veredicto ─
+  it('con la red caída confirmar, transferir y validar LANZAN y no fabrican nada', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+    const fallo = { name: 'EventosWriteFailedError' };
+
+    await expect(
+      client.confirm('/api/eventos', 'evord_77', [{ name: 'Ada', email: 'a@b.co', document: 'CC9' }], CONTEXTO),
+    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/confirm' });
+    await expect(client.transfer('/api/eventos', 'tkt_77_1', 'nuevo@b.co')).rejects.toMatchObject(fallo);
+    await expect(client.checkin('/api/eventos', 'QR-SERVIDOR-77-1')).rejects.toMatchObject(fallo);
+    await expect(
+      client.checkout('/api/eventos', 'evt_1', [{ tier: 'vip', qty: 1 }], [], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/eventos/checkout' });
+
+    // Ninguna escritura caída enciende el cartel de «datos de ejemplo»…
+    expect(client.degraded).toBe(false);
+    // …y la billetera (una LECTURA, que sí degrada) no lleva ninguna entrada de esta orden.
+    const wallet = await client.tickets('/api/eventos', 'a@b.co');
+    expect(wallet.tickets.some((ticket) => ticket.orderRef === 'evord_77')).toBe(false);
   });
 
   it('returns a free checkout when the order total is zero (free case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          // `CheckoutResponse` de una orden de total cero: sin sesión de pago.
+          json: () =>
+            Promise.resolve({
+              orderRef: 'evord_free_1',
+              paymentSessionId: '',
+              amount: 0,
+              amountFormatted: '$ 0',
+              currency: 'COP',
+              free: true,
+            }),
+        } as Response),
+      ),
+    );
     const client = createClient();
 
     const checkout = await client.checkout(
@@ -752,13 +1030,10 @@ describe('EventosApiClient', () => {
       [{ tier: 'free', qty: 1 }],
       [],
       { name: 'Ada', email: 'a@b.co' },
-      0,
       'COP',
     );
 
-    expect(checkout.free).toBe(true);
-    expect(checkout.amount).toBe(0);
-    expect(checkout.paymentSessionId).toBe('');
+    expect(checkout).toEqual({ orderRef: 'evord_free_1', paymentSessionId: '', amount: 0, currency: 'COP', free: true });
   });
 
   it('normalises a manage response with aforo + portfolio (happy case)', async () => {
@@ -891,24 +1166,38 @@ describe('EventosApiClient', () => {
     expect(detail.venue.zones[0].seatmap.aisleAfterColumns).toBe(3);
   });
 
-  it('degrades the wallet + create event to visible mocks', async () => {
+  const EVENTO_NUEVO = {
+    title: 'Mi Evento',
+    category: 'Conferencia',
+    city: 'Cali',
+    venueName: 'Centro',
+    startsAt: '2026-09-01T10:00',
+    mode: 'general' as const,
+    capacity: 200,
+    tiers: [{ name: 'General', amount: 50_000, capacity: 200 }],
+  };
+
+  it('degrades the wallet to a visible mock (a READ)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
     const wallet = await client.tickets('/api/eventos', 'demo@b.co');
     expect(client.degraded).toBe(true);
     expect(wallet.tickets.length).toBeGreaterThan(0);
+  });
 
-    const created = await client.createEvent('/api/eventos', {
-      title: 'Mi Evento',
-      category: 'Conferencia',
-      city: 'Cali',
-      venueName: 'Centro',
-      startsAt: '2026-09-01T10:00',
-      mode: 'general',
-      capacity: 200,
-      tiers: [{ name: 'General', amount: 50_000, capacity: 200 }],
+  it('crea el evento con el id y el slug del servidor; caído, lanza (UI#92)', async () => {
+    vi.stubGlobal('fetch', bordeDeEventos().fetchDoble);
+    const client = createClient();
+    expect(await client.createEvent('/api/eventos', EVENTO_NUEVO)).toEqual({
+      id: 'evt_77',
+      slug: 'festival-synergos-2026-en-bogota',
+      status: 'draft',
     });
-    expect(created.slug).toBe('mi-evento');
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await expect(client.createEvent('/api/eventos', EVENTO_NUEVO)).rejects.toMatchObject({
+      name: 'EventosWriteFailedError',
+    });
   });
 });

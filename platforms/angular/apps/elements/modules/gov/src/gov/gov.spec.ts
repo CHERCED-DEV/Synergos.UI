@@ -22,13 +22,107 @@ async function flushMicrotasks(times = 12): Promise<void> {
   await asentar(times);
 }
 
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de Gobierno que contesta las ESCRITURAS con la forma del de verdad y se apaga
+ * por MÉTODO y ruta (UI#92; reglas 14, 16 y 18).
+ *
+ * Las formas son las de `GovController` del CMS: `ApplicationResponse` (un
+ * `ApplicationSummaryDto` con `feeStatus` declarada y nula), `CaseResponse` (con su
+ * `DecisionDto`) y `DocumentResponse`. La carpeta (`GET /applications`) lleva ESTADO, como
+ * la de verdad: lo radicado aparece en ella.
+ *
+ * **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): el radicado es
+ * `RAD-2026-000777` y la solicitud `app_77` (el `catch` acuñaba `GOV-2026-1xxxx` y
+ * `APP-<ts>-n`), y el caso decidido vuelve con el radicado `RAD-2026-000444` y la hora fija
+ * de la decisión, que el respaldo no podía dar (devolvía el del almacén y la hora de ahora).
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora (almacén de ejemplo con su cartel).
+ */
+function bordeDeGobierno(opciones: { readonly caidas?: readonly string[] } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly llamadas: (clave: string) => number;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  const vistas: string[] = [];
+  const radicadas: Record<string, unknown>[] = [];
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/gov/, '');
+    const clave = `${metodo} ${ruta}`;
+    vistas.push(clave);
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    const cuerpo =
+      init?.body && typeof init.body === 'string' ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+    switch (clave) {
+      case 'POST /application': {
+        const radicada = {
+          id: 'app_77',
+          reference: 'RAD-2026-000777',
+          serviceId: cuerpo['serviceId'],
+          serviceName: 'Trámite radicado en el servidor',
+          status: 'submitted',
+          submittedAt: '2026-10-03T10:00:00+00:00',
+          currentStage: 'Radicada',
+          feeMinor: 0,
+          feeStatus: null,
+        };
+        radicadas.push(radicada);
+        return responder(200, { application: radicada });
+      }
+      case 'GET /applications':
+        return responder(200, { applications: radicadas });
+      case 'POST /decision':
+        return responder(200, {
+          case: {
+            application: {
+              id: cuerpo['caseId'],
+              reference: 'RAD-2026-000444',
+              serviceName: 'Trámite',
+              citizenName: 'Ciudadana del servidor',
+              status: cuerpo['outcome'] === 'approve' ? 'approved' : 'info-requested',
+              submittedAt: '2026-09-01T10:00:00+00:00',
+              currentStage: cuerpo['outcome'] === 'approve' ? 'Aprobada' : 'Información solicitada',
+              feeMinor: 0,
+              feeStatus: null,
+            },
+            answers: [],
+            documents: [],
+            timeline: [],
+            notifications: [],
+            decision: {
+              outcome: cuerpo['outcome'],
+              note: cuerpo['note'],
+              decidedAtUtc: '2026-10-03T10:00:00+00:00',
+              decidedBy: 'funcionaria@agencia.gov.co',
+            },
+          },
+        });
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return { fetchDoble, llamadas: (clave) => vistas.filter((vista) => vista === clave).length };
+}
+
 describe('GovElementComponent (v2 dual face)', () => {
   let fixture: ComponentFixture<GovElementComponent>;
   let component: GovElementComponent;
 
-  async function createComponent(config: object = NEGOCIO_DEL_CMS): Promise<void> {
-    // Offline → seeded demo data across both faces.
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  async function createComponent(
+    config: object = NEGOCIO_DEL_CMS,
+    // Offline por defecto → seeded demo data across both faces. Las escrituras que un
+    // test necesita ver contestar las pone un `bordeDeGobierno` (UI#92).
+    fetchDoble: unknown = vi.fn(() => Promise.reject(new Error('offline'))),
+  ): Promise<void> {
+    vi.stubGlobal('fetch', fetchDoble);
     if (typeof window !== 'undefined') {
       window.location.hash = '';
     }
@@ -143,9 +237,42 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(host.querySelector('.catalog__lead')?.textContent?.trim()).toBe('Y');
   });
 
+  /** Catálogo → ficha → formulario SH-9 de antecedentes, listo para radicar. */
+  async function abrirFormularioDeAntecedentes(): Promise<void> {
+    const service = component.services().find((s) => s.id === 'svc-antecedentes');
+    expect(service).toBeTruthy();
+    component.openService(service!);
+    await flushMicrotasks();
+    component.startApplication();
+    await flushMicrotasks();
+    expect(component.view()).toBe('apply');
+  }
+
+  // ── UI#92: un radicado que no existe no se entrega ────────────────────────────
+  it('con el POST /application caído NO entrega radicado: se queda en el formulario y lo dice', async () => {
+    const borde = bordeDeGobierno({ caidas: ['POST /application'] });
+    await createComponent(NEGOCIO_DEL_CMS, borde.fetchDoble);
+    const radicadas: unknown[] = [];
+    component.applicationsubmitted.subscribe((payload) => radicadas.push(payload));
+    await abrirFormularioDeAntecedentes();
+
+    component.onFormSubmit({ answers: { motivoConsulta: 'laboral', aceptaTratamiento: 'true' } });
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('apply');
+    expect(component.confirmedApplication()).toBeNull();
+    expect(radicadas).toEqual([]);
+    expect(component.errorMessage()).toBe('No pudimos radicar la solicitud. Intente de nuevo.');
+  });
+
   // ── happy: discovery → ficha → SH-9 form radica → receipt → mis solicitudes ───
+  //
+  // Corría con la red caída y lo que probaba era el `GOV-2026-1xxxx` que acuñaba el
+  // `catch` (UI#92, regla 16): «Radicar ya no degrada», decía el componente, y el cliente
+  // degradaba. Hoy el borde contesta con la forma de verdad.
   it('opens a service, radica the SH-9 form and lands the receipt (happy case)', async () => {
-    await createComponent();
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
 
     const service = component.services().find((s) => s.id === 'svc-antecedentes');
     expect(service).toBeTruthy();
@@ -167,7 +294,7 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.view()).toBe('receipt');
     const app = component.confirmedApplication();
     expect(app).not.toBeNull();
-    expect(app?.reference).toMatch(/^GOV-2026-/);
+    expect(app?.reference).toBe('RAD-2026-000777');
     expect(app?.status).toBe('submitted');
 
     // The new application shows up in "mis solicitudes".
@@ -233,10 +360,8 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(componente.feeNeedsAttention('en-disputa', 42000)).toBe(true);
   });
 
-  // ── happy (officer): open a case → decide → status advances + queue refetch ───
-  it('opens a case and records an approve decision (officer happy case)', async () => {
-    await createComponent();
-
+  /** Cara del funcionario con un caso pendiente abierto. */
+  async function abrirCasoPendiente(): Promise<string> {
     component.setRole('officer');
     await flushMicrotasks();
     const pending = component.queueCases().find((c) => c.status === 'submitted');
@@ -247,6 +372,13 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.view()).toBe('case');
     expect(component.activeCase()?.application.id).toBe(pending!.id);
     expect(component.caseOutcomes().length).toBeGreaterThan(0);
+    return pending!.id;
+  }
+
+  // ── happy (officer): open a case → decide → status advances + queue refetch ───
+  it('opens a case and records an approve decision (officer happy case)', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno().fetchDoble);
+    await abrirCasoPendiente();
 
     component.decisionNote.set('Documentación completa.');
     component.decide('approve');
@@ -254,8 +386,31 @@ describe('GovElementComponent (v2 dual face)', () => {
 
     expect(component.activeCase()?.application.status).toBe('approved');
     expect(component.activeCase()?.decision?.outcome).toBe('approve');
+    // El caso que devolvió el SERVIDOR: su radicado y la hora a la que quedó la decisión.
+    expect(component.activeCase()?.application.reference).toBe('RAD-2026-000444');
+    expect(component.activeCase()?.decision?.decidedAtUtc).toBe('2026-10-03T10:00:00+00:00');
     // Closed → no further decisions offered.
     expect(component.caseOutcomes()).toEqual([]);
+  });
+
+  // ── UI#92: una decisión que no se registró no se anuncia ni cambia el caso ────
+  it('con el POST /decision caído el caso NO cambia, no se anuncia y se dice', async () => {
+    await createComponent(NEGOCIO_DEL_CMS, bordeDeGobierno({ caidas: ['POST /decision'] }).fetchDoble);
+    const decididos: unknown[] = [];
+    component.casedecided.subscribe((payload) => decididos.push(payload));
+    await abrirCasoPendiente();
+
+    component.decisionNote.set('Documentación completa.');
+    component.decide('approve');
+    await flushMicrotasks();
+
+    expect(component.activeCase()?.application.status).toBe('submitted');
+    expect(component.activeCase()?.decision ?? null).toBeNull();
+    expect(component.caseOutcomes().length).toBeGreaterThan(0);
+    // La nota sigue escrita para reintentar (regla 18b).
+    expect(component.decisionNote()).toBe('Documentación completa.');
+    expect(decididos).toEqual([]);
+    expect(component.errorMessage()).toBe('No pudimos registrar la decisión. Intente de nuevo.');
   });
 
   // ── idempotent: deciding on a closed case is a no-op ──────────────────────────
@@ -789,6 +944,49 @@ describe('GovElementComponent (v2 dual face)', () => {
     expect(component.uploadFile()).toBeNull(); // se limpió tras subir
   });
 
+  // ── UI#92: un documento que no llegó no se da por «recibido» ──────────────────
+  it('con el POST /document caído el documento NO entra al expediente y el fichero se queda', async () => {
+    const detail = {
+      id: 'app-1', reference: 'GOV-2026-11111', serviceId: 'svc-x', serviceName: 'Trámite',
+      status: 'info-requested', submittedAt: '2026-07-05T10:00:00Z', currentStage: 'Información solicitada',
+      timeline: [], documents: [], messages: [],
+    };
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.includes('/application/') && (init?.method ?? 'GET') === 'GET') {
+        return Promise.resolve({
+          ok: true, status: 200, json: () => Promise.resolve({ application: detail }),
+        } as Response);
+      }
+      // El POST /document (y todo lo demás) se cae.
+      return Promise.reject(new Error('offline'));
+    });
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#/gov/solicitud/app-1';
+    }
+    await TestBed.configureTestingModule({
+      imports: [GovElementComponent],
+      providers: [provideZonelessChangeDetection(), GovApiClient],
+    }).compileComponents();
+    vi.stubGlobal('fetch', fetchMock);
+    fixture = TestBed.createComponent(GovElementComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
+    fixture.detectChanges();
+    await flushMicrotasks();
+    expect(component.view()).toBe('application'); // control: el detalle cargó
+
+    const cedula = new File(['%PDF-'], 'cedula.pdf', { type: 'application/pdf' });
+    component.uploadFile.set(cedula);
+    component.uploadName.set('cedula.pdf');
+    component.uploadDocument();
+    await flushMicrotasks();
+
+    expect(component.activeApplication()?.documents).toEqual([]);
+    // El fichero elegido sigue ahí para reintentar (regla 18b), y se dice.
+    expect(component.uploadFile()).toBe(cedula);
+    expect(component.errorMessage()).toBe('No pudimos subir el documento. Intente de nuevo.');
+  });
+
   it('sin fichero elegido no intenta subir nada', async () => {
     await createComponent();
 
@@ -1113,37 +1311,63 @@ describe('GovApiClient (v2 contract)', () => {
     expect(seeded.id).toBe('app-seed-4');
   });
 
-  it('creates a mock application with a radicado on the exact contract (happy case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  it('radica con el radicado que devuelve el borde, en el contrato exacto (happy case)', async () => {
+    vi.stubGlobal('fetch', bordeDeGobierno().fetchDoble);
     const client = createClient();
 
     const summary = await client.createApplication('/api/gov', {
       serviceId: 'svc-sisben',
       answers: { personasHogar: '3' },
     });
-    expect(summary.reference).toMatch(/^GOV-2026-/);
-    expect(summary.status).toBe('submitted');
-
-    const detail = await client.application('/api/gov', summary.id);
-    expect(detail.reference).toBe(summary.reference);
-    expect(detail.timeline.length).toBeGreaterThan(0);
+    expect(summary).toMatchObject({ id: 'app_77', reference: 'RAD-2026-000777', status: 'submitted' });
+    // `feeStatus: null` es «no consta» y se queda así (CMS#116).
+    expect(summary.feeStatus).toBeNull();
   });
 
-  it('records a decision and advances the case status (happy case)', async () => {
+  // ── EL QUE MUERDE: con la red caída no hay radicado, ni documento, ni decisión ─
+  it('con la red caída radicar, adjuntar y decidir LANZAN y no tocan el almacén de ejemplo (UI#92)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
+    const fallo = { name: 'GovWriteFailedError' };
+    const antes = (await client.applications('/api/gov')).map((app) => app.id);
 
-    // Seeded app-seed-4 is 'submitted'.
+    await expect(
+      client.createApplication('/api/gov', { serviceId: 'svc-sisben', answers: { personasHogar: '3' } }),
+    ).rejects.toMatchObject({ ...fallo, endpoint: 'POST /api/gov/application' });
+    await expect(
+      client.uploadDocument('/api/gov', {
+        applicationId: 'app-seed-4',
+        file: new File(['%PDF-'], 'cedula.pdf', { type: 'application/pdf' }),
+      }),
+    ).rejects.toMatchObject(fallo);
+    // Seeded app-seed-4 is 'submitted': el respaldo de antes lo pasaba a 'info-requested'.
+    await expect(
+      client.decide('/api/gov', { caseId: 'app-seed-4', outcome: 'request-info', note: 'Falta un documento.' }),
+    ).rejects.toMatchObject(fallo);
+
+    // Las LECTURAS siguen degradando, y no llevan nada de lo que no se escribió.
+    expect((await client.applications('/api/gov')).map((app) => app.id)).toEqual(antes);
+    const seed = await client.application('/api/gov', 'app-seed-4');
+    expect(seed.status).toBe('submitted');
+    expect(seed.documents.some((doc) => doc.name === 'cedula.pdf')).toBe(false);
+  });
+
+  it('records a decision with the case the server returns (happy case)', async () => {
+    vi.stubGlobal('fetch', bordeDeGobierno().fetchDoble);
+    const client = createClient();
+
     const kase = await client.decide('/api/gov', {
       caseId: 'app-seed-4',
       outcome: 'request-info',
       note: 'Falta un documento.',
     });
     expect(kase.application.status).toBe('info-requested');
-    expect(kase.decision?.outcome).toBe('request-info');
-    // The officer note landed as an incoming correspondence entry for the citizen.
-    const detail = await client.application('/api/gov', 'app-seed-4');
-    expect(detail.status).toBe('info-requested');
+    expect(kase.application.reference).toBe('RAD-2026-000444');
+    expect(kase.decision).toEqual({
+      outcome: 'request-info',
+      note: 'Falta un documento.',
+      decidedAtUtc: '2026-10-03T10:00:00+00:00',
+    });
   });
 
   // Regresión del hallazgo BLOQUEANTE de la auditoría de la ola "un 401/403 no se

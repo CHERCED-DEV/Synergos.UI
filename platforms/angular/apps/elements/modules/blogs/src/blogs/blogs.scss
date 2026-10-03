@@ -1317,10 +1317,35 @@
     align-self: flex-end;
     background: var(--bl-brand-soft);
   }
+
+  // El mensaje que no salió (UI#92): el borde lo marca sin depender del fondo, que en los
+  // temas oscuros apenas se distingue del de los enviados.
+  &.is-failed {
+    border: syn.px-to-rem(1) dashed var(--bl-danger);
+  }
 }
 
 .blogs__dm-text {
   font-size: syn.$font-size-sm;
+}
+
+.blogs__dm-failed {
+  display: flex;
+  align-items: center;
+  gap: syn.$space-2;
+  font-size: syn.$font-size-xs;
+  font-weight: syn.$font-weight-semibold;
+  color: var(--bl-danger);
+}
+
+.blogs__dm-retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .blogs__dm-time {

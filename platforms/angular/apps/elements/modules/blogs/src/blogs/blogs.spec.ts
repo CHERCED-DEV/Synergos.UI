@@ -134,6 +134,92 @@ function postDeServidor(over: Record<string, unknown> = {}): Record<string, unkn
   };
 }
 
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de Blogs que contesta reaccionar, seguir y mandar un DM con la forma del de
+ * verdad, con ESTADO, y se apaga por MÉTODO y ruta (UI#92; reglas 16 y 19).
+ *
+ * Las formas son las de `BlogsController` del CMS: `ReactResponse` (un `ReactionsDto` con
+ * `counts` y `mine`), `FollowResponse` (el borde ALTERNA: «si ya sigue, deja de seguir») y
+ * `ThreadResponse` con el `DmMessageDto` recién guardado.
+ *
+ * **Los números no los puede producir el optimista** (regla 7): el servidor parte de 41
+ * «me gusta» y 7 «me encanta» —el post de ejemplo trae otros—, el DM vuelve con el id
+ * `dm_77`, y seguir parte de lo que diga `siguiendoAlEmpezar`.
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora (feed de ejemplo con su cartel).
+ */
+function bordeDeBlogs(opciones: { readonly caidas?: readonly string[]; readonly siguiendoAlEmpezar?: boolean } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly encender: (clave: string) => void;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  let mia: string | null = null;
+  let siguiendo = opciones.siguiendoAlEmpezar ?? false;
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test')
+      .pathname.replace(/^\/api\/blogs/, '')
+      .replace(/^\/post\/[^/]+\/react$/, '/post/{id}/react')
+      .replace(/^\/follow\/[^/]+$/, '/follow/{id}');
+    const clave = `${metodo} ${ruta}`;
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+    switch (clave) {
+      case 'POST /post/{id}/react': {
+        const tipo = String(cuerpo['type'] ?? 'like');
+        mia = mia === tipo ? null : tipo;
+        const counts = [
+          { type: 'like', count: 41 + (mia === 'like' ? 1 : 0) },
+          { type: 'love', count: 7 + (mia === 'love' ? 1 : 0) },
+        ];
+        const total = counts.reduce((suma, fila) => suma + fila.count, 0);
+        return responder(200, {
+          reactions: { total, countsByType: {}, myReaction: mia, counts, mine: mia },
+        });
+      }
+      case 'POST /follow/{id}':
+        siguiendo = !siguiendo;
+        return responder(200, {
+          following: siguiendo,
+          followerId: 'yo',
+          authorId: 'valeria',
+          followers: 1500,
+          followingCount: 12,
+        });
+      case 'POST /message':
+        return responder(200, {
+          thread: { threadId: cuerpo['threadId'], participants: [], messages: [], lastMessageAt: '2026-10-03T10:00:00Z' },
+          message: {
+            id: 'dm_77',
+            from: 'yo',
+            body: cuerpo['body'],
+            sentAt: '2026-10-03T10:00:00Z',
+            author: { id: 'yo', handle: 'yo', displayName: 'Yo', avatarUrl: null, verified: false },
+            createdAtUtc: '2026-10-03T10:00:00Z',
+            outgoing: true,
+            threadId: cuerpo['threadId'],
+          },
+        });
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return {
+    fetchDoble,
+    encender: (clave) => {
+      caidas.delete(clave);
+    },
+  };
+}
+
 /** `fetch` que acepta el POST de publicar y rechaza todo lo demás (modo demo). */
 function fetchQuePublica(post: Record<string, unknown>): ReturnType<typeof vi.fn> {
   const mock = vi.fn((url: string, init?: RequestInit) => {
@@ -296,30 +382,52 @@ describe('BlogsElementComponent', () => {
   });
 
   // ── idempotent: reacting twice with the same type toggles off, net zero ──────
+  //
+  // Corría con la red caída y lo que probaba era el `optimistic` que el cliente devolvía
+  // (UI#92, regla 19). Hoy el borde contesta con su estado y lo que se mira es SU conteo.
   it('toggles a reaction off when applied twice with the same type (idempotent case)', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeBlogs().fetchDoble);
     await createComponent();
 
     const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
-    const baseline = component.reactionCount(post, 'like');
 
     component.react(post, 'like');
     await flushMicrotasks();
     let current = component.posts().find((p) => p.id === post.id)!;
     expect(component.isReacted(current, 'like')).toBe(true);
-    expect(component.reactionCount(current, 'like')).toBe(baseline + 1);
+    expect(component.reactionCount(current, 'like')).toBe(42);
 
-    // Same type again → removed (idempotent toggle, back to baseline).
+    // Same type again → removed (idempotent toggle, back to the server's baseline).
     component.react(current, 'like');
     await flushMicrotasks();
     current = component.posts().find((p) => p.id === post.id)!;
     expect(component.isReacted(current, 'like')).toBe(false);
+    expect(component.reactionCount(current, 'like')).toBe(41);
+  });
+
+  // ── UI#92: una reacción que no se guardó vuelve atrás y se dice ───────────────
+  it('con el POST /react caído la reacción vuelve a como estaba, no se anuncia y se dice', async () => {
+    vi.stubGlobal('fetch', bordeDeBlogs({ caidas: ['POST /post/{id}/react'] }).fetchDoble);
+    await createComponent();
+    const anunciadas: unknown[] = [];
+    component.postreacted.subscribe((payload) => anunciadas.push(payload));
+
+    const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
+    const baseline = component.reactionCount(post, 'like');
+    component.react(post, 'like');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    const current = component.posts().find((p) => p.id === post.id)!;
+    expect(component.isReacted(current, 'like')).toBe(false);
     expect(component.reactionCount(current, 'like')).toBe(baseline);
+    expect(anunciadas).toEqual([]);
+    expect(component.errorMessage()).toBe('No pudimos guardar tu reacción. Intenta de nuevo.');
   });
 
   // ── reaction switch: love replaces like (one active reaction per user) ────────
   it('switches the active reaction without double-counting', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeBlogs().fetchDoble);
     await createComponent();
 
     const post = component.posts().find((p) => p.reactions.mine === null) ?? component.posts()[0];
@@ -335,22 +443,54 @@ describe('BlogsElementComponent', () => {
   });
 
   // ── follow: optimistic toggle + follower count recalc on the profile ─────────
-  it('follows an author optimistically and bumps the follower count', async () => {
+  /** Abre el perfil de ejemplo (una LECTURA) y pone el borde que contesta las escrituras. */
+  async function abrirPerfilConBorde(caidas: readonly string[] = []): Promise<boolean> {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
-
     component.openProfile('valeria.code');
     await flushMicrotasks();
+    const wasFollowing = component.profileViewerFollows();
+    // El borde parte de lo mismo que pinta el perfil: alterna desde ahí, como el de verdad.
+    vi.stubGlobal('fetch', bordeDeBlogs({ caidas, siguiendoAlEmpezar: wasFollowing }).fetchDoble);
+    return wasFollowing;
+  }
+
+  it('follows an author optimistically and bumps the follower count', async () => {
+    const wasFollowing = await abrirPerfilConBorde();
+    const anunciados: unknown[] = [];
+    component.authorfollowed.subscribe((payload) => anunciados.push(payload));
 
     const profile = component.profile()!;
     const before = profile.followersCount;
-    const wasFollowing = component.profileViewerFollows();
 
     component.toggleFollow(profile);
     await flushMicrotasks();
 
     expect(component.profileViewerFollows()).toBe(!wasFollowing);
     expect(component.profile()!.followersCount).toBe(before + (wasFollowing ? -1 : 1));
+    // Se anuncia lo que el SERVIDOR dejó.
+    expect(anunciados).toEqual([{ actorKey: profile.actorKey, following: !wasFollowing }]);
+  });
+
+  // ── UI#92: seguir que no se guardó vuelve atrás, con su contador, y se dice ───
+  it('con el POST /follow caído el botón y el contador vuelven a como estaban', async () => {
+    const wasFollowing = await abrirPerfilConBorde(['POST /follow/{id}']);
+    const anunciados: unknown[] = [];
+    component.authorfollowed.subscribe((payload) => anunciados.push(payload));
+
+    const profile = component.profile()!;
+    const before = profile.followersCount;
+    component.toggleFollow(profile);
+    // El optimista se pinta…
+    expect(component.profileViewerFollows()).toBe(!wasFollowing);
+    await flushMicrotasks();
+
+    // …y el fallo lo revierte.
+    expect(component.profileViewerFollows()).toBe(wasFollowing);
+    expect(component.isFollowing(profile.actorKey)).toBe(wasFollowing);
+    expect(component.profile()!.followersCount).toBe(before);
+    expect(anunciados).toEqual([]);
+    expect(component.errorMessage()).toBe('No pudimos actualizar a quién sigues. Intenta de nuevo.');
   });
 
   // ── thread: open a post, add a top-level comment optimistically ──────────────
@@ -401,7 +541,8 @@ describe('BlogsElementComponent', () => {
   });
 
   // ── v2 DMs (SH-7): loading the inbox + optimistic send appends to the thread ──
-  it('loads the DM inbox and appends a sent message optimistically', async () => {
+  /** Bandeja de ejemplo (una LECTURA) con el primer hilo abierto; luego, el borde. */
+  async function abrirHiloConBorde(borde: ReturnType<typeof bordeDeBlogs>): Promise<number> {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     await createComponent();
 
@@ -413,15 +554,45 @@ describe('BlogsElementComponent', () => {
     const thread = component.threads()[0];
     component.onThreadSelect(thread);
     await flushMicrotasks();
-    const active = component.activeThread()!;
-    expect(active.id).toBe(thread.id);
-    const before = active.messages.length;
+    expect(component.activeThread()!.id).toBe(thread.id);
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    return component.activeThread()!.messages.length;
+  }
 
-    component.onSendMessage({ thread: active, body: '¡Hola desde el test!' });
+  it('loads the DM inbox and appends a sent message optimistically', async () => {
+    const before = await abrirHiloConBorde(bordeDeBlogs());
+
+    component.onSendMessage({ thread: component.activeThread()!, body: '¡Hola desde el test!' });
     await flushMicrotasks();
     const after = component.activeThread()!;
     expect(after.messages.length).toBe(before + 1);
-    expect(after.messages[after.messages.length - 1].body).toBe('¡Hola desde el test!');
+    // La burbuja optimista se reconcilia con la que guardó el SERVIDOR.
+    expect(after.messages.at(-1)).toMatchObject({ id: 'dm_77', body: '¡Hola desde el test!' });
+    expect(after.messages.at(-1)?.failed).toBeUndefined();
+  });
+
+  // ── UI#92: un DM que no salió se queda MARCADO, sin hora, y se reintenta ──────
+  it('con el POST /message caído el DM queda marcado en el hilo, se dice y se reintenta', async () => {
+    const borde = bordeDeBlogs({ caidas: ['POST /message'] });
+    const before = await abrirHiloConBorde(borde);
+
+    component.onSendMessage({ thread: component.activeThread()!, body: '¡Hola desde el test!' });
+    await flushMicrotasks();
+
+    const marcado = component.activeThread()!.messages.at(-1)!;
+    expect(component.activeThread()!.messages.length).toBe(before + 1);
+    expect(marcado).toMatchObject({ body: '¡Hola desde el test!', failed: true });
+    expect(component.errorMessage()).toBe('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
+
+    borde.encender('POST /message');
+    component.retryMessage(component.activeThread()!, marcado);
+    await flushMicrotasks();
+
+    const after = component.activeThread()!;
+    expect(after.messages.length).toBe(before + 1);
+    expect(after.messages.at(-1)).toMatchObject({ id: 'dm_77', body: '¡Hola desde el test!' });
+    expect(after.messages.at(-1)?.failed).toBeUndefined();
+    expect(component.errorMessage()).toBe('');
   });
 
   // ── v2 explore (SH-1): hashtag facet drives the discovery criteria + results ──
@@ -1540,19 +1711,28 @@ describe('BlogsApiClient', () => {
       ),
     );
     const client = createClient();
-    const following = await client.follow('/api/blogs', 'a-1', false);
+    const following = await client.follow('/api/blogs', 'a-1');
     expect(following).toBe(true);
     expect(client.degraded).toBe(false);
   });
 
-  it('echoes the optimistic reaction state when the react endpoint is down (idempotent case)', async () => {
+  // ── EL QUE MUERDE: reaccionar, seguir y mandar un DM con la red caída LANZAN ──
+  // Antes se llamaba «echoes the optimistic reaction state when the react endpoint is
+  // down»: el nombre era el defecto (regla 19, UI#92).
+  it('con la red caída reaccionar, seguir y mandar un DM lanzan y no devuelven el optimista', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
+    const fallo = { name: 'BlogsWriteFailedError' };
 
-    const optimistic = { counts: [{ type: 'like' as const, count: 1 }], mine: 'like' as const, total: 1 };
-    const result = await client.react('/api/blogs', 'X1', 'like', optimistic);
-    expect(result).toEqual(optimistic);
-    expect(client.degraded).toBe(true);
+    await expect(client.react('/api/blogs', 'X1', 'like')).rejects.toMatchObject({
+      ...fallo,
+      endpoint: 'POST /api/blogs/post/{id}/react',
+    });
+    await expect(client.follow('/api/blogs', 'a-1')).rejects.toMatchObject(fallo);
+    await expect(client.sendMessage('/api/blogs', { threadId: 't-valeria', body: 'hola' })).rejects.toMatchObject(
+      fallo,
+    );
+    expect(client.degraded).toBe(false);
   });
 
   // Este caso probaba `search()`, que se quitó en #76: pedía `GET /api/blogs/search`, un endpoint
@@ -1626,7 +1806,7 @@ describe('BlogsApiClient', () => {
     const client = createClient();
 
     const error = await client
-      .sendMessage('/api/blogs', { threadId: 't-valeria', body: 'hola' }, AUTHOR)
+      .sendMessage('/api/blogs', { threadId: 't-valeria', body: 'hola' })
       .then(() => null, (e: unknown) => e);
     expect(isBlogsUnauthorized(error)).toBe(true);
   });

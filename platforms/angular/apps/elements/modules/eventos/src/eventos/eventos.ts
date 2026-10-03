@@ -1452,15 +1452,25 @@ export class EventosElementComponent implements OnInit {
     if (!ticketId || !/.+@.+\..+/.test(to)) {
       return;
     }
-    void this.#api.transfer(this.apiBase(), ticketId, to).then(() => {
-      this.wallet.update((list) =>
-        list.map((ticket) =>
-          ticket.id === ticketId ? { ...ticket, status: 'transferred' } : ticket,
-        ),
-      );
-      this.transferTicketId.set('');
-      this.transferTo.set('');
-    });
+    this.errorMessage.set('');
+    void this.#api
+      .transfer(this.apiBase(), ticketId, to)
+      .then(() => {
+        this.wallet.update((list) =>
+          list.map((ticket) =>
+            ticket.id === ticketId ? { ...ticket, status: 'transferred' } : ticket,
+          ),
+        );
+        this.transferTicketId.set('');
+        this.transferTo.set('');
+      })
+      .catch((error: unknown) => {
+        // La entrada NO se movió (UI#92): sigue «Válida» en la billetera, el formulario se
+        // queda abierto con el correo escrito y se dice una vez. Antes el cliente la daba
+        // por transferida en local y la promesa ni siquiera tenía `catch`.
+        void error;
+        this.errorMessage.set('No pudimos transferir la entrada: sigue a tu nombre. Intenta de nuevo.');
+      });
   }
 
   walletStatusLabel(status: WalletTicket['status']): string {
@@ -1676,6 +1686,7 @@ export class EventosElementComponent implements OnInit {
 
   private async runCheckin(code: string): Promise<void> {
     this.loading.set(true);
+    this.errorMessage.set('');
     try {
       const result = await this.#api.checkin(this.apiBase(), code);
       this.lastScan.set(result);
@@ -1713,8 +1724,12 @@ export class EventosElementComponent implements OnInit {
       if (this.handleOrganizerDenied(error)) {
         return;
       }
-      this.lastScan.set({ status: 'invalid' });
+      // Y un borde que no contesta TAMPOCO (UI#92): no hay veredicto, ni «Válido» —el
+      // cliente lo inventaba contra sus propias entradas— ni «Inválido», que culparía a la
+      // entrada. El código se queda en el campo para volver a escanear.
       void error;
+      this.lastScan.set(null);
+      this.errorMessage.set('No pudimos validar la entrada: el servidor no respondió. Vuelve a escanearla.');
     } finally {
       this.loading.set(false);
     }
@@ -1758,6 +1773,7 @@ export class EventosElementComponent implements OnInit {
       tiers: [tier],
     };
     this.createPublishing.set(true);
+    this.errorMessage.set('');
     void this.#api
       .createEvent(this.apiBase(), request)
       .then((result) => {
@@ -1769,7 +1785,11 @@ export class EventosElementComponent implements OnInit {
       })
       .catch((error: unknown) => {
         this.createPublishing.set(false);
-        this.handleOrganizerDenied(error);
+        if (this.handleOrganizerDenied(error)) {
+          return;
+        }
+        // El evento NO se creó (UI#92): el borrador sigue en el asistente y se dice.
+        this.errorMessage.set('No pudimos publicar el evento. Intenta de nuevo.');
       });
   }
 

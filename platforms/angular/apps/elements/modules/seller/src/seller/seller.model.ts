@@ -160,6 +160,12 @@ export interface SellerMessage {
   readonly from: 'buyer' | 'seller';
   readonly body: string;
   readonly date: string;
+  /**
+   * La respuesta NO salió (UI#92): se queda en el hilo, marcada y sin fecha de envío, para
+   * reintentarla sin volver a teclearla. Nunca la pone el servidor — es estado de esta
+   * pestaña, como el `failed` de los mensajes de EHR (#111).
+   */
+  readonly failed?: boolean;
 }
 
 /** One buyer↔seller thread from `GET /api/shop/messages`. */

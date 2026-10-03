@@ -6,6 +6,7 @@ import { CheckoutWizardComponent } from '@synergos/shells';
 import { TravelApiClient } from './travel-api.client';
 import { TravelFulfillmentStrategy } from './travel-fulfillment.strategy';
 import { TravelShellElementComponent } from './travel-shell';
+import type { TravelTrip } from './travel.model';
 import { asentar } from '../../../../../../tools/asentar';
 import { TRAVEL_SHELL_SYNHOST } from '@synergos/contracts';
 
@@ -35,6 +36,92 @@ function installMemoryStorage(): Map<string, string> {
  */
 async function flushMicrotasks(times = 8): Promise<void> {
   await asentar(times);
+}
+
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de viajes que contesta las ESCRITURAS con la forma del de verdad y se apaga por
+ * MÉTODO y ruta (UI#92; reglas 16 y 18).
+ *
+ * Las formas son las de `TravelController` del CMS: `CheckoutResponse`, `ConfirmResponse`
+ * (`status: 'Confirmed'`, `confirmationCode`, y sus `ConfirmItemDto` TAL CUAL: `product`
+ * con mayúscula, `label` y no `title`, sin `reference`) y `CancelOrderResponse`.
+ *
+ * **Lo que se mira no lo puede producir el respaldo de antes** (regla 7): la orden es
+ * `trv_77` y el código `TRV-77-OK` (el `catch` acuñaba `MOCK-<ts>` y usaba la orden como
+ * código), y la reserva `res_77_1` (allá `<orden>-01`).
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora (ofertas de muestra con su cartel).
+ */
+function bordeDeViajes(opciones: { readonly caidas?: readonly string[] } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly llamadas: (clave: string) => number;
+  readonly encender: (clave: string) => void;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  const vistas: string[] = [];
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test').pathname
+      .replace(/^\/api\/travel/, '')
+      .replace(/^\/order\/[^/]+\/cancel$/, '/order/{ref}/cancel');
+    const clave = `${metodo} ${ruta}`;
+    vistas.push(clave);
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    switch (clave) {
+      case 'POST /checkout':
+        return responder(200, {
+          orderRef: 'trv_77',
+          paymentSessionId: 'psp_77',
+          amount: 1_250_000,
+          amountFormatted: '$ 1.250.000',
+          currency: 'COP',
+        });
+      case 'POST /confirm':
+        return responder(200, {
+          status: 'Confirmed',
+          confirmationCode: 'TRV-77-OK',
+          orderRef: 'trv_77',
+          items: [
+            {
+              product: 'Flight',
+              offerId: 'FL-1',
+              label: 'BOG → CTG',
+              reservationId: 'res_77_1',
+              status: 'Confirmed',
+              price: 1_250_000,
+              priceFormatted: '$ 1.250.000',
+              currency: 'COP',
+            },
+          ],
+        });
+      case 'POST /order/{ref}/cancel':
+        return responder(200, {
+          status: 'Cancelled',
+          refunded: true,
+          refundAmount: 1_250_000,
+          refundAmountFormatted: '$ 1.250.000',
+          currency: 'COP',
+          orderRef: 'trv_77',
+        });
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return {
+    fetchDoble,
+    llamadas: (clave) => vistas.filter((vista) => vista === clave).length,
+    encender: (clave) => {
+      caidas.delete(clave);
+    },
+  };
 }
 
 describe('TravelShellElementComponent (v2 sobre shells)', () => {
@@ -364,10 +451,96 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     expect(component.cartItems().map((item) => item.kind)).toEqual(['hotel']);
   });
 
+  const alertas = (): string[] =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]')).map(
+      (alerta) => alerta.textContent?.trim() ?? '',
+    );
+
+  function asistente(): CheckoutWizardComponent {
+    return fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+      .componentInstance as CheckoutWizardComponent;
+  }
+
+  /** Un vuelo en el carrito, viajero llenado, y el asistente hasta el envío final. */
+  async function pagarUnVuelo(antesDeEnviar: (wizard: CheckoutWizardComponent) => void = () => undefined): Promise<void> {
+    await searchFlights();
+    component.addFlightToCart();
+    await flushMicrotasks();
+    component.guestName.set('Ada Lovelace');
+    component.guestEmail.set('ada@example.com');
+    component.goToCheckout();
+    fixture.detectChanges();
+    while (!asistente().isLastStep()) {
+      asistente().next();
+      fixture.detectChanges();
+    }
+    antesDeEnviar(asistente());
+    asistente().next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+  }
+
+  /** Lo que el asistente emite en `failed`: el motivo con el que la estrategia contestó que no. */
+  function motivosDe(): { readonly motivos: string[]; readonly escuchar: (wizard: CheckoutWizardComponent) => void } {
+    const motivos: string[] = [];
+    return { motivos, escuchar: (wizard) => wizard.failed.subscribe((motivo) => motivos.push(motivo)) };
+  }
+
+  // ── UI#92: sin orden abierta no hay viaje, ni cobro, ni anuncio ───────────────
+  it('con el POST /checkout caído no hay viaje: lo dice una vez, sin cobro ni anuncio', async () => {
+    installMemoryStorage();
+    const borde = bordeDeViajes({ caidas: ['POST /checkout'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const anunciados: unknown[] = [];
+    component.bookingconfirmed.subscribe((payload) => anunciados.push(payload));
+    const fallos = motivosDe();
+
+    await pagarUnVuelo(fallos.escuchar);
+
+    // La estrategia CONTESTA que no abrió la orden; no revienta.
+    expect(fallos.motivos).toEqual(['checkout-not-opened']);
+
+    expect(component.view()).toBe('checkout');
+    expect(component.confirmationCode()).toBe('');
+    expect(anunciados).toEqual([]);
+    expect(borde.llamadas('POST /confirm')).toBe(0);
+    expect(alertas()).toEqual([asistente().config().payFailedMessage]);
+  });
+
+  // ── UI#92: la orden quedó y los localizadores no — reintentar NO vuelve a cobrar
+  it('con el POST /confirm caído nombra la orden que quedó; reintentar confirma la MISMA', async () => {
+    installMemoryStorage();
+    const borde = bordeDeViajes({ caidas: ['POST /confirm'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const fallos = motivosDe();
+
+    await pagarUnVuelo(fallos.escuchar);
+
+    expect(fallos.motivos).toEqual(['locators-not-issued']);
+    expect(component.view()).toBe('checkout');
+    expect(component.confirmedVouchers()).toEqual([]);
+    expect(alertas()).toEqual([asistente().config().confirmFailedMessage.replaceAll('{referencia}', 'trv_77')]);
+
+    borde.encender('POST /confirm');
+    asistente().next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmation');
+    expect(component.confirmationCode()).toBe('TRV-77-OK');
+    expect(borde.llamadas('POST /checkout')).toBe(1);
+    expect(borde.llamadas('POST /confirm')).toBe(2);
+  });
+
   // ── checkout: SH-3 wizard → pay → confirm → SH-10 wallet ──────────────────────
+  //
+  // Corría con la red caída y lo que probaba era el `MOCK-<ts>` con localizadores armados
+  // en el navegador (UI#92, regla 16). Hoy el borde contesta con la forma de verdad.
   it('runs the SH-3 wizard to a confirmation with credentials (checkout case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeViajes().fetchDoble);
     await createComponent();
 
     await searchFlights();
@@ -390,20 +563,50 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     fixture.detectChanges();
     wizard.next(); // → revisar
     fixture.detectChanges();
-    wizard.next(); // submit → pay → confirm (mock degradado)
+    wizard.next(); // submit → pay (POST /checkout) → confirm (POST /confirm)
     await flushMicrotasks(30);
     fixture.detectChanges();
 
     expect(component.view()).toBe('confirmation');
-    expect(component.confirmationCode().length).toBeGreaterThan(0);
+    expect(component.orderRef()).toBe('trv_77');
+    expect(component.confirmationCode()).toBe('TRV-77-OK');
+    expect(component.confirmedVouchers().map((voucher) => voucher.reservationId)).toEqual(['res_77_1']);
     expect(component.confirmationCredentials().length).toBeGreaterThan(0);
     expect(window.location.hash).toContain('/confirmacion');
   });
 
   // ── account: mis viajes (SH-4) + timeline + cancelar + wallet ─────────────────
+  /** Mis viajes (una LECTURA: degrada a los de ejemplo) y el próximo, cancelable. */
+  async function abrirMisViajes(): Promise<TravelTrip> {
+    component.goToAccount();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.view()).toBe('account');
+    const upcoming = component.trips().find((trip) => trip.status === 'upcoming')!;
+    expect(component.canCancel(upcoming)).toBe(true);
+    return upcoming;
+  }
+
+  // ── UI#92: un viaje que no se canceló sigue en pie, con su botón ──────────────
+  it('con la cancelación caída el viaje sigue «Próximo», cancelable, y se dice una vez', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeViajes({ caidas: ['POST /order/{ref}/cancel'] }).fetchDoble);
+    await createComponent();
+    const upcoming = await abrirMisViajes();
+
+    component.cancelTrip(upcoming);
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.cancelReceipt(upcoming.ref)).toBeNull();
+    expect(component.trips().find((trip) => trip.ref === upcoming.ref)?.status).toBe('upcoming');
+    expect(component.canCancel(upcoming)).toBe(true);
+    expect(alertas()).toEqual(['No pudimos cancelar el viaje: sigue en pie. Intenta de nuevo.']);
+  });
+
   it('loads mis viajes, derives the timeline and cancels a trip (SH-4 case)', async () => {
     installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    vi.stubGlobal('fetch', bordeDeViajes().fetchDoble);
     await createComponent();
 
     component.goToAccount();
@@ -607,7 +810,7 @@ describe('TravelApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
-  it('degrades stay + trips + cancel to visible mock data (degradation case)', async () => {
+  it('degrades stay + trips to visible mock data — the READS (degradation case)', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
@@ -619,37 +822,42 @@ describe('TravelApiClient', () => {
     const trips = await client.trips('/api/travel', 'ada', 'COP');
     expect(trips.length).toBeGreaterThan(0);
     expect(trips[0].items.length).toBeGreaterThan(0);
+  });
 
-    const receipt = await client.cancel('/api/travel', 'TRIP-2026-0481');
-    expect(receipt.status).toBe('cancelled');
+  // ── EL QUE MUERDE: con la red caída no hay orden, ni localizador, ni cancelación ─
+  it('con la red caída abrir la orden, confirmar y cancelar LANZAN (UI#92)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(
+      client.checkout('/api/travel', [{ product: 'hotel', offerId: 'X1', detail: {} }], { name: 'Ada', email: 'a@b.co' }, 'COP'),
+    ).rejects.toMatchObject({ name: 'TravelWriteFailedError', endpoint: 'POST /api/travel/checkout' });
+    await expect(client.confirm('/api/travel', 'trv_77')).rejects.toMatchObject({ name: 'TravelWriteFailedError' });
+    await expect(client.cancel('/api/travel', 'TRIP-2026-0481')).rejects.toMatchObject({
+      name: 'TravelWriteFailedError',
+    });
+    expect(client.degraded).toBe(false);
   });
 
   it('opens a single checkout session and confirms with reservationIds (happy case)', async () => {
-    const fetchMock = vi.fn((url: string) => {
-      const body = url.endsWith('/checkout')
-        ? { orderRef: 'ORD-1', paymentSessionId: 'psp_1', amount: 100, currency: 'COP' }
-        : {
-            status: 'confirmed',
-            confirmationCode: 'CODE-1',
-            items: [{ product: 'hotel', title: 'Hotel X', reference: 'HT-1', reservationId: 'RES-1' }],
-          };
-      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
-    });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('fetch', bordeDeViajes().fetchDoble);
     const client = createClient();
 
     const checkout = await client.checkout(
       '/api/travel',
-      [{ product: 'hotel', offerId: 'X1', detail: {} }],
+      [{ product: 'flight', offerId: 'FL-1', detail: {} }],
       { name: 'Ada', email: 'a@b.co' },
-      100,
       'COP',
     );
-    expect(checkout.orderRef).toBe('ORD-1');
+    expect(checkout.orderRef).toBe('trv_77');
 
-    const confirmation = await client.confirm('/api/travel', 'ORD-1', []);
-    expect(confirmation.status).toBe('confirmed');
-    expect(confirmation.items[0].reservationId).toBe('RES-1');
+    const confirmation = await client.confirm('/api/travel', 'trv_77');
+    expect(confirmation.status).toBe('Confirmed');
+    expect(confirmation.confirmationCode).toBe('TRV-77-OK');
+    expect(confirmation.items[0].reservationId).toBe('res_77_1');
+
+    const receipt = await client.cancel('/api/travel', 'trv_77');
+    expect(receipt).toMatchObject({ ref: 'trv_77', status: 'cancelled' });
   });
   // ── #28: el default de `canReview` ──
   it('`canReview` ausente significa NO (default seguro)', async () => {

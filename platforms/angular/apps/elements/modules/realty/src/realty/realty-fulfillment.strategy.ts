@@ -17,6 +17,7 @@ import {
   type ContactInfo,
   type Listing,
   type SearchCriteria,
+  type Visit,
   type VisitMode,
   type VisitSelectionPayload,
   type VisitSlot,
@@ -46,8 +47,9 @@ interface RealtyVisitInstrument {
  *
  * The reservable resource here is a **visit slot** (habitación ≈ asiento ≈ médico ≈
  * **visita**), held via the engine like any other. `search`/`select`/`pay`/`confirm`
- * map onto the backend contract via <c>RealtyApiClient</c>, which degrades to mock
- * data when an endpoint is not yet wired so the full lifecycle works offline. The
+ * map onto the backend contract via <c>RealtyApiClient</c>: the catalogue degrades to
+ * mock data when the read endpoint is not yet wired, but **the visit never does** — a
+ * visit the server did not book is not confirmed (UI#92 · UI#95). The
  * **`pay` step is OFF**: it resolves to an accepted no-op (a synthetic reference)
  * so the checkout wizard advances to `confirm`, where the visit is actually booked
  * (`POST /api/realty/visit`). The portal calls the engine's <c>FulfillmentContext</c>
@@ -125,7 +127,16 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
     return { accepted: true, reference: `VISIT-${Date.now().toString(36).toUpperCase()}` };
   }
 
-  /** Step 4 — confirm the reservation: actually book the visit slot (NO payment). */
+  /**
+   * Step 4 — confirm the reservation: actually book the visit slot (NO payment).
+   *
+   * **Si el servidor no apartó la franja, esto NO confirma** (UI#92 · UI#95). El cliente
+   * fabricaba una visita `VIS-<ts>` «confirmada» cuando el `POST` no llegaba y esto la
+   * convertía en `confirmed: true`: el asistente cerraba con «¡Visita agendada!». Hoy se
+   * contesta `confirmed: false` sin comprobante —la forma de EHR (#111)—: el asistente
+   * dice UNA vez que el horario no quedó reservado (su `confirmFailedMessage`), la
+   * selección sigue en la sesión y volver a pulsar reintenta sólo este paso.
+   */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const line = session.items[0];
     if (!line) {
@@ -146,11 +157,13 @@ export class RealtyFulfillmentStrategy extends FulfillmentStrategyBase {
     };
     const mode: VisitMode = readString(selection['mode']) === 'video' ? 'video' : 'in-person';
 
-    const visit = await this.#api.scheduleVisit(
-      apiBase,
-      { listingId, slot, contact, mode },
-      listingTitle,
-    );
+    let visit: Visit;
+    try {
+      visit = await this.#api.scheduleVisit(apiBase, { listingId, slot, contact, mode }, listingTitle);
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'visit-not-booked', vouchers: [] };
+    }
     return {
       confirmed: visit.status === 'confirmed' || visit.status === 'held',
       vouchers: [

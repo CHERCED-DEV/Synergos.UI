@@ -228,7 +228,7 @@ cuando se sospecha algo.
 > pide el token ni de dónde sale el account id — la forma de CMS #137, una dependencia
 > obligatoria sin camino para obtenerla.
 
-**Cincuenta y cinco reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
+**Cincuenta y ocho reglas que costaron caro y no se deducen leyendo el código** (eran 21 y la
 cabecera decía «Veinte»: una lista numerada cuyo encabezado no se cuenta es la primera que
 se desincroniza):
 
@@ -1582,3 +1582,30 @@ se desincroniza):
    dos cosas: seguir los `import` de `@synergos/shared` hasta su fichero, y consumir una plantilla
    interpolada entera —su comilla de cierre se emparejaba con la siguiente del fichero y se tragaba
    el vocabulario—. Tocar el set es tocar el runtime compartido: `build:runtime` + `publish:runtime`.
+
+58. **El `catch` de una escritura que devuelve un objeto de éxito es UNA clase, y se barre entera;
+   y quitar la fabricación sin un caso feliz contra la forma DE VERDAD convierte un éxito en un
+   fallo.** UI#95 era una visita: `scheduleVisit` devolvía `{ id: 'VIS-<ts>', status: 'confirmed' }`
+   y el asistente cerraba con «¡Visita agendada!» con el servidor caído. Barrido el patrón en los
+   diez clientes (UI#92), salieron **21 escrituras más en siete verticales** con la misma forma: la
+   orden `MOCK-<ts>` con su `psp_mock_…` de eventos, la Tienda y Viajes; las entradas con un QR
+   «firmado» en el navegador; el localizador armado con la oferta; la cancelación «con reembolso
+   en 5–7 días»; el radicado `GOV-2026-…`, el documento «recibido» y la decisión del funcionario; el
+   lead, el inmueble, la búsqueda guardada y el favorito; la reacción y el seguir que devolvían el
+   `optimistic` que les pasaba el llamador (regla 19); la respuesta del vendedor y el DM
+   «enviados». Hoy lanzan su `<Vertical>WriteFailedError` —o `null`, la forma del #77 en seller—,
+   no encienden `degraded` (ese cartel es de las LECTURAS), las estrategias contestan
+   `accepted`/`confirmed: false` con su motivo, y la pantalla lo dice UNA vez y deja reintentar sin
+   volver a teclear: el mensaje que no salió se queda en el hilo, marcado (regla 18).
+   Dos cosas que sólo aparecieron al poner el caso feliz contra la forma del borde (regla 16), y
+   que el `catch` tapaba también en el camino BUENO:
+   (a) **la Tienda no daba nunca por colocado un pedido**: la estrategia aceptaba `confirmed` y el
+   borde contesta `Paid` (`ShopConfirmationResult`, el enum del pedido, regla 10). Quitando sólo la
+   fabricación, todo pedido pagado contra un servidor vivo habría salido «no pudimos confirmarlo»;
+   (b) **la respuesta del vendedor caía al `catch` aunque el borde la guardara**: el CMS contesta el
+   HILO entero (`ThreadDto`, con la respuesta al final de `messages`) y el cliente leía un mensaje
+   suelto en la raíz. «No se envió» sobre algo guardado invita a mandarlo dos veces.
+   **Ningún gate lo vigila todavía**, y el tell se busca con un grep, no leyendo lógica: un `catch`
+   de un método que hace `POST`/`DELETE` y termina en `return {…}` o en `return optimistic`.
+   Mutado: con los `catch` de antes, 33 rojos en las siete verticales; con las estrategias
+   reventando en vez de contestar que no, 7; con la Tienda aceptando sólo `confirmed`, 2.

@@ -41,6 +41,84 @@ async function flushMicrotasks(times = 10): Promise<void> {
   await asentar(times);
 }
 
+type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Un borde de realty que contesta las ESCRITURAS con la forma del de verdad y se apaga
+ * por MÉTODO y ruta (UI#92 · UI#95; reglas 16 y 18).
+ *
+ * Las formas son las de `RealtyController` del CMS: `VisitResponse` envuelve un `VisitDto`
+ * (con `visitId` e `id`, el `status` como lo serializa el enum —`Confirmed`— y `slot`
+ * como objeto), `LeadResponse` es `{ leadId }`, `SavedSearchDto` va sin envoltorio y
+ * `PublishListingResponse` es `{ listingId, id, status }`.
+ *
+ * **Los ids no se parecen a nada que el respaldo produzca** (regla 7): `visit_77`,
+ * `lead_42`, `ss_9`, `L-77`. El `catch` de antes acuñaba `VIS-<ts>`, `LEAD-<ts>`, `SS-<ts>`
+ * y `L-<ts>`, así que un test que sólo mirara «hay un id» pasaba con el defecto puesto.
+ * Y el título de la visita es el del CATÁLOGO del servidor, no el que mandó la ficha.
+ *
+ * Las LECTURAS que no se declaran caen como hasta ahora —catálogo de muestra con su
+ * cartel, que es legítimo (regla 4)—: lo que se prueba acá son las escrituras.
+ */
+function bordeDeEscrituras(opciones: { readonly caidas?: readonly string[] } = {}): {
+  readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
+  readonly llamadas: (clave: string) => number;
+  readonly encender: (clave: string) => void;
+} {
+  const caidas = new Set(opciones.caidas ?? []);
+  const vistas: string[] = [];
+  const responder = (status: number, body: unknown): Promise<Response> =>
+    Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) } as Response);
+
+  const fetchDoble = vi.fn<FetchDoble>((url, init) => {
+    const metodo = (init?.method ?? 'GET').toUpperCase();
+    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/realty/, '');
+    const clave = `${metodo} ${ruta}`;
+    vistas.push(clave);
+    if (caidas.has(clave)) {
+      return Promise.reject(new Error('offline'));
+    }
+    const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+    switch (clave) {
+      case 'POST /visit':
+        return responder(200, {
+          visit: {
+            visitId: 'visit_77',
+            status: 'Confirmed',
+            id: 'visit_77',
+            listingId: cuerpo['listingId'],
+            mode: cuerpo['mode'],
+            listingTitle: 'Casa campestre en La Calera',
+            slot: cuerpo['slot'],
+          },
+        });
+      case 'POST /lead':
+        return responder(200, { leadId: 'lead_42' });
+      case 'POST /saved-search':
+        return responder(200, {
+          id: 'ss_9',
+          label: cuerpo['label'],
+          criteria: cuerpo['criteria'],
+          savedAt: '2026-10-03T10:00:00+00:00',
+          createdAt: '2026-10-03',
+          operation: 'sale',
+        });
+      case 'POST /listing':
+        return responder(200, { listingId: 'L-77', id: 'L-77', status: 'active' });
+      default:
+        return Promise.reject(new Error('offline'));
+    }
+  });
+
+  return {
+    fetchDoble,
+    llamadas: (clave) => vistas.filter((vista) => vista === clave).length,
+    encender: (clave) => {
+      caidas.delete(clave);
+    },
+  };
+}
+
 describe('RealtyElementComponent (v2 sobre shells)', () => {
   let fixture: ComponentFixture<RealtyElementComponent>;
   let component: RealtyElementComponent;
@@ -117,14 +195,9 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.degraded()).toBe(true);
   });
 
-  // ── happy: PDP → SH-3 visit wizard → confirm (NO payment) ─────────────────────
-  it('runs the full visit lifecycle through the SH-3 wizard, pago OFF (happy case)', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
-    const first = component.listings()[0];
-    component.openListing(first);
+  /** PDP → asistente de visita con los datos llenos, parado en el último paso. */
+  async function llegarAlUltimoPasoDeLaVisita(): Promise<CheckoutWizardComponent> {
+    component.openListing(component.listings()[0]);
     await flushMicrotasks();
     expect(component.view()).toBe('pdp');
 
@@ -139,20 +212,81 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
 
     const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
       .componentInstance as CheckoutWizardComponent;
-    // mode → slot → contact → agendar → submit (pay OFF → confirm).
+    // mode → slot → contact → agendar.
     while (!wizard.isLastStep()) {
       wizard.next();
       fixture.detectChanges();
       await flushMicrotasks();
     }
-    wizard.next(); // submit → pay (accepted no-op) → confirm (schedule visit, mock)
+    return wizard;
+  }
+
+  const alertas = (): HTMLElement[] =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]'));
+
+  // ── happy: PDP → SH-3 visit wizard → confirm (NO payment) ─────────────────────
+  //
+  // Corría con la red caída y lo que probaba era el `VIS-<ts>` que fabricaba el `catch`
+  // (UI#92 · UI#95, regla 16). Hoy el borde de mentira contesta el `POST /visit` con la
+  // forma de `VisitResponse`, y lo que se mira es un id que el respaldo NO puede producir.
+  it('runs the full visit lifecycle through the SH-3 wizard, pago OFF (happy case)', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEscrituras();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+
+    const wizard = await llegarAlUltimoPasoDeLaVisita();
+    wizard.next(); // submit → pay (accepted no-op) → confirm (POST /visit)
     await flushMicrotasks(30);
     fixture.detectChanges();
 
     expect(component.view()).toBe('confirmation');
-    expect(component.confirmedVisit()).not.toBeNull();
-    expect(component.myVisits().length).toBe(1);
+    expect(component.confirmationReference()).toBe('visit_77');
+    expect(component.myVisits().map((visit) => visit.id)).toEqual(['visit_77']);
+    expect(borde.llamadas('POST /visit')).toBe(1);
     expect(window.location.hash).toContain('/confirmacion');
+  });
+
+  // ── UI#92 · UI#95: el POST caído NO agenda, lo dice una vez y deja reintentar ──
+  it('con el POST /visit caído NO confirma: lo dice UNA vez, no anuncia nada y deja reintentar', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEscrituras({ caidas: ['POST /visit'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const anunciadas: unknown[] = [];
+    component.visitscheduled.subscribe((payload) => anunciadas.push(payload));
+
+    const wizard = await llegarAlUltimoPasoDeLaVisita();
+    const motivos: string[] = [];
+    wizard.failed.subscribe((motivo) => motivos.push(motivo));
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    // La estrategia CONTESTA que no confirmó —la forma de EHR, #111—, no revienta.
+    expect(motivos).toEqual(['visit-not-booked']);
+    // Nada de «¡Visita agendada!»: la ficha sigue en el asistente, sin visita ni bandeja.
+    expect(component.view()).toBe('visit');
+    expect(component.confirmedVisit()).toBeNull();
+    expect(component.myVisits()).toEqual([]);
+    expect(anunciadas).toEqual([]);
+    // Y se dice UNA vez (regla 55), con el texto de la visita y no el de un cobro.
+    expect(alertas().map((alerta) => alerta.textContent?.trim())).toEqual([
+      component.visitCheckoutConfig.confirmFailedMessage,
+    ]);
+    expect(wizard.errorMessage()).not.toContain('pago');
+
+    // Lo tecleado sigue ahí y volver a pulsar reintenta: con el borde de vuelta, agenda.
+    expect(component.visitName()).toBe('Ada Lovelace');
+    borde.encender('POST /visit');
+    wizard.next();
+    await flushMicrotasks(30);
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('confirmation');
+    expect(component.confirmationReference()).toBe('visit_77');
+    expect(borde.llamadas('POST /visit')).toBe(2);
+    expect(anunciadas).toEqual([{ visitId: 'visit_77', listingId: component.listings()[0].id }]);
   });
 
   // ── #83: los dos selectores exclusivos los pinta `syn-segmented` ─────────────
@@ -173,9 +307,10 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   it('la modalidad de la visita se elige con el teclado y viaja en el POST (#83)', async () => {
     Element.prototype.scrollIntoView = vi.fn();
     installMemoryStorage();
-    const fetchMock = vi.fn<(url: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(() =>
-      Promise.reject(new Error('offline')),
-    );
+    // El POST lo contesta el borde con la forma de verdad: con la red caída la visita ya no
+    // se confirma (UI#95), y lo que se lee al final es la modalidad que el SERVIDOR anotó.
+    const borde = bordeDeEscrituras();
+    const fetchMock = borde.fetchDoble;
     vi.stubGlobal('fetch', fetchMock);
     await createComponent();
 
@@ -539,11 +674,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   });
 
   // ── lead: contacting the agent lands a confirmation ──────────────────────────
-  it('submits a lead to the agent and lands on the confirmation', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
+  async function escribirLead(): Promise<void> {
     component.openListing(component.listings()[0]);
     await flushMicrotasks();
     component.openLead();
@@ -552,11 +683,42 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     component.leadPhone.set('3009998877');
     component.leadMessage.set('Me interesa esta propiedad, más info por favor.');
     expect(component.leadValid()).toBe(true);
+  }
+
+  it('submits a lead to the agent and lands on the confirmation', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEscrituras().fetchDoble);
+    await createComponent();
+    await escribirLead();
 
     component.submitLead();
     await flushMicrotasks();
     expect(component.view()).toBe('confirmation');
-    expect(component.confirmedLeadId().length).toBeGreaterThan(0);
+    // El id del SERVIDOR (`LeadResponse.leadId`), no un `LEAD-<ts>` de aquí.
+    expect(component.confirmedLeadId()).toBe('lead_42');
+  });
+
+  // ── UI#92: un lead que no llegó NO se confirma, y lo escrito se queda ─────────
+  it('con el POST /lead caído no dice «¡Mensaje enviado!» y conserva lo escrito', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEscrituras({ caidas: ['POST /lead'] }).fetchDoble);
+    await createComponent();
+    await escribirLead();
+    const anunciados: unknown[] = [];
+    component.leadsubmitted.subscribe((payload) => anunciados.push(payload));
+
+    component.submitLead();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.view()).toBe('pdp');
+    expect(component.confirmedLeadId()).toBe('');
+    expect(anunciados).toEqual([]);
+    expect(component.leadOpen()).toBe(true);
+    expect(component.leadMessage()).toBe('Me interesa esta propiedad, más info por favor.');
+    expect(alertas().map((alerta) => alerta.textContent?.trim())).toEqual([
+      'No pudimos enviar tu mensaje. Intenta de nuevo.',
+    ]);
   });
 
   // ── agent console (SH-5): desk loads cartera + leads + agenda ─────────────────
@@ -578,11 +740,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   });
 
   // ── publish (SH-6): authoring wizard publishes a listing ─────────────────────
-  it('publishes a listing through the SH-6 authoring wizard', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
-
+  async function llenarPublicacion(): Promise<void> {
     component.setRole('agent');
     await flushMicrotasks();
     component.openPublish();
@@ -599,10 +757,61 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
       lng: '-74.06',
     });
     expect(component.publishValidity()['publicar']).toBe(true);
+  }
+
+  it('publishes a listing through the SH-6 authoring wizard', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEscrituras().fetchDoble);
+    await createComponent();
+    await llenarPublicacion();
 
     component.onPublished(component.createDraft());
     await flushMicrotasks();
-    expect(component.publishResultId().length).toBeGreaterThan(0);
+    // El id que devolvió `PublishListingResponse`, no un `L-<ts>` de aquí.
+    expect(component.publishResultId()).toBe('L-77');
+  });
+
+  // ── UI#92: un inmueble que no se publicó no se da por publicado ───────────────
+  it('con el POST /listing caído no dice «Publicado con id…» y el borrador sobrevive', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', bordeDeEscrituras({ caidas: ['POST /listing'] }).fetchDoble);
+    await createComponent();
+    await llenarPublicacion();
+
+    component.onPublished(component.createDraft());
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.publishResultId()).toBe('');
+    expect(component.publishing()).toBe(false);
+    expect(component.createDraft()['title']).toBe('Apartamento de prueba');
+    expect(component.desk()?.portfolio.some((row) => row.title === 'Apartamento de prueba')).toBe(false);
+    expect(alertas().map((alerta) => alerta.textContent?.trim())).toEqual([
+      'No pudimos publicar el inmueble. Intenta de nuevo.',
+    ]);
+  });
+
+  // ── UI#92: una búsqueda que no se guardó no aparece como guardada ─────────────
+  it('guardar la búsqueda con el borde de verdad la apunta con su id; caído, no la apunta y lo dice', async () => {
+    installMemoryStorage();
+    const borde = bordeDeEscrituras({ caidas: ['POST /saved-search'] });
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    await createComponent();
+    const antes = component.savedSearches().map((search) => search.id);
+
+    component.saveCurrentSearch();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.savedSearches().map((search) => search.id)).toEqual(antes);
+    expect(alertas().map((alerta) => alerta.textContent?.trim())).toEqual([
+      'No pudimos guardar tu búsqueda. Intenta de nuevo.',
+    ]);
+
+    borde.encender('POST /saved-search');
+    component.saveCurrentSearch();
+    await flushMicrotasks();
+    expect(component.savedSearches()[0]?.id).toBe('ss_9');
   });
 
   // ── hash router: deep-links views + the agent console ─────────────────────────
@@ -961,27 +1170,42 @@ describe('RealtyApiClient', () => {
     expect(client.degraded).toBe(false);
   });
 
-  it('schedules a visit and degrades to a mock visit (no payment)', async () => {
+  const VISITA_PEDIDA = {
+    listingId: 'L-1',
+    slot: { date: '2026-07-10', time: '11:00' },
+    contact: { name: 'Ada', email: 'a@b.co', phone: '3001112222' },
+    mode: 'video' as const,
+  };
+
+  // ── UI#92 · UI#95: el caso feliz es lo que el endpoint DEVUELVE ──────────────
+  it('agenda una visita con lo que contesta el borde (`VisitResponse`)', async () => {
+    const borde = bordeDeEscrituras();
+    vi.stubGlobal('fetch', borde.fetchDoble);
+    const client = createClient();
+
+    const visit = await client.scheduleVisit('/api/realty', VISITA_PEDIDA, 'Apartamento en Chicó');
+
+    // `Confirmed` es como lo serializa el CMS (el enum con `ToString()`).
+    expect(visit).toMatchObject({ id: 'visit_77', status: 'confirmed', listingId: 'L-1', mode: 'video' });
+    expect(visit.listingTitle).toBe('Casa campestre en La Calera');
+    expect(client.degraded).toBe(false);
+  });
+
+  // ── EL QUE MUERDE: con la red caída NO hay visita, ni confirmada ni de ejemplo ─
+  it('con la red caída la visita NO se fabrica: lanza y no enciende el cartel de ejemplo', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const visit = await client.scheduleVisit(
-      '/api/realty',
-      {
-        listingId: 'L-1',
-        slot: { date: '2026-07-10', time: '11:00' },
-        contact: { name: 'Ada', email: 'a@b.co', phone: '3001112222' },
-        mode: 'in-person',
-      },
-      'Apartamento en Chicó',
-    );
-    expect(client.degraded).toBe(true);
-    expect(visit.status).toBe('confirmed');
-    expect(visit.listingId).toBe('L-1');
+    await expect(client.scheduleVisit('/api/realty', VISITA_PEDIDA, 'Apartamento en Chicó')).rejects.toMatchObject({
+      name: 'RealtyWriteFailedError',
+      endpoint: 'POST /api/realty/visit',
+    });
+    // `degraded` dice «estás viendo datos de ejemplo»; aquí no se enseñó ninguno.
+    expect(client.degraded).toBe(false);
   });
 
-  it('degrades the agent desk + submits a lead that surfaces in the CRM', async () => {
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+  it('un lead que el servidor aceptó entra en el CRM con SU id', async () => {
+    vi.stubGlobal('fetch', bordeDeEscrituras().fetchDoble);
     const client = createClient();
 
     const lead = await client.submitLead(
@@ -989,13 +1213,47 @@ describe('RealtyApiClient', () => {
       { listingId: 'L-1', contact: { name: 'Grace', email: 'g@b.co', phone: '3009998877' }, message: 'Hola' },
       'Apartamento en Chicó',
     );
-    expect(lead.leadId.length).toBeGreaterThan(0);
+    expect(lead.leadId).toBe('lead_42');
 
     const desk = await client.agentDesk('/api/realty');
+    expect(desk.leads.some((entry) => entry.id === 'lead_42')).toBe(true);
+  });
+
+  it('un lead que no llegó lanza y NO aparece en el CRM', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+
+    await expect(
+      client.submitLead(
+        '/api/realty',
+        { listingId: 'L-1', contact: { name: 'Grace', email: 'g@b.co', phone: '3009998877' }, message: 'Hola' },
+        'Apartamento en Chicó',
+      ),
+    ).rejects.toMatchObject({ name: 'RealtyWriteFailedError' });
+
+    // El escritorio sí degrada (es una LECTURA, con su cartel), pero sin el lead fantasma.
+    const desk = await client.agentDesk('/api/realty');
     expect(client.degraded).toBe(true);
-    expect(desk.portfolio.length).toBeGreaterThan(0);
-    // The just-submitted lead is folded into the CRM.
-    expect(desk.leads.some((entry) => entry.id === lead.leadId)).toBe(true);
+    expect(desk.leads.some((entry) => entry.name === 'Grace')).toBe(false);
+  });
+
+  it('una búsqueda que no se guardó lanza; un 401 sigue saliendo como 401', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    const client = createClient();
+    const pedida = {
+      label: 'Venta en Bogotá',
+      operation: 'sale' as const,
+      criteria: { q: '', operation: 'sale' as const, type: '', minPrice: 0, maxPrice: 0, beds: 0, location: 'Bogotá', sort: 'relevance' as const },
+      alert: true,
+    };
+
+    await expect(client.saveSearch('/api/realty', pedida)).rejects.toMatchObject({ name: 'RealtyWriteFailedError' });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)),
+    );
+    await expect(client.saveSearch('/api/realty', pedida)).rejects.toMatchObject({ name: 'RealtyUnauthorizedError' });
   });
 
   it('re-lanza el 401 de las búsquedas guardadas en vez de degradar a mock', async () => {
@@ -1014,10 +1272,13 @@ describe('RealtyApiClient', () => {
   });
 
   it('re-lanza el 403 del escritorio del agente y olvida los leads en memoria', async () => {
-    const fetchMock = vi.fn((url: string) =>
+    // El lead lo ACEPTA el borde (desde UI#92 sólo entra en memoria lo que el servidor
+    // aceptó); el escritorio contesta 403.
+    const borde = bordeDeEscrituras();
+    const fetchMock = vi.fn((url: string, init?: RequestInit) =>
       String(url).includes('/agent/leads')
         ? Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) } as Response)
-        : Promise.reject(new Error('offline')),
+        : borde.fetchDoble(url, init),
     );
     vi.stubGlobal('fetch', fetchMock);
     const client = createClient();
@@ -1040,33 +1301,43 @@ describe('RealtyApiClient', () => {
     expect(desk.leads.some((entry) => entry.name === 'Grace')).toBe(false);
   });
 
-  it('publishes a listing that surfaces in the cartera (mock)', async () => {
+  const INMUEBLE_NUEVO = {
+    title: 'Nuevo Apto',
+    operation: 'sale' as const,
+    type: 'apartamento' as const,
+    price: 400_000_000,
+    city: 'Cali',
+    neighborhood: 'Granada',
+    address: 'Cl 1',
+    lat: 3.45,
+    lng: -76.53,
+    beds: 2,
+    baths: 2,
+    areaBuilt: 70,
+    stratum: 5,
+  };
+
+  it('publishes a listing that surfaces in the cartera with the id the server gave it', async () => {
+    vi.stubGlobal('fetch', bordeDeEscrituras().fetchDoble);
+    const client = createClient();
+
+    const result = await client.publishListing('/api/realty', INMUEBLE_NUEVO, 'COP');
+    expect(result).toEqual({ id: 'L-77', status: 'active' });
+
+    const desk = await client.agentDesk('/api/realty');
+    expect(desk.portfolio.some((entry) => entry.id === 'L-77')).toBe(true);
+  });
+
+  it('un inmueble que no se publicó lanza y NO aparece en la cartera', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    const result = await client.publishListing(
-      '/api/realty',
-      {
-        title: 'Nuevo Apto',
-        operation: 'sale',
-        type: 'apartamento',
-        price: 400_000_000,
-        city: 'Cali',
-        neighborhood: 'Granada',
-        address: 'Cl 1',
-        lat: 3.45,
-        lng: -76.53,
-        beds: 2,
-        baths: 2,
-        areaBuilt: 70,
-        stratum: 5,
-      },
-      'COP',
-    );
-    expect(result.id.length).toBeGreaterThan(0);
+    await expect(client.publishListing('/api/realty', INMUEBLE_NUEVO, 'COP')).rejects.toMatchObject({
+      name: 'RealtyWriteFailedError',
+    });
 
     const desk = await client.agentDesk('/api/realty');
-    expect(desk.portfolio.some((entry) => entry.id === result.id)).toBe(true);
+    expect(desk.portfolio.some((entry) => entry.title === 'Nuevo Apto')).toBe(false);
   });
 });
 

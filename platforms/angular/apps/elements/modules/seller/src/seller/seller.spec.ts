@@ -321,11 +321,25 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
   });
 
   // ── mensajes (SH-7): hilos degradados + responder agrega el mensaje ─────────
-  it('loads buyer threads and appends the seller reply to the active thread', async () => {
-    installMemoryStorage();
-    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-    await createComponent();
+  /**
+   * Lo que el CMS contesta al responder: el HILO entero (`ThreadDto`), con la respuesta al
+   * final y el `from` como el correo del member. El id `msg_77` no lo puede producir el
+   * respaldo de antes (`msg-<ts>`), y la fecha es la del SERVIDOR, no la de hoy (regla 7).
+   */
+  const HILO_RESPONDIDO = {
+    threadId: 'th-1',
+    contextRef: 'P-1',
+    participants: ['comprador@correo.co', 'vendedor@tienda.co'],
+    messages: [
+      { messageId: 'msg_1', from: 'comprador@correo.co', body: '¿Tiene garantía?', sentAt: '2026-09-30T10:00:00+00:00' },
+      { messageId: 'msg_77', from: 'vendedor@tienda.co', body: 'Sí, tiene garantía de 12 meses.', sentAt: '2026-09-30T15:00:00+00:00' },
+    ],
+    createdAt: '2026-09-30T10:00:00+00:00',
+    lastMessageAt: '2026-09-30T15:00:00+00:00',
+  };
 
+  /** Abre «Mensajes» (una LECTURA: degrada al hilo de ejemplo) y el primer hilo sin leer. */
+  async function abrirHiloSinLeer(): Promise<number> {
     component.goTo('mensajes');
     await flushMicrotasks();
     fixture.detectChanges();
@@ -338,8 +352,15 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     expect(component.activeThread()?.id).toBe(unread!.id);
     // Opening the thread clears its unread flag.
     expect(component.threads().find((thread) => thread.id === unread!.id)?.unread).toBe(false);
+    return component.activeThread()!.messages.length;
+  }
 
-    const before = component.activeThread()!.messages.length;
+  it('loads buyer threads and appends the seller reply to the active thread', async () => {
+    installMemoryStorage();
+    installFakeServer({ 'POST /reply': HILO_RESPONDIDO });
+    await createComponent();
+    const before = await abrirHiloSinLeer();
+
     await component.onSendReply({
       thread: component.activeThread()!,
       body: 'Sí, tiene garantía de 12 meses.',
@@ -347,8 +368,52 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
 
     const active = component.activeThread()!;
     expect(active.messages.length).toBe(before + 1);
-    expect(active.messages[active.messages.length - 1].from).toBe('seller');
+    // La respuesta que guardó el SERVIDOR: su id y su fecha, del final del hilo que devolvió.
+    expect(active.messages.at(-1)).toEqual({
+      id: 'msg_77',
+      from: 'seller',
+      body: 'Sí, tiene garantía de 12 meses.',
+      date: '2026-09-30',
+    });
+    expect(component.actionError()).toBeNull();
     expect(component.sending()).toBe(false);
+  });
+
+  // ── UI#92: una respuesta que no salió se queda MARCADA, no con cara de enviada ─
+  it('con el POST /reply caído la respuesta queda marcada en el hilo, se dice una vez y se reintenta', async () => {
+    installMemoryStorage();
+    installFakeServer({}); // nada contesta: el POST /reply sale 404
+    await createComponent();
+    const before = await abrirHiloSinLeer();
+
+    await component.onSendReply({
+      thread: component.activeThread()!,
+      body: 'Sí, tiene garantía de 12 meses.',
+    });
+    fixture.detectChanges();
+
+    const marcada = component.activeThread()!.messages.at(-1)!;
+    expect(component.activeThread()!.messages.length).toBe(before + 1);
+    // El texto no se pierde, pero no lleva fecha: sería el acuse que no existe.
+    expect(marcada).toMatchObject({ from: 'seller', body: 'Sí, tiene garantía de 12 meses.', date: '', failed: true });
+    const host = fixture.nativeElement as HTMLElement;
+    expect(Array.from(host.querySelectorAll('[role="alert"]')).map((alerta) => alerta.textContent?.trim())).toEqual([
+      'Tu respuesta NO se envió. Queda en el hilo para reintentarla.',
+    ]);
+
+    // Reintentar desde el hilo, ya con el borde arriba: la marcada se vuelve LA del servidor.
+    installFakeServer({ 'POST /reply': HILO_RESPONDIDO });
+    await component.retryReply(component.activeThread()!, marcada);
+
+    const active = component.activeThread()!;
+    expect(active.messages.length).toBe(before + 1);
+    expect(active.messages.at(-1)).toEqual({
+      id: 'msg_77',
+      from: 'seller',
+      body: 'Sí, tiene garantía de 12 meses.',
+      date: '2026-09-30',
+    });
+    expect(component.actionError()).toBeNull();
   });
 
   // ── reputación cargando: esqueleto CON forma + aviso audible ────────────────

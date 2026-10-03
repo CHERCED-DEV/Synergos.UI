@@ -42,10 +42,18 @@ import {
  *  - `GET  /api/eventos/manage/{eventId}`                   → `{ attendees:[...], capacity, sold }`
  *  - `POST /api/eventos/checkin`  `{ ticketId }`            → `{ status }`
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
- * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
- * flow is complete end-to-end before the backend lands. Every mock path flips the
- * `degraded` flag so the shell can surface a "datos de ejemplo" notice.
+ * **Graceful degradation — sólo de LECTURAS:** if a read endpoint is not yet wired
+ * (network error / non-OK), the client falls back to visible **mock data** and logs a
+ * `TODO`. Every mock path flips the `degraded` flag so the shell can surface a "datos de
+ * ejemplo" notice.
+ *
+ * **Las ESCRITURAS no degradan** (UI#92, reglas 4, 9, 14 y 38): abrir la orden, emitir
+ * las entradas, transferir una, crear un evento y validar en la puerta LANZAN
+ * {@link EventosWriteFailedError} cuando el borde no contesta. Devolvían una orden
+ * `MOCK-<ts>` con su `psp_mock_…`, entradas con un QR «firmado» en el navegador, una
+ * transferencia hecha, un `EVT-<ts>` y un «Válido» contra las entradas de mentira — o
+ * sea: se cobraba contra una sesión de pago inventada, el asistente se iba con un QR que
+ * la puerta no reconoce y la puerta dejaba pasar con el servidor caído.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -81,6 +89,23 @@ export function isEventosForbidden(error: unknown): error is EventosForbiddenErr
   return error instanceof Error && error.name === 'EventosForbiddenError';
 }
 
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92). El gemelo de `AcademyWriteFailedError` (CMS#117) y de
+ * `RealtyWriteFailedError` (UI#95). **No enciende `degraded`**: ese cartel dice «estás
+ * viendo datos de ejemplo», y una entrada no es un ejemplo — es la prueba con la que
+ * alguien va a intentar entrar (regla 14).
+ */
+export class EventosWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Eventos write "${endpoint}" did not reach the server.`);
+    this.name = 'EventosWriteFailedError';
+  }
+}
+
 @Injectable()
 export class EventosApiClient {
   readonly #logger = inject(LoggerService);
@@ -88,11 +113,7 @@ export class EventosApiClient {
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
 
-  /** Last issued tickets, kept so the mock check-in can recognise valid codes. */
-  #lastTickets: readonly ETicket[] = [];
-  /** Codes already used in this mock session (for the "ya usado" path). */
-  readonly #usedCodes = new Set<string>();
-  /** In-memory wallet, so a mock purchase surfaces in "mis tickets" + transfer. */
+  /** La billetera de la sesión: las entradas que el SERVIDOR emitió en esta pestaña. */
   #walletTickets: readonly WalletTicket[] = [];
 
   get degraded(): boolean {
@@ -185,13 +206,21 @@ export class EventosApiClient {
 
   // ─── Checkout (open one PSP session for the order) ───────────────────────────
 
+  /**
+   * Abre la orden y su sesión de pago. **Lanza si el borde no la abrió** (UI#92).
+   *
+   * Devolvía una orden `MOCK-<ts>` —o `FREE-<ts>`— con un `psp_mock_…`, y la estrategia
+   * contestaba `accepted: true`: el asistente seguía a confirmar contra una orden que el
+   * servidor no conoce. **Sin `fallbackAmount`**: era la fabricación escrita en la firma
+   * (regla 19) — el total lo calcula el borde, con su comisión (CMS#194), justamente para
+   * no confiarle el precio al navegador.
+   */
   async checkout(
     apiBase: string,
     eventId: string,
     items: readonly CheckoutItem[],
     attendees: readonly Attendee[],
     buyer: Buyer,
-    fallbackAmount: number,
     currency: string,
   ): Promise<CheckoutResult> {
     const url = `${apiBase}/checkout`;
@@ -203,25 +232,24 @@ export class EventosApiClient {
       }
       throw new Error('checkout-shape');
     } catch (error) {
-      this.markDegraded('POST /api/eventos/checkout', error);
-      const free = fallbackAmount <= 0;
-      return {
-        orderRef: `${free ? 'FREE' : 'MOCK'}-${Date.now().toString(36).toUpperCase()}`,
-        paymentSessionId: free ? '' : `psp_mock_${Math.random().toString(36).slice(2, 10)}`,
-        amount: fallbackAmount,
-        currency,
-        free,
-      };
+      this.writeFailed('POST /api/eventos/checkout', error);
     }
   }
 
   // ─── Confirm (issue e-tickets) ───────────────────────────────────────────────
 
+  /**
+   * Captura y emite las entradas. **Lanza si el borde no las emitió** (UI#92).
+   *
+   * Fabricaba una entrada por asistente con un QR «firmado» en el navegador y la sembraba
+   * en «mis entradas»: es la regla 14 en su forma más cara — la entrada es lo que alguien
+   * enseña en la puerta, y la puerta no la iba a reconocer. Las que siembra la billetera
+   * son sólo las que el servidor devolvió.
+   */
   async confirm(
     apiBase: string,
     orderRef: string,
     attendees: readonly Attendee[],
-    items: readonly CheckoutItem[],
     context?: ConfirmContext,
   ): Promise<ConfirmResult> {
     const url = `${apiBase}/confirm`;
@@ -229,17 +257,12 @@ export class EventosApiClient {
       const data = await this.postJson(apiBase, url, { orderRef });
       const confirmation = normalizeConfirm(data);
       if (confirmation) {
-        this.#lastTickets = confirmation.tickets;
         this.seedWallet(confirmation.tickets, attendees, orderRef, context);
         return confirmation;
       }
       throw new Error('confirm-shape');
     } catch (error) {
-      this.markDegraded('POST /api/eventos/confirm', error);
-      const tickets = mockTickets(orderRef, attendees, items);
-      this.#lastTickets = tickets;
-      this.seedWallet(tickets, attendees, orderRef, context);
-      return { status: 'confirmed', tickets };
+      this.writeFailed('POST /api/eventos/confirm', error);
     }
   }
 
@@ -298,6 +321,11 @@ export class EventosApiClient {
 
   // ─── Transfer a ticket (invalidate origin) ────────────────────────────────────
 
+  /**
+   * Regala la entrada. **Lanza si el borde no la transfirió** (UI#92): la daba por
+   * transferida en local, y quien la regalaba creía que su amigo ya podía entrar con ella
+   * mientras el QR de verdad seguía siendo el suyo.
+   */
   async transfer(apiBase: string, ticketId: string, to: string): Promise<TransferResult> {
     const url = `${apiBase}/ticket/${encodeURIComponent(ticketId)}/transfer`;
     try {
@@ -309,9 +337,8 @@ export class EventosApiClient {
       }
       throw new Error('transfer-shape');
     } catch (error) {
-      this.markDegraded('POST /api/eventos/ticket/{id}/transfer', error);
-      this.applyTransfer(ticketId);
-      return { status: 'transferred', to, ticketId };
+      this.rethrowIfAuthError(error);
+      this.writeFailed('POST /api/eventos/ticket/{id}/transfer', error);
     }
   }
 
@@ -324,6 +351,12 @@ export class EventosApiClient {
 
   // ─── Create event (organizer authoring) ───────────────────────────────────────
 
+  /**
+   * Publica el evento. **Lanza si el borde no lo creó** (UI#92): acuñaba un `EVT-<ts>` y la
+   * consola decía «Evento publicado» con una página pública que no existía — el defecto
+   * que el propio CMS describe en `EventDraftRequest` («no se notaba porque el cliente lo
+   * tapa con un id inventado»).
+   */
   async createEvent(apiBase: string, request: CreateEventRequest): Promise<CreateEventResult> {
     const url = `${apiBase}/event`;
     try {
@@ -335,9 +368,7 @@ export class EventosApiClient {
       throw new Error('create-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/eventos/event', error);
-      const slug = slugify(request.title);
-      return { id: `EVT-${Date.now().toString(36).toUpperCase()}`, slug, status: 'draft' };
+      this.writeFailed('POST /api/eventos/event', error);
     }
   }
 
@@ -361,6 +392,15 @@ export class EventosApiClient {
 
   // ─── Check-in (validate an e-ticket) ─────────────────────────────────────────
 
+  /**
+   * Valida y quema la entrada en la puerta. **Lanza si el borde no contestó** (UI#92).
+   *
+   * Validaba contra las entradas que esta misma pestaña había fabricado y contestaba
+   * «Válido» o «Ya usado» con el servidor caído: la puerta dejaba pasar sin que nada
+   * quedara quemado, así que la misma entrada podía volver a entrar por la puerta de al
+   * lado. Y al revés, una entrada buena salía «Inválida» —culpando al asistente— cuando lo
+   * que fallaba era la red. Sin respuesta del servidor no hay veredicto.
+   */
   async checkin(apiBase: string, ticketId: string): Promise<CheckInResult> {
     const url = `${apiBase}/checkin`;
     try {
@@ -372,30 +412,8 @@ export class EventosApiClient {
       throw new Error('checkin-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/eventos/checkin', error);
-      return this.mockCheckin(ticketId);
+      this.writeFailed('POST /api/eventos/checkin', error);
     }
-  }
-
-  /**
-   * Mock validation: recognises a code if it matches a recently issued e-ticket
-   * (by id or qr payload), is idempotent-aware (second scan → already-used), and
-   * rejects anything unknown.
-   */
-  private mockCheckin(code: string): CheckInResult {
-    const trimmed = code.trim();
-    // Solo por QR, igual que el backend real (T9): el id suelto NO abre la puerta —
-    // la UI lo imprime bajo el código, así que aceptarlo aquí enseñaría lo contrario
-    // de lo que hace el servidor y volvería el modo demo más permisivo que producción.
-    const match = this.#lastTickets.find((ticket) => ticket.qr === trimmed);
-    if (!match) {
-      return { status: 'invalid' };
-    }
-    if (this.#usedCodes.has(match.id)) {
-      return { status: 'already-used', ticketId: match.id, attendee: match.attendee };
-    }
-    this.#usedCodes.add(match.id);
-    return { status: 'valid', ticketId: match.id, attendee: match.attendee };
   }
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
@@ -469,6 +487,15 @@ export class EventosApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Eventos API responds.
     this.#logger.warn(`Eventos API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel de
+   * «datos de ejemplo» es de las LECTURAS, y aquí no hay ejemplo que enseñar.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Eventos API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new EventosWriteFailedError(endpoint, error);
   }
 }
 
@@ -1272,51 +1299,6 @@ function mockArtist(event: EventSummary): EventArtist {
 
 type EventOrganizer = EventDetail['organizer'];
 type EventSession = EventDetail['sessions'][number];
-
-function mockTickets(
-  orderRef: string,
-  attendees: readonly Attendee[],
-  items: readonly CheckoutItem[],
-): readonly ETicket[] {
-  // One e-ticket per attendee; if no attendees captured, one per unit/qty.
-  if (attendees.length > 0) {
-    return attendees.map((attendee, index) => {
-      const item = items[Math.min(index, Math.max(0, items.length - 1))];
-      const id = `TKT-${orderRef}-${index + 1}`;
-      return {
-        id,
-        qr: signedQr(id, orderRef, attendee.document || attendee.email),
-        attendee: attendee.name,
-        tier: item?.tier,
-        seat: item?.seat,
-      };
-    });
-  }
-  const total = items.reduce((sum, item) => sum + Math.max(1, item.qty), 0) || 1;
-  return Array.from({ length: total }, (_unused, index) => {
-    const id = `TKT-${orderRef}-${index + 1}`;
-    return {
-      id,
-      qr: signedQr(id, orderRef, ''),
-      tier: items[0]?.tier,
-      seat: items[0]?.seat,
-    };
-  });
-}
-
-/**
- * Mock "signed" QR payload. The real issuer (`IETicketIssuer`) signs server-side
- * with an HMAC so the payload is non-forgeable; here we just encode a stable,
- * recognisable blob so the demo check-in can validate it.
- */
-function signedQr(ticketId: string, orderRef: string, subject: string): string {
-  const sig = `${ticketId}.${orderRef}.${subject}`
-    .split('')
-    .reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) >>> 0, 7)
-    .toString(36)
-    .toUpperCase();
-  return `SYN1|${ticketId}|${orderRef}|${sig}`;
-}
 
 /** A seeded operational view for the organizer cara (aforo + asistentes). */
 function mockManage(eventId: string): ManageResult {

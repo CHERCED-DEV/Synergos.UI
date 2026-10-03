@@ -37,10 +37,17 @@ import {
  *  - `GET  /api/travel/trips?traveler=`               → `{ trips }` (mis viajes)
  *  - `POST /api/travel/order/{ref}/cancel`            → `{ ref, status, refundLabel }`
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
- * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
- * flow is complete end-to-end before the backend lands. Every mock path flips the
- * `degraded` flag so the app can surface a "datos de ejemplo" notice.
+ * **Graceful degradation — sólo de LECTURAS:** if a read endpoint is not yet wired
+ * (network error / non-OK), the client falls back to visible **mock data** and logs a
+ * `TODO`. Every mock path flips the `degraded` flag so the app can surface a "datos de
+ * ejemplo" notice.
+ *
+ * **Las ESCRITURAS no degradan** (UI#92, reglas 4, 9, 14, 19 y 38): abrir la orden,
+ * emitir los localizadores y cancelar LANZAN {@link TravelWriteFailedError} cuando el
+ * borde no contesta. Devolvían una orden `MOCK-<ts>` con su `psp_mock_…`, un viaje
+ * «confirmado» con localizadores armados en el navegador y una cancelación «con reembolso
+ * en 5–7 días hábiles»: el viajero se iba con un PNR que la aerolínea no conoce, o creyendo
+ * que había cancelado un viaje que seguía en pie — y cobrándose.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -51,6 +58,22 @@ import {
  */
 function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92). El gemelo de `AcademyWriteFailedError` (CMS#117). **No enciende
+ * `degraded`**: ese cartel dice «estás viendo datos de ejemplo», y un localizador no es un
+ * ejemplo — es lo que alguien enseña en el mostrador (regla 14).
+ */
+export class TravelWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Travel write "${endpoint}" did not reach the server.`);
+    this.name = 'TravelWriteFailedError';
+  }
 }
 
 @Injectable()
@@ -179,11 +202,17 @@ export class TravelApiClient {
 
   // ─── Checkout (single payment for the whole cart) ────────────────────────────
 
+  /**
+   * Abre la orden y su sesión de pago. **Lanza si el borde no la abrió** (UI#92).
+   *
+   * **Sin `fallbackAmount`**: era la fabricación escrita en la firma (regla 19) — y además
+   * lo calculaba dividiendo por 100 sin mirar la moneda (regla 56). El total lo resuelve el
+   * borde desde las ofertas.
+   */
   async checkout(
     apiBase: string,
     lines: readonly TravelCheckoutLine[],
     guest: TravelGuest,
-    fallbackAmount: number,
     currency: string,
   ): Promise<TravelCheckoutResult> {
     const url = `${apiBase}/checkout`;
@@ -195,23 +224,21 @@ export class TravelApiClient {
       }
       throw new Error('checkout-shape');
     } catch (error) {
-      this.markDegraded('POST /api/travel/checkout', error);
-      return {
-        orderRef: `MOCK-${Date.now().toString(36).toUpperCase()}`,
-        paymentSessionId: `psp_mock_${Math.random().toString(36).slice(2, 10)}`,
-        amount: fallbackAmount,
-        currency,
-      };
+      this.writeFailed('POST /api/travel/checkout', error);
     }
   }
 
   // ─── Confirm (issue vouchers/PNRs for the whole order) ───────────────────────
 
-  async confirm(
-    apiBase: string,
-    orderRef: string,
-    fallbackLines: readonly TravelCheckoutLine[],
-  ): Promise<TravelConfirmation> {
+  /**
+   * Captura y emite los localizadores. **Lanza si el borde no los emitió** (UI#92).
+   *
+   * Armaba `HO-<oferta>`, `FL-<oferta>` y un código de confirmación igual a la orden
+   * inventada: el viajero salía con un localizador que nadie tiene (regla 14). **Sin
+   * `fallbackLines`**: sólo servían para fabricarlo (regla 19). Reconfirmar la misma orden
+   * es lo que repite el asistente al reintentar, sin volver a cobrar.
+   */
+  async confirm(apiBase: string, orderRef: string): Promise<TravelConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
       const data = await this.postJson(apiBase, url, { orderRef });
@@ -221,22 +248,7 @@ export class TravelApiClient {
       }
       throw new Error('confirm-shape');
     } catch (error) {
-      this.markDegraded('POST /api/travel/confirm', error);
-      return {
-        status: 'confirmed',
-        confirmationCode: orderRef,
-        items: fallbackLines.map((line, index) => {
-          const reference = `${line.product.slice(0, 2).toUpperCase()}-${line.offerId}`;
-          const reservationId = `${orderRef}-${(index + 1).toString().padStart(2, '0')}`;
-          return {
-            product: line.product,
-            title: readString(line.detail['title']) || productLabel(line.product),
-            subtitle: readString(line.detail['subtitle']) || undefined,
-            reference,
-            reservationId,
-          };
-        }),
-      };
+      this.writeFailed('POST /api/travel/confirm', error);
     }
   }
 
@@ -260,6 +272,11 @@ export class TravelApiClient {
 
   // ─── Cancel a booking ─────────────────────────────────────────────────────────
 
+  /**
+   * Cancela el viaje. **Lanza si el borde no lo canceló** (UI#92): devolvía «cancelado,
+   * reembolso en 5–7 días hábiles» con el servidor caído, y el viajero no volvía a mirar
+   * un viaje que seguía en pie — ni el reembolso que no iba a llegar.
+   */
   async cancel(apiBase: string, ref: string): Promise<CancelReceipt> {
     const url = `${apiBase}/order/${encodeURIComponent(ref)}/cancel`;
     try {
@@ -270,8 +287,7 @@ export class TravelApiClient {
       }
       throw new Error('cancel-shape');
     } catch (error) {
-      this.markDegraded('POST /api/travel/order/{ref}/cancel', error);
-      return { ref, status: 'cancelled', refundLabel: 'Reembolso en 5–7 días hábiles' };
+      this.writeFailed('POST /api/travel/order/{ref}/cancel', error);
     }
   }
 
@@ -324,6 +340,15 @@ export class TravelApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Booking API responds.
     this.#logger.warn(`Travel API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel de
+   * «datos de ejemplo» es de las LECTURAS, y aquí no hay ejemplo que enseñar.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Travel API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new TravelWriteFailedError(endpoint, error);
   }
 }
 

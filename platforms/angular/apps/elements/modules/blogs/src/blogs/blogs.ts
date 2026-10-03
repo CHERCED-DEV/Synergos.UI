@@ -1203,15 +1203,22 @@ export class BlogsElementComponent implements OnInit {
   // ─── Reactions (optimistic, idempotent toggle) ──────────────────────────────────
   react(post: Post, type: ReactionType): void {
     const optimistic = toggleReaction(post.reactions, type);
-    const active = optimistic.mine === type;
     this.patchPost(post.id, (current) => ({ ...current, reactions: optimistic }));
-    this.postreacted.emit({ id: post.id, type, active });
 
     this.#api
-      .react(this.apiBase(), post.id, type, optimistic)
-      .then((reactions) => this.patchPost(post.id, (current) => ({ ...current, reactions })))
+      .react(this.apiBase(), post.id, type)
+      .then((reactions) => {
+        this.patchPost(post.id, (current) => ({ ...current, reactions }));
+        // Se anuncia lo que el SERVIDOR guardó, no lo que se pintó (UI#92): antes salía
+        // antes de la respuesta, y un fallo dejaba al host creyendo en una reacción que no
+        // existía.
+        this.postreacted.emit({ id: post.id, type, active: reactions.mine === type });
+      })
       .catch((error: unknown) => {
+        // Antes el cliente devolvía el optimista cuando el `POST` no llegaba, así que este
+        // `catch` no corría nunca: la reacción se quedaba pintada sin estar guardada.
         this.patchPost(post.id, (current) => ({ ...current, reactions: post.reactions }));
+        this.errorMessage.set('No pudimos guardar tu reacción. Intenta de nuevo.');
         void error;
       });
   }
@@ -1370,10 +1377,10 @@ export class BlogsElementComponent implements OnInit {
   toggleFollow(author: Author): void {
     const isFollowing = this.following().has(author.actorKey);
     const next = !isFollowing;
+    const profileBefore = this.profile()?.actorKey === author.actorKey ? this.profile() : null;
     this.setFollowing(author.actorKey, next);
-    this.authorfollowed.emit({ actorKey: author.actorKey, following: next });
 
-    if (this.profile()?.actorKey === author.actorKey) {
+    if (profileBefore) {
       this.profile.update((current) =>
         current
           ? { ...current, followersCount: Math.max(0, current.followersCount + (next ? 1 : -1)) }
@@ -1382,14 +1389,31 @@ export class BlogsElementComponent implements OnInit {
       this.profileFollowing.set(next);
     }
 
-    this.#api.follow(this.apiBase(), author.actorKey, next).then((confirmed) => {
-      if (confirmed !== next) {
-        this.setFollowing(author.actorKey, confirmed);
-        if (this.profile()?.actorKey === author.actorKey) {
-          this.profileFollowing.set(confirmed);
+    this.#api
+      .follow(this.apiBase(), author.actorKey)
+      .then((confirmed) => {
+        if (confirmed !== next) {
+          this.setFollowing(author.actorKey, confirmed);
+          if (this.profile()?.actorKey === author.actorKey) {
+            this.profileFollowing.set(confirmed);
+          }
         }
-      }
-    });
+        // Se anuncia lo que el SERVIDOR dejó (UI#92), no lo que se pintó.
+        this.authorfollowed.emit({ actorKey: author.actorKey, following: confirmed });
+      })
+      .catch((error: unknown) => {
+        // No se guardó (UI#92): el botón y el contador vuelven a como estaban, y se dice.
+        // Antes el cliente devolvía `next` como si el servidor lo hubiera confirmado.
+        this.setFollowing(author.actorKey, isFollowing);
+        if (profileBefore && this.profile()?.actorKey === author.actorKey) {
+          this.profile.update((current) =>
+            current ? { ...current, followersCount: profileBefore.followersCount } : current,
+          );
+          this.profileFollowing.set(isFollowing);
+        }
+        this.errorMessage.set('No pudimos actualizar a quién sigues. Intenta de nuevo.');
+        void error;
+      });
   }
 
   isFollowing(actorKey: string): boolean {
@@ -1801,8 +1825,9 @@ export class BlogsElementComponent implements OnInit {
       lastAtUtc: local.createdAtUtc,
     }));
     this.sendingMessage.set(true);
+    this.errorMessage.set('');
     this.#api
-      .sendMessage(this.apiBase(), { threadId, body }, this.viewer)
+      .sendMessage(this.apiBase(), { threadId, body })
       .then((message) => {
         // Reconcile the optimistic message id with the server's.
         this.patchThread(threadId, (thread) => ({
@@ -1812,20 +1837,49 @@ export class BlogsElementComponent implements OnInit {
         this.messagesent.emit({ threadId });
       })
       .catch((error: unknown) => {
-        // El mensaje NO salió: hay que RETIRAR la burbuja optimista. Dejarla diría
-        // "enviado" sobre algo que el servidor rechazó — y en el caso del 401 el
+        // Sin sesión o en un hilo ajeno, la burbuja se RETIRA: en el caso del 401 el
         // handler además vacía la bandeja, así que el hilo ya no existe.
+        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.') || this.handleThreadForbidden(error)) {
+          this.patchThread(threadId, (thread) => ({
+            ...thread,
+            messages: thread.messages.filter((entry) => entry.id !== local.id),
+          }));
+          return;
+        }
+        // Con el servidor caído tampoco salió (UI#92) —antes el cliente sintetizaba una
+        // burbuja «enviada»—, pero el hilo sigue siendo suyo: el mensaje se queda MARCADO,
+        // sin hora de envío y con su reintento. Borrarlo se llevaría lo que acaba de
+        // escribir, porque el compositor ya se vació (regla 18b, la forma de EHR).
         this.patchThread(threadId, (thread) => ({
           ...thread,
-          messages: thread.messages.filter((entry) => entry.id !== local.id),
+          messages: thread.messages.map((entry) => (entry.id === local.id ? { ...entry, failed: true } : entry)),
         }));
-        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.')) {
+        this.errorMessage.set('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
+      })
+      .finally(() => this.sendingMessage.set(false));
+  }
+
+  /** Reintenta un mensaje marcado, sin volver a teclearlo (UI#92). */
+  retryMessage(thread: MessageThread, message: DirectMessage): void {
+    if (!message.failed || this.sendingMessage()) {
+      return;
+    }
+    this.sendingMessage.set(true);
+    this.errorMessage.set('');
+    this.#api
+      .sendMessage(this.apiBase(), { threadId: thread.id, body: message.body })
+      .then((sent) => {
+        this.patchThread(thread.id, (entry) => ({
+          ...entry,
+          messages: entry.messages.map((item) => (item.id === message.id ? sent : item)),
+        }));
+        this.messagesent.emit({ threadId: thread.id });
+      })
+      .catch((error: unknown) => {
+        if (this.handleUnauthenticated(error, 'Inicia sesión para enviar mensajes.') || this.handleThreadForbidden(error)) {
           return;
         }
-        if (this.handleThreadForbidden(error)) {
-          return;
-        }
-        void error;
+        this.errorMessage.set('Tu mensaje sigue sin enviarse. Queda en el hilo.');
       })
       .finally(() => this.sendingMessage.set(false));
   }

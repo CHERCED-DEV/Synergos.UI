@@ -1,8 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
 import {
-  OUTCOME_TO_STATUS,
-  STATUS_LABELS,
   type AnswerPair,
   type ApplicationDetail,
   type ApplicationStatus,
@@ -48,11 +46,17 @@ import {
  *  - `GET  /api/gov/case/{id}`                  → `{ case }`
  *  - `POST /api/gov/decision`                   → `{ case }`
  *
- * **Graceful degradation:** any 404 / network error / bad shape falls back to a
- * visible **seeded demo store** (catálogo + solicitudes en varios estados + una
- * cola de casos) and latches `degraded` so the shell can show a "datos de ejemplo"
- * notice. The full lifecycle — radicar → revisar → decidir → subsanar — demos
- * end-to-end offline before the backend lands. No RxJS: native `fetch` + Promise.
+ * **Graceful degradation — sólo de LECTURAS:** any 404 / network error / bad shape on a
+ * read falls back to a visible **seeded demo store** (catálogo + solicitudes en varios
+ * estados + una cola de casos) and latches `degraded` so the shell can show a "datos de
+ * ejemplo" notice. No RxJS: native `fetch` + Promise.
+ *
+ * **Las ESCRITURAS no degradan** (UI#92, reglas 4, 14 y 38): radicar, adjuntar y decidir
+ * LANZAN {@link GovWriteFailedError} cuando el borde no contesta. Con un 401/403 ya no
+ * fabricaban; con la red caída, sí: un radicado `GOV-2026-…` que no existe en ninguna
+ * agencia, un documento «recibido» que no está en ningún expediente y una decisión
+ * «registrada» que nadie registró. El componente ya decía «No pudimos radicar…» para
+ * cuando el cliente lanzara — y el cliente no lanzaba nunca.
  *
  * **El 401 y el 403 son la excepción a esa degradación, y es deliberado.** Las rutas 🔒
  * son la carpeta del ciudadano: su identidad la resuelve el servidor desde la cookie
@@ -114,6 +118,22 @@ function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Respo
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
 }
 
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92). Un número de radicado no es contenido: es la PRUEBA con la que el
+ * ciudadano va a reclamar (regla 14). **No enciende `degraded`**: ese cartel dice «estás
+ * viendo datos de ejemplo», y aquí no hay ejemplo que enseñar.
+ */
+export class GovWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Gov write "${endpoint}" did not reach the server.`);
+    this.name = 'GovWriteFailedError';
+  }
+}
+
 @Injectable()
 export class GovApiClient {
   readonly #logger = inject(LoggerService);
@@ -121,7 +141,6 @@ export class GovApiClient {
   #degraded = false;
   /** Seeded application store (mock) — shared across both faces so state advances. */
   #store: Map<string, SeedApplication> | null = null;
-  #refSeq = 0;
 
   get degraded(): boolean {
     return this.#degraded;
@@ -204,10 +223,12 @@ export class GovApiClient {
   // ─── Solicitud ──────────────────────────────────────────────────────────────
 
   /**
-   * Radica a nombre del member de la SESIÓN. Un 401/403 no se degrada: fabricar un
-   * radicado local le daría al usuario un número que NO existe en ninguna agencia.
+   * Radica a nombre del member de la SESIÓN. **Nada se degrada**: fabricar un radicado
+   * local le daría al usuario un número que NO existe en ninguna agencia. Esto lo decía
+   * para el 401/403 y lo hacía con la red caída (UI#92).
    *
    * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin permiso.
+   * @throws {GovWriteFailedError} si el borde no la radicó.
    */
   async createApplication(
     apiBase: string,
@@ -223,8 +244,7 @@ export class GovApiClient {
       throw new Error('application-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/gov/application', error);
-      return this.mockCreate(body);
+      this.writeFailed('POST /api/gov/application', error);
     }
   }
 
@@ -289,7 +309,11 @@ export class GovApiClient {
    * No se fija `Content-Type` a mano — el navegador lo pone junto al `boundary` del
    * `FormData`, y escribirlo rompe el parseo del multipart en el servidor.
    *
+   * **No se degrada** (UI#92): un documento «recibido» con el servidor caído dejaba al
+   * ciudadano creyendo que subsanó, y el trámite se le vencía por falta de ese papel.
+   *
    * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión, o si el expediente no es suyo.
+   * @throws {GovWriteFailedError} si el borde no lo guardó.
    */
   async uploadDocument(apiBase: string, body: UploadDocumentRequest): Promise<GovDocument> {
     const url = `${apiBase}/document`;
@@ -305,8 +329,7 @@ export class GovApiClient {
       throw new Error('document-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/gov/document', error);
-      return this.mockUpload(body);
+      this.writeFailed('POST /api/gov/document', error);
     }
   }
 
@@ -364,7 +387,15 @@ export class GovApiClient {
     }
   }
 
-  /** @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario. */
+  /**
+   * Registra la decisión del funcionario. **No se degrada** (UI#92): el respaldo aprobaba
+   * o rechazaba en el almacén de ejemplo y la consola anunciaba «El caso pasó a: Aprobada»
+   * sobre una decisión que no quedó en ninguna parte. El #77 ya le había quitado lo peor
+   * —devolver el caso de OTRO ciudadano—; quedaba fingir la del pedido.
+   *
+   * @throws {GovUnauthorizedError | GovForbiddenError} sin sesión o sin rol de funcionario.
+   * @throws {GovWriteFailedError} si el borde no la registró.
+   */
   async decide(apiBase: string, body: DecisionRequest): Promise<GovCase> {
     const url = `${apiBase}/decision`;
     try {
@@ -376,8 +407,7 @@ export class GovApiClient {
       throw new Error('decision-shape');
     } catch (error) {
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/gov/decision', error);
-      return this.mockDecide(body);
+      this.writeFailed('POST /api/gov/decision', error);
     }
   }
 
@@ -507,6 +537,15 @@ export class GovApiClient {
     this.#logger.warn(`Gov API "${endpoint}" unavailable — using seeded demo data.`, error);
   }
 
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded`, no toca el almacén de ejemplo y no
+   * devuelve nada**: el cartel de «datos de ejemplo» es de las LECTURAS.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Gov API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new GovWriteFailedError(endpoint, error);
+  }
+
   // ─── Mock store (seeded solicitudes across the lifecycle) ─────────────────────
 
   private mockStore(): Map<string, SeedApplication> {
@@ -514,56 +553,6 @@ export class GovApiClient {
       this.#store = new Map(SEED_APPLICATIONS.map((app) => [app.id, structuredCloneSafe(app)]));
     }
     return this.#store;
-  }
-
-  private mockCreate(body: CreateApplicationRequest): ApplicationSummary {
-    const seq = (this.#refSeq += 1);
-    const id = `APP-${Date.now().toString(36).toUpperCase()}-${seq}`;
-    const reference = `GOV-2026-${String(10000 + this.mockStore().size + seq)}`;
-    const service = mockServiceDetail(body.serviceId);
-    const nowIso = new Date().toISOString();
-    const app: SeedApplication = {
-      id,
-      reference,
-      serviceId: service.id,
-      serviceName: service.name,
-      citizenName: 'Carolina Pérez García',
-      status: 'submitted',
-      submittedAt: nowIso,
-      currentStage: 'Radicada',
-      answers: Object.entries(body.answers).map(([label, value]) => ({ label, value })),
-      documents: [],
-      messages: [],
-      timeline: [
-        { id: 'tl-1', label: 'Radicada', date: nowIso.slice(0, 10), state: 'current', note: 'Solicitud radicada en línea.' },
-        { id: 'tl-2', label: 'En revisión', date: '', state: 'pending' },
-        { id: 'tl-3', label: 'Resultado', date: '', state: 'pending' },
-      ],
-      priority: 'normal',
-      slaDaysLeft: service.estimatedDays,
-    };
-    this.mockStore().set(id, app);
-    return toSummary(app);
-  }
-
-  private mockUpload(body: UploadDocumentRequest): GovDocument {
-    const nowIso = new Date().toISOString();
-    const name = body.file.name;
-    // Sin `downloadUrl` a propósito: en modo degradado no hay fichero guardado en
-    // ningún sitio, así que ofrecer una descarga sería la mentira que T6 vino a cerrar.
-    const doc: GovDocument = {
-      id: `DOC-${Date.now().toString(36)}`,
-      name,
-      status: 'received',
-      uploadedAt: nowIso,
-      contentType: body.file.type || undefined,
-      sizeBytes: body.file.size || undefined,
-    };
-    const app = this.mockStore().get(body.applicationId);
-    if (app && !app.documents.some((d) => d.name === name)) {
-      app.documents = [...app.documents, doc];
-    }
-    return doc;
   }
 
   private mockQueue(agency: string, status: string): readonly QueueCase[] {
@@ -575,47 +564,6 @@ export class GovApiClient {
       cases = cases.filter((app) => app.status === status);
     }
     return cases.map(toQueueCase);
-  }
-
-  private mockDecide(body: DecisionRequest): GovCase {
-    const app = this.mockStore().get(body.caseId);
-    if (!app) {
-      // El TERCER fabricador de este fichero, y el peor: si el POST de la decisión
-      // caía (500, red), esto devolvía el PRIMER caso sembrado y la UI anunciaba
-      // "El caso pasó a: Aprobada" sobre el expediente de OTRO ciudadano —con su
-      // nombre, respuestas y documentos— mientras la decisión no se registraba en
-      // ninguna parte. Fingir una escritura que no ocurrió es peor que no escribir.
-      //
-      // El comentario que estaba aquí decía "synthesise a minimal decided case";
-      // no sintetizaba nada mínimo: devolvía el caso entero de otra persona.
-      throw new Error(`gov: no hay caso sembrado para ${body.caseId}`);
-    }
-    const nowIso = new Date().toISOString();
-    const nextStatus: ApplicationStatus = OUTCOME_TO_STATUS[body.outcome];
-    const stageLabel = STATUS_LABELS[nextStatus];
-    app.status = nextStatus;
-    app.currentStage = stageLabel;
-    app.decision = { outcome: body.outcome, note: body.note, decidedAtUtc: nowIso };
-    app.slaDaysLeft = nextStatus === 'approved' || nextStatus === 'rejected' ? 0 : app.slaDaysLeft;
-    // Advance the timeline: current → done, add the decision node as current.
-    app.timeline = [
-      ...app.timeline.map((entry) => (entry.state === 'current' ? { ...entry, state: 'done' as const } : entry)),
-      { id: `tl-${app.timeline.length + 1}`, label: stageLabel, date: nowIso.slice(0, 10), state: 'current' as const, note: body.note || undefined },
-    ];
-    // Correspondence: officer note lands as an incoming message for the citizen.
-    if (body.note) {
-      app.messages = [
-        ...app.messages,
-        {
-          id: `msg-${Date.now().toString(36)}`,
-          author: 'Funcionario de la agencia',
-          body: body.note,
-          createdAtUtc: nowIso,
-          outgoing: false,
-        },
-      ];
-    }
-    return toCase(app);
   }
 }
 

@@ -1653,22 +1653,41 @@ export class StorefrontElementComponent implements OnInit {
       image: product.images[0],
     };
     const action = this.isWished(product.id) ? 'remove' : 'add';
-    // Optimistic update; the API (or its local fallback) reconciles after.
+    const before = this.wishlist().find((line) => line.productId === product.id) ?? null;
+    // Optimistic update; the server's list reconciles after — or the failure reverts it.
     this.wishlist.update((list) => {
       const without = list.filter((line) => line.productId !== product.id);
       return action === 'add' ? [...without, entry] : without;
     });
     this.wishlistLoaded.set(true);
+    this.errorMessage.set('');
     void this.#api
       .wishlistMutate(this.apiBase(), entry, action)
-      .then((list) => this.wishlist.set(list));
+      .then((list) => this.wishlist.set(list))
+      .catch(() => this.revertWish(product.id, before));
   }
 
   removeWishlistEntry(entry: WishlistEntry): void {
+    const before = this.wishlist().find((line) => line.productId === entry.productId) ?? null;
     this.wishlist.update((list) => list.filter((line) => line.productId !== entry.productId));
+    this.errorMessage.set('');
     void this.#api
       .wishlistMutate(this.apiBase(), entry, 'remove')
-      .then((list) => this.wishlist.set(list));
+      .then((list) => this.wishlist.set(list))
+      .catch(() => this.revertWish(entry.productId, before));
+  }
+
+  /**
+   * El servidor no guardó el cambio (UI#92): ESE producto vuelve a como estaba —sin tocar
+   * los demás, que pudieron cambiar entretanto— y se dice. Antes el cliente devolvía su
+   * «lista local» como si fuera la guardada, y el favorito desaparecía al volver otro día.
+   */
+  private revertWish(productId: string, before: WishlistEntry | null): void {
+    this.wishlist.update((list) => {
+      const without = list.filter((line) => line.productId !== productId);
+      return before ? [...without, before] : without;
+    });
+    this.errorMessage.set('No pudimos guardar el cambio en tus favoritos. Intenta de nuevo.');
   }
 
   openWishlistEntry(entry: WishlistEntry): void {

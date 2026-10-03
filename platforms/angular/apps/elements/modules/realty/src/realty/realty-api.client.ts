@@ -52,12 +52,19 @@ import {
  *  - `GET  /api/realty/agent/leads`                          → `{ portfolio, leads, agenda }` 🔒 rol
  *  - `POST /api/realty/listing`  `{ …publish… }`             → `{ id, status }`  🔒 rol
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
- * the client falls back to visible **seeded demo data** (con geo) and logs a `TODO`,
- * so the whole portal flow is complete end-to-end before the backend lands. Every
- * mock path flips the `degraded` flag so the shell can surface a "datos de ejemplo"
- * notice. The mortgage endpoint additionally falls back to the pure client-side
- * calculator (deterministic), which is the recommended source per the spec.
+ * **Graceful degradation — sólo de LECTURAS:** if a read endpoint is not yet wired
+ * (network error / non-OK), the client falls back to visible **seeded demo data** (con
+ * geo) and logs a `TODO`. Every mock path flips the `degraded` flag so the shell can
+ * surface a "datos de ejemplo" notice. The mortgage endpoint additionally falls back to
+ * the pure client-side calculator (deterministic), which is the recommended source per
+ * the spec — es un cálculo, no una escritura: no guarda nada en ningún sitio.
+ *
+ * **Las ESCRITURAS no degradan** (UI#92 · UI#95, reglas 4, 9, 18 y 38): agendar una
+ * visita, dejar un lead, guardar una búsqueda y publicar un inmueble LANZAN
+ * {@link RealtyWriteFailedError} cuando el borde no contesta, y quien llama dice que no
+ * quedó. Devolvían un `VIS-<ts>` confirmado, un `LEAD-<ts>`, un `SS-<ts>` y un
+ * `L-<ts>` activo: el visitante salía con una visita que nadie tenía apuntada y el
+ * agente con un inmueble que no estaba en el catálogo.
  *
  * **El 401/403 es la excepción a esa degradación, y es deliberado.** Las rutas 🔒 son
  * las del USUARIO (sus búsquedas guardadas) y las del AGENTE (cartera, leads, publicar).
@@ -67,9 +74,10 @@ import {
  * "búsquedas guardadas" que no son de nadie y unos leads con nombre y teléfono de personas
  * que no existen. Por eso viajan tipados hasta la UI, que los traduce a estado.
  *
- * Las rutas PÚBLICAS (catálogo, ficha, hipoteca, agendar visita, dejar un lead) siguen
- * degradando a propósito: un portal donde hay que registrarse para ver un inmueble o para
- * contactar al agente no sirve para nada.
+ * Las rutas PÚBLICAS (catálogo, ficha, hipoteca, agendar visita, dejar un lead) no piden
+ * sesión, a propósito: un portal donde hay que registrarse para ver un inmueble o para
+ * contactar al agente no sirve para nada. Que no pidan sesión no las hace degradables:
+ * de las cinco, sólo las tres LECTURAS caen a datos de ejemplo.
  *
  * La cookie viaja sola: `fetch` manda credenciales same-origin por defecto y la app se
  * monta dentro de la propia página del CMS. No se fuerza `credentials: 'include'`
@@ -115,6 +123,29 @@ export class RealtyForbiddenError extends Error {
 export function isRealtyForbidden(error: unknown): error is RealtyForbiddenError {
   return error instanceof Error && error.name === 'RealtyForbiddenError';
 }
+
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92 · UI#95).
+ *
+ * El gemelo de `EhrWriteFailedError` y `AcademyWriteFailedError`: el `catch` de
+ * `scheduleVisit` devolvía `{ id: 'VIS-<ts>', status: 'confirmed' }` y la estrategia lo
+ * convertía en `confirmed: true` — el asistente cerraba con «¡Visita agendada!» y una
+ * referencia que no existe en ningún sitio, y el agente no se enteraba de que alguien
+ * quería visitar. Es la regla 4 (degradar una ESCRITURA miente) y la 38 (el acuse
+ * fabricado). **No enciende `degraded`**: ese cartel dice «estás viendo datos de
+ * ejemplo», y aquí no hay ningún ejemplo que enseñar — hay algo que no se guardó.
+ */
+export class RealtyWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Realty write "${endpoint}" did not reach the server.`);
+    this.name = 'RealtyWriteFailedError';
+  }
+}
+
 @Injectable()
 export class RealtyApiClient {
   readonly #logger = inject(LoggerService);
@@ -122,11 +153,11 @@ export class RealtyApiClient {
   /** Set to `true` after any mock fallback so the UI can flag example data. */
   #degraded = false;
 
-  /** In-memory saved searches so a mock "guardar búsqueda" surfaces in the cuenta. */
+  /** Las búsquedas guardadas que el SERVIDOR aceptó en esta sesión (nunca una fabricada). */
   #savedSearches: readonly SavedSearch[] = [];
-  /** In-memory agent leads so a mock lead surfaces in the agent CRM. */
+  /** Los leads que el SERVIDOR aceptó en esta sesión, plegados en el CRM. */
   #agentLeads: readonly AgentLead[] = [];
-  /** In-memory freshly-published listings so they show up in the cartera. */
+  /** Los inmuebles que el SERVIDOR publicó en esta sesión, plegados en la cartera. */
   #publishedListings: readonly PortfolioListing[] = [];
 
   get degraded(): boolean {
@@ -174,6 +205,14 @@ export class RealtyApiClient {
 
   // ─── Schedule a visit (reservable agent slot — NO payment) ────────────────────
 
+  /**
+   * Aparta la franja en el servidor. **Lanza si no quedó apartada** (UI#92 · UI#95).
+   *
+   * Devolvía `{ id: 'VIS-<ts>', status: 'confirmed' }` cuando el `POST` no llegaba, y su
+   * spec lo afirmaba por nombre («degrades to a mock visit»). La visita es la constancia
+   * de que alguien va a estar a una hora en una dirección (regla 14): sin el id del
+   * servidor no hay constancia, y la ficha tiene que decirlo y dejar reintentar.
+   */
   async scheduleVisit(
     apiBase: string,
     body: VisitRequest,
@@ -188,16 +227,7 @@ export class RealtyApiClient {
       }
       throw new Error('visit-shape');
     } catch (error) {
-      this.markDegraded('POST /api/realty/visit', error);
-      return {
-        id: `VIS-${Date.now().toString(36).toUpperCase()}`,
-        listingId: body.listingId,
-        listingTitle,
-        slot: body.slot,
-        mode: body.mode,
-        status: 'confirmed',
-        contact: body.contact,
-      };
+      this.writeFailed('POST /api/realty/visit', error);
     }
   }
 
@@ -236,6 +266,13 @@ export class RealtyApiClient {
 
   // ─── Lead to the agent (degenerate confirm — intent, NO payment) ──────────────
 
+  /**
+   * Deja el mensaje al agente. **Lanza si el servidor no lo recibió** (UI#92).
+   *
+   * Fabricaba un `LEAD-<ts>`, lo sembraba en el CRM en memoria y la ficha decía
+   * «¡Mensaje enviado!»: quien escribía se iba esperando una llamada que no iba a llegar,
+   * y la consola del agente enseñaba en la pestaña de al lado la prueba de la mentira.
+   */
   async submitLead(apiBase: string, body: LeadRequest, listingTitle: string): Promise<LeadResult> {
     const url = `${apiBase}/lead`;
     try {
@@ -247,10 +284,7 @@ export class RealtyApiClient {
       }
       throw new Error('lead-shape');
     } catch (error) {
-      this.markDegraded('POST /api/realty/lead', error);
-      const leadId = `LEAD-${Date.now().toString(36).toUpperCase()}`;
-      this.seedAgentLead(leadId, body, listingTitle);
-      return { leadId, listingId: body.listingId, status: 'new' };
+      this.writeFailed('POST /api/realty/lead', error);
     }
   }
 
@@ -355,7 +389,13 @@ export class RealtyApiClient {
     }
   }
 
-  /** @throws {RealtyUnauthorizedError} si no hay sesión. */
+  /**
+   * Guarda la búsqueda con su alerta. **Lanza si no quedó guardada** (UI#92): con un
+   * `SS-<ts>` en la lista, la persona esperaba avisos de una alerta que no existe.
+   *
+   * @throws {RealtyUnauthorizedError} si no hay sesión.
+   * @throws {RealtyWriteFailedError} si el borde no la guardó.
+   */
   async saveSearch(apiBase: string, body: SavedSearchRequest): Promise<SavedSearch> {
     const url = `${apiBase}/saved-search`;
     try {
@@ -368,17 +408,7 @@ export class RealtyApiClient {
       throw new Error('saved-search-shape');
     } catch (error) {
       this.rethrowIfUserAuthError(error);
-      this.markDegraded('POST /api/realty/saved-search', error);
-      const saved: SavedSearch = {
-        id: `SS-${Date.now().toString(36).toUpperCase()}`,
-        label: body.label,
-        operation: body.operation,
-        newMatches: 0,
-        createdAt: new Date().toISOString().slice(0, 10),
-        alert: body.alert,
-      };
-      this.#savedSearches = [saved, ...this.#savedSearches];
-      return saved;
+      this.writeFailed('POST /api/realty/saved-search', error);
     }
   }
 
@@ -501,7 +531,16 @@ export class RealtyApiClient {
 
   // ─── Publish a listing (SH-6 authoring) ───────────────────────────────────────
 
-  /** @throws {RealtyUnauthorizedError | RealtyForbiddenError} sin sesión o sin el rol de agente. */
+  /**
+   * Publica el inmueble. **Lanza si no quedó publicado** (UI#92).
+   *
+   * Un 403 ya no devolvía un id inventado; un fallo de red, sí: `L-<ts>` «activo» sembrado
+   * en la cartera, y el agente leía «Publicado con id L-…» sobre un inmueble que no estaba
+   * en el catálogo. El mismo daño, por la puerta de al lado.
+   *
+   * @throws {RealtyUnauthorizedError | RealtyForbiddenError} sin sesión o sin el rol de agente.
+   * @throws {RealtyWriteFailedError} si el borde no lo publicó.
+   */
   async publishListing(
     apiBase: string,
     body: PublishListingRequest,
@@ -517,13 +556,8 @@ export class RealtyApiClient {
       }
       throw new Error('publish-shape');
     } catch (error) {
-      // Publicar es del agente: un 403 NO puede devolver un id inventado y un "Publicado"
-      // en verde. El inmueble no existe en ningún sitio.
       this.rethrowIfAgentAuthError(error);
-      this.markDegraded('POST /api/realty/listing', error);
-      const id = `L-${Date.now().toString(36).toUpperCase()}`;
-      this.seedPublished(id, body, currency);
-      return { id, status: 'active' };
+      this.writeFailed('POST /api/realty/listing', error);
     }
   }
 
@@ -622,6 +656,15 @@ export class RealtyApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Realty API responds.
     this.#logger.warn(`Realty API "${endpoint}" unavailable — using seeded demo data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel de
+   * «datos de ejemplo» es de las LECTURAS, y aquí no hay ejemplo que enseñar.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Realty API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new RealtyWriteFailedError(endpoint, error);
   }
 }
 

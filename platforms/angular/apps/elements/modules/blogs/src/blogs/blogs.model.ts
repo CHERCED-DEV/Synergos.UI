@@ -224,6 +224,12 @@ export interface DirectMessage {
   readonly createdAtUtc: string;
   /** `true` when the viewer is the sender (right-aligned bubble). */
   readonly outgoing: boolean;
+  /**
+   * El mensaje NO salió (UI#92): se queda en el hilo, marcado y sin hora de envío, para
+   * reintentarlo sin volver a teclearlo. Nunca lo pone el servidor — es estado de esta
+   * pestaña, como el `failed` de los mensajes de EHR (#111).
+   */
+  readonly failed?: boolean;
 }
 
 /**

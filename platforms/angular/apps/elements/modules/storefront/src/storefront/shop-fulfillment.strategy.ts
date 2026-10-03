@@ -15,11 +15,13 @@ import {
   STOREFRONT_FLOW,
   STOREFRONT_KIND,
   type CheckoutLine,
+  type CheckoutResult,
+  type OrderConfirmation,
   type SearchCriteria,
   type ShopCustomer,
   type ShopProduct,
 } from './shop.model';
-import { aMenores, desdeMenores } from '@synergos/vitals-core';
+import { aMenores } from '@synergos/vitals-core';
 
 /** Criteria the storefront hands the strategy on `search`. */
 interface ShopSearchCriteria {
@@ -62,8 +64,9 @@ interface ShopPayInstrument {
  * class answered; the provider routes by `flow === 'storefront'`.
  *
  * `search`/`select`/`pay`/`confirm` map onto the backend contract via
- * <c>ShopApiClient</c>, which degrades to mock data when an endpoint is not yet
- * wired so the full lifecycle works offline.
+ * <c>ShopApiClient</c>: the catalogue degrades to mock data when its read endpoint is
+ * not yet wired, but **the order never does** — `pay` and `confirm` contestan que no
+ * cuando el borde no abrió la orden o no colocó el pedido (UI#92).
  */
 @Injectable()
 export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
@@ -132,24 +135,49 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
     const apiBase = instrument.apiBase ?? '';
     const customer: ShopCustomer = instrument.customer ?? { name: '', email: '' };
     const lines = this.toLines(request.session);
-    const fallbackAmount = desdeMenores(request.session.pricing.totalAmount, request.session.pricing.currency);
     const currency = request.session.pricing.currency;
 
-    const checkout = await this.#api.checkout(apiBase, lines, customer, fallbackAmount, currency);
+    // Si el borde no abrió la orden, NO se acepta (UI#92): el cliente fabricaba un
+    // `MOCK-<ts>` con su `psp_mock_…` y esto lo daba por bueno. Nada se cobró: el
+    // asistente dice su `payFailedMessage` y volver a pulsar abre la orden otra vez.
+    let checkout: CheckoutResult;
+    try {
+      checkout = await this.#api.checkout(apiBase, lines, customer, currency);
+    } catch (error) {
+      void error;
+      return { accepted: false, reason: 'checkout-not-opened' };
+    }
     return {
       accepted: true,
       reference: checkout.orderRef,
     };
   }
 
-  /** Step 4 — confirm the order, returning a voucher per cart line. */
+  /**
+   * Step 4 — confirm the order, returning a voucher per cart line.
+   *
+   * **Si el borde no colocó el pedido, esto NO confirma** (UI#92). El cobro ya quedó en la
+   * sesión, así que el asistente lo nombra en su `confirmFailedMessage` y volver a pulsar
+   * repite SÓLO esta confirmación sobre la misma orden — sin otro cobro (CMS#117).
+   */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
-    const lines = this.toLines(session);
-    const confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef, lines);
+    let confirmation: OrderConfirmation;
+    try {
+      confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef);
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'order-not-placed', vouchers: [] };
+    }
     const itemByProduct = new Map(session.items.map((item) => [item.productRef, item.id]));
+    // El borde contesta `Paid` cuando capturó (`ShopConfirmationResult.Status`, CMS) — el
+    // estado del PEDIDO, cuyo enum es `Pending | Paid | Cancelled` (regla 10). Esto sólo
+    // aceptaba `confirmed`, que es lo que fabricaba el `catch`: contra un borde vivo, un
+    // pedido colocado salía como «no pudimos confirmarlo». Lo destapó el caso feliz contra
+    // la forma de verdad (UI#92, regla 16); con la red caída nunca se veía.
+    const status = confirmation.status.toLowerCase();
     return {
-      confirmed: confirmation.status.toLowerCase() === 'confirmed',
+      confirmed: status === 'paid' || status === 'confirmed',
       vouchers: confirmation.items.map((entry) => ({
         itemId: itemByProduct.get(entry.productId) ?? entry.productId,
         reference: entry.reference,

@@ -373,14 +373,24 @@
           <li
             class="seller__msg"
             [class.seller__msg--own]="message.from === 'seller'"
+            [class.seller__msg--failed]="message.failed"
           >
             <p class="seller__msg-body">{{ message.body }}</p>
-            <p class="seller__msg-meta">
-              {{ message.from === 'seller' ? 'Tú' : thread.counterpart }}
-              @if (message.date) {
-                <span> · {{ message.date }}</span>
-              }
-            </p>
+            <!-- Una respuesta que no salió NO lleva fecha: sería el acuse que no existe.
+                 Lleva su marca y su reintento, y el texto no se pierde (UI#92, regla 18). -->
+            @if (message.failed) {
+              <p class="seller__msg-failed">
+                No enviada
+                <button type="button" class="seller__msg-retry" (click)="retryReply(thread, message)">Reintentar</button>
+              </p>
+            } @else {
+              <p class="seller__msg-meta">
+                {{ message.from === 'seller' ? 'Tú' : thread.counterpart }}
+                @if (message.date) {
+                  <span> · {{ message.date }}</span>
+                }
+              </p>
+            }
           </li>
         }
       </ul>

@@ -14,6 +14,8 @@ import { TravelApiClient } from './travel-api.client';
 import {
   TRAVEL_FLOW,
   type TravelCheckoutLine,
+  type TravelCheckoutResult,
+  type TravelConfirmation,
   type TravelGuest,
   type TravelOffer,
   type TravelProduct,
@@ -39,8 +41,10 @@ interface TravelPayInstrument {
  * answered; the provider routes by `flow === 'travel'`.
  *
  * `search`/`select`/`pay`/`confirm` map onto the backend contract via
- * <c>TravelApiClient</c>, which degrades to mock data when an endpoint is not yet
- * wired so the full lifecycle works offline. A cart line is heterogeneous: a
+ * <c>TravelApiClient</c>: availability degrades to mock data when its read endpoint is
+ * not yet wired, but **the order and its locators never do** — `pay` and `confirm`
+ * contestan que no cuando el borde no abrió la orden o no emitió los localizadores
+ * (UI#92). A cart line is heterogeneous: a
  * hotel (room × rate), a flight (fare family + seat) and a car live side by side
  * under one <c>Pricing</c> and one checkout.
  */
@@ -96,23 +100,42 @@ export class TravelFulfillmentStrategy extends FulfillmentStrategyBase {
     const apiBase = instrument.apiBase ?? '';
     const guest: TravelGuest = instrument.guest ?? { name: '', email: '' };
     const lines = this.toLines(request.session);
-    const fallbackAmount = request.session.pricing.totalAmount / 100;
     const currency = request.session.pricing.currency;
 
-    const checkout = await this.#api.checkout(apiBase, lines, guest, fallbackAmount, currency);
-    // Persist the api base on the reference-bearing session so confirm() reuses it.
+    // Si el borde no abrió la orden, NO se acepta (UI#92): el cliente fabricaba un
+    // `MOCK-<ts>` con su `psp_mock_…` y esto lo daba por bueno. Nada se cobró: el
+    // asistente dice su `payFailedMessage` y volver a pulsar abre la orden otra vez.
+    let checkout: TravelCheckoutResult;
+    try {
+      checkout = await this.#api.checkout(apiBase, lines, guest, currency);
+    } catch (error) {
+      void error;
+      return { accepted: false, reason: 'checkout-not-opened' };
+    }
     return {
       accepted: true,
       reference: checkout.orderRef,
     };
   }
 
-  /** Step 4 — confirm every held line, returning a voucher/PNR per item. */
+  /**
+   * Step 4 — confirm every held line, returning a voucher/PNR per item.
+   *
+   * **Si el borde no emitió los localizadores, esto NO confirma** (UI#92). El cobro ya
+   * quedó en la sesión, así que el asistente lo nombra en su `confirmFailedMessage` y
+   * volver a pulsar repite SÓLO esta confirmación sobre la misma orden (CMS#117).
+   */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
     const apiBase = this.apiBaseOf(session);
     const lines = this.toLines(session);
-    const confirmation = await this.#api.confirm(apiBase, orderRef, lines);
+    let confirmation: TravelConfirmation;
+    try {
+      confirmation = await this.#api.confirm(apiBase, orderRef);
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'locators-not-issued', vouchers: [] };
+    }
     // Match confirmed items back to cart lines by their (product, offerId) pair so
     // heterogeneous lines of the same product still map to the right voucher.
     const itemByKey = new Map(

@@ -241,23 +241,33 @@ export class SellerApiClient {
     }
   }
 
-  async reply(apiBase: string, threadId: string, body: string): Promise<SellerMessage> {
+  /**
+   * Responde en el hilo. **`null` es «no salió»** (UI#92), la forma de las otras escrituras
+   * de este cliente (#77).
+   *
+   * Devolvía un `msg-<ts>` con el texto y la fecha de hoy cuando el `POST` no llegaba, y la
+   * consola lo pintaba en el hilo como enviado: el comprador nunca recibía la respuesta y el
+   * vendedor creía haberla dado. **Y llegaba al `catch` aunque el borde SÍ la guardara**: el
+   * CMS contesta el HILO entero (`ThreadDto`, con la respuesta al final de `messages`) y esto
+   * leía un mensaje suelto en la raíz, así que el respaldo tapaba también el caso bueno
+   * (regla 9). Por eso `normalizeReply` lee las dos formas: si sólo se quitara la
+   * fabricación, una respuesta guardada saldría como «no se envió» e invitaría a mandarla
+   * dos veces.
+   */
+  async reply(apiBase: string, threadId: string, body: string): Promise<SellerMessage | null> {
     const url = `${apiBase}/messages/${encodeURIComponent(threadId)}/reply`;
     try {
       const data = await this.postJson(apiBase, url, { body });
-      const message = normalizeMessage(data, 'seller');
+      const message = normalizeReply(data);
       if (message) {
         return message;
       }
       throw new Error('reply-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/messages/{id}/reply', error);
-      return {
-        id: `msg-${Date.now().toString(36)}`,
-        from: 'seller',
-        body,
-        date: new Date().toISOString().slice(0, 10),
-      };
+      // No enciende `degraded`: ese cartel es de las LECTURAS («datos de ejemplo»), y aquí
+      // no hay ejemplo que enseñar — hay una respuesta que no salió.
+      this.#logger.warn('Shop seller API "POST /api/shop/messages/{id}/reply" — the reply was NOT sent.', error);
+      return null;
     }
   }
 
@@ -550,6 +560,34 @@ function normalizeMessage(value: unknown, fallbackFrom: 'buyer' | 'seller'): Sel
     from: fromRaw === 'buyer' || fromRaw === 'seller' ? fromRaw : fallbackFrom,
     body,
     date: readString(value['date']).trim(),
+  };
+}
+
+/**
+ * Lo que el borde devuelve al responder: el HILO entero (`ThreadDto` del CMS:
+ * `{ threadId, messages: [{ messageId, from, body, sentAt }] }`), con la respuesta recién
+ * guardada al final. Se toma ESA, con el id que le dio el servidor. Un mensaje suelto en la
+ * raíz (`{ id, body, date }`) también se acepta. `from` del borde es un correo, así que la
+ * autoría la pone quien la mandó: es la respuesta del vendedor.
+ */
+function normalizeReply(value: unknown): SellerMessage | null {
+  if (!isRecord(value) || !Array.isArray(value['messages'])) {
+    return normalizeMessage(value, 'seller');
+  }
+  const last = value['messages'].at(-1);
+  if (!isRecord(last)) {
+    return null;
+  }
+  const id = readString(last['messageId']).trim() || readString(last['id']).trim();
+  const body = readString(last['body']).trim();
+  if (!id || !body) {
+    return null;
+  }
+  return {
+    id,
+    from: 'seller',
+    body,
+    date: (readString(last['sentAt']).trim() || readString(last['date']).trim()).slice(0, 10),
   };
 }
 

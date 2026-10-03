@@ -58,6 +58,12 @@ import {
  * degrade *silently* — their absence must not brand the whole shell as offline
  * while the primary content is real.
  *
+ * **Las ESCRITURAS no degradan** (UI#92, reglas 4, 18 y 19). Publicar ya decía si se
+ * GUARDÓ (`persisted`, #26); reaccionar, seguir y mandar un DM devolvían lo que el llamador
+ * les había pasado como `optimistic` —la fabricación escrita en la firma— o una burbuja
+ * sintetizada «enviada». Hoy LANZAN {@link BlogsWriteFailedError} y quien llama revierte lo
+ * que pintó en optimista, o deja el mensaje marcado.
+ *
  * **Lo del usuario NO degrada, y es deliberado.** La bandeja de mensajes, las
  * notificaciones, los guardados y el estudio son del member de la SESIÓN: su identidad
  * la resuelve el servidor desde la cookie, no un `?user=<handle>` que cualquiera podía
@@ -124,6 +130,21 @@ export interface PublishOutcome {
   readonly post: Post;
   /** `false` = síntesis local; el servidor NO lo tiene. */
   readonly persisted: boolean;
+}
+
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92). El gemelo de `EhrWriteFailedError` (#111). **No enciende `degraded`**:
+ * ese cartel dice «estás viendo datos de ejemplo», y aquí no hay ejemplo que enseñar.
+ */
+export class BlogsWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Blogs write "${endpoint}" did not reach the server.`);
+    this.name = 'BlogsWriteFailedError';
+  }
 }
 
 @Injectable()
@@ -197,12 +218,13 @@ export class BlogsApiClient {
 
   // ─── React (idempotent toggle) ──────────────────────────────────────────────
 
-  async react(
-    apiBase: string,
-    postId: string,
-    type: ReactionType,
-    optimistic: ReactionState,
-  ): Promise<ReactionState> {
+  /**
+   * Reacciona y devuelve el estado AUTORITATIVO. **Lanza si el borde no lo guardó**
+   * (UI#92). Recibía `optimistic` —el estado que la pantalla acababa de calcular— y lo
+   * devolvía cuando el `POST` no llegaba: la regla 19, el llamador decidía el resultado y el
+   * servidor era decoración. Sin el parámetro, el respaldo no se puede escribir.
+   */
+  async react(apiBase: string, postId: string, type: ReactionType): Promise<ReactionState> {
     const url = `${apiBase}/post/${encodeURIComponent(postId)}/react`;
     try {
       const data = await this.postJson(apiBase, url, { type });
@@ -214,15 +236,18 @@ export class BlogsApiClient {
       }
       throw new Error('react-shape');
     } catch (error) {
-      this.markDegraded('POST /api/blogs/post/{id}/react', error);
-      // The component already applied an optimistic state; echo it back.
-      return optimistic;
+      this.writeFailed('POST /api/blogs/post/{id}/react', error);
     }
   }
 
   // ─── Follow / unfollow ──────────────────────────────────────────────────────
 
-  async follow(apiBase: string, authorKey: string, optimistic: boolean): Promise<boolean> {
+  /**
+   * Alterna seguir y devuelve si se sigue, según el SERVIDOR (el borde alterna: «si ya
+   * sigue, deja de seguir»). **Lanza si el borde no contestó** (UI#92): con `optimistic`
+   * en la firma devolvía lo que la pantalla quería que fuera, la misma regla 19.
+   */
+  async follow(apiBase: string, authorKey: string): Promise<boolean> {
     const url = `${apiBase}/follow/${encodeURIComponent(authorKey)}`;
     try {
       const data = await this.postJson(apiBase, url, {});
@@ -231,8 +256,7 @@ export class BlogsApiClient {
       }
       throw new Error('follow-shape');
     } catch (error) {
-      this.markDegraded('POST /api/blogs/follow/{authorId}', error);
-      return optimistic;
+      this.writeFailed('POST /api/blogs/follow/{authorId}', error);
     }
   }
 
@@ -388,14 +412,14 @@ export class BlogsApiClient {
   /**
    * `POST /api/blogs/message` `{ threadId, body }` → the persisted message.
    *
+   * **Lanza si no salió** (UI#92): la burbuja «enviada» que sintetizaba con el servidor
+   * caído le decía a quien escribía que el otro ya lo tenía.
+   *
    * @throws {BlogsUnauthorizedError} si no hay sesión.
    * @throws {BlogsForbiddenError} si la conversación no es del viewer.
+   * @throws {BlogsWriteFailedError} si el borde no lo guardó.
    */
-  async sendMessage(
-    apiBase: string,
-    draft: NewMessage,
-    author: Author,
-  ): Promise<DirectMessage> {
+  async sendMessage(apiBase: string, draft: NewMessage): Promise<DirectMessage> {
     const url = `${apiBase}/message`;
     try {
       const data = await this.postJson(apiBase, url, draft);
@@ -409,10 +433,10 @@ export class BlogsApiClient {
       throw new Error('message-shape');
     } catch (error) {
       // Sin sesión el mensaje NO se envió: sintetizarlo dejaría la burbuja en pantalla
-      // como si hubiera salido. Se re-lanza para que la UI retire el optimista.
+      // como si hubiera salido. Se re-lanza para que la UI retire el optimista. Y con el
+      // servidor caído tampoco salió: lo mismo, con otro tipo (UI#92).
       this.rethrowIfAuthError(error);
-      this.markDegraded('POST /api/blogs/message', error);
-      return synthesizeMessage(draft, author);
+      this.writeFailed('POST /api/blogs/message', error);
     }
   }
 
@@ -613,6 +637,15 @@ export class BlogsApiClient {
     }
     // TODO(backend): remove the mock fallback once the Blogs API responds.
     this.#logger.warn(`Blogs API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel de
+   * «datos de ejemplo» es de las LECTURAS, y aquí no hay ejemplo que enseñar.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Blogs API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new BlogsWriteFailedError(endpoint, error);
   }
 }
 
@@ -1064,18 +1097,6 @@ function normalizeStudio(value: unknown): StudioPayload | null {
 }
 
 // ─── Optimistic / synthesized fallbacks ────────────────────────────────────────
-
-/** Build a DM locally for the optimistic append when the message endpoint is down. */
-function synthesizeMessage(draft: NewMessage, author: Author): DirectMessage {
-  return {
-    id: `local-m-${Date.now().toString(36)}`,
-    threadId: draft.threadId,
-    author,
-    body: draft.body.trim(),
-    createdAtUtc: new Date().toISOString(),
-    outgoing: true,
-  };
-}
 
 /** Build a long-form Post locally for the optimistic insert when `/article` is down. */
 function synthesizeArticle(draft: NewArticle, author: Author): Post {

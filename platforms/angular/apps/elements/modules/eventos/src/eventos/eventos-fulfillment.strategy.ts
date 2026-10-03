@@ -20,10 +20,12 @@ import {
   type Buyer,
   type CatalogCriteria,
   type CheckoutItem,
+  type CheckoutResult,
+  type ConfirmResult,
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
-import { aMenores, desdeMenores } from '@synergos/vitals-core';
+import { aMenores } from '@synergos/vitals-core';
 
 /** Criteria the shell hands the strategy on `search`. */
 interface EventosSearchCriteria {
@@ -50,8 +52,10 @@ interface EventosPayInstrument {
  * answered; the provider routes by `flow === 'eventos'`.
  *
  * `search`/`select`/`pay`/`confirm` map onto the backend contract via
- * <c>EventosApiClient</c>, which degrades to mock data when an endpoint is not yet
- * wired so the full lifecycle works offline. The cart is multi-line (one line per
+ * <c>EventosApiClient</c>: the catalogue degrades to mock data when its read endpoint
+ * is not yet wired, but **the order and the e-tickets never do** — `pay` and `confirm`
+ * contestan que no cuando el borde no abrió la orden o no emitió las entradas (UI#92).
+ * The cart is multi-line (one line per
  * tier selection; reserved-seating carries its seat ids); "confirmed" means the
  * e-tickets (QR) are issued. Free events resolve `pay` to an accepted no-op.
  */
@@ -129,7 +133,6 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       return { accepted: false, reason: 'empty-cart' };
     }
     const items = toCheckoutItems(request.session);
-    const fallbackAmount = desdeMenores(request.session.pricing.totalAmount, request.session.pricing.currency);
     const currency = request.session.pricing.currency;
 
     // The SH-3 wizard drives pay→confirm off the store; persist the attendees as
@@ -150,19 +153,28 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       buyer,
     };
 
-    const checkout = await this.#api.checkout(
-      apiBase,
-      eventId,
-      items,
-      attendees,
-      buyer,
-      fallbackAmount,
-      currency,
-    );
+    // Si el borde no abrió la orden, NO se acepta (UI#92): el cliente fabricaba un
+    // `MOCK-<ts>` con su `psp_mock_…` y esto lo daba por bueno, así que el asistente
+    // seguía a confirmar contra una orden que no existe. Nada se cobró: el asistente dice
+    // su `payFailedMessage` y volver a pulsar abre la orden otra vez.
+    let checkout: CheckoutResult;
+    try {
+      checkout = await this.#api.checkout(apiBase, eventId, items, attendees, buyer, currency);
+    } catch (error) {
+      void error;
+      return { accepted: false, reason: 'checkout-not-opened' };
+    }
     return { accepted: true, reference: checkout.orderRef };
   }
 
-  /** Step 4 — confirm the order, issuing one e-ticket (QR) per attendee/seat. */
+  /**
+   * Step 4 — confirm the order, issuing one e-ticket (QR) per attendee/seat.
+   *
+   * **Si el borde no emitió las entradas, esto NO confirma** (UI#92). El asistente
+   * conserva la orden ya abierta en la sesión y dice su `confirmFailedMessage`: volver a
+   * pulsar repite SÓLO la confirmación, que el borde resuelve por `orderRef` — no abre
+   * otra orden ni otro cobro (CMS#117).
+   */
   override async confirm(session: SessionData): Promise<FulfillmentConfirmation> {
     const orderRef = session.payments[session.payments.length - 1]?.reference ?? '';
     const attendees = (session.parties ?? []).map(
@@ -172,14 +184,13 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         document: typeof party.details?.['document'] === 'string' ? party.details['document'] : '',
       }),
     );
-    const items = toCheckoutItems(session);
-    const confirmation = await this.#api.confirm(
-      this.apiBaseOf(session),
-      orderRef,
-      attendees,
-      items,
-      this.#confirmContext,
-    );
+    let confirmation: ConfirmResult;
+    try {
+      confirmation = await this.#api.confirm(this.apiBaseOf(session), orderRef, attendees, this.#confirmContext);
+    } catch (error) {
+      void error;
+      return { confirmed: false, reason: 'tickets-not-issued', vouchers: [] };
+    }
     return {
       confirmed:
         confirmation.status.toLowerCase() === 'confirmed' ||

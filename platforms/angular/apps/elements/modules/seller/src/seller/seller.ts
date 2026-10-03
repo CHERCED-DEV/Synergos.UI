@@ -35,6 +35,7 @@ import { SellerApiClient } from './seller-api.client';
 import {
   type SellerKpiMetric,
   type SellerListing,
+  type SellerMessage,
   type SellerOrder,
   type SellerPublishRequest,
   type SellerPublishReceipt,
@@ -269,6 +270,9 @@ export class SellerElementComponent implements OnInit {
    * como la primera, que es de lo que quien publica un producto no se entera.
    */
   readonly actionError = signal<string | null>(null);
+
+  /** Cuántas respuestas no salieron en esta pestaña: el id local de su burbuja marcada. */
+  private unsentReplies = 0;
 
   readonly degraded = computed(() => {
     // Recompute on each data load; the flag is set by the API client.
@@ -795,19 +799,63 @@ export class SellerElementComponent implements OnInit {
       return;
     }
     this.sending.set(true);
+    this.actionError.set(null);
     try {
       const message = await this.#api.reply(this.apiBase(), event.thread.id, event.body);
-      this.threads.update((list) =>
-        list.map((entry) =>
-          entry.id === event.thread.id
-            ? { ...entry, messages: [...entry.messages, message], date: message.date }
-            : entry,
-        ),
-      );
-      const active = this.threads().find((entry) => entry.id === event.thread.id) ?? null;
-      this.activeThread.set(active);
+      if (!message) {
+        // NO salió (UI#92). El compositor ya se vació al enviar, así que el texto se queda en
+        // el hilo, MARCADO y sin fecha —una fecha sería el acuse que no existe—, con su
+        // reintento: borrarlo se lleva lo que acaba de escribir (regla 18b, la forma de EHR).
+        this.unsentReplies += 1;
+        this.patchThread(event.thread.id, (thread) => ({
+          ...thread,
+          messages: [
+            ...thread.messages,
+            { id: `sin-enviar-${this.unsentReplies}`, from: 'seller', body: event.body, date: '', failed: true },
+          ],
+        }));
+        this.actionError.set('Tu respuesta NO se envió. Queda en el hilo para reintentarla.');
+        return;
+      }
+      this.patchThread(event.thread.id, (thread) => ({
+        ...thread,
+        messages: [...thread.messages, message],
+        date: message.date,
+      }));
     } finally {
       this.sending.set(false);
+    }
+  }
+
+  /** Reintenta una respuesta marcada, sin volver a teclearla (UI#92). */
+  async retryReply(thread: SellerThread, message: SellerMessage): Promise<void> {
+    if (!message.failed || this.sending()) {
+      return;
+    }
+    this.sending.set(true);
+    this.actionError.set(null);
+    try {
+      const sent = await this.#api.reply(this.apiBase(), thread.id, message.body);
+      if (!sent) {
+        this.actionError.set('Tu respuesta sigue sin enviarse. Queda en el hilo.');
+        return;
+      }
+      this.patchThread(thread.id, (entry) => ({
+        ...entry,
+        messages: entry.messages.map((item) => (item.id === message.id ? sent : item)),
+        date: sent.date,
+      }));
+    } finally {
+      this.sending.set(false);
+    }
+  }
+
+  /** Cambia un hilo en la lista y, si es el abierto, también el abierto. */
+  private patchThread(id: string, patch: (thread: SellerThread) => SellerThread): void {
+    this.threads.update((list) => list.map((thread) => (thread.id === id ? patch(thread) : thread)));
+    const active = this.threads().find((entry) => entry.id === id) ?? null;
+    if (this.activeThread()?.id === id) {
+      this.activeThread.set(active);
     }
   }
 

@@ -52,10 +52,16 @@ import {
  *  - `POST /api/shop/order/{ref}/return` `{ reason }`      → `{ claimId, status }`
  *  - `GET  /api/shop/messages`                             → `{ threads }` (mensajería v1)
  *
- * **Graceful degradation:** if an endpoint is not yet wired (network error / non-OK),
- * the client falls back to visible **mock data** and logs a `TODO`, so the whole UI
- * flow is complete end-to-end before the backend lands. Every mock path flips the
- * `degraded` flag so the shell can surface a "datos de ejemplo" notice.
+ * **Graceful degradation — sólo de LECTURAS:** if a read endpoint is not yet wired
+ * (network error / non-OK), the client falls back to visible **mock data** and logs a
+ * `TODO`. Every mock path flips the `degraded` flag so the shell can surface a "datos de
+ * ejemplo" notice.
+ *
+ * **Las ESCRITURAS no degradan** (UI#92, reglas 4, 9, 19 y 38): abrir la orden, colocar
+ * el pedido y tocar los favoritos LANZAN {@link ShopWriteFailedError} cuando el borde no
+ * contesta. Devolvían una orden `MOCK-<ts>` con su `psp_mock_…`, un pedido «confirmado»
+ * con el número de esa orden inventada y una lista de favoritos hecha en el navegador: el
+ * comprador cerraba la compra con un número de pedido que no existe en ninguna parte.
  *
  * No RxJS — native `fetch` + `Promise`, consistent with the zoneless stack.
  */
@@ -66,6 +72,22 @@ import {
  */
 function llamar(apiBase: string, url: string, init?: RequestInit): Promise<Response> {
   return apiBase ? fetch(url, init) : Promise.reject(new Error('sin-api'));
+}
+
+/**
+ * Una ESCRITURA que no quedó en el servidor. **Lanza; no devuelve nada que parezca un
+ * acuse** (UI#92). El gemelo de `AcademyWriteFailedError` (CMS#117). **No enciende
+ * `degraded`**: ese cartel dice «estás viendo datos de ejemplo», y un pedido no es un
+ * ejemplo.
+ */
+export class ShopWriteFailedError extends Error {
+  constructor(
+    readonly endpoint: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Shop write "${endpoint}" did not reach the server.`);
+    this.name = 'ShopWriteFailedError';
+  }
 }
 
 @Injectable()
@@ -127,7 +149,8 @@ export class ShopApiClient {
    * **No degrada a mock, y es la diferencia que importa.** El resto de este cliente cae a
    * datos de ejemplo cuando el backend falla, y para una LECTURA es aceptable. Para una
    * ESCRITURA sería fingir que se guardó algo que no se guardó — el fallo exacto que ADR 0112
-   * documenta en `gov.mockDecide`, donde la UI anunciaba una decisión que nunca se registró.
+   * documenta en `gov.mockDecide`, donde la UI anunciaba una decisión que nunca se registró
+   * (retirado en UI#92, con las otras escrituras que fabricaban su acuse).
    *
    * El motivo se lee del STATUS, no de `error.name` ni de `instanceof`: aquel depende de que
    * alguien recuerde tipar el error, y este último ni siquiera cruza bundles.
@@ -271,11 +294,17 @@ export class ShopApiClient {
 
   // ─── Checkout (single payment for the whole cart) ────────────────────────────
 
+  /**
+   * Abre la orden y su sesión de pago. **Lanza si el borde no la abrió** (UI#92).
+   *
+   * **Sin `fallbackAmount`**: era la fabricación escrita en la firma (regla 19) — el total
+   * lo calcula el borde desde el catálogo, justamente para no confiarle el precio al
+   * navegador.
+   */
   async checkout(
     apiBase: string,
     lines: readonly CheckoutLine[],
     customer: ShopCustomer,
-    fallbackAmount: number,
     currency: string,
   ): Promise<CheckoutResult> {
     const url = `${apiBase}/checkout`;
@@ -287,23 +316,21 @@ export class ShopApiClient {
       }
       throw new Error('checkout-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/checkout', error);
-      return {
-        orderRef: `MOCK-${Date.now().toString(36).toUpperCase()}`,
-        paymentSessionId: `psp_mock_${Math.random().toString(36).slice(2, 10)}`,
-        amount: fallbackAmount,
-        currency,
-      };
+      this.writeFailed('POST /api/shop/checkout', error);
     }
   }
 
   // ─── Confirm (place the order) ───────────────────────────────────────────────
 
-  async confirm(
-    apiBase: string,
-    orderRef: string,
-    fallbackLines: readonly CheckoutLine[],
-  ): Promise<OrderConfirmation> {
+  /**
+   * Coloca el pedido capturando el pago. **Lanza si el borde no lo colocó** (UI#92).
+   *
+   * Devolvía `{ status: 'confirmed', orderNumber: <la orden inventada> }` con una línea por
+   * artículo: el comprador salía con un número de pedido que el CMS no tiene. **Sin
+   * `fallbackLines`**: sólo servían para fabricar ese pedido (regla 19). Reconfirmar la
+   * misma `orderRef` es lo que el asistente repite al reintentar, sin volver a cobrar.
+   */
+  async confirm(apiBase: string, orderRef: string): Promise<OrderConfirmation> {
     const url = `${apiBase}/confirm`;
     try {
       const data = await this.postJson(apiBase, url, { orderRef });
@@ -313,17 +340,7 @@ export class ShopApiClient {
       }
       throw new Error('confirm-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/confirm', error);
-      return {
-        status: 'confirmed',
-        orderNumber: orderRef,
-        items: fallbackLines.map((line) => ({
-          productId: line.productId,
-          title: line.productId,
-          qty: line.qty,
-          reference: `${orderRef}-${line.variantId || line.productId}`,
-        })),
-      };
+      this.writeFailed('POST /api/shop/confirm', error);
     }
   }
 
@@ -362,6 +379,12 @@ export class ShopApiClient {
     }
   }
 
+  /**
+   * Añade o quita un favorito y devuelve la lista AUTORITATIVA del servidor. **Lanza si el
+   * borde no la guardó** (UI#92): la «lista local» que devolvía era la intención del
+   * comprador presentada como lo guardado, y al volver otro día el favorito no estaba.
+   * Quien llama revierte lo que pintó en optimista.
+   */
   async wishlistMutate(
     apiBase: string,
     entry: WishlistEntry,
@@ -372,15 +395,12 @@ export class ShopApiClient {
       const data = await this.postJson(apiBase, url, { productId: entry.productId, action });
       const entries = normalizeWishlist(data, entry.currency);
       if (entries) {
+        this.#localWishlist = entries;
         return entries;
       }
       throw new Error('wishlist-shape');
     } catch (error) {
-      this.markDegraded('POST /api/shop/wishlist', error);
-      // Local optimistic fallback so the whole favoritos flow works offline.
-      const without = this.#localWishlist.filter((line) => line.productId !== entry.productId);
-      this.#localWishlist = action === 'add' ? [...without, entry] : without;
-      return this.#localWishlist;
+      this.writeFailed('POST /api/shop/wishlist', error);
     }
   }
 
@@ -586,7 +606,10 @@ export class ShopApiClient {
     }
   }
 
-  /** Local wishlist store used only while the backend endpoint is missing. */
+  /**
+   * La última lista que el SERVIDOR devolvió en esta sesión: es lo que la lectura enseña
+   * si después se cae. Nunca lleva una escritura que no llegó (UI#92).
+   */
   #localWishlist: readonly WishlistEntry[] = [];
 
   // ─── HTTP helpers ────────────────────────────────────────────────────────────
@@ -649,6 +672,15 @@ export class ShopApiClient {
     this.#degraded = true;
     // TODO(backend): remove the mock fallback once the Tienda API responds.
     this.#logger.warn(`Shop API "${endpoint}" unavailable — using mock data.`, error);
+  }
+
+  /**
+   * Una ESCRITURA que no llegó. **No marca `degraded` y no devuelve nada**: el cartel de
+   * «datos de ejemplo» es de las LECTURAS, y aquí no hay ejemplo que enseñar.
+   */
+  private writeFailed(endpoint: string, error: unknown): never {
+    this.#logger.warn(`Shop API "${endpoint}" unavailable — nothing was saved.`, error);
+    throw new ShopWriteFailedError(endpoint, error);
   }
 }
 
