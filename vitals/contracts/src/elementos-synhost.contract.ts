@@ -279,6 +279,8 @@ export interface BadgeGroupProps {
 export interface BlogsProps {
   /** contenido */
   readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
 }
@@ -601,6 +603,8 @@ export interface SelectMultiProps {
 export interface SellerProps {
   /** contenido */
   readonly heading?: string;
+  /** contenido */
+  readonly subheading?: string;
   /** negocio */
   readonly apiBase: string;
 }
@@ -897,12 +901,13 @@ export const BLOGS_SYNHOST: ElementoSynHost<BlogsProps> = {
   record: "BlogsProps",
   diccionario: [],
   claves: [],
-  campos: ["heading","apiBase"],
+  campos: ["heading","subheading","apiBase"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Conecta, publica y crece tu audiencia",
+    "subheading": "Sigue autores, publica historias y reacciona en tiempo real",
     "apiBase": "/api/blogs"
   },
 };
@@ -1814,12 +1819,13 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   record: "SellerProps",
   diccionario: [],
   claves: [],
-  campos: ["heading","apiBase"],
+  campos: ["heading","subheading","apiBase"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "heading": "Tu negocio, en un solo panel",
+    "subheading": "Ventas, publicaciones, mensajes y devoluciones",
     "apiBase": "/api/shop"
   },
 };

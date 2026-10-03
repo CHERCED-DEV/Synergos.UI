@@ -111,6 +111,9 @@
            las otras cinco sí traen. El texto lo compone el CMS. -->
       <header class="blogs__view-head">
         <h1 class="blogs__view-title">{{ heading() }}</h1>
+        @if (subheading()) {
+          <p class="blogs__view-sub">{{ subheading() }}</p>
+        }
       </header>
 
       <syn-tabs

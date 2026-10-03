@@ -102,6 +102,20 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     TestBed.resetTestingModule();
   });
 
+  // CMS#196: el subtítulo viajaba en el ElementType y nadie lo pintaba.
+  it('pinta el subtítulo del CMS bajo la marca, y sin subtítulo no deja un párrafo vacío', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    expect(fixture.nativeElement.querySelector('.seller__brand-sub')).toBeNull();
+
+    fixture.componentRef.setInput('config', { ...NEGOCIO_DEL_CMS, subheading: 'Ventas, publicaciones y devoluciones' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.seller__brand-sub').textContent.trim()).toBe(
+      'Ventas, publicaciones y devoluciones',
+    );
+  });
+
   // ── render: panel + KPIs + secciones + degradación visible ──────────────────
   it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
     const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));

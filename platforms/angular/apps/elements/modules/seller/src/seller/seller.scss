@@ -49,8 +49,17 @@
 
   &__brand {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: syn.$space-2;
+  }
+
+  // El subtítulo del editor (CMS#196), en su propia línea bajo la marca.
+  &__brand-sub {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--sl-text-secondary);
+    font-size: syn.$font-size-sm;
   }
 
   &__brand-mark {

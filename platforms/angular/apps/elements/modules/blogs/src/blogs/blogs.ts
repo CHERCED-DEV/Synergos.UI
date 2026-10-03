@@ -172,6 +172,7 @@ const VALID_VIEWS: readonly BlogsView[] = [
 export function sanitizeBlogsConfig(value: BlogsConfig): BlogsConfig {
   return omitUndefinedProperties<BlogsProps>({
     heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
@@ -239,6 +240,7 @@ export class BlogsElementComponent implements OnInit {
   readonly viewerNameInput = input<string | undefined>(undefined, { alias: 'viewerName' });
   readonly viewInput = input<string | undefined>(undefined, { alias: 'view' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   /**
    * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
@@ -321,6 +323,13 @@ export class BlogsElementComponent implements OnInit {
       this.config()?.heading,
       DEFAULT_HEADING,
     ),
+  );
+  /**
+   * El subtítulo que escribe el editor (CMS#196: viajaba y nadie lo pintaba). Sin texto por defecto:
+   * si el editor no escribió nada, no se pinta un párrafo vacío.
+   */
+  readonly subheading = computed(() =>
+    resolveConfigValue(coerceTrimmedStringInput(this.subheadingInput()), this.config()?.subheading, ''),
   );
   get viewer(): Author {
     return { ...mockViewer(), handle: this.#viewerHandle(), displayName: this.#viewerName() };

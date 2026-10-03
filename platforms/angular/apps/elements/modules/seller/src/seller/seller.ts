@@ -160,6 +160,7 @@ const PUBLISH_STEPS = [
 export function sanitizeSellerConfig(value: SellerConfig): SellerConfig {
   return omitUndefinedProperties<SellerProps>({
     heading: coerceTrimmedStringInput(value.heading),
+    subheading: coerceTrimmedStringInput(value.subheading),
     apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
@@ -185,6 +186,7 @@ export class SellerElementComponent implements OnInit {
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly sellerNameInput = input<string | undefined>(undefined, { alias: 'sellerName' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
+  readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
   /**
    * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
@@ -209,6 +211,13 @@ export class SellerElementComponent implements OnInit {
       this.config()?.heading,
       DEFAULT_HEADING,
     ),
+  );
+  /**
+   * El subtítulo que escribe el editor (CMS#196: viajaba y nadie lo pintaba). Sin texto por defecto:
+   * si el editor no escribió nada, no se pinta un párrafo vacío.
+   */
+  readonly subheading = computed(() =>
+    resolveConfigValue(coerceTrimmedStringInput(this.subheadingInput()), this.config()?.subheading, ''),
   );
   /**
    * La moneda de lo que se muestra: la que trae cada precio de la API. No es configuración: sería

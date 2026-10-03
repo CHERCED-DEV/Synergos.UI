@@ -1379,6 +1379,24 @@ describe('BlogsElementComponent', () => {
         'Conecta, publica y crece tu audiencia',
       );
     });
+
+    // CMS#196: el subtítulo viajaba en el ElementType y nadie lo pintaba. Sin él, no hay
+    // párrafo vacío; con él, va bajo el título, por la misma ruta real del mount (`config`).
+    it('pinta el subtítulo del CMS bajo el título, y sin subtítulo no deja un párrafo vacío', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      expect(fixture.nativeElement.querySelector('.blogs__view-sub')).toBeNull();
+
+      fixture.componentRef.setInput(
+        'config',
+        JSON.stringify({ ...NEGOCIO_DEL_CMS, subheading: 'Sigue autores y reacciona en tiempo real' }),
+      );
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.blogs__view-sub').textContent.trim()).toBe(
+        'Sigue autores y reacciona en tiempo real',
+      );
+    });
   });
 
   // ── #87: los contadores del editor hablaban en CADA tecla ──────────────────────

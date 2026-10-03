@@ -483,6 +483,7 @@
 
 .blogs__view-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: syn.$space-3;
@@ -494,6 +495,14 @@
   font-size: syn.$font-size-xl;
   font-weight: syn.$font-weight-bold;
   letter-spacing: syn.$letter-spacing-tight;
+}
+
+// El subtítulo del editor (CMS#196), en su propia línea bajo el título del feed.
+.blogs__view-sub {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--bl-text-secondary);
+  font-size: syn.$font-size-base;
 }
 
 // ─── Content tabs → shared syn-tabs primitive (tablist only) ──────────────────────
