@@ -38,25 +38,28 @@ const LOCALE_DEL_PRODUCTO = 'es-CO';
 const DECIMALES_POR_DEFECTO = 2;
 
 /**
- * Cuántos decimales tiene la unidad menor de una moneda, según ISO-4217 (lo que trae `Intl`):
- * COP, USD y EUR 2; CLP y JPY 0; KWD 3. Sin moneda, o una que `Intl` no conoce, 2.
+ * Las monedas que en ISO-4217 NO tienen dos decimales. Escrita, y no leída de `Intl`: los motores
+ * no coinciden —el Chromium del navegador dice que COP tiene 0 y el Node de los tests, 2— y una
+ * unidad que depende de dónde corre el código es la que pintaba una tasa cien veces mal. Es la
+ * MISMA tabla que `UnidadesMenores` del CMS, y la cruzan los vectores de oro (G-13).
+ */
+const DECIMALES_ISO: Readonly<Record<string, number>> = {
+  BIF: 0, CLP: 0, DJF: 0, GNF: 0, ISK: 0, JPY: 0, KMF: 0, KRW: 0, PYG: 0, RWF: 0, UGX: 0, UYI: 0,
+  VND: 0, VUV: 0, XAF: 0, XOF: 0, XPF: 0,
+  BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
+  CLF: 4, UYW: 4,
+};
+
+/**
+ * Cuántos decimales tiene la unidad menor de una moneda según ISO-4217: COP, USD y EUR 2; CLP y
+ * JPY 0; KWD 3. Sin moneda, o una que la tabla no nombra, 2.
  *
- * Es la MISMA tabla que usa el servidor para emitir los `*Minor` (CMS#196): las unidades menores
- * de un importe son las de su moneda, no «centavos» para todas ni «pesos» para COP.
+ * Las unidades menores de un importe son las de su moneda, no «centavos» para todas ni «pesos»
+ * para COP (CMS#196).
  */
 export function decimalesDeMoneda(moneda?: string | null): number {
-  const codigo = moneda?.trim() ?? '';
-  if (!codigo) {
-    return DECIMALES_POR_DEFECTO;
-  }
-  try {
-    return (
-      new Intl.NumberFormat('en', { style: 'currency', currency: codigo }).resolvedOptions().maximumFractionDigits
-      ?? DECIMALES_POR_DEFECTO
-    );
-  } catch {
-    return DECIMALES_POR_DEFECTO;
-  }
+  const codigo = moneda?.trim().toUpperCase() ?? '';
+  return DECIMALES_ISO[codigo] ?? DECIMALES_POR_DEFECTO;
 }
 
 /** Un importe en unidades MENORES de su moneda (lo que manda la API como `*Minor`) a mayores. */

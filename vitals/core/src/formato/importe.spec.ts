@@ -44,8 +44,8 @@ describe('formatearImporte', () => {
 });
 
 // Las unidades menores son las de la moneda (ISO-4217), no «centavos para todas»: el servidor
-// emite los `*Minor` con la misma tabla (CMS#196). Antes gov y la facturación de ehr mandaban
-// pesos con el nombre `*Minor` y la UI dividía por 100: una tasa de 189.000 salía $ 1.890.
+// emite los `*Minor` con la misma tabla (CMS#196). Antes la facturación de ehr mandaba pesos con
+// el nombre `*Minor` y la UI dividía por 100: un saldo de 123.500 salía $ 1.235 (medido en vivo).
 describe('unidades menores', () => {
   it('cada moneda con sus decimales', () => {
     expect(decimalesDeMoneda('COP')).toBe(2);
@@ -55,7 +55,15 @@ describe('unidades menores', () => {
     expect(decimalesDeMoneda('KWD')).toBe(3);
   });
 
-  it('sin moneda, o una que Intl no conoce, dos decimales', () => {
+  it('la tabla es la de ISO-4217 escrita, no la de Intl, que cambia según el motor', () => {
+    // El Chromium del navegador dice que COP tiene 0 decimales; el Node de los tests, 2. Con la
+    // tabla de Intl la misma tasa se pintaba distinto según dónde corría el código.
+    expect(decimalesDeMoneda('cop')).toBe(2);
+    expect(decimalesDeMoneda('IQD')).toBe(3);
+    expect(decimalesDeMoneda('CLF')).toBe(4);
+  });
+
+  it('sin moneda, o una que la tabla no nombra, dos decimales', () => {
     expect(decimalesDeMoneda('')).toBe(2);
     expect(decimalesDeMoneda(null)).toBe(2);
     expect(decimalesDeMoneda('PUNTOS')).toBe(2);

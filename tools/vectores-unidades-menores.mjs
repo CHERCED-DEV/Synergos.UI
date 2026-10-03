@@ -5,8 +5,8 @@
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * POR QUÉ EXISTE. La tasa de un trámite y la facturación de salud salían en PESOS con el nombre
- * `feeMinor`/`balanceMinor`; la UI divide por los decimales de la moneda y una tasa de 189.000
- * se pintaba $ 1.890. El CMS emite con `UnidadesMenores` y la UI pinta con `aMenores` /
+ * `feeMinor`/`balanceMinor`; la UI divide por 100 y un saldo de 123.500 se
+ * pintaba $ 1.235 (medido en el sitio real). El CMS emite con `UnidadesMenores` y la UI pinta con `aMenores` /
  * `desdeMenores`: dos implementaciones de la misma tabla, en dos lenguajes. Se hace como G-12:
  *
  * 1. **Se COMPILA la fuente de verdad, no se reimplementa** (`vitals/core/src/formato`, con la

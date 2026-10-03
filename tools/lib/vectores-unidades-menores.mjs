@@ -4,9 +4,9 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * QUÉ CIERRA. Cada borde decidía la unidad de sus `*Minor` por su cuenta: el copago de salud
  * mandaba centavos, y la tasa de un trámite y la facturación de salud mandaban PESOS con el
- * nombre `feeMinor`/`balanceMinor`. La UI divide por los decimales de la moneda y una tasa de
- * 189.000 se pintaba $ 1.890. El CMS emite con `UnidadesMenores`, la UI pinta con `aMenores` /
- * `desdeMenores` de `vitals/core/src/formato`, y los dos corren los mismos vectores.
+ * nombre `feeMinor`/`balanceMinor`. La UI divide por 100 y un saldo de 123.500 se pintaba
+ * $ 1.235 (medido en el sitio real). El CMS emite con `UnidadesMenores`, la UI pinta con
+ * `aMenores` / `desdeMenores` de `vitals/core/src/formato`, y los dos corren los mismos vectores.
  *
  * La parte pura vive acá, como en `vectores-comision.mjs`: el script necesita el repo del CMS
  * y por eso no entra a `npm test`; su lógica sí, en `test:tools`.
