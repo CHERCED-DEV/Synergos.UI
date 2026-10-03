@@ -2108,23 +2108,7 @@ export const RICH_TOOLTIP_SYNHOST: ElementoSynHost<RichTooltipProps> = {
           "viaja": "top"
         },
         {
-          "editor": "top-start",
-          "viaja": "top"
-        },
-        {
-          "editor": "top-end",
-          "viaja": "top"
-        },
-        {
           "editor": "bottom",
-          "viaja": "bottom"
-        },
-        {
-          "editor": "bottom-start",
-          "viaja": "bottom"
-        },
-        {
-          "editor": "bottom-end",
           "viaja": "bottom"
         },
         {
