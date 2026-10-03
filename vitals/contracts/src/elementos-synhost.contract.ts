@@ -1159,10 +1159,6 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
         {
           "editor": "flip",
           "viaja": "flip"
-        },
-        {
-          "editor": "circular",
-          "viaja": "circular"
         }
       ]
     }
@@ -1170,7 +1166,7 @@ export const COUNTDOWN_DIGITAL_SYNHOST: ElementoSynHost<CountdownDigitalProps> =
   ejemplo: {
     "culture": "es-CO",
     "targetDate": "2030-12-31T23:59:59-05:00",
-    "showLabels": true,
+    "showLabels": false,
     "style": "plain"
   },
 };
@@ -2199,24 +2195,7 @@ export const TIMELINE_SYNHOST: ElementoSynHost<TimelineProps> = {
   claves: ["Timeline.Aria","Timeline.Empty"],
   campos: ["events"],
   listas: {"events":["date","title","body"]},
-  selectores: [
-    {
-      "propiedad": "orientation",
-      "dataType": "DTSelectOrientation",
-      "multiple": false,
-      "campo": null,
-      "valores": [
-        {
-          "editor": "horizontal",
-          "viaja": null
-        },
-        {
-          "editor": "vertical",
-          "viaja": null
-        }
-      ]
-    }
-  ],
+  selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "events": [
