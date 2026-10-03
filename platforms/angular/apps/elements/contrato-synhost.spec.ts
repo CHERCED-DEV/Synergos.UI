@@ -379,10 +379,18 @@ function acepta(sanitizar: (config: unknown) => unknown, ejemplo: Config, ruta: 
   return valoresEn(sanitizar(JSON.stringify(entrada)), ruta).includes(valor);
 }
 
-/** Literales (comillas simples, dobles, plantillas sin interpolar) e identificadores de una fuente. */
+/**
+ * Literales (comillas simples, dobles, plantillas sin interpolar) e identificadores de una fuente.
+ *
+ * Una plantilla se consume ENTERA, con sus `${…}`, y sólo cuenta si no interpola. Antes el patrón
+ * no podía cruzar un `$`: en una plantilla interpolada (el `circulo()` del set de iconos, UI#89)
+ * su comilla de cierre se emparejaba con la siguiente del fichero y se tragaba todo lo de en medio,
+ * en silencio — el vocabulario entero salía «fuera de la fuente».
+ */
 function candidatosDe(fuente: string): Set<string> {
   const vistos = new Set<string>();
-  for (const m of fuente.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`([^`$\\]*)`|\b([A-Za-z_][\w$]*)\b/g)) {
+  for (const m of fuente.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`|\b([A-Za-z_][\w$]*)\b/g)) {
+    if (m[3] !== undefined && m[3].includes('${')) continue;
     const candidato = (m[1] ?? m[2] ?? m[3] ?? m[4] ?? '').trim();
     if (candidato.length > 0 && candidato.length <= 60) vistos.add(candidato);
   }
@@ -454,7 +462,35 @@ function fuenteDe(sanitizador: string, ficheros: readonly string[]): string {
     .map((m) => resolve(dirname(declaran[0]), `${m[1]}.ts`))
     .filter((f) => existsSync(f))
     .map((f) => readFileSync(f, 'utf8'));
-  return [propio, ...importados].join('\n');
+  return [propio, ...importados, ...delDesignSystem(propio)].join('\n');
+}
+
+/**
+ * Los ficheros de `@synergos/shared` de donde salen los NOMBRES que el elemento importa de él.
+ *
+ * Era el punto ciego que este gate declaraba («un vocabulario que viva en otro paquete»), y dejó
+ * de ser teórico con el set de iconos (UI#89): `icon-label` cierra su vocabulario con
+ * `NOMBRES_DE_ICONO`, que vive en el design system. Se sigue el `export { … } from './…'` del
+ * índice del paquete hasta el fichero que lo declara; un nombre que no se encuentra no aporta
+ * candidatos (y el gate lo dice como «fuera de la fuente», que es lo correcto).
+ */
+function delDesignSystem(fuente: string): string[] {
+  const indice = resolve(raizDeElementos(), '..', '..', 'libs', 'shared', 'src', 'index.ts');
+  if (!existsSync(indice)) return [];
+  const nombres = [...fuente.matchAll(/import\s*\{([^}]*)\}\s*from\s*'@synergos\/shared'/g)]
+    .flatMap((m) => m[1].split(','))
+    .map((n) => n.replace(/^\s*type\s+/, '').split(/\s+as\s+/)[0].trim())
+    .filter((n) => n.length > 0);
+  const textoDelIndice = readFileSync(indice, 'utf8');
+  const ficheros = new Set<string>();
+  for (const m of textoDelIndice.matchAll(/export\s*\{([^}]*)\}\s*from\s*'(\.\/[^']+)'/g)) {
+    const exportados = m[1].split(',').map((n) => n.replace(/^\s*type\s+/, '').trim());
+    if (exportados.some((n) => nombres.includes(n))) {
+      const fichero = resolve(dirname(indice), `${m[2]}.ts`);
+      if (existsSync(fichero)) ficheros.add(fichero);
+    }
+  }
+  return [...ficheros].map((f) => readFileSync(f, 'utf8'));
 }
 
 const VARIABLE_PARA_ACTUALIZAR = 'SYNERGOS_ACTUALIZAR_VOCABULARIO';

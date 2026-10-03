@@ -298,6 +298,10 @@ const CMS_INTERNAL_ALIASES = new Set([
   'elementFormEmbed',
   'elementFormField',
   'elementFormContainer',
+  // El PASO de `elementSynFormStepper` (CMS#196, tanda D): un BlockList de `elementFormField` dentro
+  // de un bloque; lo proyecta el resolutor del stepper y lo pinta su bundle. No se coloca solo.
+  // Entró sin venir acá —la misma trampa que el paso 7b de abajo— y este gate quedó en rojo.
+  'elementFormStep',
   // Pricing (server-rendered: no hay vista en Views/Partials/SynHost/ para
   // ninguno de los dos, así que no montan web component)
   'elementPricingPlan',

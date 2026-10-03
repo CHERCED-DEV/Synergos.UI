@@ -9,6 +9,14 @@
   line-height: 1;
 }
 
+// El icono del set (UI#89): mide lo que mide el glifo, así el tamaño y el tono siguen saliendo
+// de la fuente y del color, sin un segundo sistema de medidas.
+.syn-icon__svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .syn-icon--sm {
   font-size: syn.$font-size-sm;
 }

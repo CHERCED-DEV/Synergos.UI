@@ -55,6 +55,12 @@ export {
   type IconSize,
   type IconTone,
 } from './components/primitives/icon/icon';
+export {
+  ICONOS,
+  NOMBRES_DE_ICONO,
+  trazosDeIcono,
+  type NombreDeIcono,
+} from './components/primitives/icon/icon-set';
 export { IconButtonComponent } from './components/primitives/icon-button/icon-button';
 export { InputComponent } from './components/primitives/input/input';
 export { LinkComponent, type LinkConfig } from './components/primitives/link/link';

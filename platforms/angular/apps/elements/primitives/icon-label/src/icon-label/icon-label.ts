@@ -9,8 +9,10 @@ import {
 import type { IconLabelProps } from '@synergos/contracts';
 import {
   IconComponent,
+  NOMBRES_DE_ICONO,
   type IconSize,
   type IconTone,
+  coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
   omitUndefinedProperties,
@@ -42,7 +44,9 @@ export interface IconLabelActivateDetail {
 /** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
 export function sanitizeIconLabelConfig(value: Partial<IconLabelProps>): Partial<IconLabelProps> {
   return omitUndefinedProperties<IconLabelProps>({
-    iconName: coerceTrimmedStringInput(value.iconName),
+    // El vocabulario es el set del design system (UI#89): un nombre que el set no tiene no viaja,
+    // en vez de pintarse como palabra. El CMS ofrece la MISMA lista en su desplegable.
+    iconName: coerceStringEnumInput(value.iconName, NOMBRES_DE_ICONO),
     labelText: coerceTrimmedStringInput(value.labelText),
   });
 }

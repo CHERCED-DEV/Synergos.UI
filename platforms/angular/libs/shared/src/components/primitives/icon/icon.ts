@@ -8,6 +8,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/vitals-core/inputs';
+import { trazosDeIcono } from './icon-set';
 
 export type IconSize = 'sm' | 'md' | 'lg';
 export type IconTone = 'neutral' | 'brand' | 'inverse';
@@ -44,7 +45,25 @@ function sanitizeIconConfig(value: Partial<IconConfig>): Partial<IconConfig> {
       [attr.aria-label]="decorative() ? null : label() || name() || symbol() || null"
       [attr.aria-hidden]="decorative() ? 'true' : null"
     >
-      {{ symbol() || name() }}
+      @if (trazos(); as trazos) {
+        <svg
+          class="syn-icon__svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          @for (d of trazos; track $index) {
+            <path [attr.d]="d" />
+          }
+        </svg>
+      } @else {
+        {{ symbol() }}
+      }
     </span>
   `,
   styleUrl: './icon.scss',
@@ -78,6 +97,12 @@ export class IconComponent {
   readonly decorative = computed(() =>
     resolveConfigValue(this.decorativeInput(), this.config()?.decorative, true),
   );
+
+  /**
+   * Los trazos del icono del set por su nombre (UI#89). Un nombre que el set no tiene NO se pinta
+   * como palabra —«check Envío gratis…»—: cae al glifo de `symbol`, y sin glifo no hay nada.
+   */
+  readonly trazos = computed(() => trazosDeIcono(this.name()));
 
   iconClass(): string {
     return classNames('syn-icon', `syn-icon--${this.size()}`, `syn-icon--${this.tone()}`);
