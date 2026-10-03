@@ -153,7 +153,7 @@ export const ENTRADAS_DE_CABLEADO = {
  * Las entradas de texto de las verticales que el banco SÍ rellena: se pintan tal
  * cual, así que cualquier texto es un valor que el elemento acepta.
  */
-export const TEXTO_DE_LAS_VERTICALES = ['destinationLabel', 'sellerName', 'heading'];
+export const TEXTO_DE_LAS_VERTICALES = ['destinationLabel', 'heading'];
 
 /**
  * Valores de muestra por input, para que el elemento no salga en blanco — o

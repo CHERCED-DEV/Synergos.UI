@@ -5598,12 +5598,6 @@
       "description": "Base URL of the backing API. Defaults to the module route when unset."
     },
     {
-      "name": "sellerName",
-      "type": "string",
-      "required": false,
-      "description": "Seller display name shown in the console header."
-    },
-    {
       "name": "heading",
       "type": "string",
       "required": false,

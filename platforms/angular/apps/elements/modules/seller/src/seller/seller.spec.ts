@@ -116,6 +116,42 @@ describe('SellerElementComponent (consola sobre SH-5/6/7)', () => {
     );
   });
 
+  // CMS#197: el chip decía el `sellerName` que el editor escribiera en el JSON libre —el mismo
+  // nombre para todo vendedor que abriera la página—. Ahora es el miembro de la sesión.
+  // `HostIdentityService` lee `window.synergos` al construirse: el bridge va antes del componente.
+  describe('quién atiende la consola (CMS#197)', () => {
+    interface ConBridge {
+      synergos?: unknown;
+    }
+    afterEach(() => {
+      delete (globalThis as unknown as ConBridge).synergos;
+    });
+    const chip = (): string | null =>
+      (fixture.nativeElement as HTMLElement).querySelector('.seller__seller-chip')?.textContent?.trim() ?? null;
+
+    it('con sesión, el chip es el nombre del miembro', async () => {
+      (globalThis as unknown as ConBridge).synergos = {
+        member: { key: 'k-7', displayName: 'Tienda de Lucía', email: 'lucia@ejemplo.co', roles: ['seller'] },
+      };
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(chip()).toBe('Tienda de Lucía');
+    });
+
+    it('sin sesión, o sin host, no hay chip: no se inventa un vendedor', async () => {
+      (globalThis as unknown as ConBridge).synergos = {};
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+      expect(chip()).toBeNull();
+
+      TestBed.resetTestingModule();
+      delete (globalThis as unknown as ConBridge).synergos;
+      await createComponent();
+      expect(chip()).toBeNull();
+    });
+  });
+
   // ── render: panel + KPIs + secciones + degradación visible ──────────────────
   it('sin la base de la API no llama a nada y degrada, visible (ADR 0137, CMS#196)', async () => {
     const red = vi.fn(() => Promise.reject(new Error('no debería llamarse')));

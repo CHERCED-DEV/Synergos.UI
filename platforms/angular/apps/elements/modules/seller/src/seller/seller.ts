@@ -31,6 +31,7 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { SellerProps } from '@synergos/contracts';
+import { HostIdentityService } from '@synergos/core';
 import { SellerApiClient } from './seller-api.client';
 import {
   type SellerKpiMetric,
@@ -179,13 +180,13 @@ let sellerInstanceId = 0;
 })
 export class SellerElementComponent implements OnInit {
   readonly #api = inject(SellerApiClient);
+  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<SellerConfig | undefined, unknown>(undefined, {
     transform: createConfigInputTransform<SellerProps>(sanitizeSellerConfig),
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
-  readonly sellerNameInput = input<string | undefined>(undefined, { alias: 'sellerName' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
@@ -199,13 +200,13 @@ export class SellerElementComponent implements OnInit {
       '',
     ),
   );
-  readonly sellerName = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.sellerNameInput()),
-      undefined,
-      '',
-    ),
-  );
+  /**
+   * Quién atiende la consola: el miembro de la SESIÓN (CMS#197). Era `sellerName`, que sólo
+   * entraba por el JSON libre del editor —un nombre escrito a mano en la página, el mismo para
+   * todo vendedor que la abriera—. Sin host o sin sesión, vacío: el chip no se pinta, como
+   * hasta ahora sin el atributo.
+   */
+  readonly sellerName = this.#identity.displayName;
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
