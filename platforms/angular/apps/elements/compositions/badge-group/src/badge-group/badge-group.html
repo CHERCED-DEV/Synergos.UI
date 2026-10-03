@@ -2,6 +2,7 @@
   class="badge-group"
   [class.badge-group--inline]="layout() === 'inline'"
   [class.badge-group--stack]="layout() === 'stack'"
+  [class.badge-group--grid]="layout() === 'grid'"
   [attr.data-size]="size()"
 >
   @if (hasLabel()) {

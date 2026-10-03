@@ -44,8 +44,11 @@ import {
  * tiene no se pinta —ni como palabra—.
  */
 
-/** Visual layout of the badge cluster. */
-export type BadgeGroupLayout = 'wrap' | 'inline' | 'stack';
+/**
+ * Visual layout of the badge cluster. `grid` (CMS#192, caso 6): columnas iguales que se reparten
+ * el ancho, para facetas o atributos que se leen en filas; antes caía a `wrap`.
+ */
+export type BadgeGroupLayout = 'wrap' | 'inline' | 'stack' | 'grid';
 
 /** Density of each badge. */
 export type BadgeGroupSize = 'sm' | 'md' | 'lg';
@@ -72,7 +75,7 @@ export interface BadgeSelectDetail {
   readonly selectedIds: readonly string[];
 }
 
-const LAYOUTS: readonly BadgeGroupLayout[] = ['wrap', 'inline', 'stack'];
+const LAYOUTS: readonly BadgeGroupLayout[] = ['wrap', 'inline', 'stack', 'grid'];
 const SIZES: readonly BadgeGroupSize[] = ['sm', 'md', 'lg'];
 const TONES: readonly BadgeTone[] = ['neutral', 'brand', 'success', 'warning', 'danger', 'info'];
 

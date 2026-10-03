@@ -73,6 +73,18 @@
     align-items: flex-start;
   }
 
+  // Rejilla (CMS#192, caso 6): columnas de al menos 160 px que se reparten el ancho; cada
+  // insignia ocupa su celda entera, así las filas se leen alineadas.
+  &--grid &__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, #{syn.px-to-rem(160)}), 1fr));
+  }
+
+  &--grid .badge {
+    justify-content: flex-start;
+    inline-size: 100%;
+  }
+
   &__empty {
     margin: 0;
     color: var(--bg-empty-color);

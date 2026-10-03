@@ -112,6 +112,17 @@ describe('BadgeGroupElementComponent', () => {
     expect(insignias[2].textContent?.trim()).toBe('Sin icono');
   });
 
+  // CMS#192, caso 6: `DTSelectDisplayLayout` ofrece `grid` y el elemento lo pintaba como `wrap`.
+  it('pinta la rejilla cuando el CMS manda `layout: grid`', async () => {
+    fixture.componentRef.setInput('config', JSON.stringify({ badges: [{ label: 'Talla M' }, { label: 'Algodón' }], layout: 'grid' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.layout()).toBe('grid');
+    const grupo = (fixture.nativeElement as HTMLElement).querySelector('.badge-group');
+    expect(grupo?.classList.contains('badge-group--grid')).toBe(true);
+  });
+
   // `label` no lo autora el editor en el CMS (ADR 0135): es atributo. `layout` sí viaja.
   it('should let direct inputs override config (idempotent precedence)', async () => {
     fixture.componentRef.setInput('config', '{"layout":"stack"}');
