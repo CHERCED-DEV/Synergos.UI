@@ -35,6 +35,9 @@ import {
  * los campos ricos de una diapositiva (`type`, `poster`, `thumbnailSrc`) no los autora el
  * editor: llegan por atributo (`slides` como JSON), que gana sobre el `config`.
  *
+ * Cada diapositiva puede enlazar (CMS#192, caso 4): `linkUrl` —la clave que autora el editor en
+ * `slidesJson`— o `href`. La pieza del DS hace de la imagen el enlace.
+ *
  * Su microcopia sale del diccionario, sección `Slider` (ADR 0136): este elemento la traduce con
  * `t()` y se la pasa a `syn-carousel` como texto. La pieza del DS pintaba «Previous»/«Next» en
  * inglés en un sitio en español.
@@ -70,6 +73,7 @@ export function normalizeSlides(value: unknown): readonly CarouselItem[] | undef
       const label = readString(record['label']).trim();
       const thumbnailSrc = readString(record['thumbnailSrc']).trim();
       const poster = readString(record['poster']).trim();
+      const href = readString(record['linkUrl']).trim() || readString(record['href']).trim();
 
       return {
         id,
@@ -79,6 +83,7 @@ export function normalizeSlides(value: unknown): readonly CarouselItem[] | undef
         ...(label ? { label } : {}),
         ...(thumbnailSrc ? { thumbnailSrc } : {}),
         ...(poster ? { poster } : {}),
+        ...(href ? { href } : {}),
       };
     })
     .filter((slide): slide is CarouselItem => slide !== null);

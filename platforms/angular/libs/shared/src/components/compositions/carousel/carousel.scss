@@ -23,6 +23,17 @@
   object-fit: cover;
 }
 
+// La diapositiva con enlace (CMS#192, caso 4): la imagen entera es el destino.
+.syn-carousel__link {
+  display: block;
+  border-radius: inherit;
+
+  &:focus-visible {
+    outline:        syn.px-to-rem(2) solid var(--syn-color-focus-ring, #{syn.$color-brand-300});
+    outline-offset: syn.px-to-rem(-2);
+  }
+}
+
 .syn-carousel--compact .syn-carousel__media {
   max-height: syn.px-to-rem(320);
 }

@@ -27,6 +27,34 @@ describe(CarouselComponent.name, () => {
     expect(image.getAttribute('src')).toBe('/hero.jpg');
   });
 
+  // CMS#192, caso 4: la diapositiva con destino es un enlace; el vídeo y la que no lo tiene, no.
+  it('hace de la imagen el enlace cuando la diapositiva trae destino', () => {
+    const fixture = TestBed.createComponent(CarouselComponent);
+    fixture.componentRef.setInput('items', [
+      { src: '/hero.jpg', alt: 'Sala principal', href: '/propiedades/101' },
+      { src: '/fachada.jpg', label: 'Fachada', href: '/propiedades/102' },
+      { src: '/plano.jpg', alt: 'Plano' },
+    ]);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    let enlace = host.querySelector('a.syn-carousel__link');
+    expect(enlace?.getAttribute('href')).toBe('/propiedades/101');
+    expect(enlace?.querySelector('img')?.getAttribute('alt')).toBe('Sala principal');
+    expect(enlace?.hasAttribute('aria-label')).toBe(false);
+
+    fixture.componentInstance.select(1);
+    fixture.detectChanges();
+    enlace = host.querySelector('a.syn-carousel__link');
+    // Sin alt, el nombre del enlace es el rótulo: un enlace sin nombre no dice a dónde va.
+    expect(enlace?.getAttribute('aria-label')).toBe('Fachada');
+
+    fixture.componentInstance.select(2);
+    fixture.detectChanges();
+    expect(host.querySelector('a.syn-carousel__link')).toBeNull();
+    expect(host.querySelector('img.syn-carousel__media')?.getAttribute('src')).toBe('/plano.jpg');
+  });
+
   it('moves to the next slide when requested', () => {
     const fixture = TestBed.createComponent(CarouselComponent);
     fixture.componentRef.setInput('items', [

@@ -12,6 +12,12 @@ export interface CarouselItem {
   readonly label?: string;
   readonly thumbnailSrc?: string;
   readonly poster?: string;
+  /**
+   * A dónde lleva la diapositiva (CMS#192, caso 4). La imagen se vuelve el enlace, y su `alt`
+   * —o el rótulo, si no tiene— su nombre accesible. Un vídeo no se envuelve: sus controles
+   * dentro de un enlace serían dos acciones en el mismo sitio.
+   */
+  readonly href?: string;
 }
 
 @Component({
@@ -38,6 +44,14 @@ export interface CarouselItem {
             >
               <source [src]="item.src" type="video/mp4" />
             </video>
+          } @else if (item.href) {
+            <a
+              class="syn-carousel__link"
+              [href]="item.href"
+              [attr.aria-label]="item.alt ? null : item.label || null"
+            >
+              <img class="syn-carousel__media" [src]="item.src" [alt]="item.alt || ''" />
+            </a>
           } @else {
             <img class="syn-carousel__media" [src]="item.src" [alt]="item.alt || ''" />
           }

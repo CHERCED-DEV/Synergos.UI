@@ -42,6 +42,20 @@ describe('CarouselElementComponent', () => {
     expect(slides[1].label).toBe('Fachada');
   });
 
+  // CMS#192, caso 4: `linkUrl` es la clave que el editor autora en `slidesJson`, y viaja.
+  it('cada diapositiva enlaza a su `linkUrl`, y la que no lo trae no enlaza', async () => {
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({ slides: [{ src: 'a.jpg', alt: 'Sala', linkUrl: '/propiedades/101' }, { src: 'b.jpg', alt: 'Patio' }] }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.slides().map((slide) => slide.href)).toEqual(['/propiedades/101', undefined]);
+    const enlace = (fixture.nativeElement as HTMLElement).querySelector('a.syn-carousel__link');
+    expect(enlace?.getAttribute('href')).toBe('/propiedades/101');
+  });
+
   it('should parse slides, video included, from the slides attribute', async () => {
     fixture.componentRef.setInput('slides', '[{"src":"x.jpg"},{"src":"y.mp4","type":"video"}]');
     fixture.detectChanges();
