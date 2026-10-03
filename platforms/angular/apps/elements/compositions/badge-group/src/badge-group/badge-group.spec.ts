@@ -85,6 +85,33 @@ describe('BadgeGroupElementComponent', () => {
     expect(host.querySelector('.badge-group__empty')).toBeNull();
   });
 
+  // CMS#192, caso 3: la descripción de `badgesJson` prometía un icono por insignia y el elemento
+  // no pintaba ninguno. Ahora es un NOMBRE del set del design system, pintado con `syn-icon`.
+  it('pinta el icono de cada insignia por su nombre, y uno que el set no tiene no se pinta', async () => {
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({
+        badges: [
+          { label: 'Envío gratis', tone: 'success', icon: 'truck' },
+          { label: 'Garantía', tone: 'brand', iconKey: 'Shield-Check' },
+          { label: 'Sin icono', tone: 'neutral', icon: 'cohete-espacial' },
+          { label: 'Llano', tone: 'neutral' },
+        ],
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.badges().map((badge) => badge.icon)).toEqual(['truck', 'shield-check', '', '']);
+    const insignias = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.badge'));
+    const iconos = insignias.map((insignia) => insignia.querySelector('syn-icon .syn-icon__svg') !== null);
+    expect(iconos).toEqual([true, true, false, false]);
+    // Decorativo: el nombre de la insignia lo dice el texto, no el icono.
+    expect(insignias[0].querySelector('syn-icon [aria-hidden="true"]')).not.toBeNull();
+    // Y el nombre desconocido no sale como palabra.
+    expect(insignias[2].textContent?.trim()).toBe('Sin icono');
+  });
+
   // `label` no lo autora el editor en el CMS (ADR 0135): es atributo. `layout` sí viaja.
   it('should let direct inputs override config (idempotent precedence)', async () => {
     fixture.componentRef.setInput('config', '{"layout":"stack"}');

@@ -27,6 +27,9 @@
               (click)="toggle(badge)"
               (keydown)="onKeydown($event, badge)"
             >
+              @if (badge.icon) {
+                <syn-icon class="badge__icon" [name]="badge.icon" size="sm" [decorative]="true" />
+              }
               <span class="badge__label">{{ badge.label }}</span>
               @if (badge.countLabel) {
                 <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>
@@ -39,6 +42,9 @@
               [href]="badge.href"
               [attr.data-tone]="badge.tone"
             >
+              @if (badge.icon) {
+                <syn-icon class="badge__icon" [name]="badge.icon" size="sm" [decorative]="true" />
+              }
               <span class="badge__label">{{ badge.label }}</span>
               @if (badge.countLabel) {
                 <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>
@@ -47,6 +53,9 @@
             </a>
           } @else {
             <span class="badge" [attr.data-tone]="badge.tone">
+              @if (badge.icon) {
+                <syn-icon class="badge__icon" [name]="badge.icon" size="sm" [decorative]="true" />
+              }
               <span class="badge__label">{{ badge.label }}</span>
               @if (badge.countLabel) {
                 <span class="badge__count" aria-hidden="true">{{ badge.countLabel }}</span>

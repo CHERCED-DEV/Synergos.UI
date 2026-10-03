@@ -93,6 +93,18 @@
     white-space: nowrap;
   }
 
+  // El icono del set (CMS#192, caso 3) toma el tono y el tamaño de la insignia: `syn-icon` trae
+  // su propio color neutro, que en una insignia de éxito o peligro desentonaría.
+  &__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+
+    ::ng-deep .syn-icon {
+      color: inherit;
+      font-size: 1.15em;
+    }
+  }
+
   &__count {
     display: inline-flex;
     align-items: center;

@@ -11,6 +11,8 @@ import type { BadgeGroupProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import { t } from '@synergos/vitals-core';
 import {
+  IconComponent,
+  NOMBRES_DE_ICONO,
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
   coerceTrimmedStringInput,
@@ -35,6 +37,11 @@ import {
  *
  * Su microcopia sale del diccionario, sección `BadgeGroup` (ADR 0136): el nombre del grupo sin rótulo
  * y el grupo vacío. El atributo `emptyLabel` sigue ganando.
+ *
+ * Cada insignia puede llevar un `icon`: un NOMBRE del set del design system (UI#89), que se
+ * pinta con `syn-icon` delante del texto (CMS#192, caso 3). La descripción de `badgesJson`
+ * prometía un `iconKey` que nadie pintaba; esa clave se sigue leyendo. Un nombre que el set no
+ * tiene no se pinta —ni como palabra—.
  */
 
 /** Visual layout of the badge cluster. */
@@ -53,6 +60,8 @@ export interface Badge {
   readonly count: number | null;
   readonly countLabel: string;
   readonly tone: BadgeTone;
+  /** El nombre del icono del set, o `''` si la insignia no lleva (o pidió uno que no existe). */
+  readonly icon: string;
   readonly href: string;
   readonly defaultSelected: boolean;
 }
@@ -120,6 +129,11 @@ function normalizeTone(value: unknown): BadgeTone {
   return TONES.includes(candidate) ? candidate : 'neutral';
 }
 
+/** El icono por NOMBRE, cerrado al set del design system: lo que no está en él no se pinta. */
+function normalizeIcon(value: unknown): string {
+  return coerceStringEnumInput(readString(value).trim().toLowerCase(), NOMBRES_DE_ICONO) ?? '';
+}
+
 /** Compact, locale-aware count label (es-CO): 1.2k for large counts. */
 function formatCount(count: number): string {
   if (Math.abs(count) >= 1000) {
@@ -171,6 +185,7 @@ export function normalizeBadges(value: unknown): readonly Badge[] {
       count,
       countLabel: count !== null ? formatCount(count) : '',
       tone: normalizeTone(badge['tone']),
+      icon: normalizeIcon(badge['icon'] ?? badge['iconKey']),
       href: readString(badge['href']).trim() || readString(badge['url']).trim(),
       defaultSelected: readBoolean(badge['selected']),
     });
@@ -191,6 +206,7 @@ export function sanitizeBadgeGroupConfig(value: Partial<BadgeGroupProps>): Parti
 @Component({
   selector: 'sg-badge-group',
   standalone: true,
+  imports: [IconComponent],
   templateUrl: './badge-group.html',
   styleUrl: './badge-group.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
