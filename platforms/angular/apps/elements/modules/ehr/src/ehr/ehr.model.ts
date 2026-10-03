@@ -301,7 +301,7 @@ export interface HomeCard {
   readonly tone: 'brand' | 'success' | 'warning' | 'danger' | 'neutral';
 }
 
-/** `GET /api/ehr/portal/home?patient=` payload. */
+/** `GET /api/ehr/portal/home` payload — del paciente de la sesión (CMS#197). */
 export interface PortalHome {
   readonly patient: Patient;
   readonly cards: readonly HomeCard[];
@@ -379,7 +379,7 @@ export interface HealthMaintenanceItem {
 }
 
 /**
- * `GET /api/ehr/health?patient=` — the health record aggregate.
+ * `GET /api/ehr/health` — the health record aggregate of the session's patient (CMS#197).
  *
  * `immunizations` is `readonly Immunization[] | null`, and the difference is the
  * whole point: `[]` says «this person has no vaccines recorded»; `null` says
@@ -402,7 +402,7 @@ export interface StatementLine {
   readonly amountMinor: number;
 }
 
-/** `GET /api/ehr/billing?patient=` payload. */
+/** `GET /api/ehr/billing` payload — del paciente de la sesión (CMS#197). */
 export interface BillingStatement {
   readonly patientId: string;
   readonly currency: string;

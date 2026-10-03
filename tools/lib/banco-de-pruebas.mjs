@@ -114,7 +114,6 @@ export const ENTRADAS_DE_CABLEADO = {
   viewerHandle: 'la identidad de quien lee: inventarla es actuar en nombre de nadie',
   sessionKey: 'la clave con la que el asistente guarda su progreso',
   clinic: 'el identificador de la clínica',
-  patient: 'el identificador del paciente que se abre al cargar: inventarlo pide la historia de nadie',
   agency: 'el identificador de la entidad',
   traveler: 'el identificador del viajero',
   eventId: 'el identificador del evento que se abre al cargar',
