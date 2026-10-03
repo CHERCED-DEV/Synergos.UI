@@ -40,6 +40,8 @@ export type SharePlatformId =
   | 'linkedin'
   | 'whatsapp'
   | 'telegram'
+  | 'reddit'
+  | 'pinterest'
   | 'email';
 
 export interface SharePlatform {
@@ -100,6 +102,18 @@ const PLATFORM_CATALOG: Readonly<Record<SharePlatformId, Omit<SharePlatform, 'la
     name: 'Telegram',
     icon: 'M21.9 4.3 18.6 20c-.2 1-.9 1.3-1.7.8l-4.7-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.4-5 9-8.2c.4-.3-.1-.5-.6-.2L6.6 13l-4.8-1.5c-1-.3-1-1 .2-1.5L20.6 2.9c.9-.3 1.6.2 1.3 1.4Z',
   },
+  // CMS#192, caso 20: `DTSelectSharePlatform` las ofrecía y el elemento no las pintaba. Glifos
+  // propios, de geometría simple: el hueco (los ojos, la «P») va con el giro contrario.
+  reddit: {
+    id: 'reddit',
+    name: 'Reddit',
+    icon: 'M4 14a8 5.5 0 1 0 16 0a8 5.5 0 1 0-16 0ZM8.4 13.2a1.3 1.3 0 1 1 2.6 0a1.3 1.3 0 1 1-2.6 0ZM13 13.2a1.3 1.3 0 1 1 2.6 0a1.3 1.3 0 1 1-2.6 0ZM17 3.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0ZM11.3 8.6l1.5-5.8 4.4 1-.2 1-3.5-.8-1.2 4.6ZM1.8 10.6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0ZM19 10.6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0Z',
+  },
+  pinterest: {
+    id: 'pinterest',
+    name: 'Pinterest',
+    icon: 'M2 12a10 10 0 1 0 20 0a10 10 0 1 0-20 0ZM9.6 6.5h2v12h-2ZM11.6 6.5h1.2a3.5 3.5 0 0 1 0 7h-1.2ZM11.6 8.5v3h1.2a1.5 1.5 0 0 0 0-3Z',
+  },
   email: {
     id: 'email',
     name: '',
@@ -159,6 +173,10 @@ export function buildShareUrl(
       return `https://wa.me/?text=${t}%20${u}`;
     case 'telegram':
       return `https://t.me/share/url?url=${u}&text=${t}`;
+    case 'reddit':
+      return `https://www.reddit.com/submit?url=${u}&title=${t}`;
+    case 'pinterest':
+      return `https://www.pinterest.com/pin/create/button/?url=${u}&description=${t}`;
     case 'email':
       return `mailto:?subject=${t}&body=${u}`;
     default:

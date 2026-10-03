@@ -138,6 +138,20 @@ describe('ShareBarElementComponent', () => {
     expect(component.shareTitle()).toBe(ejemplo.shareTitle);
   });
 
+  // CMS#192, caso 20: el editor elige reddit/pinterest y el botón aparece, con su nombre y su glifo.
+  it('pinta los botones de reddit y pinterest cuando el CMS los manda', () => {
+    fixture.componentRef.setInput('config', JSON.stringify({ platforms: ['reddit', 'pinterest'] }));
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const botones = ['reddit', 'pinterest'].map((red) => host.querySelector(`.share-bar__action--${red}`));
+    expect(botones.map((boton) => boton?.getAttribute('aria-label'))).toEqual([
+      'Compartir en Reddit',
+      'Compartir en Pinterest',
+    ]);
+    expect(botones.every((boton) => (boton?.querySelector('path')?.getAttribute('d') ?? '').length > 0)).toBe(true);
+  });
+
   // ADR 0136 (CMS#191): la microcopia sale de la sección `Share` que publica la página; el nombre
   // de la red es marca y lo pone el elemento.
   describe('microcopia del diccionario', () => {
@@ -200,5 +214,17 @@ describe('share-bar pure helpers', () => {
     const mail = buildShareUrl('email', 'https://a.b/c', 'Asunto');
     expect(mail.startsWith('mailto:')).toBe(true);
     expect(mail).toContain(encodeURIComponent('Asunto'));
+  });
+
+  // CMS#192, caso 20: `DTSelectSharePlatform` ofrecía reddit y pinterest, y el elemento los tiraba.
+  it('reddit y pinterest viajan, se pintan con su glifo y abren su intento con el destino', () => {
+    expect(normalizePlatforms('reddit, pinterest')).toEqual(['reddit', 'pinterest']);
+
+    const reddit = buildShareUrl('reddit', 'https://a.b/c', 'Título');
+    expect(reddit).toBe(`https://www.reddit.com/submit?url=${encodeURIComponent('https://a.b/c')}&title=${encodeURIComponent('Título')}`);
+    const pinterest = buildShareUrl('pinterest', 'https://a.b/c', 'Título');
+    expect(pinterest).toBe(
+      `https://www.pinterest.com/pin/create/button/?url=${encodeURIComponent('https://a.b/c')}&description=${encodeURIComponent('Título')}`,
+    );
   });
 });

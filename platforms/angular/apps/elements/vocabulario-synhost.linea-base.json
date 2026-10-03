@@ -1,12 +1,4 @@
 {
   "comentario": "Los selectores donde lo que el editor puede elegir (después del resolver) y lo que el elemento pinta no casan (CMS#181). `sobra`: lo elige el editor y el elemento no lo pinta (cae a su valor por defecto); `falta`: lo pinta el elemento y el editor no puede elegirlo; `noViaja`: el selector no llega al elemento. Cada entrada es una decisión de producto pendiente: quitar la opción del DataType (schema, ADR 0008) o que el elemento la aprenda. Se regenera con SYNERGOS_ACTUALIZAR_VOCABULARIO=1 y el diff va en el commit que lo causó.",
-  "desajustes": {
-    "share-bar.platforms": {
-      "sobra": [
-        "pinterest",
-        "reddit"
-      ],
-      "falta": []
-    }
-  }
+  "desajustes": {}
 }
