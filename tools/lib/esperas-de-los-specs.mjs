@@ -59,6 +59,14 @@ export const TOPES_DECLARADOS = {
       'shell, y arrancarlo cuesta 1–2 s con la máquina tranquila y varias veces eso cargada. ' +
       'Es lo único que prueba que la opción llega al proceso, así que no se simula.',
   },
+  'tools/lib/cli-utils.spec.mjs': {
+    tope: 30_000,
+    razon:
+      'lanza `publish-runtime.mjs` DE VERDAD, con `--dry-run`, para ver a qué destino publicaría con ' +
+      '`--cdn RUTA` y con `--cdn=RUTA` (UI#69): son dos procesos de node por caso. Con la máquina ' +
+      'tranquila tardan ~1 s cada uno; con los 46 ficheros de `test:tools` en paralelo se midieron ' +
+      '5,9 s, por encima de los 5 de serie. Probar sólo la función no vería que la herramienta no la usa.',
+  },
 };
 
 /** Las llamadas que declaran tests o grupos: `describe`, `it`, `test` y sus variantes. */

@@ -4,7 +4,7 @@
  * Copies the pre-built Synergos shared runtime from dist/runtime/angular/{version}/
  * to the CDN directory and writes an import-map.json with the real CDN base URL.
  *
- * Usage:
+ * Usage (las dos formas de cada bandera valen: `--cdn RUTA` y `--cdn=RUTA`):
  *   node tools/publish-runtime.mjs
  *   node tools/publish-runtime.mjs --cdn D:\MyCDN
  *   node tools/publish-runtime.mjs --base https://cdn.example.com/synergos
@@ -16,18 +16,40 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 
+import { leerBandera, revisarBanderas } from './lib/cli-utils.mjs';
 import { ficherosDelRuntime, importsDelRuntime } from './lib/mapa-del-runtime.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT      = path.resolve(__dirname, '..');
 
-const isDryRun = process.argv.includes('--dry-run');
-const cdnArg   = process.argv.find((a) => a.startsWith('--cdn='));
-const baseArg  = process.argv.find((a) => a.startsWith('--base='));
+// ── Banderas (UI#69) ─────────────────────────────────────────────────────────
+//
+// Esto leía sólo `--cdn=` y `--base=`, y la cabecera documentaba `--cdn D:\MyCDN`: con la
+// forma documentada la bandera se ignoraba EN SILENCIO y se publicaba al destino por
+// defecto, imprimiendo «✓» y «Done». Hoy valen las dos formas, y lo que no se entiende —una
+// errata como `--cnd`, una bandera sin su valor, un argumento suelto— sale con 2 ANTES de
+// tocar nada, en vez de convertirse en «publicá donde siempre».
+const argv = process.argv.slice(2);
+const erroresDeUso = revisarBanderas(argv, { conValor: ['cdn', 'base'], sinValor: ['dry-run'] });
+if (erroresDeUso.length > 0) {
+  console.error(
+    `[publish-runtime] ${erroresDeUso.join('\n  ')}\n` +
+      '  Uso: node tools/publish-runtime.mjs [--cdn RUTA] [--base URL] [--dry-run]',
+  );
+  process.exit(2);
+}
 
-const CDN_ROOT  = cdnArg
-  ? cdnArg.slice('--cdn='.length)
-  : (process.env.SYNERGOS_CDN || String.raw`C:\LOCAL_CDN`);
+const isDryRun = argv.includes('--dry-run');
+const cdnArg   = leerBandera(argv, 'cdn');
+const baseArg  = leerBandera(argv, 'base');
+
+// De DÓNDE salió el destino va en la salida: el defecto de UI#69 sólo se veía mirando la línea
+// `CDN :` de cada runtime, y una publicación al sitio equivocado se leía igual que una buena.
+const [CDN_ROOT, ORIGEN_DEL_DESTINO] = cdnArg
+  ? [cdnArg, '--cdn']
+  : process.env.SYNERGOS_CDN
+    ? [process.env.SYNERGOS_CDN, 'SYNERGOS_CDN']
+    : [String.raw`C:\LOCAL_CDN`, 'por defecto'];
 
 const CDN_ORIGIN = process.env.SYNERGOS_CDN_ORIGIN || 'https://synergos-static-local';
 
@@ -105,7 +127,7 @@ async function publicarUno({ framework, version, dir }) {
   const cdnLatestDir    = path.join(CDN_ROOT, 'synergos', 'runtime', framework, 'latest');
 
   const base = baseArg
-    ? `${baseArg.slice('--base='.length).replace(/\/$/, '')}/runtime/${framework}/${version}`
+    ? `${baseArg.replace(/\/$/, '')}/runtime/${framework}/${version}`
     : `${CDN_ORIGIN}/synergos/runtime/${framework}/${version}`;
 
   console.log(`\nSynergos Runtime Publish — ${framework}${isDryRun ? ' (dry-run)' : ''}`);
@@ -174,6 +196,8 @@ async function publicarUno({ framework, version, dir }) {
 }
 
 async function main() {
+  // ANTES de buscar el runtime: el destino se dice aunque después no haya nada que publicar.
+  console.log(`Destino: ${CDN_ROOT} (${ORIGEN_DEL_DESTINO})`);
   const runtimes = await resolverRuntimes();
 
   for (const runtime of runtimes) {

@@ -19,7 +19,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  *
  *   node tools/build-cdn.mjs
- *   node tools/build-cdn.mjs --salida public
+ *   node tools/build-cdn.mjs --salida public      (o --salida=public: las dos formas valen)
  */
 import { rm, mkdir, copyFile, access, readdir } from 'node:fs/promises';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -29,13 +29,21 @@ import { fileURLToPath } from 'node:url';
 
 import { revisarRuntime, OK as RUNTIME_OK } from './lib/cdn-runtime-check.mjs';
 import { recorrerMapasPublicados, revisarMapas } from './lib/mapa-del-runtime.mjs';
+import { getArg, revisarBanderas } from './lib/cli-utils.mjs';
 import { correrNpm } from './lib/npm.mjs';
 import { PLATFORMS } from './lib/synergos-config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const argSalida = process.argv.indexOf('--salida');
-const SALIDA = resolve(ROOT, argSalida > -1 ? process.argv[argSalida + 1] : 'public');
+// `--salida` se leía con `argv.indexOf('--salida')`: `--salida=RUTA` se ignoraba y se construía
+// en `public/` sin decir nada, la misma forma que UI#69 midió en `publish-runtime`. Hoy valen
+// las dos formas, y lo que no se entiende sale con 2 antes de borrar o construir nada.
+const erroresDeUso = revisarBanderas(process.argv.slice(2), { conValor: ['salida'] });
+if (erroresDeUso.length > 0) {
+  console.error(`[build-cdn] ${erroresDeUso.join('\n  ')}\n  Uso: node tools/build-cdn.mjs [--salida RUTA]`);
+  process.exit(2);
+}
+const SALIDA = resolve(ROOT, getArg('salida', 'public'));
 
 const log = (m) => console.log(`[build-cdn] ${m}`);
 
@@ -140,11 +148,10 @@ if (await existe(join(ROOT, 'tools', 'publish-runtime.mjs'))) {
   log('publicando runtime (base relativa)…');
   execFileSync(
     'node',
-    // OJO: `--cdn=` con signo igual. `publish-runtime.mjs` lo lee con
-    // `slice('--cdn='.length)`, así que la forma de dos argumentos —que sí
-    // acepta `publish.mjs`— cae al default de Windows (`C:\LOCAL_CDN`) y en
-    // Linux crea una carpeta con ese nombre literal. No falla: publica en el
-    // sitio equivocado, y el runtime simplemente no aparece.
+    // Iba `--cdn=` con signo igual a propósito: `publish-runtime.mjs` sólo leía esa
+    // forma, y la de dos argumentos caía al default de Windows (`C:\LOCAL_CDN`) —en
+    // Linux, una carpeta con ese nombre literal—. Desde UI#69 lee las dos y rechaza
+    // lo que no entiende.
     [join(ROOT, 'tools', 'publish-runtime.mjs'), `--cdn=${SALIDA}`, '--base=/synergos'],
     { cwd: ROOT, stdio: 'inherit' },
   );
