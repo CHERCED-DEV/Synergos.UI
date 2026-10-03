@@ -97,7 +97,7 @@ import {
   type AgentView,
   type RealtyView,
 } from './realty.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynRealty</c>.
@@ -2236,14 +2236,7 @@ export class RealtyElementComponent implements OnInit {
 
   /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   formatPrice(amount: number, currency: string): string {
-    if (!currency) {
-      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
-    }
-    try {
-      return new Intl.NumberFormat('es-CO', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(amount, currency);
   }
 
   formatArea(value: number): string {
@@ -2278,7 +2271,7 @@ const MOCK_MINIMAL = {
   operation: 'sale',
   type: 'apartamento',
   price: 0,
-  currency: 'COP',
+  currency: '',
   geo: { lat: 0, lng: 0, address: '', neighborhood: '', city: '' },
   specs: { beds: 0, baths: 0, areaBuilt: 0, areaPrivate: 0, parking: 0, stratum: 0, ageYears: 0, floor: 0 },
   status: 'active',

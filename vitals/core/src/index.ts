@@ -5,3 +5,4 @@ export * from './bridge';
 export * from './inputs';
 export * from './environment';
 export * from './rutas';
+export * from './formato';

@@ -103,6 +103,19 @@ describe('SeatMapElementComponent', () => {
     expect(component.seatStateLabel(occupied)).toBe('ocupado');
   });
 
+  // CMS#196: la moneda llega con los precios (la publica el proveedor). Antes el componente
+  // inventaba COP cuando no venía, y un mapa en dólares sin moneda salía en pesos.
+  it('pinta el precio en la moneda que llegó y, sin moneda, el número solo', () => {
+    seedWith(SAMPLE_SEATMAP);
+    const ventana = component.rows()[0].seats[0]; // 12A, 45.000
+
+    expect(component.priceLabel(ventana)).toBe('45.000');
+
+    fixture.componentRef.setInput('currency', 'USD');
+    fixture.detectChanges();
+    expect(component.priceLabel(ventana).replace(/\s/g, ' ')).toBe('US$ 45.000');
+  });
+
   it('should render a legend with all seat states (legend case)', () => {
     seedWith(SAMPLE_SEATMAP);
 

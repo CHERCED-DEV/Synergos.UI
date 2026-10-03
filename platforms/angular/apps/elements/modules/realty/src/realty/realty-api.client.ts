@@ -1152,7 +1152,7 @@ function normalizeAgentDesk(value: unknown): AgentDeskResult | null {
     return null;
   }
   const portfolio = rawPortfolio
-    .map((entry) => normalizePortfolio(entry, 'COP'))
+    .map((entry) => normalizePortfolio(entry, readString(value['currency']).trim()))
     .filter((entry): entry is PortfolioListing => entry !== null);
   const leads = rawLeads
     .map((entry) => normalizeAgentLead(entry))

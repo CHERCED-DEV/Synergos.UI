@@ -155,9 +155,12 @@ export interface SessionData {
   readonly tabId?: string;
 }
 
-/** Canonical empty pricing. */
+/**
+ * Canonical empty pricing. Sin moneda: la trae el primer importe (`setPricing`), que llega de la
+ * API con su moneda. Un peso por defecto acá era la moneda del sitio compilada en el motor (CMS#196).
+ */
 export const CLEAN_PRICING: Pricing = {
-  currency: 'COP',
+  currency: '',
   totalAmount: 0,
   balanceDue: 0,
   breakdown: [],

@@ -97,7 +97,7 @@ import {
   type WalletTicket,
   type EventPromo,
 } from './eventos.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEventos</c>.
@@ -360,12 +360,12 @@ export class EventosElementComponent implements OnInit {
     if (!data || porcentaje === null) {
       return null;
     }
-    const brutoMinor = Math.round(data.revenue * 100);
+    const brutoMinor = aMenores(data.revenue, this.currency());
     const comisionMinor = comisionEnMenores(brutoMinor, porcentaje);
     return {
       porcentaje: `${porcentaje.toLocaleString('es-CO')} %`,
-      comision: comisionMinor / 100,
-      neto: (brutoMinor - comisionMinor) / 100,
+      comision: desdeMenores(comisionMinor, this.currency()),
+      neto: desdeMenores(brutoMinor - comisionMinor, this.currency()),
     };
   });
   /**
@@ -552,10 +552,10 @@ export class EventosElementComponent implements OnInit {
     Math.max(0, this.cartSubtotalMinor() + this.feesMinor() + this.promoMinor()),
   );
   readonly cartSubtotalLabel = computed(() =>
-    this.formatPrice(this.cartSubtotalMinor() / 100, this.currency()),
+    this.formatMinor(this.cartSubtotalMinor()),
   );
-  readonly feesLabel = computed(() => this.formatPrice(this.feesMinor() / 100, this.currency()));
-  readonly cartTotalLabel = computed(() => this.formatPrice(this.cartTotalMinor() / 100, this.currency()));
+  readonly feesLabel = computed(() => this.formatMinor(this.feesMinor()));
+  readonly cartTotalLabel = computed(() => this.formatMinor(this.cartTotalMinor()));
 
   // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
   readonly attendeesValid = computed(
@@ -1247,7 +1247,7 @@ export class EventosElementComponent implements OnInit {
       id: item.id,
       label: item.label,
       detail: `${item.quantity} ${item.quantity === 1 ? 'entrada' : 'entradas'}`,
-      total: this.formatPrice((item.amount * item.quantity) / 100, this.currency()),
+      total: this.formatMinor(item.amount * item.quantity),
       removable: false,
     })),
   );
@@ -1274,7 +1274,7 @@ export class EventosElementComponent implements OnInit {
       filas.push({
         id: 'promo',
         label: promo.label,
-        value: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+        value: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
       });
     }
     filas.push({ id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true });
@@ -1838,7 +1838,7 @@ export class EventosElementComponent implements OnInit {
     }
     return {
       code: promo.code,
-      discountLabel: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      discountLabel: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
       ...(promo.detail ? { detail: promo.detail } : {}),
     };
   });
@@ -1866,7 +1866,7 @@ export class EventosElementComponent implements OnInit {
     this.promoRejection.set(result.reason);
     if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
       this.promoDetail.set(
-        `Te faltan ${this.formatPrice(result.shortfallMinor / 100, this.currency())}.`,
+        `Te faltan ${this.formatMinor(result.shortfallMinor)}.`,
       );
     }
   }
@@ -1884,20 +1884,12 @@ export class EventosElementComponent implements OnInit {
    * moneda (todavía no llegó ningún importe del catálogo) se pinta el número solo.
    */
   formatPrice(amount: number, currency: string): string {
-    const numero = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 });
-    if (!currency) {
-      return numero.format(amount);
-    }
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(amount);
-    } catch {
-      return `${currency} ${numero.format(amount)}`;
-    }
+    return formatearImporte(amount, currency, { decimales: 2 });
+  }
+
+  /** Un importe en unidades menores de la moneda del evento (los del carrito y la comisión). */
+  formatMinor(minor: number): string {
+    return this.formatPrice(desdeMenores(minor, this.currency()), this.currency());
   }
 
   formatDate(iso: string): string {

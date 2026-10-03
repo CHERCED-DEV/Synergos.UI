@@ -39,7 +39,6 @@ import { documentLiveAnnouncer } from '@synergos/shared';
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = 'synergos-cart';
-const DEFAULT_CURRENCY = 'COP';
 const CART_API = '/api/shop/cart';
 
 // ── Server contract (Cart/CartLine de Synergos.CMS.Interfaces) ────────────────
@@ -77,7 +76,9 @@ function toItems(cart: ServerCart): CartItem[] {
     name: l.productName,
     image: l.imageUrl ?? undefined,
     price: l.unitPrice,
-    currency: cart.currency || DEFAULT_CURRENCY,
+    // La moneda es la que manda el servidor con el carrito; sin ella, vacía (el precio se pinta
+    // como número solo), nunca un peso inventado en el bundle (CMS#196).
+    currency: cart.currency ?? '',
     quantity: l.quantity,
     subtotal: l.lineTotal,
   }));
@@ -122,7 +123,7 @@ const snapshot = computed<Cart>(() => ({
   subtotal:  subtotal(),
   discount:  _discount() > 0 ? _discount() : undefined,
   total:     total(),
-  currency:  _items()[0]?.currency ?? DEFAULT_CURRENCY,
+  currency:  _items()[0]?.currency ?? '',
   coupon:    _coupon(),
   updatedAt: new Date().toISOString(),
 }));

@@ -1033,7 +1033,7 @@ function normalizeTiers(value: unknown): readonly CreatorTier[] {
         id,
         name,
         priceMinor: Math.trunc(readNumber(entry['priceMinor'])),
-        currency: readString(entry['currency']).trim() || 'COP',
+        currency: readString(entry['currency']).trim(),
         perks: readStringArray(entry['perks']),
         subscribers: Math.trunc(readNumber(entry['subscribers'])),
       };
@@ -1056,7 +1056,7 @@ function normalizeStudio(value: unknown): StudioPayload | null {
     reachDelta: Math.trunc(readNumber(value['reachDelta'])),
     engagementRate: readNumber(value['engagementRate']),
     monthlyRevenueMinor: Math.trunc(readNumber(value['monthlyRevenueMinor'])),
-    currency: readString(value['currency']).trim() || 'COP',
+    currency: readString(value['currency']).trim(),
     audience: normalizeSeries(value['audience']),
     topPosts: normalizeTopPosts(value['topPosts']),
     tiers: normalizeTiers(value['tiers']),

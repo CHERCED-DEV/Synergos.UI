@@ -21,6 +21,7 @@ import {
   type BookingRoom,
   type BookingSelection,
 } from './booking.model';
+import { aMenores } from '@synergos/vitals-core';
 
 /**
  * La `IFulfillmentStrategy` del flujo de hotel — el único sitio donde vive lo
@@ -124,7 +125,7 @@ export class BookingFulfillmentStrategy extends FulfillmentStrategyBase {
       label: product.label,
       selection: product.selection,
       // El motor cuenta en unidades menores; las ofertas llegan en mayores.
-      amount: Math.round(product.amount * 100),
+      amount: aMenores(product.amount, (product.selection as { readonly currency?: string }).currency),
       quantity: 1,
     };
     return { item };

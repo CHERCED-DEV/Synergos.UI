@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import type { BookingGuest, BookingOffer, BookingRoom, BookingVoucher } from './booking.model';
+import { formatearImporte } from '@synergos/vitals-core';
 
 /**
  * El cliente HTTP del motor de reservas de hotel (`/search`, `/hold`, `/pay`).
@@ -56,18 +57,7 @@ function readBoolean(value: unknown): boolean {
 
 /** Formatea un importe en es-CO para la moneda dada; sin moneda, el número solo. */
 export function formatPrice(amount: number, currency: string): string {
-  if (!currency) {
-    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
-  }
-  try {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-  }
+  return formatearImporte(amount, currency);
 }
 
 /** Normaliza una oferta cruda de la API a la forma estricta de dentro. */

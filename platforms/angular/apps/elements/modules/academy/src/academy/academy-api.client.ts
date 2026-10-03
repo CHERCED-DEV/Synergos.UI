@@ -37,6 +37,7 @@ import {
   type LessonResource,
   type ProgressUpdate,
 } from './academy.model';
+import { formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Una respuesta HTTP no-OK, con su código.
@@ -1310,7 +1311,7 @@ function normalizeInstructorDesk(value: unknown): InstructorDeskResult | null {
     return null;
   }
   const courses = rawCourses
-    .map((entry) => normalizeInstructorCourse(entry, 'COP'))
+    .map((entry) => normalizeInstructorCourse(entry, readString(value['currency']).trim()))
     .filter((entry): entry is InstructorCourse => entry !== null);
   const students = rawStudents
     .map((entry) => normalizeInstructorStudent(entry))
@@ -1614,10 +1615,7 @@ function mockCourses(currency: string): readonly AcademyCourse[] {
  * moneda vacía lanza y el curso no abría.
  */
 function importeDeMuestra(amount: number, currency: string): string {
-  return new Intl.NumberFormat(
-    'es-CO',
-    currency ? { style: 'currency', currency, maximumFractionDigits: 0 } : { maximumFractionDigits: 0 },
-  ).format(amount);
+  return formatearImporte(amount, currency);
 }
 
 function mockDetail(id: string, currency: string): CourseDetail {

@@ -210,6 +210,9 @@ describe('frameworksDelRegistry', () => {
  */
 const CIEGAS_AL_FRAMEWORK = [
   'lib/rutas-hermanas.mjs',
+  // La moneda sale de los datos (CMS#196): recorre `platforms/` y `vitals/` enteros, y la única
+  // excepción va por el NOMBRE de la clase genérica, no por la ruta de una plataforma.
+  'lib/moneda-de-los-datos.mjs',
   // Genera el tipo TS de lo que viaja a cada elemento desde el contrato del CMS (ADR 0135 ·
   // CMS#173). Escribe en `vitals/contracts`, que es agnóstico: el sanitizador que se tipa con
   // él puede vivir en cualquier plataforma. El spec que lo EJECUTA sí es de Angular, y vive en
@@ -303,6 +306,11 @@ const CIEGAS_AL_FRAMEWORK = [
   'vectores-comision.mjs',
   // Comparación pura: recibe los vectores y la regla. No sabe qué es un disco.
   'lib/vectores-comision.mjs',
+  // G-13 (CMS#196): la regla del lado UI es agnóstica —vitals/core/src/formato—, una para todas
+  // las plataformas, así que no hay ninguna que recorrer ni que nombrar.
+  'vectores-unidades-menores.mjs',
+  // Comparación pura: recibe los vectores y las dos conversiones. No sabe qué es un disco.
+  'lib/vectores-unidades-menores.mjs',
   // Toma la carpeta de apps de `PLATAFORMAS` (#76), así que un cliente HTTP de otra
   // plataforma se cruza igual.
   'clientes-sin-llamador.mjs',

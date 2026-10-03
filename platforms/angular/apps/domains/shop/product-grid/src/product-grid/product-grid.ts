@@ -27,6 +27,7 @@ import {
   ButtonComponent,
   SelectComponent,
 } from '@synergos/shared';
+import { formatearImporte } from '@synergos/vitals-core';
 
 function sanitizePositiveInteger(value: unknown): number | undefined {
   const coercedValue = coerceOptionalNumberInput(value);
@@ -357,9 +358,7 @@ export class ProductGridComponent {
   }
 
   formatPrice(value: number, currency: string): string {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency', currency, maximumFractionDigits: 0,
-    }).format(value);
+    return formatearImporte(value, currency);
   }
 
   trackById(_: number, p: Product): string { return p.id; }

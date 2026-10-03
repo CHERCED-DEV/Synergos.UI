@@ -82,7 +82,7 @@ import {
   type SoapNote,
   type Vitals,
 } from './ehr.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEhr</c>.
@@ -2166,17 +2166,8 @@ export class EhrElementComponent implements OnInit {
     return Math.round(8 + ((value - min) / span) * 92);
   }
 
-  formatMinor(minorUnits: number, currency = 'COP'): string {
-    const amount = minorUnits / 100;
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: currency || 'COP',
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+  formatMinor(minorUnits: number, currency: string): string {
+    return formatearImporte(desdeMenores(minorUnits, currency), currency);
   }
 
   formatDate(iso: string): string {

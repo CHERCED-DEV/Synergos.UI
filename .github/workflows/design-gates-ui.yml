@@ -55,6 +55,9 @@ on:
       - '**/eventos-comision.ts'
       - 'tools/vectores-comision.mjs'
       - 'tools/lib/vectores-comision.mjs'
+      - 'vitals/core/src/formato/**'
+      - 'tools/vectores-unidades-menores.mjs'
+      - 'tools/lib/vectores-unidades-menores.mjs'
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
@@ -77,6 +80,9 @@ on:
       - '**/eventos-comision.ts'
       - 'tools/vectores-comision.mjs'
       - 'tools/lib/vectores-comision.mjs'
+      - 'vitals/core/src/formato/**'
+      - 'tools/vectores-unidades-menores.mjs'
+      - 'tools/lib/vectores-unidades-menores.mjs'
       - '**/*-api.client.ts'
       - 'tools/rutas-del-borde.mjs'
       - 'tools/lib/rutas-del-borde.mjs'
@@ -87,7 +93,7 @@ on:
 
 jobs:
   tokens-bridge-parity:
-    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión
+    name: G-1 + G-2 sync:tokens:check · G-5 contraste por tema · G-9 hipoteca · G-10 rutas del borde · G-11 contrato SynHost · G-12 comisión · G-13 unidades menores
     runs-on: ubuntu-latest
 
     steps:
@@ -188,6 +194,19 @@ jobs:
         env:
           SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
         run: node tools/vectores-comision.mjs
+
+      # ── G-13 — los importes se pintan en la unidad en que el servidor los emite (CMS#196) ──
+      #
+      # La tasa de un trámite y la facturación de salud salían en pesos con el nombre *Minor y la
+      # UI dividía por 100: una tasa de 189.000 se pintaba $ 1.890. El CMS emite con
+      # UnidadesMenores y la UI pinta con aMenores/desdeMenores (vitals/core/src/formato): la
+      # forma de G-12, con la fuente de verdad compilada y, sin el CMS, en ROJO. Del lado del CMS
+      # los corre UnidadesMenoresTests.
+      - name: Vectores de oro de las unidades menores (G-13)
+        working-directory: Synergos.UI
+        env:
+          SYNERGOS_CMS_PATH: ${{ github.workspace }}/Synergos.CMS
+        run: node tools/vectores-unidades-menores.mjs
 
       # ── G-10 — las rutas que los clientes piden existen en el borde ────────
       #

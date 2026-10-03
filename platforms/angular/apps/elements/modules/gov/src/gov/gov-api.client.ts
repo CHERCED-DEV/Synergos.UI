@@ -781,7 +781,7 @@ function normalizeService(value: unknown): GovService | null {
     agency: readString(value['agency']).trim(),
     estimatedDays: Math.max(0, Math.trunc(readNumber(value['estimatedDays']))),
     feeMinor: Math.max(0, Math.trunc(readNumber(value['feeMinor']))),
-    currency: readString(value['currency']).trim() || 'COP',
+    currency: readString(value['currency']).trim(),
   };
 }
 
@@ -824,7 +824,7 @@ function normalizeServiceDetail(value: unknown): GovServiceDetail | null {
     eligibility: readStringArray(root['eligibility']),
     required: readStringArray(root['required']),
     feeMinor: Math.max(0, Math.trunc(readNumber(root['feeMinor']))),
-    currency: readString(root['currency']).trim() || 'COP',
+    currency: readString(root['currency']).trim(),
   };
 }
 

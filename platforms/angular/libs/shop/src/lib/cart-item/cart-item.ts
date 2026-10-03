@@ -12,6 +12,7 @@ import {
 } from '@synergos/shared';
 import { QuantitySelectorComponent } from '../quantity-selector/quantity-selector';
 import { cartStore } from '../cart.store';
+import { formatearImporte } from '@synergos/vitals-core';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -100,9 +101,7 @@ export class CartItemComponent {
   readonly hasImage = computed(() => !!this.item()?.image);
 
   formatPrice(value: number, currency: string): string {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency', currency, maximumFractionDigits: 0,
-    }).format(value);
+    return formatearImporte(value, currency);
   }
 
   updateQty(qty: number): void {

@@ -22,6 +22,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { formatearImporte } from '@synergos/vitals-core';
 
 function sanitizeProductCardConfig(
   value: Partial<ProductCardElementConfig>,
@@ -123,7 +124,7 @@ export class ProductCardComponent {
   readonly discount = computed(() => this.product()?.discount);
   readonly inStock  = computed(() => this.product()?.inStock ?? true);
   readonly badge    = computed(() => this.product()?.badge ?? '');
-  readonly currency = computed(() => this.product()?.currency ?? 'COP');
+  readonly currency = computed(() => this.product()?.currency ?? '');
   readonly productUrl = computed(() => {
     const product = this.product();
     if (!product) {
@@ -269,11 +270,7 @@ export class ProductCardComponent {
 
   // ── Price formatter ───────────────────────────────────────────────────────
   formatPrice(value: number): string {
-    return new Intl.NumberFormat('es-CO', {
-      style:    'currency',
-      currency: this.currency(),
-      maximumFractionDigits: 0,
-    }).format(value);
+    return formatearImporte(value, this.currency());
   }
 
   viewDetailsAriaLabel(): string {

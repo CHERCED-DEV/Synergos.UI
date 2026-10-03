@@ -26,6 +26,7 @@ import {
   QuantitySelectorComponent,
   VariantPickerComponent,
 } from '@synergos/shop';
+import { formatearImporte } from '@synergos/vitals-core';
 
 function sanitizeProductDetailConfig(
   value: Partial<ProductDetailElementConfig>,
@@ -205,10 +206,7 @@ export class ProductDetailComponent {
   }
 
   formatPrice(value: number): string {
-    const currency = this.product()?.currency ?? 'COP';
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency', currency, maximumFractionDigits: 0,
-    }).format(value);
+    return formatearImporte(value, this.product()?.currency);
   }
 
   ratingStars(): readonly number[] {

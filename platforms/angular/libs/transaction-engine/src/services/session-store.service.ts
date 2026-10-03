@@ -18,7 +18,7 @@ export interface SessionStoreConfig {
   readonly flow: string;
   /** Time-to-live in ms before the whole session expires. Default 30 min. */
   readonly ttlMs?: number;
-  /** Currency for a freshly-created session. Default `COP`. */
+  /** Currency for a freshly-created session. Default: none — the first price brings its own. */
   readonly currency?: string;
 }
 
@@ -223,7 +223,7 @@ export class SessionStore {
       ...CLEAN_SESSION_DATA,
       sessionId: newId('sess'),
       flow: config?.flow ?? '',
-      pricing: { ...CLEAN_SESSION_DATA.pricing, currency: config?.currency ?? 'COP' },
+      pricing: { ...CLEAN_SESSION_DATA.pricing, currency: config?.currency ?? '' },
       createdAt: now,
       updatedAt: now,
       expiresAt: now + ttl,

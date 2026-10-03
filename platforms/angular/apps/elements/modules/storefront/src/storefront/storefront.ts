@@ -108,7 +108,7 @@ import {
   type StorefrontView,
   type WishlistEntry,
 } from './shop.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynStorefront</c>.
@@ -493,7 +493,7 @@ export class StorefrontElementComponent implements OnInit {
   readonly hasCart = this.#store.hasItems;
   readonly cartTotalMinor = computed(() => this.#store.pricing().totalAmount);
   readonly cartTotalLabel = computed(() =>
-    this.formatPrice(this.cartTotalMinor() / 100, this.#store.pricing().currency || this.currency()),
+    this.formatMinor(this.cartTotalMinor()),
   );
   readonly liveConflict = this.#store.liveSessionConflict;
   readonly degraded = computed(() => {
@@ -1798,21 +1798,15 @@ export class StorefrontElementComponent implements OnInit {
   }
 
   itemUnitLabel(item: SessionItem): string {
-    return this.formatPrice(item.amount / 100, this.#store.pricing().currency || this.currency());
+    return this.formatMinor(item.amount);
   }
 
   itemLineTotalLabel(item: SessionItem): string {
-    return this.formatPrice(
-      (item.amount * item.quantity) / 100,
-      this.#store.pricing().currency || this.currency(),
-    );
+    return this.formatMinor(item.amount * item.quantity);
   }
 
   groupTotalLabel(group: CartSellerGroup): string {
-    return this.formatPrice(
-      group.totalMinor / 100,
-      this.#store.pricing().currency || this.currency(),
-    );
+    return this.formatMinor(group.totalMinor);
   }
 
   // ─── Checkout (SH-3 wiring) ──────────────────────────────────────────────────
@@ -2160,7 +2154,7 @@ export class StorefrontElementComponent implements OnInit {
     return {
       code: promo.code,
       // El importe llega negativo; se muestra con su signo, ya formateado.
-      discountLabel: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+      discountLabel: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
       ...(promo.detail ? { detail: promo.detail } : {}),
     };
   });
@@ -2184,12 +2178,12 @@ export class StorefrontElementComponent implements OnInit {
       {
         id: 'subtotal',
         label: 'Subtotal',
-        value: this.formatPrice(subtotal / 100, this.currency()),
+        value: this.formatMinor(subtotal),
       },
       {
         id: 'promo',
         label: promo.label,
-        value: `−${this.formatPrice(Math.abs(promo.amountMinor) / 100, this.currency())}`,
+        value: `−${this.formatMinor(Math.abs(promo.amountMinor))}`,
       },
       { id: 'total', label: 'Total', value: this.cartTotalLabel(), emphasis: true },
     ];
@@ -2226,7 +2220,7 @@ export class StorefrontElementComponent implements OnInit {
     if (result.reason === 'minimum-not-met' && result.shortfallMinor) {
       // CUÁNTO falta es lo único accionable de este rechazo.
       this.promoDetail.set(
-        `Te faltan ${this.formatPrice(result.shortfallMinor / 100, this.currency())}.`,
+        `Te faltan ${this.formatMinor(result.shortfallMinor)}.`,
       );
     }
   }
@@ -2299,17 +2293,12 @@ export class StorefrontElementComponent implements OnInit {
 
   /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   private formatPrice(amount: number, currency: string): string {
-    if (!currency) {
-      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
-    }
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(amount, currency);
+  }
+
+  /** Un importe del carrito, en unidades menores de su moneda (la de la sesión o la del catálogo). */
+  private formatMinor(minor: number): string {
+    const moneda = this.#store.pricing().currency || this.currency();
+    return this.formatPrice(desdeMenores(minor, moneda), moneda);
   }
 }

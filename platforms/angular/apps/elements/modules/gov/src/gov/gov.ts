@@ -67,7 +67,7 @@ import {
   type GovView,
   type QueueCase,
 } from './gov.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynGov</c>.
@@ -1629,32 +1629,14 @@ export class GovElementComponent implements OnInit {
     return this.formatFee(feeMinor, currency);
   }
 
-  // Divide los minor units por el factor REAL de la moneda: COP tiene 0 decimales
-  // (1 minor = 1 peso), así 189000 → $189.000 y no $1.890. USD/EUR (2 decimales) → /100.
+  // La tasa llega en unidades menores de SU moneda (ISO-4217: COP tiene 2 decimales), con la
+  // misma tabla con la que el servidor la emite (CMS#196).
   formatFee(feeMinor: number, currency: string): string {
-    return this.formatMoney(feeMinor / this.minorUnitFactor(currency), currency);
-  }
-
-  private minorUnitFactor(currency: string): number {
-    try {
-      const digits = new Intl.NumberFormat('es-CO', { style: 'currency', currency })
-        .resolvedOptions().maximumFractionDigits ?? 2;
-      return 10 ** digits;
-    } catch {
-      return 100;
-    }
+    return this.formatMoney(desdeMenores(feeMinor, currency), currency);
   }
 
   formatMoney(amount: number, currency: string): string {
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(amount, currency);
   }
 
   formatDate(iso: string): string {

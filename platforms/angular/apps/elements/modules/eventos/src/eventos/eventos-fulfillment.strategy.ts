@@ -23,6 +23,7 @@ import {
   type EventSummary,
   type TierSelectionPayload,
 } from './eventos.model';
+import { aMenores, desdeMenores } from '@synergos/vitals-core';
 
 /** Criteria the shell hands the strategy on `search`. */
 interface EventosSearchCriteria {
@@ -107,10 +108,10 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
         cover: payload.cover,
         seats: [...payload.seats],
         // Engine pricing is in minor units; payload carries major units.
-        unitAmount: Math.round(payload.amount * 100),
+        unitAmount: aMenores(payload.amount, payload.currency),
         apiBase: payload.apiBase ?? '',
       },
-      amount: Math.round(payload.amount * 100),
+      amount: aMenores(payload.amount, payload.currency),
       quantity,
     };
     return { item };
@@ -128,7 +129,7 @@ export class EventosFulfillmentStrategy extends FulfillmentStrategyBase {
       return { accepted: false, reason: 'empty-cart' };
     }
     const items = toCheckoutItems(request.session);
-    const fallbackAmount = request.session.pricing.totalAmount / 100;
+    const fallbackAmount = desdeMenores(request.session.pricing.totalAmount, request.session.pricing.currency);
     const currency = request.session.pricing.currency;
 
     // The SH-3 wizard drives pay→confirm off the store; persist the attendees as

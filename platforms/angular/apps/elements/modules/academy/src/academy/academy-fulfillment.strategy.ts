@@ -21,6 +21,7 @@ import {
   type EnrollConfirmation,
   type EnrollResult,
 } from './academy.model';
+import { aMenores } from '@synergos/vitals-core';
 
 /**
  * Por qué no se abrió la matrícula. **Códigos estables, no el mensaje del error**:
@@ -141,11 +142,11 @@ export class AcademyFulfillmentStrategy extends FulfillmentStrategyBase {
         planLabel: payload.planLabel,
         currency: payload.currency,
         cover: payload.cover,
-        unitAmount: Math.round(payload.amount * 100),
+        unitAmount: aMenores(payload.amount, payload.currency),
         apiBase: payload.apiBase ?? '',
       },
       // Engine pricing is in minor units; payload carries major units.
-      amount: Math.round(payload.amount * 100),
+      amount: aMenores(payload.amount, payload.currency),
       quantity: 1,
     };
     return { item };

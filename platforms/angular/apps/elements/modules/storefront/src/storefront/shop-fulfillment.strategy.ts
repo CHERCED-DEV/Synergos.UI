@@ -19,6 +19,7 @@ import {
   type ShopCustomer,
   type ShopProduct,
 } from './shop.model';
+import { aMenores, desdeMenores } from '@synergos/vitals-core';
 
 /** Criteria the storefront hands the strategy on `search`. */
 interface ShopSearchCriteria {
@@ -115,11 +116,11 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
         currency: payload.currency,
         image: payload.image,
         seller: payload.seller ?? '',
-        unitAmount: Math.round(payload.unitAmount * 100),
+        unitAmount: aMenores(payload.unitAmount, payload.currency),
         apiBase: payload.apiBase ?? '',
       },
       // Engine pricing is in minor units; payload carries major units.
-      amount: Math.round(payload.unitAmount * 100),
+      amount: aMenores(payload.unitAmount, payload.currency),
       quantity,
     };
     return { item };
@@ -131,7 +132,7 @@ export class ShopFulfillmentStrategy extends FulfillmentStrategyBase {
     const apiBase = instrument.apiBase ?? '';
     const customer: ShopCustomer = instrument.customer ?? { name: '', email: '' };
     const lines = this.toLines(request.session);
-    const fallbackAmount = request.session.pricing.totalAmount / 100;
+    const fallbackAmount = desdeMenores(request.session.pricing.totalAmount, request.session.pricing.currency);
     const currency = request.session.pricing.currency;
 
     const checkout = await this.#api.checkout(apiBase, lines, customer, fallbackAmount, currency);

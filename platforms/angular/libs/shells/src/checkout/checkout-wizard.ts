@@ -16,6 +16,7 @@ import {
   type FulfillmentVoucher,
   type SessionItem,
 } from '@synergos/transaction-engine';
+import { formatearImporte, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * SH-3 — `syn-checkout-wizard` v2 (catálogo §1.3 doc 21).
@@ -392,17 +393,9 @@ export class CheckoutWizardComponent {
     if (custom) {
       return custom(minorUnits, currency);
     }
-    const amount = minorUnits / 100;
-    const locale = this.config().locale || 'es-CO';
-    const fractionDigits = this.config().fractionDigits ?? 0;
-    try {
-      return new Intl.NumberFormat(locale, {
-        style: 'currency',
-        currency: currency || 'COP',
-        maximumFractionDigits: fractionDigits,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat(locale).format(amount)}`;
-    }
+    return formatearImporte(desdeMenores(minorUnits, currency), currency, {
+      locale: this.config().locale || undefined,
+      decimales: this.config().fractionDigits ?? 0,
+    });
   }
 }

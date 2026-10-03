@@ -104,7 +104,7 @@ import {
   type LessonQuestion,
   type ProgressUpdate,
 } from './academy.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynAcademy</c>.
@@ -2207,18 +2207,7 @@ export class AcademyElementComponent implements OnInit {
 
   /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   formatPrice(amount: number, currency: string): string {
-    if (!currency) {
-      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
-    }
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(amount, currency);
   }
 
   formatDate(iso: string): string {

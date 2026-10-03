@@ -835,7 +835,7 @@ function normalizePortalHome(value: unknown): PortalHome | null {
     cards,
     nextAppointment: next,
     balanceMinor: Math.max(0, Math.trunc(readNumber(value['balanceMinor']))),
-    currency: readString(value['currency']).trim() || 'COP',
+    currency: readString(value['currency']).trim(),
     // `null`/ausente ≠ 0 (CMS#116): reponer un cero aquí es afirmar «no tienes nada
     // sin leer» con un servidor que no lo sabe. Igual que `unread` en cada hilo.
     unreadMessages:
@@ -970,7 +970,7 @@ function normalizeBilling(value: unknown): BillingStatement | null {
   const rawLines = Array.isArray(record['lines']) ? record['lines'] : [];
   return {
     patientId: readString(record['patientId']).trim(),
-    currency: readString(record['currency']).trim() || 'COP',
+    currency: readString(record['currency']).trim(),
     balanceMinor: Math.max(0, Math.trunc(readNumber(record['balanceMinor']))),
     planActive: readBoolean(record['planActive'], false),
     lines: rawLines.filter(isRecord).map((line) => ({

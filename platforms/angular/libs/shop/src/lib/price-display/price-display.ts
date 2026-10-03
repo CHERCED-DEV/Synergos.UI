@@ -9,6 +9,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { formatearImporte } from '@synergos/vitals-core';
 
 function sanitizePriceDisplayConfig(
   value: Partial<PriceDisplayElementConfig>,
@@ -55,7 +56,7 @@ export class PriceDisplayComponent {
     resolveConfigValue(this.priceSizeInput(), this.config()?.priceSize, 'md'),
   );
   readonly currency = computed(() =>
-    resolveConfigValue(this.currencyInput(), this.config()?.currency, 'COP'),
+    resolveConfigValue(this.currencyInput(), this.config()?.currency, ''),
   );
   readonly theme = computed(() =>
     resolveConfigValue(this.themeInput(), this.config()?.theme, 'light'),
@@ -84,12 +85,7 @@ export class PriceDisplayComponent {
   );
 
   formatPrice(value: number | undefined): string {
-    if (value == null) return '';
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: this.currency(),
-      maximumFractionDigits: 0,
-    }).format(value);
+    return value == null ? '' : formatearImporte(value, this.currency());
   }
 
   discountAriaLabel(): string {

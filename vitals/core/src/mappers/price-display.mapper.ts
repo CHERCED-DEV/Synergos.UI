@@ -12,7 +12,7 @@ export function mapPriceDisplayData(data: Record<string, unknown>): PriceDisplay
     showOriginalPrice: readBooleanAsString(data, 'showOriginalPrice', true),
     showDiscount: readBooleanAsString(data, 'showDiscount', true),
     priceSize: readString(data, 'priceSize', 'md'),
-    currency: readString(data, 'currency', 'COP'),
+    currency: readString(data, 'currency', ''),
     theme: readTheme(data, 'light'),
     variant: readVariant(data, 'default'),
     price: readNumberAsString(data, 'price', 0),

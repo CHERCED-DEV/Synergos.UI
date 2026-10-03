@@ -77,7 +77,7 @@ import {
   type StudioSection,
   type TrendingTag,
 } from './blogs.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynBlogs</c>.
@@ -816,7 +816,6 @@ export class BlogsElementComponent implements OnInit {
       scope: `blogs.${this.instanceId}`,
       flow: BLOGS_FLOW,
       ttlMs: SESSION_TTL_MS,
-      currency: 'COP',
     });
     this.#bus.scope(`blogs-${this.instanceId}`);
 
@@ -1997,16 +1996,7 @@ export class BlogsElementComponent implements OnInit {
   }
 
   formatMinor(minorUnits: number, currency: string): string {
-    const amount = minorUnits / 100;
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: currency || 'COP',
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(desdeMenores(minorUnits, currency), currency);
   }
 
   initials(author: Author): string {

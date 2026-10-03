@@ -19,6 +19,7 @@ import {
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
+import { formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynSeatMap</c>.
@@ -31,7 +32,8 @@ import {
  *
  * Inputs are flat for CMS authoring convenience:
  *   - `seatmap` (JSON): the cabin layout (rows + aisle positions);
- *   - `currency` (ISO, default COP) for the per-seat price labels;
+ *   - `currency` (ISO) for the per-seat price labels: the one the provider published with
+ *     the prices. Without one the price is painted as a bare number — never an invented currency;
  *   - `maxSelectable` (default 1) for the number of seats a passenger may pick;
  *   - `density` (`comfortable` | `compact`), `showPrices` y `showLegend`: la
  *     apariencia que decide quien coloca el bloque. No cambian ni una butaca ni
@@ -179,7 +181,6 @@ export interface SeatSelection {
   readonly selected: readonly string[];
 }
 
-const DEFAULT_CURRENCY = 'COP';
 const DEFAULT_MAX_SELECTABLE = 1;
 const DENSITIES: readonly SeatMapDensity[] = ['comfortable', 'compact'];
 const DEFAULT_DENSITY: SeatMapDensity = 'comfortable';
@@ -213,17 +214,9 @@ function columnLetter(column: number): string {
     : String(column);
 }
 
-/** Format a numeric amount in es-CO for the given ISO currency. */
+/** A seat price in its currency; without currency, the bare number (CMS#196). */
 export function formatSeatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-  }
+  return formatearImporte(amount, currency);
 }
 
 /**
@@ -463,7 +456,7 @@ export class SeatMapElementComponent {
     resolveConfigValue(
       coerceTrimmedStringInput(this.currencyInput()),
       this.config()?.currency,
-      DEFAULT_CURRENCY,
+      '',
     ),
   );
 

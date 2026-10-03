@@ -36,7 +36,7 @@ export function mapCartItemData(data: Record<string, unknown>): CartItemInputs {
     name: readStringFromKeys(data, ['name', 'productName', 'productSku', 'sku'], sku),
     image: readStringFromKeys(data, ['image', 'imageSrc'], ''),
     price,
-    currency: readStringFromKeys(data, ['currency'], 'COP'),
+    currency: readStringFromKeys(data, ['currency'], ''),
     quantity: Number.isFinite(quantity) ? quantity : 1,
     subtotal: price * (Number.isFinite(quantity) ? quantity : 1),
   };

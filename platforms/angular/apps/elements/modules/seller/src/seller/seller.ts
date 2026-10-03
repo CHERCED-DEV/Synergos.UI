@@ -45,6 +45,7 @@ import {
   type SellerThread,
   type SellerView,
 } from './seller.model';
+import { formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynSeller</c>.
@@ -929,17 +930,6 @@ export class SellerElementComponent implements OnInit {
 
   /** Un importe con su moneda; sin moneda (todavía no llegó ningún precio) se pinta el número solo. */
   private formatPrice(amount: number, currency: string): string {
-    if (!currency) {
-      return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount);
-    }
-    try {
-      return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-      }).format(amount);
-    } catch {
-      return `${currency} ${new Intl.NumberFormat('es-CO').format(amount)}`;
-    }
+    return formatearImporte(amount, currency);
   }
 }

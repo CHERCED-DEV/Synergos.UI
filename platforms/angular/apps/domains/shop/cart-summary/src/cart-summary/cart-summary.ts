@@ -26,6 +26,7 @@ import {
   FocusManagerService,
 } from '@synergos/shared';
 import { CartItemComponent, cartStore } from '@synergos/shop';
+import { formatearImporte } from '@synergos/vitals-core';
 
 /**
  * El atributo `open` como orden: presente o `"true"` abre, `"false"` cierra, ausente
@@ -242,9 +243,6 @@ export class CartSummaryComponent {
   }
 
   formatPrice(value: number): string {
-    const currency = this.items()[0]?.currency ?? 'COP';
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency', currency, maximumFractionDigits: 0,
-    }).format(value);
+    return formatearImporte(value, this.items()[0]?.currency);
   }
 }
