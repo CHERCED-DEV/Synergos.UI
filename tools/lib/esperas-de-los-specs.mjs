@@ -67,6 +67,14 @@ export const TOPES_DECLARADOS = {
       'tranquila tardan ~1 s cada uno; con los 46 ficheros de `test:tools` en paralelo se midieron ' +
       '5,9 s, por encima de los 5 de serie. Probar sólo la función no vería que la herramienta no la usa.',
   },
+  'tools/lib/dev-cdn-arranque.spec.mjs': {
+    tope: 30_000,
+    razon:
+      'lanza `dev-cdn.mjs` DE VERDAD con una plataforma que no existe, para ver que elige con la ' +
+      'misma regla que se cruza contra las guías (UI#80). Sale con 2 antes de compilar ni escuchar, ' +
+      'pero carga sus módulos y recorre `platforms/*/apps`: un proceso de node, que con `test:tools` ' +
+      'en paralelo puede pasar de los 5 s de serie, como el de `cli-utils`.',
+  },
 };
 
 /** Las llamadas que declaran tests o grupos: `describe`, `it`, `test` y sus variantes. */

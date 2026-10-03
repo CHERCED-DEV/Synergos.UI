@@ -275,3 +275,58 @@ export function frameworksDelRegistry(registry) {
   }
   return [...frameworks].sort();
 }
+
+/**
+ * Qué plataforma sirve `dev:cdn` (UI#80).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `npm run dev:cdn` salía con 2 desde que #64 hizo de Preact la segunda plataforma, y la guía
+ * lo documentaba SIN `--framework`: el comando que se copiaba de `CLAUDE.md` no arrancaba.
+ *
+ * **No hay un `'angular'` por defecto**, y es a propósito: sería un literal de framework en una
+ * herramienta (regla 25, `frameworks.spec.mjs`), y servir en silencio una plataforma bajo el
+ * segmento de otra es peor que un 404 — el CMS lo hidrataría creyendo que es la que pidió. Lo
+ * que se deriva es la pregunta de verdad: **¿cuántas plataformas tienen algo que servir?** Con
+ * una sola, ésa es, aunque haya otras declaradas sin elementos. Con varias, no se elige: se
+ * dice EXACTAMENTE qué teclear, una línea por plataforma, con lo que tiene cada una.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * @param {{
+ *   pedida: string | null,
+ *   elementosPorPlataforma: Readonly<Record<string, number>>,
+ *   comando?: string,
+ * }} entrada `pedida` es el valor de `--framework` (o null); `elementosPorPlataforma`, las
+ *   plataformas DECLARADAS con cuántas fuentes de elemento tiene cada una en el disco.
+ * @returns {{ framework: string } | { error: string }}
+ */
+export function plataformaAServir({ pedida, elementosPorPlataforma, comando = 'npm run dev:cdn' }) {
+  const declaradas = Object.keys(elementosPorPlataforma);
+  const conElementos = declaradas.filter((nombre) => elementosPorPlataforma[nombre] > 0);
+  const recuento = (nombres) => nombres.map((n) => `${n}: ${elementosPorPlataforma[n]}`).join(', ');
+  const queTeclear = (nombres) => nombres.map((n) => `  ${comando} -- --framework=${n}`).join('\n');
+
+  if (pedida) {
+    if (declaradas.includes(pedida)) {
+      return { framework: pedida };
+    }
+    return {
+      error:
+        `--framework=${pedida} no es una plataforma de este árbol (${recuento(declaradas) || 'ninguna'}).\n` +
+        queTeclear(conElementos.length > 0 ? conElementos : declaradas),
+    };
+  }
+
+  if (conElementos.length === 1) {
+    return { framework: conElementos[0] };
+  }
+  if (conElementos.length === 0) {
+    return {
+      error: `ninguna plataforma tiene elementos que servir (${recuento(declaradas) || 'no hay ninguna declarada'}).`,
+    };
+  }
+  return {
+    error:
+      `hay ${conElementos.length} plataformas con elementos (${recuento(conElementos)}): decí cuál servir.\n` +
+      queTeclear(conElementos),
+  };
+}

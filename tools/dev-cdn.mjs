@@ -22,10 +22,15 @@
  * que nadie lo notara.
  * ─────────────────────────────────────────────────────────────────────────────
  *
- *   npm run dev:cdn                        # los 139 elementos
- *   npm run dev:cdn -- --solo=badge,hero   # sólo esos (arranca en segundos)
- *   npm run dev:cdn -- --puerto 5000
- *   npm run dev:cdn -- --sin-livereload
+ *   npm run dev:cdn -- --framework=angular                   # todos los de Angular
+ *   npm run dev:cdn -- --framework=angular --solo=badge,hero # sólo esos (arranca en segundos)
+ *   npm run dev:cdn -- --framework=angular --puerto 5000
+ *   npm run dev:cdn -- --framework=angular --sin-livereload
+ *   npm run dev:cdn -- --framework=preact                    # el badge de Preact
+ *
+ * `--framework` hace falta mientras haya MÁS DE UNA plataforma con elementos (hoy Angular y
+ * Preact); con una sola, la elige sola (UI#80). Sin él y con varias, sale con 2 diciendo
+ * exactamente qué teclear.
  *
  * Se para con Ctrl-C. Es UN proceso: no hay registro de servidores que limpiar
  * ni señal de parada que dejar en el disco.
@@ -37,6 +42,8 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getArg } from './lib/cli-utils.mjs';
+import { contarFuentesPorPlataforma } from './lib/element-sources.mjs';
+import { plataformaAServir } from './lib/frameworks.mjs';
 import { PLATFORMS, loadRegistry, loadInputs, readPackageVersion } from './lib/synergos-config.mjs';
 import { buildContracts } from './lib/manifest-builder.mjs';
 import { LIVERELOAD_CLIENT_JS } from './lib/livereload.mjs';
@@ -54,18 +61,30 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── Qué plataforma sirve este servidor (issue #44) ───────────────────────────
 //
-// Este servidor sirve UNA: traduce la ruta y lee de SU `dist/`. Con una sola
-// plataforma declarada, ésa es; con dos habría que elegir, y elegir en silencio
+// Este servidor sirve UNA: traduce la ruta y lee de SU `dist/`. Elegir en silencio
 // sería servir el bundle de una bajo el segmento de la otra — peor que un 404,
 // porque el CMS lo hidrataría creyendo que es de la que pidió.
-const FRAMEWORK = getArg('framework', null) ?? (PLATFORMS.length === 1 ? PLATFORMS[0].name : null);
-if (!FRAMEWORK || !PLATFORMS.some((p) => p.name === FRAMEWORK)) {
-  console.error(
-    `[dev-cdn] hay ${PLATFORMS.length} plataformas (${PLATFORMS.map((p) => p.name).join(', ')}): ` +
-      `decí cuál servir con --framework=<nombre>.`,
-  );
+//
+// UI#80: esto preguntaba cuántas plataformas había DECLARADAS, y desde #64 son dos,
+// así que arrancar sin `--framework` —tal como lo documentaba la guía— salía con 2. La
+// pregunta de verdad es cuántas tienen algo que SERVIR, y se mide en el disco con la
+// regla de las fuentes (`contarFuentesPorPlataforma`): con una, ésa; con varias, se
+// dice exactamente qué teclear. Sin `'angular'` por defecto (regla 25).
+const ELECCION = plataformaAServir({
+  pedida: getArg('framework', null),
+  elementosPorPlataforma: contarFuentesPorPlataforma({
+    listar: (dir) =>
+      readdirSync(join(ROOT, dir), { withFileTypes: true })
+        .filter((entrada) => entrada.isDirectory())
+        .map((entrada) => entrada.name),
+    existe: (ruta) => existsSync(join(ROOT, ruta)),
+  }),
+});
+if ('error' in ELECCION) {
+  console.error(`[dev-cdn] ${ELECCION.error}`);
   process.exit(2);
 }
+const FRAMEWORK = ELECCION.framework;
 
 const PLATAFORMA = PLATFORMS.find((p) => p.name === FRAMEWORK);
 const NG = join(ROOT, 'platforms', FRAMEWORK);

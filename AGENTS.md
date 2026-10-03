@@ -94,8 +94,10 @@ npm run build:cdn              # Arma public/ completo: vitals + elementos + run
 npm test                       # Gates de tools/lib + los specs de Angular (compila AOT primero)
 
 # El ciclo editor→navegador (issue #2)
-npm run dev:cdn                     # sirve el CDN entero desde el watch incremental
-npm run dev:cdn -- --solo=badge     # sólo ese elemento — arranca en segundos
+npm run dev:cdn -- --framework=angular              # sirve el CDN entero desde el watch incremental
+npm run dev:cdn -- --framework=angular --solo=badge # sólo ese elemento — arranca en segundos
+#   --framework hace falta mientras haya más de una plataforma con elementos (UI#80);
+#   sin él sale con 2 y dice qué teclear.
 #   El CMS lo consume por su ruta normal, sin código de desarrollo. Las claves
 #   son de CONFIGURACIÓN de .NET, no las del compose — acá decía
 #   SYNERGOS_CDN_MODE/SYNERGOS_CDN_URL, que sólo existen dentro de compose.yml

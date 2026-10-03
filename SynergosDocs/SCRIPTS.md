@@ -103,10 +103,11 @@
 
 | Script | Qué hace |
 |---|---|
-| `npm run dev:cdn` | Sirve el CDN entero desde el watch incremental (`tools/dev-cdn.mjs`) — ver `DEV_CDN_MODE.md` |
+| `npm run dev:cdn -- --framework=angular` | Sirve el CDN entero desde el watch incremental (`tools/dev-cdn.mjs`) — ver `DEV_CDN_MODE.md` |
 | `npm run catalog` | Genera el catálogo HTML de elementos (`tools/catalog.mjs`) |
 
 > `dev:cdn` **no sincroniza nada**: traduce la ruta y lee de `dist/`. Acepta
+> `--framework=<plataforma>` (obligatoria mientras haya más de una con elementos, UI#80),
 > `--solo=a,b`, `--puerto N` y `--sin-livereload`, y se para con Ctrl-C. El CMS lo
 > consume por su ruta normal — `SYNERGOS_CDN_MODE=Http` + `SYNERGOS_CDN_URL`.
 

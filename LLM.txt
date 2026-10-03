@@ -509,7 +509,7 @@ They have internal state, multi-step navigation, or user-driven content switchin
   - experienceInsightExplorer  → synergos-insight-explorer
   - experienceMediaExplorer    → synergos-media-explorer  (dark default)
   (los puertos de dev server por proyecto murieron con Nx — iterar con
-   node tools/build.mjs --solo=<nombre> o npm run dev:cdn)
+   node tools/build.mjs --solo=<nombre> o npm run dev:cdn -- --framework=angular)
 
 
 ## 14. WHAT NOT TO GENERATE

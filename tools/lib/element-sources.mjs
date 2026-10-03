@@ -273,6 +273,33 @@ export function todasLasFuentes({ listar, existe, plataformas = PLATAFORMAS }) {
 }
 
 /**
+ * Cuántas fuentes de elemento tiene cada plataforma DECLARADA, con la misma regla que
+ * {@link todasLasFuentes} — una plataforma declarada sin carpeta, o sin ninguna fuente, cuenta 0
+ * y sale igual: «no tiene nada que servir» es un dato, no una ausencia (UI#80).
+ *
+ * `listar` puede lanzar con una carpeta que no existe; eso es cero, no un error.
+ *
+ * @param {{ listar: (dir: string) => string[], existe: (ruta: string) => boolean,
+ *           plataformas?: typeof PLATAFORMAS }} io
+ * @returns {Record<string, number>}
+ */
+export function contarFuentesPorPlataforma({ listar, existe, plataformas = PLATAFORMAS }) {
+  const listarSinLanzar = (dir) => {
+    try {
+      return listar(dir);
+    } catch {
+      return [];
+    }
+  };
+  return Object.fromEntries(
+    plataformas.map((plataforma) => [
+      plataforma.framework,
+      todasLasFuentes({ listar: listarSinLanzar, existe, plataformas: [plataforma] }).length,
+    ]),
+  );
+}
+
+/**
  * Dos plataformas con fuente para el MISMO nombre de elemento (#59).
  *
  * **Nombra las dos rutas; no elige.** Elegir es lo que hacía el `Map`, y el

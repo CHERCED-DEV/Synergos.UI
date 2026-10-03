@@ -8,7 +8,7 @@
 
 **El servidor *es* un CDN, no un modo especial.**
 
-`npm run dev:cdn` levanta un solo proceso que sirve el layout **completo** del CDN
+`npm run dev:cdn -- --framework=angular` levanta un solo proceso que sirve el layout **completo** del CDN
 —el mismo que produce `publish.mjs`— desde lo que hay compilado en `dist/`. El CMS
 lo consume con el cliente HTTP que ya tiene:
 
@@ -42,11 +42,16 @@ la siguiente petición lo sirve; si no lo tiene, da **404** en vez del de antes.
 ## Uso
 
 ```bash
-npm run dev:cdn                        # las 127 fuentes
-npm run dev:cdn -- --solo=badge,hero   # sólo esos — arranca en ~6 s
-npm run dev:cdn -- --puerto 5000
-npm run dev:cdn -- --sin-livereload
+npm run dev:cdn -- --framework=angular                    # las 127 fuentes
+npm run dev:cdn -- --framework=angular --solo=badge,hero  # sólo esos — arranca en ~6 s
+npm run dev:cdn -- --framework=angular --puerto 5000
+npm run dev:cdn -- --framework=angular --sin-livereload
+npm run dev:cdn -- --framework=preact                     # el badge de Preact
 ```
+
+`--framework` hace falta mientras haya **más de una plataforma con elementos** (hoy Angular y
+Preact): sin él sale con 2 y dice exactamente qué teclear, una línea por plataforma. Con una
+sola, la elige sola. No hay un `angular` por defecto a propósito (UI#80, regla 25).
 
 Se para con **Ctrl-C**. Es un proceso: no hay registro de servidores que limpiar ni
 señal de parada que dejar en el disco. (`dev-cdn-stop.mjs` y `lib/dev-servers.mjs`

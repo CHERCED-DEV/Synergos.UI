@@ -330,7 +330,7 @@ bundle y los resuelve el import-map. Servir sólo `main.js` da un elemento que c
 y se rompe al arrancar, con un error que habla de módulos.
 
 ```bash
-npm run dev:cdn -- --solo=feature-grid   # desde la raíz
+npm run dev:cdn -- --framework=angular --solo=feature-grid   # desde la raíz
 ```
 
 Eso sirve el layout completo del CDN —bundle + runtime + registry— en
