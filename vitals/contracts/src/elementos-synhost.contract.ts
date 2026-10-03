@@ -2403,7 +2403,40 @@ export const TAG_SYNHOST: ElementoSynHost<TagProps> = {
   claves: ["Tag.Remove"],
   campos: ["label","color"],
   listas: {},
-  selectores: [],
+  selectores: [
+    {
+      "propiedad": "tagColor",
+      "dataType": "DTSelectTagColor",
+      "multiple": false,
+      "campo": "color",
+      "valores": [
+        {
+          "editor": "neutral",
+          "viaja": "neutral"
+        },
+        {
+          "editor": "brand",
+          "viaja": "brand"
+        },
+        {
+          "editor": "success",
+          "viaja": "success"
+        },
+        {
+          "editor": "warning",
+          "viaja": "warning"
+        },
+        {
+          "editor": "danger",
+          "viaja": "danger"
+        },
+        {
+          "editor": "info",
+          "viaja": "info"
+        }
+      ]
+    }
+  ],
   ejemplo: {
     "culture": "es-CO",
     "label": "Oferta",
