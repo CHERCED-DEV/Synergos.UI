@@ -73,7 +73,8 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { TravelShellProps } from '@synergos/contracts';
-import { TravelApiClient, mockSeatMap } from './travel-api.client';
+import { HostIdentityService } from '@synergos/core';
+import { TravelApiClient, isTravelSinSesion, mockSeatMap } from './travel-api.client';
 import {
   TRAVEL_FLOW,
   TRAVEL_PRODUCTS,
@@ -126,6 +127,8 @@ interface ConfirmedVoucher {
 }
 
 const DEFAULT_SCOPE = 'travel';
+/** Login del CMS — el mismo destino que usan blogs y gobierno para pedir sesión. */
+const LOGIN_PATH = '/account/login';
 const DEFAULT_HEADING = 'Tu próximo viaje empieza aquí';
 /**
  * A qué vista lleva buscar cada producto. Es una TABLA y no un ternario a
@@ -220,6 +223,7 @@ export class TravelShellElementComponent {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<TravelBus>>(TransactionEventBusService);
   readonly #api = inject(TravelApiClient);
+  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<TravelShellConfig | undefined, unknown>(undefined, {
@@ -227,7 +231,6 @@ export class TravelShellElementComponent {
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
-  readonly travelerInput = input<string | undefined>(undefined, { alias: 'traveler' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
 
@@ -252,13 +255,6 @@ export class TravelShellElementComponent {
       coerceTrimmedStringInput(this.scopeInput()),
       undefined,
       DEFAULT_SCOPE,
-    ),
-  );
-  readonly traveler = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.travelerInput()),
-      undefined,
-      '',
     ),
   );
   readonly heading = computed(() =>
@@ -679,8 +675,10 @@ export class TravelShellElementComponent {
   readonly stayPinLabelOf = (offer: TravelOffer): string => this.compactPrice(offer.amount, offer.currency);
 
   // ─── Checkout (SH-3 inputs) ─────────────────────────────────────────────────
-  readonly guestName = signal('');
-  readonly guestEmail = signal('');
+  // Prellenados con el miembro de la SESIÓN (CMS#197), como en storefront y academy. Sin host o
+  // sin sesión, vacíos: se escriben a mano, como siempre.
+  readonly guestName = signal(this.#identity.displayName());
+  readonly guestEmail = signal(this.#identity.email());
   readonly paymentMethod = signal<'card' | 'pse'>('card');
 
   readonly guestNameValid = computed(() => this.guestName().trim().length >= 2);
@@ -1571,18 +1569,44 @@ export class TravelShellElementComponent {
     }
   }
 
+  /**
+   * «Mis viajes» son los del miembro de la sesión (CMS#197). Con el CMS delante y nadie con sesión
+   * no se piden —el servidor contestaría 401 y antes eso caía a los viajes de MUESTRA, pintados
+   * como tuyos—: se pide entrar. Sin host (standalone) se piden como siempre.
+   */
   private async loadTrips(): Promise<void> {
+    if (this.#identity.hasHost() && !this.#identity.isAuthenticated()) {
+      this.tripsAccess.set('sin-sesion');
+      return;
+    }
     this.tripsLoading.set(true);
     try {
-      const trips = await this.#api.trips(this.apiBase(), this.traveler(), this.currency());
+      const trips = await this.#api.trips(this.apiBase(), this.currency());
       this.trips.set(trips);
       this.tripsLoaded.set(true);
+      this.tripsAccess.set('ok');
     } catch (error) {
+      if (isTravelSinSesion(error)) {
+        this.trips.set([]);
+        this.tripsAccess.set('sin-sesion');
+        return;
+      }
       this.errorMessage.set('No pudimos cargar tus viajes.');
-      void error;
     } finally {
       this.tripsLoading.set(false);
     }
+  }
+
+  /** Si «Mis viajes» se puede leer: `sin-sesion` pide entrar en vez de pintar los de nadie. */
+  readonly tripsAccess = signal<'ok' | 'sin-sesion'>('ok');
+
+  /** El login del sitio con la vuelta a ESTA página. Método: el hash cambia al navegar. */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
   }
 
   onTripSelect(trip: TravelTrip): void {

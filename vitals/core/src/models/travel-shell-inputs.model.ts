@@ -3,5 +3,4 @@ export interface TravelShellInputs {
   apiBase: string;
   currency: string;
   scope: string;
-  traveler: string;
 }

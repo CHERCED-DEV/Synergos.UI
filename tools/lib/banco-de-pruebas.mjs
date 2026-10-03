@@ -113,7 +113,6 @@ export const ENTRADAS_DE_CABLEADO = {
   sessionKey: 'la clave con la que el asistente guarda su progreso',
   clinic: 'el identificador de la clínica',
   agency: 'el identificador de la entidad',
-  traveler: 'el identificador del viajero',
   eventId: 'el identificador del evento que se abre al cargar',
   operation: 'venta o arriendo, de un vocabulario cerrado',
   layout: 'la variante de presentación, de un vocabulario cerrado',

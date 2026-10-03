@@ -5666,12 +5666,6 @@
       "type": "string",
       "required": false,
       "description": "Content scope (siteRoot) the module reads from."
-    },
-    {
-      "name": "traveler",
-      "type": "string",
-      "required": false,
-      "description": "Traveller identifier whose bookings are listed."
     }
   ],
   "module-mount": [

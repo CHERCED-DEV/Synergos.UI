@@ -725,17 +725,28 @@
 
   <!-- ═══ ACCOUNT: SH-4 account-shell (mis viajes + timeline + cancelar) ═══ -->
   @if (view() === 'account') {
-    <syn-account-shell
-      [config]="accountConfig()"
-      [items]="trips()"
-      [loading]="tripsLoading()"
-      [section]="accountSection()"
-      [itemTemplate]="tripRow"
-      [detailTemplate]="tripDetail"
-      [sectionTemplate]="accountSectionTpl"
-      (sectionchange)="onAccountSectionChange($event)"
-      (itemselect)="onTripSelect($event)"
-    />
+    @if (tripsAccess() === 'sin-sesion') {
+      <!-- CMS#197: sin sesión no hay «Mis viajes» de nadie que pintar; se ofrece entrar. -->
+      <syn-empty-state
+        kind="no-access"
+        title="Inicia sesión para ver tus viajes"
+        message="Tus reservas, localizadores y credenciales se abren con tu cuenta."
+        actionLabel="Iniciar sesión"
+        [actionHref]="loginUrl()"
+      />
+    } @else {
+      <syn-account-shell
+        [config]="accountConfig()"
+        [items]="trips()"
+        [loading]="tripsLoading()"
+        [section]="accountSection()"
+        [itemTemplate]="tripRow"
+        [detailTemplate]="tripDetail"
+        [sectionTemplate]="accountSectionTpl"
+        (sectionchange)="onAccountSectionChange($event)"
+        (itemselect)="onTripSelect($event)"
+      />
+    }
 
     <ng-template #tripRow let-trip>
       <span class="travel__trip-head">

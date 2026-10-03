@@ -587,6 +587,79 @@ describe('TravelShellElementComponent (v2 sobre shells)', () => {
     return upcoming;
   }
 
+  // ── CMS#197: «Mis viajes» son los de la sesión, no los de un `?traveler=` ─────
+  //
+  // `HostIdentityService` lee `window.synergos` al construirse: el bridge va ANTES del componente.
+  describe('quién viaja (CMS#197)', () => {
+    interface ConBridge {
+      synergos?: unknown;
+    }
+    afterEach(() => {
+      delete (globalThis as unknown as ConBridge).synergos;
+    });
+    const rutasPedidas = (doble: ReturnType<typeof vi.fn>): string[] =>
+      doble.mock.calls.map(([url]) => String(url));
+
+    it('no manda `?traveler=`: los viajes son los del miembro que el servidor ve', async () => {
+      const doble = vi.fn(() => Promise.reject(new Error('offline')));
+      vi.stubGlobal('fetch', doble);
+      await createComponent();
+      component.goToAccount();
+      await flushMicrotasks();
+
+      const viajes = rutasPedidas(doble).filter((url) => url.includes('/trips'));
+      expect(viajes).toEqual([`${NEGOCIO_DEL_CMS.apiBase}/trips`]);
+    });
+
+    it('con host y sin sesión pide entrar: ni pide ni pinta los viajes de muestra', async () => {
+      (globalThis as unknown as ConBridge).synergos = {};
+      const doble = vi.fn(() => Promise.reject(new Error('offline')));
+      vi.stubGlobal('fetch', doble);
+      await createComponent();
+      component.goToAccount();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(rutasPedidas(doble).filter((url) => url.includes('/trips'))).toEqual([]);
+      expect(component.trips()).toEqual([]);
+      expect(component.tripsAccess()).toBe('sin-sesion');
+      const host: HTMLElement = fixture.nativeElement;
+      expect(host.textContent).toContain('Inicia sesión para ver tus viajes');
+      expect(host.textContent).not.toContain('Todavía no tienes viajes reservados');
+    });
+
+    it('el 401 de `/trips` no cae a los viajes de muestra: pide entrar', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((url: string) =>
+          String(url).includes('/trips')
+            ? Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({ error: 'Se requiere iniciar sesión.' }) } as Response)
+            : Promise.reject(new Error('offline')),
+        ),
+      );
+      await createComponent();
+      component.goToAccount();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.trips()).toEqual([]);
+      expect(component.tripsAccess()).toBe('sin-sesion');
+      expect(component.errorMessage()).toBe('');
+      expect(fixture.nativeElement.textContent).toContain('Inicia sesión para ver tus viajes');
+    });
+
+    it('con sesión, los datos del viajero se prellenan con el miembro', async () => {
+      (globalThis as unknown as ConBridge).synergos = {
+        member: { key: 'k-3', displayName: 'Ada Lovelace', email: 'ada@ejemplo.co', roles: [] },
+      };
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(component.guestName()).toBe('Ada Lovelace');
+      expect(component.guestEmail()).toBe('ada@ejemplo.co');
+    });
+  });
+
   // ── UI#92: un viaje que no se canceló sigue en pie, con su botón ──────────────
   it('con la cancelación caída el viaje sigue «Próximo», cancelable, y se dice una vez', async () => {
     installMemoryStorage();
@@ -819,7 +892,7 @@ describe('TravelApiClient', () => {
     expect(stay.rates.length).toBeGreaterThan(0);
     expect(stay.amenities.length).toBeGreaterThan(0);
 
-    const trips = await client.trips('/api/travel', 'ada', 'COP');
+    const trips = await client.trips('/api/travel', 'COP');
     expect(trips.length).toBeGreaterThan(0);
     expect(trips[0].items.length).toBeGreaterThan(0);
   });

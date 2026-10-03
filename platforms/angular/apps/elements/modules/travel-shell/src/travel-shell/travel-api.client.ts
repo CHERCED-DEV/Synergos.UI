@@ -34,7 +34,7 @@ import {
  *  - `GET  /api/travel/stay/{id}`                     → rich stay ficha (SH-2)
  *  - `POST /api/travel/checkout` `{ items, guest }`   → `{ orderRef, paymentSessionId, amount, currency }`
  *  - `POST /api/travel/confirm`  `{ orderRef }`       → `{ status, confirmationCode, items[reservationId] }`
- *  - `GET  /api/travel/trips?traveler=`               → `{ trips }` (mis viajes)
+ *  - `GET  /api/travel/trips`                        → `{ trips }` (mis viajes, del miembro de la sesión)
  *  - `POST /api/travel/order/{ref}/cancel`            → `{ ref, status, refundLabel }`
  *
  * **Graceful degradation — sólo de LECTURAS:** if a read endpoint is not yet wired
@@ -73,6 +73,30 @@ export class TravelWriteFailedError extends Error {
   ) {
     super(`Travel write "${endpoint}" did not reach the server.`);
     this.name = 'TravelWriteFailedError';
+  }
+}
+
+/**
+ * «Mis viajes» sin sesión: el servidor contestó 401 (CMS#197). **No es una lectura caída**: no
+ * degrada a los viajes de muestra —serían los viajes de nadie pintados como tuyos—; quien llama
+ * pide iniciar sesión.
+ */
+export class TravelSinSesionError extends Error {
+  constructor(readonly endpoint: string) {
+    super(`Travel "${endpoint}" requiere sesión.`);
+    this.name = 'TravelSinSesionError';
+  }
+}
+
+export function isTravelSinSesion(error: unknown): error is TravelSinSesionError {
+  return error instanceof Error && error.name === 'TravelSinSesionError';
+}
+
+/** Un no-2xx del borde, con su estado: el mismo mensaje `HTTP <n>` de siempre. */
+class TravelHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+    this.name = 'TravelHttpError';
   }
 }
 
@@ -254,9 +278,13 @@ export class TravelApiClient {
 
   // ─── Mis viajes ──────────────────────────────────────────────────────────────
 
-  async trips(apiBase: string, traveler: string, currency: string): Promise<readonly TravelTrip[]> {
-    const query = traveler ? `?traveler=${encodeURIComponent(traveler)}` : '';
-    const url = `${apiBase}/trips${query}`;
+  /**
+   * `GET /api/travel/trips` — los viajes del miembro de la SESIÓN. Sin `?traveler=` (CMS#197): con
+   * el correo de otro se leían sus viajes, y el servidor ya lo ignora. Su 401 sale como
+   * {@link TravelSinSesionError}, nunca como los viajes de muestra.
+   */
+  async trips(apiBase: string, currency: string): Promise<readonly TravelTrip[]> {
+    const url = `${apiBase}/trips`;
     try {
       const data = await this.getJson(apiBase, url);
       const trips = normalizeTrips(data, currency);
@@ -265,6 +293,9 @@ export class TravelApiClient {
       }
       throw new Error('trips-shape');
     } catch (error) {
+      if (error instanceof TravelHttpError && error.status === 401) {
+        throw new TravelSinSesionError('GET /api/travel/trips');
+      }
       this.markDegraded('GET /api/travel/trips', error);
       return mockTrips(currency);
     }
@@ -321,7 +352,7 @@ export class TravelApiClient {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
     }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
+      response.ok ? response.json() : Promise.reject(new TravelHttpError(response.status)),
     );
   }
 
