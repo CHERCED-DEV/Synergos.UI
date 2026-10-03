@@ -111,6 +111,33 @@ describe('TreeViewElementComponent', () => {
     expect(arbol?.getAttribute('aria-label')).toBe(ejemplo.label);
   });
 
+  // CMS#192: el `icon` de cada nodo se pintaba como TEXTO. Un nombre del set va por `syn-icon`
+  // (SVG); un glifo literal se pinta tal cual; una palabra que el set no tiene, no se pinta.
+  it('pinta el icono del nodo por nombre con syn-icon, el glifo tal cual, y no la palabra', async () => {
+    fixture.componentRef.setInput(
+      'config',
+      JSON.stringify({
+        tree: [
+          { id: 'a', label: 'Usuarios', icon: 'users' },
+          { id: 'b', label: 'Favoritos', icon: '★' },
+          { id: 'c', label: 'Cohetes', icon: 'cohete' },
+          { id: 'd', label: 'Sin icono' },
+        ],
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const filas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="treeitem"]'));
+    const pinta = filas.map((fila) => {
+      const icono = fila.querySelector('syn-icon');
+      if (!icono) return '';
+      return icono.querySelector('svg.syn-icon__svg') ? 'svg' : (icono.textContent ?? '').trim();
+    });
+    expect(pinta).toEqual(['svg', '★', '', '']);
+    expect(filas[2].textContent).not.toContain('cohete');
+  });
+
   it('should let direct inputs override config (idempotent precedence)', async () => {
     fixture.componentRef.setInput('config', '{"label":"Config label"}');
     fixture.componentRef.setInput('label', 'Input label');

@@ -97,9 +97,17 @@
   }
 
   &__icon {
+    display: inline-flex;
     flex: 0 0 auto;
-    font-size: syn.$font-size-base;
     line-height: 1;
+
+    // El icono va en el color del texto del nodo (activo, deshabilitado…), no en el gris propio de
+    // `syn-icon`; el glifo literal conserva el tamaño de antes.
+    ::ng-deep .syn-icon {
+      color: inherit;
+      font-family: inherit;
+      font-size: syn.$font-size-base;
+    }
   }
 
   &__label {

@@ -10,6 +10,8 @@ import {
 import type { TreeViewProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import {
+  IconComponent,
+  NOMBRES_DE_ICONO,
   coerceOptionalBooleanInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
@@ -49,6 +51,10 @@ export interface TreeFlatNode {
   readonly label: string;
   readonly href: string;
   readonly icon: string;
+  /** El icono del set por nombre (UI#89), o `''`. */
+  readonly iconName: string;
+  /** El glifo literal cuando `icon` no es un nombre del set (un emoji, «★»), o `''`. */
+  readonly iconSymbol: string;
   readonly level: number;
   readonly hasChildren: boolean;
   /** Position within siblings (1-based) for `aria-posinset`. */
@@ -69,6 +75,24 @@ function readString(value: unknown): string {
     return String(value);
   }
   return '';
+}
+
+/**
+ * Cómo se pinta el `icon` de un nodo (CMS#192): un NOMBRE del set del design system va por
+ * `syn-icon` como SVG; cualquier otra cosa corta que no sea una palabra —un emoji, «★»— es un
+ * glifo y se pinta tal cual. Una palabra que el set no tiene no se pinta: la palabra en lugar del
+ * icono es el defecto de UI#89.
+ */
+export function iconoDeNodo(icon: string): { readonly iconName: string; readonly iconSymbol: string } {
+  const valor = icon.trim();
+  if (!valor) {
+    return { iconName: '', iconSymbol: '' };
+  }
+  const nombre = valor.toLowerCase();
+  if ((NOMBRES_DE_ICONO as readonly string[]).includes(nombre)) {
+    return { iconName: nombre, iconSymbol: '' };
+  }
+  return /^[\p{L}\p{N}_-]+$/u.test(valor) ? { iconName: '', iconSymbol: '' } : { iconName: '', iconSymbol: valor };
 }
 
 function readBoolean(value: unknown): boolean {
@@ -139,6 +163,7 @@ export function sanitizeTreeViewConfig(value: Partial<TreeViewProps>): Partial<T
 @Component({
   selector: 'sg-tree-view',
   standalone: true,
+  imports: [IconComponent],
   templateUrl: './tree-view.html',
   styleUrl: './tree-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -243,6 +268,7 @@ export class TreeViewElementComponent {
           label: node.label,
           href: node.href,
           icon: node.icon,
+          ...iconoDeNodo(node.icon),
           level,
           hasChildren,
           posInSet: index + 1,
