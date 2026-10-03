@@ -7,17 +7,6 @@
       ],
       "falta": []
     },
-    "color-swatches.shape": {
-      "sobra": [
-        "chip",
-        "dot",
-        "swatch"
-      ],
-      "falta": [
-        "pill",
-        "square"
-      ]
-    },
     "countdown-digital.style": {
       "sobra": [
         "circular"
@@ -34,14 +23,6 @@
     "notification-toast.type": {
       "sobra": [
         "neutral"
-      ],
-      "falta": []
-    },
-    "scroll-top.position": {
-      "sobra": [
-        "top-center",
-        "top-left",
-        "top-right"
       ],
       "falta": []
     },

@@ -1069,15 +1069,15 @@ export const COLOR_SWATCHES_SYNHOST: ElementoSynHost<ColorSwatchesProps> = {
       "valores": [
         {
           "editor": "swatch",
-          "viaja": "swatch"
+          "viaja": "square"
         },
         {
           "editor": "chip",
-          "viaja": "chip"
+          "viaja": "pill"
         },
         {
           "editor": "dot",
-          "viaja": "dot"
+          "viaja": "circle"
         },
         {
           "editor": "circle",
@@ -1943,15 +1943,15 @@ export const SCROLL_TOP_SYNHOST: ElementoSynHost<ScrollTopProps> = {
       "valores": [
         {
           "editor": "top-left",
-          "viaja": "top-left"
+          "viaja": "bottom-left"
         },
         {
           "editor": "top-center",
-          "viaja": "top-center"
+          "viaja": "bottom-center"
         },
         {
           "editor": "top-right",
-          "viaja": "top-right"
+          "viaja": "bottom-right"
         },
         {
           "editor": "bottom-left",
