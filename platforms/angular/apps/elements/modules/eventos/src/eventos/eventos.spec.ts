@@ -5,7 +5,7 @@ import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
 import { EventosApiClient } from './eventos-api.client';
 import { EventosFulfillmentStrategy } from './eventos-fulfillment.strategy';
-import { EventosElementComponent } from './eventos';
+import { EVENTOS_RELOJ, EventosElementComponent } from './eventos';
 import { comisionEnMenores } from './eventos-comision';
 import { asentar } from '../../../../../../tools/asentar';
 import { EVENTOS_SYNHOST } from '@synergos/contracts';
@@ -1199,5 +1199,170 @@ describe('EventosApiClient', () => {
     await expect(client.createEvent('/api/eventos', EVENTO_NUEVO)).rejects.toMatchObject({
       name: 'EventosWriteFailedError',
     });
+  });
+});
+// ══ #195 · LOS ESTADOS DE VENTA DE UNA LOCALIDAD ═══════════════════════════════
+//
+// El CMS publica en cada `tiers[]` de `GET /event/{id}` `onSale` (calculado con la misma regla
+// que su checkout), `saleOpensAt` (incluido) y `saleClosesAt` (exclusivo), y la UI vendía toda
+// localidad. `!onSale` antes de abrir es «Aún no está a la venta»; cualquier otro `!onSale`
+// —cerrada, o evento pasado— es «Venta cerrada»; ninguno de los dos tiene botón de compra. La
+// fecha que se lee es `saleWindow`. Sin `onSale` (un CMS de antes) se vende, como hoy.
+describe('EventosElementComponent · estados de venta de una localidad (#195)', () => {
+  let fixture: ComponentFixture<EventosElementComponent>;
+  let component: EventosElementComponent;
+
+  const VIP_AUN_NO = {
+    id: 'vip',
+    code: 'vip',
+    name: 'VIP',
+    amount: 420_000,
+    currency: 'COP',
+    capacity: 50,
+    remaining: 10,
+    maxPerOrder: 4,
+    perks: [],
+    saleWindow: 'Hasta el 14 de agosto',
+    featured: true,
+    saleOpensAt: '2026-08-01T00:00:00-05:00',
+    saleClosesAt: '2026-08-15T00:00:00-05:00',
+    onSale: false,
+  };
+  const GENERAL = {
+    id: 'general',
+    name: 'General',
+    amount: 120_000,
+    currency: 'COP',
+    remaining: 200,
+    maxPerOrder: 6,
+    perks: [],
+    saleWindow: 'Hasta el día del evento',
+    featured: false,
+    onSale: true,
+  };
+
+  /** Un borde que sólo sabe del evento `evt_195`, con las localidades que se le den. */
+  function bordeConLocalidades(tiers: readonly Record<string, unknown>[]): ReturnType<typeof vi.fn> {
+    return vi.fn((url: RequestInfo | URL) => {
+      const ruta = new URL(String(url), 'http://borde.test').pathname;
+      if (ruta.endsWith('/event/evt_195')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () =>
+            Promise.resolve({
+              event: {
+                id: 'evt_195',
+                title: 'Festival de la venta',
+                fromAmount: 120_000,
+                currency: 'COP',
+                mode: 'general',
+                status: 'on-sale',
+                startsAt: '2026-09-20T20:00:00-05:00',
+              },
+              tiers,
+            }),
+        } as Response);
+      }
+      return Promise.reject(new Error('offline'));
+    });
+  }
+
+  /** Abre la ficha con el reloj fijado en `ahora`. */
+  async function abrirFicha(tiers: readonly Record<string, unknown>[], ahora: string): Promise<void> {
+    vi.stubGlobal('fetch', bordeConLocalidades(tiers));
+    await TestBed.configureTestingModule({
+      imports: [EventosElementComponent],
+      providers: [
+        provideZonelessChangeDetection(),
+        EventosApiClient,
+        { provide: FULFILLMENT_STRATEGIES, useClass: EventosFulfillmentStrategy, multi: true },
+        { provide: EVENTOS_RELOJ, useValue: () => Date.parse(ahora) },
+      ],
+    }).compileComponents();
+    fixture = TestBed.createComponent(EventosElementComponent);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
+    fixture.detectChanges();
+    await flushMicrotasks();
+    component.navigate('event', 'evt_195');
+    await flushMicrotasks();
+    fixture.detectChanges();
+  }
+
+  afterEach(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+    }
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    TestBed.resetTestingModule();
+  });
+
+  const host = (): HTMLElement => fixture.nativeElement as HTMLElement;
+  const botonDeCompra = (): HTMLButtonElement | null =>
+    host().querySelector<HTMLButtonElement>('.eventos__btn--primary.eventos__btn--block');
+  const tarjeta = (id: string): { estado: string; radio: HTMLInputElement | null; texto: string } => {
+    const etiquetas = Array.from(host().querySelectorAll<HTMLElement>('.eventos__tier'));
+    const etiqueta = etiquetas.find((el) => el.querySelector('.eventos__tier-name')?.textContent?.trim() === id) ?? null;
+    return {
+      estado: etiqueta?.getAttribute('data-sale') ?? '',
+      radio: etiqueta?.querySelector('input[type="radio"]') ?? null,
+      texto: etiqueta?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    };
+  };
+
+  it('sin localidades no hay botón de compra (empty)', async () => {
+    await abrirFicha([], '2026-07-15T12:00:00-05:00');
+
+    expect(component.detail()?.event.id).toBe('evt_195');
+    expect(component.selectedTier()).toBeNull();
+    expect(botonDeCompra()).toBeNull();
+  });
+
+  it('a la venta se compra, y una localidad sin `onSale` (un CMS de antes) también (happy)', async () => {
+    const { onSale: _sinOnSale, ...generalDeAntes } = GENERAL;
+    void _sinOnSale;
+    await abrirFicha([GENERAL, { ...generalDeAntes, id: 'general-2', name: 'General 2' }], '2026-07-15T12:00:00-05:00');
+
+    expect(component.tiers().map((tier) => component.tierSaleState(tier))).toEqual(['a-la-venta', 'a-la-venta']);
+    expect(tarjeta('General 2').radio?.disabled).toBe(false);
+    expect(botonDeCompra()?.textContent?.trim()).toBe('Elegir cantidad');
+    expect(tarjeta('General').texto).toContain('Quedan');
+  });
+
+  it('antes de abrir dice «Aún no está a la venta», con su `saleWindow`, y no se compra', async () => {
+    await abrirFicha([VIP_AUN_NO], '2026-07-15T12:00:00-05:00');
+
+    const vip = tarjeta('VIP');
+    expect(vip.estado).toBe('aun-no');
+    expect(vip.texto).toContain('Aún no está a la venta');
+    expect(vip.texto).toContain('Hasta el 14 de agosto');
+    expect(vip.texto).not.toContain('Quedan');
+    expect(vip.radio?.disabled).toBe(true);
+    expect(component.selectedTier()).toBeNull();
+    expect(botonDeCompra()).toBeNull();
+  });
+
+  it('pasada la ventana —o con el evento pasado— dice «Venta cerrada», y no se compra', async () => {
+    await abrirFicha([VIP_AUN_NO, { ...VIP_AUN_NO, id: 'pasado', name: 'Pasado', saleOpensAt: undefined, saleClosesAt: undefined }], '2026-08-20T12:00:00-05:00');
+
+    expect(tarjeta('VIP').estado).toBe('cerrada');
+    expect(tarjeta('VIP').texto).toContain('Venta cerrada');
+    // Sin apertura y con `onSale: false` (evento pasado): cerrada, nunca «aún no».
+    expect(tarjeta('Pasado').estado).toBe('cerrada');
+    expect(botonDeCompra()).toBeNull();
+  });
+
+  it('con una localidad que aún no abre y otra a la venta, se compra la que se vende aunque la otra sea la destacada', async () => {
+    await abrirFicha([VIP_AUN_NO, GENERAL], '2026-07-15T12:00:00-05:00');
+
+    expect(component.selectedTier()?.id).toBe('general');
+    expect(tarjeta('VIP').estado).toBe('aun-no');
+    expect(botonDeCompra()).not.toBeNull();
+    component.selectTier(component.tiers()[0]);
+    component.startSelection();
+    // Elegir la que no se vende no la compra: la selección sigue en la que sí.
+    expect(component.selectedTier()?.id).toBe('general');
   });
 });

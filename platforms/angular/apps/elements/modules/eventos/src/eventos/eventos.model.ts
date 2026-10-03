@@ -114,11 +114,32 @@ export interface TicketTier {
   readonly perks: readonly string[];
   /** Sale window close hint, already formatted ("Hasta el 12 jul"). */
   readonly saleWindow: string;
+  /**
+   * Cuándo abre la venta (ISO 8601 con desfase, INCLUIDO), o `null` si la localidad no tiene
+   * apertura: el servidor no manda la clave (#195).
+   */
+  readonly saleOpensAt: string | null;
+  /** Primer instante SIN venta (ISO 8601 con desfase, EXCLUSIVO), o `null` si no cierra. */
+  readonly saleClosesAt: string | null;
+  /**
+   * Si se puede comprar AHORA, con la misma regla que el checkout del servidor (el evento no
+   * empezó y la localidad está en su ventana; el aforo va aparte, en `remaining`). `null` es
+   * un CMS que no lo dice: se trata como hoy, a la venta (degradar por AUSENCIA, nunca por
+   * NEGACIÓN).
+   */
+  readonly onSale: boolean | null;
   /** For reserved-seating events: the venue zone this tier maps to. */
   readonly zoneId?: string;
   /** Highlight the recommended tier. */
   readonly featured: boolean;
 }
+
+/**
+ * El estado de venta de una localidad, para pintarlo (#195): `a-la-venta`; `aun-no` (el
+ * servidor dice que no y todavía no abre); `cerrada` (dice que no por cualquier otra cosa: ya
+ * cerró, o el evento pasó).
+ */
+export type TierSaleState = 'a-la-venta' | 'aun-no' | 'cerrada';
 
 /** A single agenda / session entry on the event PDP. */
 export interface EventSession {

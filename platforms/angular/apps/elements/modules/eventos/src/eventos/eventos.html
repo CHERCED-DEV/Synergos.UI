@@ -210,12 +210,15 @@
                 class="eventos__tier"
                 [class.is-active]="selectedTier()?.id === tier.id"
                 [class.is-featured]="tier.featured"
+                [class.is-off-sale]="tierSaleState(tier) !== 'a-la-venta'"
+                [attr.data-sale]="tierSaleState(tier)"
               >
                 <input
                   type="radio"
                   name="tier"
                   class="eventos__sr-only"
                   [checked]="selectedTier()?.id === tier.id"
+                  [disabled]="tierSaleState(tier) !== 'a-la-venta'"
                   (change)="selectTier(tier)"
                 />
                 <span class="eventos__tier-head">
@@ -233,20 +236,27 @@
                   </span>
                 }
                 <span class="eventos__tier-meta">
-                  <span class="eventos__tier-remaining">Quedan {{ formatCount(tier.remaining) }}</span>
+                  @if (tierSaleLabel(tier); as estado) {
+                    <!-- #195: lo dice el servidor (onSale); la fecha es su saleWindow, ya escrita. -->
+                    <span class="eventos__tier-sale">{{ estado }}</span>
+                  } @else {
+                    <span class="eventos__tier-remaining">Quedan {{ formatCount(tier.remaining) }}</span>
+                  }
                   @if (tier.saleWindow) { <span class="eventos__tier-window">{{ tier.saleWindow }}</span> }
                 </span>
               </label>
             }
           </fieldset>
-          <button
-            type="button"
-            class="eventos__btn eventos__btn--primary eventos__btn--block"
-            [disabled]="!selectedTier()"
-            (click)="startSelection()"
-          >
-            {{ isReserved() ? 'Elegir asientos' : 'Elegir cantidad' }}
-          </button>
+          <!-- Sin localidad a la venta no hay botón de compra (#195): ni deshabilitado. -->
+          @if (selectedTier()) {
+            <button
+              type="button"
+              class="eventos__btn eventos__btn--primary eventos__btn--block"
+              (click)="startSelection()"
+            >
+              {{ isReserved() ? 'Elegir asientos' : 'Elegir cantidad' }}
+            </button>
+          }
         </ng-template>
       } @else if (loading()) {
         <syn-skeleton variant="card" [rows]="2" />

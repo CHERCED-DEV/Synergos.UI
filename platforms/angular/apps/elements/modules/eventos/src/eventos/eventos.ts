@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  InjectionToken,
   type OnInit,
   computed,
   inject,
@@ -68,6 +69,15 @@ import {
 import type { EventosProps } from '@synergos/contracts';
 import { comisionEnMenores } from './eventos-comision';
 import { EventosApiClient, isEventosForbidden, isEventosUnauthorized } from './eventos-api.client';
+
+/**
+ * El reloj de la ficha: la hora contra la que se decide si una localidad «aún no» abre (#195).
+ * Inyectable para que los specs fijen el instante; en la página es `Date.now`.
+ */
+export const EVENTOS_RELOJ = new InjectionToken<() => number>('EVENTOS_RELOJ', {
+  providedIn: 'root',
+  factory: () => () => Date.now(),
+});
 import { subscribeToChannel, type RealtimeSubscription } from './realtime-stream';
 import {
   EVENTOS_FLOW,
@@ -96,6 +106,7 @@ import {
   type VenueZone,
   type WalletTicket,
   type EventPromo,
+  type TierSaleState,
 } from './eventos.model';
 import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores } from '@synergos/vitals-core';
 
@@ -229,6 +240,7 @@ export class EventosElementComponent implements OnInit {
   readonly #orchestrator = inject(OrchestratorService);
   readonly #bus = inject<TransactionEventBusService<EventosBus>>(TransactionEventBusService);
   readonly #api = inject(EventosApiClient);
+  readonly #reloj = inject(EVENTOS_RELOJ);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<EventosConfig | undefined, unknown>(undefined, {
@@ -462,8 +474,13 @@ export class EventosElementComponent implements OnInit {
   // ─── PDP / selection derived ─────────────────────────────────────────────────
   readonly tiers = computed<readonly TicketTier[]>(() => this.detail()?.tiers ?? []);
 
+  /**
+   * La localidad que se compra: sólo una que esté a la venta (#195). Una que el servidor dijo que
+   * no —aún no abre, o cerró— se ve en la ficha con su estado, pero no se elige ni se compra; si
+   * ninguna está a la venta no hay botón de compra.
+   */
   readonly selectedTier = computed<TicketTier | null>(() => {
-    const tiers = this.tiers();
+    const tiers = this.tiers().filter((tier) => this.tierSaleState(tier) === 'a-la-venta');
     const id = this.selectedTierId();
     return (
       tiers.find((tier) => tier.id === id) ??
@@ -1155,12 +1172,38 @@ export class EventosElementComponent implements OnInit {
     this.selectedSeats.set([]);
   }
 
+  /**
+   * Si la localidad se puede comprar (#195). Lo decide `onSale`, que el servidor calcula con la
+   * misma regla que su checkout; las fechas sólo separan «aún no» de «cerrada». Sin `onSale`
+   * (un CMS de antes) se vende, como hasta hoy.
+   */
+  tierSaleState(tier: TicketTier): TierSaleState {
+    if (tier.onSale !== false) {
+      return 'a-la-venta';
+    }
+    const abre = tier.saleOpensAt ? Date.parse(tier.saleOpensAt) : Number.NaN;
+    return Number.isFinite(abre) && this.#reloj() < abre ? 'aun-no' : 'cerrada';
+  }
+
+  /** El rótulo del estado de una localidad que no está a la venta; vacío si lo está. */
+  tierSaleLabel(tier: TicketTier): string {
+    switch (this.tierSaleState(tier)) {
+      case 'aun-no':
+        return 'Aún no está a la venta';
+      case 'cerrada':
+        return 'Venta cerrada';
+      default:
+        return '';
+    }
+  }
+
   tierPriceLabel(tier: TicketTier): string {
     return tier.amount <= 0 ? 'Gratis' : this.formatPrice(tier.amount, tier.currency || this.currency());
   }
 
   startSelection(): void {
-    if (!this.selectedTier()) {
+    const tier = this.selectedTier();
+    if (!tier || this.tierSaleState(tier) !== 'a-la-venta') {
       return;
     }
     this.navigate('select');

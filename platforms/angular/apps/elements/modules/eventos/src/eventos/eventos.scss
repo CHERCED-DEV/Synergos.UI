@@ -518,6 +518,16 @@
     &.is-featured {
       background: var(--ev-brand-soft);
     }
+
+    // #195: una localidad que no está a la venta se ve, pero no se elige.
+    &.is-off-sale {
+      cursor: default;
+      background: var(--ev-surface-muted);
+
+      .eventos__tier-price {
+        color: var(--ev-text-secondary);
+      }
+    }
   }
 
   &__tier-head {
@@ -556,6 +566,11 @@
     gap: syn.$space-sm;
     font-size: syn.px-to-rem(12);
     color: var(--ev-muted);
+  }
+
+  &__tier-sale {
+    font-weight: 700;
+    color: var(--ev-text-secondary);
   }
 
   // ─── Selection (seat-map / quantity) ─────────────────────────────────────────
