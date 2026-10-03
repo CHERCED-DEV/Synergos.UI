@@ -50,12 +50,15 @@
           <svg class="blogs__nav-glyph blogs__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> Creator Studio
         </button>
       </li>
-      <li>
-        <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'profile'"
-          (click)="openProfile(viewer.handle)">
-          <svg class="blogs__nav-glyph blogs__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> Perfil
-        </button>
-      </li>
+      <!-- «Perfil» abre el de quien lee por su handle: sin handle conocido no se ofrece (CMS#197). -->
+      @if (viewer()?.handle; as handle) {
+        <li>
+          <button type="button" class="blogs__nav-btn" [class.is-active]="view() === 'profile'"
+            (click)="openProfile(handle)">
+            <svg class="blogs__nav-glyph blogs__ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg> Perfil
+          </button>
+        </li>
+      }
     </ul>
     <div class="blogs__rail-cta">
       <button type="button" class="blogs__compose-cta" (click)="go('feed'); toggleComposer()">Publicar</button>
@@ -65,13 +68,20 @@
       </button>
     </div>
 
-    <p class="blogs__rail-me">
-      <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(viewer) }}</span>
-      <span class="blogs__rail-me-text">
-        <span class="blogs__rail-me-name">{{ viewer.displayName }}</span>
-        <span class="blogs__rail-me-handle">&#64;{{ viewer.handle }}</span>
-      </span>
-    </p>
+    @if (viewer(); as yo) {
+      <p class="blogs__rail-me">
+        <span class="blogs__avatar blogs__avatar--sm" aria-hidden="true">{{ initials(yo) }}</span>
+        <span class="blogs__rail-me-text">
+          <span class="blogs__rail-me-name">{{ yo.displayName }}</span>
+          @if (yo.handle) {
+            <span class="blogs__rail-me-handle">&#64;{{ yo.handle }}</span>
+          }
+        </span>
+      </p>
+    } @else {
+      <!-- Con el CMS delante y sin sesión, la tarjeta no inventa a nadie: ofrece entrar. -->
+      <a class="blogs__rail-me blogs__rail-me--signin" [href]="loginUrl()">Inicia sesión</a>
+    }
   </nav>
 
   <!-- ─── Center column ──────────────────────────────────────────────────────── -->
@@ -125,7 +135,7 @@
       />
 
       <article class="blogs__composer-inline">
-        <span class="blogs__avatar" aria-hidden="true">{{ initials(viewer) }}</span>
+        <span class="blogs__avatar" aria-hidden="true">{{ initials(autorLocal()) }}</span>
         <button type="button" class="blogs__composer-open" (click)="toggleComposer()">¿Qué estás pensando?</button>
       </article>
 
@@ -233,7 +243,7 @@
           <div class="blogs__profile-banner" aria-hidden="true"></div>
           <div class="blogs__profile-head">
             <span class="blogs__avatar blogs__avatar--lg" aria-hidden="true">{{ initials(author) }}</span>
-            @if (author.actorKey !== viewer.actorKey) {
+            @if (author.actorKey !== viewer()?.actorKey) {
               <div class="blogs__profile-actions">
                 <button type="button" class="blogs__btn blogs__btn--ghost" (click)="messageAuthor(author)">Mensaje</button>
                 <button type="button" class="blogs__btn"
@@ -417,7 +427,7 @@
                       <span class="blogs__account-handle">&#64;{{ account.handle }}</span>
                     </span>
                   </button>
-                  @if (account.actorKey !== viewer.actorKey) {
+                  @if (account.actorKey !== viewer()?.actorKey) {
                     <button type="button" class="blogs__btn blogs__btn--sm"
                       [class.blogs__btn--brand]="!isFollowing(account.actorKey)" [class.blogs__btn--ghost]="isFollowing(account.actorKey)"
                       [attr.aria-pressed]="isFollowing(account.actorKey)" (click)="toggleFollow(account)">
@@ -645,7 +655,7 @@
 <ng-template #composerTpl>
   <form class="blogs__composer" (submit)="$event.preventDefault(); publish()">
     <div class="blogs__composer-row">
-      <span class="blogs__avatar" aria-hidden="true">{{ initials(viewer) }}</span>
+      <span class="blogs__avatar" aria-hidden="true">{{ initials(autorLocal()) }}</span>
       <label class="blogs__sr-only" [attr.for]="fieldId + '-body'">Texto de la publicación</label>
       <textarea class="blogs__composer-input" [id]="fieldId + '-body'" rows="3"
         placeholder="¿Qué estás pensando? Usa #hashtags y @menciones" [attr.maxlength]="maxChars"
@@ -929,7 +939,7 @@
                   @for (perk of tier.perks; track perk) {<li>{{ perk }}</li>}
                 </ul>
                 <p class="blogs__tier-subs">{{ formatCount(tier.subscribers) }} suscriptores</p>
-                <button type="button" class="blogs__btn blogs__btn--brand blogs__btn--sm" (click)="startSubscribe(viewer, tier)">
+                <button type="button" class="blogs__btn blogs__btn--brand blogs__btn--sm" (click)="startSubscribe(autorLocal(), tier)">
                   Probar suscripción
                 </button>
               </li>

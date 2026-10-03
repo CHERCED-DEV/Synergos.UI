@@ -341,6 +341,67 @@ describe('BlogsElementComponent', () => {
     expect(component.degraded()).toBe(true);
   });
 
+  // ── CMS#197: quien lee lo dice la sesión del host, no el editor ─────────────
+  //
+  // Eran `viewerHandle`/`viewerName` del JSON libre, con «Tú · @tu» por defecto: con el CMS
+  // delante, cada lector se veía como el mismo demo. `HostIdentityService` lee
+  // `window.synergos` UNA vez al construirse, así que el bridge se monta antes del componente.
+  describe('quién lee (CMS#197)', () => {
+    interface ConBridge {
+      synergos?: unknown;
+    }
+    const conHost = (bridge: unknown): void => {
+      (globalThis as unknown as ConBridge).synergos = bridge;
+    };
+    afterEach(() => {
+      delete (globalThis as unknown as ConBridge).synergos;
+    });
+
+    /** Iniciales, nombre y handle de la tarjeta «yo», por pieza (la plantilla no deja espacios entre ellas). */
+    const tarjeta = (): string[] =>
+      ['.blogs__rail-me .blogs__avatar', '.blogs__rail-me-name', '.blogs__rail-me-handle'].map(
+        (selector) => (fixture.nativeElement as HTMLElement).querySelector(selector)?.textContent?.trim() ?? '',
+      );
+    const hayPerfil = (): boolean =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.blogs__nav-btn')).some((boton) =>
+        (boton.textContent ?? '').includes('Perfil'),
+      );
+
+    it('sin host, la tarjeta «yo» es la de muestra, como siempre', async () => {
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(tarjeta()).toEqual(['T', 'Tú', '@tu']);
+      expect(hayPerfil()).toBe(true);
+    });
+
+    it('con sesión, la tarjeta es la del miembro y no le inventa un handle', async () => {
+      conHost({ member: { key: 'k-1', displayName: 'Camila Restrepo', email: 'camila@ejemplo.co', roles: [] } });
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(tarjeta()).toEqual(['CR', 'Camila Restrepo', '']);
+      // El id de actor del servidor es el correo: lo que el miembro publica es «suyo».
+      expect(component.viewer()?.actorKey).toBe('camila@ejemplo.co');
+      // Sin handle no hay perfil que abrir: el de `tu` no existe en el servidor.
+      expect(hayPerfil()).toBe(false);
+    });
+
+    it('con host y sin sesión no hay «yo»: se ofrece entrar, no se inventa a nadie', async () => {
+      conHost({});
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(component.viewer()).toBeNull();
+      const host: HTMLElement = fixture.nativeElement;
+      const entrar = host.querySelector<HTMLAnchorElement>('.blogs__rail-me--signin');
+      expect(entrar?.textContent?.trim()).toBe('Inicia sesión');
+      expect(entrar?.getAttribute('href')).toMatch(/^\/account\/login\?returnUrl=/);
+      expect(host.querySelector('.blogs__rail-me-name')).toBeNull();
+      expect(hayPerfil()).toBe(false);
+    });
+  });
+
   // ── happy: publish a post → optimistic insert at the top of the feed ─────────
   //
   // Este caso se llamaba «happy» y dejaba `fetch` RECHAZANDO: o sea comprobaba el
@@ -1022,7 +1083,7 @@ describe('BlogsElementComponent', () => {
     await flushMicrotasks();
     const tier = component.studio()!.tiers[0];
 
-    component.startSubscribe(component.viewer, tier);
+    component.startSubscribe(component.autorLocal(), tier);
     await flushMicrotasks();
     expect(component.view()).toBe('subscribe');
     expect(component.subscribeTier()!.id).toBe(tier.id);

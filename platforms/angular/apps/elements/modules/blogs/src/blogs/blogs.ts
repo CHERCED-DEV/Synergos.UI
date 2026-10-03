@@ -55,6 +55,7 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { BlogsProps } from '@synergos/contracts';
+import { HostIdentityService } from '@synergos/core';
 import { BlogsApiClient, isBlogsForbidden, isBlogsUnauthorized } from './blogs-api.client';
 import { BLOGS_FLOW } from './blogs-fulfillment.strategy';
 import { mockViewer, reactionStateFor } from './blogs.mock';
@@ -118,13 +119,25 @@ const DEFAULT_SCOPE = 'blogs';
 /** El fallo del asistente de suscripción: el `pay` es local, así que nunca hubo cobro (UI#91). */
 const SUSCRIPCION_NO_PROCESADA = 'No pudimos procesar la suscripción. Intenta de nuevo.';
 
-const DEFAULT_USER = 'me';
 const DEFAULT_VIEW: BlogsView = 'feed';
 // `Inicio` es la etiqueta que la propia navegación usa para esta vista (blogs.html:14),
 // igual que `Explorar` o `Notificaciones` titulan las suyas. Es el fallback cuando el CMS
 // no compone nada; con CMS delante gana el texto del editor.
 const DEFAULT_HEADING = 'Inicio';
 const SESSION_TTL_MS = 30 * 60 * 1000;
+/** Quien lee sin perfil conocido: ni handle, ni cifras, ni el nombre de nadie (CMS#197). */
+const SIN_CIFRAS: Author = {
+  actorKey: '',
+  handle: '',
+  displayName: 'Tú',
+  bio: '',
+  avatarUrl: '',
+  bannerUrl: '',
+  verified: false,
+  followersCount: 0,
+  followingCount: 0,
+  postsCount: 0,
+};
 /** Login del CMS — mismo destino que usa Gobierno para el hueco de identidad. */
 const LOGIN_PATH = '/account/login';
 
@@ -228,6 +241,7 @@ export class BlogsElementComponent implements OnInit {
    * un `setTimeout`, fuera del sistema de señales, que es lo único que fuerza la repetición.
    */
   readonly #announcer = inject(LiveAnnouncerService);
+  readonly #identity = inject(HostIdentityService);
 
   // ─── Config inputs (object + flat aliases) ─────────────────────────────────
   readonly config = input<BlogsConfig | undefined, unknown>(undefined, {
@@ -235,9 +249,6 @@ export class BlogsElementComponent implements OnInit {
   });
   readonly apiBaseInput = input<string | undefined>(undefined, { alias: 'apiBase' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
-  readonly userInput = input<string | undefined>(undefined, { alias: 'user' });
-  readonly viewerHandleInput = input<string | undefined>(undefined, { alias: 'viewerHandle' });
-  readonly viewerNameInput = input<string | undefined>(undefined, { alias: 'viewerName' });
   readonly viewInput = input<string | undefined>(undefined, { alias: 'view' });
   readonly headingInput = input<string | undefined>(undefined, { alias: 'heading' });
   readonly subheadingInput = input<string | undefined>(undefined, { alias: 'subheading' });
@@ -254,9 +265,6 @@ export class BlogsElementComponent implements OnInit {
   );
   readonly scope = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.scopeInput()), undefined, DEFAULT_SCOPE),
-  );
-  readonly user = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.userInput()), undefined, DEFAULT_USER),
   );
   readonly initialView = computed<BlogsView>(() =>
     resolveConfigValue(coerceView(this.viewInput()), undefined, DEFAULT_VIEW),
@@ -297,26 +305,6 @@ export class BlogsElementComponent implements OnInit {
     { id: 'mentions', label: 'Menciones', content: '' },
   ];
 
-  /**
-   * The viewer's projected social identity (nav "me" card + optimistic publishes).
-   * Composable from CMS props (`viewerHandle`/`viewerName`) — falls back to the mock
-   * identity so the shell is complete before a real session/member is wired. Never a
-   * fetch, so it can never trip the `degraded` banner.
-   */
-  readonly #viewerHandle = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.viewerHandleInput()),
-      undefined,
-      mockViewer().handle,
-    ),
-  );
-  readonly #viewerName = computed(() =>
-    resolveConfigValue(
-      coerceTrimmedStringInput(this.viewerNameInput()),
-      undefined,
-      mockViewer().displayName,
-    ),
-  );
   readonly heading = computed(() =>
     resolveConfigValue(
       coerceTrimmedStringInput(this.headingInput()),
@@ -331,9 +319,33 @@ export class BlogsElementComponent implements OnInit {
   readonly subheading = computed(() =>
     resolveConfigValue(coerceTrimmedStringInput(this.subheadingInput()), this.config()?.subheading, ''),
   );
-  get viewer(): Author {
-    return { ...mockViewer(), handle: this.#viewerHandle(), displayName: this.#viewerName() };
-  }
+  /**
+   * Quién lee: lo dice la SESIÓN del host (CMS#197), no el editor.
+   *
+   * Eran `viewerHandle`/`viewerName` (y un `user` que nadie leía), que sólo entraban por el JSON
+   * libre del editor y caían a la identidad de muestra «Tú · @tu»: con el CMS delante, cada
+   * lector se veía como el mismo demo y «Perfil» abría el de `tu`, que el servidor no tiene.
+   *
+   *  - **Sin host** (standalone, tests): la identidad de muestra, como siempre.
+   *  - **Con sesión**: el miembro. Su `actorKey` es su correo, que es el id de actor que el
+   *    servidor pone a lo que publica (`RequireActor`), así que «esto es tuyo» casa con él. El
+   *    handle no viaja en el bridge: vacío, y lo que lo necesita no se ofrece.
+   *  - **Con host y sin sesión**: `null`. No se inventa a nadie.
+   */
+  readonly viewer = computed<Author | null>(() => {
+    if (!this.#identity.hasHost()) {
+      return mockViewer();
+    }
+    const miembro = this.#identity.member();
+    return miembro ? { ...SIN_CIFRAS, actorKey: miembro.email, displayName: miembro.displayName } : null;
+  });
+
+  /**
+   * El autor de lo que esta pantalla pinta en local antes de que vuelva el del servidor (un
+   * comentario, un mensaje, el avatar del compositor). Sin sesión, «Tú» sin cifras: el servidor contesta 401 y el
+   * borrador no se queda, pero lo que se ve entretanto no lleva el nombre de nadie.
+   */
+  readonly autorLocal = computed<Author>(() => this.viewer() ?? SIN_CIFRAS);
 
   // ─── Outputs (CustomEvents) ────────────────────────────────────────────────
   readonly postpublished = output<{ id: string }>();
@@ -1121,7 +1133,7 @@ export class BlogsElementComponent implements OnInit {
       mediaAlt: this.draftMediaAlt().trim() || undefined,
     };
     this.#api
-      .publish(this.apiBase(), draft, this.viewer)
+      .publish(this.apiBase(), draft, this.autorLocal())
       .then(({ post, persisted }) => {
         // Mismo criterio que el artículo (#26): un post que el servidor no aceptó
         // no se mete en el feed ni vacía el compositor.
@@ -1172,7 +1184,7 @@ export class BlogsElementComponent implements OnInit {
       coverAlt: this.articleCoverAlt().trim() || undefined,
     };
     this.#api
-      .publishArticle(this.apiBase(), draft, this.viewer)
+      .publishArticle(this.apiBase(), draft, this.autorLocal())
       .then(({ post, persisted }) => {
         if (!persisted) {
           // Nada de esto ocurre: no se mete en el feed, no se limpia el borrador y
@@ -1813,7 +1825,7 @@ export class BlogsElementComponent implements OnInit {
     const local: DirectMessage = {
       id: `local-m-${Date.now().toString(36)}`,
       threadId,
-      author: this.viewer,
+      author: this.autorLocal(),
       body,
       createdAtUtc: new Date().toISOString(),
       outgoing: true,
@@ -2139,7 +2151,7 @@ export class BlogsElementComponent implements OnInit {
     return {
       id: `local-c-${Date.now().toString(36)}`,
       postId,
-      author: this.viewer,
+      author: this.autorLocal(),
       body,
       parentId,
       createdAtUtc: new Date().toISOString(),

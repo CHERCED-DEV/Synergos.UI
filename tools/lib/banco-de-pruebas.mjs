@@ -110,8 +110,6 @@ export const ENTRADAS_DE_CABLEADO = {
   currency: 'un código ISO 4217 que va a Intl.NumberFormat',
   role: 'el vocabulario cerrado de roles de cada vertical (alumno/instructor, paciente/médico, ciudadano/funcionario…)',
   view: 'el nombre de la vista inicial de blogs, de un vocabulario cerrado',
-  user: 'el identificador del autor cuyas publicaciones se listan',
-  viewerHandle: 'la identidad de quien lee: inventarla es actuar en nombre de nadie',
   sessionKey: 'la clave con la que el asistente guarda su progreso',
   clinic: 'el identificador de la clínica',
   agency: 'el identificador de la entidad',
@@ -156,7 +154,7 @@ export const ENTRADAS_DE_CABLEADO = {
  * Las entradas de texto de las verticales que el banco SÍ rellena: se pintan tal
  * cual, así que cualquier texto es un valor que el elemento acepta.
  */
-export const TEXTO_DE_LAS_VERTICALES = ['viewerName', 'destinationLabel', 'sellerName', 'heading'];
+export const TEXTO_DE_LAS_VERTICALES = ['destinationLabel', 'sellerName', 'heading'];
 
 /**
  * Valores de muestra por input, para que el elemento no salga en blanco — o

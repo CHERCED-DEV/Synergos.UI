@@ -460,6 +460,22 @@
   border-radius: syn.$radius-full;
 }
 
+.blogs__rail-me--signin {
+  color: var(--bl-brand);
+  font-weight: syn.$font-weight-bold;
+  font-size: syn.$font-size-sm;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: syn.px-to-rem(2) solid var(--bl-focus-ring);
+    outline-offset: syn.px-to-rem(2);
+  }
+}
+
 .blogs__rail-me-text {
   display: flex;
   flex-direction: column;

@@ -5309,24 +5309,6 @@
       "description": "Content scope (siteRoot) the module reads from."
     },
     {
-      "name": "user",
-      "type": "string",
-      "required": false,
-      "description": "Author identifier whose posts are listed."
-    },
-    {
-      "name": "viewerHandle",
-      "type": "string",
-      "required": false,
-      "description": "Handle of the signed-in reader, used for their own actions."
-    },
-    {
-      "name": "viewerName",
-      "type": "string",
-      "required": false,
-      "description": "Display name of the signed-in reader."
-    },
-    {
       "name": "view",
       "type": "string",
       "required": false,
