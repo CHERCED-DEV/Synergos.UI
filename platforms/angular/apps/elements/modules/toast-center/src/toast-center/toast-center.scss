@@ -15,6 +15,7 @@
   --tc-success-accent: var(--syn-color-text-success, #{syn.$color-success-600});
   --tc-warning-accent: var(--syn-color-text-warning, #{syn.$color-warning-600});
   --tc-danger-accent: var(--syn-color-text-danger, #{syn.$color-danger-600});
+  --tc-neutral-accent: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
 
   display: block;
 }
@@ -104,6 +105,10 @@
     &--danger {
       border-inline-start-color: var(--tc-danger-accent);
     }
+
+    &--neutral {
+      border-inline-start-color: var(--tc-neutral-accent);
+    }
   }
 
   &__icon {
@@ -132,6 +137,10 @@
 
     .toast-center__item--danger & {
       color: var(--tc-danger-accent);
+    }
+
+    .toast-center__item--neutral & {
+      color: var(--tc-neutral-accent);
     }
   }
 

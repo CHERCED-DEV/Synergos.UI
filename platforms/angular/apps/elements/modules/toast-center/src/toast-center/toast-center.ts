@@ -46,7 +46,8 @@ export interface ToastCenterRuntimeConfig {
   readonly toasts?: readonly ToastConfig[];
 }
 
-export type ToastSeverity = 'info' | 'success' | 'warning' | 'danger';
+/** `neutral`: un aviso sin severidad, como el del toast del CMS (CMS#192, caso 7). */
+export type ToastSeverity = 'info' | 'success' | 'warning' | 'danger' | 'neutral';
 
 export type ToastPosition =
   | 'top-start'
@@ -85,7 +86,7 @@ export interface ToastDismissDetail {
   readonly reason: 'manual' | 'timeout' | 'overflow' | 'api';
 }
 
-const SEVERITIES: readonly ToastSeverity[] = ['info', 'success', 'warning', 'danger'];
+const SEVERITIES: readonly ToastSeverity[] = ['info', 'success', 'warning', 'danger', 'neutral'];
 const POSITIONS: readonly ToastPosition[] = [
   'top-start',
   'top-center',
@@ -107,6 +108,7 @@ const SEVERITY_TITLES: Record<ToastSeverity, string> = {
   success: 'Listo',
   warning: 'Atención',
   danger: 'Error',
+  neutral: 'Aviso',
 };
 
 let toastSeq = 0;
@@ -403,6 +405,8 @@ export class ToastCenterElementComponent {
         return 'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z';
       case 'danger':
         return 'M12 8v5m0 3h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z';
+      case 'neutral':
+        return 'M18 16v-5a6 6 0 0 0-12 0v5l-2 2h16l-2-2zM10 20a2 2 0 0 0 4 0';
       default:
         return 'M12 16v-5m0-3h.01M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z';
     }

@@ -16,6 +16,7 @@
           [class.toast-center__item--success]="toast.severity === 'success'"
           [class.toast-center__item--warning]="toast.severity === 'warning'"
           [class.toast-center__item--danger]="toast.severity === 'danger'"
+          [class.toast-center__item--neutral]="toast.severity === 'neutral'"
           [attr.data-severity]="toast.severity"
           [attr.role]="ariaLive(toast) === 'assertive' ? 'alert' : 'status'"
           [attr.aria-live]="ariaLive(toast)"

@@ -75,6 +75,20 @@ describe('ToastCenterElementComponent', () => {
     expect(emitted?.reason).toBe('manual');
   });
 
+  // CMS#192, caso 7: el aviso sin severidad no se pinta ni se titula como «Información».
+  it('pinta el aviso neutral con su borde, su campana y el título «Aviso», cortés', () => {
+    component.push({ severity: 'neutral', message: 'Guardamos tu borrador', duration: 0 });
+    fixture.detectChanges();
+
+    const aviso = (fixture.nativeElement as HTMLElement).querySelector('[data-severity]');
+    expect(aviso?.getAttribute('data-severity')).toBe('neutral');
+    expect(aviso?.classList.contains('toast-center__item--neutral')).toBe(true);
+    expect(aviso?.classList.contains('toast-center__item--info')).toBe(false);
+    expect(aviso?.getAttribute('role')).toBe('status');
+    expect(aviso?.textContent).toContain('Aviso');
+    expect(component.iconPath('neutral')).toContain('M18 16v-5');
+  });
+
   it('should keep a dismissed seeded toast dismissed (no resurrection)', async () => {
     fixture.componentRef.setInput('toasts', TOASTS);
     fixture.detectChanges();
@@ -138,6 +152,8 @@ describe('toast-center pure helpers', () => {
   it('normalizeSeverity falls back to info for unknown values', () => {
     expect(normalizeSeverity('danger')).toBe('danger');
     expect(normalizeSeverity('SUCCESS')).toBe('success');
+    // CMS#192, caso 7: el aviso sin severidad, como el del toast del CMS.
+    expect(normalizeSeverity('neutral')).toBe('neutral');
     expect(normalizeSeverity('nope')).toBe('info');
     expect(normalizeSeverity(undefined)).toBe('info');
   });

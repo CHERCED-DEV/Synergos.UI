@@ -97,6 +97,12 @@
     --toast-edge: var(--syn-color-danger-100, #{syn.$color-danger-100});
   }
 
+  // Sin severidad (CMS#192, caso 7): el gris del tema, no el azul de «información».
+  &--neutral {
+    --toast-accent: var(--syn-color-text-secondary, #{syn.$color-neutral-600});
+    --toast-edge: var(--syn-color-surface-secondary, #{syn.$color-neutral-100});
+  }
+
   &__icon {
     display: grid;
     place-items: center;

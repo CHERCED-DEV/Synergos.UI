@@ -64,6 +64,20 @@ describe('NotificationToastElementComponent', () => {
     expect(component.toastRole(component.toasts()[0])).toBe('status');
   });
 
+  // CMS#192, caso 7: `DTSelectToastType` ofrece `neutral` y el elemento lo pintaba como `info`.
+  it('pinta el aviso neutral con su clase y su campana, y lo anuncia cortés', async () => {
+    fixture.componentRef.setInput('config', JSON.stringify({ toasts: [{ message: 'Guardamos tu borrador', variant: 'neutral' }] }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.toasts()[0].variant).toBe('neutral');
+    const aviso = (fixture.nativeElement as HTMLElement).querySelector('.toast');
+    expect(aviso?.classList.contains('toast--neutral')).toBe(true);
+    expect(aviso?.classList.contains('toast--info')).toBe(false);
+    expect(aviso?.getAttribute('role')).toBe('status');
+    expect(aviso?.querySelector('.toast__icon-glyph path')?.getAttribute('d')).toContain('M18 16v-5');
+  });
+
   // D1: con `message`/`type` sueltos en el `config` —lo que mandaba la vista— este elemento no
   // sembraba ningún aviso. Éste alimenta el `config` EXACTO que emite hoy la vista del CMS.
   it('muestra el aviso que el editor autoró con el config exacto que emite la vista del CMS', async () => {
@@ -148,6 +162,7 @@ describe('notification-toast pure helpers', () => {
   it('normalizeVariant falls back to info for unknown values', () => {
     expect(normalizeVariant('success')).toBe('success');
     expect(normalizeVariant('error')).toBe('error');
+    expect(normalizeVariant('neutral')).toBe('neutral');
     expect(normalizeVariant('plaid')).toBe('info');
     expect(normalizeVariant(undefined)).toBe('info');
   });

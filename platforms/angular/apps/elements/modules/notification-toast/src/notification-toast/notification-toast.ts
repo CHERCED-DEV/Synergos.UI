@@ -22,7 +22,7 @@ import {
 
 /**
  * <synergos-notification-toast>: a stack of transient toasts anchored to a viewport corner. Each toast
- * carries a `variant` (info/success/warning/error), auto-dismisses after a
+ * carries a `variant` (info/success/warning/error/neutral), auto-dismisses after a
  * duration (paused while the pointer hovers the stack), and can be
  * dismissed manually. Errors announce assertively (`aria-live="assertive"`,
  * `role="alert"`); the rest announce politely (`role="status"`). New toasts
@@ -40,8 +40,11 @@ import {
  * Su microcopia sale del diccionario, sección `Notification` (ADR 0136), que ya tenía las dos claves
  * con esa intención: el nombre de la región (`Notification.Aria.List`) y el botón de descartar
  * (`Notification.Dismiss`).
+ *
+ * `neutral` (CMS#192, caso 7): un aviso sin severidad —«guardamos tu borrador»—, en el gris del
+ * tema y con una campana. `DTSelectToastType` lo ofrecía y el elemento lo pintaba como `info`.
  */
-export type ToastVariant = 'info' | 'success' | 'warning' | 'error';
+export type ToastVariant = 'info' | 'success' | 'warning' | 'error' | 'neutral';
 export type ToastPosition =
   | 'top-start'
   | 'top-end'
@@ -72,7 +75,7 @@ export interface ToastDismissDetail {
   readonly variant: ToastVariant;
 }
 
-const TOAST_VARIANTS: readonly ToastVariant[] = ['info', 'success', 'warning', 'error'];
+const TOAST_VARIANTS: readonly ToastVariant[] = ['info', 'success', 'warning', 'error', 'neutral'];
 const TOAST_POSITIONS: readonly ToastPosition[] = [
   'top-start',
   'top-end',
