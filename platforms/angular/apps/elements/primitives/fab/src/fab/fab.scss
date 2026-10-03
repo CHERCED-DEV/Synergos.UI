@@ -34,6 +34,19 @@
   inset-inline-start: var(--fab-edge);
 }
 
+// Centradas (CMS#192, caso 21): el editor las podía elegir y caían abajo a la derecha.
+:host([data-position='bottom-center']) {
+  inset-block-end: var(--fab-edge);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+}
+
+:host([data-position='top-center']) {
+  inset-block-start: var(--fab-edge);
+  inset-inline-start: 50%;
+  translate: -50% 0;
+}
+
 .fab {
   position: relative;
   display: inline-flex;

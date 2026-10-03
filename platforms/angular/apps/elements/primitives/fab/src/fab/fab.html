@@ -14,14 +14,16 @@
       (keydown)="onKeydown($event)"
     >
       <svg class="fab__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          [attr.d]="iconPath()"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
+        @for (d of iconPaths(); track $index) {
+          <path
+            [attr.d]="d"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        }
       </svg>
     </a>
   } @else {
@@ -36,14 +38,16 @@
       (keydown)="onKeydown($event)"
     >
       <svg class="fab__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          [attr.d]="iconPath()"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
+        @for (d of iconPaths(); track $index) {
+          <path
+            [attr.d]="d"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        }
       </svg>
     </button>
   }

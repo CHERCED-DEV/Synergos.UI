@@ -24,7 +24,7 @@ describe('FabElementComponent', () => {
     expect(component.position()).toBe('bottom-right');
     expect(component.hasTooltip()).toBe(false);
     expect(component.isLink()).toBe(false);
-    expect(component.iconPath().length).toBeGreaterThan(0);
+    expect(component.iconPaths().length).toBeGreaterThan(0);
   });
 
   it('should resolve icon, position, link and tooltip from config (render+config case)', async () => {
@@ -69,13 +69,13 @@ describe('FabElementComponent', () => {
   it('should let direct inputs override config and reject invalid position (idempotent precedence)', async () => {
     fixture.componentRef.setInput(
       'config',
-      '{"iconKey":"chat","position":"weird-corner","label":"Config label"}',
+      '{"iconKey":"phone","position":"weird-corner","label":"Config label"}',
     );
     fixture.componentRef.setInput('label', 'Input label');
     fixture.detectChanges();
     await fixture.whenStable();
 
-    expect(component.iconKey()).toBe('chat');
+    expect(component.iconKey()).toBe('phone');
     expect(component.position()).toBe('bottom-right');
     expect(component.label()).toBe('Input label');
 
@@ -84,6 +84,30 @@ describe('FabElementComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.label()).toBe('Input label');
+  });
+
+  // CMS#192, caso 25: el icono es del set del design system y el editor elige de esa lista. Un
+  // nombre que el set no tiene no viaja (el saneador lo cierra) y el botón conserva el suyo.
+  it('pinta el icono del set por su nombre y uno que el set no tiene cae al de por defecto', async () => {
+    fixture.componentRef.setInput('config', '{"iconKey":"shopping-cart"}');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.iconKey()).toBe('shopping-cart');
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('svg.fab__icon path').length).toBe(3);
+
+    fixture.componentRef.setInput('config', '{"iconKey":"whatsapp"}');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.iconKey()).toBe('plus');
+  });
+
+  // CMS#192, caso 21: las dos centradas se podían elegir y caían abajo a la derecha.
+  it('acepta las posiciones centradas', async () => {
+    fixture.componentRef.setInput('position', 'top-center');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.position()).toBe('top-center');
+    expect((fixture.nativeElement as HTMLElement).getAttribute('data-position')).toBe('top-center');
   });
 
   // D1: con `actionUrl`/`ariaLabel` —lo que mandaba la vista— el botón no llevaba a ningún sitio

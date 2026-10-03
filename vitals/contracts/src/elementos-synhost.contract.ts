@@ -1301,6 +1301,222 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   listas: {},
   selectores: [
     {
+      "propiedad": "iconKey",
+      "dataType": "DTSelectIcono",
+      "multiple": false,
+      "campo": "iconKey",
+      "valores": [
+        {
+          "editor": "alert-circle",
+          "viaja": "alert-circle"
+        },
+        {
+          "editor": "alert-triangle",
+          "viaja": "alert-triangle"
+        },
+        {
+          "editor": "arrow-down",
+          "viaja": "arrow-down"
+        },
+        {
+          "editor": "arrow-left",
+          "viaja": "arrow-left"
+        },
+        {
+          "editor": "arrow-right",
+          "viaja": "arrow-right"
+        },
+        {
+          "editor": "arrow-up",
+          "viaja": "arrow-up"
+        },
+        {
+          "editor": "award",
+          "viaja": "award"
+        },
+        {
+          "editor": "bell",
+          "viaja": "bell"
+        },
+        {
+          "editor": "calendar",
+          "viaja": "calendar"
+        },
+        {
+          "editor": "check",
+          "viaja": "check"
+        },
+        {
+          "editor": "check-circle",
+          "viaja": "check-circle"
+        },
+        {
+          "editor": "chevron-down",
+          "viaja": "chevron-down"
+        },
+        {
+          "editor": "chevron-left",
+          "viaja": "chevron-left"
+        },
+        {
+          "editor": "chevron-right",
+          "viaja": "chevron-right"
+        },
+        {
+          "editor": "chevron-up",
+          "viaja": "chevron-up"
+        },
+        {
+          "editor": "clock",
+          "viaja": "clock"
+        },
+        {
+          "editor": "credit-card",
+          "viaja": "credit-card"
+        },
+        {
+          "editor": "download",
+          "viaja": "download"
+        },
+        {
+          "editor": "edit",
+          "viaja": "edit"
+        },
+        {
+          "editor": "external-link",
+          "viaja": "external-link"
+        },
+        {
+          "editor": "eye",
+          "viaja": "eye"
+        },
+        {
+          "editor": "file-text",
+          "viaja": "file-text"
+        },
+        {
+          "editor": "gift",
+          "viaja": "gift"
+        },
+        {
+          "editor": "globe",
+          "viaja": "globe"
+        },
+        {
+          "editor": "heart",
+          "viaja": "heart"
+        },
+        {
+          "editor": "help-circle",
+          "viaja": "help-circle"
+        },
+        {
+          "editor": "home",
+          "viaja": "home"
+        },
+        {
+          "editor": "image",
+          "viaja": "image"
+        },
+        {
+          "editor": "info",
+          "viaja": "info"
+        },
+        {
+          "editor": "lock",
+          "viaja": "lock"
+        },
+        {
+          "editor": "mail",
+          "viaja": "mail"
+        },
+        {
+          "editor": "map-pin",
+          "viaja": "map-pin"
+        },
+        {
+          "editor": "menu",
+          "viaja": "menu"
+        },
+        {
+          "editor": "message",
+          "viaja": "message"
+        },
+        {
+          "editor": "minus",
+          "viaja": "minus"
+        },
+        {
+          "editor": "phone",
+          "viaja": "phone"
+        },
+        {
+          "editor": "play",
+          "viaja": "play"
+        },
+        {
+          "editor": "plus",
+          "viaja": "plus"
+        },
+        {
+          "editor": "search",
+          "viaja": "search"
+        },
+        {
+          "editor": "settings",
+          "viaja": "settings"
+        },
+        {
+          "editor": "shield-check",
+          "viaja": "shield-check"
+        },
+        {
+          "editor": "shopping-cart",
+          "viaja": "shopping-cart"
+        },
+        {
+          "editor": "star",
+          "viaja": "star"
+        },
+        {
+          "editor": "tag",
+          "viaja": "tag"
+        },
+        {
+          "editor": "trash",
+          "viaja": "trash"
+        },
+        {
+          "editor": "truck",
+          "viaja": "truck"
+        },
+        {
+          "editor": "upload",
+          "viaja": "upload"
+        },
+        {
+          "editor": "user",
+          "viaja": "user"
+        },
+        {
+          "editor": "users",
+          "viaja": "users"
+        },
+        {
+          "editor": "x",
+          "viaja": "x"
+        },
+        {
+          "editor": "x-circle",
+          "viaja": "x-circle"
+        },
+        {
+          "editor": "zap",
+          "viaja": "zap"
+        }
+      ]
+    },
+    {
       "propiedad": "position",
       "dataType": "DTSelectScreenPosition",
       "multiple": false,
@@ -1335,7 +1551,7 @@ export const FAB_SYNHOST: ElementoSynHost<FabProps> = {
   ],
   ejemplo: {
     "culture": "es-CO",
-    "iconKey": "whatsapp",
+    "iconKey": "message",
     "actionLink": "https://wa.me/573001234567",
     "target": "_blank",
     "position": "bottom-left",
@@ -1534,6 +1750,10 @@ export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
           "viaja": "heart"
         },
         {
+          "editor": "help-circle",
+          "viaja": "help-circle"
+        },
+        {
           "editor": "home",
           "viaja": "home"
         },
@@ -1560,6 +1780,10 @@ export const ICON_LABEL_SYNHOST: ElementoSynHost<IconLabelProps> = {
         {
           "editor": "menu",
           "viaja": "menu"
+        },
+        {
+          "editor": "message",
+          "viaja": "message"
         },
         {
           "editor": "minus",

@@ -11,6 +11,8 @@ import {
   coerceStringEnumInput,
   coerceTrimmedStringInput,
   createConfigInputTransform,
+  NOMBRES_DE_ICONO,
+  trazosDeIcono,
   omitUndefinedProperties,
   resolveConfigValue,
 } from '@synergos/shared';
@@ -36,32 +38,26 @@ export interface FabActivateDetail {
   readonly actionLink: string;
 }
 
-type FabCorner = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+type FabCorner =
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'top-right'
+  | 'top-left'
+  | 'top-center';
 
 const DEFAULT_POSITION: FabCorner = 'bottom-right';
 const VALID_POSITIONS: readonly FabCorner[] = [
   'bottom-right',
   'bottom-left',
+  'bottom-center',
   'top-right',
   'top-left',
+  'top-center',
 ];
 
 const DEFAULT_ICON = 'plus';
 
-/** Inline SVG path data, keyed by icon name. Keeps the primitive self-contained. */
-const ICON_PATHS: Readonly<Record<string, string>> = {
-  plus: 'M12 5v14M5 12h14',
-  message: 'M21 11.5a8.38 8.38 0 0 1-8.5 8.5 9 9 0 0 1-4-1L3 20l1-4.5a8.5 8.5 0 1 1 17-4Z',
-  phone:
-    'M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z',
-  chat: 'M21 11.5a8.38 8.38 0 0 1-8.5 8.5 9 9 0 0 1-4-1L3 20l1-4.5a8.5 8.5 0 1 1 17-4Z',
-  arrow_up: 'M12 19V5M5 12l7-7 7 7',
-  cart: 'M6 6h15l-1.5 9h-12L5 3H2M6 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm12 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
-  help: 'M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
-  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z',
-  whatsapp:
-    'M21 11.5a8.38 8.38 0 0 1-8.5 8.5 9 9 0 0 1-4-1L3 20l1-4.5a8.5 8.5 0 1 1 17-4Z',
-};
 
 function isExternalTarget(href: string): boolean {
   return /^https?:\/\//i.test(href) || href.startsWith('//');
@@ -70,7 +66,8 @@ function isExternalTarget(href: string): boolean {
 /** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
 export function sanitizeFabConfig(value: Partial<FabProps>): Partial<FabProps> {
   return omitUndefinedProperties<FabProps>({
-    iconKey: coerceTrimmedStringInput(value.iconKey),
+    // El icono es del set del design system (CMS#192, caso 25): el editor elige de DT.Select.Icono.
+    iconKey: coerceStringEnumInput(value.iconKey, NOMBRES_DE_ICONO),
     actionLink: coerceTrimmedStringInput(value.actionLink),
     target: coerceTrimmedStringInput(value.target),
     position: coerceStringEnumInput(value.position, VALID_POSITIONS),
@@ -109,11 +106,18 @@ export class FabElementComponent {
   readonly tooltipOpen = this.#tooltipOpen.asReadonly();
 
   readonly iconKey = computed(() =>
-    resolveConfigValue(this.iconKeyInput(), this.config()?.iconKey, DEFAULT_ICON),
+    resolveConfigValue(
+      coerceStringEnumInput(this.iconKeyInput(), NOMBRES_DE_ICONO),
+      this.config()?.iconKey,
+      DEFAULT_ICON,
+    ),
   );
 
-  /** Resolved SVG path, falling back to the default glyph for unknown keys. */
-  readonly iconPath = computed(() => ICON_PATHS[this.iconKey()] ?? ICON_PATHS[DEFAULT_ICON]);
+  /**
+   * Los trazos del icono, del set del design system (UI#89): una sola fuente para todos los
+   * elementos. Antes `fab` tenía su mapa privado de nueve iconos.
+   */
+  readonly iconPaths = computed(() => trazosDeIcono(this.iconKey()) ?? trazosDeIcono(DEFAULT_ICON) ?? []);
 
   readonly actionLink = computed(() =>
     resolveConfigValue(this.actionLinkInput(), this.config()?.actionLink, ''),

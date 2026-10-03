@@ -7,13 +7,6 @@
       ],
       "falta": []
     },
-    "fab.position": {
-      "sobra": [
-        "bottom-center",
-        "top-center"
-      ],
-      "falta": []
-    },
     "notification-toast.type": {
       "sobra": [
         "neutral"
