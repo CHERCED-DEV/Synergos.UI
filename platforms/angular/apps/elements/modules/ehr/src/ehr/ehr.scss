@@ -240,6 +240,29 @@
     }
   }
 
+  /* ─── Acceso negado por el servidor (#197) ──────────────────────────────── */
+  /* Contenedor del estado vacío que explica la negativa. Recibe el foco al aparecer
+     (`tabindex="-1"`): el anillo se ve sólo si el foco llegó por teclado. */
+  &__access {
+    border-radius: syn.$radius-md;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: syn.px-to-rem(2) solid var(--eh-focus-ring);
+      outline-offset: syn.px-to-rem(2);
+    }
+  }
+
+  &__provider-pick {
+    display: flex;
+    flex-direction: column;
+    gap: syn.$space-2;
+    max-width: syn.px-to-rem(480);
+  }
+
   /* ─── Lectura que falló (#106) ───────────────────────────────────────────── */
   /* No es un empty-state: un empty-state dice «todavía no hay», y esto dice «no lo
      pudimos leer». La diferencia es la que separa «no tienes alergias» de «no sabemos

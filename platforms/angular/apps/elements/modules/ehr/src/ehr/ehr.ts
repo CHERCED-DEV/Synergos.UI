@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   type OnInit,
+  type ElementRef,
   computed,
   effect,
   inject,
@@ -11,6 +12,7 @@ import {
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   FulfillmentContext,
@@ -46,11 +48,12 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import type { EhrProps } from '@synergos/contracts';
-import { EhrApiClient } from './ehr-api.client';
+import { EhrApiClient, isEhrAccesoDenegado } from './ehr-api.client';
 import { EHR_FLOW } from './ehr-fulfillment.strategy';
 import {
   type Appointment,
   type BillingStatement,
+  type EhrAcceso,
   type ChartTab,
   type ClinicalAlert,
   type Doctor,
@@ -121,7 +124,8 @@ const DEFAULT_SCOPE = 'ehr';
 const CITA_NO_AGENDADA = 'No pudimos agendar la cita: el hueco NO quedó apartado. Vuelve a intentarlo.';
 
 const DEFAULT_ROLE: EhrRole = 'patient';
-const DEFAULT_PATIENT = 'P-1';
+/** El login del sitio, con la vuelta a ESTA página (el mismo de gov, blogs y realty). */
+const LOGIN_PATH = '/account/login';
 const SESSION_TTL_MS = 30 * 60 * 1000;
 
 const ROLES: readonly { key: EhrRole; label: string; portal: EhrPortal }[] = [
@@ -190,8 +194,9 @@ const SCHEDULE_MODES: readonly { readonly value: ScheduleMode; readonly label: s
  * `config` real de la vista.
  */
 export function sanitizeEhrConfig(value: EhrConfig): EhrConfig {
+  // Sin `patient` (CMS#197): el paciente ya no lo elige el editor —ni un `P-1` del componente—,
+  // lo resuelve el servidor por la sesión del miembro.
   return omitUndefinedProperties<EhrProps>({
-    patient: coerceTrimmedStringInput(value.patient),
     apiBase: coerceTrimmedStringInput(value.apiBase),
   });
 }
@@ -245,7 +250,6 @@ export class EhrElementComponent implements OnInit {
   readonly clinicInput = input<string | undefined>(undefined, { alias: 'clinic' });
   readonly scopeInput = input<string | undefined>(undefined, { alias: 'scope' });
   readonly roleInput = input<string | undefined>(undefined, { alias: 'role' });
-  readonly patientInput = input<string | undefined>(undefined, { alias: 'patient' });
 
   /**
    * Dónde vive la API. Sin ella no se llama a nada y cada vista degrada a su muestra, visible:
@@ -266,9 +270,13 @@ export class EhrElementComponent implements OnInit {
   readonly initialRole = computed<EhrRole>(() =>
     resolveConfigValue(coerceRole(this.roleInput()), undefined, DEFAULT_ROLE),
   );
-  readonly patientId = computed(() =>
-    resolveConfigValue(coerceTrimmedStringInput(this.patientInput()), this.config()?.patient, DEFAULT_PATIENT),
-  );
+  /**
+   * El paciente del portal: el de la historia vinculada a la SESIÓN, tal como lo devuelve
+   * `portal/home` (CMS#197). Era un atributo `patient` —el del editor, o `P-1` por defecto— que
+   * viajaba en `?patient=`: cualquiera leía la historia de cualquiera cambiando el atributo.
+   * Vacío mientras el servidor no lo dijo; nunca uno de demo.
+   */
+  readonly patientId = computed(() => this.home()?.patient.id ?? '');
   /**
    * El copago de una consulta, de la MISMA fuente que lo cobra al agendar (CMS#196). Era
    * `DEFAULT_COPAY_MINOR = 0` y la pantalla decía «Sin costo» mientras el servidor capturaba 80.000.
@@ -335,14 +343,42 @@ export class EhrElementComponent implements OnInit {
   readonly liveConflict = this.#store.liveSessionConflict;
   #suppressedHash = '';
   /**
-   * The patient identity the portal data was last loaded for. In Angular Elements
-   * the `config`/`patient` attribute→input lands AFTER the constructor runs, so the
-   * first `patientId()` read is the default (`P-1`). The identity `effect()` below
-   * reacts once the real id arrives, invalidates the per-view `*Loaded` flags and
-   * reloads the CURRENT view — so deep-links (`#/ehr/resultados`) rehydrate too.
-   * Sentinel `''` means "nothing loaded yet" (never equals a resolved id).
+   * La base de la API con la que se cargó por última vez. En Angular Elements el `config`
+   * del CMS —que la trae— se aplica DESPUÉS del constructor, así que el effect de carga
+   * reacciona a ella: recarga la vista ACTUAL —los enlaces profundos también— cuando llega
+   * o cambia. `null` es «no se cargó nada todavía» (nunca igual a una base resuelta, ni a la
+   * vacía). Antes reaccionaba al `patient` del editor, que #197 retiró.
    */
-  #lastLoadedPatient = '';
+  #lastLoadedBase: string | null = null;
+
+  // ─── Quién mira: lo que contestó el SERVIDOR (CMS#197) ───────────────────────
+  /**
+   * Si el portal del paciente se puede abrir: la historia vinculada al correo del miembro.
+   * `sin-sesion` (401) pide iniciar sesión; `sin-historia` (404 con `{ error }`) es un estado
+   * vacío —la cuenta no tiene historia—, no un error. **Ninguno cae a datos de demostración**:
+   * se degrada por AUSENCIA, nunca por NEGACIÓN (ADR 0112).
+   */
+  readonly portalAccess = signal<EhrAcceso>('ok');
+  /** Si la superficie clínica se puede abrir: `sin-sesion` (401) o `sin-permiso` (403, sin rol). */
+  readonly clinicAccess = signal<EhrAcceso>('ok');
+  /** El acceso de la superficie que se está mirando: lo que decide si se pinta el panel. */
+  readonly access = computed<EhrAcceso>(() =>
+    this.portal() === 'patient' ? this.portalAccess() : this.clinicAccess(),
+  );
+  /**
+   * La bandeja clínica pidió de QUÉ médico es (#197): quien mira es clínico sin médico
+   * vinculado —enfermería, admin, o el directorio de demo, sin correos—. Se elige en la
+   * propia bandeja; vacío hasta que se elige.
+   */
+  readonly inboxNeedsProvider = signal(false);
+  readonly inboxProvider = signal('');
+  /** Contenedor del panel de acceso: se enfoca al aparecer, como en realty (WCAG 2.4.3). */
+  readonly accessPanel = viewChild<ElementRef<HTMLElement>>('accessPanel');
+  /**
+   * «Al usuario acaban de negarle algo; enfoca el panel en cuanto exista.» Latch de una sola
+   * vez: un `effect` sobre el acceso le robaría el foco en cada re-render.
+   */
+  readonly #accessFocusPending = signal(false);
 
   /** Only clinicians (doctor / nurse) may author encounters, e-Rx and release results. */
   readonly canClinicalWrite = computed(() => this.role() === 'doctor' || this.role() === 'nurse');
@@ -828,21 +864,60 @@ export class EhrElementComponent implements OnInit {
       }
     });
 
-    // Identity effect: reacts to the resolved `patientId()`. In Angular Elements the
-    // real id lands AFTER construction, so this fires first with the default and then
-    // again with the CMS-supplied id (`config.patient`), re-fetching against the true
-    // identity. Guarded by `#lastLoadedPatient` so it never loops or re-loads when the
-    // id is unchanged (e.g. an unrelated signal read elsewhere).
+    // Effect de carga: reacciona a la base de la API, que en Angular Elements llega DESPUÉS
+    // del constructor con el `config` del CMS. Guardado por `#lastLoadedBase` para no
+    // recargar con la misma base. La identidad ya no es un input: la pone la sesión (#197).
     effect(() => {
-      const patient = this.patientId();
-      if (patient === this.#lastLoadedPatient) {
+      const base = this.apiBase();
+      if (base === this.#lastLoadedBase) {
         return;
       }
-      this.#lastLoadedPatient = patient;
-      // Only `patientId()` is a dependency — the reload reads/writes many other
-      // signals, so keep them out of this effect's dependency graph.
+      this.#lastLoadedBase = base;
+      // Sólo `apiBase()` es dependencia — la recarga lee y escribe muchas otras señales.
       untracked(() => this.reloadForIdentity());
     });
+
+    // WCAG 2.4.3: el panel de acceso está tras un `@if`, así que cuando una negativa pide el
+    // foco todavía no existe. Este effect reúne las dos señales y apaga el latch al enfocar.
+    effect(() => {
+      const panel = this.accessPanel();
+      if (!this.#accessFocusPending() || !panel) {
+        return;
+      }
+      this.#accessFocusPending.set(false);
+      // El CONTENEDOR, no el botón: así el lector lee el porqué antes que las acciones.
+      panel.nativeElement.focus();
+    });
+  }
+
+  /**
+   * Una NEGATIVA del servidor (CMS#197) pasa a ser el estado de su superficie, y no una lectura
+   * fallida: no se dice «no pudimos cargar», no se ofrece reintentar y no se pinta nada de
+   * nadie. Devuelve `true` si era una negativa (y ya quedó tratada).
+   *
+   * `sin-medico` no cierra la superficie: es la bandeja clínica pidiendo de qué médico es.
+   */
+  private negado(error: unknown, superficie: 'portal' | 'clinica'): boolean {
+    if (!isEhrAccesoDenegado(error)) {
+      return false;
+    }
+    this.errorMessage.set('');
+    if (error.motivo === 'sin-medico') {
+      this.inboxNeedsProvider.set(true);
+      return true;
+    }
+    (superficie === 'portal' ? this.portalAccess : this.clinicAccess).set(error.motivo);
+    this.#accessFocusPending.set(true);
+    return true;
+  }
+
+  /** El login del sitio con la vuelta a ESTA página. Método: el hash cambia al navegar. */
+  loginUrl(): string {
+    if (typeof window === 'undefined') {
+      return LOGIN_PATH;
+    }
+    const here = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    return `${LOGIN_PATH}?returnUrl=${encodeURIComponent(here)}`;
   }
 
   /**
@@ -864,10 +939,12 @@ export class EhrElementComponent implements OnInit {
    * not the patient scope) is only reset when we're actually in the clinician portal.
    */
   private reloadForIdentity(): void {
-    // Fresh round for the new identity: a read that failed for the first-tick default
-    // (`P-1`) says nothing about the real `config.patient`, so its failure mark is
-    // cleared here and re-latches only if THIS round fails too.
+    // Ronda nueva: lo que falló o se negó con la base anterior no dice nada de ésta, así que
+    // las marcas se limpian y sólo vuelven si ESTA ronda falla o se niega también.
     this.#unavailable.set(new Set());
+    this.portalAccess.set('ok');
+    this.clinicAccess.set('ok');
+    this.inboxNeedsProvider.set(false);
     // Patient-scoped caches — always stale when the identity changes.
     this.homeLoaded.set(false);
     this.appointmentsLoaded.set(false);
@@ -947,37 +1024,37 @@ export class EhrElementComponent implements OnInit {
       case 'visits':
         this.visitsSection.set('upcoming');
         if (!this.appointmentsLoaded()) {
-          void this.loadMyAppointments();
+          void this.conElPaciente(() => this.loadMyAppointments());
         }
         return;
       case 'schedule':
-        void this.ensureDoctors();
+        void this.conElPaciente(() => this.ensureDoctors());
         this.#store.reset();
         return;
       case 'results':
         if (!this.resultsLoaded()) {
-          void this.loadResults();
+          void this.conElPaciente(() => this.loadResults());
         }
         return;
       case 'medications':
         if (!this.medsLoaded()) {
-          void this.loadMedications();
+          void this.conElPaciente(() => this.loadMedications());
         }
         return;
       case 'health':
         this.healthTab.set('conditions');
         if (!this.healthLoaded()) {
-          void this.loadHealth();
+          void this.conElPaciente(() => this.loadHealth());
         }
         return;
       case 'billing':
         if (!this.billingLoaded()) {
-          void this.loadBilling();
+          void this.conElPaciente(() => this.loadBilling());
         }
         return;
       case 'messages':
         if (!this.threadsLoaded()) {
-          void this.loadThreads();
+          void this.conElPaciente(() => this.loadThreads());
         }
         return;
       case 'board':
@@ -1110,18 +1187,37 @@ export class EhrElementComponent implements OnInit {
   }
 
   // ─── PATIENT · home feed ─────────────────────────────────────────────────────
+  /**
+   * El portal abre con su IDENTIDAD (CMS#197): `portal/home` dice de quién es —y si hay sesión
+   * e historia vinculada— antes que cualquier otra lectura del paciente, y su `patient.id` es
+   * el único id de paciente que esta app usa. Si el servidor niega, la vista no se pide: se
+   * pinta el panel de acceso. Una caída de red NO cierra el paso (eso es ausencia, no negativa).
+   */
+  private async conElPaciente(cargar: () => Promise<void>): Promise<void> {
+    if (!this.homeLoaded() && this.portalAccess() === 'ok') {
+      await this.loadHome();
+    }
+    if (this.portalAccess() !== 'ok') {
+      return;
+    }
+    await cargar();
+  }
+
   private async loadHome(): Promise<void> {
     this.loading.set(true);
     this.errorMessage.set('');
     try {
-      const home = await this.#orchestrator.callApi(`home:${this.patientId()}`, () =>
-        this.#api.portalHome(this.apiBase(), this.patientId()),
+      const home = await this.#orchestrator.callApi(`portal-home:${this.apiBase()}`, () =>
+        this.#api.portalHome(this.apiBase()),
       );
       this.home.set(home);
       this.homeLoaded.set(true);
       this.markRead('home', true);
     } catch (error) {
       this.home.set(null);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('home', false);
       this.errorMessage.set('No pudimos cargar tu portal. Intenta de nuevo.');
       void error;
@@ -1137,26 +1233,27 @@ export class EhrElementComponent implements OnInit {
   }
 
   // ─── PATIENT · my appointments ───────────────────────────────────────────────
+  /**
+   * Las citas del paciente: la próxima, que trae `portal/home` del paciente de la SESIÓN.
+   *
+   * Antes completaba la lista con `GET /appointments` filtrado en el navegador por el
+   * `patientId` de la página —la agenda de TODOS los pacientes de la clínica, bajada a la
+   * página de uno—. Desde #197 esa ruta es de la superficie clínica (rol) y un paciente recibe
+   * 403; el portal no tiene, hoy, una lista propia de citas pasadas.
+   */
   private async loadMyAppointments(): Promise<void> {
     this.loading.set(true);
     try {
-      const home = this.home() ?? (await this.#api.portalHome(this.apiBase(), this.patientId()));
-      const list: Appointment[] = [];
-      if (home.nextAppointment) {
-        list.push(home.nextAppointment);
-      }
-      // Reuse the appointments endpoint for the patient's history (scoped client-side).
-      const appts = await this.#api.appointments(this.apiBase(), new Date().toISOString().slice(0, 10));
-      for (const appt of appts) {
-        if (appt.patientId === this.patientId() && !list.some((entry) => entry.id === appt.id)) {
-          list.push(appt);
-        }
-      }
+      const home = this.home() ?? (await this.#api.portalHome(this.apiBase()));
+      const list: Appointment[] = home.nextAppointment ? [home.nextAppointment] : [];
       this.myAppointments.set(list);
       this.appointmentsLoaded.set(true);
       this.markRead('appointments', true);
     } catch (error) {
       this.myAppointments.set([]);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('appointments', false);
       this.errorMessage.set('No pudimos cargar tus citas.');
       void error;
@@ -1235,12 +1332,15 @@ export class EhrElementComponent implements OnInit {
   private async loadResults(): Promise<void> {
     this.loading.set(true);
     try {
-      const results = await this.#api.results(this.apiBase(), this.patientId());
+      const results = await this.#api.results(this.apiBase());
       this.results.set(results);
       this.resultsLoaded.set(true);
       this.markRead('results', true);
     } catch (error) {
       this.results.set([]);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('results', false);
       this.errorMessage.set('No pudimos cargar tus resultados.');
       void error;
@@ -1277,12 +1377,15 @@ export class EhrElementComponent implements OnInit {
   private async loadMedications(): Promise<void> {
     this.loading.set(true);
     try {
-      const meds = await this.#api.medications(this.apiBase(), this.patientId());
+      const meds = await this.#api.medications(this.apiBase());
       this.medications.set(meds);
       this.medsLoaded.set(true);
       this.markRead('medications', true);
     } catch (error) {
       this.medications.set([]);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('medications', false);
       this.errorMessage.set('No pudimos cargar tus medicamentos.');
       void error;
@@ -1309,11 +1412,16 @@ export class EhrElementComponent implements OnInit {
     const payload = { medicationId: medication.id, patientId: this.patientId() };
     this.refillrequested.emit(payload);
     this.#bus.publish('refillrequested', payload);
+    // Sin `patientId` en el cuerpo (#197): el servidor pide la renovación para el paciente
+    // de la sesión; el del evento es el que devolvió `portal/home`.
     void this.#api
-      .requestRefill(this.apiBase(), payload)
+      .requestRefill(this.apiBase(), { medicationId: medication.id })
       .then((status) => this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: status })))
       .catch((error) => {
         this.patchMedication(medication.id, (med) => ({ ...med, refillStatus: previo }));
+        if (this.negado(error, 'portal')) {
+          return;
+        }
         this.errorMessage.set(
           'No pudimos enviar tu solicitud de renovación: NO quedó registrada. Intenta de nuevo.',
         );
@@ -1342,12 +1450,15 @@ export class EhrElementComponent implements OnInit {
   private async loadHealth(): Promise<void> {
     this.loading.set(true);
     try {
-      const summary = await this.#api.healthSummary(this.apiBase(), this.patientId());
+      const summary = await this.#api.healthSummary(this.apiBase());
       this.healthSummary.set(summary);
       this.healthLoaded.set(true);
       this.markRead('health', true);
     } catch (error) {
       this.healthSummary.set(null);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('health', false);
       this.errorMessage.set('No pudimos cargar tu resumen de salud.');
       void error;
@@ -1400,12 +1511,16 @@ export class EhrElementComponent implements OnInit {
   private async loadBilling(): Promise<void> {
     this.loading.set(true);
     try {
-      const statement = await this.#api.billing(this.apiBase(), this.patientId());
+      // `null` es «tu historia no tiene estado de cuenta» (#197): vacío, no ilegible.
+      const statement = await this.#api.billing(this.apiBase());
       this.billing.set(statement);
       this.billingLoaded.set(true);
       this.markRead('billing', true);
     } catch (error) {
       this.billing.set(null);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('billing', false);
       this.errorMessage.set('No pudimos cargar tu facturación.');
       void error;
@@ -1562,7 +1677,8 @@ export class EhrElementComponent implements OnInit {
     this.confirmedAppointmentRef.set(voucher?.reference ?? result.reference);
     const appointment: Appointment = {
       id: voucher?.reference ?? result.reference,
-      patientId: this.patientId(),
+      // A quién agendó el SERVIDOR (#197): el de la sesión, no el que la página creía.
+      patientId: texto('patientId') || this.patientId(),
       patientName: texto('patientName') || this.home()?.patient.name || 'Paciente',
       doctorId: texto('doctorId') || this.scheduleDoctorId(),
       doctorName: texto('doctorName'),
@@ -1590,14 +1706,17 @@ export class EhrElementComponent implements OnInit {
   private async loadThreads(): Promise<void> {
     this.loading.set(true);
     try {
-      const user = this.portal() === 'patient' ? this.patientId() : this.role();
-      const threads = await this.#api.messages(this.apiBase(), user);
+      // Sin `?user=` (#197): los hilos son los de quien está en la sesión.
+      const threads = await this.#api.messages(this.apiBase());
       this.threads.set(threads);
       this.threadsLoaded.set(true);
       this.markRead('threads', true);
     } catch (error) {
       this.threads.set([]);
       this.activeThread.set(null);
+      if (this.negado(error, 'portal')) {
+        return;
+      }
       this.markRead('threads', false);
       this.errorMessage.set('No pudimos cargar tus mensajes.');
       void error;
@@ -1635,9 +1754,12 @@ export class EhrElementComponent implements OnInit {
     }));
     this.sendingMessage.set(true);
     void this.#api
-      .sendMessage(this.apiBase(), { threadId, body, user: this.patientId() })
+      .sendMessage(this.apiBase(), { threadId, body })
       .catch((error) => {
         this.markMessageFailed(threadId, local.id);
+        if (this.negado(error, 'portal')) {
+          return;
+        }
         this.errorMessage.set('Tu mensaje NO se envió. Queda en el hilo para reintentarlo.');
         void error;
       })
@@ -1669,11 +1791,7 @@ export class EhrElementComponent implements OnInit {
     }
     this.sendingMessage.set(true);
     void this.#api
-      .sendMessage(this.apiBase(), {
-        threadId: thread.id,
-        body: message.body,
-        user: this.patientId(),
-      })
+      .sendMessage(this.apiBase(), { threadId: thread.id, body: message.body })
       .then(() => {
         this.patchThread(thread.id, (entry) => ({
           ...entry,
@@ -1684,6 +1802,9 @@ export class EhrElementComponent implements OnInit {
         this.errorMessage.set('');
       })
       .catch((error) => {
+        if (this.negado(error, 'portal')) {
+          return;
+        }
         this.errorMessage.set('Tu mensaje sigue sin enviarse. Queda en el hilo.');
         void error;
       })
@@ -1699,36 +1820,39 @@ export class EhrElementComponent implements OnInit {
   }
 
   // ─── CLINICIAN · schedule board ──────────────────────────────────────────────
+  /**
+   * La agenda del día y la lista de pacientes; la bandeja va APARTE (#197): puede pedir de qué
+   * médico es (`sin-medico`) sin que eso tumbe la agenda, que no depende de ello.
+   */
   private async loadBoard(): Promise<void> {
     this.loading.set(true);
     try {
-      const [board, patients, inbox] = await Promise.all([
+      const [board, patients] = await Promise.all([
         this.#orchestrator.callApi(`board:${this.boardDate()}`, () =>
           this.#api.schedule(this.apiBase(), this.boardDate()),
         ),
         this.#api.patients(this.apiBase(), ''),
-        this.#api.inbox(this.apiBase(), this.role()),
       ]);
       this.board.set(board);
       this.boardLoaded.set(true);
       this.patients.set(patients);
       this.patientsLoaded.set(true);
-      this.inbox.set(inbox);
-      this.inboxLoaded.set(true);
       this.markRead('board', true);
       this.markRead('patients', true);
-      this.markRead('inbox', true);
     } catch (error) {
       this.board.set([]);
       this.patients.set([]);
-      this.inbox.set([]);
+      if (this.negado(error, 'clinica')) {
+        return;
+      }
       this.markRead('board', false);
       this.markRead('patients', false);
-      this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar la agenda del día.');
-      void error;
     } finally {
       this.loading.set(false);
+    }
+    if (this.clinicAccess() === 'ok' && !this.inboxLoaded()) {
+      await this.leerBandeja();
     }
   }
 
@@ -1783,9 +1907,11 @@ export class EhrElementComponent implements OnInit {
       this.markRead('patients', true);
     } catch (error) {
       this.patients.set([]);
+      if (this.negado(error, 'clinica')) {
+        return;
+      }
       this.markRead('patients', false);
       this.errorMessage.set('No pudimos cargar los pacientes.');
-      void error;
     } finally {
       this.loading.set(false);
     }
@@ -1799,17 +1925,43 @@ export class EhrElementComponent implements OnInit {
   private async loadInbox(): Promise<void> {
     this.loading.set(true);
     try {
-      const inbox = await this.#api.inbox(this.apiBase(), this.role());
+      await this.leerBandeja();
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  /**
+   * Lee la bandeja del médico de la sesión, o la del que se eligió (`inboxProvider`). Antes
+   * mandaba el NOMBRE del rol (`'doctor'`) como `provider`, que no es el id de ningún médico:
+   * la bandeja salía vacía y se leía como «al día» (#197).
+   */
+  private async leerBandeja(): Promise<void> {
+    try {
+      const inbox = await this.#api.inbox(this.apiBase(), this.inboxProvider());
       this.inbox.set(inbox);
       this.inboxLoaded.set(true);
+      this.inboxNeedsProvider.set(false);
       this.markRead('inbox', true);
     } catch (error) {
       this.inbox.set([]);
+      if (this.negado(error, 'clinica')) {
+        if (this.inboxNeedsProvider()) {
+          void this.ensureDoctors();
+        }
+        return;
+      }
       this.markRead('inbox', false);
       this.errorMessage.set('No pudimos cargar el In Basket.');
-      void error;
-    } finally {
-      this.loading.set(false);
+    }
+  }
+
+  /** Quien mira eligió de qué médico es la bandeja (clínico sin médico vinculado, #197). */
+  chooseInboxProvider(doctorId: string): void {
+    this.inboxProvider.set(doctorId.trim());
+    this.inboxLoaded.set(false);
+    if (this.inboxProvider()) {
+      void this.loadInbox();
     }
   }
 
@@ -1912,9 +2064,11 @@ export class EhrElementComponent implements OnInit {
       // handed back patient zero's record under this id (#106).
       this.chart.set(null);
       this.view.set('chart');
+      if (this.negado(error, 'clinica')) {
+        return;
+      }
       this.markRead('chart', false);
       this.errorMessage.set('No pudimos abrir la ficha del paciente.');
-      void error;
     } finally {
       this.loading.set(false);
     }
@@ -2064,9 +2218,10 @@ export class EhrElementComponent implements OnInit {
       this.viewchange.emit('chart');
     } catch (error) {
       // El mensaje nombra lo que SÍ quedó: decirle «no pudimos guardar la nota» a
-      // quien ya la tiene guardada le invita a escribirla otra vez.
-      this.errorMessage.set(this.mensajeDeEscrituraFallida());
-      void error;
+      // quien ya la tiene guardada le invita a escribirla otra vez. Una NEGATIVA (#197) se
+      // dice como tal y en el mismo aviso: el formulario NO se cambia por el panel de
+      // acceso, porque lo tecleado tiene que seguir a la vista.
+      this.errorMessage.set(this.mensajeDeNegacion(error) ?? this.mensajeDeEscrituraFallida());
     } finally {
       this.loading.set(false);
     }
@@ -2081,6 +2236,17 @@ export class EhrElementComponent implements OnInit {
     this.notaGuardada.set(null);
     this.recetaEmitida.set(false);
     this.ordenCursada.set(false);
+  }
+
+  /** El aviso de una escritura NEGADA (#197), o `null` si fue otra cosa. */
+  private mensajeDeNegacion(error: unknown): string | null {
+    if (!isEhrAccesoDenegado(error)) {
+      return null;
+    }
+    const guardado = this.notaGuardada() ? ' Lo que ya quedó guardado no se repite.' : '';
+    return error.motivo === 'sin-sesion'
+      ? `Tu sesión no está activa: inicia sesión y reintenta. Tu texto sigue acá.${guardado}`
+      : `Tu cuenta no tiene permiso clínico para guardar esto. Tu texto sigue acá.${guardado}`;
   }
 
   private mensajeDeEscrituraFallida(): string {

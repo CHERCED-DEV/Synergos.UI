@@ -398,8 +398,6 @@ export interface DropdownProps {
 
 /** <synergos-ehr> · funcionalidad */
 export interface EhrProps {
-  /** sesion */
-  readonly patient?: string;
   /** negocio */
   readonly apiBase: string;
 }
@@ -1270,12 +1268,11 @@ export const EHR_SYNHOST: ElementoSynHost<EhrProps> = {
   record: "EhrProps",
   diccionario: [],
   claves: [],
-  campos: ["patient","apiBase"],
+  campos: ["apiBase"],
   listas: {},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
-    "patient": "pat-jorge-medina",
     "apiBase": "/api/ehr"
   },
 };

@@ -24,6 +24,22 @@ export type EhrPortal = 'patient' | 'clinician';
  */
 export type EhrRole = 'patient' | 'doctor' | 'nurse';
 
+/**
+ * Si quien mira puede entrar a una superficie, según lo que contestó el SERVIDOR (CMS#197).
+ *
+ * La identidad ya no la pone la página (`patient` del editor, `P-1` del componente): el
+ * portal es el de la historia vinculada al correo del miembro, y la clínica exige rol. Lo
+ * que el servidor niega no es una lectura que falló —no se reintenta ni se rellena—, es un
+ * estado con su pantalla:
+ *  - `ok`: entró (o todavía no se sabe).
+ *  - `sin-sesion` (401): hay que iniciar sesión.
+ *  - `sin-permiso` (403, sólo la clínica): la cuenta no tiene rol clínico; volver a entrar no
+ *    cambia nada.
+ *  - `sin-historia` (404 con su `{ error }`, sólo el portal): la cuenta no tiene una historia
+ *    clínica vinculada. Es un estado vacío, no un error.
+ */
+export type EhrAcceso = 'ok' | 'sin-sesion' | 'sin-permiso' | 'sin-historia';
+
 /** The high-level view / route the app is in (both portals, one hash router). */
 export type EhrView =
   // Patient (MyChart)

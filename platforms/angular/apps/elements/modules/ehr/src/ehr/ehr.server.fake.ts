@@ -21,11 +21,17 @@
  *    #106 — no hay seam de vacunación. Los specs que necesitan la clave la piden.
  *  - **`maintenance` llega SIN `status`**, por lo mismo: la recomendación se deriva de
  *    edad y sexo, el estado exigiría saber si la persona se lo hizo.
+ *  - **La historia la pone la SESIÓN, no la URL** (CMS#197). `?patient=` y `?user=` se
+ *    ignoran, como en el controlador: un falso que los obedeciera haría verde justo la UI
+ *    que manda el paciente de la página. Las negativas (401/403/404/400) llevan `{ error }`;
+ *    los `caidos`, no.
  */
 
 export interface FakeServerOptions {
   /**
-   * Fragmentos de ruta que contestan 404 — el `[DevSeedOnly]` apagado, por endpoint.
+   * Fragmentos de ruta que contestan 404 — el `[DevSeedOnly]` apagado, por endpoint. **Sin
+   * cuerpo**, como el `NotFoundResult` del filtro: un 404 CON `{ error }` es otra cosa —el
+   * servidor diciendo que la cuenta no tiene historia (#197)— y la UI tiene que distinguirlos.
    *
    * Un fragmento puede llevar MÉTODO delante (`'POST /encounter'`): así se apaga la
    * ESCRITURA dejando viva la lectura del mismo recurso, que es el apagón **parcial**
@@ -54,9 +60,31 @@ export interface FakeServerOptions {
    * servidor de verdad no cobra. `null` = el borde no lo sabe (503).
    */
   readonly copago?: number | null;
+  /**
+   * Quién está en la SESIÓN (CMS#197). El servidor de verdad resuelve la historia por el correo
+   * del miembro y la superficie clínica por su ROL, e ignora lo que diga el navegador
+   * (`?patient=`, `?user=`, `patientId` del refill, `user`/`from` del mensaje); este también.
+   * Por defecto, `MEDICA_CON_HISTORIA`: el miembro que abre las DOS superficies. `'anonimo'`
+   * contesta 401 en todo lo que no es público (`doctors`, `copay`).
+   */
+  readonly sesion?: FakeSession | 'anonimo';
+  /** `GET /billing` contesta 404 `{ error }`: hay historia, pero sin estado de cuenta. */
+  readonly sinEstadoDeCuenta?: boolean;
 }
 
-interface FakePatient {
+/** El miembro de la sesión, tal como lo ve el `EhrController`. */
+export interface FakeSession {
+  /** La historia vinculada a su correo; `null` = ninguna (404 `{ error }` en el portal). */
+  readonly paciente: FakePatient | null;
+  /**
+   * Su rol clínico: `'medico'` (con médico vinculado, `doc-mendez`), `'enfermeria'` (rol clínico
+   * SIN médico vinculado —como el directorio de demo, que no tiene correos—: la bandeja exige
+   * `provider`) o `null` (sin rol: 403 en la superficie clínica).
+   */
+  readonly clinico: 'medico' | 'enfermeria' | null;
+}
+
+export interface FakePatient {
   readonly id: string;
   readonly name: string;
   readonly document: string;
@@ -99,6 +127,18 @@ export const VALENTINA: FakePatient = {
 };
 
 const PACIENTES: readonly FakePatient[] = [MARIA, VALENTINA];
+
+/** Médica (`doc-mendez`) que además tiene su historia vinculada: abre el portal Y la clínica. */
+export const MEDICA_CON_HISTORIA: FakeSession = { paciente: MARIA, clinico: 'medico' };
+/** Paciente sin rol clínico: el portal abre; la clínica contesta 403. */
+export const SOLO_PACIENTE: FakeSession = { paciente: MARIA, clinico: null };
+/** Miembro sin historia ni rol: el portal contesta 404 `{ error }`; la clínica, 403. */
+export const SIN_HISTORIA: FakeSession = { paciente: null, clinico: null };
+/** Enfermería: rol clínico sin médico vinculado. La bandeja pide de qué médico es. */
+export const ENFERMERIA: FakeSession = { paciente: null, clinico: 'enfermeria' };
+
+/** El médico vinculado al correo del miembro, como `MedicoDeLaSesionAsync`. */
+const MEDICO_DE_LA_SESION = 'doc-mendez';
 
 const MEDICOS = [
   {
@@ -222,40 +262,55 @@ function citaDe(p: FakePatient): Record<string, unknown> {
   };
 }
 
+/** Las rutas del portal: resuelven el paciente por la SESIÓN (`PacienteDeLaSesionAsync`). */
+const RUTAS_DEL_PORTAL = ['/portal/home', '/results', '/medications', '/health', '/billing', '/refill'];
+/** Las rutas clínicas: exigen el rol (`ExigirClinico`). `/appointments` es la agenda de TODOS. */
+const RUTAS_CLINICAS = ['/patients', '/patient/', '/appointments', '/schedule', '/inbasket', '/encounter', '/prescription', '/order'];
+
 /**
  * Devuelve un doble de `fetch` que sirve el contrato del `EhrController`. Lo que no
  * conoce contesta 404 —que es exactamente lo que hace el backend con
  * `Synergos:DevSeed:Enabled=false`— y el cliente lo convierte en una lectura fallida.
+ *
+ * Las NEGATIVAS (CMS#197) llevan `{ error }`, como las del controlador: 401 sin sesión, 403 sin
+ * rol clínico, 404 sin historia vinculada y 400 en la bandeja de un clínico sin médico.
  */
 export function servidorFalso(
   options: FakeServerOptions = {},
 ): (url: string, init?: RequestInit) => Promise<Response> {
   const caidos = options.caidos ?? [];
+  const sesion = options.sesion ?? MEDICA_CON_HISTORIA;
 
   return (url: string, init?: RequestInit) => {
     const ruta = String(url);
     const metodo = (init?.method ?? 'GET').toUpperCase();
     if (caidos.some((fragmento) => casa(fragmento, metodo, ruta))) {
-      return Promise.resolve(respuesta(404, { error: 'Not found' }));
+      return Promise.resolve(respuesta(404, null));
     }
     const query = new URLSearchParams(ruta.includes('?') ? ruta.slice(ruta.indexOf('?') + 1) : '');
-    const quien = query.get('patient') ?? query.get('user') ?? '';
+    const negativa = negativaDe(ruta, metodo, sesion);
+    if (negativa) {
+      return Promise.resolve(negativa);
+    }
+    // Pasó la negativa: hay sesión, y si la ruta es del portal, historia vinculada.
+    const miembro = sesion as FakeSession;
+    const p = miembro.paciente ?? MARIA;
 
-    if (init?.method === 'POST') {
-      return Promise.resolve(respuesta(200, cuerpoDeEscritura(ruta, init)));
+    if (metodo === 'POST') {
+      return Promise.resolve(respuesta(200, cuerpoDeEscritura(ruta, init ?? {}, miembro)));
     }
 
     if (ruta.includes('/patients')) {
       const q = (query.get('q') ?? '').toLowerCase();
       const lista = PACIENTES.filter(
-        (p) => !q || p.name.toLowerCase().includes(q) || p.problems.some((c) => c.toLowerCase().includes(q)),
+        (entry) => !q || entry.name.toLowerCase().includes(q) || entry.problems.some((c) => c.toLowerCase().includes(q)),
       );
-      return Promise.resolve(respuesta(200, { patients: lista.map((p) => demografia(p, options)) }));
+      return Promise.resolve(respuesta(200, { patients: lista.map((entry) => demografia(entry, options)) }));
     }
     if (ruta.includes('/patient/')) {
       const id = decodeURIComponent(ruta.slice(ruta.lastIndexOf('/') + 1));
-      const p = paciente(id);
-      return Promise.resolve(p ? respuesta(200, ficha(p, options)) : respuesta(404, { error: 'no existe' }));
+      const elegido = paciente(id);
+      return Promise.resolve(elegido ? respuesta(200, ficha(elegido, options)) : respuesta(404, { error: 'no existe' }));
     }
     if (ruta.includes('/copay')) {
       const copago = options.copago === undefined ? 80_000 : options.copago;
@@ -269,10 +324,6 @@ export function servidorFalso(
       return Promise.resolve(respuesta(200, { doctors: medicos(options) }));
     }
     if (ruta.includes('/portal/home')) {
-      const p = paciente(quien);
-      if (!p) {
-        return Promise.resolve(respuesta(404, { error: 'no existe' }));
-      }
       return Promise.resolve(
         respuesta(200, {
           patient: demografia(p, options),
@@ -292,62 +343,57 @@ export function servidorFalso(
       );
     }
     if (ruta.includes('/results')) {
-      const p = paciente(quien);
       return Promise.resolve(
         respuesta(200, {
-          results: p
-            ? [
-                {
-                  id: `${p.id}-lab-1`,
-                  patientId: p.id,
-                  name: 'Glucosa en ayunas',
-                  panel: 'Química sanguínea',
-                  value: 96,
-                  unit: 'mg/dL',
-                  refLow: 70,
-                  refHigh: 100,
-                  flag: 'normal',
-                  date: '2026-09-01',
-                  comment: '',
-                  released: true,
-                },
-              ]
-            : [],
+          results: [
+            {
+              id: `${p.id}-lab-1`,
+              patientId: p.id,
+              name: 'Glucosa en ayunas',
+              panel: 'Química sanguínea',
+              value: 96,
+              unit: 'mg/dL',
+              refLow: 70,
+              refHigh: 100,
+              flag: 'normal',
+              date: '2026-09-01',
+              comment: '',
+              released: true,
+            },
+          ],
         }),
       );
     }
     if (ruta.includes('/medications')) {
-      const p = paciente(quien);
       return Promise.resolve(
         respuesta(200, {
-          medications: p
-            ? [
-                {
-                  id: `${p.id}-med-1`,
-                  patientId: p.id,
-                  drug: p.drug,
-                  dose: '50 mg',
-                  frequency: 'Cada 12 horas',
-                  instructions: 'Tomar con alimentos.',
-                  ...(options.opcionales === 'full' ? { pharmacy: 'Farmacia Central' } : {}),
-                  refillsLeft: 2,
-                  refillStatus: null,
-                },
-              ]
-            : [],
+          medications: [
+            {
+              id: `${p.id}-med-1`,
+              patientId: p.id,
+              drug: p.drug,
+              dose: '50 mg',
+              frequency: 'Cada 12 horas',
+              instructions: 'Tomar con alimentos.',
+              ...(options.opcionales === 'full' ? { pharmacy: 'Farmacia Central' } : {}),
+              refillsLeft: 2,
+              refillStatus: null,
+            },
+          ],
         }),
       );
     }
     if (ruta.includes('/health')) {
-      const p = paciente(quien);
-      return Promise.resolve(p ? respuesta(200, salud(p, options)) : respuesta(404, { error: 'no existe' }));
+      return Promise.resolve(respuesta(200, salud(p, options)));
     }
     if (ruta.includes('/billing')) {
-      const p = paciente(quien);
+      if (options.sinEstadoDeCuenta) {
+        return Promise.resolve(respuesta(404, { error: 'Tu historia clínica no tiene estado de cuenta.' }));
+      }
       return Promise.resolve(
         respuesta(200, {
           statement: {
-            patientId: p?.id ?? quien,
+            patientId: p.id,
             currency: 'COP',
             balanceMinor: 0,
             planActive: false,
@@ -376,32 +422,21 @@ export function servidorFalso(
       );
     }
     if (ruta.includes('/inbasket')) {
-      return Promise.resolve(
-        respuesta(200, {
-          items: [
-            {
-              id: 'ib-1',
-              kind: 'result',
-              patientId: MARIA.id,
-              patientName: MARIA.name,
-              title: 'Glucosa por revisar',
-              detail: 'Resultado liberado.',
-              createdAtUtc: '2026-09-10T12:00:00.000Z',
-              priority: 'routine',
-              done: false,
-            },
-          ],
-        }),
-      );
+      // La del médico de la sesión; `provider` sólo cuenta para quien no tiene médico (#197).
+      const deQuien = miembro.clinico === 'medico' ? MEDICO_DE_LA_SESION : (query.get('provider') ?? '').trim();
+      if (!deQuien) {
+        return Promise.resolve(respuesta(400, { error: 'El parámetro provider es requerido.' }));
+      }
+      return Promise.resolve(respuesta(200, { items: bandejaDe(deQuien) }));
     }
     if (ruta.includes('/schedule')) {
       return Promise.resolve(
         respuesta(200, {
-          slots: PACIENTES.map((p, i) => ({
-            appointmentId: `${p.id}-slot`,
-            patientId: p.id,
-            patientName: p.name,
-            doctorId: p.primaryDoctorId,
+          slots: PACIENTES.map((entry, i) => ({
+            appointmentId: `${entry.id}-slot`,
+            patientId: entry.id,
+            patientName: entry.name,
+            doctorId: entry.primaryDoctorId,
             doctorName: 'Dra. Laura Méndez',
             time: i === 0 ? '08:00' : '09:15',
             durationMin: 30,
@@ -419,6 +454,57 @@ export function servidorFalso(
   };
 }
 
+/**
+ * La negativa del `EhrController` para esta sesión y esta ruta, o `null` si pasa. Mismo orden
+ * que el controlador: la sesión primero; luego el rol (clínica) o la historia (portal).
+ */
+function negativaDe(ruta: string, metodo: string, sesion: FakeSession | 'anonimo'): Response | null {
+  const publica = ruta.includes('/doctors') || ruta.includes('/copay');
+  if (publica) {
+    return null;
+  }
+  // `/appointment` (POST, reservar) casa también con `/appointments` (GET, la agenda clínica).
+  const reservar = metodo === 'POST' && ruta.includes('/appointment') && !ruta.includes('/appointments');
+  const clinica = !reservar && RUTAS_CLINICAS.some((fragmento) => ruta.includes(fragmento));
+  if (sesion === 'anonimo') {
+    return respuesta(401, {
+      error: clinica ? 'Inicia sesión como personal clínico.' : 'Inicia sesión para ver tu historia clínica.',
+    });
+  }
+  if (clinica) {
+    return sesion.clinico ? null : respuesta(403, { error: 'Tu cuenta no tiene permiso clínico.' });
+  }
+  // Mensajes: un clínico escribe como su médico (o su correo) sin historia; reservar: un clínico
+  // agenda al `patientId` del cuerpo. El resto del portal exige la historia vinculada.
+  const sinHistoriaBasta = (ruta.includes('/message') || reservar) && sesion.clinico !== null;
+  const delPortal = reservar || ruta.includes('/message') || RUTAS_DEL_PORTAL.some((fragmento) => ruta.includes(fragmento));
+  if (delPortal && !sinHistoriaBasta && sesion.paciente === null) {
+    return respuesta(404, { error: 'Tu cuenta no tiene una historia clínica vinculada.' });
+  }
+  return null;
+}
+
+/** La bandeja de cada médico: distinta, para que el spec vea DE QUIÉN se pidió. */
+function bandejaDe(medico: string): readonly Record<string, unknown>[] {
+  const p = PACIENTES.find((entry) => entry.primaryDoctorId === medico);
+  if (!p) {
+    return [];
+  }
+  return [
+    {
+      id: `ib-${p.id}`,
+      kind: 'result',
+      patientId: p.id,
+      patientName: p.name,
+      title: p === MARIA ? 'Glucosa por revisar' : 'Espirometría por revisar',
+      detail: 'Resultado liberado.',
+      createdAtUtc: '2026-09-10T12:00:00.000Z',
+      priority: 'routine',
+      done: false,
+    },
+  ];
+}
+
 /** `'/health'` casa por ruta; `'POST /encounter'` casa por método Y ruta. */
 function casa(fragmento: string, metodo: string, ruta: string): boolean {
   const espacio = fragmento.indexOf(' ');
@@ -431,7 +517,7 @@ function casa(fragmento: string, metodo: string, ruta: string): boolean {
   );
 }
 
-function cuerpoDeEscritura(ruta: string, init: RequestInit): Record<string, unknown> {
+function cuerpoDeEscritura(ruta: string, init: RequestInit, miembro: FakeSession): Record<string, unknown> {
   const enviado = JSON.parse(String(init.body ?? '{}')) as Record<string, unknown>;
   if (ruta.includes('/encounter')) {
     const patientId = String(enviado['patientId'] ?? '');
@@ -467,13 +553,16 @@ function cuerpoDeEscritura(ruta: string, init: RequestInit): Record<string, unkn
   }
   if (ruta.includes('/appointment')) {
     const slot = (enviado['slot'] ?? {}) as Record<string, unknown>;
+    // Un clínico agenda al `patientId` del cuerpo; cualquier otro, a SU paciente: el del cuerpo
+    // se ignora (#197).
+    const paraQuien = miembro.clinico ? String(enviado['patientId'] ?? '') : (miembro.paciente?.id ?? '');
     return {
       appointment: {
         // El id lo pone el SERVIDOR: es lo que el paciente enseña en recepción, y es
         // lo que distingue una cita apartada de un comprobante acuñado en el navegador.
         id: 'CITA-DEL-SERVIDOR-7',
-        patientId: String(enviado['patientId'] ?? ''),
-        patientName: paciente(String(enviado['patientId'] ?? ''))?.name ?? '',
+        patientId: paraQuien,
+        patientName: paciente(paraQuien)?.name ?? '',
         doctorId: String(enviado['doctorId'] ?? ''),
         doctorName: 'Dra. Laura Méndez',
         date: String(slot['date'] ?? ''),

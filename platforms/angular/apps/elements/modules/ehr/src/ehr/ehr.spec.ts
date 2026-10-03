@@ -3,10 +3,23 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { FULFILLMENT_STRATEGIES } from '@synergos/transaction-engine';
 import { CheckoutWizardComponent } from '@synergos/shells';
-import { EhrApiClient, EhrUnavailableError, EhrWriteFailedError } from './ehr-api.client';
+import {
+  EhrAccesoDenegadoError,
+  EhrApiClient,
+  EhrUnavailableError,
+  EhrWriteFailedError,
+} from './ehr-api.client';
 import { EhrFulfillmentStrategy } from './ehr-fulfillment.strategy';
 import { EhrElementComponent } from './ehr';
-import { MARIA, VALENTINA, servidorFalso, type FakeServerOptions } from './ehr.server.fake';
+import {
+  ENFERMERIA,
+  MARIA,
+  SIN_HISTORIA,
+  SOLO_PACIENTE,
+  VALENTINA,
+  servidorFalso,
+  type FakeServerOptions,
+} from './ehr.server.fake';
 import { asentar } from '../../../../../../tools/asentar';
 import { EHR_SYNHOST } from '@synergos/contracts';
 
@@ -39,10 +52,12 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   let fixture: ComponentFixture<EhrElementComponent>;
   let component: EhrElementComponent;
 
-  /** Levanta el componente contra el servidor falso, ya apuntando a un paciente real. */
+  /**
+   * Levanta el componente contra el servidor falso. El paciente NO se le dice: lo pone la sesión
+   * del servidor (`options.sesion`, CMS#197), como en producción.
+   */
   async function createComponent(
     options: FakeServerOptions = {},
-    patient: string = MARIA.id,
     config: object = NEGOCIO_DEL_CMS,
   ): Promise<void> {
     if (typeof window !== 'undefined') {
@@ -60,7 +75,6 @@ describe('EhrElementComponent (v2 dual portal)', () => {
 
     fixture = TestBed.createComponent(EhrElementComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('patient', patient);
     fixture.componentRef.setInput('config', config);
     fixture.detectChanges();
     await flushMicrotasks();
@@ -82,7 +96,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   // volver atrás o entrar por enlace dejaba la vista donde estaba. Hoy lee y escribe con
   // `segmentosDeRuta`/`baseDeRuta` de `@synergos/vitals-core`, la misma pieza en las ocho.
   it('sin la base de la API no llama a nada y la lectura falla, visible (ADR 0137, CMS#196)', async () => {
-    await createComponent({}, MARIA.id, {});
+    await createComponent({}, {});
 
     // Acá no hay muestra: una lectura clínica que no llegó se dice, no se inventa.
     expect(fetch).not.toHaveBeenCalled();
@@ -431,14 +445,15 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.errorMessage()).toBe('');
   });
 
-  // ── reactive identity: patient input landing AFTER construction re-fetches ───
-  // Pins the Angular Elements bug: the `patient` attr→input lands after the ctor, so
-  // the effect must react to the resolved id and reload the current view.
-  it('re-fetches the home feed when the patient input lands after construction', async () => {
+  // ── identidad reactiva: la base de la API llega DESPUÉS del constructor ──────
+  // En Angular Elements el `config` del CMS se aplica tras crear el componente: el effect
+  // reacciona a la base y recarga la vista actual. El paciente ya no es un input (#197):
+  // es el de la sesión, y lo dice `portal/home`.
+  it('carga el portal cuando la base llega después de construir, con el paciente de la SESIÓN', async () => {
     if (typeof window !== 'undefined') {
       window.location.hash = '';
     }
-    const fetchMock = vi.fn(servidorFalso());
+    const fetchMock = vi.fn(servidorFalso({ sesion: { paciente: VALENTINA, clinico: null } }));
     vi.stubGlobal('fetch', fetchMock);
 
     await TestBed.configureTestingModule({
@@ -452,23 +467,217 @@ describe('EhrElementComponent (v2 dual portal)', () => {
 
     fixture = TestBed.createComponent(EhrElementComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
     fixture.detectChanges();
     await flushMicrotasks();
-    // Primer tick: el default `P-1` no existe en el servidor → 404 → lectura fallida.
-    expect(component.view()).toBe('home');
-    expect(component.readFailed('home')).toBe(true);
+    // Primer tick: sin base no se llama a nada.
+    expect(fetchMock).not.toHaveBeenCalled();
     expect(component.home()).toBeNull();
 
-    // The CMS mount sets `patient` AFTER construction (Angular Elements lifecycle).
-    fixture.componentRef.setInput('patient', VALENTINA.id);
+    fixture.componentRef.setInput('config', NEGOCIO_DEL_CMS);
     fixture.detectChanges();
     await flushMicrotasks();
 
     expect(component.patientId()).toBe(VALENTINA.id);
     expect(component.home()?.patient.name).toBe(VALENTINA.name);
     expect(component.readFailed('home')).toBe(false);
-    expect(fetchMock.mock.calls.some(([u]) => String(u).includes(VALENTINA.id))).toBe(true);
+  });
+
+  // ══ CMS#197 · LA HISTORIA ES LA DE LA SESIÓN, Y UNA NEGATIVA NO ES UNA CAÍDA ══
+  //
+  // El portal mandaba `?patient=` con el `patient` del editor o el `P-1` del componente, y el
+  // servidor lo obedecía: cualquiera leía la historia de cualquiera cambiando un atributo. Hoy
+  // el servidor resuelve la historia por el correo del miembro y la clínica por el rol, y
+  // contesta 401/403/404 con `{ error }`. Ninguna de las tres cae a datos de muestra ni se lee
+  // como «no pudimos cargar»: se degrada por AUSENCIA, nunca por NEGACIÓN (ADR 0112).
+
+  /** Las alertas con texto que hay en pantalla. */
+  function alertas(): string[] {
+    return Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="alert"]'))
+      .map((alerta) => (alerta.textContent ?? '').trim())
+      .filter((texto) => texto !== '');
+  }
+
+  it('sin sesión (401) pide iniciar sesión, enfoca el aviso y no pide nada más', async () => {
+    await createComponent({ sesion: 'anonimo' });
+    fixture.detectChanges();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.access()).toBe('sin-sesion');
+    expect(component.home()).toBeNull();
+    // NO es una lectura fallida: no se ofrece reintentar lo que el servidor negó.
+    expect(component.readFailed('home')).toBe(false);
+    expect(alertas()).toEqual([]);
+
+    const host: HTMLElement = fixture.nativeElement;
+    const panel = host.querySelector<HTMLElement>('.ehr__access');
+    expect(panel?.textContent).toContain('Inicia sesión para ver tu historia clínica');
+    expect(panel?.querySelector('a')?.getAttribute('href')).toMatch(/^\/account\/login\?returnUrl=/);
+    expect(document.activeElement).toBe(panel);
+    expect(host.textContent).not.toContain('No pudimos leer tu portal');
+    expect(host.textContent).not.toContain(MARIA.name);
+
+    // Las otras vistas del paciente no se piden: sin identidad no hay de quién.
+    const llamadas = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+    component.navigate('results');
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(llamadas);
+    expect(component.results()).toEqual([]);
+    expect(host.querySelector('.ehr__access')).not.toBeNull();
+    expect(host.textContent).not.toContain('No pudimos leer tus resultados');
+  });
+
+  it('una cuenta sin historia vinculada (404 con `{ error }`) ve un estado vacío, no un error', async () => {
+    await createComponent({ sesion: SIN_HISTORIA });
+    fixture.detectChanges();
+
+    expect(component.access()).toBe('sin-historia');
+    expect(component.readFailed('home')).toBe(false);
+    expect(alertas()).toEqual([]);
+    const texto: string = fixture.nativeElement.textContent ?? '';
+    expect(texto).toContain('Tu cuenta no tiene una historia clínica vinculada');
+    expect(texto).not.toContain('No pudimos leer');
+    expect(texto).not.toContain('Hola, ');
+  });
+
+  it('la caída (404 SIN cuerpo) sigue siendo una lectura fallida, no «sin historia»', async () => {
+    await createComponent({ caidos: ['/portal/home'] });
+    fixture.detectChanges();
+
+    expect(component.access()).toBe('ok');
+    expect(component.readFailed('home')).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('No pudimos leer tu portal');
+    expect(fixture.nativeElement.textContent).not.toContain('historia clínica vinculada');
+  });
+
+  it('sin rol clínico (403) dice que no hay permiso, y no pinta la agenda de nadie', async () => {
+    await createComponent({ sesion: SOLO_PACIENTE });
+    component.setRole('doctor');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.access()).toBe('sin-permiso');
+    expect(component.board()).toEqual([]);
+    expect(component.readFailed('board')).toBe(false);
+    expect(alertas()).toEqual([]);
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.querySelector('.ehr__access')?.textContent).toContain('Tu cuenta no tiene permiso clínico');
+    expect(host.textContent).not.toContain(VALENTINA.name);
+    expect(host.textContent).not.toContain('No pudimos cargar la agenda');
+
+    // La salida que ofrece es su propio portal, que sí abre.
+    (host.querySelector('.ehr__access button') as HTMLButtonElement).click();
+    await flushMicrotasks();
+    fixture.detectChanges();
+    expect(component.portal()).toBe('patient');
+    expect(component.access()).toBe('ok');
+    expect(component.home()?.patient.name).toBe(MARIA.name);
+  });
+
+  it('no manda el paciente ni el usuario: ni en la URL ni en el cuerpo', async () => {
+    const fetchMock = vi.fn(servidorFalso({ sesion: SOLO_PACIENTE }));
+    await createComponent({ sesion: SOLO_PACIENTE });
+    vi.stubGlobal('fetch', fetchMock);
+
+    for (const vista of ['visits', 'results', 'medications', 'health', 'billing', 'messages'] as const) {
+      component.navigate(vista);
+      await flushMicrotasks();
+    }
+    component.requestRefill(component.medications()[0]);
+    const hilo = component.threads()[0];
+    component.onThreadSelect(hilo);
+    component.onSendMessage({ thread: hilo, body: 'Gracias, doctora.' });
+    await flushMicrotasks();
+
+    const urls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(urls.some((url) => url.includes('/results'))).toBe(true);
+    expect(urls.filter((url) => /[?&](patient|user)=/.test(url))).toEqual([]);
+    // `/appointments` es la agenda clínica de TODOS: el portal ya no la baja para filtrarla.
+    expect(urls.filter((url) => url.includes('/appointments'))).toEqual([]);
+    const cuerpos = fetchMock.mock.calls
+      .filter(([, init]) => (init as RequestInit | undefined)?.method === 'POST')
+      .map(([url, init]) => [String(url), JSON.parse(String((init as RequestInit).body)) as Record<string, unknown>] as const);
+    expect(cuerpos.map(([url]) => url.slice(url.lastIndexOf('/')))).toEqual(['/refill', '/message']);
+    for (const [, cuerpo] of cuerpos) {
+      expect(Object.keys(cuerpo)).not.toContain('patientId');
+      expect(Object.keys(cuerpo)).not.toContain('user');
+      expect(Object.keys(cuerpo)).not.toContain('from');
+    }
+  });
+
+  it('el In Basket es el del médico de la sesión; sin médico vinculado se elige', async () => {
+    const fetchMock = vi.fn(servidorFalso());
+    await createComponent();
+    vi.stubGlobal('fetch', fetchMock);
+    component.setRole('doctor');
+    component.navigate('inbasket');
+    await flushMicrotasks();
+
+    // Antes mandaba `?provider=doctor` —el NOMBRE del rol—: la bandeja salía vacía y «al día».
+    expect(component.inbox().map((item) => item.title)).toEqual(['Glucosa por revisar']);
+    expect(fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('provider='))).toEqual([]);
+
+    // Enfermería: rol clínico sin médico vinculado. El 400 NO es una bandeja ilegible.
+    TestBed.resetTestingModule();
+    await createComponent({ sesion: ENFERMERIA });
+    component.setRole('nurse');
+    component.navigate('inbasket');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.inboxNeedsProvider()).toBe(true);
+    expect(component.readFailed('inbox')).toBe(false);
+    expect(alertas()).toEqual([]);
+    const host: HTMLElement = fixture.nativeElement;
+    const selector = host.querySelector<HTMLSelectElement>('.ehr__provider-pick select');
+    expect(Array.from(selector?.options ?? []).map((opcion) => opcion.value)).toEqual(['', 'doc-mendez', 'doc-rojas']);
+
+    selector!.value = 'doc-rojas';
+    selector!.dispatchEvent(new Event('change'));
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.inbox().map((item) => item.title)).toEqual(['Espirometría por revisar']);
+    expect(component.inboxNeedsProvider()).toBe(false);
+  });
+
+  it('una historia sin estado de cuenta es «Sin facturación aún», no una lectura fallida', async () => {
+    await createComponent({ sinEstadoDeCuenta: true });
+    component.navigate('billing');
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.billing()).toBeNull();
+    expect(component.readFailed('billing')).toBe(false);
+    expect(component.access()).toBe('ok');
+    expect(fixture.nativeElement.textContent).toContain('Sin facturación aún');
+    expect(fixture.nativeElement.textContent).not.toContain('No pudimos leer tu facturación');
+  });
+
+  it('la nota que el servidor NEGÓ lo dice, y lo tecleado sigue a la vista', async () => {
+    await createComponent();
+    component.setRole('doctor');
+    await flushMicrotasks();
+    component.navigate('chart', VALENTINA.id);
+    await flushMicrotasks();
+    const before = component.chart()?.history.length ?? 0;
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ sesion: 'anonimo' })));
+    component.startEncounter();
+    component.soapSubjective.set('Refiere tos nocturna.');
+    component.soapAssessment.set('Asma en control.');
+    component.soapPlan.set('Continuar salbutamol.');
+    await component.saveEncounter();
+    await flushMicrotasks();
+    fixture.detectChanges();
+
+    expect(component.chart()?.history.length).toBe(before);
+    expect(component.view()).toBe('encounter');
+    expect(component.errorMessage()).toContain('Tu sesión no está activa');
+    expect(component.soapSubjective()).toBe('Refiere tos nocturna.');
+    // El formulario no se cambia por el panel de acceso: lo tecleado tiene que seguir ahí.
+    expect(fixture.nativeElement.querySelector('.ehr__access')).toBeNull();
   });
 
   // ── drug interaction flag against the patient's allergies ────────────────────
@@ -534,7 +743,7 @@ describe('EhrElementComponent (v2 dual portal)', () => {
   });
 
   it('el portal ilegible no rellena el nombre ni las alergias del paciente cero', async () => {
-    await createComponent({ caidos: ['/portal/home'] }, VALENTINA.id);
+    await createComponent({ caidos: ['/portal/home'], sesion: { paciente: VALENTINA, clinico: null } });
 
     expect(component.home()).toBeNull();
     expect(component.readFailed('home')).toBe(true);
@@ -812,21 +1021,20 @@ describe('EhrApiClient (v2 endpoints)', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
     const client = createClient();
 
-    // Las trece lecturas, una por una: el barrido es el gate. Añadir una lectura nueva
+    // Las doce lecturas, una por una: el barrido es el gate. Añadir una lectura nueva
     // con `catch → mock` sin añadirla aquí es exactamente cómo volvería el defecto.
     const lecturas: readonly [string, () => Promise<unknown>][] = [
       ['patients', () => client.patients('/api/ehr', '')],
       ['patientChart', () => client.patientChart('/api/ehr', MARIA.id)],
       ['doctors', () => client.doctors('/api/ehr')],
       ['copay', () => client.copay('/api/ehr')],
-      ['appointments', () => client.appointments('/api/ehr', '2026-09-14')],
-      ['portalHome', () => client.portalHome('/api/ehr', MARIA.id)],
-      ['results', () => client.results('/api/ehr', MARIA.id)],
-      ['medications', () => client.medications('/api/ehr', MARIA.id)],
-      ['healthSummary', () => client.healthSummary('/api/ehr', MARIA.id)],
-      ['billing', () => client.billing('/api/ehr', MARIA.id)],
-      ['messages', () => client.messages('/api/ehr', MARIA.id)],
-      ['inbox', () => client.inbox('/api/ehr', 'doctor')],
+      ['portalHome', () => client.portalHome('/api/ehr')],
+      ['results', () => client.results('/api/ehr')],
+      ['medications', () => client.medications('/api/ehr')],
+      ['healthSummary', () => client.healthSummary('/api/ehr')],
+      ['billing', () => client.billing('/api/ehr')],
+      ['messages', () => client.messages('/api/ehr')],
+      ['inbox', () => client.inbox('/api/ehr')],
       ['schedule', () => client.schedule('/api/ehr', '2026-09-14')],
     ];
 
@@ -882,11 +1090,11 @@ describe('EhrApiClient (v2 endpoints)', () => {
       ],
       [
         'requestRefill',
-        () => client.requestRefill('/api/ehr', { medicationId: 'm-1', patientId: MARIA.id }),
+        () => client.requestRefill('/api/ehr', { medicationId: 'm-1' }),
       ],
       [
         'sendMessage',
-        () => client.sendMessage('/api/ehr', { threadId: 'hilo-1', body: 'hola', user: MARIA.id }),
+        () => client.sendMessage('/api/ehr', { threadId: 'hilo-1', body: 'hola' }),
       ],
       [
         'placeOrder',
@@ -912,18 +1120,18 @@ describe('EhrApiClient (v2 endpoints)', () => {
   it('`immunizations` ausente es `null`, y `[]` es `[]`', async () => {
     vi.stubGlobal('fetch', vi.fn(servidorFalso()));
     let client = createClient();
-    expect((await client.healthSummary('/api/ehr', MARIA.id)).immunizations).toBeNull();
+    expect((await client.healthSummary('/api/ehr')).immunizations).toBeNull();
 
     TestBed.resetTestingModule();
     vi.stubGlobal('fetch', vi.fn(servidorFalso({ vacunas: 'empty' })));
     client = createClient();
-    expect((await client.healthSummary('/api/ehr', MARIA.id)).immunizations).toEqual([]);
+    expect((await client.healthSummary('/api/ehr')).immunizations).toEqual([]);
   });
 
   it('un preventivo sin `status` se normaliza a `null`, no a «pendiente»', async () => {
     vi.stubGlobal('fetch', vi.fn(servidorFalso()));
     const client = createClient();
-    const summary = await client.healthSummary('/api/ehr', MARIA.id);
+    const summary = await client.healthSummary('/api/ehr');
 
     expect(summary.maintenance[0].status).toBeNull();
   });
@@ -961,5 +1169,46 @@ describe('EhrApiClient (v2 endpoints)', () => {
 
     expect(board.length).toBe(2);
     expect(Object.keys(board[0])).not.toContain('checkedInAhead');
+  });
+
+  // ── CMS#197: la negativa del servidor sale con su motivo, no como «no disponible» ──
+  it('cada negativa sale como `EhrAccesoDenegadoError` con su motivo; la caída, no', async () => {
+    const motivo = async (lectura: () => Promise<unknown>): Promise<string> => {
+      const error = await lectura().then(
+        () => null,
+        (rechazo: unknown) => rechazo,
+      );
+      return error instanceof EhrAccesoDenegadoError ? error.motivo : String((error as Error | null)?.name);
+    };
+
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ sesion: 'anonimo' })));
+    let client = createClient();
+    expect(await motivo(() => client.portalHome('/api/ehr'))).toBe('sin-sesion');
+    expect(await motivo(() => client.patients('/api/ehr', ''))).toBe('sin-sesion');
+    expect(await motivo(() => client.requestRefill('/api/ehr', { medicationId: 'm-1' }))).toBe('sin-sesion');
+
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ sesion: SIN_HISTORIA })));
+    client = createClient();
+    expect(await motivo(() => client.results('/api/ehr'))).toBe('sin-historia');
+    expect(await motivo(() => client.schedule('/api/ehr', '2026-09-14'))).toBe('sin-permiso');
+
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ sesion: ENFERMERIA })));
+    client = createClient();
+    expect(await motivo(() => client.inbox('/api/ehr'))).toBe('sin-medico');
+    expect((await client.inbox('/api/ehr', 'doc-rojas')).map((item) => item.patientId)).toEqual([VALENTINA.id]);
+
+    // El `[DevSeedOnly]` apagado contesta 404 SIN cuerpo: eso es una caída, no «sin historia».
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ caidos: ['/portal/home', '/billing'] })));
+    client = createClient();
+    expect(await motivo(() => client.portalHome('/api/ehr'))).toBe('EhrUnavailableError');
+    expect(await motivo(() => client.billing('/api/ehr'))).toBe('EhrUnavailableError');
+
+    // Y el 404 CON cuerpo de `billing` —hay historia, sin estado de cuenta— es `null`.
+    TestBed.resetTestingModule();
+    vi.stubGlobal('fetch', vi.fn(servidorFalso({ sinEstadoDeCuenta: true })));
+    expect(await createClient().billing('/api/ehr')).toBeNull();
   });
 });

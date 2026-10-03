@@ -115,10 +115,15 @@ export class EhrFulfillmentStrategy extends FulfillmentStrategyBase {
     const date = readString(selection['slotDate']);
     const time = readString(selection['slotTime']);
 
+    // El paciente lo pone la SESIÓN (CMS#197): el servidor agenda al de la historia vinculada
+    // e ignora el del cuerpo, salvo que quien reserva sea clínico. Lo que viaja es el id que
+    // devolvió `portal/home` —del servidor, no de la página—, que es lo que necesita un
+    // clínico que se agenda a sí mismo desde su portal; vacío, no se manda.
+    const patientId = readString(selection['patientId']);
     let booked;
     try {
       booked = await this.#api.bookAppointment(apiBase, {
-        patientId: readString(selection['patientId']),
+        ...(patientId ? { patientId } : {}),
         doctorId: readString(selection['doctorId']),
         slot: { date, time },
       });

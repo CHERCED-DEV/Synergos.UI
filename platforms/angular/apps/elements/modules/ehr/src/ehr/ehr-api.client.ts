@@ -37,6 +37,50 @@ export class EhrUnavailableError extends Error {
 }
 
 /**
+ * El SERVIDOR negó la petición (CMS#197): no es una lectura que falló, es un veredicto sobre
+ * quién mira, y viaja con su motivo para que la pantalla diga lo que toca.
+ *
+ * - `sin-sesion`: 401 — hay que iniciar sesión.
+ * - `sin-permiso`: 403 — la cuenta no tiene rol clínico.
+ * - `sin-historia`: 404 CON su `{ error }` en el portal — la cuenta no tiene historia vinculada.
+ *   Un 404 sin cuerpo es otra cosa —el `[DevSeedOnly]` apagado, la superficie no existe— y
+ *   sigue siendo una lectura fallida.
+ * - `sin-medico`: 400 de la bandeja clínica — el clínico no tiene médico vinculado y tiene que
+ *   decir de quién es la bandeja que quiere ver.
+ *
+ * **Ninguno degrada a una muestra** (ADR 0112): se degrada por AUSENCIA, nunca por NEGACIÓN.
+ * Discriminado por `name` y no por `instanceof`, que no cruza bundles.
+ */
+export type MotivoDeNegacion = 'sin-sesion' | 'sin-permiso' | 'sin-historia' | 'sin-medico';
+
+export class EhrAccesoDenegadoError extends Error {
+  constructor(
+    readonly motivo: MotivoDeNegacion,
+    readonly endpoint: string,
+    /** El `{ error }` que mandó el servidor, tal cual. */
+    readonly mensajeDelServidor: string,
+  ) {
+    super(`EHR "${endpoint}" denied: ${motivo}.`);
+    this.name = 'EhrAccesoDenegadoError';
+  }
+}
+
+export function isEhrAccesoDenegado(error: unknown): error is EhrAccesoDenegadoError {
+  return error instanceof Error && error.name === 'EhrAccesoDenegadoError';
+}
+
+/** Una respuesta que no fue 2xx, con su estado y —si lo trajo— el `{ error }` del servidor. */
+class EhrHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly mensajeDelServidor: string | null,
+  ) {
+    super(`HTTP ${status}`);
+    this.name = 'EhrHttpError';
+  }
+}
+
+/**
  * Una ESCRITURA clínica que no llegó al servidor.
  *
  * Existe porque hasta CHERCED-DEV/Synergos.CMS#111 estas cinco devolvían el valor
@@ -62,22 +106,26 @@ export class EhrWriteFailedError extends Error {
  *  - `GET  /api/ehr/patients?q=`            → `{ patients }`
  *  - `GET  /api/ehr/patient/{id}`           → `{ patient, history, encounters, prescriptions, appointments }`
  *  - `GET  /api/ehr/doctors`                → `{ doctors }`
- *  - `GET  /api/ehr/appointments?date=`     → `{ appointments }`
  *  - `POST /api/ehr/appointment` `{ patientId, doctorId, slot }`  → `{ appointment }`
  *  - `POST /api/ehr/encounter`   `{ patientId, soap }`            → `{ encounter }`
  *  - `POST /api/ehr/prescription``{ patientId, items }`           → `{ prescription }`
  *
  * **v2 (dual-portal):**
- *  - `GET  /api/ehr/portal/home?patient=`   → `{ patient, cards, nextAppointment, … }`
- *  - `GET  /api/ehr/results?patient=`       → `{ results }`
- *  - `GET  /api/ehr/medications?patient=`   → `{ medications }`
- *  - `POST /api/ehr/refill` `{ medicationId, patientId }` → `{ status }`
- *  - `GET  /api/ehr/messages?user=`         → `{ threads }`
+ *  - `GET  /api/ehr/portal/home`            → `{ patient, cards, nextAppointment, … }`
+ *  - `GET  /api/ehr/results`                → `{ results }`
+ *  - `GET  /api/ehr/medications`            → `{ medications }`
+ *  - `POST /api/ehr/refill` `{ medicationId }`           → `{ status }`
+ *  - `GET  /api/ehr/messages`               → `{ threads }`
  *  - `POST /api/ehr/message` `{ threadId, body }`        → `{ message }`
- *  - `GET  /api/ehr/inbasket?provider=`     → `{ items }`
+ *  - `GET  /api/ehr/inbasket[?provider=]`   → `{ items }`
  *  - `POST /api/ehr/order` `{ patientId, kind, detail }` → `{ ok }`  (stub)
- *  - `GET  /api/ehr/billing?patient=`       → `{ statement }`
+ *  - `GET  /api/ehr/billing`                → `{ statement }`
  *  - `GET  /api/ehr/schedule?date=`         → `{ slots }` (falls back to appointments)
+ *
+ * **Quién mira lo dice la SESIÓN, no la página** (CMS#197): el portal es el del paciente
+ * vinculado al correo del miembro y la clínica exige rol. Nada de lo de arriba lleva
+ * `?patient=`, `?user=` ni `user`/`from`; lo que el servidor NIEGA (401/403, y el 404 con su
+ * `{ error }` del portal) sale como {@link EhrAccesoDenegadoError} y nunca como datos.
  *
  * **A failed clinical read throws. It does NOT degrade** (CHERCED-DEV/Synergos.CMS#106).
  *
@@ -126,6 +174,7 @@ export class EhrApiClient {
       }
       throw new Error('patients-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/patients', 'clinica');
       this.unavailable('GET /api/ehr/patients', error);
     }
   }
@@ -142,6 +191,7 @@ export class EhrApiClient {
     } catch (error) {
       // #106: `mockChart(id)` answered ANY id with patient zero's record filed under
       // the id that was asked for. There is no safe fallback for a clinical chart.
+      this.negar(error, 'GET /api/ehr/patient/{id}', 'clinica');
       this.unavailable('GET /api/ehr/patient/{id}', error);
     }
   }
@@ -187,20 +237,11 @@ export class EhrApiClient {
   }
 
   // ─── Appointments ──────────────────────────────────────────────────────────
-
-  async appointments(apiBase: string, date: string): Promise<readonly Appointment[]> {
-    const url = `${apiBase}/appointments${date ? `?date=${encodeURIComponent(date)}` : ''}`;
-    try {
-      const data = await this.getJson(apiBase, url);
-      const appointments = normalizeAppointments(data);
-      if (appointments) {
-        return appointments;
-      }
-      throw new Error('appointments-shape');
-    } catch (error) {
-      this.unavailable('GET /api/ehr/appointments', error);
-    }
-  }
+  //
+  // `GET /appointments?date=` (la agenda de TODOS los pacientes) ya no tiene método: su único
+  // llamador era «Mis citas» del portal, que la bajaba entera y la filtraba en el navegador por
+  // el paciente de la página. Desde #197 es de la superficie clínica, y la agenda clínica de
+  // esta app es `/schedule`.
 
   /**
    * `POST /api/ehr/appointment` — reserva el hueco. **La cita que devuelve es la del
@@ -214,7 +255,7 @@ export class EhrApiClient {
    */
   async bookAppointment(
     apiBase: string,
-    body: { patientId: string; doctorId: string; slot: { date: string; time: string } },
+    body: { patientId?: string; doctorId: string; slot: { date: string; time: string } },
   ): Promise<Appointment> {
     const url = `${apiBase}/appointment`;
     try {
@@ -225,6 +266,9 @@ export class EhrApiClient {
       }
       throw new Error('appointment-shape');
     } catch (error) {
+      // Las dos caras reservan (#197): el clínico a nombre del paciente que dice el cuerpo, el
+      // paciente a sí mismo. Cualquiera de las tres negativas puede venir.
+      this.negar(error, 'POST /api/ehr/appointment', 'portal');
       this.writeFailed('POST /api/ehr/appointment', error);
     }
   }
@@ -243,6 +287,7 @@ export class EhrApiClient {
       }
       throw new Error('encounter-shape');
     } catch (error) {
+      this.negar(error, 'POST /api/ehr/encounter', 'clinica');
       this.writeFailed('POST /api/ehr/encounter', error);
     }
   }
@@ -261,15 +306,22 @@ export class EhrApiClient {
       }
       throw new Error('prescription-shape');
     } catch (error) {
+      this.negar(error, 'POST /api/ehr/prescription', 'clinica');
       this.writeFailed('POST /api/ehr/prescription', error);
     }
   }
 
   // ─── v2 · Patient portal (MyChart) ───────────────────────────────────────────
+  //
+  // **El paciente sale de la SESIÓN, no de la página** (CMS#197). Esto mandaba `?patient=`
+  // con el `patient` del editor o el `P-1` del componente, y antes de #197 el servidor lo
+  // obedecía: cualquiera leía la historia de cualquiera cambiando un atributo. Hoy el servidor
+  // resuelve la historia por el correo del miembro e IGNORA lo que mande el navegador; acá ya
+  // no se manda. El id del paciente, cuando hace falta, es el que devuelve `portal/home`.
 
-  /** `GET /api/ehr/portal/home?patient=` — the patient home feed aggregate. */
-  async portalHome(apiBase: string, patientId: string): Promise<PortalHome> {
-    const url = `${apiBase}/portal/home?patient=${encodeURIComponent(patientId)}`;
+  /** `GET /api/ehr/portal/home` — el home del paciente de la sesión. */
+  async portalHome(apiBase: string): Promise<PortalHome> {
+    const url = `${apiBase}/portal/home`;
     try {
       const data = await this.getJson(apiBase, url);
       const home = normalizePortalHome(data);
@@ -278,14 +330,15 @@ export class EhrApiClient {
       }
       throw new Error('portal-home-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/portal/home', 'portal');
       // #106: the seeded home carried patient zero's `allergies` under the requested id.
       this.unavailable('GET /api/ehr/portal/home', error);
     }
   }
 
-  /** `GET /api/ehr/results?patient=` — lab results (value + range + flag). */
-  async results(apiBase: string, patientId: string): Promise<readonly LabResult[]> {
-    const url = `${apiBase}/results?patient=${encodeURIComponent(patientId)}`;
+  /** `GET /api/ehr/results` — lab results (value + range + flag) del paciente de la sesión. */
+  async results(apiBase: string): Promise<readonly LabResult[]> {
+    const url = `${apiBase}/results`;
     try {
       const data = await this.getJson(apiBase, url);
       const results = normalizeResults(data);
@@ -294,13 +347,14 @@ export class EhrApiClient {
       }
       throw new Error('results-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/results', 'portal');
       this.unavailable('GET /api/ehr/results', error);
     }
   }
 
-  /** `GET /api/ehr/medications?patient=` — active medications + refill affordance. */
-  async medications(apiBase: string, patientId: string): Promise<readonly Medication[]> {
-    const url = `${apiBase}/medications?patient=${encodeURIComponent(patientId)}`;
+  /** `GET /api/ehr/medications` — active medications + refill affordance. */
+  async medications(apiBase: string): Promise<readonly Medication[]> {
+    const url = `${apiBase}/medications`;
     try {
       const data = await this.getJson(apiBase, url);
       const meds = normalizeMedications(data);
@@ -309,15 +363,17 @@ export class EhrApiClient {
       }
       throw new Error('medications-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/medications', 'portal');
       this.unavailable('GET /api/ehr/medications', error);
     }
   }
 
-  /** `POST /api/ehr/refill` — pide la renovación; devuelve el estado del servidor. */
-  async requestRefill(
-    apiBase: string,
-    body: { medicationId: string; patientId: string },
-  ): Promise<RefillStatus> {
+  /**
+   * `POST /api/ehr/refill` — pide la renovación; devuelve el estado del servidor.
+   *
+   * Sin `patientId` (#197): pedir el resurtido de otro era recetarle. Es el del portal.
+   */
+  async requestRefill(apiBase: string, body: { medicationId: string }): Promise<RefillStatus> {
     const url = `${apiBase}/refill`;
     try {
       const data = await this.postJson(apiBase, url, body);
@@ -327,13 +383,14 @@ export class EhrApiClient {
       }
       throw new Error('refill-shape');
     } catch (error) {
+      this.negar(error, 'POST /api/ehr/refill', 'portal');
       this.writeFailed('POST /api/ehr/refill', error);
     }
   }
 
-  /** `GET /api/ehr/health?patient=` — health summary (conditions/allergies/vaccines). */
-  async healthSummary(apiBase: string, patientId: string): Promise<HealthSummary> {
-    const url = `${apiBase}/health?patient=${encodeURIComponent(patientId)}`;
+  /** `GET /api/ehr/health` — health summary (conditions/allergies/vaccines). */
+  async healthSummary(apiBase: string): Promise<HealthSummary> {
+    const url = `${apiBase}/health`;
     try {
       const data = await this.getJson(apiBase, url);
       const summary = normalizeHealthSummary(data);
@@ -342,14 +399,23 @@ export class EhrApiClient {
       }
       throw new Error('health-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/health', 'portal');
       // #106: `mockHealthSummary()` did not even look at the patient.
       this.unavailable('GET /api/ehr/health', error);
     }
   }
 
-  /** `GET /api/ehr/billing?patient=` — statement + payment plan state. */
-  async billing(apiBase: string, patientId: string): Promise<BillingStatement> {
-    const url = `${apiBase}/billing?patient=${encodeURIComponent(patientId)}`;
+  /**
+   * `GET /api/ehr/billing` — statement + payment plan state, o `null` si la historia no tiene
+   * estado de cuenta.
+   *
+   * **Su 404 con `{ error }` es «no tienes estado de cuenta», no «no tienes historia»** (#197):
+   * el servidor contesta lo segundo también con 404, pero el portal sólo llega aquí después de
+   * que `portal/home` confirmó la historia. Decirlo con un `null` —y no con una lectura
+   * fallida— es lo que deja pintar «Sin facturación aún» en vez de «no pudimos leer».
+   */
+  async billing(apiBase: string): Promise<BillingStatement | null> {
+    const url = `${apiBase}/billing`;
     try {
       const data = await this.getJson(apiBase, url);
       const statement = normalizeBilling(data);
@@ -358,15 +424,22 @@ export class EhrApiClient {
       }
       throw new Error('billing-shape');
     } catch (error) {
+      if (error instanceof EhrHttpError && error.status === 404 && error.mensajeDelServidor !== null) {
+        return null;
+      }
+      this.negar(error, 'GET /api/ehr/billing', 'portal');
       this.unavailable('GET /api/ehr/billing', error);
     }
   }
 
   // ─── v2 · Messaging / In Basket (shared graph, SH-7) ──────────────────────────
 
-  /** `GET /api/ehr/messages?user=` — patient ↔ care-team threads. */
-  async messages(apiBase: string, user: string): Promise<readonly MessageThread[]> {
-    const url = `${apiBase}/messages?user=${encodeURIComponent(user)}`;
+  /**
+   * `GET /api/ehr/messages` — los hilos de quien está en la sesión: su paciente, o el médico
+   * vinculado si es clínico. Sin `?user=` (#197): con el de otro se leían sus conversaciones.
+   */
+  async messages(apiBase: string): Promise<readonly MessageThread[]> {
+    const url = `${apiBase}/messages`;
     try {
       const data = await this.getJson(apiBase, url);
       const threads = normalizeThreads(data);
@@ -375,26 +448,39 @@ export class EhrApiClient {
       }
       throw new Error('messages-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/messages', 'portal');
       this.unavailable('GET /api/ehr/messages', error);
     }
   }
 
-  /** `POST /api/ehr/message` — manda el mensaje. Lanza si no llega. */
-  async sendMessage(
-    apiBase: string,
-    body: { threadId: string; body: string; user: string },
-  ): Promise<void> {
+  /**
+   * `POST /api/ehr/message` — manda el mensaje. Lanza si no llega.
+   *
+   * Sin `user`/`from` (#197): quien escribe sale de la sesión; con el nombre de otro, se le
+   * hablaba a su médico por él.
+   */
+  async sendMessage(apiBase: string, body: { threadId: string; body: string }): Promise<void> {
     const url = `${apiBase}/message`;
     try {
       await this.postJson(apiBase, url, body);
     } catch (error) {
+      this.negar(error, 'POST /api/ehr/message', 'portal');
       this.writeFailed('POST /api/ehr/message', error);
     }
   }
 
-  /** `GET /api/ehr/inbasket?provider=` — clinician In Basket (typed rows). */
-  async inbox(apiBase: string, provider: string): Promise<readonly InboxItem[]> {
-    const url = `${apiBase}/inbasket?provider=${encodeURIComponent(provider)}`;
+  /**
+   * `GET /api/ehr/inbasket[?provider=]` — clinician In Basket (typed rows).
+   *
+   * La bandeja es la del médico vinculado al correo del miembro (#197). `provider` SÓLO hace
+   * falta para un clínico sin médico vinculado —enfermería, admin, o el directorio de demo,
+   * que no tiene correos—, y lo elige quien mira. Antes se mandaba el NOMBRE del rol
+   * (`'doctor'`), que no es el id de ningún médico: la bandeja salía vacía y parecía al día.
+   * Sin médico vinculado y sin `provider`, el servidor contesta 400 → `sin-medico`.
+   */
+  async inbox(apiBase: string, provider = ''): Promise<readonly InboxItem[]> {
+    const elegido = provider.trim();
+    const url = `${apiBase}/inbasket${elegido ? `?provider=${encodeURIComponent(elegido)}` : ''}`;
     try {
       const data = await this.getJson(apiBase, url);
       const items = normalizeInbox(data);
@@ -403,6 +489,10 @@ export class EhrApiClient {
       }
       throw new Error('inbasket-shape');
     } catch (error) {
+      if (error instanceof EhrHttpError && error.status === 400 && error.mensajeDelServidor !== null) {
+        throw new EhrAccesoDenegadoError('sin-medico', 'GET /api/ehr/inbasket', error.mensajeDelServidor);
+      }
+      this.negar(error, 'GET /api/ehr/inbasket', 'clinica');
       this.unavailable('GET /api/ehr/inbasket', error);
     }
   }
@@ -416,6 +506,7 @@ export class EhrApiClient {
     try {
       await this.postJson(apiBase, url, body);
     } catch (error) {
+      this.negar(error, 'POST /api/ehr/order', 'clinica');
       this.writeFailed('POST /api/ehr/order', error);
     }
   }
@@ -433,6 +524,7 @@ export class EhrApiClient {
       }
       throw new Error('schedule-shape');
     } catch (error) {
+      this.negar(error, 'GET /api/ehr/schedule', 'clinica');
       this.unavailable('GET /api/ehr/schedule', error);
     }
   }
@@ -466,9 +558,41 @@ export class EhrApiClient {
     return llamar(apiBase, url, {
       ...init,
       headers: { Accept: 'application/json', ...(init.headers ?? {}) },
-    }).then((response) =>
-      response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)),
-    );
+    }).then(async (response) => {
+      if (response.ok) {
+        return response.json();
+      }
+      // El `{ error }` del cuerpo es lo que separa una NEGATIVA del servidor (#197: todas lo
+      // traen) de una superficie que no está —el `[DevSeedOnly]` apagado contesta 404 sin
+      // cuerpo—. Un cuerpo que no se puede leer cuenta como «sin cuerpo».
+      const cuerpo: unknown = await response.json().catch(() => null);
+      const mensaje = isRecord(cuerpo) && typeof cuerpo['error'] === 'string' ? cuerpo['error'] : null;
+      return Promise.reject(new EhrHttpError(response.status, mensaje));
+    });
+  }
+
+  /**
+   * Convierte una NEGATIVA del servidor en {@link EhrAccesoDenegadoError} (CMS#197); lo demás
+   * lo deja pasar para que quien llama lo trate como lectura o escritura fallida.
+   *
+   * 401 y 403 son veredictos en cualquier superficie. El 404 sólo lo es en el PORTAL y sólo con
+   * su `{ error }`: ahí dice «tu cuenta no tiene historia clínica vinculada»; sin cuerpo es el
+   * `[DevSeedOnly]` apagado, y en la clínica es «ese paciente no existe».
+   */
+  private negar(error: unknown, endpoint: string, superficie: 'portal' | 'clinica'): void {
+    if (!(error instanceof EhrHttpError)) {
+      return;
+    }
+    const mensaje = error.mensajeDelServidor ?? '';
+    if (error.status === 401) {
+      throw new EhrAccesoDenegadoError('sin-sesion', endpoint, mensaje);
+    }
+    if (error.status === 403) {
+      throw new EhrAccesoDenegadoError('sin-permiso', endpoint, mensaje);
+    }
+    if (superficie === 'portal' && error.status === 404 && error.mensajeDelServidor !== null) {
+      throw new EhrAccesoDenegadoError('sin-historia', endpoint, mensaje);
+    }
   }
 
   /**
@@ -673,20 +797,6 @@ function normalizeAppointment(value: unknown): Appointment | null {
     reason: readString(value['reason']).trim(),
     status: readStatus(value['status']),
   };
-}
-
-function normalizeAppointments(value: unknown): readonly Appointment[] | null {
-  const list = Array.isArray(value)
-    ? value
-    : Array.isArray(pluck(value, 'appointments'))
-      ? (pluck(value, 'appointments') as unknown[])
-      : null;
-  if (!list) {
-    return null;
-  }
-  return list
-    .map(normalizeAppointment)
-    .filter((appointment): appointment is Appointment => appointment !== null);
 }
 
 function normalizeVitals(value: unknown): Vitals {
