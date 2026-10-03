@@ -259,7 +259,7 @@ describe('los vocabularios cerrados de las piezas que no son verticales (UI#91)'
     'qr-code.size', 'chart-bar.orientation', 'splitter.orientation', 'timeline.orientation',
     'fab.position', 'scroll-top.position', 'toast-center.position', 'color-swatches.shape',
     'skeleton.shape', 'popover.placement', 'rich-tooltip.placement', 'countdown-digital.style',
-    'separator.style', 'card.badgeType', 'icon-block.color', 'notification-toast.type',
+    'separator.lineStyle', 'card.badgeType', 'icon-block.color', 'notification-toast.type',
     'avatar.status', 'stat-counter.trend',
   ];
 

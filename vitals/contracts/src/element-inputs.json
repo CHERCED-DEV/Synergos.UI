@@ -4647,7 +4647,7 @@
       "name": "lineStyle",
       "type": "string",
       "required": false,
-      "default": "solid",
+      "default": "",
       "description": "Trazo de la línea: solid, dashed, dotted, double o gradient (el style del CMS viaja en config; el atributo es line-style porque style es el de estilos en línea)."
     },
     {

@@ -139,6 +139,7 @@ export const ENTRADAS_DE_CABLEADO = {
   placement: 'el lado donde se abre la capa (top, bottom, left, right…)',
   shape: 'la forma, de un vocabulario cerrado (circle, square, text…)',
   style: 'el estilo de la pieza, de un vocabulario cerrado de cada una',
+  lineStyle: 'el trazo del separador (solid, dashed, dotted, double, gradient): el atributo se llama así porque style es el de estilos en línea',
   density: 'la densidad del dibujo, de un vocabulario cerrado',
   direction: 'la dirección del grupo, fila o columna',
   headingLevel: 'el nivel del encabezado, de h1 a h6',
