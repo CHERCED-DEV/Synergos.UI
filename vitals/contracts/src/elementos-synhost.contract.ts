@@ -177,11 +177,14 @@ export interface PasoDelFormulario {
 export interface SelectMultiItem {
   readonly value: string;
   readonly label: string;
+  readonly disabled?: boolean;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: StepperItem). */
 export interface StepperItem {
   readonly title: string;
+  readonly description?: string;
+  readonly id?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: TabsItem). */
@@ -189,6 +192,7 @@ export interface TabsItem {
   readonly label: string;
   readonly id?: string;
   readonly content?: string;
+  readonly disabled?: boolean;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: TimelineEntry). */
@@ -203,12 +207,17 @@ export interface TourGuideStep {
   readonly target?: string;
   readonly title?: string;
   readonly body?: string;
+  readonly placement?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: TreeViewNode). */
 export interface TreeViewNode {
   readonly label: string;
   readonly children?: readonly TreeViewNode[];
+  readonly id?: string;
+  readonly href?: string;
+  readonly icon?: string;
+  readonly expanded?: boolean;
 }
 
 /** <synergos-academy> · funcionalidad */
@@ -2203,7 +2212,7 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
   diccionario: ["SelectMulti","Common.States"],
   claves: ["Common.States.ComingSoon","Common.States.Error","Common.States.Loading","Common.States.New","Common.States.NoResults","Common.States.NotAvailable","Common.States.Optional","Common.States.Required","Common.States.Success","SelectMulti.Capacity","SelectMulti.Clear","SelectMulti.Options","SelectMulti.Placeholder","SelectMulti.Remove","SelectMulti.Search","SelectMulti.Selected.One","SelectMulti.Selected.Other","SelectMulti.Selection"],
   campos: ["label","options","maxSelections"],
-  listas: {"options":["value","label"]},
+  listas: {"options":["value","label","disabled"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
@@ -2219,7 +2228,8 @@ export const SELECT_MULTI_SYNHOST: ElementoSynHost<SelectMultiProps> = {
       },
       {
         "value": "bbq",
-        "label": "Zona BBQ"
+        "label": "Zona BBQ",
+        "disabled": true
       }
     ],
     "maxSelections": 2
@@ -2316,13 +2326,15 @@ export const STEPPER_SYNHOST: ElementoSynHost<StepperProps> = {
   diccionario: ["Stepper"],
   claves: ["Stepper.Aria","Stepper.Status.Active","Stepper.Status.Done","Stepper.Status.Pending","Stepper.Step","Stepper.Summary"],
   campos: ["steps","currentStep"],
-  listas: {"steps":["title"]},
+  listas: {"steps":["title","description","id"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
     "steps": [
       {
-        "title": "Datos"
+        "title": "Datos",
+        "description": "Tus datos de contacto",
+        "id": "datos"
       },
       {
         "title": "Pago"
@@ -2359,7 +2371,7 @@ export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
   diccionario: [],
   claves: [],
   campos: ["tabs","initialTab"],
-  listas: {"tabs":["label","id","content"]},
+  listas: {"tabs":["label","id","content","disabled"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
@@ -2373,6 +2385,12 @@ export const TABS_SYNHOST: ElementoSynHost<TabsProps> = {
         "label": "Precios",
         "id": "precios",
         "content": "Desde $120.000 por noche."
+      },
+      {
+        "label": "Políticas",
+        "id": "politicas",
+        "content": "Próximamente.",
+        "disabled": true
       }
     ],
     "initialTab": "precios"
@@ -2461,7 +2479,7 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
   diccionario: ["TourGuide","Common.Actions"],
   claves: ["Common.Actions.Back","Common.Actions.Close","Common.Actions.Collapse","Common.Actions.ContactUs","Common.Actions.Download","Common.Actions.Expand","Common.Actions.GetDirections","Common.Actions.GetStarted","Common.Actions.LearnMore","Common.Actions.Next","Common.Actions.Open","Common.Actions.Previous","Common.Actions.ReadMore","Common.Actions.SeeMore","Common.Actions.Share","Common.Actions.ViewAll","TourGuide.Done","TourGuide.Skip"],
   campos: ["steps","autoStart"],
-  listas: {"steps":["target","title","body"]},
+  listas: {"steps":["target","title","body","placement"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
@@ -2469,7 +2487,8 @@ export const TOUR_GUIDE_SYNHOST: ElementoSynHost<TourGuideProps> = {
       {
         "target": ".site-header",
         "title": "Bienvenido",
-        "body": "Este es el menú principal."
+        "body": "Este es el menú principal.",
+        "placement": "bottom"
       },
       {
         "target": "#buscar",
@@ -2505,7 +2524,7 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
   diccionario: ["TreeView"],
   claves: ["TreeView.Aria","TreeView.Collapse","TreeView.Empty","TreeView.Expand"],
   campos: ["tree","expandAll","label"],
-  listas: {"tree":["label","children"]},
+  listas: {"tree":["label","children","id","href","icon","expanded"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
@@ -2524,10 +2543,14 @@ export const TREE_VIEW_SYNHOST: ElementoSynHost<TreeViewProps> = {
           {
             "label": "Jardín"
           }
-        ]
+        ],
+        "id": "productos",
+        "icon": "tag",
+        "expanded": true
       },
       {
-        "label": "Servicios"
+        "label": "Servicios",
+        "href": "/servicios"
       }
     ],
     "expandAll": true,
