@@ -2293,10 +2293,6 @@ export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
           "viaja": "email"
         },
         {
-          "editor": "copy",
-          "viaja": "copy"
-        },
-        {
           "editor": "reddit",
           "viaja": "reddit"
         },
