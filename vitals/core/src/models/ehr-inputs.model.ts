@@ -4,6 +4,4 @@ export interface EhrInputs {
   clinic: string;
   scope: string;
   role: string;
-  patient: string;
-  copayMinor: string;
 }
