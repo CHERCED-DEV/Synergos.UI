@@ -31,8 +31,8 @@ import { t } from '@synergos/vitals-core';
  * el `config`, que gana sobre los defaults.
  *
  * El nombre por defecto sale del diccionario con `t()` (ADR 0136), sección `ScrollTop` que
- * declara `ScrollTopProps`. (`Footer.BackToTop` dice lo mismo, pero es copia del pie de página:
- * acoplar este botón a ella haría que retocar el pie cambie este botón.)
+ * declara `ScrollTopProps`. (El pie tenía una copia, `Footer.BackToTop`, sin lector, y se retiró en
+ * #193 del CMS: acoplar este botón a ella habría hecho que retocar el pie cambiara el botón.)
  */
 
 export type ScrollTopPosition = 'bottom-right' | 'bottom-left' | 'bottom-center';

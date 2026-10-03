@@ -125,7 +125,7 @@ describe('NotificationToastElementComponent', () => {
 
       const raiz = fixture.nativeElement as HTMLElement;
       expect(raiz.querySelector('.toast-stack')?.getAttribute('aria-label')).toBe('Notificaciones');
-      expect(raiz.querySelector('.toast__close')?.getAttribute('aria-label')).toBe('Cerrar');
+      expect(raiz.querySelector('.toast__close')?.getAttribute('aria-label')).toBe('Descartar notificación');
     });
 
     it('con el bridge pinta las claves que publicó la página; lo que no publica sale por su respaldo', async () => {

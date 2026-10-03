@@ -189,7 +189,7 @@ export class NotificationToastElementComponent {
 
   /** La microcopia de la pila, del diccionario (ADR 0136, sección `Notification`). */
   readonly regionLabel = computed(() => t('Notification.Aria.List', 'Notificaciones'));
-  readonly dismissLabel = computed(() => t('Notification.Dismiss', 'Cerrar'));
+  readonly dismissLabel = computed(() => t('Notification.Dismiss', 'Descartar notificación'));
 
   readonly #toasts = signal<readonly ToastItem[]>([]);
   readonly toasts = this.#toasts.asReadonly();
