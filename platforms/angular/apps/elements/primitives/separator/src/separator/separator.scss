@@ -4,6 +4,9 @@
   --sep-line-color: var(--syn-color-border-default, #{syn.$color-border-default});
   --sep-label-color: var(--syn-color-text-muted, #{syn.$color-neutral-500});
   --sep-thickness: #{syn.px-to-rem(1)};
+  // El trazo (CMS#192, caso 2): lo pone `data-style` en el host. La línea se dibuja con un
+  // BORDE para que dashed/dotted/double sean los del navegador, con el color del tema.
+  --sep-line-style: solid;
   --sep-gap: #{syn.$space-md};
   --sep-block: #{syn.$space-md};
   --sep-vertical-size: #{syn.$space-md};
@@ -18,6 +21,22 @@
   vertical-align: middle;
 }
 
+:host([data-style='dashed']) {
+  --sep-line-style: dashed;
+}
+
+// El punteado de 1 px se lee como una línea gris: a 2 px los puntos se ven.
+:host([data-style='dotted']) {
+  --sep-line-style: dotted;
+  --sep-thickness: #{syn.px-to-rem(2)};
+}
+
+// `double` necesita 3 px para que quepan las dos líneas y el hueco entre ellas.
+:host([data-style='double']) {
+  --sep-line-style: double;
+  --sep-thickness: #{syn.px-to-rem(3)};
+}
+
 .separator {
   display: flex;
   align-items: center;
@@ -26,8 +45,8 @@
   &__line {
     display: block;
     flex: 1 1 auto;
-    block-size: var(--sep-thickness);
-    background: var(--sep-line-color);
+    block-size: 0;
+    border-block-start: var(--sep-thickness) var(--sep-line-style) var(--sep-line-color);
   }
 
   // Plain horizontal rule: vertical breathing room above/below.
@@ -45,9 +64,11 @@
 
     .separator__line {
       flex: 1 1 auto;
-      inline-size: var(--sep-thickness);
+      inline-size: 0;
       block-size: 100%;
       min-block-size: var(--sep-vertical-size);
+      border-block-start: 0;
+      border-inline-start: var(--sep-thickness) var(--sep-line-style) var(--sep-line-color);
     }
   }
 
@@ -83,4 +104,27 @@
       inline-size: var(--sep-gap);
     }
   }
+}
+
+// Degradado: la línea se desvanece hacia los extremos, en el color del tema. No es un borde
+// (un borde no admite degradado): es un fondo del grosor de la línea, en la dirección de la regla.
+:host([data-style='gradient']) .separator__line {
+  block-size: var(--sep-thickness);
+  border: 0;
+  background: linear-gradient(to right, transparent, var(--sep-line-color), transparent);
+}
+
+:host([data-style='gradient']) .separator--vertical .separator__line {
+  inline-size: var(--sep-thickness);
+  block-size: 100%;
+  background: linear-gradient(to bottom, transparent, var(--sep-line-color), transparent);
+}
+
+// Con rótulo, cada tramo se desvanece hacia AFUERA: el rótulo queda en la parte con color.
+:host([data-style='gradient']) .separator--labelled .separator__line:first-child {
+  background: linear-gradient(to right, transparent, var(--sep-line-color));
+}
+
+:host([data-style='gradient']) .separator--labelled .separator__line:last-child {
+  background: linear-gradient(to left, transparent, var(--sep-line-color));
 }

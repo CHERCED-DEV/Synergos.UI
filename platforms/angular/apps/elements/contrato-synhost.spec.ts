@@ -54,6 +54,7 @@ import { sanitizeBookingWizardConfig } from './modules/booking-wizard/src/bookin
 import { sanitizeFormStepperConfig } from './compositions/form-stepper/src/form-stepper/form-stepper';
 import { sanitizeDataGridConfig } from './modules/data-grid/src/data-grid/data-grid';
 import { sanitizeSearchBoxConfig } from './compositions/search-box/src/search-box/search-box';
+import { sanitizeSeparatorConfig } from './primitives/separator/src/separator/separator';
 
 /** Un sanitizador tal como lo exporta su elemento, con el tipo de su record. */
 type Sanitizador = (value: never) => unknown;
@@ -126,6 +127,7 @@ const CRUDOS: Readonly<Record<string, Sanitizador>> = {
   'form-stepper': sanitizeFormStepperConfig,
   'data-grid': sanitizeDataGridConfig,
   'search-box': sanitizeSearchBoxConfig,
+  separator: sanitizeSeparatorConfig,
 };
 
 const SANITIZADORES: Readonly<Record<string, (config: unknown) => unknown>> = Object.fromEntries(

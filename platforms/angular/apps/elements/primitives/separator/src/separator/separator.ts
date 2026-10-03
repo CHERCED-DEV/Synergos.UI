@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { SeparatorProps } from '@synergos/contracts';
 import {
   coerceOptionalBooleanInput,
   coerceStringEnumInput,
@@ -19,9 +20,16 @@ import {
  * Bridge contract: every CMS property is a TypeScript input with the same
  * alias. A `config` object (JSON) is also accepted; explicit attributes win
  * over `config`, which wins over defaults (see `resolveConfigValue`).
+ *
+ * El `config` que manda el CMS tiene la forma de `SeparatorProps`, GENERADO del record C#
+ * (ADR 0135): `style`, el trazo de la línea (CMS#192, caso 2). Antes el editor lo elegía y el
+ * elemento pintaba siempre la línea continua. `orientation`, `label`, `labelAlign` y
+ * `decorative` no los autora el editor: siguen siendo atributos, y el `config` libre los lee.
  */
 export type SeparatorOrientation = 'horizontal' | 'vertical';
 export type SeparatorLabelAlign = 'start' | 'center' | 'end';
+/** El trazo: los cinco de `DTSelectSeparatorStyle`, tal como viajan. */
+export type SeparatorStyle = 'solid' | 'dashed' | 'dotted' | 'double' | 'gradient';
 
 export interface SeparatorRuntimeConfig {
   readonly orientation?: SeparatorOrientation;
@@ -30,14 +38,21 @@ export interface SeparatorRuntimeConfig {
   readonly decorative?: boolean;
 }
 
+/** Lo que llega en `config`: el record del CMS más los atributos que el JSON libre puede traer. */
+export type SeparatorConfig = Partial<SeparatorProps> & SeparatorRuntimeConfig;
+
 const ORIENTATIONS: readonly SeparatorOrientation[] = ['horizontal', 'vertical'];
 const LABEL_ALIGNS: readonly SeparatorLabelAlign[] = ['start', 'center', 'end'];
+const STYLES: readonly SeparatorStyle[] = ['solid', 'dashed', 'dotted', 'double', 'gradient'];
 
 const DEFAULT_ORIENTATION: SeparatorOrientation = 'horizontal';
 const DEFAULT_LABEL_ALIGN: SeparatorLabelAlign = 'center';
+const DEFAULT_STYLE: SeparatorStyle = 'solid';
 
-function sanitizeSeparatorConfig(value: Partial<SeparatorRuntimeConfig>): SeparatorRuntimeConfig {
-  return omitUndefinedProperties<SeparatorRuntimeConfig>({
+/** Lo que llega en `config`, saneado. Exportado: `contrato-synhost.spec.ts` lo ejecuta con el `config` real de la vista. */
+export function sanitizeSeparatorConfig(value: SeparatorConfig): SeparatorConfig {
+  return omitUndefinedProperties<SeparatorConfig>({
+    style: coerceStringEnumInput(value.style, STYLES),
     orientation: coerceStringEnumInput(value.orientation, ORIENTATIONS),
     label: coerceTrimmedStringInput(value.label),
     labelAlign: coerceStringEnumInput(value.labelAlign, LABEL_ALIGNS),
@@ -54,13 +69,15 @@ function sanitizeSeparatorConfig(value: Partial<SeparatorRuntimeConfig>): Separa
   host: {
     class: 'sg-separator',
     '[attr.data-orientation]': 'orientation()',
+    '[attr.data-style]': 'lineStyle()',
     '[attr.data-has-label]': 'hasLabel() ? "" : null',
   },
 })
 export class SeparatorElementComponent {
-  readonly config = input<SeparatorRuntimeConfig | undefined, unknown>(undefined, {
-    transform: createConfigInputTransform<SeparatorRuntimeConfig>(sanitizeSeparatorConfig),
+  readonly config = input<SeparatorConfig | undefined, unknown>(undefined, {
+    transform: createConfigInputTransform<SeparatorConfig>(sanitizeSeparatorConfig),
   });
+  readonly styleInput = input<string | undefined>(undefined, { alias: 'lineStyle' });
   readonly orientationInput = input<string | undefined>(undefined, { alias: 'orientation' });
   readonly labelInput = input<string | undefined>(undefined, { alias: 'label' });
   readonly labelAlignInput = input<string | undefined>(undefined, { alias: 'labelAlign' });
@@ -89,6 +106,18 @@ export class SeparatorElementComponent {
   });
 
   readonly hasLabel = computed(() => this.label().length > 0);
+
+  /**
+   * El trazo de la línea. El atributo es `line-style` y no `style`: `style` en el tag es el
+   * atributo de estilos en línea del navegador, y Angular no lo deja como alias.
+   */
+  readonly lineStyle = computed<SeparatorStyle>(() =>
+    resolveConfigValue(
+      coerceStringEnumInput(this.styleInput(), STYLES),
+      this.config()?.style as SeparatorStyle | undefined,
+      DEFAULT_STYLE,
+    ),
+  );
 
   /** Where the label sits along a horizontal rule. */
   readonly labelAlign = computed<SeparatorLabelAlign>(() =>

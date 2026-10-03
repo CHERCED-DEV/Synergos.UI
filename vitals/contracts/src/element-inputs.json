@@ -4644,11 +4644,11 @@
       "description": "Base element configuration object. Prefer this payload for structural content; direct inputs act as state or override props."
     },
     {
-      "name": "style",
+      "name": "lineStyle",
       "type": "string",
       "required": false,
-      "default": "",
-      "description": "Campo \"Style\" del componente synergos-separator. Editor: editar manualmente para enriquecer documentación."
+      "default": "solid",
+      "description": "Trazo de la línea: solid, dashed, dotted, double o gradient (el style del CMS viaja en config; el atributo es line-style porque style es el de estilos en línea)."
     },
     {
       "name": "integration",

@@ -88,4 +88,35 @@ describe('SeparatorElementComponent', () => {
     expect(component.orientation()).toBe('horizontal');
     expect(component.labelAlign()).toBe('end');
   });
+
+  // ── CMS#192, caso 2: el trazo que elige el editor es el que se pinta ──────────
+  //
+  // `style` viajaba en el record y el elemento pintaba SIEMPRE la línea continua. Los cinco de
+  // `DTSelectSeparatorStyle` llegan tal cual: cada uno es un `data-style` del host, que es lo que
+  // la hoja de estilos lee.
+  it('pinta cada uno de los cinco trazos que manda el CMS', async () => {
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.getAttribute('data-style')).toBe('solid');
+
+    for (const style of ['solid', 'dashed', 'dotted', 'double', 'gradient']) {
+      fixture.componentRef.setInput('config', { style });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.lineStyle()).toBe(style);
+      expect(host.getAttribute('data-style')).toBe(style);
+    }
+  });
+
+  it('un trazo desconocido cae a la línea continua, y el atributo gana al config', async () => {
+    fixture.componentRef.setInput('config', { style: 'zigzag' });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.lineStyle()).toBe('solid');
+
+    fixture.componentRef.setInput('config', { style: 'dashed' });
+    fixture.componentRef.setInput('lineStyle', 'dotted');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.lineStyle()).toBe('dotted');
+  });
 });

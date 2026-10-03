@@ -616,6 +616,12 @@ export interface SellerProps {
   readonly apiBase: string;
 }
 
+/** <synergos-separator> · pieza */
+export interface SeparatorProps {
+  /** decision */
+  readonly style?: string;
+}
+
 /** <synergos-share-bar> · pieza · diccionario: Share */
 export interface ShareBarProps {
   /** decision */
@@ -2250,6 +2256,50 @@ export const SELLER_SYNHOST: ElementoSynHost<SellerProps> = {
   },
 };
 
+export const SEPARATOR_SYNHOST: ElementoSynHost<SeparatorProps> = {
+  nombre: "separator",
+  tipo: "pieza",
+  record: "SeparatorProps",
+  diccionario: [],
+  claves: [],
+  campos: ["style"],
+  listas: {},
+  selectores: [
+    {
+      "propiedad": "style",
+      "dataType": "DTSelectSeparatorStyle",
+      "multiple": false,
+      "campo": "style",
+      "valores": [
+        {
+          "editor": "solid",
+          "viaja": "solid"
+        },
+        {
+          "editor": "dashed",
+          "viaja": "dashed"
+        },
+        {
+          "editor": "dotted",
+          "viaja": "dotted"
+        },
+        {
+          "editor": "double",
+          "viaja": "double"
+        },
+        {
+          "editor": "gradient",
+          "viaja": "gradient"
+        }
+      ]
+    }
+  ],
+  ejemplo: {
+    "culture": "es-CO",
+    "style": "dashed"
+  },
+};
+
 export const SHARE_BAR_SYNHOST: ElementoSynHost<ShareBarProps> = {
   nombre: "share-bar",
   tipo: "pieza",
@@ -2608,6 +2658,7 @@ export const ELEMENTOS_SYNHOST = [
   SEARCH_BOX_SYNHOST,
   SELECT_MULTI_SYNHOST,
   SELLER_SYNHOST,
+  SEPARATOR_SYNHOST,
   SHARE_BAR_SYNHOST,
   STEPPER_SYNHOST,
   STOREFRONT_SYNHOST,
