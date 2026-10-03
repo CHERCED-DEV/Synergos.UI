@@ -75,6 +75,22 @@ export const TOPES_DECLARADOS = {
       'pero carga sus módulos y recorre `platforms/*/apps`: un proceso de node, que con `test:tools` ' +
       'en paralelo puede pasar de los 5 s de serie, como el de `cli-utils`.',
   },
+  'platforms/angular/libs/shop/src/lib/cart.store.registro.spec.ts': {
+    tope: 30_000,
+    razon:
+      'simula DOS bundles con `vi.resetModules()` + `import()` del store (UI#85): la segunda copia ' +
+      'vuelve a evaluar el grafo de `@synergos/shared` que importa. Solo tarda ~2 s; con la suite ' +
+      'de Angular en paralelo se midió por encima de los 5 de serie. Simularlo de otro modo no ' +
+      'probaría que dos copias del módulo se encuentran.',
+  },
+  'platforms/angular/apps/domains/shop/cart-summary/src/cart-summary/carrito-de-la-pagina.spec.ts': {
+    tope: 30_000,
+    razon:
+      'monta `cart-summary` y `product-card` y además evalúa otra copia de `@synergos/shop` con ' +
+      '`vi.resetModules()` (UI#85), que arrastra el grafo de `@synergos/shared`: ~3,5 s sola y ' +
+      '5 s justos con la suite en paralelo (medido: "timed out in 5000ms"). El clic de verdad y las ' +
+      'dos copias son lo que se prueba; no se simulan.',
+  },
 };
 
 /** Las llamadas que declaran tests o grupos: `describe`, `it`, `test` y sus variantes. */

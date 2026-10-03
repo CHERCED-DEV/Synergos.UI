@@ -26,6 +26,17 @@
  * Sigue sin inyector a propósito (`fetch`, no `HttpClient`): es un singleton de
  * módulo, y un `effect()`/DI aquí ya rompió el arranque una vez (ver `persist`).
  *
+ * **Uno por página, aunque se empaquete N veces** (UI#85). `shop` va dentro de cada elemento
+ * (`BUNDLED_SYNERGOS`), así que cada bundle trae SU copia de este módulo, y un store de módulo
+ * daba un carrito por bundle: con `product-detail` + `cart-summary` en la misma página, un clic
+ * en «agregar» lo escuchaban los dos —dos `POST /cart/add`, la cantidad sumada dos veces— y cada
+ * contador pintaba el suyo. Ahora el PRIMER bundle que carga crea el store en
+ * `globalThis[Symbol.for('synergos.cart.v1')]` y los demás se enganchan a esa misma instancia:
+ * un estado, un `hydrate()` y un solo listener de `sg:product:addToCart`. Los efectos (cargar y
+ * escuchar) viven detrás del registro, no en el import. La versión va en el nombre del símbolo:
+ * si el contrato del store cambia, sube a `v2` y los dos conviven sin pisarse. Las señales son
+ * compatibles entre bundles porque `@angular/core` es del runtime compartido (`EXTERNALS`).
+ *
  * Usage:
  *   import { cartStore } from '../cart.store';
  *   const count = cartStore.count;        // Signal<number>
@@ -100,297 +111,342 @@ function itemKey(productId: string, variantId?: string): string {
   return variantId ? `${productId}::${variantId}` : productId;
 }
 
-// ── State ─────────────────────────────────────────────────────────────────────
-
-const _items   = signal<CartItem[]>(loadItems());
-const _open    = signal(false);
-const _loading = signal(false);
-const _coupon  = signal<string | undefined>(undefined);
-const _discount = signal<number>(0);   // absolute discount amount
-/** Último fallo de sincronización con el servidor. `undefined` = todo confirmado. */
-const _lastError = signal<string | undefined>(undefined);
-
-// ── Computed ──────────────────────────────────────────────────────────────────
-
-const count    = computed(() => _items().reduce((n, i) => n + i.quantity, 0));
-const subtotal = computed(() => _items().reduce((n, i) => n + i.subtotal, 0));
-const total    = computed(() => Math.max(0, subtotal() - _discount()));
-const isEmpty  = computed(() => _items().length === 0);
-
-const snapshot = computed<Cart>(() => ({
-  items:     _items(),
-  itemCount: count(),
-  subtotal:  subtotal(),
-  discount:  _discount() > 0 ? _discount() : undefined,
-  total:     total(),
-  currency:  _items()[0]?.currency ?? '',
-  coupon:    _coupon(),
-  updatedAt: new Date().toISOString(),
-}));
-
-// ── Persistence + event bus ───────────────────────────────────────────────────
+// ── La fábrica: un carrito ───────────────────────────────────────────────────
 
 /**
- * Persist to localStorage and notify non-Angular consumers.
- *
- * Called explicitly by every mutation that changes the snapshot (items, coupon,
- * discount). This used to be a module-level `effect()`, which threw NG0203 at
- * import time — `effect()` requires an injection context, and this store is a
- * plain module singleton with no injector. That exception escaped before
- * `createApplication()` ran, so the custom elements never registered and both
- * cart-item and cart-summary were dead on arrival in the browser.
- *
- * Drawer open/close deliberately does NOT persist: it is not part of the
- * snapshot, and the old effect did not track it either.
+ * Crea UN carrito: su estado, sus mutaciones y sus efectos. Sólo la llama el registro de la
+ * página (`carritoDeLaPagina`); dos llamadas serían dos carritos, que es el defecto de UI#85.
  */
-function persist(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(_items()));
-  } catch { /* storage quota exceeded — silently skip */ }
+function crearCarrito() {
+  // ── State ─────────────────────────────────────────────────────────────────────
 
-  window.dispatchEvent(
-    new CustomEvent('sg:cart:updated', {
-      bubbles:  false,
-      composed: true,
-      detail:   snapshot(),
-    }),
-  );
-}
+  const _items   = signal<CartItem[]>(loadItems());
+  const _open    = signal(false);
+  const _loading = signal(false);
+  const _coupon  = signal<string | undefined>(undefined);
+  const _discount = signal<number>(0);   // absolute discount amount
+  /** Último fallo de sincronización con el servidor. `undefined` = todo confirmado. */
+  const _lastError = signal<string | undefined>(undefined);
 
-// ── Transporte al carrito de servidor ─────────────────────────────────────────
+  // ── Computed ──────────────────────────────────────────────────────────────────
 
-/**
- * Llama al carrito de servidor y devuelve el carrito resultante, o `null` si no se
- * pudo confirmar (red caída, 4xx/5xx, JSON ilegible).
- *
- * `credentials: 'same-origin'` es lo que hace que viaje la cookie del visitante:
- * sin ella el servidor abriría un carrito nuevo en cada llamada y el SSR y el
- * elemento seguirían viendo cosas distintas.
- */
-async function callCart(path: string, body?: unknown): Promise<ServerCart | null> {
-  if (typeof fetch === 'undefined') return null;
-  try {
-    const res = await fetch(`${CART_API}${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
-      credentials: 'same-origin',
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as ServerCart;
-  } catch {
-    return null;
+  const count    = computed(() => _items().reduce((n, i) => n + i.quantity, 0));
+  const subtotal = computed(() => _items().reduce((n, i) => n + i.subtotal, 0));
+  const total    = computed(() => Math.max(0, subtotal() - _discount()));
+  const isEmpty  = computed(() => _items().length === 0);
+
+  const snapshot = computed<Cart>(() => ({
+    items:     _items(),
+    itemCount: count(),
+    subtotal:  subtotal(),
+    discount:  _discount() > 0 ? _discount() : undefined,
+    total:     total(),
+    currency:  _items()[0]?.currency ?? '',
+    coupon:    _coupon(),
+    updatedAt: new Date().toISOString(),
+  }));
+
+  // ── Persistence + event bus ───────────────────────────────────────────────────
+
+  /**
+   * Persist to localStorage and notify non-Angular consumers.
+   *
+   * Called explicitly by every mutation that changes the snapshot (items, coupon,
+   * discount). This used to be a module-level `effect()`, which threw NG0203 at
+   * import time — `effect()` requires an injection context, and this store is a
+   * plain module singleton with no injector. That exception escaped before
+   * `createApplication()` ran, so the custom elements never registered and both
+   * cart-item and cart-summary were dead on arrival in the browser.
+   *
+   * Drawer open/close deliberately does NOT persist: it is not part of the
+   * snapshot, and the old effect did not track it either.
+   */
+  function persist(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_items()));
+    } catch { /* storage quota exceeded — silently skip */ }
+
+    window.dispatchEvent(
+      new CustomEvent('sg:cart:updated', {
+        bubbles:  false,
+        composed: true,
+        detail:   snapshot(),
+      }),
+    );
   }
-}
 
-/** Adopta el carrito del servidor como estado. Es la ÚNICA vía que fija `_items`. */
-function adopt(cart: ServerCart): void {
-  _items.set(toItems(cart));
-  persist();
-}
+  // ── Transporte al carrito de servidor ─────────────────────────────────────────
 
-/**
- * Ejecuta una mutación optimista y la confirma contra el servidor.
- *
- * Si el servidor no confirma, REVIERTE al estado previo y emite `sg:cart:error`.
- * Devuelve si la operación quedó realmente registrada — quien abra un drawer o
- * anuncie éxito debe mirar este booleano, no asumirlo.
- */
-async function commit(optimistic: () => void, path: string, body?: unknown): Promise<boolean> {
-  const previous = _items();
-  optimistic();
-  persist();
+  /**
+   * Llama al carrito de servidor y devuelve el carrito resultante, o `null` si no se
+   * pudo confirmar (red caída, 4xx/5xx, JSON ilegible).
+   *
+   * `credentials: 'same-origin'` es lo que hace que viaje la cookie del visitante:
+   * sin ella el servidor abriría un carrito nuevo en cada llamada y el SSR y el
+   * elemento seguirían viendo cosas distintas.
+   */
+  async function callCart(path: string, body?: unknown): Promise<ServerCart | null> {
+    if (typeof fetch === 'undefined') return null;
+    try {
+      const res = await fetch(`${CART_API}${path}`, {
+        method: body === undefined ? 'GET' : 'POST',
+        credentials: 'same-origin',
+        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as ServerCart;
+    } catch {
+      return null;
+    }
+  }
 
-  _loading.set(true);
-  const cart = await callCart(path, body);
-  _loading.set(false);
-
-  if (!cart) {
-    _items.set(previous);          // revertir: la pantalla no puede quedar mintiendo
+  /** Adopta el carrito del servidor como estado. Es la ÚNICA vía que fija `_items`. */
+  function adopt(cart: ServerCart): void {
+    _items.set(toItems(cart));
     persist();
-    _lastError.set('No se pudo actualizar el carrito.');
-    window.dispatchEvent(new CustomEvent('sg:cart:error', { bubbles: false, composed: true }));
-    return false;
   }
 
-  _lastError.set(undefined);
-  adopt(cart);
-  return true;
-}
+  /**
+   * Ejecuta una mutación optimista y la confirma contra el servidor.
+   *
+   * Si el servidor no confirma, REVIERTE al estado previo y emite `sg:cart:error`.
+   * Devuelve si la operación quedó realmente registrada — quien abra un drawer o
+   * anuncie éxito debe mirar este booleano, no asumirlo.
+   */
+  async function commit(optimistic: () => void, path: string, body?: unknown): Promise<boolean> {
+    const previous = _items();
+    optimistic();
+    persist();
 
-/** Trae el carrito del servidor y lo adopta. Es lo que reconcilia con el SSR. */
-async function hydrate(): Promise<boolean> {
-  const cart = await callCart('');
-  if (!cart) return false;
-  adopt(cart);
-  return true;
-}
+    _loading.set(true);
+    const cart = await callCart(path, body);
+    _loading.set(false);
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
+    if (!cart) {
+      _items.set(previous);          // revertir: la pantalla no puede quedar mintiendo
+      persist();
+      _lastError.set('No se pudo actualizar el carrito.');
+      window.dispatchEvent(new CustomEvent('sg:cart:error', { bubbles: false, composed: true }));
+      return false;
+    }
 
-async function add(item: Omit<CartItem, 'subtotal'>): Promise<boolean> {
-  return commit(
-    () => _items.update((prev) => {
-      const key = itemKey(item.productId, item.variantId);
-      const idx = prev.findIndex((i) => itemKey(i.productId, i.variantId) === key);
-      if (idx >= 0) {
-        return prev.map((i, n) =>
-          n === idx
-            ? { ...i, quantity: i.quantity + item.quantity, subtotal: (i.quantity + item.quantity) * i.price }
+    _lastError.set(undefined);
+    adopt(cart);
+    return true;
+  }
+
+  /** Trae el carrito del servidor y lo adopta. Es lo que reconcilia con el SSR. */
+  async function hydrate(): Promise<boolean> {
+    const cart = await callCart('');
+    if (!cart) return false;
+    adopt(cart);
+    return true;
+  }
+
+  // ── Mutations ─────────────────────────────────────────────────────────────────
+
+  async function add(item: Omit<CartItem, 'subtotal'>): Promise<boolean> {
+    return commit(
+      () => _items.update((prev) => {
+        const key = itemKey(item.productId, item.variantId);
+        const idx = prev.findIndex((i) => itemKey(i.productId, i.variantId) === key);
+        if (idx >= 0) {
+          return prev.map((i, n) =>
+            n === idx
+              ? { ...i, quantity: i.quantity + item.quantity, subtotal: (i.quantity + item.quantity) * i.price }
+              : i,
+          );
+        }
+        return [...prev, { ...item, subtotal: item.price * item.quantity }];
+      }),
+      '/add',
+      // El servidor indexa por SKU, no por productId.
+      { sku: item.sku, quantity: item.quantity, variantSku: item.variantId ?? null },
+    );
+  }
+
+  async function remove(productId: string, variantId?: string): Promise<boolean> {
+    const key = itemKey(productId, variantId);
+    const target = _items().find((i) => itemKey(i.productId, i.variantId) === key);
+    if (!target) return true;   // ya no está: nada que pedirle al servidor
+
+    return commit(
+      () => _items.update((prev) => prev.filter((i) => itemKey(i.productId, i.variantId) !== key)),
+      '/remove',
+      { sku: target.sku, variantSku: target.variantId ?? null },
+    );
+  }
+
+  async function updateQuantity(productId: string, quantity: number, variantId?: string): Promise<boolean> {
+    if (quantity <= 0) return remove(productId, variantId);
+
+    const key = itemKey(productId, variantId);
+    const target = _items().find((i) => itemKey(i.productId, i.variantId) === key);
+    if (!target) return false;
+
+    return commit(
+      () => _items.update((prev) =>
+        prev.map((i) =>
+          itemKey(i.productId, i.variantId) === key
+            ? { ...i, quantity, subtotal: i.price * quantity }
             : i,
-        );
-      }
-      return [...prev, { ...item, subtotal: item.price * item.quantity }];
-    }),
-    '/add',
-    // El servidor indexa por SKU, no por productId.
-    { sku: item.sku, quantity: item.quantity, variantSku: item.variantId ?? null },
-  );
-}
-
-async function remove(productId: string, variantId?: string): Promise<boolean> {
-  const key = itemKey(productId, variantId);
-  const target = _items().find((i) => itemKey(i.productId, i.variantId) === key);
-  if (!target) return true;   // ya no está: nada que pedirle al servidor
-
-  return commit(
-    () => _items.update((prev) => prev.filter((i) => itemKey(i.productId, i.variantId) !== key)),
-    '/remove',
-    { sku: target.sku, variantSku: target.variantId ?? null },
-  );
-}
-
-async function updateQuantity(productId: string, quantity: number, variantId?: string): Promise<boolean> {
-  if (quantity <= 0) return remove(productId, variantId);
-
-  const key = itemKey(productId, variantId);
-  const target = _items().find((i) => itemKey(i.productId, i.variantId) === key);
-  if (!target) return false;
-
-  return commit(
-    () => _items.update((prev) =>
-      prev.map((i) =>
-        itemKey(i.productId, i.variantId) === key
-          ? { ...i, quantity, subtotal: i.price * quantity }
-          : i,
+        ),
       ),
-    ),
-    '/update',
-    { sku: target.sku, quantity, variantSku: target.variantId ?? null },
-  );
-}
+      '/update',
+      { sku: target.sku, quantity, variantSku: target.variantId ?? null },
+    );
+  }
 
-async function clear(): Promise<boolean> {
-  const ok = await commit(() => _items.set([]), '/clear');
-  if (ok) {
+  async function clear(): Promise<boolean> {
+    const ok = await commit(() => _items.set([]), '/clear');
+    if (ok) {
+      _coupon.set(undefined);
+      _discount.set(0);
+      persist();
+    }
+    return ok;
+  }
+
+  function openDrawer(): void  { _open.set(true);  }
+  function closeDrawer(): void { _open.set(false); }
+  function toggleDrawer(): void { _open.update((v) => !v); }
+
+  function applyDiscount(code: string, amount: number): void {
+    _coupon.set(code);
+    _discount.set(amount);
+    persist();
+  }
+
+  function clearDiscount(): void {
     _coupon.set(undefined);
     _discount.set(0);
     persist();
   }
-  return ok;
-}
 
-function openDrawer(): void  { _open.set(true);  }
-function closeDrawer(): void { _open.set(false); }
-function toggleDrawer(): void { _open.update((v) => !v); }
+  // ── Listen for add-to-cart events (from product-card and other components) ────
 
-function applyDiscount(code: string, amount: number): void {
-  _coupon.set(code);
-  _discount.set(amount);
-  persist();
-}
+  /**
+   * Los efectos del store —reconciliar con el servidor y escuchar «agregar»—. Los corre el registro
+   * UNA vez, al crear el store de la página; nunca el import de un bundle (UI#85).
+   */
+  function arrancar(): void {
+    if (typeof window === 'undefined') return;
+    // Reconciliar con el carrito de servidor al cargar. localStorage ya pintó algo
+    // para el primer frame; esto lo corrige con la verdad (y recoge lo que el
+    // usuario hubiera añadido desde una página SSR con `syn-shop.js`).
+    void hydrate();
 
-function clearDiscount(): void {
-  _coupon.set(undefined);
-  _discount.set(0);
-  persist();
-}
-
-// ── Listen for add-to-cart events (from product-card and other components) ────
-
-if (typeof window !== 'undefined') {
-  // Reconciliar con el carrito de servidor al cargar. localStorage ya pintó algo
-  // para el primer frame; esto lo corrige con la verdad (y recoge lo que el
-  // usuario hubiera añadido desde una página SSR con `syn-shop.js`).
-  void hydrate();
-
-  window.addEventListener('sg:product:addToCart', (e: Event) => {
-    const ev = e as CustomEvent<{
-      productId:  string;
-      productSku: string;
-      name:       string;
-      price:      number;
-      currency:   string;
-      image?:     string;
-      quantity:   number;
-      variantId?: string;
-    }>;
-    const d = ev.detail;
-    void add({
-      productId: d.productId,
-      variantId: d.variantId,
-      sku:       d.productSku,
-      name:      d.name,
-      price:     d.price,
-      currency:  d.currency,
-      image:     d.image,
-      quantity:  d.quantity ?? 1,
-    }).then((ok) => {
-      // El drawer se abre SOLO si el servidor confirmó. Abrirlo siempre era
-      // exactamente el fallo: anunciar al comprador que el producto está en su
-      // carrito cuando el carrito real no lo tiene.
-      //
-      // Y lo que se VE se OYE (#82): hasta acá, agregar no le decía nada a un lector
-      // de pantalla — ni el éxito ni el fallo, que revertía el carrito en silencio.
-      // Se anuncia AQUÍ porque es el único sitio que sabe las dos cosas: si el
-      // servidor confirmó y qué producto era. El store no tiene inyector (ver la
-      // cabecera), así que usa el anunciador del documento, que es la misma región
-      // que la de `LiveAnnouncerService`. Con el cajón abierto (`aria-modal`), el
-      // anunciador se cuelga de él para que el mensaje no quede fuera del modal.
-      const anunciador = documentLiveAnnouncer(document);
-      if (ok) {
-        openDrawer();
-        anunciador.announce(`${d.name} agregado al carrito.`);
-      } else {
-        anunciador.announce(`No se pudo agregar ${d.name} al carrito.`, 'assertive');
-      }
+    window.addEventListener('sg:product:addToCart', (e: Event) => {
+      const ev = e as CustomEvent<{
+        productId:  string;
+        productSku: string;
+        name:       string;
+        price:      number;
+        currency:   string;
+        image?:     string;
+        quantity:   number;
+        variantId?: string;
+      }>;
+      const d = ev.detail;
+      void add({
+        productId: d.productId,
+        variantId: d.variantId,
+        sku:       d.productSku,
+        name:      d.name,
+        price:     d.price,
+        currency:  d.currency,
+        image:     d.image,
+        quantity:  d.quantity ?? 1,
+      }).then((ok) => {
+        // El drawer se abre SOLO si el servidor confirmó. Abrirlo siempre era
+        // exactamente el fallo: anunciar al comprador que el producto está en su
+        // carrito cuando el carrito real no lo tiene.
+        //
+        // Y lo que se VE se OYE (#82): hasta acá, agregar no le decía nada a un lector
+        // de pantalla — ni el éxito ni el fallo, que revertía el carrito en silencio.
+        // Se anuncia AQUÍ porque es el único sitio que sabe las dos cosas: si el
+        // servidor confirmó y qué producto era. El store no tiene inyector (ver la
+        // cabecera), así que usa el anunciador del documento, que es la misma región
+        // que la de `LiveAnnouncerService`. Con el cajón abierto (`aria-modal`), el
+        // anunciador se cuelga de él para que el mensaje no quede fuera del modal.
+        const anunciador = documentLiveAnnouncer(document);
+        if (ok) {
+          openDrawer();
+          anunciador.announce(`${d.name} agregado al carrito.`);
+        } else {
+          anunciador.announce(`No se pudo agregar ${d.name} al carrito.`, 'assertive');
+        }
+      });
     });
-  });
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────────
+
+  const api = {
+    // State (readonly signals)
+    items:    _items.asReadonly(),
+    open:     _open.asReadonly(),
+    loading:  _loading.asReadonly(),
+    coupon:   _coupon.asReadonly(),
+    /** Último fallo al sincronizar con el servidor; `undefined` si todo está confirmado. */
+    lastError: _lastError.asReadonly(),
+
+    // Computed
+    count,
+    subtotal,
+    total,
+    isEmpty,
+    snapshot,
+
+    // Mutations — async: devuelven si el SERVIDOR confirmó
+    add,
+    remove,
+    updateQuantity,
+    clear,
+
+    /** Reconcilia con el carrito de servidor. Se llama sola al cargar. */
+    hydrate,
+
+    // Drawer
+    openDrawer,
+    closeDrawer,
+    toggleDrawer,
+
+    // Discounts
+    applyDiscount,
+    clearDiscount,
+  } as const;
+
+  return { api, arrancar };
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+/** El store del carrito: su forma es el contrato `v1` que comparten los bundles de la página. */
+export type CartStore = ReturnType<typeof crearCarrito>['api'];
 
-export const cartStore = {
-  // State (readonly signals)
-  items:    _items.asReadonly(),
-  open:     _open.asReadonly(),
-  loading:  _loading.asReadonly(),
-  coupon:   _coupon.asReadonly(),
-  /** Último fallo al sincronizar con el servidor; `undefined` si todo está confirmado. */
-  lastError: _lastError.asReadonly(),
+// ── El registro de la página (UI#85) ─────────────────────────────────────────
 
-  // Computed
-  count,
-  subtotal,
-  total,
-  isEmpty,
-  snapshot,
+/**
+ * La clave del store en la página. `Symbol.for` es el registro GLOBAL de símbolos: el mismo
+ * símbolo para todas las copias de este módulo, que es lo que las hace encontrarse. La versión
+ * del contrato va en el nombre.
+ */
+export const CLAVE_DEL_CARRITO = Symbol.for('synergos.cart.v1');
 
-  // Mutations — async: devuelven si el SERVIDOR confirmó
-  add,
-  remove,
-  updateQuantity,
-  clear,
+/**
+ * El carrito de la página: el que creó el primer bundle que cargó, o uno nuevo si éste es el
+ * primero —y entonces, y sólo entonces, arrancan sus efectos—.
+ */
+export function carritoDeLaPagina(): CartStore {
+  const registro = globalThis as unknown as Record<symbol, CartStore | undefined>;
+  const existente = registro[CLAVE_DEL_CARRITO];
+  if (existente) {
+    return existente;
+  }
+  const { api: nuevo, arrancar: arrancarNuevo } = crearCarrito();
+  registro[CLAVE_DEL_CARRITO] = nuevo;
+  arrancarNuevo();
+  return nuevo;
+}
 
-  /** Reconcilia con el carrito de servidor. Se llama sola al cargar. */
-  hydrate,
-
-  // Drawer
-  openDrawer,
-  closeDrawer,
-  toggleDrawer,
-
-  // Discounts
-  applyDiscount,
-  clearDiscount,
-} as const;
+export const cartStore: CartStore = carritoDeLaPagina();
