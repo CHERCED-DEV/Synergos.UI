@@ -905,7 +905,8 @@
               No enviado
               <button type="button" class="ehr__msg-retry" (click)="retryMessage(thread, message)">Reintentar</button>
             </span>
-          } @else {
+          } @else if (message.createdAtUtc) {
+            <!-- Sin fecha del servidor no hay hora: no se inventa «ahora». -->
             <span class="ehr__msg-time">{{ relativeTime(message.createdAtUtc) }}</span>
           }
         </li>

@@ -737,6 +737,21 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(component.rxInteractions().length).toBeGreaterThan(0);
   });
 
+  it('un mensaje sin fecha no lleva hora: ni «ahora» ni ninguna otra', async () => {
+    await createComponent();
+    component.navigate('messages');
+    await flushMicrotasks();
+    const hilo = component.threads()[0];
+    const sinFecha = { ...hilo, messages: hilo.messages.map((mensaje) => ({ ...mensaje, createdAtUtc: null })) };
+    component.threads.set([sinFecha]);
+    component.onThreadSelect(sinFecha);
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('.ehr__msg-body')?.textContent).toContain('Nos vemos en la cita.');
+    expect(host.querySelector('.ehr__msg-time')).toBeNull();
+  });
+
   // ══ #106 · UNA LECTURA CLÍNICA QUE FALLA NO DEGRADA A OTRO PACIENTE ══════════
 
   it('la ficha que no se pudo leer queda VACÍA — no trae la historia de otro paciente', async () => {
@@ -1212,6 +1227,36 @@ describe('EhrApiClient (v2 endpoints)', () => {
   });
 
   // ── CMS#197: la negativa del servidor sale con su motivo, no como «no disponible» ──
+  // ── Lo que el servidor no fecha queda sin fecha: no se inventa «ahora» ──────
+  it('un mensaje, un hilo o un aviso de la bandeja sin fecha quedan sin fecha', async () => {
+    const responder = (body: unknown): Promise<Response> =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/inbasket')
+          ? responder({ items: [{ id: 'ib-1', kind: 'result', patientId: 'p', patientName: 'P', title: 'Sin fecha', detail: '' }] })
+          : responder({
+              threads: [
+                {
+                  id: 'hilo-1',
+                  participant: 'Dra. Méndez',
+                  subject: 'Control',
+                  lastMessage: 'Hola',
+                  messages: [{ id: 'm-1', author: 'Dra. Méndez', body: 'Hola', outgoing: false }],
+                },
+              ],
+            }),
+      ),
+    );
+    const client = createClient();
+
+    const [hilo] = await client.messages('/api/ehr');
+    expect(hilo.lastAtUtc).toBeNull();
+    expect(hilo.messages[0].createdAtUtc).toBeNull();
+    expect((await client.inbox('/api/ehr', 'doc-mendez'))[0].createdAtUtc).toBeNull();
+  });
+
   it('cada negativa sale como `EhrAccesoDenegadoError` con su motivo; la caída, no', async () => {
     const motivo = async (lectura: () => Promise<unknown>): Promise<string> => {
       const error = await lectura().then(

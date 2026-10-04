@@ -608,7 +608,9 @@
                           @if (search.newMatches > 0) {
                             <span class="realty__saved-badge">{{ search.newMatches }} nuevas</span>
                           }
-                          Guardada {{ formatDate(search.createdAt) }}
+                          @if (search.createdAt) {
+                            Guardada {{ formatDate(search.createdAt) }}
+                          }
                         </p>
                       </div>
                       <button type="button" class="realty__toggle" [class.is-on]="search.alert" (click)="toggleAlert(search.id)">

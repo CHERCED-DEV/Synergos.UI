@@ -2361,8 +2361,8 @@ export class EhrElementComponent implements OnInit {
     }
   }
 
-  relativeTime(iso: string): string {
-    const then = Date.parse(iso);
+  relativeTime(iso: string | null): string {
+    const then = iso ? Date.parse(iso) : Number.NaN;
     if (!Number.isFinite(then)) {
       return '';
     }

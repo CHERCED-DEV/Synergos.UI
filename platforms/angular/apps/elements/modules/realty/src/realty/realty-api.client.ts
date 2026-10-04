@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { LoggerService } from '@synergos/core';
+import { diaLocal } from '@synergos/vitals-core';
 import { calculateMortgage } from './mortgage.calc';
 import {
   type Agent,
@@ -299,7 +300,8 @@ export class RealtyApiClient {
       listingTitle,
       message: body.message,
       status: 'new',
-      createdAt: new Date().toISOString().slice(0, 10),
+      // El CRM en memoria apunta el lead el día que entra, en el calendario LOCAL (no el de UTC).
+      createdAt: diaLocal(),
     };
     this.#agentLeads = [lead, ...this.#agentLeads];
   }
@@ -572,7 +574,8 @@ export class RealtyApiClient {
       status: 'active',
       views: 0,
       leads: 0,
-      publishedAt: new Date().toISOString().slice(0, 10),
+      // La cartera en memoria lo publica hoy, en el calendario LOCAL (no el de UTC).
+      publishedAt: diaLocal(),
     };
     this.#publishedListings = [listing, ...this.#publishedListings];
   }
@@ -1095,7 +1098,8 @@ function normalizeSavedSearch(value: unknown, request?: SavedSearchRequest): Sav
     label: readString(value['label']).trim() || request?.label || 'Búsqueda guardada',
     operation: readOperation(value['operation'] ?? request?.operation),
     newMatches: Math.max(0, Math.trunc(readNumber(value['newMatches']))),
-    createdAt: readString(value['createdAt']).trim() || new Date().toISOString().slice(0, 10),
+    // Lo que no vino queda ausente: el día de hoy es una fecha que nadie dijo.
+    createdAt: readString(value['createdAt']).trim() || null,
     alert: readBoolean(value['alert'], request?.alert ?? false),
   };
 }

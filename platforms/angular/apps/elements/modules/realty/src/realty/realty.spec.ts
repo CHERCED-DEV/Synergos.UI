@@ -848,6 +848,33 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.savedSearches()[0]?.id).toBe('ss_9');
   });
 
+  // ── Lo que el servidor no fecha queda sin fecha (no se inventa «hoy») ──────────
+  it('una búsqueda guardada sin fecha no dice «Guardada …»', async () => {
+    installMemoryStorage();
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+    await createComponent();
+    component.goToAccount();
+    await flushMicrotasks();
+    component.savedSearches.set([
+      { id: 'ss-1', label: 'Apartamentos en Chicó', operation: 'sale', newMatches: 0, createdAt: null, alert: false },
+      { id: 'ss-2', label: 'Casas en Envigado', operation: 'sale', newMatches: 0, createdAt: '2026-09-20', alert: false },
+    ]);
+    fixture.detectChanges();
+    // La sección la cambia el account-shell, como la cambia quien mira: con su botón. Después de
+    // sembrar: el shell vuelve a la primera sección cuando cambia su configuración.
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.syn-account__nav-btn'))
+      .find((boton) => (boton.textContent ?? '').includes('Búsquedas guardadas'))
+      ?.click();
+    fixture.detectChanges();
+
+    const metas = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.realty__saved-meta')).map(
+      (meta) => meta.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    );
+    expect(metas).toHaveLength(2);
+    expect(metas[0]).toBe('');
+    expect(metas[1]).toMatch(/^Guardada /);
+  });
+
   // ── hash router: deep-links views + the agent console ─────────────────────────
   it('deep-links views and the agent console through the hash router', async () => {
     installMemoryStorage();
@@ -1288,6 +1315,22 @@ describe('RealtyApiClient', () => {
       vi.fn(() => Promise.resolve({ ok: false, status: 401, json: () => Promise.resolve({}) } as Response)),
     );
     await expect(client.saveSearch('/api/realty', pedida)).rejects.toMatchObject({ name: 'RealtyUnauthorizedError' });
+  });
+
+  it('una búsqueda guardada que llega sin `createdAt` queda sin fecha, no con la de hoy', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ searches: [{ id: 'ss-1', label: 'Chicó', operation: 'sale' }] }),
+        } as Response),
+      ),
+    );
+    const { searches } = await createClient().savedSearches('/api/realty');
+
+    expect(searches.map((search) => search.createdAt)).toEqual([null]);
   });
 
   it('re-lanza el 401 de las búsquedas guardadas en vez de degradar a mock', async () => {

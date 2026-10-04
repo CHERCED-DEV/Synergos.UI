@@ -404,8 +404,11 @@ export interface SavedSearch {
   readonly operation: Operation;
   /** New matches since last seen (drives the alert badge). */
   readonly newMatches: number;
-  /** ISO date the search was saved. */
-  readonly createdAt: string;
+  /**
+   * ISO date the search was saved, o `null` si el servidor no lo dice: entonces no se pinta
+   * «Guardada …». El cliente ponía el día de hoy (y en UTC).
+   */
+  readonly createdAt: string | null;
   /** Whether an email/push alert is on. */
   readonly alert: boolean;
 }

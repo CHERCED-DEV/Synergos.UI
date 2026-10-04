@@ -420,7 +420,11 @@ export interface ClinicalMessage {
   readonly threadId: string;
   readonly author: string;
   readonly body: string;
-  readonly createdAtUtc: string;
+  /**
+   * Cuándo se escribió, o `null` si el servidor no lo dice: entonces no se pinta hora. El cliente
+   * ponía «ahora», y un mensaje viejo sin fecha salía «ahora» en el hilo.
+   */
+  readonly createdAtUtc: string | null;
   /** True when sent by the current viewer (right-aligned bubble). */
   readonly outgoing: boolean;
   /**
@@ -441,7 +445,8 @@ export interface MessageThread {
   readonly participant: string;
   readonly subject: string;
   readonly lastMessage: string;
-  readonly lastAtUtc: string;
+  /** Cuándo fue el último mensaje, o `null` si el servidor no lo dice (nunca «ahora» inventado). */
+  readonly lastAtUtc: string | null;
   /**
    * Mensajes sin leer. **`null` = no lo sabemos**, que NO es cero (#111).
    *
@@ -465,7 +470,8 @@ export interface InboxItem {
   readonly patientName: string;
   readonly title: string;
   readonly detail: string;
-  readonly createdAtUtc: string;
+  /** Cuándo llegó a la bandeja, o `null` si el servidor no lo dice. */
+  readonly createdAtUtc: string | null;
   readonly priority: 'routine' | 'high';
   readonly done: boolean;
 }

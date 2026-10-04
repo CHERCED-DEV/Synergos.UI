@@ -1105,7 +1105,8 @@ function normalizeMessage(value: unknown, threadId: string): MessageThread['mess
     threadId,
     author: readString(value['author']).trim(),
     body,
-    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    // Lo que no vino queda ausente: «ahora» es una fecha que nadie dijo.
+    createdAtUtc: readString(value['createdAtUtc']).trim() || null,
     outgoing: readBoolean(value['outgoing'], false),
   };
 }
@@ -1124,7 +1125,7 @@ function normalizeThread(value: unknown): MessageThread | null {
     participant: readString(value['participant']).trim(),
     subject: readString(value['subject']).trim(),
     lastMessage: readString(value['lastMessage']).trim(),
-    lastAtUtc: readString(value['lastAtUtc']).trim() || new Date().toISOString(),
+    lastAtUtc: readString(value['lastAtUtc']).trim() || null,
     // Sin clave o con `null`, «no lo sabemos» — que no es cero: la insignia se
     // pinta con `> 0` y las dos cosas se veían igual.
     unread:
@@ -1168,7 +1169,7 @@ function normalizeInboxItem(value: unknown): InboxItem | null {
     patientName: readString(value['patientName']).trim(),
     title,
     detail: readString(value['detail']).trim(),
-    createdAtUtc: readString(value['createdAtUtc']).trim() || new Date().toISOString(),
+    createdAtUtc: readString(value['createdAtUtc']).trim() || null,
     priority: readString(value['priority']).toLowerCase() === 'high' ? 'high' : 'routine',
     done: readBoolean(value['done'], false),
   };
