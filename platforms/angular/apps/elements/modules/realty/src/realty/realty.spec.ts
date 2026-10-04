@@ -60,7 +60,23 @@ type FetchDoble = (url: RequestInfo | URL, init?: RequestInit) => Promise<Respon
  * Las LECTURAS que no se declaran caen como hasta ahora —catálogo de muestra con su
  * cartel, que es legítimo (regla 4)—: lo que se prueba acá son las escrituras.
  */
-function bordeDeEscrituras(opciones: { readonly caidas?: readonly string[] } = {}): {
+/**
+ * La agenda que contesta el borde: 3 días a las 9 y a las 11, como la de verdad. Las fechas son
+ * fijas y NO son las que inventaba la UI (7 días desde mañana, a las 9, 11, 14 y 16): si la agenda
+ * inventada volviera, no casaría con ésta.
+ */
+const FRANJAS_DEL_SERVIDOR = [
+  { date: '2026-11-03', time: '09:00' },
+  { date: '2026-11-03', time: '11:00' },
+  { date: '2026-11-04', time: '09:00' },
+  { date: '2026-11-04', time: '11:00' },
+  { date: '2026-11-05', time: '09:00' },
+  { date: '2026-11-05', time: '11:00' },
+] as const;
+
+function bordeDeEscrituras(
+  opciones: { readonly caidas?: readonly string[]; readonly franjas?: readonly { date: string; time: string }[] } = {},
+): {
   readonly fetchDoble: ReturnType<typeof vi.fn<FetchDoble>>;
   readonly llamadas: (clave: string) => number;
   readonly encender: (clave: string) => void;
@@ -72,7 +88,9 @@ function bordeDeEscrituras(opciones: { readonly caidas?: readonly string[] } = {
 
   const fetchDoble = vi.fn<FetchDoble>((url, init) => {
     const metodo = (init?.method ?? 'GET').toUpperCase();
-    const ruta = new URL(String(url), 'http://borde.test').pathname.replace(/^\/api\/realty/, '');
+    const ruta = new URL(String(url), 'http://borde.test').pathname
+      .replace(/^\/api\/realty/, '')
+      .replace(/^\/listing\/[^/]+\/slots$/, '/listing/{id}/slots');
     const clave = `${metodo} ${ruta}`;
     vistas.push(clave);
     if (caidas.has(clave)) {
@@ -80,6 +98,8 @@ function bordeDeEscrituras(opciones: { readonly caidas?: readonly string[] } = {
     }
     const cuerpo = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
     switch (clave) {
+      case 'GET /listing/{id}/slots':
+        return responder(200, { slots: opciones.franjas ?? FRANJAS_DEL_SERVIDOR });
       case 'POST /visit':
         return responder(200, {
           visit: {
@@ -155,39 +175,6 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
   });
 
 
-  // ── El día es el LOCAL, no el de UTC ─────────────────────────────────────────
-  //
-  // Con `toISOString().slice(0, 10)`, desde las 19:00 de Bogotá «hoy» ya era mañana. Se fija la
-  // zona del sitio (en una máquina en UTC los dos días coinciden y el test no exigiría nada) y el
-  // reloj a las 22:30 locales; sólo se finge `Date`, los temporizadores siguen siendo reales.
-  describe('el día LOCAL a las 22:30 de Bogotá', () => {
-    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
-    let zonaDeLaMaquina: string | undefined;
-    beforeEach(() => {
-      zonaDeLaMaquina = entorno['TZ'];
-      entorno['TZ'] = 'America/Bogota';
-      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 3, 22, 30) });
-    });
-    afterEach(() => {
-      vi.useRealTimers();
-      if (zonaDeLaMaquina === undefined) {
-        delete entorno['TZ'];
-      } else {
-        entorno['TZ'] = zonaDeLaMaquina;
-      }
-    });
-
-    it('las franjas de visita empiezan MAÑANA en el calendario local, no un día después', async () => {
-      expect(new Date().toISOString().slice(0, 10)).toBe('2026-10-04');
-      installMemoryStorage();
-      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
-      await createComponent();
-
-      expect(component.availableDays()[0]).toBe('2026-10-04');
-      expect(component.availableSlots()[0]).toEqual({ date: '2026-10-04', time: '09:00' });
-    });
-  });
-
   // ── empty: pristine portal, search view, mock catalogue, no favorites ─────────
   // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
   //
@@ -236,6 +223,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     expect(component.view()).toBe('pdp');
 
     component.startVisit();
+    await flushMicrotasks();
     fixture.detectChanges();
     expect(component.view()).toBe('visit');
 
@@ -257,6 +245,103 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
 
   const alertas = (): HTMLElement[] =>
     Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="alert"]'));
+
+  // ── La agenda es la del servidor: `GET /listing/{id}/slots`, y nada más ─────────
+  //
+  // La UI inventaba 7 días a las 9, 11, 14 y 16, y el servidor sólo acepta las suyas (3 días a las
+  // 9 y a las 11): quien elegía las 14:00 llegaba al final del asistente para enterarse de que esa
+  // hora no existía. Hoy se pintan las franjas libres que contesta el borde; vacío y fallo se dicen.
+  describe('la agenda de la visita', () => {
+    /** PDP → asistente de visita, parado en el paso de la franja. */
+    async function alPasoDeLaFranja(): Promise<HTMLElement> {
+      component.openListing(component.listings()[0]);
+      await flushMicrotasks();
+      component.startVisit();
+      await flushMicrotasks();
+      fixture.detectChanges();
+      const wizard = fixture.debugElement.query(By.directive(CheckoutWizardComponent))
+        .componentInstance as CheckoutWizardComponent;
+      wizard.next(); // modalidad → franja
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+    const horas = (host: HTMLElement): string[] =>
+      Array.from(host.querySelectorAll('.realty__slot')).map((boton) => boton.textContent?.trim() ?? '');
+    const nota = (host: HTMLElement): string =>
+      host.querySelector('.realty__slots-note')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    it('pinta las franjas libres del servidor, y sólo ésas (happy)', async () => {
+      installMemoryStorage();
+      const borde = bordeDeEscrituras();
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent();
+      const host = await alPasoDeLaFranja();
+
+      expect(borde.llamadas('GET /listing/{id}/slots')).toBe(1);
+      expect(component.visitSlotsState()).toBe('ok');
+      expect(component.availableSlots()).toEqual(FRANJAS_DEL_SERVIDOR);
+      expect(component.availableDays()).toEqual(['2026-11-03', '2026-11-04', '2026-11-05']);
+      expect(horas(host)).toEqual(['09:00', '11:00', '09:00', '11:00', '09:00', '11:00']);
+      expect(nota(host)).toBe('');
+    });
+
+    it('sin franjas libres dice que no hay, y no ofrece ninguna (empty)', async () => {
+      installMemoryStorage();
+      vi.stubGlobal('fetch', bordeDeEscrituras({ franjas: [] }).fetchDoble);
+      await createComponent();
+      const host = await alPasoDeLaFranja();
+
+      expect(component.visitSlotsState()).toBe('ok');
+      expect(horas(host)).toEqual([]);
+      expect(nota(host)).toBe('No hay franjas disponibles para este inmueble por ahora.');
+    });
+
+    it('si la agenda no se puede leer lo dice, sin agenda inventada, y deja reintentar', async () => {
+      installMemoryStorage();
+      const borde = bordeDeEscrituras({ caidas: ['GET /listing/{id}/slots'] });
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent();
+      const host = await alPasoDeLaFranja();
+
+      expect(component.visitSlotsState()).toBe('fallo');
+      expect(component.availableSlots()).toEqual([]);
+      expect(horas(host)).toEqual([]);
+      expect(nota(host)).toContain('No pudimos cargar la agenda del agente.');
+
+      borde.encender('GET /listing/{id}/slots');
+      (host.querySelector('.realty__slots-note button') as HTMLButtonElement).click();
+      await flushMicrotasks();
+      fixture.detectChanges();
+      expect(horas(host)).toHaveLength(FRANJAS_DEL_SERVIDOR.length);
+    });
+
+    it('sin la base de la API no pide la agenda ni la inventa', async () => {
+      installMemoryStorage();
+      const red = vi.fn((url: string) => Promise.reject(new Error(`no debería llamarse: ${url}`)));
+      vi.stubGlobal('fetch', red);
+      await createComponent({});
+      const host = await alPasoDeLaFranja();
+
+      expect(red.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('/slots'))).toEqual([]);
+      expect(component.visitSlotsState()).toBe('fallo');
+      expect(horas(host)).toEqual([]);
+    });
+
+    it('la franja elegida viaja TAL CUAL en el POST de la visita', async () => {
+      installMemoryStorage();
+      const borde = bordeDeEscrituras();
+      vi.stubGlobal('fetch', borde.fetchDoble);
+      await createComponent();
+      const wizard = await llegarAlUltimoPasoDeLaVisita();
+      wizard.next();
+      await flushMicrotasks(30);
+
+      const post = borde.fetchDoble.mock.calls.find(
+        ([url, init]) => String(url).endsWith('/visit') && init?.method === 'POST',
+      );
+      expect(JSON.parse(String(post?.[1]?.body)).slot).toEqual(FRANJAS_DEL_SERVIDOR[0]);
+    });
+  });
 
   // ── happy: PDP → SH-3 visit wizard → confirm (NO payment) ─────────────────────
   //
@@ -351,6 +436,7 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     component.openListing(component.listings()[0]);
     await flushMicrotasks();
     component.startVisit();
+    await flushMicrotasks();
     fixture.detectChanges();
 
     const radios = radiosDe('Modalidad de la visita');

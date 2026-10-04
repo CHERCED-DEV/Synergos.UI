@@ -97,7 +97,7 @@ import {
   type AgentView,
   type RealtyView,
 } from './realty.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, diaLocalMas } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynRealty</c>.
@@ -655,22 +655,15 @@ export class RealtyElementComponent implements OnInit {
       this.leadMessage().trim().length >= 5,
   );
 
-  /** Agent slots for the next 7 days × 4 daily windows (demo availability). */
-  readonly availableSlots = computed<readonly VisitSlot[]>(() => {
-    void this.visitListing();
-    const slots: VisitSlot[] = [];
-    const times = ['09:00', '11:00', '14:00', '16:00'];
-    // El día de cada franja es LOCAL: el servidor lee `{ date, time }` como hora del sitio, y con
-    // el día UTC «mañana a las 9» salía pasado mañana desde las 19:00.
-    const today = new Date();
-    for (let day = 1; day <= 7; day += 1) {
-      const date = diaLocalMas(day, today);
-      for (const time of times) {
-        slots.push({ date, time });
-      }
-    }
-    return slots;
-  });
+  /**
+   * Las franjas del agente: las LIBRES que contesta `GET /listing/{id}/slots`, y nada más. La UI
+   * inventaba 7 días a las 9, 11, 14 y 16 que el servidor no aceptaba (sólo tiene las suyas).
+   * Mientras carga o si falla, ninguna: la ficha dice por qué, nunca con una agenda de ejemplo.
+   */
+  readonly visitSlots = signal<readonly VisitSlot[]>([]);
+  /** `cargando` · `ok` (con o sin franjas) · `fallo` (no se pudo leer la agenda). */
+  readonly visitSlotsState = signal<'cargando' | 'ok' | 'fallo'>('cargando');
+  readonly availableSlots = computed<readonly VisitSlot[]>(() => this.visitSlots());
 
   readonly availableDays = computed<readonly string[]>(() => {
     const seen = new Set<string>();
@@ -1705,6 +1698,35 @@ export class RealtyElementComponent implements OnInit {
     this.visitTime.set('');
     this.#store.reset();
     this.navigate('visit');
+    void this.loadVisitSlots(listing.id);
+  }
+
+  /** Lee las franjas libres del inmueble. Un fallo no deja franjas: la ficha lo dice. */
+  async loadVisitSlots(listingId: string): Promise<void> {
+    this.visitSlots.set([]);
+    this.visitSlotsState.set('cargando');
+    try {
+      const slots = await this.#api.visitSlots(this.apiBase(), listingId);
+      if (this.visitListing()?.id !== listingId) {
+        return;
+      }
+      this.visitSlots.set(slots);
+      this.visitSlotsState.set('ok');
+    } catch (error) {
+      if (this.visitListing()?.id !== listingId) {
+        return;
+      }
+      this.visitSlotsState.set('fallo');
+      void error;
+    }
+  }
+
+  /** Vuelve a pedir la agenda del inmueble de la visita. */
+  retryVisitSlots(): void {
+    const listing = this.visitListing();
+    if (listing) {
+      void this.loadVisitSlots(listing.id);
+    }
   }
 
   /** As the SH-3 wizard advances, keep the engine cart in sync with the choice. */

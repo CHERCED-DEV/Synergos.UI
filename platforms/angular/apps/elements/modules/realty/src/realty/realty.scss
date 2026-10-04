@@ -779,6 +779,23 @@
     gap: syn.$space-sm;
   }
 
+  &__slots-note {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: syn.$space-sm;
+    margin: 0;
+    color: var(--rt-text-secondary);
+
+    p {
+      margin: 0;
+    }
+
+    &--fallo {
+      color: var(--rt-text);
+    }
+  }
+
   &__slot-day {
     display: flex;
     flex-direction: column;

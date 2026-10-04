@@ -44,6 +44,7 @@ import {
  *
  *  - `GET  /api/realty/listings?…`  (incluye geo+facetas)   → `{ listings, facets, total }`
  *  - `GET  /api/realty/listing/{id}`                         → `{ listing, gallery, location, neighborhood }`
+ *  - `GET  /api/realty/listing/{id}/slots`                  → `{ slots:[{ date, time }] }` (franjas libres)
  *  - `POST /api/realty/visit`    `{ listingId, slot, contact, mode }` → `{ visit }`
  *  - `GET  /api/realty/visits`                               → `{ visits }`    🔒 sesión
  *  - `POST /api/realty/mortgage` `{ price, downPayment, termMonths, annualRatePercent }` → `{ monthly, … }`
@@ -202,6 +203,30 @@ export class RealtyApiClient {
       this.markDegraded('GET /api/realty/listing/{id}', error);
       return mockDetail(id, currency);
     }
+  }
+
+  // ─── Las franjas libres del inmueble ─────────────────────────────────────────
+
+  /**
+   * `GET /api/realty/listing/{id}/slots` — las franjas LIBRES del inmueble, en la hora del sitio:
+   * `date` como `AAAA-MM-DD` y `time` como `HH:mm`, que es exactamente el `slot` que acepta
+   * `POST /visit`. Si no hay ninguna, `[]`.
+   *
+   * **No degrada.** La UI inventaba la agenda —7 días a las 9, 11, 14 y 16— y el servidor sólo
+   * acepta las suyas (hoy 3 días a las 9 y a las 11): quien elegía las 14:00 llegaba al final del
+   * asistente para enterarse de que esa hora no existía. Una agenda de ejemplo es la misma mentira
+   * con otro nombre, así que un fallo SALE y la ficha lo dice.
+   */
+  async visitSlots(apiBase: string, listingId: string): Promise<readonly VisitSlot[]> {
+    const url = `${apiBase}/listing/${encodeURIComponent(listingId)}/slots`;
+    const data = await this.getJson(apiBase, url);
+    const raw = pluck(data, 'slots');
+    if (!Array.isArray(raw)) {
+      // Una forma que no se reconoce es un fallo, no una agenda vacía: `[]` diría «no hay
+      // franjas», que es una afirmación sobre el agente.
+      throw new Error('slots-shape');
+    }
+    return raw.map(normalizeVisitSlot).filter((slot): slot is VisitSlot => slot !== null);
   }
 
   // ─── Schedule a visit (reservable agent slot — NO payment) ────────────────────
@@ -675,6 +700,16 @@ export class RealtyApiClient {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Una franja tal como la manda el servidor; la que no trae día y hora con su forma, no entra. */
+function normalizeVisitSlot(value: unknown): VisitSlot | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const date = readString(value['date']).trim();
+  const time = readString(value['time']).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time) ? { date, time } : null;
 }
 
 function pluck(value: unknown, key: string): unknown {
