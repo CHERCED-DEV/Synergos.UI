@@ -82,6 +82,7 @@ export interface AvatarGroupMember {
 export interface BadgeGroupItem {
   readonly label: string;
   readonly tone?: string;
+  readonly icon?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: BreadcrumbStep). */
@@ -866,7 +867,7 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
   diccionario: ["BadgeGroup"],
   claves: ["BadgeGroup.Aria","BadgeGroup.Empty"],
   campos: ["badges","layout"],
-  listas: {"badges":["label","tone"]},
+  listas: {"badges":["label","tone","icon"]},
   selectores: [
     {
       "propiedad": "layout",
@@ -898,7 +899,8 @@ export const BADGE_GROUP_SYNHOST: ElementoSynHost<BadgeGroupProps> = {
     "badges": [
       {
         "label": "Envío gratis",
-        "tone": "success"
+        "tone": "success",
+        "icon": "truck"
       },
       {
         "label": "Nuevo",
