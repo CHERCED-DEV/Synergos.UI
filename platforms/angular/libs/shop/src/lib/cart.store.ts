@@ -37,6 +37,14 @@
  * si el contrato del store cambia, sube a `v2` y los dos conviven sin pisarse. Las señales son
  * compatibles entre bundles porque `@angular/core` es del runtime compartido (`EXTERNALS`).
  *
+ * **Y se crea al USARLO, no al importarlo** (UI#85, el caso inverso). Importar este módulo no
+ * crea nada: `cartStore` es una vista perezosa que llama a `carritoDeLaPagina()` en el primer
+ * acceso. Quien muestra el carrito (`cart-summary`, `cart-item`) lo crea al montarse; quien
+ * EMITE «agregar» (`product-card`, `product-grid`, `product-detail`) llama a
+ * `carritoDeLaPagina()` en el clic, antes de despachar el evento. Así siempre hay quien escuche
+ * —una página sólo con `product-card` perdía el clic en silencio: 0 `POST`— y una página de
+ * catálogo no paga un `GET /cart` al cargar.
+ *
  * Usage:
  *   import { cartStore } from '../cart.store';
  *   const count = cartStore.count;        // Signal<number>
@@ -216,6 +224,7 @@ function crearCarrito() {
    */
   async function commit(optimistic: () => void, path: string, body?: unknown): Promise<boolean> {
     const previous = _items();
+    _mutaciones += 1;
     optimistic();
     persist();
 
@@ -236,10 +245,21 @@ function crearCarrito() {
     return true;
   }
 
-  /** Trae el carrito del servidor y lo adopta. Es lo que reconcilia con el SSR. */
+  /** Cuántas mutaciones arrancaron: `hydrate` no pisa el carrito que una de ellas ya trajo. */
+  let _mutaciones = 0;
+
+  /**
+   * Trae el carrito del servidor y lo adopta. Es lo que reconcilia con el SSR.
+   *
+   * Si mientras tanto arrancó una mutación, no adopta: la mutación contesta con el carrito
+   * ENTERO y más nuevo. Pasa cuando el store nace en el clic de «agregar» (UI#85): el `GET` y el
+   * `POST` salen juntos, y un `GET` que vuelve tarde borraba lo recién agregado.
+   */
   async function hydrate(): Promise<boolean> {
+    const antes = _mutaciones;
     const cart = await callCart('');
     if (!cart) return false;
+    if (_mutaciones !== antes) return true;
     adopt(cart);
     return true;
   }
@@ -449,4 +469,11 @@ export function carritoDeLaPagina(): CartStore {
   return nuevo;
 }
 
-export const cartStore: CartStore = carritoDeLaPagina();
+/**
+ * El carrito de la página, PEREZOSO: importar este módulo no lo crea ni lo hidrata. El primer
+ * acceso a cualquiera de sus miembros llama a `carritoDeLaPagina()`. Es lo que deja a un bundle
+ * que sólo EMITE «agregar» traer este módulo sin pagar un `GET /cart` al cargar (UI#85).
+ */
+export const cartStore: CartStore = new Proxy({} as CartStore, {
+  get: (_vacio, miembro) => Reflect.get(carritoDeLaPagina(), miembro),
+});

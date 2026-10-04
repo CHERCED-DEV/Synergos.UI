@@ -17,7 +17,7 @@
 // Regla: aquí solo entra lo que comparten VARIOS elementos. Un componente que
 // solo usa su propia app se queda en la app.
 
-export { cartStore } from './lib/cart.store';
+export { cartStore, carritoDeLaPagina, type CartStore } from './lib/cart.store';
 export { QuantitySelectorComponent } from './lib/quantity-selector/quantity-selector';
 export { PriceDisplayComponent } from './lib/price-display/price-display';
 export { VariantPickerComponent } from './lib/variant-picker/variant-picker';

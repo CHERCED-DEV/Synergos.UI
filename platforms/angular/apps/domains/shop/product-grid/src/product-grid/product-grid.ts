@@ -28,6 +28,7 @@ import {
   SelectComponent,
 } from '@synergos/shared';
 import { formatearImporte } from '@synergos/vitals-core';
+import { carritoDeLaPagina } from '@synergos/shop';
 
 function sanitizePositiveInteger(value: unknown): number | undefined {
   const coercedValue = coerceOptionalNumberInput(value);
@@ -317,6 +318,8 @@ export class ProductGridComponent {
 
   addToCart(product: Product): void {
     if (!product.inStock) return;
+    // Que haya quien escuche (UI#85): el carrito de la página se crea en el clic, no al cargar.
+    carritoDeLaPagina();
     window.dispatchEvent(
       new CustomEvent('sg:product:addToCart', {
         bubbles: true, composed: true,

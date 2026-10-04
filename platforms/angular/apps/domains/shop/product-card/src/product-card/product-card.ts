@@ -23,6 +23,7 @@ import {
   resolveConfigValue,
 } from '@synergos/shared';
 import { formatearImporte } from '@synergos/vitals-core';
+import { carritoDeLaPagina } from '@synergos/shop';
 
 function sanitizeProductCardConfig(
   value: Partial<ProductCardElementConfig>,
@@ -237,6 +238,10 @@ export class ProductCardComponent {
     const p = this.product();
     if (!p || !p.inStock) return;
 
+    // Que haya quien escuche (UI#85): sin `cart-summary` ni otro elemento de carrito en la página,
+    // nadie escuchaba el evento y «agregar» se perdía en silencio. El carrito se crea AQUÍ, en el
+    // clic —no al cargar, que costaría un `GET /cart` por página de catálogo—; si ya existe, es ése.
+    carritoDeLaPagina();
     window.dispatchEvent(
       new CustomEvent('sg:product:addToCart', {
         bubbles:   true,

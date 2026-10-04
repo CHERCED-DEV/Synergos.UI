@@ -41,6 +41,11 @@ const PRODUCTO: Product = {
 };
 
 describe('dos elementos de tienda en la página, un carrito (UI#85)', { timeout: 30_000 }, () => {
+  // Una página nueva: vitest reutiliza el `globalThis` del worker entre ficheros, y el carrito que
+  // registró otro spec (con su listener en OTRA ventana de jsdom) se quedaría como el de esta.
+  beforeAll(() => {
+    delete (globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')];
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     TestBed.resetTestingModule();
@@ -59,7 +64,7 @@ describe('dos elementos de tienda en la página, un carrito (UI#85)', { timeout:
     // El bundle de `cart-summary`, con su copia de `@synergos/shop`; y `product-card`.
     const { CartSummaryComponent } = await import('./cart-summary');
     const { ProductCardComponent } = await import('../../../product-card/src/product-card/product-card');
-    const { cartStore } = await import('@synergos/shop');
+    const { cartStore, carritoDeLaPagina } = await import('@synergos/shop');
     // El bundle de OTRO elemento de tienda (product-detail, cart-item…): su propia copia.
     vi.resetModules();
     const otroBundle = await import('@synergos/shop');
@@ -85,7 +90,7 @@ describe('dos elementos de tienda en la página, un carrito (UI#85)', { timeout:
     );
     expect(posts.length).toBe(1);
     expect(otroBundle.cartStore.count()).toBe(1);
-    expect(otroBundle.cartStore).toBe(cartStore);
+    expect(otroBundle.carritoDeLaPagina()).toBe(carritoDeLaPagina());
     expect((resumen.nativeElement as HTMLElement).querySelector('.cart-drawer__count')?.textContent?.trim()).toBe('(1)');
   });
 });

@@ -25,6 +25,7 @@ import {
   PriceDisplayComponent,
   QuantitySelectorComponent,
   VariantPickerComponent,
+  carritoDeLaPagina,
 } from '@synergos/shop';
 import { formatearImporte } from '@synergos/vitals-core';
 
@@ -188,6 +189,8 @@ export class ProductDetailComponent {
 
     const variant = this.selectedVariant();
 
+    // Que haya quien escuche (UI#85): el carrito de la página se crea aquí si nadie lo creó.
+    carritoDeLaPagina();
     window.dispatchEvent(
       new CustomEvent('sg:product:addToCart', {
         bubbles: true, composed: true,

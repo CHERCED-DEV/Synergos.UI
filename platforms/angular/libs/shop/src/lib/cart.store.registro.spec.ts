@@ -39,6 +39,11 @@ const llamadas = (borde: ReturnType<typeof vi.fn>, metodo: string, ruta: string)
   ).length;
 
 describe('cart.store — un carrito por página (UI#85)', { timeout: 30_000 }, () => {
+  // Una página nueva: vitest reutiliza el `globalThis` del worker entre ficheros, y el carrito que
+  // registró otro spec (con su listener en OTRA ventana de jsdom) se quedaría como el de esta.
+  beforeAll(() => {
+    delete (globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')];
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -52,23 +57,33 @@ describe('cart.store — un carrito por página (UI#85)', { timeout: 30_000 }, (
     vi.resetModules();
     const copiaB = await import('./cart.store');
 
-    // Dos módulos de verdad: dos bundles.
-    expect(copiaA).not.toBe(copiaB);
+    // Dos módulos de verdad: dos bundles. Importarlos no crea nada ni pide nada (UI#85, el store
+    // es perezoso): una página de catálogo no paga un `GET /cart` al cargar.
+    // Comparado a mano: `not.toBe` compara en profundidad al fallar `Object.is`, toca los miembros
+    // de `cartStore` y con eso CREA el carrito —que es justo lo que aquí se mira que no pase—.
+    expect(copiaA === copiaB).toBe(false);
+    expect((globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')]).toBeUndefined();
+    expect(borde).not.toHaveBeenCalled();
+
+    // Cada elemento lo pide al montarse (o al pulsar «agregar»): el primero lo crea.
+    const deA = copiaA.carritoDeLaPagina();
+    const deB = copiaB.carritoDeLaPagina();
 
     window.dispatchEvent(
       new CustomEvent('sg:product:addToCart', {
         detail: { productId: 'SKU-1', productSku: 'SKU-1', name: 'Silla Nórdica', price: 49000, currency: 'COP', quantity: 1 },
       }),
     );
-    await vi.waitFor(() => expect(copiaA.cartStore.count()).toBe(1));
+    await vi.waitFor(() => expect(deA.count()).toBe(1));
 
     // Lo que pasaba: dos listeners, dos POST, la cantidad sumada dos veces en el servidor.
     expect(llamadas(borde, 'POST', '/api/shop/cart/add')).toBe(1);
     expect(copiaB.cartStore.count()).toBe(copiaA.cartStore.count());
+    expect(copiaB.cartStore.count()).toBe(1);
     // Y el hydrate no se repitió por la segunda copia.
     expect(llamadas(borde, 'GET', '/api/shop/cart')).toBe(1);
     // Porque las dos copias tienen la MISMA instancia, la del registro de la página.
-    expect(copiaB.cartStore).toBe(copiaA.cartStore);
-    expect((globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')]).toBe(copiaA.cartStore);
+    expect(deB).toBe(deA);
+    expect((globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')]).toBe(deA);
   });
 });

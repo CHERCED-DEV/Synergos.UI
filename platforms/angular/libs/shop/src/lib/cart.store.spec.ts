@@ -1,4 +1,4 @@
-import { cartStore } from './cart.store';
+import { carritoDeLaPagina, cartStore } from './cart.store';
 
 /**
  * Agregar al carrito SE OYE (#82).
@@ -33,7 +33,9 @@ function servidor(confirma: boolean): void {
   );
 }
 
+/** Lo que hace un emisor (`product-card`…): asegura el carrito de la página y despacha (UI#85). */
 function agregar(): void {
+  carritoDeLaPagina();
   window.dispatchEvent(
     new CustomEvent('sg:product:addToCart', {
       detail: {
@@ -60,6 +62,11 @@ async function esperarAnuncio(texto: string): Promise<void> {
 const region = (): HTMLElement | null => document.querySelector('[data-syn-live-announcer]');
 
 describe('cart.store — agregar al carrito se oye (#82)', () => {
+  // Una página nueva: vitest reutiliza el `globalThis` del worker entre ficheros, y el carrito que
+  // registró otro spec (con su listener en OTRA ventana de jsdom) se quedaría como el de esta.
+  beforeAll(() => {
+    delete (globalThis as unknown as Record<symbol, unknown>)[Symbol.for('synergos.cart.v1')];
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     cartStore.closeDrawer();
