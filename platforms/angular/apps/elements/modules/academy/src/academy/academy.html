@@ -704,7 +704,13 @@
             </p>
             <div class="academy__progress">
               <div class="academy__progress-bar"><span [style.width.%]="enrollment.percent"></span></div>
-              <p class="academy__progress-label">{{ enrollment.percent }}% · última actividad {{ formatDate(enrollment.lastActivityAt) }}</p>
+              <!-- Sin fecha del servidor no hay «última actividad»: ni la de hoy ni otra. -->
+              <p class="academy__progress-label">
+                {{ enrollment.percent }}%
+                @if (enrollment.lastActivityAt; as ultima) {
+                  · última actividad {{ formatDate(ultima) }}
+                }
+              </p>
             </div>
             <syn-tracking-timeline
               heading="Estado del curso"

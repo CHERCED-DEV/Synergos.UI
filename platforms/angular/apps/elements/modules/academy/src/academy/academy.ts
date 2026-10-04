@@ -104,7 +104,7 @@ import {
   type LessonQuestion,
   type ProgressUpdate,
 } from './academy.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, diaLocal } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynAcademy</c>.
@@ -677,12 +677,13 @@ export class AcademyElementComponent implements OnInit {
         subtitle: `Otorgado a ${cert.studentName}`,
         reference: cert.id,
         status: { label: 'Verificable', tone: 'positive' },
-        issuedAt: this.formatDate(cert.issuedAt),
+        // Sin fecha del servidor no hay «Emitido»: ni la de hoy ni otra.
+        ...(cert.issuedAt ? { issuedAt: this.formatDate(cert.issuedAt) } : {}),
         qrData: cert.verifyUrl,
         fields: [
           { label: 'Estudiante', value: cert.studentName },
           { label: 'Curso', value: cert.courseTitle },
-          { label: 'Emitido', value: this.formatDate(cert.issuedAt) },
+          ...(cert.issuedAt ? [{ label: 'Emitido', value: this.formatDate(cert.issuedAt) }] : []),
           { label: 'Credencial', value: cert.credentialLine || 'Synergos Academy' },
           { label: 'Verificar en', value: cert.verifyUrl },
         ],
@@ -1377,7 +1378,8 @@ export class AcademyElementComponent implements OnInit {
       percent: 0,
       lessonCount,
       completedCount: 0,
-      lastActivityAt: new Date().toISOString().slice(0, 10),
+      // Se matriculó hoy, en el calendario LOCAL (no el de UTC).
+      lastActivityAt: diaLocal(),
       completed: false,
     };
     this.#api.recordEnrollment(entry);
@@ -1525,7 +1527,7 @@ export class AcademyElementComponent implements OnInit {
       id: `q-${Date.now().toString(36)}`,
       author: this.studentName().trim() || 'Estudiante',
       question: text,
-      date: new Date().toISOString().slice(0, 10),
+      date: diaLocal(),
     };
     this.questions.update((list) => [entry, ...list]);
     this.questionDraft.set('');
@@ -2210,12 +2212,15 @@ export class AcademyElementComponent implements OnInit {
     return formatearImporte(amount, currency);
   }
 
-  formatDate(iso: string): string {
+  formatDate(iso: string | null): string {
     if (!iso) {
       return '';
     }
     try {
-      return new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(new Date(iso));
+      // Un día suelto (`AAAA-MM-DD`) es un día del calendario LOCAL: `new Date('2026-10-03')` lo
+      // lee como medianoche UTC, y en Bogotá se pintaba «2 de octubre».
+      const fecha = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
+      return new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(fecha);
     } catch {
       return iso;
     }

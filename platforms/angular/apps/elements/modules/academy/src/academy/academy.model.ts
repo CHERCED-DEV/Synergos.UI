@@ -378,8 +378,11 @@ export interface EnrolledCourse {
   readonly lessonCount: number;
   /** Lessons already completed. */
   readonly completedCount: number;
-  /** ISO date of the last activity (drives "última actividad"). */
-  readonly lastActivityAt: string;
+  /**
+   * ISO date of the last activity (drives "última actividad"), o `null` si el servidor no lo
+   * dice: entonces no se pinta. El cliente ponía el día de hoy —en UTC—.
+   */
+  readonly lastActivityAt: string | null;
   /** `true` once progress reaches 100% (certificate available). */
   readonly completed: boolean;
 }
@@ -464,7 +467,11 @@ export interface Certificate {
   readonly id: string;
   readonly studentName: string;
   readonly courseTitle: string;
-  readonly issuedAt: string;
+  /**
+   * Cuándo se emitió, o `null` si el servidor no lo dice: la credencial no lleva «Emitido».
+   * El cliente ponía «ahora», y un certificado viejo salía emitido hoy.
+   */
+  readonly issuedAt: string | null;
   readonly verifyUrl: string;
   /** Human credential (hours, level) for the wallet detail rows. */
   readonly credentialLine?: string;

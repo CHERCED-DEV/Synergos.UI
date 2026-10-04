@@ -37,7 +37,7 @@ import {
   type LessonResource,
   type ProgressUpdate,
 } from './academy.model';
-import { formatearImporte } from '@synergos/vitals-core';
+import { diaLocal, formatearImporte } from '@synergos/vitals-core';
 
 /**
  * Una respuesta HTTP no-OK, con su código.
@@ -517,7 +517,8 @@ export class AcademyApiClient {
             percent,
             completedCount,
             completed: percent >= 100,
-            lastActivityAt: new Date().toISOString().slice(0, 10),
+            // La actividad es de hoy en el calendario LOCAL de quien estudia, no en UTC.
+            lastActivityAt: diaLocal(),
           }
         : entry,
     );
@@ -612,7 +613,8 @@ export class AcademyApiClient {
       studentCount: 0,
       rating: 0,
       revenue: 0,
-      publishedAt: new Date().toISOString().slice(0, 10),
+      // La consola en memoria lo publica hoy, en el calendario LOCAL (no el de UTC).
+      publishedAt: diaLocal(),
     };
     this.#createdCourses = [course, ...this.#createdCourses];
   }
@@ -1145,7 +1147,8 @@ function normalizeCertificate(value: unknown): Certificate | null {
     id,
     studentName: readString(record['studentName']).trim() || 'Estudiante',
     courseTitle: readString(record['courseTitle']).trim() || 'Curso',
-    issuedAt: readString(record['issuedAt']).trim() || new Date().toISOString(),
+    // Lo que no vino queda ausente: «ahora» es una fecha de emisión que nadie dijo.
+    issuedAt: readString(record['issuedAt']).trim() || null,
     verifyUrl,
     credentialLine: readString(record['credentialLine']).trim() || undefined,
   };
@@ -1168,7 +1171,8 @@ function normalizeEnrolledCourse(value: unknown, fallbackCurrency: string): Enro
     percent,
     lessonCount,
     completedCount: completedCount || Math.round((percent / 100) * lessonCount),
-    lastActivityAt: readString(value['lastActivityAt']).trim() || new Date().toISOString().slice(0, 10),
+    // Lo que no vino queda ausente: el día de hoy es una actividad que nadie dijo.
+    lastActivityAt: readString(value['lastActivityAt']).trim() || null,
     completed: percent >= 100,
   };
 }

@@ -721,6 +721,67 @@ describe('AcademyElementComponent (v2 sobre shells)', () => {
     expect(component.accountConfig().sections.map((section) => section.id)).toEqual(['courses']);
   });
 
+  // ── El día es el LOCAL, y lo que el servidor no fecha queda sin fecha ──────────
+  //
+  // «Hoy» salía de `toISOString().slice(0, 10)`, el día en UTC: desde las 19:00 de Bogotá ya era
+  // mañana. Y `new Date('2026-10-03')` es medianoche UTC, que en Bogotá se pinta «2 de octubre».
+  // Se fija la zona del sitio (en una máquina en UTC los dos días coinciden y el test no exigiría
+  // nada) y, donde hace falta, `Date` a las 22:30 locales; los temporizadores siguen reales.
+  describe('el día LOCAL a las 22:30 de Bogotá', () => {
+    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    let zonaDeLaMaquina: string | undefined;
+    beforeEach(() => {
+      zonaDeLaMaquina = entorno['TZ'];
+      entorno['TZ'] = 'America/Bogota';
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      if (zonaDeLaMaquina === undefined) {
+        delete entorno['TZ'];
+      } else {
+        entorno['TZ'] = zonaDeLaMaquina;
+      }
+    });
+
+    it('la pregunta de hoy lleva HOY, no el día UTC', async () => {
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 3, 22, 30) });
+      // El control: a esa hora, el día UTC ya es el 4.
+      expect(new Date().toISOString().slice(0, 10)).toBe('2026-10-04');
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      component.questionDraft.set('¿Cómo se configura el router?');
+      component.postQuestion();
+
+      expect(component.questions()[0].date).toBe('2026-10-03');
+    });
+
+    it('«última actividad» pinta el día que dice el servidor, y sin fecha no se pinta', async () => {
+      installMemoryStorage();
+      const conFecha = { ...matriculaServidor(), enrollmentId: 'ENR-CON', lastActivityAt: '2026-10-03' };
+      const sinFecha: Record<string, unknown> = { ...matriculaServidor(), enrollmentId: 'ENR-SIN' };
+      delete sinFecha['lastActivityAt'];
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(bordeConAprendizaje({ status: 200, body: { enrollments: [conFecha, sinFecha], paths: [] } })),
+      );
+      await createComponent();
+      component.goToLearning();
+      await flushMicrotasks();
+      fixture.detectChanges();
+
+      expect(component.enrollments().map((entry) => entry.lastActivityAt)).toEqual(['2026-10-03', null]);
+      const etiqueta = (fila: number): string => {
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.syn-account__row')[fila].click();
+        fixture.detectChanges();
+        return (fixture.nativeElement as HTMLElement).querySelector('.academy__progress-label')?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+      };
+      expect(etiqueta(0)).toBe('30% · última actividad 3 de octubre de 2026');
+      expect(etiqueta(1)).toBe('30%');
+    });
+  });
+
   // ══ #102 · EL VACÍO HONESTO, QUE ERA INALCANZABLE ═══════════════════════════
 
   it('un alumno SIN matrículas ve el vacío honesto, no tres cursos que no compró', async () => {
@@ -1275,6 +1336,26 @@ describe('AcademyApiClient', () => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     TestBed.resetTestingModule();
+  });
+
+  it('una matrícula sin `lastActivityAt` y un certificado sin `issuedAt` quedan sin fecha', async () => {
+    const responder = (body: unknown): Promise<Response> =>
+      Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+    const sinFecha = matriculaServidor();
+    delete sinFecha['lastActivityAt'];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) =>
+        String(url).includes('/learning')
+          ? responder({ enrollments: [sinFecha], paths: [] })
+          : responder({ id: 'CERT-1', studentName: 'Ada', courseTitle: 'Angular', verifyUrl: 'https://synergos.test/v/CERT-1' }),
+      ),
+    );
+    const client = createClient();
+
+    const aprendizaje = await client.learning('/api/academy', 'COP');
+    expect(aprendizaje.status === 'ok' ? aprendizaje.enrollments[0].lastActivityAt : 'sin lectura').toBeNull();
+    expect((await client.certificate('/api/academy', 'C-1'))?.issuedAt).toBeNull();
   });
 
   it('`canReview` ausente significa NO, no «sí» (default seguro, #28)', async () => {
