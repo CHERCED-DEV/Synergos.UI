@@ -85,7 +85,15 @@ import {
   type SoapNote,
   type Vitals,
 } from './ehr.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, desdeMenores } from '@synergos/vitals-core';
+import {
+  baseDeRuta,
+  mismaRuta,
+  segmentosDeRuta,
+  formatearImporte,
+  desdeMenores,
+  diaLocal,
+  diaLocalMas,
+} from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEhr</c>.
@@ -444,7 +452,11 @@ export class EhrElementComponent implements OnInit {
   // ─── CLINICIAN portal state ──────────────────────────────────────────────────
   readonly board = signal<readonly ScheduleSlot[]>([]);
   readonly boardLoaded = signal(false);
-  readonly boardDate = signal(new Date().toISOString().slice(0, 10));
+  /**
+   * El día de la agenda: HOY en el calendario de quien mira, no en UTC. Con `toISOString()`, desde
+   * las 19:00 de Bogotá la agenda pedía la del día siguiente.
+   */
+  readonly boardDate = signal(diaLocal());
 
   readonly patients = signal<readonly Patient[]>([]);
   readonly patientsLoaded = signal(false);
@@ -1570,13 +1582,13 @@ export class EhrElementComponent implements OnInit {
   readonly availableSlots = computed<readonly { date: string; time: string }[]>(() => {
     const slots: { date: string; time: string }[] = [];
     const times = ['08:00', '10:00', '14:00', '16:00'];
+    // El día de cada franja es LOCAL: el servidor lee `{ date, time }` como hora del sitio, y con
+    // el día UTC «mañana a las 10» salía pasado mañana desde las 19:00.
     const today = new Date();
     for (let day = 1; day <= 7; day += 1) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + day);
-      const iso = date.toISOString().slice(0, 10);
+      const date = diaLocalMas(day, today);
       for (const time of times) {
-        slots.push({ date: iso, time });
+        slots.push({ date, time });
       }
     }
     return slots;

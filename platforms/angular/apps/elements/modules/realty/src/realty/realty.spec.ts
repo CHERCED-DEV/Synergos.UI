@@ -154,6 +154,40 @@ describe('RealtyElementComponent (v2 sobre shells)', () => {
     TestBed.resetTestingModule();
   });
 
+
+  // ── El día es el LOCAL, no el de UTC ─────────────────────────────────────────
+  //
+  // Con `toISOString().slice(0, 10)`, desde las 19:00 de Bogotá «hoy» ya era mañana. Se fija la
+  // zona del sitio (en una máquina en UTC los dos días coinciden y el test no exigiría nada) y el
+  // reloj a las 22:30 locales; sólo se finge `Date`, los temporizadores siguen siendo reales.
+  describe('el día LOCAL a las 22:30 de Bogotá', () => {
+    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    let zonaDeLaMaquina: string | undefined;
+    beforeEach(() => {
+      zonaDeLaMaquina = entorno['TZ'];
+      entorno['TZ'] = 'America/Bogota';
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 3, 22, 30) });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      if (zonaDeLaMaquina === undefined) {
+        delete entorno['TZ'];
+      } else {
+        entorno['TZ'] = zonaDeLaMaquina;
+      }
+    });
+
+    it('las franjas de visita empiezan MAÑANA en el calendario local, no un día después', async () => {
+      expect(new Date().toISOString().slice(0, 10)).toBe('2026-10-04');
+      installMemoryStorage();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('offline'))));
+      await createComponent();
+
+      expect(component.availableDays()[0]).toBe('2026-10-04');
+      expect(component.availableSlots()[0]).toEqual({ date: '2026-10-04', time: '09:00' });
+    });
+  });
+
   // ── empty: pristine portal, search view, mock catalogue, no favorites ─────────
   // ── UI#91: el scope con espacio, tilde y «:» no rompe los enlaces profundos ──
   //

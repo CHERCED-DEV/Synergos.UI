@@ -97,7 +97,7 @@ import {
   type AgentView,
   type RealtyView,
 } from './realty.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, diaLocalMas } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynRealty</c>.
@@ -660,13 +660,13 @@ export class RealtyElementComponent implements OnInit {
     void this.visitListing();
     const slots: VisitSlot[] = [];
     const times = ['09:00', '11:00', '14:00', '16:00'];
+    // El día de cada franja es LOCAL: el servidor lee `{ date, time }` como hora del sitio, y con
+    // el día UTC «mañana a las 9» salía pasado mañana desde las 19:00.
     const today = new Date();
     for (let day = 1; day <= 7; day += 1) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + day);
-      const iso = date.toISOString().slice(0, 10);
+      const date = diaLocalMas(day, today);
       for (const time of times) {
-        slots.push({ date: iso, time });
+        slots.push({ date, time });
       }
     }
     return slots;

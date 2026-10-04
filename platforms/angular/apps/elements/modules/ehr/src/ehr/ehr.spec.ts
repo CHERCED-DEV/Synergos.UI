@@ -680,6 +680,46 @@ describe('EhrElementComponent (v2 dual portal)', () => {
     expect(fixture.nativeElement.querySelector('.ehr__access')).toBeNull();
   });
 
+
+  // ── El día es el LOCAL, no el de UTC ─────────────────────────────────────────
+  //
+  // Con `toISOString().slice(0, 10)`, desde las 19:00 de Bogotá «hoy» ya era mañana. Se fija la
+  // zona del sitio (en una máquina en UTC los dos días coinciden y el test no exigiría nada) y el
+  // reloj a las 22:30 locales; sólo se finge `Date`, los temporizadores siguen siendo reales.
+  describe('el día LOCAL a las 22:30 de Bogotá', () => {
+    const entorno = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+    let zonaDeLaMaquina: string | undefined;
+    beforeEach(() => {
+      zonaDeLaMaquina = entorno['TZ'];
+      entorno['TZ'] = 'America/Bogota';
+      vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 9, 3, 22, 30) });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      if (zonaDeLaMaquina === undefined) {
+        delete entorno['TZ'];
+      } else {
+        entorno['TZ'] = zonaDeLaMaquina;
+      }
+    });
+
+    it('la agenda clínica pide la de HOY y las franjas empiezan MAÑANA, no un día después', async () => {
+      // El control: a esa hora, el día UTC ya es el 4.
+      expect(new Date().toISOString().slice(0, 10)).toBe('2026-10-04');
+      await createComponent();
+      component.setRole('doctor');
+      await flushMicrotasks();
+
+      expect(component.boardDate()).toBe('2026-10-03');
+      const agenda = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+        .map(([url]) => String(url))
+        .filter((url) => url.includes('/schedule'));
+      expect(agenda).toEqual([`${NEGOCIO_DEL_CMS.apiBase}/schedule?date=2026-10-03`]);
+      expect(component.availableDays()[0]).toBe('2026-10-04');
+      expect(component.availableDays().at(-1)).toBe('2026-10-10');
+    });
+  });
+
   // ── drug interaction flag against the patient's allergies ────────────────────
   it('flags a prescription item that clashes with a recorded allergy', async () => {
     await createComponent();
