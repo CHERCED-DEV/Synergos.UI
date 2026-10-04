@@ -108,7 +108,7 @@ import {
   type EventPromo,
   type TierSaleState,
 } from './eventos.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, aMenores, desdeMenores, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynEventos</c>.
@@ -1185,13 +1185,16 @@ export class EventosElementComponent implements OnInit {
     return Number.isFinite(abre) && this.#reloj() < abre ? 'aun-no' : 'cerrada';
   }
 
-  /** El rótulo del estado de una localidad que no está a la venta; vacío si lo está. */
+  /**
+   * El rótulo del estado de una localidad que no está a la venta; vacío si lo está. Sale del
+   * diccionario, sección `Events.Sale` que declara `EventosProps` (ADR 0136).
+   */
   tierSaleLabel(tier: TicketTier): string {
     switch (this.tierSaleState(tier)) {
       case 'aun-no':
-        return 'Aún no está a la venta';
+        return t('Events.Sale.NotYet', 'Aún no está a la venta');
       case 'cerrada':
-        return 'Venta cerrada';
+        return t('Events.Sale.Closed', 'Venta cerrada');
       default:
         return '';
     }

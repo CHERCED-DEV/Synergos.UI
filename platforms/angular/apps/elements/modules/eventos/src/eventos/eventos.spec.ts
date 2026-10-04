@@ -1344,6 +1344,27 @@ describe('EventosElementComponent · estados de venta de una localidad (#195)', 
     expect(botonDeCompra()).toBeNull();
   });
 
+  // Las dos frases salen del diccionario, sección `Events.Sale` que declara `EventosProps`: con el
+  // bridge, el texto que publicó la página; sin él, el respaldo es-CO de arriba.
+  it('con el bridge, las dos frases son las claves `Events.Sale` que publicó la página', async () => {
+    (window as { synergos?: unknown }).synergos = {
+      i18n: {
+        culture: 'en-US',
+        defaultCulture: 'es-CO',
+        keys: { 'Events.Sale.NotYet': 'Not on sale yet', 'Events.Sale.Closed': 'Sales closed' },
+      },
+    };
+    try {
+      await abrirFicha([VIP_AUN_NO, { ...VIP_AUN_NO, id: 'pasado', name: 'Pasado', saleOpensAt: undefined }], '2026-07-15T12:00:00-05:00');
+
+      expect(tarjeta('VIP').texto).toContain('Not on sale yet');
+      expect(tarjeta('Pasado').texto).toContain('Sales closed');
+      expect(tarjeta('VIP').texto).not.toContain('Aún no está a la venta');
+    } finally {
+      delete (window as { synergos?: unknown }).synergos;
+    }
+  });
+
   it('pasada la ventana —o con el evento pasado— dice «Venta cerrada», y no se compra', async () => {
     await abrirFicha([VIP_AUN_NO, { ...VIP_AUN_NO, id: 'pasado', name: 'Pasado', saleOpensAt: undefined, saleClosesAt: undefined }], '2026-08-20T12:00:00-05:00');
 

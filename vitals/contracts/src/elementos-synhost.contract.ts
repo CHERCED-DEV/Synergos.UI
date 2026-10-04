@@ -404,7 +404,7 @@ export interface EhrProps {
   readonly apiBase: string;
 }
 
-/** <synergos-eventos> · funcionalidad */
+/** <synergos-eventos> · funcionalidad · diccionario: Events.Sale */
 export interface EventosProps {
   /** contenido */
   readonly heading?: string;
@@ -1291,8 +1291,8 @@ export const EVENTOS_SYNHOST: ElementoSynHost<EventosProps> = {
   nombre: "eventos",
   tipo: "funcionalidad",
   record: "EventosProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Events.Sale"],
+  claves: ["Events.Sale.Closed","Events.Sale.NotYet"],
   campos: ["heading","subheading","role","apiBase","feePercent","platformFeePercent"],
   listas: {},
   selectores: [],
