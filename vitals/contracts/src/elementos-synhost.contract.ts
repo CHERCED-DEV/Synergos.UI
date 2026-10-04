@@ -106,6 +106,7 @@ export interface CarouselSlide {
   readonly src: string;
   readonly alt?: string;
   readonly label?: string;
+  readonly linkUrl?: string;
 }
 
 /** Parte de un record de `ElementoSynHost` (C#: ChartBarEntry). */
@@ -975,7 +976,7 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
   diccionario: ["Slider"],
   claves: ["Slider.Aria","Slider.Current","Slider.GoToSlide","Slider.Next","Slider.Pager","Slider.Pause","Slider.Play","Slider.Previous","Slider.SlideOf"],
   campos: ["slides","autoplay","interval"],
-  listas: {"slides":["src","alt","label"]},
+  listas: {"slides":["src","alt","label","linkUrl"]},
   selectores: [],
   ejemplo: {
     "culture": "es-CO",
@@ -983,7 +984,8 @@ export const CAROUSEL_SYNHOST: ElementoSynHost<CarouselProps> = {
       {
         "src": "/media/sala.jpg",
         "alt": "Sala con ventanal",
-        "label": "La sala"
+        "label": "La sala",
+        "linkUrl": "/propiedades/101"
       },
       {
         "src": "/media/cocina.jpg",
