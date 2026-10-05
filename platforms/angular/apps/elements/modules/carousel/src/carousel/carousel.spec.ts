@@ -128,4 +128,57 @@ describe('CarouselElementComponent', () => {
       expect(controles.map((b) => b.textContent?.trim())).toEqual(['Previous slide', 'Next slide']);
     });
   });
+
+  // WCAG 2.2.2 (#199): lo que se mueve solo más de 5 s se tiene que poder pausar. El carrusel
+  // avanzaba con `setInterval` y no había cómo detenerlo; `Slider.Pause`/`Slider.Play` viajaban
+  // en la sección `Slider` y nadie las leía.
+  describe('pausa del autoplay', () => {
+    const DOS = JSON.stringify([{ src: 'a.jpg' }, { src: 'b.jpg' }]);
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function montar(autoplay: boolean, slides = DOS) {
+      vi.useFakeTimers();
+      const f = TestBed.createComponent(CarouselElementComponent);
+      f.componentRef.setInput('slides', slides);
+      f.componentRef.setInput('autoplay', autoplay);
+      f.componentRef.setInput('interval', 1000);
+      f.detectChanges();
+      return f;
+    }
+
+    const boton = (f: ComponentFixture<CarouselElementComponent>): HTMLButtonElement | null =>
+      (f.nativeElement as HTMLElement).querySelector('.carousel__autoplay-toggle button');
+
+    function pasar(f: ComponentFixture<CarouselElementComponent>, ms: number): void {
+      vi.advanceTimersByTime(ms);
+      f.detectChanges();
+    }
+
+    it('sin autoplay, o con una sola diapositiva, no hay botón: nada se mueve', () => {
+      expect(boton(montar(false))).toBeNull();
+      expect(boton(montar(true, JSON.stringify([{ src: 'a.jpg' }])))).toBeNull();
+    });
+
+    it('pausar detiene el avance y reproducir lo reanuda, con la etiqueta del diccionario', () => {
+      const f = montar(true);
+      expect(boton(f)?.getAttribute('aria-label')).toBe('Pausar presentación');
+
+      pasar(f, 1000);
+      expect(f.componentInstance.activeIndex()).toBe(1);
+
+      boton(f)?.click();
+      f.detectChanges();
+      expect(boton(f)?.getAttribute('aria-label')).toBe('Reproducir presentación');
+      pasar(f, 5000);
+      expect(f.componentInstance.activeIndex()).toBe(1);
+
+      boton(f)?.click();
+      f.detectChanges();
+      pasar(f, 1000);
+      expect(f.componentInstance.activeIndex()).toBe(0);
+    });
+  });
 });

@@ -5,6 +5,18 @@
     </header>
   }
 
+  @if (autoplayActive()) {
+    <div class="carousel__controls">
+      <syn-button
+        class="carousel__autoplay-toggle"
+        variant="ghost"
+        size="sm"
+        [label]="autoplayToggleLabel()"
+        (click)="toggleAutoplay()"
+      />
+    </div>
+  }
+
   <syn-carousel
     class="carousel__viewport"
     [items]="slides()"

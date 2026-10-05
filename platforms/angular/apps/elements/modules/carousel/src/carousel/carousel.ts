@@ -12,6 +12,7 @@ import type { CarouselProps } from '@synergos/contracts';
 import { InitialDataService } from '@synergos/core';
 import { t } from '@synergos/vitals-core';
 import {
+  ButtonComponent,
   CarouselComponent,
   type CarouselItem,
   type CarouselItemType,
@@ -103,7 +104,7 @@ export function sanitizeCarouselConfig(value: Partial<CarouselProps>): Partial<C
 @Component({
   selector: 'sg-carousel',
   standalone: true,
-  imports: [CarouselComponent, HeadingComponent],
+  imports: [ButtonComponent, CarouselComponent, HeadingComponent],
   templateUrl: './carousel.html',
   styleUrl: './carousel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -166,6 +167,20 @@ export class CarouselElementComponent {
   readonly slideLabel = computed(() => t('Slider.GoToSlide', 'Ir a diapositiva {n}'));
 
   readonly activeIndex = signal(0);
+  readonly paused = signal(false);
+
+  /**
+   * El carrusel se mueve solo: WCAG 2.2.2 exige poder pausarlo. El botón sale sólo cuando de verdad
+   * hay movimiento (autoplay, sin `prefers-reduced-motion` y con más de una diapositiva).
+   */
+  readonly autoplayActive = computed(
+    () => this.autoplay() && !this.#prefersReducedMotion && this.slides().length > 1,
+  );
+  readonly autoplayToggleLabel = computed(() =>
+    this.paused()
+      ? t('Slider.Play', 'Reproducir presentación')
+      : t('Slider.Pause', 'Pausar presentación'),
+  );
 
   #autoplayTimer: ReturnType<typeof setInterval> | null = null;
   #prefersReducedMotion = false;
@@ -178,12 +193,7 @@ export class CarouselElementComponent {
     effect(() => {
       this.stopAutoplay();
 
-      const canAutoplay =
-        this.autoplay() &&
-        !this.#prefersReducedMotion &&
-        this.slides().length > 1;
-
-      if (!canAutoplay) {
+      if (!this.autoplayActive() || this.paused()) {
         return;
       }
 
@@ -195,6 +205,10 @@ export class CarouselElementComponent {
 
   onActiveIndexChange(index: number): void {
     this.activeIndex.set(index);
+  }
+
+  toggleAutoplay(): void {
+    this.paused.update((paused) => !paused);
   }
 
   private advance(): void {

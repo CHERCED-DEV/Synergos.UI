@@ -22,6 +22,11 @@
     color: var(--carousel-heading-color);
   }
 
+  &__controls {
+    display: flex;
+    justify-content: flex-end;
+  }
+
   &__viewport {
     display: block;
   }
