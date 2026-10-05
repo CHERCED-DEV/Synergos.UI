@@ -566,7 +566,7 @@ export interface RatingStarsProps {
   readonly label?: string;
 }
 
-/** <synergos-realty> · funcionalidad */
+/** <synergos-realty> · funcionalidad · diccionario: Realty.Visit */
 export interface RealtyProps {
   /** contenido */
   readonly heading?: string;
@@ -2106,8 +2106,8 @@ export const REALTY_SYNHOST: ElementoSynHost<RealtyProps> = {
   nombre: "realty",
   tipo: "funcionalidad",
   record: "RealtyProps",
-  diccionario: [],
-  claves: [],
+  diccionario: ["Realty.Visit"],
+  claves: ["Realty.Visit.SlotsEmpty","Realty.Visit.SlotsFailed","Realty.Visit.SlotsLoading"],
   campos: ["heading","subheading","apiBase","defaultRatePercent"],
   listas: {},
   selectores: [],

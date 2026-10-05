@@ -399,14 +399,14 @@
                 <!-- Las franjas son las que contesta el servidor y nada más: sin agenda de
                      ejemplo. Mientras carga, si falla o si no hay, se dice. -->
                 @if (visitSlotsState() === 'cargando') {
-                  <p class="realty__slots-note">Cargando la agenda del agente…</p>
+                  <p class="realty__slots-note">{{ agendaCargando() }}</p>
                 } @else if (visitSlotsState() === 'fallo') {
                   <div class="realty__slots-note realty__slots-note--fallo">
-                    <p>No pudimos cargar la agenda del agente. No te mostramos horarios que no podamos confirmar.</p>
+                    <p>{{ agendaFallo() }}</p>
                     <button type="button" class="realty__btn realty__btn--ghost" (click)="retryVisitSlots()">Reintentar</button>
                   </div>
                 } @else if (availableSlots().length === 0) {
-                  <p class="realty__slots-note">No hay franjas disponibles para este inmueble por ahora.</p>
+                  <p class="realty__slots-note">{{ agendaVacia() }}</p>
                 }
                 <div class="realty__slots">
                   @for (day of availableDays(); track day) {

@@ -97,7 +97,7 @@ import {
   type AgentView,
   type RealtyView,
 } from './realty.model';
-import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte } from '@synergos/vitals-core';
+import { baseDeRuta, mismaRuta, segmentosDeRuta, formatearImporte, t } from '@synergos/vitals-core';
 
 /**
  * Runtime config for the CMS element <c>elementSynRealty</c>.
@@ -250,6 +250,11 @@ let realtyInstanceId = 0;
 })
 export class RealtyElementComponent implements OnInit {
   readonly #destroyRef = inject(DestroyRef);
+
+  /** Los estados de la agenda de la visita, del diccionario (ADR 0136, sección `Realty.Visit` que declara `RealtyProps`). */
+  readonly agendaCargando = computed(() => t('Realty.Visit.SlotsLoading', 'Cargando la agenda del agente…'));
+  readonly agendaFallo = computed(() => t('Realty.Visit.SlotsFailed', 'No pudimos cargar la agenda del agente. No te mostramos horarios que no podamos confirmar.'));
+  readonly agendaVacia = computed(() => t('Realty.Visit.SlotsEmpty', 'No hay franjas disponibles para este inmueble por ahora.'));
   readonly #store = inject(SessionStore);
   readonly #fulfillment = inject(FulfillmentContext);
   readonly #orchestrator = inject(OrchestratorService);
